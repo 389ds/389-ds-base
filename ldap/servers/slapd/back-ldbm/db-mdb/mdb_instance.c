@@ -7,10 +7,10 @@
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
+
 #include <config.h>
 #endif
 #include "mdb_layer.h"
-
 
 /* Info file used to check version and get parameters needed to open the db in dbscan case */
 
@@ -54,6 +54,7 @@ static flagsdesc_t mdb_env_flags_desc[] = {
     { "MDB_NOMEMINIT", MDB_NOMEMINIT},
     { 0 }
 };
+#if 0
 
 static flagsdesc_t mdb_op_flags_desc[] = {
     { "MDB_NOOVERWRITE", MDB_NOOVERWRITE},
@@ -65,6 +66,7 @@ static flagsdesc_t mdb_op_flags_desc[] = {
     { "MDB_MULTIPLE", MDB_MULTIPLE},
     { 0 }
 };
+#endif
 
 static flagsdesc_t mdb_dbi_flags_desc[] = {
     { "MDB_REVERSEKEY", MDB_REVERSEKEY},
@@ -111,35 +113,27 @@ int dbmdb_db_lookup(dbmdb_ctx_t *ctx, const char *dbname)
     return -1 - imin; 
 }
 
-int dbmdb_dbitxn_begin(dbmdb_cursor_t *dbicur, const char *funcname, MDB_txn *parent, int readonly)
+/*
+ * Rules:
+ * NULL comes before anything else.
+ * Otherwise, strcmp(elem_a->rdn_elem_nrdn_rdn - elem_b->rdn_elem_nrdn_rdn) is
+ * returned.
+ */
+int
+dbmdb_entryrdn_compare_dups(const MDB_val *a, const MDB_val *b)
 {
-    int rc = mdb_txn_begin(dbicur->dbi.env, NULL, readonly, &dbicur->txn);
-    if (0 != rc) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                  "dbmdb_get_db", "Failed to open a transaction in function %s. Database instance is: %s. err=%d %s\n",
-                  funcname, dbicur->dbi.dbname, rc, mdb_strerror(rc));
+    if (NULL == a) {
+        if (NULL == b) {
+            return 0;
+        } else {
+            return -1;
+        }
+    } else if (NULL == b) {
+        return 1;
     }
-    return rc;
+    return entryrdn_compare_rdn_elem(a->mv_data, b->mv_data);
 }
 
-int dbmdb_dbitxn_end(dbmdb_cursor_t *dbicur, const char *funcname, int return_code)
-{
-    if (dbicur->txn) {
-        if (0 == return_code) {
-            return_code = mdb_txn_commit(dbicur->txn);
-            dbicur->txn = NULL;
-            if (0 != return_code) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                        "dbmdb_get_db", "Failed to commit a transaction in function %s. Database instance is: %s. err=%d %s\n",
-                        funcname, dbicur->dbi.dbname, return_code, mdb_strerror(return_code));
-            }
-        } else {
-            mdb_txn_abort(dbicur->txn);
-        }
-        dbicur->txn = NULL;
-    }
-    return return_code;
-}
 
 
 #define MDB_DBIOPEN_MASK (MDB_REVERSEKEY | MDB_DUPSORT | MDB_INTEGERKEY |  \
@@ -159,6 +153,7 @@ int dbmdb_open_dbname(dbmdb_dbi_t *dbi, dbmdb_ctx_t *ctx, const char *dbname, in
     MDB_val key = {0};
     MDB_val data = {0};
     int idx;                        /* Position in ctx->dbis table */
+    char *pt;
 
     dbi->env = ctx->env;
     dbi->dbname = dbname;
@@ -190,20 +185,21 @@ int dbmdb_open_dbname(dbmdb_dbi_t *dbi, dbmdb_ctx_t *ctx, const char *dbname, in
         flags &= ~MDB_CREATE;
     } else if (ctx->nbdbis >= ctx->startcfg.max_dbs) {
         rc = MDB_DBS_FULL;
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_cursor",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_dbname",
             "Cannot open database %s (database table is full)\n", dbname);
         goto openfail;
     }
     
     if (!dbi->dbi) {
         /* open or create the dbname database */
-        rc = dbmdb_dbitxn_begin(&cur, "dbmdb_open_dbname", NULL, flags & MDB_RDONLY);
+        /* First we need a txn */
+        rc = START_TXN(&cur.txn, NULL, TXNFL_DBI | ((flags & MDB_CREATE) ? 0 : TXNFL_RDONLY));
         if (rc) {
             goto openfail;
         }
-        rc = mdb_dbi_open(cur.txn, dbname, (flags & MDB_DBIOPEN_MASK), &dbi->dbi);
+        rc = mdb_dbi_open(TXN(cur.txn), dbname, (flags & MDB_DBIOPEN_MASK), &dbi->dbi);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_cursor",
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_dbname",
                 "Failed to open %s database err=%d: %s\n", dbname, rc, mdb_strerror(rc));
             goto openfail;
         }
@@ -213,14 +209,19 @@ int dbmdb_open_dbname(dbmdb_dbi_t *dbi, dbmdb_ctx_t *ctx, const char *dbname, in
             ctx->dbinames_dbi = dbi->dbi;
         } else if (idx<0) {
             /* Adding the entry in DBNAMES while holding the txn */
-            rc = mdb_put(cur.txn, ctx->dbinames_dbi, &key, &data, 0);
+            rc = mdb_put(TXN(cur.txn), ctx->dbinames_dbi, &key, &data, 0);
             if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_cursor",
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_dbname",
                     "Failed to add item in DBNAMES database err=%d: %s while opening database %s\n", rc, mdb_strerror(rc), dbname);
                 goto openfail;
             }
         }
-        rc = dbmdb_dbitxn_end(&cur, "dbmdb_open_dbname", 0);
+        pt = strrchr(dbname, '/');
+        if (pt && strstr(pt, LDBM_ENTRYRDN_STR)) {
+            mdb_set_dupsort(TXN(cur.txn), dbi->dbi, dbmdb_entryrdn_compare_dups);
+        }
+
+        rc = END_TXN(&cur.txn, rc);
         if (rc) {
             goto openfail;
         }
@@ -241,7 +242,7 @@ int dbmdb_open_dbname(dbmdb_dbi_t *dbi, dbmdb_ctx_t *ctx, const char *dbname, in
     }
     dbi->state = fstate;
 openfail:
-    rc = dbmdb_dbitxn_end(&cur, "dbmdb_open_dbname", rc);
+    rc = END_TXN(&cur.txn, rc);
     pthread_mutex_unlock(&ctx->dbis_lock);
     return rc;
 }
@@ -254,16 +255,15 @@ int dbmdb_open_cursor(dbmdb_cursor_t *dbicur, dbmdb_ctx_t *ctx, const char *dbna
     }
     if (ctx->readonly)
         flags |= MDB_RDONLY;
-    rc = dbmdb_dbitxn_begin(dbicur, "dbmdb_open_cursor", NULL, flags & MDB_RDONLY);
+    rc = START_TXN(&dbicur->txn, NULL, 0);
     if (rc) {
         return rc;
     }
-    rc = mdb_cursor_open(dbicur->txn, dbicur->dbi.dbi, &dbicur->cur);
+    rc = mdb_cursor_open(TXN(dbicur->txn), dbicur->dbi.dbi, &dbicur->cur);
     if (rc) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_cursor",
-                "Failed to open a txn err=%d: %s\n", rc, mdb_strerror(rc));
-        dbmdb_dbitxn_end(dbicur, "dbmdb_open_cursor", 0);
-        return rc;
+                "Failed to open a cursor err=%d: %s\n", rc, mdb_strerror(rc));
+        END_TXN(&dbicur->txn, rc);
     }
     return rc;
 }
@@ -292,7 +292,8 @@ static int dbmdb_init_dbilist(dbmdb_ctx_t *ctx)
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_init_dbilist",
                 "Too many databases in DBNAMES (%d/%d).\n", ctx->nbdbis, ctx->startcfg.max_dbs);
             mdb_cursor_close(dbicur.cur);
-            mdb_txn_abort(dbicur.txn);
+            END_TXN(&dbicur.txn, 1);
+            return MDB_DBS_FULL;
         }
         ctx->dbis[ctx->nbdbis].dbname = slapi_ch_strdup(key.mv_data);
         ctx->dbis[ctx->nbdbis].state = *(dbistate_t*)(data.mv_data);
@@ -302,7 +303,7 @@ static int dbmdb_init_dbilist(dbmdb_ctx_t *ctx)
         rc = mdb_cursor_get(dbicur.cur, &key, &data, MDB_NEXT);
     }
     mdb_cursor_close(dbicur.cur);
-    mdb_txn_abort(dbicur.txn);
+    END_TXN(&dbicur.txn, 1);
     if (rc == MDB_NOTFOUND) {
         rc = 0;
     }
@@ -463,6 +464,7 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
     dbmdb_info_t curinfo = ctx->info;
     int rc = 0;
 
+    init_mdbtxn(ctx);
     ctx->readonly = readOnly;
     /* read the info file */
     rc = dbmdb_read_infofile(ctx, !ctx->startcfg.dseloaded);
@@ -522,6 +524,7 @@ void dbmdb_mdbdbi2dbi_db(const dbmdb_dbi_t *dbi, dbi_db_t **ppDB)
 {
     dbmdb_dbi_t *db = (dbmdb_dbi_t *) slapi_ch_calloc(1, sizeof (dbmdb_dbi_t));   
     *db = *dbi;
+    db->dbname = slapi_ch_strdup(db->dbname);
     *ppDB = (dbi_db_t *)db;
 }
 
@@ -536,6 +539,7 @@ void dbmdb_ctx_close(dbmdb_ctx_t *ctx)
     }
     slapi_ch_free((void**)&ctx->dbis);
     pthread_mutex_destroy(&ctx->dbis_lock);
+    pthread_rwlock_destroy(&ctx->dbmdb_env_lock);
 }
 
 int append_str(char *buff, int bufsize, int pos, const char *str1, const char *str2)
@@ -568,6 +572,13 @@ int append_flags(char *buff, int bufsize, int pos, const char *name, int flags, 
     return pos;
 }
 
+void dbmdb_envflags2str(int flags, char *str, int maxlen)
+{
+    char buf[30];
+    PR_snprintf(buf, sizeof buf, "flags=0x%x", flags);
+    append_flags(str, maxlen, 0, buf, flags, mdb_env_flags_desc); 
+}
+
 dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
 {
     dbi_dbslist_t *dbs = NULL;
@@ -591,3 +602,4 @@ dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
     dbmdb_ctx_close(&ctx);
     return dbs;
 }
+

@@ -1500,7 +1500,7 @@ _entryrdn_get_elem(dbi_cursor_t *cursor,
 {
     int rc = 0;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_elem", "--> _entryrdn_get_elem\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_elem", "--> _entryrdn_get_elem (key=%s)\n", (char*)(key->data));
     if (NULL == cursor || NULL == key || NULL == data || NULL == elem ||
         NULL == comp_key) {
         slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_get_elem",
@@ -1543,7 +1543,7 @@ retry_get:
         goto bail;
     }
 bail:
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_elem", "<-- _entryrdn_get_elem\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_elem", "<-- _entryrdn_get_elem (*elem rdn=%s)\n", RDN_ADDR(*elem));
     return rc;
 }
 
@@ -2773,7 +2773,7 @@ _entryrdn_index_read(backend *be,
     rdn_elem *tmpelem = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_index_read",
-                  "--> _entryrdn_index_read\n");
+                  "--> _entryrdn_index_read (rdn=%s)\n", srdn->rdn);
     if (NULL == be || NULL == cursor ||
         NULL == srdn || NULL == elem) {
         slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_index_read",
@@ -3074,7 +3074,7 @@ bail:
     slapi_ch_free_string(&keybuf);
     dblayer_value_free(be, &data);
     slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_index_read",
-                  "<-- _entryrdn_index_read\n");
+                  "<-- _entryrdn_index_read (rc=%d)\n", rc);
     return rc;
 }
 

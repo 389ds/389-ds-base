@@ -12,6 +12,10 @@
 #include "../import.h"
 #include <lmdb.h>
 
+#define START_TXN(ptxn, parent_txn, txnflags)        dbmdb_start_txn(__FUNCTION__, parent_txn, txnflags, ptxn)
+#define END_TXN(ptxn, rc)                dbmdb_end_txn(__FUNCTION__, rc, ptxn)
+#define TXN(txn)                         dbmdb_txn(txn)
+
 #define MDB_CONFIG(li) ((dbmdb_ctx_t *)(li)->li_dblayer_config)
 
 #define DBMDB_DATAVERSION   1
@@ -33,6 +37,10 @@
 /* dbmdb_open_cursor flags */
 #define DBMDB_CREATE                 1
 #define DBMDB_READONLY               2
+
+/* txn flags */
+#define TXNFL_DBI                    1
+#define TXNFL_RDONLY                 2
 
 /* config parameters */
 typedef struct
@@ -88,6 +96,8 @@ typedef struct
     MDB_dbi dbi;                  /* The handle */
 } dbmdb_dbi_t;
 
+
+
 /* structure which holds our stuff */
 typedef struct dbmdb_ctx_t
 {
@@ -102,6 +112,7 @@ typedef struct dbmdb_ctx_t
     MDB_dbi dbinames_dbi;          /* __DBNAMES database handler */
     MDB_env *env;
     int readonly;                  /* Tells that env is open in readonly mode */
+    pthread_rwlock_t dbmdb_env_lock; /* txn global lock */
     perfctrs_private *perfctrs_priv;
 } dbmdb_ctx_t;
 
@@ -112,7 +123,7 @@ typedef struct dbmdb_ctx_t
 typedef struct dbmdb_cursor_t
 {
     dbmdb_dbi_t dbi;
-    MDB_txn *txn;
+    dbi_txn_t *txn;
     MDB_cursor *cur;
 } dbmdb_cursor_t; 
 
@@ -169,6 +180,8 @@ dblayer_dbi_txn_commit_fn_t dbmdb_dbi_txn_commit;
 dblayer_dbi_txn_abort_fn_t dbmdb_dbi_txn_abort;
 dblayer_get_entries_count_fn_t dbmdb_get_entries_count;
 dblayer_cursor_get_count_fn_t dbmdb_public_cursor_get_count;
+dblayer_private_open_fn_t dbmdb_public_private_open;
+dblayer_private_close_fn_t dbmdb_public_private_close;
 
 /* instance functions */
 int dbmdb_instance_cleanup(struct ldbm_instance *inst);
@@ -239,6 +252,7 @@ int dbmdb_lookup_dbversion(char *dbversion, int flag);
 int dbmdb_dse_conf_backup(struct ldbminfo *li, char *destination_directory);
 int dbmdb_dse_conf_verify(struct ldbminfo *li, char *src_dir);
 int dbmdb_import_file_check_fn_t(ldbm_instance *inst);
+dbi_error_t dbmdb_map_error(const char *funcname, int err);
 
 
 /* dbimpl helpers */
@@ -306,4 +320,11 @@ int dbmdb_dbitxn_begin(dbmdb_cursor_t *dbicur, const char *funcname, MDB_txn *pa
 int dbmdb_dbitxn_end(dbmdb_cursor_t *dbicur, const char *funcname, int return_code);
 void dbmdb_mdbdbi2dbi_db(const dbmdb_dbi_t *dbi, dbi_db_t **ppDB);
 dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome);
+void dbmdb_envflags2str(int flags, char *str, int maxlen);
+
+/* mdb_txn.c */
+int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_txn_t **txn);
+int dbmdb_end_txn(const char *funcname, int rc, dbi_txn_t **txn);
+void init_mdbtxn(dbmdb_ctx_t *ctx);
+MDB_txn *dbmdb_txn(dbi_txn_t *txn);
 

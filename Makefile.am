@@ -190,7 +190,8 @@ LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ @ldap_lib_ldif@ -llber@ol_libv
 ldaplib = @ldaplib@
 ldaplib_defs = @ldaplib_defs@
 
-DB_LINK = @db_lib@ -ldb-@db_libver@
+DB_LINK = @db_lib@ -ldb-@db_libver@ -llmdb
+DB_INC = @db_inc@
 DB_IMPL = libback-ldbm.la
 SASL_LINK = $(SASL_LIBS)
 NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
@@ -1187,7 +1188,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	$(GETSOCKETPEER) \
 	$(libavl_a_SOURCES)
 
-libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) @db_inc@ $(KERBEROS_CFLAGS) $(PCRE_CFLAGS) $(SVRCORE_INCLUDES)
+libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(DB_INC) $(KERBEROS_CFLAGS) $(PCRE_CFLAGS) $(SVRCORE_INCLUDES)
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LIBS) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LIBS) libsvrcore.la
 # If asan is enabled, it creates special libcrypt interceptors. However, they are
 # detected by the first load of libasan at runtime, and what is in the linked lib
@@ -1285,6 +1286,7 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_instance.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_instance_config.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_verify.c \
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_txn.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_layer.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_misc.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_perfctrs.c \
@@ -1297,9 +1299,9 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 
 
 
-libback_ldbm_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) @db_inc@
+libback_ldbm_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DB_INC)
 libback_ldbm_la_DEPENDENCIES = libslapd.la
-libback_ldbm_la_LIBADD = libslapd.la $(DB_LINK) $(LDAPSDK_LINK) $(NSPR_LINK) -llmdb
+libback_ldbm_la_LIBADD = libslapd.la $(DB_LINK) $(LDAPSDK_LINK) $(NSPR_LINK)
 libback_ldbm_la_LDFLAGS = -avoid-version
 
 #------------------------
@@ -1689,7 +1691,7 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/windows_protocol_util.c \
 	ldap/servers/plugins/replication/windows_tot_protocol.c
 
-libreplication_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(ICU_CFLAGS) @db_inc@
+libreplication_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(ICU_CFLAGS) $(DB_INC)
 libreplication_plugin_la_LIBADD = libslapd.la libback-ldbm.la $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK) $(ICU_LIBS) $(DB_LINK)
 libreplication_plugin_la_DEPENDENCIES = libslapd.la libback-ldbm.la
 libreplication_plugin_la_LDFLAGS = -avoid-version

@@ -20,6 +20,19 @@
 
 Slapi_ComponentId *dbmdb_componentid;
 
+#define BULKOP_MAX_RECORDS  100 /* Max records handled by a single bulk operations */
+
+/* bulkdata->v.data contents */
+typedef struct {
+    int use_multiple;        /* If if we use GET_MULTIPLE/NEXT_MULTIPLE or use single operation method */
+    uint dbi_flags;          /* dbi flags */
+    MDB_cursor *cursor;      /* cursor position */
+    int op;                  /* MDB operation to get next value */
+    int maxrecords;          /* Number maximum of operation before moving to next block */
+    MDB_val data[2];         /* data for single or multiple operation */
+    MDB_val key;             /* key */
+} dbmdb_bulkdata_t;
+
 
 /* Use these macros to incr/decrement the thread count for the
    database housekeeping threads.  This ensures that the
@@ -65,17 +78,6 @@ static int dbmdb_start_checkpoint_thread(struct ldbminfo *li);
 static int dbmdb_start_trickle_thread(struct ldbminfo *li);
 static int dbmdb_start_perf_thread(struct ldbminfo *li);
 static int dbmdb_start_txn_test_thread(struct ldbminfo *li);
-static int trans_batch_count = 0;
-static int trans_batch_limit = 0;
-static int trans_batch_txn_min_sleep = 50; /* ms */
-static int trans_batch_txn_max_sleep = 50;
-static PRBool log_flush_thread = PR_FALSE;
-static int txn_in_progress_count = 0;
-static int *txn_log_flush_pending = NULL;
-
-static pthread_mutex_t sync_txn_log_flush;
-static pthread_cond_t sync_txn_log_flush_done;
-static pthread_cond_t sync_txn_log_do_flush;
 
 
 static int dbmdb_db_compact_one_db(MDB_dbi*db, ldbm_instance *inst);
@@ -295,24 +297,15 @@ dbmdb_get_batch_txn_max_sleep(void *arg __attribute__((unused)))
 char *
 dbmdb_get_home_dir(struct ldbminfo *li, int *dbhome)
 {
-#ifdef TODO
-    dbmdb_ctx_t *priv = (dbmdb_ctx_t *)li->li_dblayer_config;
-    char *home_dir = li->li_directory;
-    if (dbhome)
-        *dbhome = 0;
-
-    if (priv->dbmdb_dbhome_directory && *(priv->dbmdb_dbhome_directory)) {
-        if (dbhome)
-            *dbhome = 1;
-        home_dir = priv->dbmdb_dbhome_directory;
+    dbmdb_ctx_t *conf = (dbmdb_ctx_t *)li->li_dblayer_config;
+    if (conf->home[0]) {
+        *dbhome = 1;
+        return conf->home;
     }
-    if (NULL == home_dir) {
-        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_get_home_dir", "Db home directory is not set. "
-                                                                 "Possibly %s (optionally %s) is missing in the config file.\n",
+    slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_get_home_dir", "Db home directory is not set. "
+                      "Possibly %s (optionally %s) is missing in the config file.\n",
                       CONFIG_DIRECTORY, CONFIG_DB_HOME_DIRECTORY);
-    }
-    return home_dir;
-#endif /* TODO */
+    return NULL;
 }
 
 /*
@@ -911,7 +904,6 @@ dbmdb_instance_start(backend *be, int mode)
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     dbmdb_ctx_t *ctx = MDB_CONFIG(li);
-    char inst_dir[MAXPATHLEN];
     char *inst_dirp = NULL;
     int return_value = -1;
     dbmdb_dbi_t id2entry_dbi = {0};
@@ -981,7 +973,6 @@ dbmdb_instance_start(backend *be, int mode)
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_instance_start", "Failure %s (%d)\n",
                       dblayer_strerror(return_value), return_value);
     }
-errout:
     return return_value;
 }
 
@@ -1463,7 +1454,7 @@ dbmdb_set_dbi_callbacks(dbmdb_ctx_t *conf, dbmdb_dbi_t *dbi, struct attrinfo *ai
 {
     int rc = 0;
     if (!ai) {
-        /* Only dbi needing callbacks are thoses supporting duplicates (in other words: the index ones)
+        /* Only dbi needing callbacks are thoses supporting duplicates (in other words: the index ones) */
         return 0;
     }
     if (!idl_get_idl_new()) {
@@ -1472,25 +1463,25 @@ dbmdb_set_dbi_callbacks(dbmdb_ctx_t *conf, dbmdb_dbi_t *dbi, struct attrinfo *ai
        return -1;
     }
 
-    /* May need to use mdb_set_dupsort / mdb_set_compare here */
-    /* (ai->ai_indexmask & INDEX_VLV)) */
-        /*
-            if (ai->ai_key_cmp_fn) { /# set in attr_index_config() #/
-          This is so that we can have ordered keys in the index, so that
-          greater than/less than searches work on indexed attrs.  We had
-          to introduce this when we changed the integer key format from
-          a 32/64 bit value to a normalized string value.  The default
-          mdb key cmp is based on length and lexicographic order, which
-          does not work with integer strings.
-
-          NOTE: If we ever need to use app_private for something else, we
-          will have to create some sort of data structure with different
-          fields for different uses.  We will also need to have a new()
-          function that creates and allocates that structure, and a
-          destroy() function that destroys the structure, and make sure
-          to call it when the DB* is closed and/or freed.
-        */
-    }
+   /*
+    * May need to use mdb_set_dupsort / mdb_set_compare here 
+    * (ai->ai_indexmask & INDEX_VLV)) 
+    *
+    *   if (ai->ai_key_cmp_fn) {} /# set in attr_index_config() #/
+    * This is so that we can have ordered keys in the index, so that
+    * greater than/less than searches work on indexed attrs.  We had
+    * to introduce this when we changed the integer key format from
+    * a 32/64 bit value to a normalized string value.  The default
+    * mdb key cmp is based on length and lexicographic order, which
+    * does not work with integer strings.
+    *
+    * NOTE: If we ever need to use app_private for something else, we
+    * will have to create some sort of data structure with different
+    * fields for different uses.  We will also need to have a new()
+    * function that creates and allocates that structure, and a
+    * destroy() function that destroys the structure, and make sure
+    * to call it when the DB* is closed and/or freed.
+    */
     return rc;
 }
 
@@ -1531,7 +1522,9 @@ dbmdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, d
     open_flags = 0;
     if (open_flag & DBOPEN_CREATE)
         open_flags |= MDB_CREATE;
-    if (ai) {
+    if (!strcasecmp(indexname, LDBM_ENTRYRDN_STR)) {
+        open_flags |= MDB_DUPSORT;
+    } else if (ai) {
         /* That is either a standard index or a VLV index */
         /* if (ai->ai_indexmask & INDEX_VLV)) ... */
         open_flags |= MDB_DUPSORT + MDB_INTEGERDUP + MDB_DUPFIXED;
@@ -1541,7 +1534,7 @@ dbmdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, d
     if (0 != return_value)
         goto out;
 
-    return_value = dbmdb_dbitxn_begin(&cur, "dbmdb_get_db", NULL, 0);
+    return_value = START_TXN(&cur.txn, NULL, TXNFL_DBI);
     if (0 != return_value)
         goto out;
 
@@ -1555,14 +1548,14 @@ dbmdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, d
         }
     }
 
-    return_value = dbmdb_set_dbi_callbacks(conf, &cur, ai);
+    return_value = dbmdb_set_dbi_callbacks(conf, &cur.dbi, ai);
     if (return_value) {
         goto out;
     }
     dbmdb_mdbdbi2dbi_db(&cur.dbi, ppDB);
 
 out:
-    return_value = dbmdb_dbitxn_end(&cur, "dbmdb_get_db", return_value);
+    return_value = END_TXN(&cur.txn, return_value);
     slapi_ch_free((void **)&dbname);
     return return_value;
 }
@@ -1782,7 +1775,6 @@ dbmdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_
 int
 dbmdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool use_lock)
 {
-#ifdef TODO
     int return_value = -1;
     dbmdb_ctx_t *conf = NULL;
     dblayer_private *priv = NULL;
@@ -1805,13 +1797,11 @@ dbmdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBoo
         txn->back_txn_txn = NULL;
     }
 
-    if (conf->dbmdb_enable_transactions) {
-        int txn_begin_flags;
-        MDB_txn *new_txn_back_txn_txn = NULL;
+    if (1) {
+        dbi_txn_t *new_txn_back_txn_txn = NULL;
 
-        dbmdb_db_env *pEnv = (dbmdb_db_env *)priv->dblayer_env;
         if (use_lock)
-            slapi_rwlock_rdlock(pEnv->dbmdb_env_lock);
+            slapi_rwlock_rdlock(&conf->dbmdb_env_lock);
         if (!parent_txn) {
             /* see if we have a stored parent txn */
             back_txn *par_txn_txn = dblayer_get_pvt_txn();
@@ -1819,31 +1809,15 @@ dbmdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBoo
                 parent_txn = par_txn_txn->back_txn_txn;
             }
         }
-        if (conf->dbmdb_txn_wait) {
-            txn_begin_flags = 0;
-        } else {
-            txn_begin_flags = MDB_txn_NOWAIT;
-        }
-        return_value = TXN_BEGIN(pEnv->dbmdb_MDB_env,
-                                 (MDB_txn *)parent_txn,
-                                 &new_txn_back_txn_txn,
-                                 txn_begin_flags);
+        return_value = START_TXN(&new_txn_back_txn_txn, parent_txn, 0);
+        return_value = dbmdb_map_error(__FUNCTION__, return_value);
         if (0 != return_value) {
             if (use_lock)
-                slapi_rwlock_unlock(pEnv->dbmdb_env_lock);
+                slapi_rwlock_unlock(&conf->dbmdb_env_lock);
         } else {
             new_txn.back_txn_txn = new_txn_back_txn_txn;
             /* this txn is now our current transaction for current operations
                and new parent for any nested transactions created */
-            if (use_lock && log_flush_thread) {
-                int txn_id = new_txn_back_txn_txn->id(new_txn_back_txn_txn);
-                pthread_mutex_lock(&sync_txn_log_flush);
-                txn_in_progress_count++;
-                slapi_log_err(SLAPI_LOG_BACKLDBM, "dblayer_txn_begin_ext",
-                              "Batchcount: %d, txn_in_progress: %d, curr_txn: %x\n",
-                              trans_batch_count, txn_in_progress_count, txn_id);
-                pthread_mutex_unlock(&sync_txn_log_flush);
-            }
             dblayer_push_pvt_txn(&new_txn);
             if (txn) {
                 txn->back_txn_txn = new_txn.back_txn_txn;
@@ -1858,20 +1832,16 @@ dbmdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBoo
                       return_value, dblayer_strerror(return_value));
     }
     return return_value;
-#endif /* TODO */
 }
 
 int
 dbmdb_txn_commit(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
 {
-#ifdef TODO
     int return_value = -1;
     dbmdb_ctx_t *conf = NULL;
     dblayer_private *priv = NULL;
-    MDB_txn *db_txn = NULL;
+    dbi_txn_t *db_txn = NULL;
     back_txn *cur_txn = NULL;
-    int txn_id = 0;
-    int txn_batch_slot = 0;
 
     PR_ASSERT(NULL != li);
 
@@ -1890,13 +1860,7 @@ dbmdb_txn_commit(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
             db_txn = cur_txn->back_txn_txn;
         }
     }
-    if (NULL != db_txn &&
-        1 != conf->dbmdb_stop_threads &&
-        priv->dblayer_env &&
-        conf->dbmdb_enable_transactions) {
-        dbmdb_db_env *pEnv = (dbmdb_db_env *)priv->dblayer_env;
-        txn_id = db_txn->id(db_txn);
-        return_value = TXN_COMMIT(db_txn, 0);
+    if (NULL != db_txn && conf->env) {
         /* if we were given a transaction, and it is the same as the
            current transaction in progress, pop it off the stack
            or, if no transaction was given, we must be using the
@@ -1904,51 +1868,14 @@ dbmdb_txn_commit(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
         if (!txn || (cur_txn && (cur_txn->back_txn_txn == db_txn))) {
             dblayer_pop_pvt_txn();
         }
+        return_value = END_TXN(&db_txn, 0);
+        return_value = dbmdb_map_error(__FUNCTION__, return_value);
         if (txn) {
             /* this handle is no longer value - set it to NULL */
             txn->back_txn_txn = NULL;
         }
-        if ((conf->dbmdb_durable_transactions) && use_lock) {
-            if (trans_batch_limit > 0 && log_flush_thread) {
-                /* let log_flush thread do the flushing */
-                pthread_mutex_lock(&sync_txn_log_flush);
-                txn_batch_slot = trans_batch_count++;
-                txn_log_flush_pending[txn_batch_slot] = txn_id;
-                slapi_log_err(SLAPI_LOG_BACKLDBM, "dblayer_txn_commit_ext",
-                              "(before notify): batchcount: %d, txn_in_progress: %d, curr_txn: %x\n",
-                              trans_batch_count,
-                              txn_in_progress_count, txn_id);
-                /*
-                 * The log flush thread will periodically flush the txn log,
-                 * but in two cases it should be notified to do it immediately:
-                 * - the batch limit is passed
-                 * - there is no other outstanding txn
-                 */
-                if (trans_batch_count > trans_batch_limit ||
-                    trans_batch_count == txn_in_progress_count)
-                {
-                    pthread_cond_signal(&sync_txn_log_do_flush);
-                }
-                /*
-                 * We need to wait until the txn has been flushed before continuing
-                 * and returning success to the client, nit to vialate durability
-                 * PR_WaitCondvar releases and reaquires the lock
-                 */
-                while (txn_log_flush_pending[txn_batch_slot] == txn_id) {
-                    pthread_cond_wait(&sync_txn_log_flush_done, &sync_txn_log_flush);
-                }
-                txn_in_progress_count--;
-                slapi_log_err(SLAPI_LOG_BACKLDBM, "dblayer_txn_commit_ext",
-                              "(before unlock): batchcount: %d, txn_in_progress: %d, curr_txn %x\n",
-                              trans_batch_count,
-                              txn_in_progress_count, txn_id);
-                pthread_mutex_unlock(&sync_txn_log_flush);
-            } else if (trans_batch_limit == FLUSH_REMOTEOFF) { /* user remotely turned batching off */
-                LOG_FLUSH(pEnv->dbmdb_MDB_env, 0);
-            }
-        }
         if (use_lock)
-            slapi_rwlock_unlock(pEnv->dbmdb_env_lock);
+            slapi_rwlock_unlock(&conf->dbmdb_env_lock);
     } else {
         return_value = 0;
     }
@@ -1962,20 +1889,20 @@ dbmdb_txn_commit(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
         }
     }
     return return_value;
-#endif /* TODO */
 }
 
 int
 dbmdb_txn_abort(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
 {
-#ifdef TODO
     int return_value = -1;
     dblayer_private *priv = NULL;
-    MDB_txn *db_txn = NULL;
+    dbi_txn_t *db_txn = NULL;
     back_txn *cur_txn = NULL;
+    dbmdb_ctx_t *conf = NULL;
 
     PR_ASSERT(NULL != li);
 
+    conf = (dbmdb_ctx_t *)li->li_dblayer_config;
     priv = li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
 
@@ -1990,20 +1917,7 @@ dbmdb_txn_abort(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
             db_txn = cur_txn->back_txn_txn;
         }
     }
-    if (NULL != db_txn &&
-        priv->dblayer_env &&
-        BDB_CONFIG(li)->dbmdb_enable_transactions) {
-        int txn_id = db_txn->id(db_txn);
-        dbmdb_db_env *pEnv = (dbmdb_db_env *)priv->dblayer_env;
-        if (use_lock && log_flush_thread) {
-            pthread_mutex_lock(&sync_txn_log_flush);
-            txn_in_progress_count--;
-            pthread_mutex_unlock(&sync_txn_log_flush);
-            slapi_log_err(SLAPI_LOG_BACKLDBM, "dblayer_txn_abort_ext",
-                          "Batchcount: %d, txn_in_progress: %d, curr_txn: %x\n",
-                          trans_batch_count, txn_in_progress_count, txn_id);
-        }
-        return_value = TXN_ABORT(db_txn);
+    if (NULL != db_txn && conf->env) {
         /* if we were given a transaction, and it is the same as the
            current transaction in progress, pop it off the stack
            or, if no transaction was given, we must be using the
@@ -2011,12 +1925,14 @@ dbmdb_txn_abort(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
         if (!txn || (cur_txn && (cur_txn->back_txn_txn == db_txn))) {
             dblayer_pop_pvt_txn();
         }
+        END_TXN(&db_txn, 1);
+        return_value = 0;
         if (txn) {
             /* this handle is no longer value - set it to NULL */
             txn->back_txn_txn = NULL;
         }
         if (use_lock)
-            slapi_rwlock_unlock(pEnv->dbmdb_env_lock);
+            slapi_rwlock_unlock(&conf->dbmdb_env_lock);
     } else {
         return_value = 0;
     }
@@ -2030,1272 +1946,8 @@ dbmdb_txn_abort(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
         }
     }
     return return_value;
-#endif /* TODO */
 }
 
-uint32_t
-dbmdb_get_optimal_block_size(struct ldbminfo *li)
-{
-#ifdef TODO
-    uint32_t page_size = 0;
-
-    PR_ASSERT(NULL != li);
-
-    page_size = (BDB_CONFIG(li)->dbmdb_page_size == 0) ? DBLAYER_PAGESIZE : BDB_CONFIG(li)->dbmdb_page_size;
-    if (li->li_dblayer_private->dblayer_idl_divisor == 0) {
-        return page_size - DB_EXTN_PAGE_HEADER_SIZE;
-    } else {
-        return page_size / li->li_dblayer_private->dblayer_idl_divisor;
-    }
-#endif /* TODO */
-}
-
-
-
-/* code which implements checkpointing and log file truncation */
-
-/*
- * create a thread for perf_threadmain
- */
-static int
-dbmdb_start_perf_thread(struct ldbminfo *li)
-{
-#ifdef TODO
-    int return_value = 0;
-    if (NULL == PR_CreateThread(PR_USER_THREAD,
-                                (VFP)(void *)dbmdb_perf_threadmain, li,
-                                PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
-                                PR_UNJOINABLE_THREAD,
-                                SLAPD_DEFAULT_THREAD_STACKSIZE)) {
-        PRErrorCode prerr = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_start_perf_thread",
-                      "Failed to create database perf thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                      prerr, slapd_pr_strerror(prerr));
-        return_value = -1;
-    }
-    return return_value;
-#endif /* TODO */
-}
-
-/* Performance thread */
-static int
-dbmdb_perf_threadmain(void *param)
-{
-#ifdef TODO
-    struct ldbminfo *li = NULL;
-
-    PR_ASSERT(NULL != param);
-    li = (struct ldbminfo *)param;
-
-    dblayer_private *priv = li->li_dblayer_private;
-    dbmdb_db_env *pEnv = (dbmdb_db_env *)priv->dblayer_env;
-    PR_ASSERT(NULL != priv);
-
-    INCR_THREAD_COUNT(pEnv);
-
-    while (!BDB_CONFIG(li)->dbmdb_stop_threads) {
-        /* sleep for a while, updating perf counters if we need to */
-        dbmdb_perfctrs_wait(1000, BDB_CONFIG(li)->perf_private, pEnv->dbmdb_MDB_env);
-    }
-
-    DECR_THREAD_COUNT(pEnv);
-    slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_perf_threadmain", "Leaving dbmdb_perf_threadmain\n");
-    return 0;
-#endif /* TODO */
-}
-
-/*
- * create a thread for deadlock_threadmain
- */
-static int
-dbmdb_start_deadlock_thread(struct ldbminfo *li)
-{
-#ifdef TODO
-    int return_value = 0;
-    if (NULL == PR_CreateThread(PR_USER_THREAD,
-                                (VFP)(void *)dbmdb_deadlock_threadmain, li,
-                                PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
-                                PR_UNJOINABLE_THREAD,
-                                SLAPD_DEFAULT_THREAD_STACKSIZE)) {
-        PRErrorCode prerr = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_start_deadlock_thread",
-                      "Failed to create database deadlock thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                      prerr, slapd_pr_strerror(prerr));
-        return_value = -1;
-    }
-    return return_value;
-#endif /* TODO */
-}
-
-#ifdef TODO
-static const u_int32_t default_flags = DB_NEXT;
-#endif
-
-/* this is the loop delay - how long after we release the db pages
-   until we acquire them again */
-#define TXN_TEST_LOOP_WAIT(msecs)                                      \
-    do {                                                               \
-        if (msecs) {                                                   \
-            DS_Sleep(PR_MillisecondsToInterval(slapi_rand() % msecs)); \
-        }                                                              \
-    } while (0)
-
-/* this is how long we hold the pages open until we close the cursors */
-#define TXN_TEST_PAGE_HOLD(msecs)                                      \
-    do {                                                               \
-        if (msecs) {                                                   \
-            DS_Sleep(PR_MillisecondsToInterval(slapi_rand() % msecs)); \
-        }                                                              \
-    } while (0)
-
-typedef struct txn_test_iter
-{
-#ifdef TODO
-    MDB_dbi*db;
-    MDB_cursor *cur;
-    uint64_t cnt;
-    const char *attr;
-    uint32_t flags;
-    backend *be;
-#endif /* TODO */
-} dbmdb_txn_test_iter;
-
-typedef struct txn_test_cfg
-{
-#ifdef TODO
-    PRUint32 hold_msec;
-    PRUint32 loop_msec;
-    uint32_t flags;
-    int use_txn;
-    char **indexes;
-    int verbose;
-#endif /* TODO */
-} dbmdb_txn_test_cfg;
-
-static dbmdb_txn_test_iter *
-dbmdb_new_dbmdb_txn_test_iter(MDB_dbi*db, const char *attr, backend *be, uint32_t flags)
-{
-#ifdef TODO
-    dbmdb_txn_test_iter *tti = (dbmdb_txn_test_iter *)slapi_ch_malloc(sizeof(dbmdb_txn_test_iter));
-    tti->db = db;
-    tti->cur = NULL;
-    tti->cnt = 0;
-    tti->attr = attr;
-    tti->flags = default_flags | flags;
-    tti->be = be;
-    return tti;
-#endif /* TODO */
-}
-
-static void
-dbmdb_init_dbmdb_txn_test_iter(dbmdb_txn_test_iter *tti)
-{
-#ifdef TODO
-    if (tti->cur) {
-        if (tti->cur->dbp && (tti->cur->dbp->open_flags == 0x58585858)) {
-            /* already closed? */
-        } else if (tti->be && (tti->be->be_state != BE_STATE_STARTED)) {
-            /* already closed? */
-        } else {
-            tti->cur->c_close(tti->cur);
-        }
-        tti->cur = NULL;
-    }
-    tti->cnt = 0;
-    tti->flags = default_flags;
-#endif /* TODO */
-}
-
-static void
-dbmdb_free_dbmdb_txn_test_iter(dbmdb_txn_test_iter *tti)
-{
-#ifdef TODO
-    dbmdb_init_dbmdb_txn_test_iter(tti);
-    slapi_ch_free((void **)&tti);
-#endif /* TODO */
-}
-
-static void
-dbmdb_free_ttilist(dbmdb_txn_test_iter ***ttilist, uint64_t *tticnt)
-{
-#ifdef TODO
-    if (!ttilist || !*ttilist || !**ttilist) {
-        return;
-    }
-    while (*tticnt > 0) {
-        (*tticnt)--;
-        dbmdb_free_dbmdb_txn_test_iter((*ttilist)[*tticnt]);
-    }
-    slapi_ch_free((void *)ttilist);
-#endif /* TODO */
-}
-
-static void
-dbmdb_init_ttilist(dbmdb_txn_test_iter **ttilist, uint64_t tticnt)
-{
-#ifdef TODO
-    if (!ttilist || !*ttilist) {
-        return;
-    }
-    while (tticnt > 0) {
-        tticnt--;
-        dbmdb_init_dbmdb_txn_test_iter(ttilist[tticnt]);
-    }
-#endif /* TODO */
-}
-
-static void
-dbmdb_print_ttilist(dbmdb_txn_test_iter **ttilist, uint64_t tticnt)
-{
-#ifdef TODO
-    while (tticnt > 0) {
-        tticnt--;
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dbmdb_txn_test_threadmain", "attr [%s] cnt [%" PRIu64 "]\n",
-                      ttilist[tticnt]->attr, ttilist[tticnt]->cnt);
-    }
-#endif /* TODO */
-}
-
-#define TXN_TEST_IDX_OK_IF_NULL "nscpEntryDN"
-
-static void
-dbmdb_txn_test_init_cfg(dbmdb_txn_test_cfg *cfg)
-{
-#ifdef TODO
-    static char *indexlist = "aci,entryrdn,numsubordinates,uid,ancestorid,objectclass,uniquemember,cn,parentid,nsuniqueid,sn,id2entry," TXN_TEST_IDX_OK_IF_NULL;
-    char *indexlist_copy = NULL;
-
-    cfg->hold_msec = getenv(TXN_TEST_HOLD_MSEC) ? atoi(getenv(TXN_TEST_HOLD_MSEC)) : 200;
-    cfg->loop_msec = getenv(TXN_TEST_LOOP_MSEC) ? atoi(getenv(TXN_TEST_LOOP_MSEC)) : 10;
-    cfg->flags = getenv(TXN_TEST_USE_RMW) ? DB_RMW : 0;
-    cfg->use_txn = getenv(TXN_TEST_USE_TXN) ? 1 : 0;
-    if (getenv(TXN_TEST_INDEXES)) {
-        indexlist_copy = slapi_ch_strdup(getenv(TXN_TEST_INDEXES));
-    } else {
-        indexlist_copy = slapi_ch_strdup(indexlist);
-    }
-    cfg->indexes = slapi_str2charray(indexlist_copy, ",");
-    slapi_ch_free_string(&indexlist_copy);
-    cfg->verbose = getenv(TXN_TEST_VERBOSE) ? 1 : 0;
-
-    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_txn_test_init_cfg",
-                  "Config hold_msec [%d] loop_msec [%d] rmw [%d] txn [%d] indexes [%s]\n",
-                  cfg->hold_msec, cfg->loop_msec, cfg->flags, cfg->use_txn,
-                  getenv(TXN_TEST_INDEXES) ? getenv(TXN_TEST_INDEXES) : indexlist);
-#endif /* TODO */
-}
-
-static int
-dbmdb_txn_test_threadmain(void *param)
-{
-#ifdef TODO
-    struct ldbminfo *li = NULL;
-    Object *inst_obj;
-    int rc = 0;
-    dbmdb_txn_test_iter **ttilist = NULL;
-    uint64_t tticnt = 0;
-    MDB_txn *txn = NULL;
-    dbmdb_txn_test_cfg cfg = {0};
-    uint64_t counter = 0;
-    char keybuf[8192];
-    char databuf[8192];
-    int dbattempts = 0;
-    int dbmaxretries = 3;
-
-    PR_ASSERT(NULL != param);
-    li = (struct ldbminfo *)param;
-
-    dblayer_private *priv = li->li_dblayer_private;
-    PR_ASSERT(NULL != priv);
-    dbmdb_db_env *pEnv = (dbmdb_db_env *)priv->dblayer_env;
-
-    INCR_THREAD_COUNT(pEnv);
-
-    dbmdb_txn_test_init_cfg(&cfg);
-
-    if(!BDB_CONFIG(li)->dbmdb_enable_transactions) {
-        goto end;
-    }
-
-wait_for_init:
-    dbmdb_free_ttilist(&ttilist, &tticnt);
-    DS_Sleep(PR_MillisecondsToInterval(1000));
-    if (BDB_CONFIG(li)->dbmdb_stop_threads) {
-        goto end;
-    }
-    dbattempts++;
-    for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
-         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
-        char **idx = NULL;
-        ldbm_instance *inst = (ldbm_instance *)object_get_data(inst_obj);
-        backend *be = inst->inst_be;
-
-        if (be->be_state != BE_STATE_STARTED) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "dbmdb_txn_test_threadmain", "Backend not started, retrying\n");
-            object_release(inst_obj);
-            goto wait_for_init;
-        }
-
-        for (idx = cfg.indexes; idx && *idx; ++idx) {
-            MDB_dbi*db = NULL;
-            if (be->be_state != BE_STATE_STARTED) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dbmdb_txn_test_threadmain", "Backend not started, retrying\n");
-                object_release(inst_obj);
-                goto wait_for_init;
-            }
-
-            if (!strcmp(*idx, "id2entry")) {
-                dblayer_get_id2entry(be, (dbi_db_t**)&db);
-                if (db == NULL) {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "dbmdb_txn_test_threadmain", "id2entry database not found or not ready yet, retrying\n");
-                    object_release(inst_obj);
-                    goto wait_for_init;
-                }
-            } else {
-                struct attrinfo *ai = NULL;
-                ainfo_get(be, *idx, &ai);
-                if (NULL == ai) {
-                    if (dbattempts >= dbmaxretries) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "dbmdb_txn_test_threadmain", "Index [%s] not found or not ready yet, skipping\n",
-                                      *idx);
-                        continue;
-                    } else {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "dbmdb_txn_test_threadmain", "Index [%s] not found or not ready yet, retrying\n",
-                                      *idx);
-                        object_release(inst_obj);
-                        goto wait_for_init;
-                    }
-                }
-                if (dblayer_get_index_file(be, ai, (dbi_db_t**)&db, 0) || (NULL == db)) {
-                    if ((NULL == db) && strcasecmp(*idx, TXN_TEST_IDX_OK_IF_NULL)) {
-                        if (dbattempts >= dbmaxretries) {
-                            slapi_log_err(SLAPI_LOG_ERR,
-                                          "dbmdb_txn_test_threadmain", "Database file for index [%s] not found or not ready yet, skipping\n",
-                                          *idx);
-                            continue;
-                        } else {
-                            slapi_log_err(SLAPI_LOG_ERR,
-                                          "dbmdb_txn_test_threadmain", "Database file for index [%s] not found or not ready yet, retrying\n",
-                                          *idx);
-                            object_release(inst_obj);
-                            goto wait_for_init;
-                        }
-                    }
-                }
-            }
-            if (db) {
-                ttilist = (dbmdb_txn_test_iter **)slapi_ch_realloc((char *)ttilist, sizeof(dbmdb_txn_test_iter *) * (tticnt + 1));
-                ttilist[tticnt++] = dbmdb_new_dbmdb_txn_test_iter(db, *idx, be, cfg.flags);
-            }
-        }
-    }
-
-    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_txn_test_threadmain", "Starting main txn stress loop\n");
-    dbmdb_print_ttilist(ttilist, tticnt);
-
-    while (!BDB_CONFIG(li)->dbmdb_stop_threads) {
-    retry_txn:
-        dbmdb_init_ttilist(ttilist, tticnt);
-        if (txn) {
-            TXN_ABORT(txn);
-            txn = NULL;
-        }
-        if (cfg.use_txn) {
-            rc = TXN_BEGIN(((dbmdb_db_env *)priv->dblayer_env)->dbmdb_MDB_env, NULL, &txn, 0);
-            if (rc || !txn) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dbmdb_txn_test_threadmain", "Failed to create a new transaction, err=%d (%s)\n",
-                              rc, dblayer_strerror(rc));
-            }
-        } else {
-            rc = 0;
-        }
-        if (!rc) {
-            MDB_val key;
-            MDB_val data;
-            uint64_t ii;
-            uint64_t donecnt = 0;
-            uint64_t cnt = 0;
-
-            /* phase 1 - open a cursor to each db */
-            if (cfg.verbose) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dbmdb_txn_test_threadmain", "Starting [%" PRIu64 "] indexes\n", tticnt);
-            }
-            for (ii = 0; ii < tticnt; ++ii) {
-                dbmdb_txn_test_iter *tti = ttilist[ii];
-
-            retry_cursor:
-                if (BDB_CONFIG(li)->dbmdb_stop_threads) {
-                    goto end;
-                }
-                if (tti->be->be_state != BE_STATE_STARTED) {
-                    if (txn) {
-                        TXN_ABORT(txn);
-                        txn = NULL;
-                    }
-                    goto wait_for_init;
-                }
-                if (tti->db->open_flags == 0xdmdbdmdb) {
-                    if (txn) {
-                        TXN_ABORT(txn);
-                        txn = NULL;
-                    }
-                    goto wait_for_init;
-                }
-                rc = tti->db->cursor(tti->db, txn, &tti->cur, 0);
-                if (DB_LOCK_DEADLOCK == rc) {
-                    if (cfg.verbose) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "dbmdb_txn_test_threadmain", "Cursor create deadlock - retry\n");
-                    }
-                    if (cfg.use_txn) {
-                        goto retry_txn;
-                    } else {
-                        goto retry_cursor;
-                    }
-                } else if (rc) {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "dbmdb_txn_test_threadmain", "Failed to create a new cursor, err=%d (%s)\n",
-                                  rc, dblayer_strerror(rc));
-                }
-            }
-
-            memset(&key, 0, sizeof(key));
-            key.flags = DB_MDB_val_USERMEM;
-            key.data = keybuf;
-            key.ulen = sizeof(keybuf);
-            memset(&data, 0, sizeof(data));
-            data.flags = DB_MDB_val_USERMEM;
-            data.data = databuf;
-            data.ulen = sizeof(databuf);
-            /* phase 2 - iterate over each cursor at the same time until
-               1) get error
-               2) get deadlock
-               3) all cursors are exhausted
-            */
-            while (donecnt < tticnt) {
-                for (ii = 0; ii < tticnt; ++ii) {
-                    dbmdb_txn_test_iter *tti = ttilist[ii];
-                    if (tti->cur) {
-                    retry_get:
-                        if (BDB_CONFIG(li)->dbmdb_stop_threads) {
-                            goto end;
-                        }
-                        if (tti->be->be_state != BE_STATE_STARTED) {
-                            if (txn) {
-                                TXN_ABORT(txn);
-                                txn = NULL;
-                            }
-                            goto wait_for_init;
-                        }
-                        if (tti->db->open_flags == 0xdmdbdmdb) {
-                            if (txn) {
-                                TXN_ABORT(txn);
-                                txn = NULL;
-                            }
-                            goto wait_for_init;
-                        }
-                        rc = tti->cur->c_get(tti->cur, &key, &data, tti->flags);
-                        if (DB_LOCK_DEADLOCK == rc) {
-                            if (cfg.verbose) {
-                                slapi_log_err(SLAPI_LOG_ERR,
-                                              "dbmdb_txn_test_threadmain", "Cursor get deadlock - retry\n");
-                            }
-                            if (cfg.use_txn) {
-                                goto retry_txn;
-                            } else {
-                                goto retry_get;
-                            }
-                        } else if (DB_NOTFOUND == rc) {
-                            donecnt++;                         /* ran out of this one */
-                            tti->flags = DB_FIRST | cfg.flags; /* start over until all indexes are done */
-                        } else if (rc) {
-                            if ((DB_BUFFER_SMALL != rc) || cfg.verbose) {
-                                slapi_log_err(SLAPI_LOG_ERR,
-                                              "dbmdb_txn_test_threadmain", "Failed to read a cursor, err=%d (%s)\n",
-                                              rc, dblayer_strerror(rc));
-                            }
-                            tti->cur->c_close(tti->cur);
-                            tti->cur = NULL;
-                            donecnt++;
-                        } else {
-                            tti->cnt++;
-                            tti->flags = default_flags | cfg.flags;
-                            cnt++;
-                        }
-                    }
-                }
-            }
-            TXN_TEST_PAGE_HOLD(cfg.hold_msec);
-            /*dbmdb_print_ttilist(ttilist, tticnt);*/
-            dbmdb_init_ttilist(ttilist, tticnt);
-            if (cfg.verbose) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dbmdb_txn_test_threadmain", "Finished [%" PRIu64 "] indexes [%" PRIu64 "] records\n", tticnt, cnt);
-            }
-            TXN_TEST_LOOP_WAIT(cfg.loop_msec);
-        } else {
-            TXN_TEST_LOOP_WAIT(cfg.loop_msec);
-        }
-        counter++;
-        if (!(counter % 40)) {
-            /* some operations get completely stuck - so every once in a while,
-               pause to allow those ops to go through */
-            DS_Sleep(PR_SecondsToInterval(1));
-        }
-    }
-
-end:
-    slapi_ch_array_free(cfg.indexes);
-    dbmdb_free_ttilist(&ttilist, &tticnt);
-    if (txn) {
-        TXN_ABORT(txn);
-    }
-    DECR_THREAD_COUNT(pEnv);
-    return 0;
-#endif /* TODO */
-}
-
-/*
- * create a thread for transaction deadlock testing
- */
-static int
-dbmdb_start_txn_test_thread(struct ldbminfo *li)
-{
-#ifdef TODO
-    int return_value = 0;
-    if (NULL == PR_CreateThread(PR_USER_THREAD,
-                                (VFP)(void *)dbmdb_txn_test_threadmain, li,
-                                PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
-                                PR_UNJOINABLE_THREAD,
-                                SLAPD_DEFAULT_THREAD_STACKSIZE)) {
-        PRErrorCode prerr = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_start_txn_test_thread",
-                      "Failed to create txn test thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                      prerr, slapd_pr_strerror(prerr));
-        return_value = -1;
-    }
-    return return_value;
-#endif /* TODO */
-}
-
-/* deadlock thread main function */
-
-static int
-dbmdb_deadlock_threadmain(void *param)
-{
-#ifdef TODO
-    int rval = -1;
-    struct ldbminfo *li = NULL;
-    PRIntervalTime interval; /*NSPR timeout stuffy*/
-    u_int32_t flags = 0;
-
-    PR_ASSERT(NULL != param);
-    li = (struct ldbminfo *)param;
-
-    dblayer_private *priv = li->li_dblayer_private;
-    PR_ASSERT(NULL != priv);
-    dbmdb_db_env *pEnv = (dbmdb_db_env *)priv->dblayer_env;
-
-    INCR_THREAD_COUNT(pEnv);
-
-    interval = PR_MillisecondsToInterval(100);
-    while (!BDB_CONFIG(li)->dbmdb_stop_threads) {
-        if (BDB_CONFIG(li)->dbmdb_enable_transactions) {
-            MDB_env *db_env = ((dbmdb_db_env *)priv->dblayer_env)->dbmdb_MDB_env;
-            u_int32_t deadlock_policy = BDB_CONFIG(li)->dbmdb_deadlock_policy;
-
-            if (dbmdb_uses_locking(db_env) && (deadlock_policy > DB_LOCK_NORUN)) {
-                int rejected = 0;
-
-                rval = db_env->lock_detect(db_env, flags, deadlock_policy, &rejected);
-                if (rval != 0) {
-                    slapi_log_err(SLAPI_LOG_CRIT,
-                                  "dbmdb_deadlock_threadmain", "Serious Error---Failed in deadlock detect (aborted at 0x%x), err=%d (%s)\n",
-                                  rejected, rval, dblayer_strerror(rval));
-                } else if (rejected) {
-                    slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_deadlock_threadmain", "Found and rejected %d lock requests\n", rejected);
-                }
-            }
-        }
-        DS_Sleep(interval);
-    }
-
-    DECR_THREAD_COUNT(pEnv);
-    slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_deadlock_threadmain", "Leaving dbmdb_deadlock_threadmain\n");
-    return 0;
-#endif /* TODO */
-}
-
-#define dbmdb_checkpoint_debug_message(debug, ...)                       \
-    if (debug) {                                                   \
-        slapi_log_err(SLAPI_LOG_DEBUG, "CHECKPOINT", __VA_ARGS__); \
-    }
-
-/* this thread tries to do two things:
-    1. catch a group of transactions that are pending allowing a worker thread
-       to work
-    2. flush any left over transactions ( a single transaction for example)
-*/
-
-static int
-dbmdb_start_log_flush_thread(struct ldbminfo *li)
-{
-#ifdef TODO
-    int return_value = 0;
-    int max_threads = config_get_threadnumber();
-
-    if ((BDB_CONFIG(li)->dbmdb_durable_transactions) &&
-        (BDB_CONFIG(li)->dbmdb_enable_transactions) && (trans_batch_limit > 0))
-    {
-        /* initialize the synchronization objects for the log_flush and worker threads */
-        pthread_condattr_t condAttr;
-
-        pthread_mutex_init(&sync_txn_log_flush, NULL);
-        pthread_condattr_init(&condAttr);
-        pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC);
-        pthread_cond_init(&sync_txn_log_do_flush, &condAttr);
-        pthread_cond_init(&sync_txn_log_flush_done, NULL);
-        pthread_condattr_destroy(&condAttr); /* no longer needed */
-
-        txn_log_flush_pending = (int *)slapi_ch_malloc(max_threads * sizeof(int));
-        log_flush_thread = PR_TRUE;
-        if (NULL == PR_CreateThread(PR_USER_THREAD,
-                                    (VFP)(void *)dbmdb_log_flush_threadmain, li,
-                                    PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
-                                    PR_UNJOINABLE_THREAD,
-                                    SLAPD_DEFAULT_THREAD_STACKSIZE)) {
-            PRErrorCode prerr = PR_GetError();
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "dbmdb_start_log_flush_thread", "Failed to create database log flush thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                          prerr, slapd_pr_strerror(prerr));
-            return_value = -1;
-        }
-    }
-    return return_value;
-#endif /* TODO */
-}
-
-/* this thread tries to do two things:
-    1. catch a group of transactions that are pending allowing a worker thread
-       to work
-    2. flush any left over transactions ( a single transaction for example)
-*/
-
-static int
-dbmdb_log_flush_threadmain(void *param)
-{
-#ifdef TODO
-    PRIntervalTime interval_flush, interval_def;
-    PRIntervalTime last_flush = 0;
-    int i;
-    int do_flush = 0;
-
-    PR_ASSERT(NULL != param);
-    struct ldbminfo *li = (struct ldbminfo *)param;
-    dblayer_private *priv = li->li_dblayer_private;
-    dbmdb_db_env *pEnv = (dbmdb_db_env *)priv->dblayer_env;
-
-    INCR_THREAD_COUNT(pEnv);
-
-    interval_flush = PR_MillisecondsToInterval(trans_batch_txn_min_sleep);
-    interval_def = PR_MillisecondsToInterval(300); /*used while no txn or txn batching */
-    /* LK this is only needed if online change of
-     * of txn config is supported ???
-     */
-    while ((!BDB_CONFIG(li)->dbmdb_stop_threads) && (log_flush_thread)) {
-        if (BDB_CONFIG(li)->dbmdb_enable_transactions) {
-            if (trans_batch_limit > 0) {
-                /* synchronize flushing thread with workers */
-                pthread_mutex_lock(&sync_txn_log_flush);
-                if (!log_flush_thread) {
-                    /* batch transactions was disabled while waiting for the lock */
-                    pthread_mutex_unlock(&sync_txn_log_flush);
-                    break;
-                }
-                slapi_log_err(SLAPI_LOG_BACKLDBM, "dbmdb_log_flush_threadmain", "(in loop): batchcount: %d, "
-                                                                          "txn_in_progress: %d\n",
-                              trans_batch_count, txn_in_progress_count);
-                /*
-                 * if here, do flush the txn logs if any of the following conditions are met
-                 * - batch limit exceeded
-                 * - no more active transaction, no need to wait
-                 * - do_flush indicate that the max waiting interval is exceeded
-                 */
-                if (trans_batch_count >= trans_batch_limit || trans_batch_count >= txn_in_progress_count || do_flush) {
-                    slapi_log_err(SLAPI_LOG_BACKLDBM, "dbmdb_log_flush_threadmain", "(working): batchcount: %d, "
-                                                                              "txn_in_progress: %d\n",
-                                  trans_batch_count, txn_in_progress_count);
-                    LOG_FLUSH(((dbmdb_db_env *)priv->dblayer_env)->dbmdb_MDB_env, 0);
-                    for (i = 0; i < trans_batch_count; i++) {
-                        txn_log_flush_pending[i] = 0;
-                    }
-                    trans_batch_count = 0;
-                    last_flush = PR_IntervalNow();
-                    do_flush = 0;
-                    slapi_log_err(SLAPI_LOG_BACKLDBM, "dbmdb_log_flush_threadmain", "(before notify): batchcount: %d, "
-                                                                              "txn_in_progress: %d\n",
-                                  trans_batch_count, txn_in_progress_count);
-                    pthread_cond_broadcast(&sync_txn_log_flush_done);
-                }
-                /* wait until flushing conditions are met */
-                while ((trans_batch_count == 0) ||
-                       (trans_batch_count < trans_batch_limit && trans_batch_count < txn_in_progress_count))
-                {
-                    struct timespec current_time = {0};
-                    /* convert milliseconds to nano seconds */
-                    int32_t nano_sec_sleep = trans_batch_txn_max_sleep * 1000000;
-                    if (BDB_CONFIG(li)->dbmdb_stop_threads)
-                        break;
-                    if (PR_IntervalNow() - last_flush > interval_flush) {
-                        do_flush = 1;
-                        break;
-                    }
-                    clock_gettime(CLOCK_MONOTONIC, &current_time);
-                    if (current_time.tv_nsec + nano_sec_sleep > 1000000000) {
-                        /* nano sec will overflow, just bump the seconds */
-                        current_time.tv_sec++;
-                    } else {
-                        current_time.tv_nsec += nano_sec_sleep;
-                    }
-                    pthread_cond_timedwait(&sync_txn_log_do_flush, &sync_txn_log_flush, &current_time);
-                }
-                pthread_mutex_unlock(&sync_txn_log_flush);
-                slapi_log_err(SLAPI_LOG_BACKLDBM, "dbmdb_log_flush_threadmain", "(wakeup): batchcount: %d, "
-                                                                          "txn_in_progress: %d\n",
-                              trans_batch_count, txn_in_progress_count);
-            } else {
-                DS_Sleep(interval_def);
-            }
-        } else {
-            DS_Sleep(interval_def);
-        }
-    }
-
-    DECR_THREAD_COUNT(pEnv);
-    slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_log_flush_threadmain", "Leaving dbmdb_log_flush_threadmain\n");
-    return 0;
-#endif /* TODO */
-}
-
-/*
- * create a thread for checkpoint_threadmain
- */
-static int
-dbmdb_start_checkpoint_thread(struct ldbminfo *li)
-{
-#ifdef TODO
-    int return_value = 0;
-    if (NULL == PR_CreateThread(PR_USER_THREAD,
-                                (VFP)(void *)dbmdb_checkpoint_threadmain, li,
-                                PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
-                                PR_UNJOINABLE_THREAD,
-                                SLAPD_DEFAULT_THREAD_STACKSIZE)) {
-        PRErrorCode prerr = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dbmdb_start_checkpoint_thread", "Failed to create database checkpoint thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                      prerr, slapd_pr_strerror(prerr));
-        return_value = -1;
-    }
-    return return_value;
-#endif /* TODO */
-}
-
-/*
- * checkpoint thread -- borrow the timing for compacting id2entry, and eventually changelog, as well.
- */
-static int
-dbmdb_checkpoint_threadmain(void *param)
-{
-#ifdef TODO
-    PRIntervalTime interval;
-    int rval = -1;
-    struct ldbminfo *li = NULL;
-    int debug_checkpointing = 0;
-    char *home_dir = NULL;
-    char **list = NULL;
-    char **listp = NULL;
-    dbmdb_db_env *penv = NULL;
-    struct timespec checkpoint_expire;
-    struct timespec compactdb_expire;
-    time_t compactdb_interval_update = 0;
-    time_t checkpoint_interval_update = 0;
-    time_t compactdb_interval = 0;
-    time_t checkpoint_interval = 0;
-
-    PR_ASSERT(NULL != param);
-    li = (struct ldbminfo *)param;
-
-    dblayer_private *priv = li->li_dblayer_private;
-    PR_ASSERT(NULL != priv);
-    dbmdb_db_env *pEnv = (dbmdb_db_env *)priv->dblayer_env;
-
-    INCR_THREAD_COUNT(pEnv);
-
-    interval = PR_MillisecondsToInterval(DBLAYER_SLEEP_INTERVAL * 10);
-    home_dir = dbmdb_get_home_dir(li, NULL);
-    if (NULL == home_dir || '\0' == *home_dir) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dbmdb_checkpoint_threadmain", "Failed due to missing db home directory info\n");
-        goto error_return;
-    }
-
-    /* work around a problem with newly created environments */
-    dbmdb_force_checkpoint(li);
-
-    PR_Lock(li->li_config_mutex);
-    checkpoint_interval = (time_t)BDB_CONFIG(li)->dbmdb_checkpoint_interval;
-    compactdb_interval = (time_t)BDB_CONFIG(li)->dbmdb_compactdb_interval;
-    penv = (dbmdb_db_env *)priv->dblayer_env;
-    debug_checkpointing = BDB_CONFIG(li)->dbmdb_debug_checkpointing;
-    PR_Unlock(li->li_config_mutex);
-
-    /* assumes dbmdb_force_checkpoint worked */
-    /*
-     * Importantly, the use of this api is not affected by backwards time steps
-     * and the like. Because this use relative system time, rather than utc,
-     * it makes it much more reliable to run.
-     */
-    slapi_timespec_expire_at(compactdb_interval, &compactdb_expire);
-    slapi_timespec_expire_at(checkpoint_interval, &checkpoint_expire);
-
-    while (!BDB_CONFIG(li)->dbmdb_stop_threads) {
-        /* sleep for a while */
-        /* why aren't we sleeping exactly the right amount of time ? */
-        /* answer---because the interval might be changed after the server
-         * starts up */
-
-        DS_Sleep(interval);
-
-        if (0 == BDB_CONFIG(li)->dbmdb_enable_transactions) {
-            continue;
-        }
-
-        PR_Lock(li->li_config_mutex);
-        checkpoint_interval_update = (time_t)BDB_CONFIG(li)->dbmdb_checkpoint_interval;
-        compactdb_interval_update = (time_t)BDB_CONFIG(li)->dbmdb_compactdb_interval;
-        PR_Unlock(li->li_config_mutex);
-
-        /* If the checkpoint has been updated OR we have expired */
-        if (checkpoint_interval != checkpoint_interval_update ||
-            slapi_timespec_expire_check(&checkpoint_expire) == TIMER_EXPIRED) {
-
-            /* If our interval has changed, update it. */
-            checkpoint_interval = checkpoint_interval_update;
-
-            if (!dbmdb_uses_transactions(((dbmdb_db_env *)priv->dblayer_env)->dbmdb_MDB_env)) {
-                continue;
-            }
-
-            /* now checkpoint */
-            dbmdb_checkpoint_debug_message(debug_checkpointing,
-                                     "dbmdb_checkpoint_threadmain - Starting checkpoint\n");
-            rval = dbmdb_txn_checkpoint(li, (dbmdb_db_env *)priv->dblayer_env,
-                                          PR_TRUE, PR_FALSE);
-            dbmdb_checkpoint_debug_message(debug_checkpointing,
-                                     "dbmdb_checkpoint_threadmain - Checkpoint Done\n");
-            if (rval != 0) {
-                /* bad error */
-                slapi_log_err(SLAPI_LOG_CRIT,
-                              "dbmdb_checkpoint_threadmain", "Serious Error---Failed to checkpoint database, "
-                                                       "err=%d (%s)\n",
-                              rval, dblayer_strerror(rval));
-                if (LDBM_OS_ERR_IS_DISKFULL(rval)) {
-                    operation_out_of_disk_space();
-                    goto error_return;
-                }
-            }
-
-            rval = LOG_ARCHIVE(penv->dbmdb_MDB_env, &list,
-                               DB_ARCH_ABS, (void *)slapi_ch_malloc);
-            if (rval) {
-                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_checkpoint_threadmain",
-                              "log archive failed - %s (%d)\n",
-                              dblayer_strerror(rval), rval);
-            } else {
-                for (listp = list; listp && *listp != NULL; ++listp) {
-                    if (BDB_CONFIG(li)->dbmdb_circular_logging) {
-                        dbmdb_checkpoint_debug_message(debug_checkpointing,
-                                                 "Deleting %s\n", *listp);
-                        unlink(*listp);
-                    } else {
-                        char new_filename[MAXPATHLEN];
-                        PR_snprintf(new_filename, sizeof(new_filename),
-                                    "%s.old", *listp);
-                        dbmdb_checkpoint_debug_message(debug_checkpointing,
-                                                 "Renaming %s -> %s\n", *listp, new_filename);
-                        if (rename(*listp, new_filename) != 0) {
-                            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_checkpoint_threadmain", "Failed to rename log (%s) to (%s)\n",
-                                          *listp, new_filename);
-                            rval = -1;
-                            goto error_return;
-                        }
-                    }
-                }
-                slapi_ch_free((void **)&list);
-                /* Note: references inside the returned memory need not be
-                 * individually freed. */
-            }
-            slapi_timespec_expire_at(checkpoint_interval, &checkpoint_expire);
-        }
-
-        /* Compacting MDB_dbiborrowing the timing of the log flush */
-
-        /*
-         * Remember that if compactdb_interval is 0, timer_expired can
-         * never occur unless the value in compctdb_interval changes.
-         *
-         * this could have been a bug infact, where compactdb_interval
-         * was 0, if you change while startcfg it would never take effect ....
-         */
-        if (compactdb_interval_update != compactdb_interval ||
-            slapi_timespec_expire_check(&compactdb_expire) == TIMER_EXPIRED) {
-            int rc = 0;
-            Object *inst_obj;
-            ldbm_instance *inst;
-            MDB_dbi*db = NULL;
-
-            for (inst_obj = objset_first_obj(li->li_instance_set);
-                 inst_obj;
-                 inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
-                inst = (ldbm_instance *)object_get_data(inst_obj);
-                rc = dblayer_get_id2entry(inst->inst_be, (dbi_db_t **)&db);
-                if (!db || rc) {
-                    continue;
-                }
-                slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_checkpoint_threadmain", "Compacting MDB_dbistart: %s\n",
-                              inst->inst_name);
-
-                rc = dbmdb_db_compact_one_db(db, inst);
-                if (rc) {
-                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_checkpoint_threadmain",
-                                  "compactdb: failed to compact id2entry for %s; db error - %d %s\n",
-                                   inst->inst_name, rc, db_strerror(rc));
-                    break;
-                }
-
-                /* compact changelog db */
-                /* NOTE (LK) this is now done along regular compaction,
-                 * if it should be configurable add a switch to changelog config
-                 */
-                dblayer_get_changelog(inst->inst_be, (dbi_db_t **)&db, 0);
-
-                rc = dbmdb_db_compact_one_db(db, inst);
-                if (rc) {
-                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_checkpoint_threadmain",
-                                  "compactdb: failed to compact changelog for %s; db error - %d %s\n",
-                                   inst->inst_name, rc, db_strerror(rc));
-                    break;
-                }
-            }
-            compactdb_interval = compactdb_interval_update;
-            slapi_timespec_expire_at(compactdb_interval, &compactdb_expire);
-        }
-    }
-    slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_checkpoint_threadmain", "Check point before leaving\n");
-    rval = dbmdb_force_checkpoint(li);
-error_return:
-
-    DECR_THREAD_COUNT(pEnv);
-    slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_checkpoint_threadmain", "Leaving dbmdb_checkpoint_threadmain\n");
-    return rval;
-#endif /* TODO */
-}
-
-/*
- * create a thread for trickle_threadmain
- */
-static int
-dbmdb_start_trickle_thread(struct ldbminfo *li)
-{
-#ifdef TODO
-    int return_value = 0;
-    dbmdb_ctx_t *priv = (dbmdb_ctx_t *)li->li_dblayer_config;
-
-    if (priv->dbmdb_trickle_percentage == 0)
-        return return_value;
-
-    if (NULL == PR_CreateThread(PR_USER_THREAD,
-                                (VFP)(void *)dbmdb_trickle_threadmain, li,
-                                PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
-                                PR_UNJOINABLE_THREAD,
-                                SLAPD_DEFAULT_THREAD_STACKSIZE)) {
-        PRErrorCode prerr = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_start_trickle_thread",
-                      "Failed to create database trickle thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                      prerr, slapd_pr_strerror(prerr));
-        return_value = -1;
-    }
-    return return_value;
-#endif /* TODO */
-}
-
-static int
-dbmdb_trickle_threadmain(void *param)
-{
-#ifdef TODO
-    PRIntervalTime interval; /*NSPR timeout stuffy*/
-    int rval = -1;
-    dblayer_private *priv = NULL;
-    struct ldbminfo *li = NULL;
-    int debug_checkpointing = 0;
-
-    PR_ASSERT(NULL != param);
-    li = (struct ldbminfo *)param;
-
-    priv = li->li_dblayer_private;
-    PR_ASSERT(NULL != priv);
-    dbmdb_db_env *pEnv = (dbmdb_db_env *)priv->dblayer_env;
-
-    INCR_THREAD_COUNT(pEnv);
-
-    interval = PR_MillisecondsToInterval(DBLAYER_SLEEP_INTERVAL);
-    debug_checkpointing = BDB_CONFIG(li)->dbmdb_debug_checkpointing;
-    while (!BDB_CONFIG(li)->dbmdb_stop_threads) {
-        DS_Sleep(interval); /* 622855: wait for other threads fully started */
-        if (BDB_CONFIG(li)->dbmdb_enable_transactions) {
-            if (dbmdb_uses_mpool(((dbmdb_db_env *)priv->dblayer_env)->dbmdb_MDB_env) &&
-                (0 != BDB_CONFIG(li)->dbmdb_trickle_percentage)) {
-                int pages_written = 0;
-                if ((rval = MEMP_TRICKLE(((dbmdb_db_env *)priv->dblayer_env)->dbmdb_MDB_env,
-                                         BDB_CONFIG(li)->dbmdb_trickle_percentage,
-                                         &pages_written)) != 0) {
-                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_trickle_threadmain", "Serious Error---Failed to trickle, err=%d (%s)\n",
-                                  rval, dblayer_strerror(rval));
-                }
-                if (pages_written > 0) {
-                    dbmdb_checkpoint_debug_message(debug_checkpointing, "dbmdb_trickle_threadmain - Trickle thread wrote %d pages\n",
-                                             pages_written);
-                }
-            }
-        }
-    }
-
-    DECR_THREAD_COUNT(pEnv);
-    slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_trickle_threadmain", "Leaving dbmdb_trickle_threadmain priv\n");
-    return 0;
-#endif /* TODO */
-}
-
-/* Helper functions for recovery */
-
-#define DB_LINE_LENGTH 80
-
-static int
-dbmdb_commit_good_database(dbmdb_ctx_t *conf, int mode)
-{
-#ifdef TODO
-    /* Write out the guard file */
-    char filename[MAXPATHLEN];
-    char line[DB_LINE_LENGTH * 2];
-    PRFileDesc *prfd;
-    int return_value = 0;
-    int num_bytes;
-
-    PR_snprintf(filename, sizeof(filename), "%s/guardian", conf->dbmdb_home_directory);
-
-    prfd = PR_Open(filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE, mode);
-    if (NULL == prfd) {
-        slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_commit_good_database", "Failed to write guardian file %s, database corruption possible" SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
-                      filename, PR_GetError(), slapd_pr_strerror(PR_GetError()));
-        return -1;
-    }
-    PR_snprintf(line, sizeof(line), "cachesize:%lu\nncache:%d\nversion:%d\nlocks:%d\n",
-                (long unsigned int)conf->dbmdb_cachesize, conf->dbmdb_ncache, DB_VERSION_MAJOR, conf->dbmdb_lock_config);
-    num_bytes = strlen(line);
-    return_value = slapi_write_buffer(prfd, line, num_bytes);
-    if (return_value != num_bytes) {
-        goto error;
-    }
-    return_value = PR_Close(prfd);
-    if (PR_SUCCESS == return_value) {
-        return 0;
-    } else {
-        slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_commit_good_database",
-                      "Failed to write guardian file, database corruption possible\n");
-        (void)PR_Delete(filename);
-        return -1;
-    }
-error:
-    (void)PR_Close(prfd);
-    (void)PR_Delete(filename);
-    return -1;
-#endif /* TODO */
-}
-
-/* read the guardian file from db/ and possibly recover the database */
-static int
-dbmdb_read_metadata(struct ldbminfo *li)
-{
-#ifdef TODO
-    char filename[MAXPATHLEN];
-    char *buf;
-    char *thisline;
-    char *nextline;
-    char **dirp;
-    PRFileDesc *prfd;
-    PRFileInfo64 prfinfo;
-    int return_value = 0;
-    PRInt32 byte_count = 0;
-    char attribute[513];
-    char value[129], delimiter;
-    int number = 0;
-    dbmdb_ctx_t *conf = (dbmdb_ctx_t *)li->li_dblayer_config;
-    dblayer_private *priv = li->li_dblayer_private;
-
-    /* dbmdb_recovery_required is initialized in dblayer_init;
-     * and might be set 1 in dbmdb_check_db_version;
-     * we don't want to override it
-     * priv->dbmdb_recovery_required = 0; */
-    conf->dbmdb_previous_cachesize = 0;
-    conf->dbmdb_previous_ncache = 0;
-    conf->dbmdb_previous_lock_config = 0;
-    /* Open the guard file and read stuff, then delete it */
-    PR_snprintf(filename, sizeof(filename), "%s/guardian", conf->dbmdb_home_directory);
-
-    memset(&prfinfo, '\0', sizeof(PRFileInfo64));
-    (void)PR_GetFileInfo64(filename, &prfinfo);
-
-    prfd = PR_Open(filename, PR_RDONLY, priv->dblayer_file_mode);
-    if (NULL == prfd || 0 == prfinfo.size) {
-        /* file empty or not present--means the database needs recovered */
-        /* Note count is correctly zerod! */
-        int count = 0;
-        for (dirp = conf->dbmdb_data_directories; dirp && *dirp; dirp++) {
-            dbmdb_count_dbfiles_in_dir(*dirp, &count, 1 /* recurse */);
-            if (count > 0) {
-                conf->dbmdb_recovery_required = 1;
-                return 0;
-            }
-        }
-        return 0; /* no files found; no need to run recover start */
-    }
-    /* So, we opened the file, now let's read the cache size and version stuff
-     */
-    buf = slapi_ch_calloc(1, prfinfo.size + 1);
-    byte_count = slapi_read_buffer(prfd, buf, prfinfo.size);
-    if (byte_count < 0) {
-        /* something bad happened while reading */
-        conf->dbmdb_recovery_required = 1;
-    } else {
-        buf[byte_count] = '\0';
-        thisline = buf;
-        while (1) {
-            /* Find the end of the line */
-            nextline = strchr(thisline, '\n');
-            if (NULL != nextline) {
-                *nextline++ = '\0';
-                while ('\n' == *nextline) {
-                    nextline++;
-                }
-            }
-            sscanf(thisline, "%512[a-z]%c%128s", attribute, &delimiter, value);
-            if (0 == strcmp("cachesize", attribute)) {
-                conf->dbmdb_previous_cachesize = strtoul(value, NULL, 10);
-            } else if (0 == strcmp("ncache", attribute)) {
-                number = atoi(value);
-                conf->dbmdb_previous_ncache = number;
-            } else if (0 == strcmp("version", attribute)) {
-            } else if (0 == strcmp("locks", attribute)) {
-                number = atoi(value);
-                conf->dbmdb_previous_lock_config = number;
-            }
-            if (NULL == nextline || '\0' == *nextline) {
-                /* Nothing more to read */
-                break;
-            }
-            thisline = nextline;
-        }
-    }
-    slapi_ch_free((void **)&buf);
-    (void)PR_Close(prfd);
-    return_value = PR_Delete(filename); /* very important that this happen ! */
-    if (PR_SUCCESS != return_value) {
-        slapi_log_err(SLAPI_LOG_CRIT,
-                      "dbmdb_read_metadata", "Failed to delete guardian file, "
-                                       "database corruption possible\n");
-    }
-    return return_value;
-#endif /* TODO */
-}
-
-/* handy routine for checkpointing the db */
-static int
-dbmdb_force_checkpoint(struct ldbminfo *li)
-{
-#ifdef TODO
-    int ret = 0, i;
-    dblayer_private *priv = li->li_dblayer_private;
-    dbmdb_db_env *pEnv;
-
-    if (NULL == priv || NULL == priv->dblayer_env) {
-        /* already terminated.  nothing to do */
-        return -1;
-    }
-
-    pEnv = (dbmdb_db_env *)priv->dblayer_env;
-
-    if (BDB_CONFIG(li)->dbmdb_enable_transactions) {
-
-        slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_force_checkpoint", "Checkpointing database ...\n");
-
-        /*
-     * MDB_dbiworkaround. Newly created environments do not know what the
-     * previous checkpoint LSN is. The default LSN of [0][0] would
-     * cause us to read all log files from very beginning during a
-     * later recovery. Taking two checkpoints solves the problem.
-     */
-
-        for (i = 0; i < 2; i++) {
-            ret = dbmdb_txn_checkpoint(li, pEnv, PR_FALSE, PR_TRUE);
-            if (ret != 0) {
-                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_force_checkpoint", "Checkpoint FAILED, error %s (%d)\n",
-                              dblayer_strerror(ret), ret);
-                break;
-            }
-        }
-    }
-
-    return ret;
-#endif /* TODO */
-}
-
-/* routine to force all existing transaction logs to be cleared
- * This is necessary if the transaction logs can contain references
- * to no longer existing files, but would be processed in a fatal
- * recovery (like in backup/restore).
- * There is no straight forward way to do this, but the following
- * scenario should work:
- *
- * 1. check for no longer needed transaction logs by
- *      calling log_archive()
- * 2. delete these logs (1and2 similar to checkpointing
- * 3. force a checkpoint
- * 4. use log_printf() to write a "comment" to the current txn log
- *      force a checkpoint
- *      this could be done by writing once about 10MB or
- *      by writing smaller chunks in a loop
- * 5. force a checkpoint and check again
- *  if a txn log to remove exists remove it and we are done
- *  else repeat step 4
- *
- * NOTE: double check if force_checkpoint also does remove txn files
- * then the check would have to be modified
- */
-static int
-dbmdb_force_logrenewal(struct ldbminfo *li)
-{
-#ifdef TODO
-    return 0;
-#endif /* TODO */
-}
 
 static int
 _dblayer_delete_aux_dir(struct ldbminfo *li, char *path)
@@ -5164,7 +3816,6 @@ dbmdb_set_info(Slapi_Backend *be, int cmd, void **info)
 int
 dbmdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
 {
-#ifdef TODO
     int rc = -1;
     if (!be || !info) {
         return rc;
@@ -5201,6 +3852,7 @@ dbmdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
                                       &(crypt_value->out));
         break;
     }
+#ifdef TODO
     case BACK_INFO_DBENV_CLDB_REMOVE: {
         MDB_dbi*db = (MDB_dbi*)info;
         struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
@@ -5211,7 +3863,8 @@ dbmdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
                 char *instancedir;
                 slapi_back_get_info(be, BACK_INFO_INSTANCE_DIR, (void **)&instancedir);
                 char *path = slapi_ch_smprintf("%s/%s", instancedir, BDB_CL_FILENAME);
-                db->close(db, 0);
+                /* Lets free db resources */
+                dbmdb_public_db_op(db, NULL, DBI_OP_CLOSE, NULL, NULL);
                 rc = dbmdb_db_remove_ex((dbmdb_db_env *)priv->dblayer_env, path, NULL, PR_TRUE);
                 inst->inst_changelog = NULL;
                 slapi_ch_free_string(&instancedir);
@@ -5242,6 +3895,7 @@ dbmdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
         }
         break;
     }
+#endif
     case BACK_INFO_CLDB_GET_CONFIG: {
         /* get a config entry relative to the
          * backend config entry
@@ -5310,7 +3964,6 @@ dbmdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
     }
 
     return rc;
-#endif /* TODO */
 }
 
 dbi_error_t dbmdb_map_error(const char *funcname, int err)
@@ -5360,7 +4013,7 @@ int dbmdb_dbt2dbival(MDB_val *dbt, dbi_val_t *dbi, PRBool isresponse, int rc)
  * This means that if data pointer differs then the buffer has been
  * re alloced ==> should beware not to free it twice
  */
-    if (!dbi || !dbt || !rc) {
+    if (!dbi || !dbt || rc) {
         return rc;
     }
     if (dbi->data == dbt->mv_data) {
@@ -5392,112 +4045,157 @@ int dbmdb_dbt2dbival(MDB_val *dbt, dbi_val_t *dbi, PRBool isresponse, int rc)
 
 char *dbmdb_public_get_db_filename(dbi_db_t *db)
 {
-#ifdef TODO
-    return ((DB*)db)->fname;
-#endif /* TODO */
+    dbmdb_dbi_t *dbmdb_db = (dbmdb_dbi_t*)db;
+    /* We may perhaps have to remove the backend name ... */
+    return (char*)(dbmdb_db->dbname);
 }
 
 int dbmdb_public_bulk_free(dbi_bulk_t *bulkdata)
 {
-#ifdef TODO
-    /* No specific action required for berkeley db handling */
+    /* No specific action required for mdb handling */
     return DBI_RC_SUCCESS;
-#endif /* TODO */
 }
 
 int dbmdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
 {
-#ifdef TODO
-    MDB_val bulk;
-    void *retdata = NULL;
-    u_int32_t retdlen = 0;;
-    dbmdb_dbival2dbt(&bulkdata->v, &bulk, PR_FALSE);
-    if (bulkdata->v.flags & DBI_VF_BULK_DATA) {
-        DB_MULTIPLE_NEXT(bulkdata->it, &bulk, retdata, retdlen);
-        dblayer_value_set_buffer(bulkdata->be, data, retdata, retdlen);
+    dbmdb_bulkdata_t *dbmdb_data = bulkdata->v.data;
+    int *idx = (int*) (&bulkdata->it);
+    char *v = dbmdb_data->data[0].mv_data;
+    int rc = 0;
+
+    PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_DATA);
+    if (dbmdb_data->use_multiple) {
+        if (*idx >= dbmdb_data->data[1].mv_size) {
+            return DBI_RC_NOTFOUND;
+        }
+        v += dbmdb_data->data[0].mv_size * *idx++;
+        dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data[0].mv_size);
     } else {
-        /* Coding error - bulkdata is not initialized or wrong type */
-        PR_ASSERT(0);
-        return DBI_RC_INVALID;
+        if (!dbmdb_data->op || *idx++ >= dbmdb_data->maxrecords) {
+            return DBI_RC_NOTFOUND;
+        }
+        dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data[0].mv_size);
+        rc = mdb_cursor_get(dbmdb_data->cursor, &dbmdb_data->key, &dbmdb_data->data[0], dbmdb_data->op);
     }
-    if (retdata == NULL || bulkdata->be == NULL) {
-        return DBI_RC_NOTFOUND;
-    }
-    return DBI_RC_SUCCESS;
-#endif /* TODO */
+    rc = dbmdb_map_error(__FUNCTION__, rc);
 }
 
 int dbmdb_public_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *data)
 {
-#ifdef TODO
-    MDB_val bulk;
-    void *retkey = NULL;
-    void *retdata = NULL;
-    u_int32_t retklen = 0;;
-    u_int32_t retdlen = 0;;
-    dbmdb_dbival2dbt(&bulkdata->v, &bulk, PR_FALSE);
-    if (bulkdata->v.flags & DBI_VF_BULK_RECORD) {
-        DB_MULTIPLE_KEY_NEXT(bulkdata->it, &bulk, retkey, retklen, retdata, retdlen);
-        dblayer_value_set_buffer(bulkdata->be, data, retdata, retdlen);
-        dblayer_value_set_buffer(bulkdata->be, key, retkey, retklen);
-    } else {
-        /* Coding error - bulkdata is not initialized or wrong type */
-        PR_ASSERT(0);
-        return DBI_RC_INVALID;
-    }
-    if (retdata == NULL || bulkdata->be == NULL) {
+    dbmdb_bulkdata_t *dbmdb_data = bulkdata->v.data;
+    int *idx = (int*) (&bulkdata->it);
+    char *v = dbmdb_data->data[0].mv_data;
+    int rc = 0;
+
+    PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
+    PR_ASSERT(!dbmdb_data->use_multiple);
+    if (!dbmdb_data->op || *idx++ >= dbmdb_data->maxrecords) {
         return DBI_RC_NOTFOUND;
     }
-    return DBI_RC_SUCCESS;
-#endif /* TODO */
+    dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data[0].mv_size);
+    dblayer_value_set_buffer(bulkdata->be, key, dbmdb_data->key.mv_data, dbmdb_data->key.mv_size);
+    rc = mdb_cursor_get(dbmdb_data->cursor, &dbmdb_data->key, &dbmdb_data->data[0], dbmdb_data->op);
+    rc = dbmdb_map_error(__FUNCTION__, rc);
 }
 
 int dbmdb_public_bulk_init(dbi_bulk_t *bulkdata)
 {
-#ifdef TODO
-    /* No specific action required for berkeley db handling */
+    /* No specific action required for mdb handling */
     return DBI_RC_SUCCESS;
-#endif /* TODO */
 }
 
 int dbmdb_public_bulk_start(dbi_bulk_t *bulkdata)
 {
-#ifdef TODO
-    MDB_val bulk;
-    dbmdb_dbival2dbt(&bulkdata->v, &bulk, PR_FALSE);
-    DB_MULTIPLE_INIT(bulkdata->it, &bulk);
+    bulkdata->it = (void*) 0;
     return DBI_RC_SUCCESS;
-#endif /* TODO */
 }
 
 int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata)
 {
-#ifdef TODO
-    int mflag = (bulkdata->v.flags & DBI_VF_BULK_RECORD) ? DB_MULTIPLE_KEY : DB_MULTIPLE;
+    dbmdb_bulkdata_t *dbmdb_data = bulkdata->v.data;
     MDB_cursor *dbmdb_cur = (MDB_cursor*)cursor->cur;
-    MDB_val dbmdb_key = {0};
-    MDB_val dbmdb_data = {0};
+    MDB_val *mval;
     int rc = 0;
 
-    if (dbmdb_cur == NULL)
+    if (!(cursor && cursor->cur))
         return DBI_RC_INVALID;
 
-    dbmdb_dbival2dbt(key, &dbmdb_key, PR_FALSE);
-    dbmdb_dbival2dbt(&bulkdata->v, &dbmdb_data, PR_FALSE);
+    bulkdata->v.size = sizeof *dbmdb_data;
+    dbmdb_data->cursor = (MDB_cursor*)cursor->cur;
+    dbmdb_dbival2dbt(key, &dbmdb_data->key, PR_FALSE);
+    mdb_dbi_flags(mdb_cursor_txn(dbmdb_cur), mdb_cursor_dbi(dbmdb_cur), &dbmdb_data->dbi_flags);
+    dbmdb_data->use_multiple = (bulkdata->v.flags & DBI_VF_BULK_RECORD) || (dbmdb_data->dbi_flags & MDB_DUPFIXED);
+    PR_ASSERT(dbmdb_data->dbi_flags & MDB_DUPSORT);
+    dbmdb_data->maxrecords = BULKOP_MAX_RECORDS;
+    dbmdb_data->data[0].mv_data = NULL;
+    dbmdb_data->data[0].mv_size = 0;
+    dbmdb_data->op = 0;
+    mval = &dbmdb_data->data[0];
+
+    /* if dbmdb_data->use_multiple: 
+     *   The bulkdata buffer is used to store the 2 MDB_val needed by lmdb to handle MULTIPLE OPERATION
+     *   dbmdb_data.data[0].mv_data is an array of dbmdb_data.data[1].mv_size items of dbmdb_data.data[0].mv_size len
+     * else:
+     *   retrieve the first item in bulkdata->key and bulkdata->data and prepare to retieve next item in 
+     *   dbmdb_public_bulk_nextrecord or dbmdb_public_bulk_nextdata
+     */
     switch (op)
     {
+        case DBI_OP_MOVE_TO_FIRST:
+                /* Returns dups of first entries */
+            rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_FIRST);
+            if (rc == 0) {
+                dbmdb_data->op =  (bulkdata->v.flags & DBI_VF_BULK_RECORD) ? MDB_NEXT : MDB_NEXT_DUP;
+                if (dbmdb_data->use_multiple) {
+                    memset(mval, 0, sizeof dbmdb_data->data);
+                    rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_GET_MULTIPLE);
+                }
+            }
+            break;
         case DBI_OP_MOVE_TO_KEY:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_SET | mflag);
+                /* Move customer to the specified key and returns dups */
+            rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_SET);
+            if (rc == 0) {
+                dbmdb_data->op =  (bulkdata->v.flags & DBI_VF_BULK_RECORD) ? MDB_NEXT : MDB_NEXT_DUP;
+                if (dbmdb_data->use_multiple) {
+                    memset(mval, 0, sizeof dbmdb_data->data);
+                    rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_GET_MULTIPLE);
+                }
+            }
             break;
         case DBI_OP_NEXT_KEY:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_NEXT_NODUP | mflag);
+            if (dbmdb_data->use_multiple) {
+                memset(mval, 0, sizeof dbmdb_data->data);
+                rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_NEXT_MULTIPLE);
+            } else {
+                rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_NEXT_NODUP);
+                if (rc == 0) {
+                    dbmdb_data->op =  (bulkdata->v.flags & DBI_VF_BULK_RECORD) ? MDB_NEXT : MDB_NEXT_DUP;
+                }
+            }
             break;
         case DBI_OP_NEXT:
+                /* Move cursor to next position and returns dups and/or nodups */
             PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_NEXT | mflag);
+            PR_ASSERT(!dbmdb_data->use_multiple);
+            rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_NEXT);
+            if (rc == 0) {
+                dbmdb_data->op = MDB_NEXT;
+            }
             break;
         case DBI_OP_NEXT_DATA:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_NEXT_DUP | mflag);
+                /* Return next blocks of dups */
+            /* with lmdb all dups are returned by the multiple operation 
+             * so there is no need to iterate on next dups
+             */
+            if (!dbmdb_data->use_multiple && mval->mv_data) {
+                /* There are still some data to work on */
+                dbmdb_data->op = MDB_NEXT_DUP;
+                rc = 0;
+            } else {
+                /* When usign multiple there is always a single bloc of dups */
+                rc = MDB_NOTFOUND;
+            }
             break;
         default:
             /* Unknown bulk operation */
@@ -5506,10 +4204,8 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
             break;
     }
     rc = dbmdb_map_error(__FUNCTION__, rc);
-    rc = dbmdb_dbt2dbival(&dbmdb_key, key, PR_TRUE, rc);
-    rc = dbmdb_dbt2dbival(&dbmdb_data, &bulkdata->v, PR_TRUE, rc);
+    rc = dbmdb_dbt2dbival(&dbmdb_data->key, key, PR_TRUE, rc);
     return rc;
-#endif /* TODO */
 }
 
 int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_val_t *data)
@@ -5517,7 +4213,6 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
     MDB_cursor *dbmdb_cur = (MDB_cursor*)cursor->cur;
     MDB_val dbmdb_key = {0};
     MDB_val dbmdb_data = {0};
-    MDB_txn *txn = NULL;
     int rc = 0;
 
     if (dbmdb_cur == NULL) {
@@ -5543,6 +4238,9 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
         case DBI_OP_MOVE_TO_RECNO:
 /* TODO */ PR_ASSERT(0);
 /*            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_SET_RECNO); */
+            break;
+        case DBI_OP_MOVE_TO_FIRST:
+            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_FIRST);
             break;
         case DBI_OP_MOVE_TO_LAST:
             rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_LAST);
@@ -5583,11 +4281,10 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
             rc = mdb_cursor_del(dbmdb_cur, 0);
             break;
         case DBI_OP_CLOSE:
-            txn = mdb_cursor_txn(dbmdb_cur);
             mdb_cursor_close(dbmdb_cur);
-            if (txn != cursor->txn) {
-                /* txn is a read only txn that should be aborted */
-                mdb_txn_abort(txn);
+            if (cursor->islocaltxn) {
+                /* local txn is read only and should be aborted when closing the cursor */
+                END_TXN(&cursor->txn, 1);
             }
             break;
         default:
@@ -5604,31 +4301,41 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
 
 int dbmdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key, dbi_val_t *data)
 {
-#ifdef TODO
-    MDB_txn *dbmdb_txn = (MDB_txn*)txn;
-    MDB_dbi*dbmdb_db = (DB*)db;
     MDB_val dbmdb_key = {0};
     MDB_val dbmdb_data = {0};
+    MDB_txn *mdb_txn = TXN(txn);
+    dbmdb_dbi_t *dbmdb_db = (dbmdb_dbi_t*)db;
+    MDB_dbi dbi = dbmdb_db->dbi;
+    dbi_txn_t *ltxn = NULL;
     int rc = 0;
 
     dbmdb_dbival2dbt(key, &dbmdb_key, PR_FALSE);
     dbmdb_dbival2dbt(data, &dbmdb_data, PR_FALSE);
+    if (!txn) {
+        rc = START_TXN(&ltxn, NULL, ((op == DBI_OP_GET) ? TXNFL_RDONLY : 0));
+        mdb_txn = TXN(ltxn);
+    }
     switch (op)
     {
         case DBI_OP_GET:
-            rc = dbmdb_db->get(dbmdb_db, dbmdb_txn, &dbmdb_key, &dbmdb_data, 0);
+            rc = mdb_get(mdb_txn, dbi, &dbmdb_key, &dbmdb_data);
             break;
         case DBI_OP_PUT:
-            rc = dbmdb_db->put(dbmdb_db, dbmdb_txn, &dbmdb_key, &dbmdb_data, 0);
+            rc = mdb_put(mdb_txn, dbi, &dbmdb_key, &dbmdb_data, 0);
             break;
         case DBI_OP_ADD:
-            rc = dbmdb_db->put(dbmdb_db, dbmdb_txn, &dbmdb_key, &dbmdb_data, DB_NODUPDATA);
+            rc = mdb_put(mdb_txn, dbi, &dbmdb_key, &dbmdb_data, MDB_NODUPDATA);
             break;
         case DBI_OP_DEL:
-            rc = dbmdb_db->del(dbmdb_db, dbmdb_txn, &dbmdb_key, 0);
+            rc = mdb_del(mdb_txn, dbi, &dbmdb_key, &dbmdb_data);
             break;
         case DBI_OP_CLOSE:
-            rc = dbmdb_db->close(dbmdb_db, 0);
+            /* No need to close db instances with lmdb */
+            /* But we should still free the dbmdb_dbi_t struct */
+            slapi_ch_free_string((char**)&dbmdb_db->dbname);
+            dbmdb_db->dbi = 0;
+            dbmdb_db->env = NULL;
+            slapi_ch_free((void **) &dbmdb_db);
             break;
         default:
             /* Unknown db operation */
@@ -5636,23 +4343,40 @@ int dbmdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *ke
             rc = DBI_RC_UNSUPPORTED;
             break;
     }
-    dbmdb_dbt2dbival(&dbmdb_key, key, PR_TRUE);
-    dbmdb_dbt2dbival(&dbmdb_data, data, PR_TRUE);
-    return dbmdb_map_error(__FUNCTION__, rc);
-#endif /* TODO */
+    if (ltxn) {
+        rc = END_TXN(&ltxn, rc);
+    }
+    rc = dbmdb_map_error(__FUNCTION__, rc);
+    rc = dbmdb_dbt2dbival(&dbmdb_key, key, PR_TRUE, rc);
+    rc = dbmdb_dbt2dbival(&dbmdb_data, data, PR_TRUE, rc);
+    return rc;
 }
 
 int dbmdb_public_new_cursor(dbi_db_t *db,  dbi_cursor_t *cursor)
 {
     dbmdb_dbi_t *dbi = (dbmdb_dbi_t*) db;
-    MDB_txn *txn = (MDB_txn*)(cursor->txn);
-    if (!txn) {
-        int rc = mdb_txn_begin(dbi->env, NULL, MDB_RDONLY, &txn);
+    int rc = 0;
+
+    cursor->islocaltxn = PR_FALSE;
+    if (!cursor->txn) {
+        /* No txn is provided so it is a read only cursor
+         * Let checks if a txn has been pushed on thread
+         *   use it if that is the case
+         *   otherwise begin a new local txn
+         */
+        rc = START_TXN(&cursor->txn, NULL, TXNFL_RDONLY);
         if (rc) {
-            return dbmdb_map_error(__FUNCTION__, rc);
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_new_cursor",
+                "Failed to get a local txn while opening a cursor on db %s . rc=%d %s\n", 
+                 dbi->dbname, rc, mdb_strerror(rc));
+             return dbmdb_map_error(__FUNCTION__, rc);
         }
+        cursor->islocaltxn = PR_TRUE;
     }
-    return dbmdb_map_error(__FUNCTION__, mdb_cursor_open(txn, dbi->dbi, (MDB_cursor**)&cursor->cur));
+    rc = mdb_cursor_open(TXN(cursor->txn), dbi->dbi, (MDB_cursor**)&cursor->cur);
+    if (rc && cursor->islocaltxn)
+        END_TXN(&cursor->txn, rc);
+    return dbmdb_map_error(__FUNCTION__, rc);
 }
 
 int dbmdb_public_value_free(dbi_val_t *data)
@@ -5667,143 +4391,130 @@ int dbmdb_public_value_init(dbi_val_t *data)
     return DBI_RC_SUCCESS;
 }
 
-static int
-dbmdb_db_uses_feature(MDB_env *db_env, u_int32_t flags)
-{
-#ifdef TODO
-    u_int32_t openflags = 0;
-    PR_ASSERT(db_env);
-    db_env->get_open_flags(db_env, &openflags);
-
-    return (flags & openflags);
-#endif /* TODO */
-}
-
-int
-dbmdb_uses_locking(MDB_env *db_env)
-{
-#ifdef TODO
-    return dbmdb_db_uses_feature(db_env, DB_INIT_LOCK);
-#endif /* TODO */
-}
-
-int
-dbmdb_uses_transactions(MDB_env *db_env)
-{
-#ifdef TODO
-    return dbmdb_db_uses_feature(db_env, DB_INIT_TXN);
-#endif /* TODO */
-}
-
-int
-dbmdb_uses_mpool(MDB_env *db_env)
-{
-#ifdef TODO
-    return dbmdb_db_uses_feature(db_env, DB_INIT_MPOOL);
-#endif /* TODO */
-}
-
-int
-dbmdb_uses_logging(MDB_env *db_env)
-{
-#ifdef TODO
-    return dbmdb_db_uses_feature(db_env, DB_INIT_LOG);
-#endif /* TODO */
-}
-
-/*
- * Rules:
- * NULL comes before anything else.
- * Otherwise, strcmp(elem_a->rdn_elem_nrdn_rdn - elem_b->rdn_elem_nrdn_rdn) is
- * returned.
- */
-int
-dbmdb_entryrdn_compare_dups(MDB_dbi*db __attribute__((unused)), const MDB_val *a, const MDB_val *b)
-{
-#ifdef TODO
-    if (NULL == a) {
-        if (NULL == b) {
-            return 0;
-        } else {
-            return -1;
-        }
-    } else if (NULL == b) {
-        return 1;
-    }
-    return entryrdn_compare_rdn_elem(a->data, b->data);
-#endif /* TODO */
-}
-
 int
 dbmdb_public_set_dup_cmp_fn(struct attrinfo *a, dbi_dup_cmp_t idx)
 {
-#ifdef TODO
-    switch (idx)
-    {
-        case DBI_DUP_CMP_NONE:
-            a->ai_dup_cmp_fn = NULL;
-            break;
-        case DBI_DUP_CMP_ENTRYRDN:
-            a->ai_dup_cmp_fn = dbmdb_entryrdn_compare_dups;
-            break;
-        default:
-            PR_ASSERT(0);
-            return DBI_RC_UNSUPPORTED;
-    }
-    return DBI_RC_SUCCESS;
-#endif /* TODO */
+    /*
+     * Do nothing here - dbmdb_entryrdn_compare_dups is now set
+     * at dbmdb_open_dbname level (so it get also set for dbscan)
+     */
+    return 0;
 }
 
 int
 dbmdb_dbi_txn_begin(dbi_env_t *env, PRBool readonly, dbi_txn_t *parent_txn, dbi_txn_t **txn)
 {
-#ifdef TODO
-    return TXN_BEGIN(env, parent_txn, txn, 0);
-#endif /* TODO */
+    int rc = START_TXN(txn, parent_txn, (readonly?TXNFL_RDONLY:0));
+    return dbmdb_map_error(__FUNCTION__, rc);
 }
 
 int
 dbmdb_dbi_txn_commit(dbi_txn_t *txn)
 {
-#ifdef TODO
-    return TXN_COMMIT(txn, 0);
-#endif /* TODO */
+    int rc = END_TXN(&txn, 0);
+    return dbmdb_map_error(__FUNCTION__, rc);
 }
 
 int
 dbmdb_dbi_txn_abort(dbi_txn_t *txn)
 {
-#ifdef TODO
-    return TXN_ABORT(txn);
-#endif /* TODO */
+    END_TXN(&txn, 1);
+    return 0;
 }
 
 int
 dbmdb_get_entries_count(dbi_db_t *db, int *count)
 {
-#ifdef TODO
-    DB_BTREE_STAT *stats = NULL;
-    int rc;
+    dbmdb_dbi_t *dbmdb_db = (dbmdb_dbi_t*)db;
+    dbi_txn_t *txn = NULL;
+    MDB_stat stats = {0};
+    int rc = 0;
 
-    rc = ((DB*)db)->stat(db, NULL, (void *)&stats, 0);
-    if (rc != 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_get_entries_count",
-                      "Failed to get bd statistics: db error - %d %s\n",
-                      rc, db_strerror(rc));
-        rc = DBI_RC_OTHER;
-    }
-    *count = rc ? 0 : stats->bt_ndata;
-    slapi_ch_free((void **)&stats);
-    return rc;
-#endif /* TODO */
+    rc = START_TXN(&txn, NULL, MDB_RDONLY);
+    if (rc == 0)
+        rc = mdb_stat(TXN(txn), dbmdb_db->dbi, &stats);
+    if (rc == 0)
+        *count = stats.ms_entries;
+    END_TXN(&txn, 1);
+    return dbmdb_map_error(__FUNCTION__, rc);
 }
 
+/* Get the number of duplicates for current key */
 int
 dbmdb_public_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count)
 {
-#ifdef TODO
+    size_t c = 0;
     MDB_cursor *cur = cursor->cur;
-    int rc = cur->c_count(cur, count, 0);
+    int rc = mdb_cursor_count(cur, &c);
+    *count = c;
     return dbmdb_map_error(__FUNCTION__, rc);
-#endif /* TODO */
+}
+
+int find_mdb_home(const char *db_filename, char *home, const char **dbname)
+{
+    struct stat st;
+    const char *pt2;
+    char *pt;
+
+    strncpy(home, db_filename, MAXPATHLEN);
+    for(;;) { 
+        pt = home + strlen(home);
+        if (pt+10 >= &home[MAXPATHLEN])
+            return DBI_RC_NOTFOUND;
+        strcpy(pt, "/data.mdb");
+        if (stat(home, &st) == 0) {
+            /* Found dbhome */
+            *pt = 0;
+            break;
+        }
+        /* Try again with upper directory */
+        *pt = 0;
+        pt = strrchr(home, '/');
+        if (!pt)
+            return DBI_RC_NOTFOUND;
+        *pt = 0;
+    }
+    pt2 = db_filename+(pt-home);
+    while (*pt2 == '/')
+        pt2++;
+    *dbname = pt2;
+    return *pt2 ? 0 : DBI_RC_NOTFOUND;
+}
+
+int
+dbmdb_public_private_open(const char *db_filename, dbi_env_t **env, dbi_db_t **db)
+{
+    dbmdb_ctx_t ctx = {0};
+    dbmdb_dbi_t dbi = {0};
+    const char *dbname = NULL;
+    int rc = find_mdb_home(db_filename, ctx.home, &dbname);
+    if (rc)
+        return DBI_RC_NOTFOUND;
+
+    rc = dbmdb_make_env(&ctx, 1, 0444);
+    if (rc) {
+        return dbmdb_map_error(__FUNCTION__, rc);
+    }
+    *env = ctx.env;
+
+    rc = dbmdb_open_dbname(&dbi, &ctx, dbname, 0);
+    if (rc) {
+        return dbmdb_map_error(__FUNCTION__, rc);
+    }
+    dbmdb_mdbdbi2dbi_db(&dbi, db);
+
+    return 0;
+}
+
+
+int
+dbmdb_public_private_close(dbi_env_t **env, dbi_db_t **db)
+{
+    if (*db)
+        dbmdb_public_db_op(*db, NULL, DBI_OP_CLOSE, NULL, NULL);
+    *db = NULL;
+    if (*env)
+        mdb_env_close((MDB_env*)*env);
+    *env = NULL;
+    return 0;
 }
