@@ -51,6 +51,7 @@
 #define SHOWDATA 0x4
 #define SHOWSUMMARY 0x8
 #define LISTDBS 0x10
+#define ASCIIDATA 0x20
 
 /* stolen from slapi-plugin.h */
 #define SLAPI_OPERATION_BIND 0x00000001UL
@@ -1048,6 +1049,7 @@ usage(char *argv0)
     printf("  common options:\n");
     printf("    -D <dbimpl>     specify db implementaion (may be: bdb or mdb)\n");
     printf("    -f <filename>   specify db file\n");
+    printf("    -A              dump as ascii data\n");
     printf("    -R              dump as raw data\n");
     printf("    -t <size>       entry truncate size (bytes)\n");
     printf("  entry file options:\n");
@@ -1079,6 +1081,56 @@ usage(char *argv0)
     exit(1);
 }
 
+void dump_ascii_val(const char *str, dbi_val_t *val)
+{
+	unsigned char *v = val->data;
+	unsigned char *last = &v[val->size];
+
+	printf("%s: ",str);
+	while (v<last) {
+		switch (*v) {
+			case ' ':
+				printf("\\s"); 
+				break;
+			case '\\':
+				printf("\\\\"); 
+				break;
+			case '\t':
+				printf("\\t"); 
+				break;
+			case '\r':
+				printf("\\r"); 
+				break;
+			case '\n':
+				printf("\\n"); 
+				break;
+			default:
+				if (*v > 0x20 && *v < 0x7f) {
+					printf("%c", *v);
+				} else {
+					printf("\\%02x", *v);
+				}
+				break;
+		}
+		v++;
+	}
+}
+
+int dump_ascii(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data)
+{
+    int rc;
+	do {
+		dump_ascii_val("KEY", key);
+		dump_ascii_val("\tDATA", data);
+		putchar('\n');
+		rc = dblayer_cursor_op(cursor, DBI_OP_NEXT,  key, data);
+	} while (rc==0);
+    if (rc == DBI_RC_NOTFOUND) {
+		rc = 0;
+	}
+	return rc;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1093,8 +1145,11 @@ main(int argc, char **argv)
     char * dbimpl_name = "bdb";
     int c;
 
-    while ((c = getopt(argc, argv, "f:RL:l:nG:srk:K:hvt:D:")) != EOF) {
+    while ((c = getopt(argc, argv, "Af:RL:l:nG:srk:K:hvt:D:")) != EOF) {
         switch (c) {
+        case 'A':
+            display_mode |= ASCIIDATA;
+            break;
         case 'f':
             filename = optarg;
             break;
@@ -1205,6 +1260,11 @@ main(int argc, char **argv)
     if (ret != 0) {
         printf("Can't get first cursor: %s\n", dblayer_strerror(ret));
         ret = 1;
+        goto done;
+    }
+
+    if (display_mode & ASCIIDATA) {
+		ret = dump_ascii(&cursor, &key, &data);
         goto done;
     }
 

@@ -143,7 +143,7 @@ idl_new_fetch(
     /* beware that a large buffer on the stack might cause a stack overflow on some platforms */
     char buffer[BULK_FETCH_BUFFER_SIZE];
     dbi_val_t dataret = {0};
-    back_txn s_txn;
+    back_txn s_txn = {0};
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     char *index_id = "unknown";
 
@@ -167,7 +167,7 @@ idl_new_fetch(
     }
 
     /* Make a cursor */
-    ret = dblayer_new_cursor(be, db, txn, &cursor);
+    ret = dblayer_new_cursor(be, db, s_txn.back_txn_txn, &cursor);
     if (0 != ret) {
         ldbm_nasty("idl_new_fetch", filename, 1, ret);
         goto error;

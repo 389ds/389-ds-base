@@ -114,6 +114,7 @@ int mdb_init(struct ldbminfo *li, config_info *config_array)
     li->li_dblayer_config = conf;
     strncpy(conf->home, li->li_directory, MAXPATHLEN);
     pthread_mutex_init(&conf->dbis_lock, NULL);
+    pthread_rwlock_init(&conf->dbmdb_env_lock, NULL);
 
     dbmdb_ctx_t_setup_default(li);
     /* Do not compute limit if dse.ldif is not taken in account (i.e. dbscan) */
@@ -176,6 +177,8 @@ int mdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_dbi_txn_abort_fn = &dbmdb_dbi_txn_abort;
     priv->dblayer_get_entries_count_fn = &dbmdb_get_entries_count;
     priv->dblayer_cursor_get_count_fn = &dbmdb_public_cursor_get_count;
+    priv->dblayer_private_open_fn = &dbmdb_public_private_open;
+    priv->dblayer_private_close_fn = &dbmdb_public_private_close;
     priv->ldbm_back_wire_import_fn = &dbmdb_ldbm_back_wire_import;
     priv->dblayer_restore_file_init_fn = &dbmdb_restore_file_init;
     priv->dblayer_restore_file_update_fn = &dbmdb_restore_file_update;

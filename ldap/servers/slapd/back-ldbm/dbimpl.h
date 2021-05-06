@@ -92,6 +92,7 @@ typedef uint32_t dbi_recno_t;   /* A record position */
 typedef struct {
     struct backend  *be;
     dbi_txn_t       *txn;
+    int             islocaltxn;
     void            *cur;
 } dbi_cursor_t;                 /* A db cursor */
 
