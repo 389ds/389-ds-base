@@ -223,7 +223,7 @@ def test_clean(topology_m4, m4rid):
 
     log.info('test_clean PASSED, restoring supplier 4...')
 
-
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_clean_restart(topology_m4, m4rid):
     """Check that cleanallruv task works properly after a restart
 
@@ -295,6 +295,7 @@ def test_clean_restart(topology_m4, m4rid):
     log.info('test_clean_restart PASSED, restoring supplier 4...')
 
 
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_clean_force(topology_m4, m4rid):
     """Check that multiple tasks with a 'force' option work properly
 
@@ -353,6 +354,7 @@ def test_clean_force(topology_m4, m4rid):
     log.info('test_clean_force PASSED, restoring supplier 4...')
 
 
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_abort(topology_m4, m4rid):
     """Test the abort task basic functionality
 
@@ -408,6 +410,7 @@ def test_abort(topology_m4, m4rid):
     log.info('test_abort PASSED, restoring supplier 4...')
 
 
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_abort_restart(topology_m4, m4rid):
     """Test the abort task can handle a restart, and then resume
 
@@ -486,6 +489,7 @@ def test_abort_restart(topology_m4, m4rid):
     log.info('test_abort_restart PASSED, restoring supplier 4...')
 
 
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_abort_certify(topology_m4, m4rid):
     """Test the abort task with a replica-certify-all option
 
@@ -555,6 +559,7 @@ def test_abort_certify(topology_m4, m4rid):
     log.info('test_abort_certify PASSED, restoring supplier 4...')
 
 
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_stress_clean(topology_m4, m4rid):
     """Put each server(m1 - m4) under a stress, and perform the entire clean process
 
@@ -641,6 +646,7 @@ def test_stress_clean(topology_m4, m4rid):
     ldbm_config.set('nsslapd-readonly', 'off')
 
 
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_multiple_tasks_with_force(topology_m4, m4rid):
     """Check that multiple tasks with a 'force' option work properly
 

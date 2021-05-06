@@ -215,6 +215,8 @@ def test_global_vs_local(topo, passw_policy, create_user, user_pasw):
     # reset password
     create_user.set('userPassword', PASSWORD)
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 @pytest.mark.ds49789
 def test_unhashed_pw_switch(topo_supplier):
     """Check that nsslapd-unhashed-pw-switch works corrently

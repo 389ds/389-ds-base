@@ -2655,7 +2655,8 @@ def test_complex_group_scenario_9(topology_st):
     verify_post_025(topology_st, memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4, memofegrp020_5,
                     memofuser1, memofuser2, memofuser3, memofuser4)
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_memberof_auto_add_oc(topology_st):
     """Test the auto add objectclass (OC) feature. The plugin should add a predefined
     objectclass that will allow memberOf to be added to an entry.
