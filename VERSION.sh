@@ -12,7 +12,7 @@ VERSION_MAJOR=1
 VERSION_MINOR=3
 VERSION_MAINT=10.2
 # NOTE: VERSION_PREREL is automatically set for builds made out of a git tree
-VERSION_PREREL=11
+VERSION_PREREL=12
 VERSION_DATE=$(date -u +%Y%m%d)
 
 # Set the version and release numbers for local developer RPM builds. We
