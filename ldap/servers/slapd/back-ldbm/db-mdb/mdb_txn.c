@@ -12,7 +12,7 @@
 #endif
 #include "mdb_layer.h"
 
-#define DEBUG_TXN 1
+/* #define DEBUG_TXN 1 */
 
 #ifdef DEBUG_TXN
 #include <execinfo.h>
@@ -214,7 +214,9 @@ int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_
         ltxn->parent = parent_txn;
         push_mdbtxn(ltxn);
         *txn = (dbi_txn_t*)ltxn;
+#ifdef DEBUG_TXN
         slapi_log_err(SLAPI_LOG_INFO, "dbmdb_start_txn", "dbi_txn_t=0x%lx mdb_txn=0x%lx\n", (ulong)ltxn, (ulong)mtxn);
+#endif
     } else {
         slapi_log_error(SLAPI_LOG_ERR, "dbmdb_start_txn",
             "Failed to begin a txn for function %s. err=%d %s\n",
