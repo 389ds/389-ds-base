@@ -321,6 +321,9 @@ int dbmdb_dbitxn_end(dbmdb_cursor_t *dbicur, const char *funcname, int return_co
 void dbmdb_mdbdbi2dbi_db(const dbmdb_dbi_t *dbi, dbi_db_t **ppDB);
 dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome);
 void dbmdb_envflags2str(int flags, char *str, int maxlen);
+int dbmdb_dbi_remove(dbmdb_ctx_t *conf, dbi_db_t **db);
+int dbmdb_dbi_rmdir(dbmdb_ctx_t *conf, const char *dirname);
+
 
 /* mdb_txn.c */
 int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_txn_t **txn);

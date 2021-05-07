@@ -199,8 +199,10 @@ int dbmdb_open_dbname(dbmdb_dbi_t *dbi, dbmdb_ctx_t *ctx, const char *dbname, in
         }
         rc = mdb_dbi_open(TXN(cur.txn), dbname, (flags & MDB_DBIOPEN_MASK), &dbi->dbi);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_dbname",
-                "Failed to open %s database err=%d: %s\n", dbname, rc, mdb_strerror(rc));
+            if (rc != MDB_NOTFOUND) {
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_dbname",
+                    "Failed to open %s database err=%d: %s\n", dbname, rc, mdb_strerror(rc));
+            }
             goto openfail;
         }
         if (ctx->nbdbis == 0) {
@@ -542,6 +544,7 @@ void dbmdb_ctx_close(dbmdb_ctx_t *ctx)
     pthread_rwlock_destroy(&ctx->dbmdb_env_lock);
 }
 
+/* concat two strings to a buffer */
 int append_str(char *buff, int bufsize, int pos, const char *str1, const char *str2)
 {
     int l1 = strlen(str1);
@@ -555,6 +558,7 @@ int append_str(char *buff, int bufsize, int pos, const char *str1, const char *s
     return pos;
 }
 
+/* Utility to add flags values to a buffer */
 int append_flags(char *buff, int bufsize, int pos, const char *name, int flags, flagsdesc_t *desc)
 {
     int remainder = flags;
@@ -572,6 +576,7 @@ int append_flags(char *buff, int bufsize, int pos, const char *name, int flags, 
     return pos;
 }
 
+/* convert mdb_env_open flags to string */
 void dbmdb_envflags2str(int flags, char *str, int maxlen)
 {
     char buf[30];
@@ -579,6 +584,7 @@ void dbmdb_envflags2str(int flags, char *str, int maxlen)
     append_flags(str, maxlen, 0, buf, flags, mdb_env_flags_desc); 
 }
 
+/* API used by dbscan to list the dbs */
 dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
 {
     dbi_dbslist_t *dbs = NULL;
@@ -601,5 +607,81 @@ dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
     dbs[i].filename[0]=0;
     dbmdb_ctx_close(&ctx);
     return dbs;
+}
+
+/* remove db instance by index in conf->dbis - caller must hold conf->dbis_lock */
+int dbmdb_dbi_remove_from_idx(dbmdb_ctx_t *conf, dbi_txn_t *txn, int idx)
+{
+    dbmdb_dbi_t *ldb = &conf->dbis[idx];
+	MDB_val key = {0};
+    int rc = 0;
+
+    key.mv_data = (char*)(ldb->dbname);
+    key.mv_size = strlen(ldb->dbname)+1;
+	if (rc == 0) {
+        /* Remove db instance from database */
+        rc = mdb_drop(TXN(txn), ldb->dbi, 1);
+    }
+    if (rc == 0) {
+        /* Remove db instance from DBNAMES */
+        rc = mdb_del(TXN(txn), conf->dbinames_dbi, &key, &key);
+    }
+    if (rc == 0) {
+        /* Remove db instance from conf->dbis */
+        int n = conf->nbdbis - idx - 1;
+        conf->nbdbis--;
+        if (n>0) {
+            bcopy(&conf->dbis[idx+1], &conf->dbis[idx], n * sizeof (dbmdb_dbi_t));
+        }
+    }
+    return rc;
+}
+
+/* Remove an open database */
+int dbmdb_dbi_remove(dbmdb_ctx_t *conf, dbi_db_t **db)
+{
+    dbmdb_dbi_t *ldb = *db;
+    dbi_txn_t *txn = NULL;
+	int idx;
+    int rc = 0;
+
+	PR_ASSERT(conf);
+	PR_ASSERT(ldb);
+    pthread_mutex_lock(&conf->dbis_lock);
+    rc = START_TXN(&txn, NULL, TXNFL_DBI);
+    /* Lookup for db handle slot in dbilist table */
+    idx = dbmdb_db_lookup(conf, ldb->dbname);
+    if (rc == 0 && idx >=0) {
+		PR_ASSERT(conf->dbis[idx].dbi == ldb->dbi);
+		PR_ASSERT(strcmp(conf->dbis[idx].dbname, ldb->dbname) == 0);
+        rc = dbmdb_dbi_remove_from_idx(conf, txn, idx);
+        if (rc == 0) {
+            *db = NULL;
+        }
+    }
+    rc = END_TXN(&txn, rc);
+    pthread_mutex_unlock(&conf->dbis_lock);
+    return dbmdb_map_error(__FUNCTION__, rc);
+}
+
+/* Remove all databases belonging to an instance directory */
+int dbmdb_dbi_rmdir(dbmdb_ctx_t *conf, const char *dirname)
+{
+    dbi_txn_t *txn = NULL;
+	int idx;
+    int rc = 0;
+    int len = strlen(dirname);
+
+    pthread_mutex_lock(&conf->dbis_lock);
+    rc = START_TXN(&txn, NULL, TXNFL_DBI);
+	for (idx=0; rc==0 && idx<conf->nbdbis; idx++) {
+        while (rc == 0 && strncasecmp(dirname, conf->dbis[idx].dbname, len) == 0 &&
+            conf->dbis[idx].dbname[len] == '/') {
+			rc = dbmdb_dbi_remove_from_idx(conf, txn, idx);
+		}
+    }
+    rc = END_TXN(&txn, rc);
+    pthread_mutex_unlock(&conf->dbis_lock);
+    return dbmdb_map_error(__FUNCTION__, rc);
 }
 

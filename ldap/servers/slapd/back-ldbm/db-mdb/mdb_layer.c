@@ -905,7 +905,8 @@ dbmdb_instance_start(backend *be, int mode)
         return return_value;
     }
 
-    inst->inst_dir_name = inst->inst_name;
+    /* Need to duplicate because ldbm_instance_destructor frees both values */
+    inst->inst_dir_name = slapi_ch_strdup(inst->inst_name);
 
     if (NULL != inst->inst_id2entry) {
         slapi_log_err(SLAPI_LOG_WARNING,
@@ -1626,22 +1627,20 @@ dbmdb_db_compact_one_db(MDB_dbi*db, ldbm_instance *inst)
 #endif /* TODO */
 }
 
-#define DBLAYER_CACHE_DELAY PR_MillisecondsToInterval(250)
+#define DBLAYER_CACHE_DELAY PR_MillisecondsToInterval(5)
 int
 dbmdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_checkpoint)
 {
-#ifdef TODO
     struct ldbminfo *li = NULL;
     dblayer_private *priv;
-    dbmdb_db_env *pEnv = NULL;
     ldbm_instance *inst = NULL;
     dblayer_handle *handle = NULL;
-    char dbName[MAXPATHLEN] = {0};
-    char *dbNamep = NULL;
+    char *dbname = NULL;
     char *p;
     int dbbasenamelen, dbnamelen;
     int rc = 0;
-    MDB_dbi*db = 0;
+    dbi_db_t *db = 0;
+    dbmdb_ctx_t *conf = NULL;
 
     if ((NULL == be) || (NULL == be->be_database)) {
         return rc;
@@ -1654,26 +1653,13 @@ dbmdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_
     if (NULL == li) {
         return rc;
     }
-    priv = li->li_dblayer_private;
-    if (NULL == priv) {
+    conf = (dbmdb_ctx_t *)li->li_dblayer_config;
+    if (NULL == conf || NULL == conf->env) { /* db does not exist or not started */
         return rc;
-    }
-    pEnv = (dbmdb_db_env *)priv->dblayer_env;
-    if (NULL == pEnv) { /* db does not exist */
-        return rc;
-    }
-    /* Added for bug 600401. Somehow the checkpoint thread deadlocked on
-     index file with this function, index file couldn't be removed on win2k.
-     Force a checkpoint here to break deadlock.
-  */
-    if (0 == no_force_checkpoint) {
-        dbmdb_force_checkpoint(li);
     }
 
     if (0 == dblayer_get_index_file(be, a, (dbi_db_t**)&db, 0 /* Don't create an index file
                                                    if it does not exist. */)) {
-        if (use_lock)
-            slapi_rwlock_wrlock(pEnv->dbmdb_env_lock); /* We will be causing logging activity */
         /* first, remove the file handle for this index, if we have it open */
         PR_Lock(inst->inst_handle_list_mutex);
         if (a->ai_dblayer) {
@@ -1698,55 +1684,40 @@ dbmdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_
                 DS_Sleep(DBLAYER_CACHE_DELAY);
                 PR_Lock(inst->inst_handle_list_mutex);
             }
-            dbmdb_close_file((DB**)&(handle->dblayer_dbp));
-
-            /* remove handle from handle-list */
-            if (inst->inst_handle_head == handle) {
-                inst->inst_handle_head = handle->dblayer_handle_next;
-                if (inst->inst_handle_tail == handle) {
-                    inst->inst_handle_tail = NULL;
-                }
-            } else {
-                dblayer_handle *hp;
-
-                for (hp = inst->inst_handle_head; hp; hp = hp->dblayer_handle_next) {
-                    if (hp->dblayer_handle_next == handle) {
-                        hp->dblayer_handle_next = handle->dblayer_handle_next;
-                        if (inst->inst_handle_tail == handle) {
-                            inst->inst_handle_tail = hp;
+            rc = dbmdb_dbi_remove(conf, &db);
+            slapi_ch_free_string(&dbname);
+            a->ai_dblayer = NULL;
+            if (rc == 0) {
+                /* remove handle from handle-list */
+                if (inst->inst_handle_head == handle) {
+                    inst->inst_handle_head = handle->dblayer_handle_next;
+                    if (inst->inst_handle_tail == handle) {
+                        inst->inst_handle_tail = NULL;
+                    }
+                } else {
+                    dblayer_handle *hp;
+    
+                    for (hp = inst->inst_handle_head; hp; hp = hp->dblayer_handle_next) {
+                        if (hp->dblayer_handle_next == handle) {
+                            hp->dblayer_handle_next = handle->dblayer_handle_next;
+                            if (inst->inst_handle_tail == handle) {
+                                inst->inst_handle_tail = hp;
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
-            }
-            dbNamep = dblayer_get_full_inst_dir(li, inst, dbName, MAXPATHLEN);
-            if (dbNamep && *dbNamep) {
-                dbbasenamelen = strlen(dbNamep);
-                dbnamelen = dbbasenamelen + strlen(a->ai_type) + 6;
-                if (dbnamelen > MAXPATHLEN) {
-                    dbNamep = (char *)slapi_ch_realloc(dbNamep, dbnamelen);
-                }
-                p = dbNamep + dbbasenamelen;
-                sprintf(p, "%c%s%s", get_sep(dbNamep), a->ai_type, LDBM_FILENAME_SUFFIX);
-                rc = dbmdb_db_remove_ex(pEnv, dbNamep, 0, 0);
-                a->ai_dblayer = NULL;
+                slapi_ch_free((void **)&handle);
             } else {
-                rc = -1;
-            }
-            if (dbNamep != dbName) {
-                slapi_ch_free_string(&dbNamep);
-            }
-            slapi_ch_free((void **)&handle);
+                rc = -1; /* Failed to remove the db instance */
+            }                
         } else {
             /* no handle to close */
         }
         PR_Unlock(inst->inst_handle_list_mutex);
-        if (use_lock)
-            slapi_rwlock_unlock(pEnv->dbmdb_env_lock);
     }
 
     return rc;
-#endif /* TODO */
 }
 
 
@@ -3920,7 +3891,7 @@ dbi_error_t dbmdb_map_error(const char *funcname, int err)
                 msg = "";
             }
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_map_error",
-                "%s failed with db error %d : %s", funcname, err, msg);
+                "%s failed with db error %d : %s\n", funcname, err, msg);
             return DBI_RC_OTHER;
     }
 }

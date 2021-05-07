@@ -132,100 +132,43 @@ dbmdb_instance_config_set(ldbm_instance *inst, char *attrname, int mod_apply, in
 int
 dbmdb_instance_postadd_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst)
 {
-#ifdef TODO
-
     /* callback to be defined, does nothing for now */
 
     return SLAPI_DSE_CALLBACK_OK;
-#endif /* TODO */
 }
 
 int
 dbmdb_instance_add_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst)
 {
-#ifdef TODO
-
     /* callback to be defined, does nothing for now */
 
     return SLAPI_DSE_CALLBACK_OK;
-#endif /* TODO */
 }
 
 int
 dbmdb_instance_post_delete_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst)
 {
-#ifdef TODO
-    dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
-    struct dbmdb_db_env *pEnv = priv->dblayer_env;
-    if (pEnv) {
-        PRDir *dirhandle = NULL;
-        char inst_dir[MAXPATHLEN * 2];
-        char *inst_dirp = NULL;
-
-        if (inst->inst_dir_name == NULL) {
-            dblayer_get_instance_data_dir(inst->inst_be);
-        }
-        inst_dirp = dblayer_get_full_inst_dir(li, inst,
-                                              inst_dir, MAXPATHLEN * 2);
-        if (NULL != inst_dirp) {
-            dirhandle = PR_OpenDir(inst_dirp);
-            /* the db dir instance may have been removed already */
-            if (dirhandle) {
-                PRDirEntry *direntry = NULL;
-                char *dbp = NULL;
-                char *p = NULL;
-                while (NULL != (direntry = PR_ReadDir(dirhandle,
-                                                      PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
-                    int rc;
-                    if (!direntry->name)
-                        break;
-
-                    dbp = PR_smprintf("%s/%s", inst_dirp, direntry->name);
-                    if (NULL == dbp) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "dbmdb_instance_post_delete_instance_entry_callback",
-                                      "Failed to generate db path: %s/%s\n",
-                                      inst_dirp, direntry->name);
-                        break;
-                    }
-
-                    p = strstr(dbp, LDBM_FILENAME_SUFFIX);
-                    if (NULL != p &&
-                        strlen(p) == strlen(LDBM_FILENAME_SUFFIX)) {
-                        rc = dbmdb_db_remove(pEnv, dbp, 0);
-                    } else {
-                        rc = PR_Delete(dbp);
-                    }
-                    PR_ASSERT(rc == 0);
-                    if (rc != 0) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "dbmdb_instance_post_delete_instance_entry_callback",
-                                      "Failed to delete %s, error %d\n", dbp, rc);
-                    }
-                    PR_smprintf_free(dbp);
-                }
-                PR_CloseDir(dirhandle);
-            }
-        } /* non-null dirhandle */
-        if (inst_dirp != inst_dir) {
-            slapi_ch_free_string(&inst_dirp);
-        }
+    if (MDB_CONFIG(li)->env) {
         /* unregister the monitor */
         dbmdb_instance_unregister_monitor(inst);
     } /* non-null pEnv */
     return SLAPI_DSE_CALLBACK_OK;
-#endif /* TODO */
 }
 
 int
 dbmdb_instance_delete_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst)
 {
-#ifdef TODO
+    if (MDB_CONFIG(li)->env) {
+        if (inst->inst_dir_name == NULL) {
+            dblayer_get_instance_data_dir(inst->inst_be);
+        }
+        dbmdb_dbi_rmdir(MDB_CONFIG(li), inst->inst_dir_name);
 
-    /* callback to be defined, does nothing for now */
+        /* unregister the monitor */
+        dbmdb_instance_unregister_monitor(inst);
+    } /* non-null pEnv */
 
     return SLAPI_DSE_CALLBACK_OK;
-#endif /* TODO */
 }
 
 /* adding mdb instance specific attributes, instance lock must be held */

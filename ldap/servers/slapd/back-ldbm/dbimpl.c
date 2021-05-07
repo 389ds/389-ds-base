@@ -318,11 +318,11 @@ dblayer_strerror(int error)
         { DBI_RC_SUCCESS, "No error." }
     }, *errpt = errtab;
 
-    do {
+    for (;errpt ->errcode; errpt++) {
         if (errpt->errcode == error) {
             return errpt->errmsg;
         }
-    } while (errpt++ ->errcode);
+    }
     return "Unexpected dbimpl error code";
 }
 

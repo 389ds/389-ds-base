@@ -917,6 +917,7 @@ dbmdb_ctx_t_ignored_attr(char *attr_name)
      * config entries but are not config attributes. */
     if (!strcasecmp("objectclass", attr_name) ||
         !strcasecmp("cn", attr_name) ||
+        !strcasecmp("nsuniqueid", attr_name) ||
         !strcasecmp("creatorsname", attr_name) ||
         !strcasecmp("createtimestamp", attr_name) ||
         !strcasecmp(LDBM_NUMSUBORDINATES_STR, attr_name) ||
