@@ -23,6 +23,7 @@ from lib389.config import LDBMConfig
 from lib389.dseldif import DSEldif
 from lib389.rootdse import RootDSE
 from ....conftest import get_rpm_version
+from lib389._mapped_object import DSLdapObjects
 
 
 pytestmark = pytest.mark.tier0
@@ -1634,6 +1635,34 @@ def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
             assert False
         else:
             assert True
+
+
+@pytest.mark.bz1870624
+@pytest.mark.ds4379
+@pytest.mark.parametrize("case,value", [('positive', ['cn','','']),
+                                        ("positive", ['cn', '', '', '', '', '', '', '', '', '', '']),
+                                        ("negative", ['cn', '', '', '', '', '', '', '', '', '', '', ''])])
+def test_attr_description_limit(topology_st, case, value):
+    """Test that up to 10 empty attributeDescription is allowed
+
+    :id: 5afd3dcd-1028-428d-822d-a489ecf4b67e
+    :customerscenario: True
+    :parametrized: yes
+    :setup: Standalone instance
+    :steps:
+        1. Check that 2 empty values are allowed
+        2. Check that 10 empty values are allowed
+        3. Check that more than 10 empty values are allowed
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+        3. Should fail
+    """
+    if case == 'positive':
+        DSLdapObjects(topology_st.standalone, basedn='').filter("(objectclass=*)", attrlist=value, scope=0)
+    else:
+        with pytest.raises(ldap.PROTOCOL_ERROR):
+            DSLdapObjects(topology_st.standalone, basedn='').filter("(objectclass=*)", attrlist=value, scope=0)
 
 
 if __name__ == '__main__':
