@@ -23,6 +23,7 @@
 /* Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn ); */
 static int set_retry_cnt(Slapi_PBlock *pb, int count);
 static int set_retry_cnt_and_time(Slapi_PBlock *pb, int count, time_t cur_time);
+static int set_tpr_usecount(Slapi_PBlock *pb, int count);
 
 /*
  * update_pw_retry() is called when bind operation fails
@@ -87,9 +88,42 @@ update_pw_retry(Slapi_PBlock *pb)
         }
     }
     slapi_entry_free(e);
-    return rc; /* success */
+    return rc;
 }
 
+/*
+ * update_tpr_pw_usecount() is called during a bind operation.
+ * The bind may later succeeds or fails, this function just record
+ * an additional access to TPR userpassword
+ * Returns
+ *   LDAP_CONSTRAINT_VIOLATION if pwdTPRUseCount overpass TPR maxuse
+ *   0 else
+ */
+int
+update_tpr_pw_usecount(Slapi_PBlock *pb, Slapi_Entry *e, int32_t use_count)
+{
+    int rc = 0;
+
+    if (e == NULL) {
+        return (1);
+    }
+
+    if (slapi_entry_attr_hasvalue(e, "pwdTPRReset", "TRUE")) {
+        /* This entry contains a OneTimePassword userpassword
+         * as the bind failed, increase the passwordTPRRetryCount
+         * and return a failure if the retryCount exceed the limit
+         * set in the password policy
+         */
+        if (use_count >= 0) {
+            slapi_log_err(SLAPI_LOG_TRACE,
+                          "update_tpr_pw_usecount",
+                          "update pwdTPRUseCount=%d on entry (%s).\n",
+                           use_count, slapi_entry_get_ndn(e));
+            rc = set_tpr_usecount(pb, use_count);
+        }
+    }
+    return rc;
+}
 static int
 set_retry_cnt_and_time(Slapi_PBlock *pb, int count, time_t cur_time)
 {
@@ -118,6 +152,45 @@ set_retry_cnt_and_time(Slapi_PBlock *pb, int count, time_t cur_time)
     pw_apply_mods(sdn, &smods);
     slapi_mods_done(&smods);
 
+    return rc;
+}
+
+/* update pwdTPRUseCount=count of the target entry
+ * Returns
+ *   LDAP_CONSTRAINT_VIOLATION if pwdTPRUseCount overpass TPR maxuse
+ *   0 else
+ */
+int
+set_tpr_usecount_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
+{
+    char *timestr;
+    time_t unlock_time;
+    char retry_cnt[16] = {0}; /* 1-65535 */
+    const char *dn = NULL;
+    Slapi_DN *sdn = NULL;
+    passwdPolicy *pwpolicy = NULL;
+    int rc = 0;
+
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+    dn = slapi_sdn_get_dn(sdn);
+    pwpolicy = new_passwdPolicy(pb, dn);
+
+    if (smods) {
+        sprintf(retry_cnt, "%d", count);
+        slapi_mods_add_string(smods, LDAP_MOD_REPLACE, "pwdTPRUseCount", retry_cnt);
+                slapi_log_err(SLAPI_LOG_TRACE,
+                          "set_tpr_retry_cnt_mods",
+                          "Unsuccessfull bind, increase pwdTPRUseCount = %d.\n", count);
+        /* return a failure if it reaches the retry limit */
+        if (count > pwpolicy->pw_tpr_maxuse) {
+            slapi_log_err(SLAPI_LOG_INFO,
+                          "set_tpr_retry_cnt_mods",
+                          "Unsuccessfull bind, LDAP_CONSTRAINT_VIOLATION pwdTPRUseCount %d > %d.\n",
+                          count,
+                          pwpolicy->pw_tpr_maxuse);
+            rc = LDAP_CONSTRAINT_VIOLATION;
+        }
+    }
     return rc;
 }
 
@@ -169,6 +242,26 @@ set_retry_cnt(Slapi_PBlock *pb, int count)
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
     slapi_mods_init(&smods, 0);
     rc = set_retry_cnt_mods(pb, &smods, count);
+    pw_apply_mods(sdn, &smods);
+    slapi_mods_done(&smods);
+    return rc;
+}
+
+/* update pwdTPRUseCount=count of the target entry
+ * Returns
+ *   LDAP_CONSTRAINT_VIOLATION if pwdTPRUseCount overpass TPR maxuse
+ *   0 else
+ */
+static int
+set_tpr_usecount(Slapi_PBlock *pb, int count)
+{
+    Slapi_DN *sdn = NULL;
+    Slapi_Mods smods;
+    int rc = 0;
+
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+    slapi_mods_init(&smods, 0);
+    rc = set_tpr_usecount_mods(pb, &smods, count);
     pw_apply_mods(sdn, &smods);
     slapi_mods_done(&smods);
     return rc;
