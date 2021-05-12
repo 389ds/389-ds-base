@@ -336,6 +336,9 @@ int config_set_pw_maxfailure(const char *attrname, char *value, char *errorbuf, 
 int config_set_pw_unlock(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_lockduration(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_resetfailurecount(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_pw_tpr_maxuse(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_pw_tpr_delay_expire_at(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_pw_tpr_delay_valid_from(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_is_global_policy(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_is_legacy_policy(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_track_last_update_time(const char *attrname, char *value, char *errorbuf, int apply);
@@ -1012,6 +1015,7 @@ int add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e);
  * pw_retry.c
  */
 int update_pw_retry(Slapi_PBlock *pb);
+int update_trp_pw_usecount(Slapi_PBlock *pb, Slapi_Entry *e, int32_t use_count);
 void pw_apply_mods(const Slapi_DN *sdn, Slapi_Mods *mods);
 void pw_set_componentID(struct slapi_componentid *cid);
 struct slapi_componentid *pw_get_componentID(void);

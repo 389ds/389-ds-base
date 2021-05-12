@@ -69,7 +69,10 @@ def _create_pwp(topo, instance):
         ('passwordresetfailurecount', '600'),
         ('passwordunlock', 'on'),
         ('passwordStorageScheme', 'CLEAR'),
-        ('passwordwarning', '86400')
+        ('passwordwarning', '86400'),
+        ('passwordTPRMaxUse', '-1'),
+        ('passwordTPRDelayExpireAt', '-1'),
+        ('passwordTPRDelayValidFrom', '-1')
     ]:
         pwadm_locpol.add(attribute, value)
     return pwadm_locpol
