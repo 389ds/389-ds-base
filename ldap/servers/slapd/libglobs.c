@@ -648,6 +648,18 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.pw_policy.pw_resetfailurecount,
      CONFIG_LONG, NULL, SLAPD_DEFAULT_PW_RESETFAILURECOUNT_STR, NULL},
+    {CONFIG_PW_TPR_MAXUSE, config_set_pw_tpr_maxuse,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_tpr_maxuse,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_PW_TPR_MAXUSE_STR, NULL},
+    {CONFIG_PW_TPR_DELAY_EXPIRE_AT, config_set_pw_tpr_delay_expire_at,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_tpr_delay_expire_at,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_PW_TPR_DELAY_EXPIRE_AT_STR, NULL},
+     {CONFIG_PW_TPR_DELAY_VALID_FROM, config_set_pw_tpr_delay_valid_from,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_tpr_delay_valid_from,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_PW_TPR_DELAY_VALID_FROM_STR, NULL},
     {CONFIG_PW_ISGLOBAL_ATTRIBUTE, config_set_pw_is_global_policy,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.pw_is_global_policy,
@@ -1538,6 +1550,9 @@ pwpolicy_init_defaults (passwdPolicy *pw_policy)
     pw_policy->pw_unlock = LDAP_ON;
     pw_policy->pw_lockduration = SLAPD_DEFAULT_PW_LOCKDURATION;
     pw_policy->pw_resetfailurecount = SLAPD_DEFAULT_PW_RESETFAILURECOUNT;
+    pw_policy->pw_tpr_maxuse = SLAPD_DEFAULT_PW_TPR_MAXUSE;
+    pw_policy->pw_tpr_delay_expire_at = SLAPD_DEFAULT_PW_TPR_DELAY_EXPIRE_AT;
+    pw_policy->pw_tpr_delay_valid_from = SLAPD_DEFAULT_PW_TPR_DELAY_VALID_FROM;
     pw_policy->pw_gracelimit = SLAPD_DEFAULT_PW_GRACELIMIT;
     pw_policy->pw_admin = NULL;
     pw_policy->pw_admin_user = NULL;
@@ -3654,6 +3669,101 @@ config_set_pw_resetfailurecount(const char *attrname, char *value, char *errorbu
 
     if (apply) {
         slapdFrontendConfig->pw_policy.pw_resetfailurecount = duration;
+    }
+
+    return retVal;
+}
+
+int
+config_set_pw_tpr_maxuse(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    char *endp = NULL;
+    int maxUse = 0;
+
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    errno = 0;
+    maxUse = strtol(value, &endp, 10);
+
+    if (*endp != '\0' || errno == ERANGE || maxUse < -1 || maxUse > 255) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "password TPR maximum use \"%s\" is invalid. A One Time password maximum use must range from 0 to 255. -1 is disabled", value);
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->pw_policy.pw_tpr_maxuse = maxUse;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return retVal;
+}
+
+int
+config_set_pw_tpr_delay_expire_at(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    char *endp = NULL;
+    int expire_at = 0;
+
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    errno = 0;
+    expire_at = strtol(value, &endp, 10);
+
+    if (*endp != '\0' || errno == ERANGE || expire_at < -1 || expire_at > (7 * 24 * 3600)) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "password TPR delay of validity \"%s\" is invalid. Delay, after reset, TPR starts to be valid is 0 to 1 week (In seconds). -1 is disabled", value);
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->pw_policy.pw_tpr_delay_expire_at = expire_at;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return retVal;
+}
+int
+config_set_pw_tpr_delay_valid_from(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    char *endp = NULL;
+    int ValidDelay = 0;
+
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    errno = 0;
+    ValidDelay = strtol(value, &endp, 10);
+
+    if (*endp != '\0' || errno == ERANGE || ValidDelay < -1 || ValidDelay > (7 * 24 * 3600)) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "password TPR delay of validity \"%s\" is invalid. Delay, after reset, TPR starts to be valid is 0 to 1 week (In seconds). -1 is disabled", value);
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->pw_policy.pw_tpr_delay_valid_from = ValidDelay;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
 
     return retVal;

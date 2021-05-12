@@ -7731,7 +7731,7 @@ int slapi_set_plugin_default_config(const char *type, Slapi_Value *value);
  * \warning Caller is responsible to free attrs by slapi_ch_array_free
  */
 int slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset);
-
+int slapi_check_tpr_limits(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int send_result);
 int slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int pwresponse_req, int check_password_policy, int send_result);
 
 /* backend get/set info */

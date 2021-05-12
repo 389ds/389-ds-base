@@ -393,6 +393,12 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_PW_MAXFAILURE_STR "3"
 #define SLAPD_DEFAULT_PW_RESETFAILURECOUNT 600
 #define SLAPD_DEFAULT_PW_RESETFAILURECOUNT_STR "600"
+#define SLAPD_DEFAULT_PW_TPR_MAXUSE -1
+#define SLAPD_DEFAULT_PW_TPR_MAXUSE_STR "-1"
+#define SLAPD_DEFAULT_PW_TPR_DELAY_EXPIRE_AT -1
+#define SLAPD_DEFAULT_PW_TPR_DELAY_EXPIRE_AT_STR "-1"
+#define SLAPD_DEFAULT_PW_TPR_DELAY_VALID_FROM -1
+#define SLAPD_DEFAULT_PW_TPR_DELAY_VALID_FROM_STR "-1"
 #define SLAPD_DEFAULT_PW_LOCKDURATION 3600
 #define SLAPD_DEFAULT_PW_LOCKDURATION_STR "3600"
 
@@ -1834,6 +1840,9 @@ typedef struct passwordpolicyarray
     slapi_onoff_t pw_unlock;
     time_t pw_lockduration;
     long pw_resetfailurecount;
+    int pw_tpr_maxuse;
+    int pw_tpr_delay_expire_at;
+    int pw_tpr_delay_valid_from;
     int pw_gracelimit;
     slapi_onoff_t pw_is_legacy;
     slapi_onoff_t pw_track_update_time;
@@ -2190,6 +2199,9 @@ typedef struct _slapdEntryPoints
 #define CONFIG_PW_UNLOCK_ATTRIBUTE "passwordUnlock"
 #define CONFIG_PW_LOCKDURATION_ATTRIBUTE "passwordLockoutDuration"
 #define CONFIG_PW_RESETFAILURECOUNT_ATTRIBUTE "passwordResetFailureCount"
+#define CONFIG_PW_TPR_MAXUSE "passwordTPRMaxUse"
+#define CONFIG_PW_TPR_DELAY_EXPIRE_AT "passwordTPRDelayExpireAt"
+#define CONFIG_PW_TPR_DELAY_VALID_FROM "passwordTPRDelayValidFrom"
 #define CONFIG_PW_ISGLOBAL_ATTRIBUTE "passwordIsGlobalPolicy"
 #define CONFIG_PW_GRACELIMIT_ATTRIBUTE "passwordGraceLimit"
 #define CONFIG_PW_IS_LEGACY "passwordLegacyPolicy"

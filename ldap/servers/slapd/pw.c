@@ -723,6 +723,23 @@ update_pw_info(Slapi_PBlock *pb, char *old_pw)
         slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdReset", "FALSE");
     }
 
+    if (slapi_entry_attr_hasvalue(e, "pwdTPRReset", "TRUE")) {
+        /*
+         * Password TPR was previously reset, just reset the "reset" flag and
+         * unset all TPR related operational attributes.
+         * If the password is being reset again we will catch it below...
+         */
+        slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdTPRReset", "FALSE");
+        if (slapi_entry_attr_exists(e, "pwdTPRUseCount")) {
+            slapi_mods_add(&smods, LDAP_MOD_DELETE, "pwdTPRUseCount", 0, NULL);
+        }
+        if (slapi_entry_attr_exists(e, "pwdTPRExpireAt")) {
+            slapi_mods_add(&smods, LDAP_MOD_DELETE, "pwdTPRExpireAt", 0, NULL);
+        }
+        if (slapi_entry_attr_exists(e, "pwdTPRValidFrom")) {
+            slapi_mods_add(&smods, LDAP_MOD_DELETE, "pwdTPRValidFrom", 0, NULL);
+        }
+    }
     /*
      * If the password is reset by a different user, mark it the first time logon.  If this is an internal
      * operation, we have a special case for the password modify extended operation where
@@ -735,6 +752,47 @@ update_pw_info(Slapi_PBlock *pb, char *old_pw)
     {
         pw_exp_date = NO_TIME;
         slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdReset", "TRUE");
+        if ((pwpolicy->pw_tpr_maxuse >= 0) ||
+            (pwpolicy->pw_tpr_delay_expire_at >= 0) ||
+            (pwpolicy->pw_tpr_delay_valid_from >= 0)) {
+            char *use_count, *expire_at, *valid_from;
+            time_t cur_time;
+            cur_time = slapi_current_utc_time();
+            slapi_log_err(SLAPI_LOG_TRACE,
+                          "update_pw_info",
+                          "TPR password reset by an admin, pwdTPRReset=TRUE\n");
+            slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdTPRReset", "TRUE");
+
+            /* If useCount is -1, this means this limit is not enforced */
+            if (pwpolicy->pw_tpr_maxuse >= 0) {
+                use_count = "0";
+            } else {
+                use_count = "-1";
+            }
+            slapi_log_err(SLAPI_LOG_TRACE, "update_pw_info", "pwdTPRUseCount = %s\n", use_count);
+            slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdTPRUseCount", use_count);
+
+            /* If expire_at is -1, this means this limit is not enforced */
+            if (pwpolicy->pw_tpr_delay_expire_at >= 0) {
+                expire_at = format_genTime(time_plus_sec(cur_time, pwpolicy->pw_tpr_delay_expire_at));
+            } else {
+                expire_at = slapi_ch_strdup("-1");
+            }
+            slapi_log_err(SLAPI_LOG_TRACE, "update_pw_info", "pwdTPRExpireAt = %s\n", expire_at);
+            slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdTPRExpireAt", expire_at);
+            slapi_ch_free((void **)&expire_at);
+
+            /* If valid_from is -1, this means this limit is not enforced */
+            if (pwpolicy->pw_tpr_delay_valid_from >= 0) {
+                valid_from = format_genTime(time_plus_sec(cur_time, pwpolicy->pw_tpr_delay_valid_from));
+            } else {
+                valid_from = slapi_ch_strdup("-1");
+            }
+            slapi_log_err(SLAPI_LOG_TRACE, "update_pw_info", "pwdTPRValidFrom = %s\n", valid_from);
+            slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdTPRValidFrom", valid_from);
+            slapi_ch_free((void **)&valid_from);
+
+        }
     } else if (pwpolicy->pw_exp == 1) {
         Slapi_Entry *pse = NULL;
 
@@ -2553,6 +2611,131 @@ check_pw_storagescheme_value(const char *attr_name __attribute__((unused)), char
     slapi_ch_free_string(&scheme_list);
 
     return retVal;
+}
+/* Before bind operation, check if the bind_target_entry has not overpass TPR limits
+ * returns:
+ *    0: TPR limits not enforced or reached
+ *    LDAP_CONSTRAINT_VIOLATION: TPR limits reached
+ *    LDAP_OPERATIONS_ERROR : internal failure
+ */
+int
+slapi_check_tpr_limits(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int send_result) {
+    passwdPolicy *pwpolicy = NULL;
+    char *dn = NULL;
+    int tpr_maxuse;
+    char *value;
+    time_t cur_time;
+    char *cur_time_str = NULL;
+
+    if (bind_target_entry == NULL) {
+        return 0;
+    }
+
+    dn = slapi_entry_get_ndn(bind_target_entry);
+    pwpolicy = new_passwdPolicy(pb, dn);
+    if (pwpolicy == NULL) {
+        /* TPR limits are part of password policy => no limit */
+        return 0;
+    }
+
+    if (slapi_entry_attr_hasvalue(bind_target_entry, "pwdTPRReset", "TRUE") == NULL) {
+        /* the password was not reset by an admin while a TRP pwp was set, just returned */
+        return 0;
+    }
+
+    /* Check entry TPR max use */
+    if (pwpolicy->pw_tpr_maxuse >= 0) {
+        uint use_count;
+        value = slapi_entry_attr_get_ref(bind_target_entry, "pwdTPRUseCount");
+        if (value) {
+            /* max Use is enforced */
+            use_count = strtoull(value, 0, 0);
+            use_count++;
+            update_tpr_pw_usecount(pb, bind_target_entry, (int32_t) use_count);
+            if (use_count > pwpolicy->pw_tpr_maxuse) {
+                slapi_log_err(SLAPI_LOG_TRACE,
+                              "slapi_check_tpr_limits",
+                              "LDAP_CONSTRAINT_VIOLATION, number of bind (%d) on entry (%s) is larger than TPR password max use (%d).\n",
+                              use_count, dn, pwpolicy->pw_tpr_maxuse);
+                if (send_result) {
+                    send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                     "TPR checking. Contact system administrator", 0, NULL);
+                }
+                return LDAP_CONSTRAINT_VIOLATION;
+            }
+        } else {
+            /* The password was reset at a time that the password policy
+             * did not enforced the max use. That is fine, just log an info.
+             */
+            slapi_log_err(SLAPI_LOG_INFO,
+                        "slapi_check_tpr_limits",
+                        "TPR password max use (%d) was not enforced when the password was reset (%s)\n",
+                        pwpolicy->pw_tpr_maxuse, dn);
+        }
+    }
+    /* If we are enforcing */
+    if ((pwpolicy->pw_tpr_delay_expire_at >= 0) || (pwpolicy->pw_tpr_delay_valid_from)) {
+        cur_time = slapi_current_utc_time();
+        cur_time_str = format_genTime(cur_time);
+    }
+
+    /* Check entry TPR expiration at a specific time */
+    if (pwpolicy->pw_tpr_delay_expire_at >= 0) {
+        value = slapi_entry_attr_get_ref(bind_target_entry, "pwdTPRExpireAt");
+        if (value) {
+            /* max Use is enforced */
+            if (difftime(parse_genTime(cur_time_str), parse_genTime(value)) >= 0) {
+                slapi_log_err(SLAPI_LOG_TRACE,
+                              "slapi_check_tpr_limits",
+                              "LDAP_CONSTRAINT_VIOLATION, attempt to bind with an expired TPR password (current=%s, expiration=%s), entry %s\n",
+                              cur_time_str, value, dn);
+                if (send_result) {
+                    send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                     "TPR checking. Contact system administrator", 0, NULL);
+                }
+                slapi_ch_free((void **)&cur_time_str);
+                return LDAP_CONSTRAINT_VIOLATION;
+            }
+        } else {
+            /* The password was reset at a time that the password policy
+             * did not enforced an expiration delay. That is fine, just log an info.
+             */
+            slapi_log_err(SLAPI_LOG_INFO,
+                        "slapi_check_tpr_limits",
+                        "TPR password expiration after %d seconds, was not enforced when the password was reset (%s)\n",
+                        pwpolicy->pw_tpr_delay_expire_at, dn);
+        }
+    }
+
+    /* Check entry TPR valid after a specific time */
+    if (pwpolicy->pw_tpr_delay_valid_from >= 0) {
+        value = slapi_entry_attr_get_ref(bind_target_entry, "pwdTPRValidFrom");
+        if (value) {
+            /* validity after a specific time is enforced */
+            if (difftime(parse_genTime(value), parse_genTime(cur_time_str)) >= 0) {
+                slapi_log_err(SLAPI_LOG_TRACE,
+                              "slapi_check_tpr_limits",
+                              "LDAP_CONSTRAINT_VIOLATION, attempt to bind with TPR password not yet valid (current=%s, validity=%s), entry %s\n",
+                              cur_time_str, value, dn);
+                if (send_result) {
+                    send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
+                                     "TPR checking. Contact system administrator", 0, NULL);
+                }
+                slapi_ch_free((void **)&cur_time_str);
+                return LDAP_CONSTRAINT_VIOLATION;
+            }
+        } else {
+            /* The password was reset at a time that the password policy
+             * did not enforced validity delay. That is fine, just log an info.
+             */
+            slapi_log_err(SLAPI_LOG_INFO,
+                        "slapi_check_tpr_limits",
+                        "TPR password validity (after %d seconds) was not enforced when the password was reset (%s)\n",
+                        pwpolicy->pw_tpr_delay_valid_from, dn);
+        }
+    }
+    slapi_ch_free((void **)&cur_time_str);
+    return 0;
 }
 
 /* check_account_lock is called before bind opeation; this could be a pre-op. */
