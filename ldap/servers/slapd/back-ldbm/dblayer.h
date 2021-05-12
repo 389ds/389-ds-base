@@ -111,6 +111,7 @@ typedef int dblayer_get_entries_count_fn_t(dbi_db_t *db, int *count);
 typedef int dblayer_cursor_get_count_fn_t(dbi_cursor_t *cursor, dbi_recno_t *count);
 typedef int dblayer_private_open_fn_t(const char *db_filename, dbi_env_t **env, dbi_db_t **db);
 typedef int dblayer_private_close_fn_t(dbi_env_t **env, dbi_db_t **db);
+typedef const char *dblayer_get_db_suffix_fn_t(void);
 
 struct dblayer_private
 {
@@ -182,6 +183,7 @@ struct dblayer_private
     dblayer_cursor_get_count_fn_t *dblayer_cursor_get_count_fn;
     dblayer_private_open_fn_t *dblayer_private_open_fn;
     dblayer_private_close_fn_t *dblayer_private_close_fn;
+    dblayer_get_db_suffix_fn_t *dblayer_get_db_suffix_fn;
 };
 
 #define DBLAYER_PRIV_SET_DATA_DIR 0x1
@@ -193,6 +195,7 @@ void dblayer_pop_pvt_txn(void);
 
 int dblayer_delete_indices(ldbm_instance *inst);
 int dbimpl_setup(struct ldbminfo *li, const char *plgname);
+const char *dblayer_get_db_suffix(Slapi_Backend *be);
 
 
 /* Return the last four characters of a string; used for comparing extensions. */

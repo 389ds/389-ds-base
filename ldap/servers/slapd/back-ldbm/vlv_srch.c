@@ -30,7 +30,6 @@ char *const type_vlvEnabled = "vlvEnabled";
 char *const type_vlvUses = "vlvUses";
 
 static const char *file_prefix = "vlv#"; /* '#' used to avoid collision with real attributes */
-static const char *file_suffix = LDBM_FILENAME_SUFFIX;
 
 static int vlvIndex_createfilename(struct vlvIndex *pIndex, char **ppc);
 
@@ -514,6 +513,8 @@ void
 vlvIndex_init(struct vlvIndex *p, backend *be, struct vlvSearch *pSearch, const Slapi_Entry *e)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    const char *file_suffix = dblayer_get_db_suffix(be);
+    dblayer_private *prv = NULL;
     char *filename = NULL;
 
     if (NULL == p)

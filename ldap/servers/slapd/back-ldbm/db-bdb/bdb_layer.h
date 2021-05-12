@@ -13,6 +13,16 @@
 
 #define BDB_CONFIG(li) ((bdb_config *)(li)->li_dblayer_config)
 
+#if 1000 * DB_VERSION_MAJOR + 100 * DB_VERSION_MINOR >= 5000
+#define LDBM_SUFFIX_OLD ".db4"
+#define LDBM_SUFFIX     ".db"
+#else
+#define LDBM_SUFFIX_OLD ".db3"
+#define LDBM_SUFFIX     ".db4"
+#endif
+
+#define LDBM_FILENAME_SUFFIX LDBM_SUFFIX
+
 typedef struct bdb_db_env
 {
     DB_ENV *bdb_DB_ENV;
@@ -135,6 +145,7 @@ dblayer_get_entries_count_fn_t bdb_get_entries_count;
 dblayer_cursor_get_count_fn_t bdb_public_cursor_get_count;
 dblayer_private_open_fn_t bdb_public_private_open;
 dblayer_private_close_fn_t bdb_public_private_close;
+dblayer_get_db_suffix_fn_t bdb_public_get_db_suffix;
 
 /* instance functions */
 int bdb_instance_cleanup(struct ldbm_instance *inst);
