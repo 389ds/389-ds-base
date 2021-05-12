@@ -142,6 +142,8 @@ void dblayer_restore_file_update(struct ldbminfo *li, char *directory);
 int dblayer_import_file_init(ldbm_instance *inst);
 void dblayer_import_file_update(ldbm_instance *inst);
 int dblayer_import_file_check(ldbm_instance *inst);
+const char *dblayer_get_db_suffix(Slapi_Backend *be);
+
 
 /*
  * dn2entry.c

@@ -514,7 +514,6 @@ vlvIndex_init(struct vlvIndex *p, backend *be, struct vlvSearch *pSearch, const 
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     const char *file_suffix = dblayer_get_db_suffix(be);
-    dblayer_private *prv = NULL;
     char *filename = NULL;
 
     if (NULL == p)
