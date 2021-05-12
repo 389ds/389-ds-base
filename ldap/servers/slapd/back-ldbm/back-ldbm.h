@@ -66,14 +66,6 @@ typedef unsigned short u_int16_t;
 
 #define ID2ENTRY "id2entry" /* main db file name: ID2ENTRY+LDBM_SUFFIX */
 
-#if 1000 * DB_VERSION_MAJOR + 100 * DB_VERSION_MINOR >= 5000
-#define LDBM_SUFFIX_OLD ".db4"
-#define LDBM_SUFFIX     ".db"
-#else
-#define LDBM_SUFFIX_OLD ".db3"
-#define LDBM_SUFFIX     ".db4"
-#endif
-
 #define MEGABYTE (1024 * 1024)
 #define GIGABYTE (1024 * MEGABYTE)
 
@@ -143,7 +135,6 @@ typedef unsigned short u_int16_t;
 #define LDBM_VERSION_40   "Netscape-ldbm/4.0"
 #define LDBM_VERSION_30   "Netscape-ldbm/3.0"
 #define LDBM_VERSION_31   "Netscape-ldbm/3.1"
-#define LDBM_FILENAME_SUFFIX LDBM_SUFFIX
 #define DBVERSION_FILENAME "DBVERSION"
 /* 0 here means to let the autotuning reset the value on first run */
 /* cache can't get any smaller than this (in bytes) */

@@ -6759,3 +6759,8 @@ bdb_public_private_close(dbi_env_t **env, dbi_db_t **db)
     *env = NULL;
     return bdb_map_error(__FUNCTION__, rc);
 }
+
+const char *bdb_public_get_db_suffix(void)
+{
+    return LDBM_FILENAME_SUFFIX;
+}

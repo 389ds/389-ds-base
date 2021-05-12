@@ -1381,3 +1381,12 @@ dblayer_pop_pvt_txn(void)
     }
     return;
 }
+
+const char *
+dblayer_get_db_suffix(Slapi_Backend *be)
+{
+    struct ldbminfo *li = be ? (struct ldbminfo *)be->be_database->plg_private : NULL;
+    dblayer_private *prv = li ? (dblayer_private *)li->li_dblayer_private : NULL;
+
+    return  prv ? prv->dblayer_get_db_suffix_fn() : NULL;
+}
