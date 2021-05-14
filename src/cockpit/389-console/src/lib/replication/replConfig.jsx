@@ -6,16 +6,15 @@ import { ManagerTable } from "./replTables.jsx";
 import { AddManagerModal, ChangeReplRoleModal } from "./replModals.jsx";
 import {
     Row,
-    Checkbox,
     Col,
     ControlLabel,
     Form,
     FormControl,
 } from "patternfly-react";
 import {
-    ExpandableSection,
     Button,
-    // Checkbox,
+    Checkbox,
+    ExpandableSection,
     // Form,
     // FormGroup,
     // TextInput,
@@ -623,8 +622,10 @@ export class ReplConfig extends React.Component {
                                         <Col sm={6}>
                                             <Checkbox
                                                 id="nsds5replicaprecisetombstonepurging"
-                                                defaultChecked={this.props.data.nsds5replicaprecisetombstonepurging}
-                                                onChange={this.handleChange}
+                                                isChecked={this.state.nsds5replicaprecisetombstonepurging}
+                                                onChange={(checked, e) => {
+                                                    this.handleChange(e);
+                                                }}
                                             />
                                         </Col>
                                     </Row>

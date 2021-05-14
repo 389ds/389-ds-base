@@ -2,7 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd, valid_dn } from "../tools.jsx";
 import {
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -15,10 +14,11 @@ import {
     TabContainer,
     TabContent,
     noop,
-    TabPane,
+    TabPane
 } from "patternfly-react";
 import {
-    Button
+    Button,
+    Checkbox
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
@@ -845,11 +845,12 @@ export class ServerSettings extends React.Component {
                         <Col sm={4}>
                             <Checkbox
                                 id="nsslapd-disk-monitoring-logging-critical"
-                                defaultChecked={this.state['nsslapd-disk-monitoring-logging-critical']}
-                                onChange={this.handleDiskMonChange}
-                            >
-                                Preserve Logs Even If Disk Space Gets Low
-                            </Checkbox>
+                                isChecked={this.state['nsslapd-disk-monitoring-logging-critical']}
+                                onChange={(checked, e) => {
+                                    this.handleDiskMonChange(e);
+                                }}
+                                label="Preserve Logs Even If Disk Space Gets Low"
+                            />
                         </Col>
                     </Row>
                 </Form>;
@@ -1035,7 +1036,7 @@ export class ServerSettings extends React.Component {
                                                 </Col>
                                             </Row>
                                             <Button
-                                                disabled={this.state.configSaveDisabled}
+                                                isDisabled={this.state.configSaveDisabled}
                                                 variant="primary"
                                                 className="ds-margin-top-med"
                                                 onClick={this.saveConfig}
@@ -1113,7 +1114,7 @@ export class ServerSettings extends React.Component {
                                             <Button
                                                 variant="primary"
                                                 className="ds-margin-top-med"
-                                                disabled={this.state.rootDNSaveDisabled}
+                                                isDisabled={this.state.rootDNSaveDisabled}
                                                 onClick={this.saveRootDN}
                                             >
                                                 Save
@@ -1126,16 +1127,17 @@ export class ServerSettings extends React.Component {
                                             <Row title="Enable disk space monitoring (nsslapd-disk-monitoring)." className="ds-margin-top">
                                                 <Checkbox
                                                     id="nsslapd-disk-monitoring"
-                                                    checked={this.state['nsslapd-disk-monitoring']}
-                                                    onChange={this.handleDiskMonChange}
-                                                >
-                                                    Enable Disk Space Monitoring
-                                                </Checkbox>
+                                                    isChecked={this.state['nsslapd-disk-monitoring']}
+                                                    onChange={(checked, e) => {
+                                                        this.handleDiskMonChange(e);
+                                                    }}
+                                                    label="Enable Disk Space Monitoring"
+                                                />
                                             </Row>
                                         </Form>
                                         {diskMonitor}
                                         <Button
-                                            disabled={this.state.diskMonSaveDisabled}
+                                            isDisabled={this.state.diskMonSaveDisabled}
                                             variant="primary"
                                             className="ds-margin-top-med"
                                             onClick={this.saveDiskMonitoring}
@@ -1150,44 +1152,48 @@ export class ServerSettings extends React.Component {
                                                 <Col sm={5}>
                                                     <Checkbox
                                                         id="nsslapd-schemacheck"
-                                                        defaultChecked={this.state['nsslapd-schemacheck']}
-                                                        onChange={this.handleAdvChange}
+                                                        isChecked={this.state['nsslapd-schemacheck']}
+                                                        onChange={(checked, e) => {
+                                                            this.handleAdvChange(e);
+                                                        }}
                                                         title="Enable schema checking (nsslapd-schemacheck)."
-                                                    >
-                                                        Enable Schema Checking
-                                                    </Checkbox>
+                                                        label="Enable Schema Checking"
+                                                    />
                                                 </Col>
                                                 <Col sm={5}>
                                                     <Checkbox
                                                         id="nsslapd-syntaxcheck"
-                                                        defaultChecked={this.state['nsslapd-syntaxcheck']}
-                                                        onChange={this.handleAdvChange}
+                                                        isChecked={this.state['nsslapd-syntaxcheck']}
+                                                        onChange={(checked, e) => {
+                                                            this.handleAdvChange(e);
+                                                        }}
                                                         title="Enable attribute syntax checking (nsslapd-syntaxcheck)."
-                                                    >
-                                                        Enable Attribute Syntax Checking
-                                                    </Checkbox>
+                                                        label="Enable Attribute Syntax Checking"
+                                                    />
                                                 </Col>
                                             </Row>
                                             <Row className="ds-margin-top">
                                                 <Col sm={5}>
                                                     <Checkbox
                                                         id="nsslapd-plugin-logging"
-                                                        defaultChecked={this.state['nsslapd-plugin-logging']}
-                                                        onChange={this.handleAdvChange}
+                                                        isChecked={this.state['nsslapd-plugin-logging']}
+                                                        onChange={(checked, e) => {
+                                                            this.handleAdvChange(e);
+                                                        }}
                                                         title="Enable plugins to log access and audit events.  (nsslapd-plugin-logging)."
-                                                    >
-                                                        Enable Plugin Logging
-                                                    </Checkbox>
+                                                        label="Enable Plugin Logging"
+                                                    />
                                                 </Col>
                                                 <Col sm={5}>
                                                     <Checkbox
                                                         id="nsslapd-syntaxlogging"
-                                                        defaultChecked={this.state['nsslapd-syntaxlogging']}
-                                                        onChange={this.handleAdvChange}
+                                                        isChecked={this.state['nsslapd-syntaxlogging']}
+                                                        onChange={(checked, e) => {
+                                                            this.handleAdvChange(e);
+                                                        }}
                                                         title="Enable syntax logging (nsslapd-syntaxlogging)."
-                                                    >
-                                                        Enable Attribute Syntax Logging
-                                                    </Checkbox>
+                                                        label="Enable Attribute Syntax Logging"
+                                                    />
                                                 </Col>
 
                                             </Row>
@@ -1195,66 +1201,72 @@ export class ServerSettings extends React.Component {
                                                 <Col sm={5}>
                                                     <Checkbox
                                                         id="nsslapd-plugin-binddn-tracking"
-                                                        defaultChecked={this.state['nsslapd-plugin-binddn-tracking']}
-                                                        onChange={this.handleAdvChange}
+                                                        isChecked={this.state['nsslapd-plugin-binddn-tracking']}
+                                                        onChange={(checked, e) => {
+                                                            this.handleAdvChange(e);
+                                                        }}
                                                         title="Enabling this feature will write new operational attributes to the modified entry: internalModifiersname & internalCreatorsname. These new attributes contain the plugin DN, while modifiersname will be the original binding entry that triggered the update. (nsslapd-plugin-binddn-tracking)."
-                                                    >
-                                                        Enable Plugin Bind DN Tracking
-                                                    </Checkbox>
+                                                        label="Enable Plugin Bind DN Tracking"
+                                                    />
                                                 </Col>
                                                 <Col sm={5}>
                                                     <Checkbox
                                                         id="nsslapd-attribute-name-exceptions"
-                                                        defaultChecked={this.state['nsslapd-attribute-name-exceptions']}
-                                                        onChange={this.handleAdvChange}
+                                                        isChecked={this.state['nsslapd-attribute-name-exceptions']}
+                                                        onChange={(checked, e) => {
+                                                            this.handleAdvChange(e);
+                                                        }}
                                                         title="Allows non-standard characters in attribute names to be used for backwards compatibility with older servers (nsslapd-attribute-name-exceptions)."
-                                                    >
-                                                        Allow Attribute Naming Exceptions
-                                                    </Checkbox>
+                                                        label="Allow Attribute Naming Exceptions"
+                                                    />
                                                 </Col>
                                             </Row>
                                             <Row className="ds-margin-top">
                                                 <Col sm={5}>
                                                     <Checkbox
                                                         id="nsslapd-dn-validate-strict"
-                                                        defaultChecked={this.state['nsslapd-dn-validate-strict']}
-                                                        onChange={this.handleAdvChange}
+                                                        isChecked={this.state['nsslapd-dn-validate-strict']}
+                                                        onChange={(checked, e) => {
+                                                            this.handleAdvChange(e);
+                                                        }}
                                                         title="Enables strict syntax validation for DNs, according to section 3 in RFC 4514 (nsslapd-dn-validate-strict)."
-                                                    >
-                                                        Strict DN Syntax Validation
-                                                    </Checkbox>
+                                                        label="Strict DN Syntax Validation"
+                                                    />
                                                 </Col>
                                                 <Col sm={5}>
                                                     <Checkbox
                                                         id="nsslapd-entryusn-global"
-                                                        defaultChecked={this.state['nsslapd-entryusn-global']}
-                                                        onChange={this.handleAdvChange}
+                                                        isChecked={this.state['nsslapd-entryusn-global']}
+                                                        onChange={(checked, e) => {
+                                                            this.handleAdvChange(e);
+                                                        }}
                                                         title="For USN plugin - maintain unique USNs across all back end databases (nsslapd-entryusn-global)."
-                                                    >
-                                                        Maintain Unique USNs Across All Backends
-                                                    </Checkbox>
+                                                        label="Maintain Unique USNs Across All Backends"
+                                                    />
                                                 </Col>
                                             </Row>
                                             <Row className="ds-margin-top">
                                                 <Col sm={5}>
                                                     <Checkbox
                                                         id="nsslapd-ignore-time-skew"
-                                                        defaultChecked={this.state['nsslapd-ignore-time-skew']}
-                                                        onChange={this.handleAdvChange}
+                                                        isChecked={this.state['nsslapd-ignore-time-skew']}
+                                                        onChange={(checked, e) => {
+                                                            this.handleAdvChange(e);
+                                                        }}
                                                         title="Ignore replication time skew when acquiring a replica to start a replciation session (nsslapd-ignore-time-skew)."
-                                                    >
-                                                        Ignore CSN Time Skew
-                                                    </Checkbox>
+                                                        label="Ignore CSN Time Skew"
+                                                    />
                                                 </Col>
                                                 <Col sm={5}>
                                                     <Checkbox
                                                         id="nsslapd-readonly"
-                                                        defaultChecked={this.state['nsslapd-readonly']}
-                                                        onChange={this.handleAdvChange}
+                                                        isChecked={this.state['nsslapd-readonly']}
+                                                        onChange={(checked, e) => {
+                                                            this.handleAdvChange(e);
+                                                        }}
                                                         title="Make entire server read-only (nsslapd-readonly)"
-                                                    >
-                                                        Server Read-Only
-                                                    </Checkbox>
+                                                        label="Server Read-Only"
+                                                    />
                                                 </Col>
                                             </Row>
                                         </Form>
@@ -1295,7 +1307,7 @@ export class ServerSettings extends React.Component {
                                                 </Col>
                                             </Row>
                                             <Button
-                                                disabled={this.state.advSaveDisabled}
+                                                isDisabled={this.state.advSaveDisabled}
                                                 variant="primary"
                                                 className="ds-margin-top-lg"
                                                 onClick={this.saveAdvanced}

@@ -3,12 +3,12 @@ import {
     Row,
     Col,
     ControlLabel,
-    Checkbox,
     FormControl,
     Form,
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     Grid,
     GridItem,
     // Form,
@@ -380,22 +380,28 @@ export class EditCertModal extends React.Component {
                     <GridItem span={2}>
                         <Checkbox
                             id="CflagSSL"
-                            checked={CSSLChecked}
-                            onChange={handleChange}
+                            isChecked={CSSLChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="CflagEmail"
-                            checked={CEmailChecked}
-                            onChange={handleChange}
+                            isChecked={CEmailChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="CflagOS"
-                            checked={COSChecked}
-                            onChange={handleChange}
+                            isChecked={COSChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
 
@@ -405,22 +411,28 @@ export class EditCertModal extends React.Component {
                     <GridItem span={2}>
                         <Checkbox
                             id="TflagSSL"
-                            checked={TSSLChecked}
-                            onChange={handleChange}
+                            isChecked={TSSLChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="TflagEmail"
-                            checked={TEmailChecked}
-                            onChange={handleChange}
+                            isChecked={TEmailChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="TflagOS"
-                            checked={TOSChecked}
-                            onChange={handleChange}
+                            isChecked={TOSChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
 
@@ -430,22 +442,28 @@ export class EditCertModal extends React.Component {
                     <GridItem span={2}>
                         <Checkbox
                             id="cflagSSL"
-                            checked={cSSLChecked}
-                            onChange={handleChange}
+                            isChecked={cSSLChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="cflagEmail"
-                            checked={cEmailChecked}
-                            onChange={handleChange}
+                            isChecked={cEmailChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="cflagOS"
-                            checked={cOSChecked}
-                            onChange={handleChange}
+                            isChecked={cOSChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
 
@@ -455,22 +473,28 @@ export class EditCertModal extends React.Component {
                     <GridItem span={2}>
                         <Checkbox
                             id="PflagSSL"
-                            checked={PSSLChecked}
-                            onChange={handleChange}
+                            isChecked={PSSLChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="PflagEmail"
-                            checked={PEmailChecked}
-                            onChange={handleChange}
+                            isChecked={PEmailChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="PflagOS"
-                            checked={POSChecked}
-                            onChange={handleChange}
+                            isChecked={POSChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
 
@@ -480,22 +504,28 @@ export class EditCertModal extends React.Component {
                     <GridItem span={2}>
                         <Checkbox
                             id="pflagSSL"
-                            checked={pSSLChecked}
-                            onChange={handleChange}
+                            isChecked={pSSLChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="pflagEmail"
-                            checked={pEmailChecked}
-                            onChange={handleChange}
+                            isChecked={pEmailChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="pflagOS"
-                            checked={pOSChecked}
-                            onChange={handleChange}
+                            isChecked={pOSChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
                         />
                     </GridItem>
                     <hr />
@@ -505,21 +535,21 @@ export class EditCertModal extends React.Component {
                     <GridItem span={2}>
                         <Checkbox
                             id="uflagSSL"
-                            checked={uSSLChecked}
+                            isChecked={uSSLChecked}
                             disabled
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="uflagEmail"
-                            checked={uEmailChecked}
+                            isChecked={uEmailChecked}
                             disabled
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="uflagOS"
-                            checked={uOSChecked}
+                            isChecked={uOSChecked}
                             disabled
                         />
                     </GridItem>

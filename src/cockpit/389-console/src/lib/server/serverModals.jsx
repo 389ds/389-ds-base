@@ -110,7 +110,7 @@ export class SASLMappingModal extends React.Component {
                         </Col>
                         <Col sm={1}>
                             <Button
-                                disabled={this.props.testBtnDisabled}
+                                isDisabled={this.props.testBtnDisabled}
                                 variant="primary"
                                 onClick={this.props.handleTestRegex}
                             >

@@ -8,7 +8,6 @@ import {
     TabContent,
     TabPane,
     TabContainer,
-    Checkbox,
     Col,
     ControlLabel,
     FormControl,
@@ -17,6 +16,7 @@ import {
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     // Form,
     // FormGroup,
     Modal,
@@ -618,6 +618,7 @@ export class Backups extends React.Component {
                     spinning={this.state.exportSpinner}
                     error={this.state.errObj}
                     suffixes={this.props.suffixes}
+                    includeReplData={this.state.includeReplData}
                 />
                 <BackupModal
                     showModal={this.state.showBackupModal}
@@ -707,7 +708,7 @@ class ExportModal extends React.Component {
             saveHandler,
             suffixes,
             spinning,
-            error
+            error,
         } = this.props;
         let spinner = "";
         if (spinning) {
@@ -765,11 +766,13 @@ class ExportModal extends React.Component {
                         <Col sm={12} className="ds-margin-left">
                             <Checkbox
                                 id="includeReplData"
-                                onChange={handleChange}
+                                isChecked={this.props.includeReplData}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Include the replication metadata needed to restore or initialize another replica."
-                            >
-                                Include Replication Data
-                            </Checkbox>
+                                label="Include Replication Data"
+                            />
                         </Col>
                     </Row>
                     {spinner}

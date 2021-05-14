@@ -1,7 +1,6 @@
 import React from "react";
 import {
     Row,
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -10,6 +9,7 @@ import {
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     ExpandableSection,
     // Form,
     // FormGroup,
@@ -134,81 +134,88 @@ export class WinsyncAgmtModal extends React.Component {
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncMon"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 name={name}
                                 title="Monday"
-                                defaultChecked={agmtSyncMon}
-                            >
-                                Mon
-                            </Checkbox>
+                                isChecked={agmtSyncMon}
+                                label="Mon"
+                            />
                         </Col>
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncWed"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Wednesday"
                                 name={name}
-                                defaultChecked={agmtSyncWed}
-                            >
-                                Wed
-                            </Checkbox>
+                                isChecked={agmtSyncWed}
+                                label="Wed"
+                            />
                         </Col>
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncFri"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Friday"
                                 name={name}
-                                defaultChecked={agmtSyncFri}
-                            >
-                                Fri
-                            </Checkbox>
+                                isChecked={agmtSyncFri}
+                                label="Fri"
+                            />
                         </Col>
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncSun"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Sunday"
                                 name={name}
-                                defaultChecked={agmtSyncSun}
-                            >
-                                Sun
-                            </Checkbox>
+                                isChecked={agmtSyncSun}
+                                label="Sun"
+                            />
                         </Col>
                     </Row>
                     <Row>
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncTue"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Tuesday"
                                 name={name}
-                                defaultChecked={agmtSyncTue}
-                            >
-                                Tue
-                            </Checkbox>
+                                isChecked={agmtSyncTue}
+                                label="Tue"
+                            />
                         </Col>
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncThu"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Thursday"
                                 name={name}
-                                defaultChecked={agmtSyncThu}
-                            >
-                                Thu
-                            </Checkbox>
+                                isChecked={agmtSyncThu}
+                                label="Thu"
+                            />
                         </Col>
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncSat"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Saturday"
                                 name={name}
-                                defaultChecked={agmtSyncSat}
-                            >
-                                Sat
-                            </Checkbox>
+                                isChecked={agmtSyncSat}
+                                label="Sat"
+                            />
                         </Col>
                     </Row>
                 </div>
@@ -485,37 +492,40 @@ export class WinsyncAgmtModal extends React.Component {
                                 <Col>
                                     <Checkbox
                                         id="agmtSyncGroups"
-                                        onChange={handleChange}
+                                        onChange={(checked, e) => {
+                                            handleChange(e);
+                                        }}
                                         name={name}
-                                        defaultChecked={agmtSyncGroups}
-                                    >
-                                        Synchronize New Windows Groups
-                                    </Checkbox>
+                                        isChecked={agmtSyncGroups}
+                                        label="Synchronize New Windows Groups"
+                                    />
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top">
                                 <Col>
                                     <Checkbox
                                         id="agmtSyncUsers"
-                                        onChange={handleChange}
+                                        onChange={(checked, e) => {
+                                            handleChange(e);
+                                        }}
                                         name={name}
-                                        defaultChecked={agmtSyncUsers}
-                                    >
-                                        Synchronize New Windows Users
-                                    </Checkbox>
+                                        isChecked={agmtSyncUsers}
+                                        label="Synchronize New Windows Users"
+                                    />
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top">
                                 <Col>
                                     <Checkbox
                                         id="agmtSync"
-                                        defaultChecked={agmtSync}
-                                        onChange={handleChange}
+                                        isChecked={agmtSync}
+                                        onChange={(checked, e) => {
+                                            handleChange(e);
+                                        }}
                                         name={name}
                                         title="Always keep replication in synchronization, or use a specific schedule by unchecking the box."
-                                    >
-                                        Keep Replication In Constant Synchronization
-                                    </Checkbox>
+                                        label="Keep Replication In Constant Synchronization"
+                                    />
                                 </Col>
                             </Row>
                             {scheduleRow}
@@ -733,81 +743,88 @@ export class ReplAgmtModal extends React.Component {
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncMon"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 name={name}
                                 title="Monday"
-                                defaultChecked={agmtSyncMon}
-                            >
-                                Mon
-                            </Checkbox>
+                                isChecked={agmtSyncMon}
+                                label="Mon"
+                            />
                         </Col>
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncWed"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Wednesday"
                                 name={name}
-                                defaultChecked={agmtSyncWed}
-                            >
-                                Wed
-                            </Checkbox>
+                                isChecked={agmtSyncWed}
+                                label="Wed"
+                            />
                         </Col>
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncFri"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Friday"
                                 name={name}
-                                defaultChecked={agmtSyncFri}
-                            >
-                                Fri
-                            </Checkbox>
+                                isChecked={agmtSyncFri}
+                                label="Fri"
+                            />
                         </Col>
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncSun"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Sunday"
                                 name={name}
-                                defaultChecked={agmtSyncSun}
-                            >
-                                Sun
-                            </Checkbox>
+                                isChecked={agmtSyncSun}
+                                label="Sun"
+                            />
                         </Col>
                     </Row>
                     <Row>
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncTue"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Tuesday"
                                 name={name}
-                                defaultChecked={agmtSyncTue}
-                            >
-                                Tue
-                            </Checkbox>
+                                isChecked={agmtSyncTue}
+                                label="Tue"
+                            />
                         </Col>
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncThu"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Thursday"
                                 name={name}
-                                defaultChecked={agmtSyncThu}
-                            >
-                                Thu
-                            </Checkbox>
+                                isChecked={agmtSyncThu}
+                                label="Thu"
+                            />
                         </Col>
                         <Col sm={3}>
                             <Checkbox
                                 id="agmtSyncSat"
-                                onChange={handleChange}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Saturday"
                                 name={name}
-                                defaultChecked={agmtSyncSat}
-                            >
-                                Sat
-                            </Checkbox>
+                                isChecked={agmtSyncSat}
+                                label="Sat"
+                            />
                         </Col>
                     </Row>
                 </div>
@@ -1076,13 +1093,14 @@ export class ReplAgmtModal extends React.Component {
                                 <Col sm={8}>
                                     <Checkbox
                                         id="agmtBootstrap"
-                                        defaultChecked={agmtBootstrap}
-                                        onChange={handleChange}
+                                        isChecked={agmtBootstrap}
+                                        onChange={(checked, e) => {
+                                            handleChange(e);
+                                        }}
                                         name={name}
                                         title={bootstrapTitle}
-                                    >
-                                        Configure Bootstrap Settings
-                                    </Checkbox>
+                                        label="Configure Bootstrap Settings"
+                                    />
                                 </Col>
                             </Row>
                             {bootstrapRow}
@@ -1091,13 +1109,14 @@ export class ReplAgmtModal extends React.Component {
                                 <Col sm={8}>
                                     <Checkbox
                                         id="agmtSync"
-                                        defaultChecked={agmtSync}
-                                        onChange={handleChange}
+                                        isChecked={agmtSync}
+                                        onChange={(checked, e) => {
+                                            handleChange(e);
+                                        }}
                                         name={name}
                                         title="Always keep replication in synchronization, or use a specific schedule by unchecking the box."
-                                    >
-                                        Keep Replication In Constant Synchronization
-                                    </Checkbox>
+                                        label="Keep Replication In Constant Synchronization"
+                                    />
                                 </Col>
                             </Row>
                             {scheduleRow}
@@ -1220,11 +1239,12 @@ export class ChangeReplRoleModal extends React.Component {
                         <Col sm={12} className="ds-center">
                             <Checkbox
                                 id="modalChecked"
-                                defaultChecked={checked}
-                                onChange={handleChange}
-                            >
-                                <b>Yes</b>, I am sure.
-                            </Checkbox>
+                                isChecked={checked}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
+                                label={<><b>Yes</b>&nbsp;,I am sure.</>}
+                            />
                         </Col>
                     </Row>
                     {spinner}
@@ -1611,20 +1631,22 @@ export class ExportCLModal extends React.Component {
                     <Row className="ds-margin-top-xlg ds-margin-left">
                         <Checkbox
                             id="decodeCL"
-                            checked={decodeCL}
-                            onChange={handleChange}
-                        >
-                            Decode base64 changes
-                        </Checkbox>
+                            isChecked={decodeCL}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                            label="Decode base64 changes"
+                        />
                     </Row>
                     <Row className="ds-margin-top ds-margin-left">
                         <Checkbox
                             id="exportCSN"
-                            checked={exportCSN}
-                            onChange={handleChange}
-                        >
-                            Only Export CSN's
-                        </Checkbox>
+                            isChecked={exportCSN}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                            label="Only Export CSN's"
+                        />
                     </Row>
                 </div>;
         }

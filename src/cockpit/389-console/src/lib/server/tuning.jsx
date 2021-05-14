@@ -7,12 +7,12 @@ import {
     Form,
     FormControl,
     Icon,
-    Checkbox,
     Row,
 } from "patternfly-react";
 import {
-    ExpandableSection,
     Button,
+    Checkbox,
+    ExpandableSection,
     // Form,
     // FormGroup,
     // TextInput,
@@ -468,12 +468,13 @@ export class ServerTuning extends React.Component {
                                 <Row className="ds-margin-top-xlg">
                                     <Col componentClass={ControlLabel} sm={4} title="Enable the normalized DN cache.  Each thread has its own cache (nsslapd-ndn-cache-enabled).">
                                         <Checkbox
-                                            checked={this.state['nsslapd-ndn-cache-enabled']}
+                                            isChecked={this.state['nsslapd-ndn-cache-enabled']}
                                             id="nsslapd-ndn-cache-enabled"
-                                            onChange={this.handleChange}
-                                        >
-                                            Enable Normalized DN Cache
-                                        </Checkbox>
+                                            onChange={(checked, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            label="Enable Normalized DN Cache"
+                                        />
                                     </Col>
                                     <Col sm={4}>
                                         <div className="ds-inline">
@@ -497,40 +498,43 @@ export class ServerTuning extends React.Component {
                                     <Col sm={4} componentClass={ControlLabel} title="Disable DNS reverse entries for outgoing connections (nsslapd-connection-nocanon).">
                                         <Checkbox
                                             id="nsslapd-connection-nocanon"
-                                            defaultChecked={this.state['nsslapd-connection-nocanon']}
-                                            onChange={this.handleChange}
-                                        >
-                                            Disable Reverse DNS Lookups
-                                        </Checkbox>
+                                            isChecked={this.state['nsslapd-connection-nocanon']}
+                                            onChange={(checked, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            label="Disable Reverse DNS Lookups"
+                                        />
                                     </Col>
                                 </Row>
                                 <Row className="ds-margin-top">
                                     <Col sm={4} componentClass={ControlLabel} title="Sets the worker threads to continuously read a connection without passing it back to the polling mechanism. (nsslapd-enable-turbo-mode).">
                                         <Checkbox
                                             id="nsslapd-enable-turbo-mode"
-                                            defaultChecked={this.state['nsslapd-enable-turbo-mode']}
-                                            onChange={this.handleChange}
-                                        >
-                                            Enable Connection Turbo Mode
-                                        </Checkbox>
+                                            isChecked={this.state['nsslapd-enable-turbo-mode']}
+                                            onChange={(checked, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            label="Enable Connection Turbo Mode"
+                                        />
                                     </Col>
                                 </Row>
                                 <Row className="ds-margin-top">
                                     <Col sm={4} componentClass={ControlLabel} title="Disable the virtual attribute lookup in a search entry (nsslapd-ignore-virtual-attrs).">
                                         <Checkbox
                                             id="nsslapd-ignore-virtual-attrs"
-                                            defaultChecked={this.state['nsslapd-ignore-virtual-attrs']}
-                                            onChange={this.handleChange}
-                                        >
-                                            Disable Virtual Attribute Lookups
-                                        </Checkbox>
+                                            isChecked={this.state['nsslapd-ignore-virtual-attrs']}
+                                            onChange={(checked, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            label="Disable Virtual Attribute Lookups"
+                                        />
                                     </Col>
                                 </Row>
                             </Form>
                         </div>
                     </ExpandableSection>
                     <Button
-                        disabled={this.state.saveDisabled}
+                        isDisabled={this.state.saveDisabled}
                         variant="primary"
                         className="ds-margin-top-lg ds-margin-left"
                         onClick={this.saveConfig}

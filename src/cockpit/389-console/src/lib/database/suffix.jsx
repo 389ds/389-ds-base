@@ -951,6 +951,7 @@ export class Suffix extends React.Component {
                     saveHandler={this.doExport}
                     spinning={this.state.exportSpinner}
                     error={this.state.errObj}
+                    includeReplData={this.state.includeReplData}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showReindexConfirm}

@@ -7,11 +7,11 @@ import {
     Radio,
     FormGroup,
     FormControl,
-    Checkbox,
     ControlLabel
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     // Form,
     // FormGroup,
     Modal,
@@ -270,9 +270,9 @@ class PassthroughAuthentication extends React.Component {
         });
     }
 
-    handleCheckboxChange(e) {
+    handleCheckboxChange(checked, e) {
         this.setState({
-            [e.target.id]: e.target.checked
+            [e.target.id]: checked
         });
     }
 
@@ -1117,24 +1117,22 @@ class PassthroughAuthentication extends React.Component {
                                         <Col smOffset={1} sm={7}>
                                             <Checkbox
                                                 id="pamFallback"
-                                                checked={pamFallback}
+                                                isChecked={pamFallback}
                                                 onChange={this.handleCheckboxChange}
                                                 title={`Sets whether to fallback to regular LDAP authentication if PAM authentication fails (pamFallback)`}
-                                            >
-                                                Fallback Enabled
-                                            </Checkbox>
+                                                label="Fallback Enabled"
+                                            />
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
                                         <Col smOffset={1} sm={7}>
                                             <Checkbox
                                                 id="pamSecure"
-                                                checked={pamSecure}
+                                                isChecked={pamSecure}
                                                 onChange={this.handleCheckboxChange}
                                                 title="Requires secure TLS connection for PAM authentication (pamSecure)"
-                                            >
-                                                Require Secure Connection
-                                            </Checkbox>
+                                                label="Require Secure Connection"
+                                            />
                                         </Col>
                                     </Row>
                                 </FormGroup>
@@ -1253,12 +1251,11 @@ class PassthroughAuthentication extends React.Component {
                                     <Col componentClass={ControlLabel} sm={5}>
                                         <Checkbox
                                             id="urlStartTLS"
-                                            checked={urlStartTLS}
+                                            isChecked={urlStartTLS}
                                             onChange={this.handleCheckboxChange}
                                             title={`A flag of whether to use Start TLS for the connection to the authenticating directory. Start TLS establishes a secure connection over the standard port, so it is useful for connecting using LDAP instead of LDAPS. The TLS server and CA certificates need to be available on both of the servers. To use Start TLS, the LDAP URL must use ldap:, not ldaps:.`}
-                                        >
-                                            Enable StartTLS
-                                        </Checkbox>
+                                            label="Enable StartTLS"
+                                        />
                                     </Col>
                                 </FormGroup>
                                 <hr />

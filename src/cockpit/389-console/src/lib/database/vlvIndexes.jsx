@@ -9,13 +9,13 @@ import {
     ListViewItem,
     ListViewIcon,
     Row,
-    Checkbox,
     Col,
     ControlLabel,
     Form,
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     // Form,
     // FormGroup,
     Modal,
@@ -97,7 +97,7 @@ export class VLVIndexes extends React.Component {
     }
 
     handleVLVChange(e) {
-        const value = e.target.value;
+        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
         let errObj = this.state.errObj;
         if (value == "") {
@@ -558,6 +558,7 @@ export class VLVIndexes extends React.Component {
                     saveHandler={this.saveVLV}
                     error={this.state.errObj}
                     attrs={this.props.attrs}
+                    reindexVLV={this.state.reindexVLV}
                 />
                 <AddVLVModal
                     showModal={this.state.showVLVEditModal}
@@ -573,6 +574,7 @@ export class VLVIndexes extends React.Component {
                     vlvScope={this.state.vlvScope}
                     vlvFilter={this.state.vlvFilter}
                     vlvSortList={this.state.vlvSortList}
+                    reindexVLV={this.state.reindexVLV}
                 />
                 <ConfirmPopup
                     showModal={this.state.showDeleteConfirm}
@@ -828,9 +830,14 @@ class AddVLVModal extends React.Component {
                     <hr />
                     <Row>
                         <Col sm={12}>
-                            <Checkbox id="reindexVLV" onChange={handleChange}>
-                                Index VLV on Save
-                            </Checkbox>
+                            <Checkbox
+                                id="reindexVLV"
+                                isChecked={this.props.reindexVLV}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
+                                label="Index VLV on Save"
+                            />
                         </Col>
                     </Row>
                 </Form>

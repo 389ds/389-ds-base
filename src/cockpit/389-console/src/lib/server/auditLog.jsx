@@ -2,7 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -18,7 +17,8 @@ import {
     TabPane,
 } from "patternfly-react";
 import {
-    Button
+    Button,
+    Checkbox
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
@@ -313,13 +313,12 @@ export class ServerAuditLog extends React.Component {
                                         <Col sm={3}>
                                             <Checkbox
                                                 id="nsslapd-auditlog-logging-enabled"
-                                                defaultChecked={this.state['nsslapd-auditlog-logging-enabled']}
-                                                onChange={(e) => {
+                                                isChecked={this.state['nsslapd-auditlog-logging-enabled']}
+                                                onChange={(checked, e) => {
                                                     this.handleChange(e, "settings");
                                                 }}
-                                            >
-                                                Enable Audit Logging
-                                            </Checkbox>
+                                                label="Enable Audit Logging"
+                                            />
                                         </Col>
                                     </Row>
                                     <div className="ds-margin-left">
@@ -340,7 +339,7 @@ export class ServerAuditLog extends React.Component {
                                         </Row>
                                     </div>
                                     <Button
-                                        disabled={this.state.saveSettingsDisabled}
+                                        isDisabled={this.state.saveSettingsDisabled}
                                         variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
@@ -459,7 +458,7 @@ export class ServerAuditLog extends React.Component {
                                         </Col>
                                     </Row>
                                     <Button
-                                        disabled={this.state.saveRotationDisabled}
+                                        isDisabled={this.state.saveRotationDisabled}
                                         variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
@@ -541,7 +540,7 @@ export class ServerAuditLog extends React.Component {
                                         </Col>
                                     </Row>
                                     <Button
-                                        disabled={this.state.saveExpDisabled}
+                                        isDisabled={this.state.saveExpDisabled}
                                         variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {

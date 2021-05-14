@@ -11,13 +11,13 @@ import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import {
     Nav,
     NavItem,
-    Checkbox,
     TabContainer,
     TabContent,
     TabPane
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     Spinner,
     noop
 } from "@patternfly/react-core";
@@ -860,7 +860,7 @@ export class Schema extends React.Component {
     }
 
     handleFieldChange(e) {
-        const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        let value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
         let ocKey = this.state.ocTableKey + 1;
         let attrKey = this.state.attrTableKey + 1;
         if (e.target.id == "ocUserDefined") {
@@ -941,12 +941,13 @@ export class Schema extends React.Component {
                                         <div className="ds-margin-top-xlg ds-indent">
                                             <Checkbox
                                                 id="ocUserDefined"
-                                                checked={this.state.ocUserDefined}
+                                                isChecked={this.state.ocUserDefined}
                                                 title="Show only the objectclasses that are defined by a user and have the X-ORIGIN set to 'user defined'"
-                                                onChange={this.handleFieldChange}
-                                            >
-                                                Only Show Non-standard/Custom Schema
-                                            </Checkbox>
+                                                onChange={(checked, e) => {
+                                                    this.handleFieldChange(e);
+                                                }}
+                                                label="Only Show Non-standard/Custom Schema"
+                                            />
                                             <ObjectClassesTable
                                                 className="ds-margin-top-lg"
                                                 key={this.state.ocTableKey}
@@ -991,12 +992,13 @@ export class Schema extends React.Component {
                                         <div className="ds-margin-top-xlg ds-indent">
                                             <Checkbox
                                                 id="atUserDefined"
-                                                checked={this.state.atUserDefined}
+                                                isChecked={this.state.atUserDefined}
                                                 title="Show only the attributes that are defined by a user, and have the X-ORIGIN set to 'user defined'"
-                                                onChange={this.handleFieldChange}
-                                            >
-                                                Only Show Non-standard/Custom Schema
-                                            </Checkbox>
+                                                onChange={(checked, e) => {
+                                                    this.handleFieldChange(e);
+                                                }}
+                                                label="Only Show Non-standard/Custom Schema"
+                                            />
                                             <AttributesTable
                                                 className="ds-margin-top-lg"
                                                 key={this.state.attrTableKey}

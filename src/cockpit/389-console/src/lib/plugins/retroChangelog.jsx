@@ -8,8 +8,10 @@ import {
     Col,
     Form,
     ControlLabel,
-    Checkbox
 } from "patternfly-react";
+import {
+    Checkbox
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { Typeahead } from "react-bootstrap-typeahead";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -49,9 +51,9 @@ class RetroChangelog extends React.Component {
         this.handleCheckboxChange = this.handleCheckboxChange.bind(this);
     }
 
-    handleCheckboxChange(e) {
+    handleCheckboxChange(checked, e) {
         this.setState({
-            [e.target.id]: e.target.checked
+            [e.target.id]: checked
         });
     }
 
@@ -238,12 +240,11 @@ class RetroChangelog extends React.Component {
                                     <Col sm={2}>
                                         <Checkbox
                                             id="isReplicated"
-                                            checked={isReplicated}
+                                            isChecked={isReplicated}
                                             onChange={this.handleCheckboxChange}
                                             title="Sets a flag to indicate on a change in the changelog whether the change is newly made on that server or whether it was replicated over from another server (isReplicated)"
-                                        >
-                                            Is Replicated
-                                        </Checkbox>
+                                            label="Is Replicated"
+                                        />
                                     </Col>
                                 </FormGroup>
                             </Form>

@@ -3,7 +3,6 @@ import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -13,7 +12,8 @@ import {
     Spinner,
 } from "patternfly-react";
 import {
-    Button
+    Button,
+    Checkbox
 } from "@patternfly/react-core";
 import { SASLTable } from "./serverTables.jsx";
 import { SASLMappingModal } from "./serverModals.jsx";
@@ -119,7 +119,6 @@ export class ServerSASL extends React.Component {
                 chkBox = true;
             }
         }
-
         // Check if a setting was changed, if so enable the save button
         if (attr == 'mappingFallback' && this.state._mappingFallback != value) {
             disableSaveBtn = false;
@@ -683,16 +682,17 @@ export class ServerSASL extends React.Component {
                             className="ds-margin-top"
                         >
                             <Checkbox
-                                checked={this.state.mappingFallback}
+                                isChecked={this.state.mappingFallback}
                                 id="mappingFallback"
-                                onChange={this.handleChange} className="ds-margin-left-sm"
-                            >
-                                Allow SASL Mapping Fallback
-                            </Checkbox>
+                                onChange={(checked, e) => {
+                                    this.handleChange(e);
+                                }}
+                                label="Allow SASL Mapping Fallback"
+                            />
                         </Row>
                     </Form>
                     <Button
-                        disabled={this.state.saveDisabled}
+                        isDisabled={this.state.saveDisabled}
                         variant="primary"
                         className="ds-margin-top-med"
                         onClick={this.saveConfig}
