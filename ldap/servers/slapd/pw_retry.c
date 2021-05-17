@@ -163,8 +163,6 @@ set_retry_cnt_and_time(Slapi_PBlock *pb, int count, time_t cur_time)
 int
 set_tpr_usecount_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
 {
-    char *timestr;
-    time_t unlock_time;
     char retry_cnt[16] = {0}; /* 1-65535 */
     const char *dn = NULL;
     Slapi_DN *sdn = NULL;

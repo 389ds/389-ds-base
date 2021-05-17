@@ -1012,7 +1012,7 @@ int add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e);
  * pw_retry.c
  */
 int update_pw_retry(Slapi_PBlock *pb);
-int update_trp_pw_usecount(Slapi_PBlock *pb, Slapi_Entry *e, int32_t use_count);
+int update_tpr_pw_usecount(Slapi_PBlock *pb, Slapi_Entry *e, int32_t use_count);
 void pw_apply_mods(const Slapi_DN *sdn, Slapi_Mods *mods);
 void pw_set_componentID(struct slapi_componentid *cid);
 struct slapi_componentid *pw_get_componentID(void);
