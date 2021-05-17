@@ -239,15 +239,15 @@ slapd_system_isFIPS()
     char buf[sizeof (PRIu64)];
     int val;
     if (PR_SUCCESS != PR_Access(FIPS_ENABLED, PR_ACCESS_READ_OK)) {
-        slapi_log_err(SLAPI_LOG_ERR, "slapd_system_isFIPS", "Can not access %s - assuming FIPS is OFF\n", FIPS_ENABLED);
+        slapi_log_err(SLAPI_LOG_NOTICE, "slapd_system_isFIPS", "Can not access %s - assuming FIPS is OFF\n", FIPS_ENABLED);
         goto done;
     }
     if ((prfd = PR_Open(FIPS_ENABLED, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE)) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "slapd_system_isFIPS", "Can not open %s - assuming FIPS is OFF\n", FIPS_ENABLED);
+        slapi_log_err(SLAPI_LOG_NOTICE, "slapd_system_isFIPS", "Can not open %s - assuming FIPS is OFF\n", FIPS_ENABLED);
         goto done;
     }
     if (PR_Read(prfd, buf, sizeof (buf)) < 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "slapd_system_isFIPS", "Can not read %s - assuming FIPS is OFF\n", FIPS_ENABLED);
+        slapi_log_err(SLAPI_LOG_NOTICE, "slapd_system_isFIPS", "Can not read %s - assuming FIPS is OFF\n", FIPS_ENABLED);
         PR_Close(prfd);
         goto done;
     }
