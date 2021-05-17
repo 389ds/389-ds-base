@@ -2622,7 +2622,6 @@ int
 slapi_check_tpr_limits(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int send_result) {
     passwdPolicy *pwpolicy = NULL;
     char *dn = NULL;
-    int tpr_maxuse;
     char *value;
     time_t cur_time;
     char *cur_time_str = NULL;
@@ -2638,7 +2637,7 @@ slapi_check_tpr_limits(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int sen
         return 0;
     }
 
-    if (slapi_entry_attr_hasvalue(bind_target_entry, "pwdTPRReset", "TRUE") == NULL) {
+    if (!slapi_entry_attr_hasvalue(bind_target_entry, "pwdTPRReset", "TRUE")) {
         /* the password was not reset by an admin while a TRP pwp was set, just returned */
         return 0;
     }
@@ -2646,7 +2645,7 @@ slapi_check_tpr_limits(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int sen
     /* Check entry TPR max use */
     if (pwpolicy->pw_tpr_maxuse >= 0) {
         uint use_count;
-        value = slapi_entry_attr_get_ref(bind_target_entry, "pwdTPRUseCount");
+        value = (char *) slapi_entry_attr_get_ref(bind_target_entry, "pwdTPRUseCount");
         if (value) {
             /* max Use is enforced */
             use_count = strtoull(value, 0, 0);
@@ -2681,7 +2680,7 @@ slapi_check_tpr_limits(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int sen
 
     /* Check entry TPR expiration at a specific time */
     if (pwpolicy->pw_tpr_delay_expire_at >= 0) {
-        value = slapi_entry_attr_get_ref(bind_target_entry, "pwdTPRExpireAt");
+        value = (char *) slapi_entry_attr_get_ref(bind_target_entry, "pwdTPRExpireAt");
         if (value) {
             /* max Use is enforced */
             if (difftime(parse_genTime(cur_time_str), parse_genTime(value)) >= 0) {
@@ -2709,7 +2708,7 @@ slapi_check_tpr_limits(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int sen
 
     /* Check entry TPR valid after a specific time */
     if (pwpolicy->pw_tpr_delay_valid_from >= 0) {
-        value = slapi_entry_attr_get_ref(bind_target_entry, "pwdTPRValidFrom");
+        value = (char *) slapi_entry_attr_get_ref(bind_target_entry, "pwdTPRValidFrom");
         if (value) {
             /* validity after a specific time is enforced */
             if (difftime(parse_genTime(value), parse_genTime(cur_time_str)) >= 0) {
