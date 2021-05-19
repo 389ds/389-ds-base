@@ -55,7 +55,6 @@
     "react-bootstrap": "^1.0.1",
     "react-bootstrap-typeahead": "3.2.4",
     "react-dom": "^16.13.1",
-    "react-ellipsis-with-tooltip": "^1.1.1",
     "react-switch": "^5.0.1",
     "recompose": "0.30.0",
     "redux": "^4.0.5",
