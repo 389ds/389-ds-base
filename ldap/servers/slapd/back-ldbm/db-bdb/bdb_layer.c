@@ -35,6 +35,8 @@
     (env)->txn_checkpoint((env), (kbyte), (min), (flags))
 #define MEMP_STAT(env, gsp, fsp, flags, malloc) \
     (env)->memp_stat((env), (gsp), (fsp), (flags))
+#define LOCK_STAT(env, statp, flags, malloc) \
+    (env)->lock_stat((env), (statp), (flags))
 #define MEMP_TRICKLE(env, pct, nwrotep) \
     (env)->memp_trickle((env), (pct), (nwrotep))
 #define LOG_ARCHIVE(env, listp, flags, malloc) \
@@ -66,6 +68,7 @@
 #define NEWDIR_MODE 0755
 #define DB_REGION_PREFIX "__db."
 
+static int locks_monitoring_threadmain(void *param);
 static int perf_threadmain(void *param);
 static int checkpoint_threadmain(void *param);
 static int trickle_threadmain(void *param);
@@ -84,6 +87,7 @@ static int bdb_start_checkpoint_thread(struct ldbminfo *li);
 static int bdb_start_trickle_thread(struct ldbminfo *li);
 static int bdb_start_perf_thread(struct ldbminfo *li);
 static int bdb_start_txn_test_thread(struct ldbminfo *li);
+static int bdb_start_locks_monitoring_thread(struct ldbminfo *li);
 static int trans_batch_count = 0;
 static int trans_batch_limit = 0;
 static int trans_batch_txn_min_sleep = 50; /* ms */
@@ -1296,6 +1300,10 @@ bdb_start(struct ldbminfo *li, int dbmode)
             }
 
             if (0 != (return_value = bdb_start_perf_thread(li))) {
+                return return_value;
+            }
+
+            if (0 != (return_value = bdb_start_locks_monitoring_thread(li))) {
                 return return_value;
             }
 
@@ -2885,6 +2893,7 @@ bdb_start_perf_thread(struct ldbminfo *li)
     return return_value;
 }
 
+
 /* Performance thread */
 static int
 perf_threadmain(void *param)
@@ -2909,6 +2918,82 @@ perf_threadmain(void *param)
     slapi_log_err(SLAPI_LOG_TRACE, "perf_threadmain", "Leaving perf_threadmain\n");
     return 0;
 }
+
+
+/*
+ * create a thread for locks_monitoring_threadmain
+ */
+static int
+bdb_start_locks_monitoring_thread(struct ldbminfo *li)
+{
+    int return_value = 0;
+    if (li->li_dblock_monitoring) {
+        if (NULL == PR_CreateThread(PR_USER_THREAD,
+                                    (VFP)(void *)locks_monitoring_threadmain, li,
+                                    PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                                    PR_UNJOINABLE_THREAD,
+                                    SLAPD_DEFAULT_THREAD_STACKSIZE)) {
+            PRErrorCode prerr = PR_GetError();
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_start_locks_monitoring_thread",
+                        "Failed to create database locks monitoring thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                        prerr, slapd_pr_strerror(prerr));
+            return_value = -1;
+        }
+    }
+    return return_value;
+}
+
+
+/* DB Locks Monitoring thread */
+static int
+locks_monitoring_threadmain(void *param)
+{
+    int ret = 0;
+    uint64_t current_locks = 0;
+    uint64_t max_locks = 0;
+    uint32_t lock_exhaustion = 0;
+    PRIntervalTime interval;
+    struct ldbminfo *li = NULL;
+
+    PR_ASSERT(NULL != param);
+    li = (struct ldbminfo *)param;
+
+    dblayer_private *priv = li->li_dblayer_private;
+    bdb_db_env *pEnv = (bdb_db_env *)priv->dblayer_env;
+    PR_ASSERT(NULL != priv);
+
+    INCR_THREAD_COUNT(pEnv);
+
+    while (!BDB_CONFIG(li)->bdb_stop_threads) {
+        if (dblayer_db_uses_locking(pEnv->bdb_DB_ENV)) {
+            DB_LOCK_STAT *lockstat = NULL;
+            ret = LOCK_STAT(pEnv->bdb_DB_ENV, &lockstat, 0, (void *)slapi_ch_malloc);
+            if (0 == ret) {
+                current_locks = lockstat->st_nlocks;
+                max_locks = lockstat->st_maxlocks;
+                if (max_locks){
+                    lock_exhaustion = (uint32_t)((double)current_locks / (double)max_locks * 100.0);
+                } else {
+                    lock_exhaustion = 0;
+                }
+                if ((li->li_dblock_threshold) &&
+                    (lock_exhaustion >= li->li_dblock_threshold)) {
+                    slapi_atomic_store_32((int32_t *)&(li->li_dblock_threshold_reached), 1, __ATOMIC_RELAXED);
+                } else {
+                    slapi_atomic_store_32((int32_t *)&(li->li_dblock_threshold_reached), 0, __ATOMIC_RELAXED);
+                }
+            }
+            slapi_ch_free((void **)&lockstat);
+        }
+        interval = PR_MillisecondsToInterval(slapi_atomic_load_32((int32_t *)&(li->li_dblock_monitoring_pause), __ATOMIC_RELAXED));
+        DS_Sleep(interval);
+    }
+
+    DECR_THREAD_COUNT(pEnv);
+    slapi_log_err(SLAPI_LOG_TRACE, "locks_monitoring_threadmain", "Leaving locks_monitoring_threadmain\n");
+    return 0;
+}
+
 
 /*
  * create a thread for deadlock_threadmain

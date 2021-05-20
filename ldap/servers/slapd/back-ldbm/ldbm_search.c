@@ -1472,6 +1472,7 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
     slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 
+
     if ((reverse_list = operation_is_flag_set(op, OP_FLAG_REVERSE_CANDIDATE_ORDER))) {
         /*
          * Start at the end of the list and work our way forward.  Since a single
@@ -1538,6 +1539,18 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
 
     /* Find the next candidate entry and return it. */
     while (1) {
+        if (li->li_dblock_monitoring &&
+            slapi_atomic_load_32((int32_t *)&(li->li_dblock_threshold_reached), __ATOMIC_RELAXED)) {
+            slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_next_search_entry",
+                          "DB locks threshold is reached (nsslapd-db-locks-monitoring-threshold "
+                          "under cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config). "
+                          "Please, increase nsslapd-db-locks according to your needs.\n");
+            slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
+            delete_search_result_set(pb, &sr);
+            rc = SLAPI_FAIL_GENERAL;
+            slapi_send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "DB locks threshold is reached (nsslapd-db-locks-monitoring-threshold)", 0, NULL);
+            goto bail;
+        }
 
         /* check for abandon */
         if (slapi_op_abandoned(pb) || (NULL == sr)) {

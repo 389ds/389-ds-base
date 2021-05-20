@@ -155,6 +155,8 @@ typedef unsigned short u_int16_t;
 #define DEFAULT_DNCACHE_MAXCOUNT -1 /* no limit */
 #define DEFAULT_DBCACHE_SIZE     33554432
 #define DEFAULT_DBCACHE_SIZE_STR "33554432"
+#define DEFAULT_DBLOCK_PAUSE     500
+#define DEFAULT_DBLOCK_PAUSE_STR "500"
 #define DEFAULT_MODE             0600
 #define DEFAULT_ALLIDSTHRESHOLD  4000
 #define DEFAULT_IDL_TUNE         1
@@ -575,12 +577,21 @@ struct ldbminfo
     char *li_backend_implement;          /* low layer backend implementation */
     int li_noparentcheck;                /* check if parent exists on add */
 
-    /* the next 3 fields are for the params that don't get changed until
+    /* db lock monitoring */
+    /* if we decide to move the values to bdb_config, we can use slapi_back_get_info function to retrieve the values */
+    int32_t li_dblock_monitoring;          /* enables db locks monitoring thread - requires restart  */
+    uint32_t li_dblock_monitoring_pause;   /* an interval for db locks monitoring thread */
+    uint32_t li_dblock_threshold;          /* when the percentage is reached, abort the search in ldbm_back_next_search_entry - requires restart*/
+    uint32_t li_dblock_threshold_reached;
+
+    /* the next 4 fields are for the params that don't get changed until
      * the server is restarted (used by the admin console)
      */
     char *li_new_directory;
     uint64_t li_new_dbcachesize;
     int li_new_dblock;
+    int32_t li_new_dblock_monitoring;
+    uint64_t li_new_dblock_threshold;
 
     int li_new_dbncache;
 

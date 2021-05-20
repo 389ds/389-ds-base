@@ -46,6 +46,9 @@ arg_to_attr = {
         'txn_batch_max': 'nsslapd-db-transaction-batch-max-wait',
         'logbufsize': 'nsslapd-db-logbuf-size',
         'locks': 'nsslapd-db-locks',
+        'locks_monitoring_enabled': 'nsslapd-db-locks-monitoring-enabled',
+        'locks_monitoring_threshold': 'nsslapd-db-locks-monitoring-threshold',
+        'locks_monitoring_pause': 'nsslapd-db-locks-monitoring-pause',
         'import_cache_autosize': 'nsslapd-import-cache-autosize',
         'cache_autosize': 'nsslapd-cache-autosize',
         'cache_autosize_split': 'nsslapd-cache-autosize-split',
@@ -998,6 +1001,13 @@ def create_parser(subparsers):
                                                               'the batch count (only works when txn-batch-val is set)')
     set_db_config_parser.add_argument('--logbufsize', help='Specifies the transaction log information buffer size')
     set_db_config_parser.add_argument('--locks', help='Sets the maximum number of database locks')
+    set_db_config_parser.add_argument('--locks-monitoring-enabled', help='Set to "on" or "off" to monitor DB locks. When it crosses the percentage value '
+                                                                         'set with "--locks-monitoring-threshold" ("on" by default)')
+    set_db_config_parser.add_argument('--locks-monitoring-threshold', help='Sets the DB lock exhaustion value in percentage (valid range is 70-95). If too many locks are '
+                                                                           'acquired, the server will abort the searches while the number of locks '
+                                                                           'are not decreased. It helps to avoid DB corruption and long recovery.')
+    set_db_config_parser.add_argument('--locks-monitoring-pause', help='Sets the DB lock monitoring value in milliseconds for the amount of time '
+                                                                       'that the monitoring thread spends waiting between checks.')
     set_db_config_parser.add_argument('--import-cache-autosize', help='Set to "on" or "off" to automatically set the size of the import '
                                                                        'cache to be used during the the import process of LDIF files')
     set_db_config_parser.add_argument('--cache-autosize', help='Sets the percentage of free memory that is used in total for the database '
