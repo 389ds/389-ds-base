@@ -265,7 +265,7 @@ export class GlobalDatabaseConfig extends React.Component {
                     <FormGroup
                         label="DB Locks Threshold Percentage"
                         fieldId="monitoringthreshold"
-                        title="Sets the DB lock exhaustion value in percentage (valid range is 70-98). If too many locks are acquired, the server will abort the searches while the number of locks are not decreased. It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold)"
+                        title="Sets the DB lock exhaustion value in percentage (valid range is 70-95). If too many locks are acquired, the server will abort the searches while the number of locks are not decreased. It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold)"
                     >
                         <TextInput
                             id="dblocksMonitoringThreshold"
