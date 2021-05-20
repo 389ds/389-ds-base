@@ -30,6 +30,9 @@ export class GlobalDatabaseConfig extends React.Component {
             txnlogdir: this.props.data.txnlogdir,
             dbhomedir: this.props.data.dbhomedir,
             dblocks: this.props.data.dblocks,
+            dblocksMonitoring: this.props.data.dblocksMonitoring,
+            dblocksMonitoringThreshold: this.props.data.dblocksMonitoringThreshold,
+            dblocksMonitoringPause: this.props.data.dblocksMonitoringPause,
             chxpoint: this.props.data.chxpoint,
             compactinterval: this.props.data.compactinterval,
             importcachesize: this.props.data.importcachesize,
@@ -46,6 +49,9 @@ export class GlobalDatabaseConfig extends React.Component {
             _txnlogdir: this.props.data.txnlogdir,
             _dbhomedir: this.props.data.dbhomedir,
             _dblocks: this.props.data.dblocks,
+            _dblocksMonitoring: this.props.data.dblocksMonitoring,
+            _dblocksMonitoringThreshold: this.props.data.dblocksMonitoringThreshold,
+            _dblocksMonitoringPause: this.props.data.dblocksMonitoringPause,
             _chxpoint: this.props.data.chxpoint,
             _compactinterval: this.props.data.compactinterval,
             _importcachesize: this.props.data.importcachesize,
@@ -54,6 +60,7 @@ export class GlobalDatabaseConfig extends React.Component {
             _import_cache_auto: this.props.data.import_cache_auto,
         };
         this.handleChange = this.handleChange.bind(this);
+        this.select_db_locks_monitoring = this.select_db_locks_monitoring.bind(this);
         this.select_auto_cache = this.select_auto_cache.bind(this);
         this.select_auto_import_cache = this.select_auto_import_cache.bind(this);
         this.save_db_config = this.save_db_config.bind(this);
@@ -73,6 +80,12 @@ export class GlobalDatabaseConfig extends React.Component {
         this.setState({
             import_cache_auto: !this.state.import_cache_auto
         }, this.handleChange(e));
+    }
+
+    select_db_locks_monitoring (val, e) {
+        this.setState({
+            dblocksMonitoring: !this.state.dblocksMonitoring
+        }, this.handleChange(val, e));
     }
 
     handleChange(e) {
@@ -149,6 +162,21 @@ export class GlobalDatabaseConfig extends React.Component {
             cmd.push("--locks=" + this.state.dblocks);
             requireRestart = true;
         }
+        if (this.state._dblocksMonitoring != this.state.dblocksMonitoring) {
+            if (this.state.dblocksMonitoring) {
+                cmd.push("--locks-monitoring-enabled=on");
+            } else {
+                cmd.push("--locks-monitoring-enabled=off");
+            }
+            requireRestart = true;
+        }
+        if (this.state._dblocksMonitoringThreshold != this.state.dblocksMonitoringThreshold) {
+            cmd.push("--locks-monitoring-threshold=" + this.state.dblocksMonitoringThreshold);
+            requireRestart = true;
+        }
+        if (this.state._dblocksMonitoringPause != this.state.dblocksMonitoringPause) {
+            cmd.push("--locks-monitoring-pause=" + this.state.dblocksMonitoringPause);
+        }
         if (this.state._chxpoint != this.state.chxpoint) {
             cmd.push("--checkpoint-interval=" + this.state.chxpoint);
             requireRestart = true;
@@ -215,6 +243,28 @@ export class GlobalDatabaseConfig extends React.Component {
         let import_cache_form;
         let db_auto_checked = false;
         let import_auto_checked = false;
+        let dblocksMonitor = "";
+
+        if (this.state.dblocksMonitoring) {
+            dblocksMonitor = <div className="ds-margin-top">
+                <Row className="ds-margin-top" title="Sets the DB lock exhaustion value in percentage (valid range is 70-95). If too many locks are acquired, the server will abort the searches while the number of locks are not decreased. It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold)">
+                    <Col componentClass={ControlLabel} sm={4}>
+                        DB Locks Threshold Percentage
+                    </Col>
+                    <Col sm={8}>
+                        <input className="ds-input" type="number" id="dblocksMonitoringThreshold" size="10" onChange={this.handleChange} value={this.state.dblocksMonitoringThreshold} />
+                    </Col>
+                </Row>
+                <Row className="ds-margin-top" title="Sets the amount of time (milliseconds) that the monitoring thread spends waiting between checks. (nsslapd-db-locks-monitoring-pause)">
+                    <Col componentClass={ControlLabel} sm={4}>
+                        DB Locks Pause Milliseconds
+                    </Col>
+                    <Col sm={8}>
+                        <input className="ds-input" type="number" id="dblocksMonitoringPause" size="10" onChange={this.handleChange} value={this.state.dblocksMonitoringPause} />
+                    </Col>
+                </Row>
+            </div>;
+        }
 
         if (this.state.db_cache_auto) {
             db_cache_form = <div id="auto-cache-form" className="ds-margin-left">
@@ -421,14 +471,6 @@ export class GlobalDatabaseConfig extends React.Component {
                                             <input id="dbhomedir" value={this.state.dbhomedir} onChange={this.handleChange} className="ds-input-auto" type="text" />
                                         </Col>
                                     </Row>
-                                    <Row className="ds-margin-top" title="The number of database locks (nsslapd-db-locks).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Database Locks
-                                        </Col>
-                                        <Col sm={8}>
-                                            <input id="dblocks" value={this.state.dblocks} onChange={this.handleChange} className="ds-input-auto" type="text" />
-                                        </Col>
-                                    </Row>
                                     <Row className="ds-margin-top" title="Amount of time in seconds after which the Directory Server sends a checkpoint entry to the database transaction log (nsslapd-db-checkpoint-interval).">
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Database Checkpoint Interval
@@ -443,6 +485,36 @@ export class GlobalDatabaseConfig extends React.Component {
                                         </Col>
                                         <Col sm={8}>
                                             <input id="compactinterval" value={this.state.compactinterval} onChange={this.handleChange} className="ds-input-auto" type="text" />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top" title="The number of database locks (nsslapd-db-locks).">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Database Locks
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input id="dblocks" value={this.state.dblocks} onChange={this.handleChange} className="ds-input-auto" type="text" />
+                                        </Col>
+                                    </Row>
+                                    <Row>
+                                        <Col sm={12}>
+                                            <h5 className="ds-sub-header">DB Locks Monitoring</h5>
+                                            <hr />
+                                        </Col>
+                                    </Row>
+                                    <Row>
+                                        <Col sm={12}>
+                                            <Checkbox title="Set input to be set automatically"
+                                                id="dblocksMonitoring"
+                                                checked={this.state.dblocksMonitoring}
+                                                onChange={this.select_db_locks_monitoring}
+                                            >
+                                                Enable Monitoring
+                                            </Checkbox>
+                                        </Col>
+                                    </Row>
+                                    <Row>
+                                        <Col sm={12}>
+                                            {dblocksMonitor}
                                         </Col>
                                     </Row>
                                 </Form>

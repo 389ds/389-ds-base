@@ -191,6 +191,102 @@ bdb_config_db_lock_set(void *arg, void *value, char *errorbuf, int phase, int ap
 }
 
 static void *
+bdb_config_db_lock_monitoring_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((intptr_t)(li->li_new_dblock_monitoring));
+}
+
+static int
+bdb_config_db_lock_monitoring_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int32_t)((intptr_t)value);
+
+    if (apply) {
+        if (CONFIG_PHASE_RUNNING == phase) {
+            li->li_new_dblock_monitoring = val;
+            slapi_log_err(SLAPI_LOG_NOTICE, "bdb_config_db_lock_monitoring_set",
+                          "New nsslapd-db-lock-monitoring value will not take affect until the server is restarted\n");
+        } else {
+            li->li_new_dblock_monitoring = val;
+            li->li_dblock_monitoring = val;
+        }
+    }
+
+    return retval;
+}
+
+static void *
+bdb_config_db_lock_pause_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)(slapi_atomic_load_32((int32_t *)&(li->li_dblock_monitoring_pause), __ATOMIC_RELAXED)));
+}
+
+static int
+bdb_config_db_lock_pause_set(void *arg, void *value, char *errorbuf, int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    u_int32_t val = (u_int32_t)((uintptr_t)value);
+
+    if (val == 0) {
+        slapi_log_err(SLAPI_LOG_NOTICE, "bdb_config_db_lock_pause_set",
+                      "%s was set to '0'. The default value will be used (%s)",
+                      CONFIG_DB_LOCKS_PAUSE, DEFAULT_DBLOCK_PAUSE_STR);
+        val = DEFAULT_DBLOCK_PAUSE;
+    }
+
+    if (apply) {
+        slapi_atomic_store_32((int32_t *)&(li->li_dblock_monitoring_pause), val, __ATOMIC_RELAXED);
+    }
+    return retval;
+}
+
+static void *
+bdb_config_db_lock_threshold_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)(li->li_new_dblock_threshold));
+}
+
+static int
+bdb_config_db_lock_threshold_set(void *arg, void *value, char *errorbuf, int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    u_int32_t val = (u_int32_t)((uintptr_t)value);
+
+    if (val < 70 || val > 95) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%d\" is invalid, threshold is indicated as a percentage and it must lie in range of 70 and 95",
+                              CONFIG_DB_LOCKS_THRESHOLD, val);
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_config_db_lock_threshold_set",
+                      "%s: \"%d\" is invalid, threshold is indicated as a percentage and it must lie in range of 70 and 95",
+                      CONFIG_DB_LOCKS_THRESHOLD, val);
+        retval = LDAP_OPERATIONS_ERROR;
+        return retval;
+    }
+
+    if (apply) {
+        if (CONFIG_PHASE_RUNNING == phase) {
+            li->li_new_dblock_threshold = val;
+            slapi_log_err(SLAPI_LOG_NOTICE, "bdb_config_db_lock_threshold_set",
+                          "New nsslapd-db-lock-monitoring-threshold value will not take affect until the server is restarted\n");
+        } else {
+            li->li_new_dblock_threshold = val;
+            li->li_dblock_threshold = val;
+        }
+    }
+    return retval;
+}
+
+static void *
 bdb_config_dbcachesize_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
@@ -1409,6 +1505,9 @@ static config_info bdb_config_param[] = {
     {CONFIG_SERIAL_LOCK, CONFIG_TYPE_ONOFF, "on", &bdb_config_serial_lock_get, &bdb_config_serial_lock_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_USE_LEGACY_ERRORCODE, CONFIG_TYPE_ONOFF, "off", &bdb_config_legacy_errcode_get, &bdb_config_legacy_errcode_set, 0},
     {CONFIG_DB_DEADLOCK_POLICY, CONFIG_TYPE_INT, STRINGIFYDEFINE(DB_LOCK_YOUNGEST), &bdb_config_db_deadlock_policy_get, &bdb_config_db_deadlock_policy_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_LOCKS_MONITORING, CONFIG_TYPE_ONOFF, "on", &bdb_config_db_lock_monitoring_get, &bdb_config_db_lock_monitoring_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_LOCKS_THRESHOLD, CONFIG_TYPE_INT, "90", &bdb_config_db_lock_threshold_get, &bdb_config_db_lock_threshold_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_LOCKS_PAUSE, CONFIG_TYPE_INT, DEFAULT_DBLOCK_PAUSE_STR, &bdb_config_db_lock_pause_get, &bdb_config_db_lock_pause_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}};
 
 void

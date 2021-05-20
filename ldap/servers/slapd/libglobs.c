@@ -8213,8 +8213,8 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 #if 0
         debugHashTable(attr);
 #endif
-        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown attribute %s will be ignored", attr);
-        slapi_log_err(SLAPI_LOG_ERR, "config_set", "Unknown attribute %s will be ignored", attr);
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown attribute %s will be ignored\n", attr);
+        slapi_log_err(SLAPI_LOG_ERR, "config_set", "Unknown attribute %s will be ignored\n", attr);
         return LDAP_NO_SUCH_ATTRIBUTE;
     }
 

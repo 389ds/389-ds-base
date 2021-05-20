@@ -639,6 +639,10 @@ option {
     padding-right: 0 !important;
 }
 
+.ds-vertical-scroll-auto {
+  overflow-y: auto !important;
+}
+
 .alert {
     max-width: 750px;
 }
