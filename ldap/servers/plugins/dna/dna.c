@@ -1023,7 +1023,6 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
     /* Set the default interval to 1 */
     entry->interval = 1;
 
-#ifdef DNA_ENABLE_INTERVAL
     value = slapi_entry_attr_get_charptr(e, DNA_INTERVAL);
     if (value) {
         entry->interval = strtoull(value, 0, 0);
@@ -1032,7 +1031,6 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
 
     slapi_log_err(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                   "dna_parse_config_entry - %s [%" PRIu64 "]\n", DNA_INTERVAL, entry->interval);
-#endif
 
     value = slapi_entry_attr_get_charptr(e, DNA_GENERATE);
     if (value) {
