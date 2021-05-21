@@ -33,7 +33,7 @@ fn assign_uuid(e: &mut EntryRef) {
     // 🚧 safety barrier 🚧
     if e.contains_attr("entryUUID") {
         log_error!(
-            ErrorLevel::Trace,
+            ErrorLevel::Plugin,
             "assign_uuid -> entryUUID exists, skipping dn {}",
             sdn.to_dn_string()
         );
@@ -47,7 +47,7 @@ fn assign_uuid(e: &mut EntryRef) {
     if sdn.is_below_suffix(&*config_sdn) || sdn.is_below_suffix(&*schema_sdn) {
         // We don't need to assign to these suffixes.
         log_error!(
-            ErrorLevel::Trace,
+            ErrorLevel::Plugin,
             "assign_uuid -> not assigning to {:?} as part of system suffix",
             sdn.to_dn_string()
         );
@@ -57,7 +57,7 @@ fn assign_uuid(e: &mut EntryRef) {
     // Generate a new Uuid.
     let u: Uuid = Uuid::new_v4();
     log_error!(
-        ErrorLevel::Trace,
+        ErrorLevel::Plugin,
         "assign_uuid -> assigning {:?} to dn {}",
         u,
         sdn.to_dn_string()
@@ -78,13 +78,13 @@ impl SlapiPlugin3 for EntryUuid {
     fn betxn_pre_add(pb: &mut PblockRef) -> Result<(), PluginError> {
         if pb.get_is_replicated_operation() {
             log_error!(
-                ErrorLevel::Trace,
+                ErrorLevel::Plugin,
                 "betxn_pre_add -> replicated operation, will not change"
             );
             return Ok(());
         }
 
-        log_error!(ErrorLevel::Trace, "betxn_pre_add -> start");
+        log_error!(ErrorLevel::Plugin, "betxn_pre_add -> start");
 
         let mut e = pb.get_op_add_entryref().map_err(|_| PluginError::Pblock)?;
         assign_uuid(&mut e);
@@ -105,7 +105,7 @@ impl SlapiPlugin3 for EntryUuid {
                 .first()
                 .ok_or_else(|| {
                     log_error!(
-                        ErrorLevel::Trace,
+                        ErrorLevel::Plugin,
                         "task_validate basedn error -> empty value array?"
                     );
                     LDAPError::Operation
@@ -113,7 +113,7 @@ impl SlapiPlugin3 for EntryUuid {
                 .as_ref()
                 .try_into()
                 .map_err(|e| {
-                    log_error!(ErrorLevel::Trace, "task_validate basedn error -> {:?}", e);
+                    log_error!(ErrorLevel::Plugin, "task_validate basedn error -> {:?}", e);
                     LDAPError::Operation
                 })?,
             None => return Err(LDAPError::ObjectClassViolation),
@@ -124,7 +124,7 @@ impl SlapiPlugin3 for EntryUuid {
                 .first()
                 .ok_or_else(|| {
                     log_error!(
-                        ErrorLevel::Trace,
+                        ErrorLevel::Plugin,
                         "task_validate filter error -> empty value array?"
                     );
                     LDAPError::Operation
@@ -132,7 +132,7 @@ impl SlapiPlugin3 for EntryUuid {
                 .as_ref()
                 .try_into()
                 .map_err(|e| {
-                    log_error!(ErrorLevel::Trace, "task_validate filter error -> {:?}", e);
+                    log_error!(ErrorLevel::Plugin, "task_validate filter error -> {:?}", e);
                     LDAPError::Operation
                 })?,
             None => {
@@ -144,7 +144,11 @@ impl SlapiPlugin3 for EntryUuid {
         // Error if the first filter is empty?
 
         // Now, to make things faster, we wrap the filter in a exclude term.
-        let raw_filter = format!("(&{}(!(entryuuid=*)))", raw_filter);
+        let raw_filter = if !raw_filter.starts_with('(') && !raw_filter.ends_with('(') {
+            format!("(&({})(!(entryuuid=*)))", raw_filter)
+        } else {
+            format!("(&{}(!(entryuuid=*)))", raw_filter)
+        };
 
         Ok(FixupData { basedn, raw_filter })
     }
@@ -155,7 +159,7 @@ impl SlapiPlugin3 for EntryUuid {
 
     fn task_handler(_task: &Task, data: Self::TaskData) -> Result<Self::TaskData, PluginError> {
         log_error!(
-            ErrorLevel::Trace,
+            ErrorLevel::Plugin,
             "task_handler -> start thread with -> {:?}",
             data
         );
@@ -195,12 +199,12 @@ impl SlapiPlugin3 for EntryUuid {
     }
 
     fn start(_pb: &mut PblockRef) -> Result<(), PluginError> {
-        log_error!(ErrorLevel::Trace, "plugin start");
+        log_error!(ErrorLevel::Plugin, "plugin start");
         Ok(())
     }
 
     fn close(_pb: &mut PblockRef) -> Result<(), PluginError> {
-        log_error!(ErrorLevel::Trace, "plugin close");
+        log_error!(ErrorLevel::Plugin, "plugin close");
         Ok(())
     }
 }
@@ -212,7 +216,7 @@ pub fn entryuuid_fixup_mapfn(e: &EntryRef, _data: &()) -> Result<(), PluginError
     /* Sanity check that entryuuid doesn't already exist */
     if e.contains_attr("entryUUID") {
         log_error!(
-            ErrorLevel::Trace,
+            ErrorLevel::Plugin,
             "skipping fixup for -> {}",
             sdn.to_dn_string()
         );
@@ -232,7 +236,7 @@ pub fn entryuuid_fixup_mapfn(e: &EntryRef, _data: &()) -> Result<(), PluginError
 
     match lmod.execute() {
         Ok(_) => {
-            log_error!(ErrorLevel::Trace, "fixed-up -> {}", sdn.to_dn_string());
+            log_error!(ErrorLevel::Plugin, "fixed-up -> {}", sdn.to_dn_string());
             Ok(())
         }
         Err(e) => {
