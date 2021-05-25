@@ -857,6 +857,7 @@ def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, 
 
 @pytest.mark.skipif(ds_is_older('1.4.3.8'), reason="Fail because of bug 1850275")
 @pytest.mark.bz1850275
+@pytest.mark.bz1924848
 def test_optime_and_wtime_keywords(topology_st, clean_access_logs, remove_users, disable_access_log_buffering):
     """Test that the new optime and wtime keywords are present in the access log and have correct values
 
@@ -930,6 +931,24 @@ def test_optime_and_wtime_keywords(topology_st, clean_access_logs, remove_users,
     log.info('Check that (wtime + optime) is approximately equal to etime i.e. their ratio is 1')
     etime_ratio = (Decimal(wtime_value) + Decimal(optime_value)) // Decimal(etime_value)
     assert etime_ratio == 1
+
+    log.info('Perform a compare operation')
+    topology_st.standalone.compare_s('uid=testuser1000,ou=people,dc=example,dc=com','uid', 'testuser1000')
+    ops = topology_st.standalone.ds_access_log.match('.*CMP dn="uid=testuser1000,ou=people,dc=example,dc=com"')
+
+    log.info('get the wtime and optime values from the RESULT string')
+    ops_value = topology_st.standalone.ds_access_log.parse_line(ops[0])
+    value = topology_st.standalone.ds_access_log.match(f'.*op={ops_value["op"]} RESULT')
+    time_value = topology_st.standalone.ds_access_log.parse_line(value[0])
+    wtime = time_value['rem'].split()[3].split('=')[1]
+    optime = time_value['rem'].split()[4].split('=')[1]
+
+    log.info('Check that compare operation is not generating negative values for wtime and optime')
+    if (Decimal(wtime) > 0) and (Decimal(optime) > 0):
+        assert True
+    else:
+        log.info('wtime and optime values are negatives')
+        assert False
 
 
 @pytest.mark.xfail(ds_is_older('1.3.10.1'), reason="May fail because of bug 1662461")
