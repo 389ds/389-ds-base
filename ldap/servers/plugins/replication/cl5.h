@@ -29,6 +29,7 @@ typedef struct changelog5Config
     char *symmetricKey;
     long compactInterval;
     long trimInterval;
+    char *compactTime;
 } changelog5Config;
 
 /* initializes changelog*/

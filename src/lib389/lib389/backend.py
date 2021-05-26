@@ -1005,6 +1005,7 @@ class DatabaseConfig(DSLdapObject):
                     'nsslapd-db-transaction-wait',
                     'nsslapd-db-checkpoint-interval',
                     'nsslapd-db-compactdb-interval',
+                    'nsslapd-db-compactdb-time',
                     'nsslapd-db-page-size',
                     'nsslapd-db-transaction-batch-val',
                     'nsslapd-db-transaction-batch-min-wait',

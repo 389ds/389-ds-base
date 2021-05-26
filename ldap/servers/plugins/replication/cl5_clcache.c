@@ -452,9 +452,6 @@ static int
 clcache_cursor_set(DBC *cursor, CLC_Buffer *buf)
 {
     int rc;
-    uint32_t ulen;
-    uint32_t dlen;
-    uint32_t size;
 
     rc = cursor->c_get(cursor, &buf->buf_key, &buf->buf_data, DB_SET);
     if (rc == DB_BUFFER_SMALL) {

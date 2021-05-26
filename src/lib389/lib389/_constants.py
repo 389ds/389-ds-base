@@ -154,6 +154,7 @@ DN_EUUID_TASK = "cn=entryuuid task,%s" % DN_TASKS
 DN_TOMB_FIXUP_TASK = "cn=fixup tombstones,%s" % DN_TASKS
 DN_FIXUP_LINKED_ATTIBUTES = "cn=fixup linked attributes,%s" % DN_TASKS
 DN_AUTOMEMBER_REBUILD_TASK = "cn=automember rebuild membership,%s" % DN_TASKS
+DN_COMPACTDB_TASK = "cn=compact db,%s" % DN_TASKS
 
 # Script Constants
 LDIF2DB = 'ldif2db'

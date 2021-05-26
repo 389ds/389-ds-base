@@ -158,6 +158,7 @@ typedef struct cl5trim
     time_t maxAge;       /* maximum entry age in seconds                            */
     int maxEntries;      /* maximum number of entries across all changelog files    */
     int compactInterval; /* interval to compact changelog db */
+    char *compactTime;   /* time to compact changelog db */
     int trimInterval;    /* trimming interval */
     PRLock *lock;        /* controls access to trimming configuration            */
 } CL5Trim;
@@ -184,6 +185,7 @@ typedef struct cl5desc
     PRLock *clLock;         /* Lock associated to clVar, used to notify threads on close */
     PRCondVar *clCvar;      /* Condition Variable used to notify threads on close */
     void *clcrypt_handle;   /* for cl encryption */
+    char *compact_time;     /* Time to execute changelog compaction */
 } CL5Desc;
 
 typedef void (*VFP)(void *);
@@ -1025,7 +1027,7 @@ cl5GetState()
                 CL5_BAD_STATE if changelog is not open
  */
 int
-cl5ConfigTrimming(int maxEntries, const char *maxAge, int compactInterval, int trimInterval)
+cl5ConfigTrimming(int maxEntries, const char *maxAge, int compactInterval, char *compactTime, int trimInterval)
 {
     if (s_cl5Desc.dbState == CL5_STATE_NONE) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
@@ -1059,6 +1061,10 @@ cl5ConfigTrimming(int maxEntries, const char *maxAge, int compactInterval, int t
 
     if (compactInterval != CL5_NUM_IGNORE) {
         s_cl5Desc.dbTrim.compactInterval = compactInterval;
+    }
+
+    if (strcmp(compactTime, CL5_STR_IGNORE) != 0) {
+        s_cl5Desc.dbTrim.compactTime = slapi_ch_strdup(compactTime);
     }
 
     if (trimInterval != CL5_NUM_IGNORE) {
@@ -3077,8 +3083,38 @@ _cl5TrimCleanup(void)
 {
     if (s_cl5Desc.dbTrim.lock)
         PR_DestroyLock(s_cl5Desc.dbTrim.lock);
+    slapi_ch_free_string(&s_cl5Desc.dbTrim.compactTime);
 
     memset(&s_cl5Desc.dbTrim, 0, sizeof(s_cl5Desc.dbTrim));
+}
+
+static time_t
+_cl5_get_tod_expiration(char *expire_time)
+{
+    time_t start_time, todays_elapsed_time, now = time(NULL);
+    struct tm *tm_struct = localtime(&now);
+    char hour_str[3] = {0};
+    char min_str[3] = {0};
+    char *s = expire_time;
+    char *endp = NULL;
+    int32_t hour, min, expiring_time;
+
+    /* Get today's start time */
+    todays_elapsed_time = (tm_struct->tm_hour * 3600) + (tm_struct->tm_min * 60) + (tm_struct->tm_sec);
+    start_time = slapi_current_utc_time() - todays_elapsed_time;
+
+    /* Get the hour and minute and calculate the expiring time.  The time was
+     * already validated in bdb_config.c:  HH:MM */
+    hour_str[0] = *s++;
+    hour_str[1] = *s++;
+    s++;  /* skip colon */
+    min_str[0] = *s++;
+    min_str[1] = *s++;
+    hour = strtoll(hour_str, &endp, 10);
+    min = strtoll(min_str, &endp, 10);
+    expiring_time = (hour * 60 * 60) + (min * 60);
+
+    return start_time + expiring_time;
 }
 
 static int
@@ -3087,6 +3123,8 @@ _cl5TrimMain(void *param __attribute__((unused)))
     time_t timePrev = slapi_current_utc_time();
     time_t timeCompactPrev = slapi_current_utc_time();
     time_t timeNow;
+    PRBool compacting = PR_FALSE;
+    int32_t compactdb_time = 0;
 
     PR_AtomicIncrement(&s_cl5Desc.threadCount);
 
@@ -3097,11 +3135,26 @@ _cl5TrimMain(void *param __attribute__((unused)))
             timePrev = timeNow;
             _cl5DoTrimming();
         }
+
+        if (!compacting) {
+            /* Once we know we want to compact we need to stop refreshing the
+             * TOD expiration. Otherwise if the compact time is close to
+             * midnight we could roll over past midnight during the checkpoint
+             * sleep interval, and we'd never actually compact the databases.
+             * We also need to get this value before the sleep.
+            */
+            compactdb_time = _cl5_get_tod_expiration(s_cl5Desc.dbTrim.compactTime);
+        }
         if ((s_cl5Desc.dbTrim.compactInterval > 0) &&
-            (timeNow - timeCompactPrev >= s_cl5Desc.dbTrim.compactInterval)) {
-            /* time to trim */
-            timeCompactPrev = timeNow;
-            _cl5CompactDBs();
+            (timeNow - timeCompactPrev >= s_cl5Desc.dbTrim.compactInterval))
+        {
+            compacting = PR_TRUE;
+            if (slapi_current_utc_time() > compactdb_time) {
+				/* time to trim */
+				timeCompactPrev = timeNow;
+				_cl5CompactDBs();
+				compacting = PR_FALSE;
+            }
         }
         if (NULL == s_cl5Desc.clLock) {
             /* most likely, emergency */
@@ -3215,6 +3268,10 @@ _cl5CompactDBs(void)
                       rc, db_strerror(rc));
         goto bail;
     }
+
+
+    slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
+                  "_cl5CompactDBs - compacting replication changelogs...\n");
     for (fileObj = objset_first_obj(s_cl5Desc.dbFiles);
          fileObj;
          fileObj = objset_next_obj(s_cl5Desc.dbFiles, fileObj)) {
@@ -3235,6 +3292,9 @@ _cl5CompactDBs(void)
                       "_cl5CompactDBs - %s - %d pages freed\n",
                       dbFile->replName, c_data.compact_pages_free);
     }
+
+    slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
+                  "_cl5CompactDBs - compacting replication changelogs finished.\n");
 bail:
     if (fileObj) {
         object_release(fileObj);

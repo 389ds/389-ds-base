@@ -478,6 +478,7 @@ void ldbm_back_search_results_release(void **search_results);
 int ldbm_back_init(Slapi_PBlock *pb);
 void ldbm_back_prev_search_results(Slapi_PBlock *pb);
 int ldbm_back_isinitialized(void);
+int32_t ldbm_back_compact(Slapi_Backend *be);
 
 /*
  * vlv.c

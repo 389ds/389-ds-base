@@ -925,6 +925,12 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         }
         (*(IFP *)value) = pblock->pb_plugin->plg_db2ldif;
         break;
+    case SLAPI_PLUGIN_DB_COMPACT_FN:
+        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
+            return (-1);
+        }
+        (*(IFP *)value) = pblock->pb_plugin->plg_dbcompact;
+        break;
     case SLAPI_PLUGIN_DB_DB2INDEX_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
@@ -2925,7 +2931,12 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         }
         pblock->pb_backend->be_noacl = *((int *)value);
         break;
-
+    case SLAPI_PLUGIN_DB_COMPACT_FN:
+        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
+            return (-1);
+        }
+        pblock->pb_plugin->plg_dbcompact = (IFP)value;
+        break;
 
     /* extendedop plugin functions */
     case SLAPI_PLUGIN_EXT_OP_FN:
@@ -4137,8 +4148,8 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         break;
 
     case SLAPI_URP_TOMBSTONE_CONFLICT_DN:
-	pblock->pb_intop->pb_urp_tombstone_conflict_dn = (char *)value;
-	break;
+        pblock->pb_intop->pb_urp_tombstone_conflict_dn = (char *)value;
+        break;
 
     case SLAPI_URP_TOMBSTONE_UNIQUEID:
         _pblock_assert_pb_intop(pblock);

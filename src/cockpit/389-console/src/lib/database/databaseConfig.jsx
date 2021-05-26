@@ -36,6 +36,7 @@ export class GlobalDatabaseConfig extends React.Component {
             dblocksMonitoringPause: this.props.data.dblocksMonitoringPause,
             chxpoint: this.props.data.chxpoint,
             compactinterval: this.props.data.compactinterval,
+            compacttime: this.props.data.compacttime,
             importcachesize: this.props.data.importcachesize,
             importcacheauto: this.props.data.importcacheauto,
             // These variables store the original value (used for saving config)
@@ -55,6 +56,7 @@ export class GlobalDatabaseConfig extends React.Component {
             _dblocksMonitoringPause: this.props.data.dblocksMonitoringPause,
             _chxpoint: this.props.data.chxpoint,
             _compactinterval: this.props.data.compactinterval,
+            _compacttime: this.props.data.compacttime,
             _importcachesize: this.props.data.importcachesize,
             _importcacheauto: this.props.data.importcacheauto,
             _db_cache_auto: this.props.data.db_cache_auto,
@@ -184,6 +186,10 @@ export class GlobalDatabaseConfig extends React.Component {
         }
         if (this.state._compactinterval != this.state.compactinterval) {
             cmd.push("--compactdb-interval=" + this.state.compactinterval);
+            requireRestart = true;
+        }
+        if (this.state._compacttime != this.state.compacttime) {
+            cmd.push("--compactdb-time=" + this.state.compacttime);
             requireRestart = true;
         }
         if (this.state.import_cache_auto) {
@@ -485,7 +491,15 @@ export class GlobalDatabaseConfig extends React.Component {
                                             Database Compact Interval
                                         </Col>
                                         <Col sm={8}>
-                                            <input id="compactinterval" value={this.state.compactinterval} onChange={this.handleChange} className="ds-input-auto" type="text" />
+                                            <input id="compactinterval" value={this.state.compactinterval} onChange={this.handleChange} className="ds-input-auto" type="number" />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top" title="The Time Of Day to perform the database compaction after the compact interval has been met.  Uses the format: 'HH:MM' and defaults to '23:59'. (nsslapd-db-compactdb-time)">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Database Compact Time
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input id="compacttime" value={this.state.compacttime} onChange={this.handleChange} className="ds-input-auto" type="number" />
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top" title="The number of database locks (nsslapd-db-locks).">

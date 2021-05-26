@@ -131,6 +131,7 @@ changelog5_config_done(changelog5Config *config)
         /* slapi_ch_free_string accepts NULL pointer */
         slapi_ch_free_string(&config->maxAge);
         slapi_ch_free_string(&config->dir);
+        slapi_ch_free_string(&config->compactTime);
         slapi_ch_free_string(&config->symmetricKey);
         slapi_ch_free_string(&config->dbconfig.encryptionAlgorithm);
         slapi_ch_free_string(&config->dbconfig.symmetricKey);
@@ -211,7 +212,7 @@ changelog5_config_add(Slapi_PBlock *pb __attribute__((unused)),
     }
 
     /* set trimming parameters */
-    rc = cl5ConfigTrimming(config.maxEntries, config.maxAge, config.compactInterval, config.trimInterval);
+    rc = cl5ConfigTrimming(config.maxEntries, config.maxAge, config.compactInterval, config.compactTime, config.trimInterval);
     if (rc != CL5_SUCCESS) {
         *returncode = 1;
         if (returntext) {
@@ -302,6 +303,7 @@ changelog5_config_modify(Slapi_PBlock *pb,
     config.compactInterval = CL5_NUM_IGNORE;
     slapi_ch_free_string(&config.maxAge);
     config.maxAge = slapi_ch_strdup(CL5_STR_IGNORE);
+    config.compactTime = slapi_ch_strdup(CHANGELOGDB_COMPACT_TIME);
     config.trimInterval = CL5_NUM_IGNORE;
 
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
@@ -375,6 +377,55 @@ changelog5_config_modify(Slapi_PBlock *pb,
                         *returncode = LDAP_UNWILLING_TO_PERFORM;
                         goto done;
                     }
+                } else if (strcasecmp(config_attr, CONFIG_CHANGELOG_COMPACTTIME_ATTRIBUTE) == 0) {
+                	if (config_attr_value && config_attr_value[0] != '\0') {
+                	    char *val = slapi_ch_strdup(config_attr_value);
+                        char *endp = NULL;
+                        char *hour_str = NULL;
+                        char *min_str = NULL;
+                        int32_t hour, min;
+                        errno = 0;
+
+                        slapi_ch_free_string(&config.compactTime);
+
+                      	if (strstr(val, ":")) {
+                            /* Get the hour and minute */
+                            hour_str = ldap_utf8strtok_r(val, ":", &min_str);
+                  	        /* Validate hour */
+                   	        hour = strtoll(hour_str, &endp, 10);
+                 	        if (*endp != '\0' || errno == ERANGE || hour < 0 || hour > 23 || strlen(hour_str) != 2) {
+          	       	            slapi_create_errormsg(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                   	                    "Invalid hour set (%s), must be a two digit number between 00 and 23",
+                   	                    hour_str);
+                   	            slapi_log_err(SLAPI_LOG_ERR, "changelog5_extract_config",
+                                       "Invalid minute set (%s), must be a two digit number between 00 and 59.  "
+                	       	                    "Using default of 23:59\n", hour_str);
+                                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                   	            goto done;
+           	       	        }
+       	        	        /* Validate minute */
+           	       	        min = strtoll(min_str, &endp, 10);
+           	      	        if (*endp != '\0' || errno == ERANGE || min < 0 || min > 59 || strlen(min_str) != 2) {
+                   	            slapi_create_errormsg(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                  	                    "Invalid minute set (%s), must be a two digit number between 00 and 59",
+                   	                    hour_str);
+                   	            slapi_log_err(SLAPI_LOG_ERR, "changelog5_extract_config",
+                   	                    "Invalid minute set (%s), must be a two digit number between 00 and 59.  "
+                   	                    "Using default of 23:59\n", min_str);
+                                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                   	            goto done;
+                   	        }
+                   	    } else {
+                   	        /* Wrong format */
+                   	        slapi_create_errormsg(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                   	                "Invalid setting (%s), must have a time format of HH:MM", val);
+                   	        slapi_log_err(SLAPI_LOG_ERR, "changelog5_extract_config",
+                   	                "Invalid setting (%s), must have a time format of HH:MM\n", val);
+                            *returncode = LDAP_UNWILLING_TO_PERFORM;
+                   	        goto done;
+                   	    }
+                        config.compactTime = slapi_ch_strdup(config_attr_value);
+                    }
                 } else if (strcasecmp(config_attr, CONFIG_CHANGELOG_TRIM_ATTRIBUTE) == 0) {
                     if (slapi_is_duration_valid(config_attr_value)) {
                         config.trimInterval = (long)slapi_parse_duration(config_attr_value);
@@ -418,6 +469,11 @@ changelog5_config_modify(Slapi_PBlock *pb,
         slapi_ch_free_string(&config.maxAge);
         if (originalConfig->maxAge)
             config.maxAge = slapi_ch_strdup(originalConfig->maxAge);
+    }
+    if (strcmp(config.compactTime, CL5_STR_IGNORE) == 0) {
+        slapi_ch_free_string(&config.compactTime);
+        if (originalConfig->compactTime)
+            config.compactTime = slapi_ch_strdup(originalConfig->compactTime);
     }
 
     /* attempt to change chagelog dir */
@@ -519,7 +575,7 @@ changelog5_config_modify(Slapi_PBlock *pb,
     if (config.maxEntries != CL5_NUM_IGNORE ||
         config.trimInterval != CL5_NUM_IGNORE ||
         strcmp(config.maxAge, CL5_STR_IGNORE) != 0) {
-        rc = cl5ConfigTrimming(config.maxEntries, config.maxAge, config.compactInterval, config.trimInterval);
+        rc = cl5ConfigTrimming(config.maxEntries, config.maxAge, config.compactInterval, config.compactTime, config.trimInterval);
         if (rc != CL5_SUCCESS) {
             *returncode = 1;
             if (returntext) {
@@ -689,6 +745,7 @@ changelog5_extract_config(Slapi_Entry *entry, changelog5Config *config)
 {
     const char *arg;
     char *max_age = NULL;
+    char *val = NULL;
 
     memset(config, 0, sizeof(*config));
     config->dir = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_DIR_ATTRIBUTE);
@@ -710,6 +767,47 @@ changelog5_extract_config(Slapi_Entry *entry, changelog5Config *config)
     } else {
         config->compactInterval = CHANGELOGDB_COMPACT_INTERVAL;
     }
+
+    arg = slapi_entry_attr_get_ref(entry, CONFIG_CHANGELOG_COMPACTTIME_ATTRIBUTE);
+    if (arg) {
+        char *endp = NULL;
+        char *hour_str = NULL;
+        char *min_str = NULL;
+        int32_t hour, min;
+        errno = 0;
+
+        val = slapi_ch_strdup((char *)arg);
+    	if (strstr(val, ":")) {
+            /* Get the hour and minute */
+            hour_str = ldap_utf8strtok_r(val, ":", &min_str);
+    	        /* Validate hour */
+   	        hour = strtoll(hour_str, &endp, 10);
+   	        if (*endp != '\0' || errno == ERANGE || hour < 0 || hour > 23 || strlen(hour_str) != 2) {
+   	            slapi_log_err(SLAPI_LOG_ERR, "changelog5_extract_config",
+   	                    "Invalid minute set (%s), must be a two digit number between 00 and 59.  "
+   	                    "Using default of 23:59\n", hour_str);
+   	            goto set_default;
+   	        }
+    	        /* Validate minute */
+   	        min = strtoll(min_str, &endp, 10);
+  	        if (*endp != '\0' || errno == ERANGE || min < 0 || min > 59 || strlen(min_str) != 2) {
+   	            slapi_log_err(SLAPI_LOG_ERR, "changelog5_extract_config",
+   	                    "Invalid minute set (%s), must be a two digit number between 00 and 59.  "
+   	                    "Using default of 23:59\n", min_str);
+   	            goto set_default;
+   	        }
+   	    } else {
+   	        /* Wrong format */
+   	        slapi_log_err(SLAPI_LOG_ERR, "changelog5_extract_config",
+   	                "Invalid setting (%s), must have a time format of HH:MM\n", val);
+   	        goto set_default;
+   	    }
+        config->compactTime = slapi_ch_strdup(arg);
+    } else {
+    	set_default:
+        config->compactTime = slapi_ch_strdup(CHANGELOGDB_COMPACT_TIME);
+    }
+    slapi_ch_free_string(&val);
 
     arg = slapi_entry_attr_get_ref(entry, CONFIG_CHANGELOG_TRIM_ATTRIBUTE);
     if (arg) {

@@ -928,6 +928,7 @@ int proxyauth_get_dn(Slapi_PBlock *pb, char **proxydnp, char **errtextp);
 #define SLAPI_PLUGIN_DB_GET_INFO_FN               290
 #define SLAPI_PLUGIN_DB_SET_INFO_FN               291
 #define SLAPI_PLUGIN_DB_CTRL_INFO_FN              292
+#define SLAPI_PLUGIN_DB_COMPACT_FN                294
 
 /**** End of database plugin interface. **************************************/
 

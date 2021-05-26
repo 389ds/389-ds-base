@@ -196,6 +196,7 @@ export class Database extends React.Component {
                                     dblocksMonitoringPause: attrs['nsslapd-db-locks-monitoring-pause'],
                                     chxpoint: attrs['nsslapd-db-checkpoint-interval'],
                                     compactinterval: attrs['nsslapd-db-compactdb-interval'],
+                                    compacttime: attrs['nsslapd-db-compactdb-time'],
                                     importcacheauto: attrs['nsslapd-import-cache-autosize'],
                                     importcachesize: attrs['nsslapd-import-cachesize'],
                                 },

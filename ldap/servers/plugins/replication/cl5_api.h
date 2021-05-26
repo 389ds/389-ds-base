@@ -236,7 +236,7 @@ int cl5GetState(void);
    Return:        CL5_SUCCESS if successful;
                 CL5_BAD_STATE if changelog has not been open
  */
-int cl5ConfigTrimming(int maxEntries, const char *maxAge, int compactInterval, int trimInterval);
+int cl5ConfigTrimming(int maxEntries, const char *maxAge, int compactInterval, char *compactTime, int trimInterval);
 
 void cl5DestroyIterator(void *iterator);
 

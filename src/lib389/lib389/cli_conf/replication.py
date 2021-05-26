@@ -37,6 +37,7 @@ arg_to_attr = {
         'max_entries': 'nsslapd-changelogmaxentries',
         'max_age': 'nsslapd-changelogmaxage',
         'compact_interval': 'nsslapd-changelogcompactdb-interval',
+        'compact_time': 'nsslapd-changelogcompactdb-time',
         'trim_interval': 'nsslapd-changelogtrim-interval',
         'encrypt_algo': 'nsslapd-encryptionalgorithm',
         'encrypt_key': 'nssymmetrickey',
@@ -1216,6 +1217,8 @@ def create_parser(subparsers):
     repl_set_cl.add_argument('--max-entries', help="The maximum number of entries to get in the replication changelog")
     repl_set_cl.add_argument('--max-age', help="The maximum age of a replication changelog entry")
     repl_set_cl.add_argument('--compact-interval', help="The replication changelog compaction interval")
+    repl_set_cl.add_argument('--compact-time', help='Sets the Time Of Day to compact the database after the changelog "compact interval" '
+                                                    'has been reached:  Use this format to set the hour and minute: HH:MM')
     repl_set_cl.add_argument('--trim-interval', help="The interval to check if the replication changelog can be trimmed")
 
     repl_get_cl = repl_subcommands.add_parser('get-changelog', help='Display replication changelog attributes.')

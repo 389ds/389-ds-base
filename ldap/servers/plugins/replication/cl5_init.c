@@ -57,7 +57,7 @@ changelog5_init()
     }
 
     /* set trimming parameters */
-    rc = cl5ConfigTrimming(config.maxEntries, config.maxAge, config.compactInterval, config.trimInterval);
+    rc = cl5ConfigTrimming(config.maxEntries, config.maxAge, config.compactInterval, config.compactTime, config.trimInterval);
     if (rc != CL5_SUCCESS) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "changelog5_init: failed to configure changelog trimming\n");
