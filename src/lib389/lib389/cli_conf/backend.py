@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -19,6 +19,7 @@ from lib389.chaining import (ChainingLinks)
 from lib389.monitor import MonitorLDBM
 from lib389.replica import Replicas
 from lib389.utils import ensure_str, is_a_dn, is_dn_parent
+from lib389.tasks import DBCompactTask
 from lib389._constants import *
 from lib389.cli_base import (
     _format_status,
@@ -41,6 +42,7 @@ arg_to_attr = {
         'txn_wait': 'nsslapd-db-transaction-wait',
         'checkpoint_interval': 'nsslapd-db-checkpoint-interval',
         'compactdb_interval': 'nsslapd-db-compactdb-interval',
+        'compactdb_time': 'nsslapd-db-compactdb-time',
         'txn_batch_val': 'nsslapd-db-transaction-batch-val',
         'txn_batch_min': 'nsslapd-db-transaction-batch-min-wait',
         'txn_batch_max': 'nsslapd-db-transaction-batch-max-wait',
@@ -784,6 +786,18 @@ def backend_reindex_vlv(inst, basedn, log, args):
     log.info("Successfully reindexed VLV indexes")
 
 
+def backend_compact(inst, basedn, log, args):
+    task = DBCompactTask(inst)
+    task_properties = {}
+    if args.only_changelog:
+        task_properties = {'justChangelog': 'yes'}
+    task.create(properties=task_properties)
+    task.wait()
+    if task.get_exit_code() != 0:
+        raise ValueError("Failed to create Database Compaction Task")
+    log.info("Successfully started Database Compaction Task")
+
+
 def create_parser(subparsers):
     backend_parser = subparsers.add_parser('backend', help="Manage database suffixes and backends")
     subcommands = backend_parser.add_subparsers(help="action")
@@ -989,6 +1003,7 @@ def create_parser(subparsers):
     set_db_config_parser.add_argument('--checkpoint-interval', help='Sets the amount of time in seconds after which the Directory Server sends a '
                                                                     'checkpoint entry to the database transaction log')
     set_db_config_parser.add_argument('--compactdb-interval', help='Sets the interval in seconds when the database is compacted')
+    set_db_config_parser.add_argument('--compactdb-time', help='Sets the Time Of Day to compact the database after the "compactdb interval" has been reached:  Use this format to set the hour and minute: HH:MM')
     set_db_config_parser.add_argument('--txn-batch-val', help='Specifies how many transactions will be batched before being committed')
     set_db_config_parser.add_argument('--txn-batch-min', help='Controls when transactions should be flushed earliest, independently of '
                                                               'the batch count (only works when txn-batch-val is set)')
@@ -1116,3 +1131,10 @@ def create_parser(subparsers):
     #######################################################
     get_tree_parser = subcommands.add_parser('get-tree', help='Get a representation of the suffix tree')
     get_tree_parser.set_defaults(func=backend_get_tree)
+
+    #######################################################
+    # Run the db compaction task
+    #######################################################
+    compact_parser = subcommands.add_parser('compact-db', help='Compact the database and the replication changelog')
+    compact_parser.set_defaults(func=backend_compact)
+    compact_parser.add_argument('--only-changelog', action='store_true', help='Only compact the Replication Change Log')

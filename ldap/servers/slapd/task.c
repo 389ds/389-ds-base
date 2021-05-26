@@ -2588,6 +2588,116 @@ fixup_tombstone_task_destructor(Slapi_Task *task)
                   "fixup_tombstone_task_destructor <--\n");
 }
 
+struct task_compact_data
+{
+    char *suffix;
+    PRBool justChangelog;
+    Slapi_Task *task;
+};
+
+static void
+compact_db_task_destructor(Slapi_Task *task)
+{
+    slapi_log_err(SLAPI_LOG_PLUGIN, "compact db task",
+                  "compact_db_task_destructor -->\n");
+    if (task) {
+        struct task_compact_data *mydata = (struct task_compact_data *)slapi_task_get_data(task);
+        while (slapi_task_get_refcount(task) > 0) {
+            /* Yield to wait for the task to finish */
+            DS_Sleep(PR_MillisecondsToInterval(100));
+        }
+        if (mydata) {
+            slapi_ch_free((void **)&mydata);
+        }
+    }
+    slapi_log_err(SLAPI_LOG_PLUGIN, "compact db task",
+                  "compact_db_task_destructor <--\n");
+}
+
+static void
+task_compact_thread(void *arg)
+{
+    struct task_compact_data *task_data = arg;
+    Slapi_Task *task = task_data->task;
+    Slapi_Backend *be = NULL;
+    char *cookie = NULL;
+    int32_t rc = -1;
+
+    slapi_task_inc_refcount(task);
+    slapi_task_begin(task, 1);
+
+    be = slapi_get_first_backend(&cookie);
+    while (be) {
+        if (be->be_private == 0) {
+            /* Found a non-private backend, start compacting */
+            rc = (be->be_database->plg_dbcompact)(be, task_data->justChangelog);
+            break;
+        }
+        be = (backend *)slapi_get_next_backend(cookie);
+    }
+    slapi_ch_free_string(&cookie);
+
+    slapi_task_finish(task, rc);
+    slapi_task_dec_refcount(task);
+}
+
+/*
+ * compact the BDB database
+ *
+ *  dn: cn=compact_it,cn=compact db,cn=tasks,cn=config
+ *  objectclass: top
+ *  objectclass: extensibleObject
+ *  cn: compact_it
+ *  justChangelog: yes
+ */
+static int
+task_compact_db_add(Slapi_PBlock *pb,
+                    Slapi_Entry *e,
+                    Slapi_Entry *eAfter __attribute__((unused)),
+                    int *returncode,
+                    char *returntext,
+                    void *arg __attribute__((unused)))
+{
+    Slapi_Task *task = slapi_new_task(slapi_entry_get_ndn(e));
+    struct task_compact_data *task_data = NULL;
+    PRThread *thread = NULL;
+    PRBool just_changelog = PR_FALSE;
+    const char *justcl = NULL;
+
+    slapi_task_log_notice(task, "Beginning database compaction task...\n");
+
+    /* Register our destructor for cleaning up our private data */
+    slapi_task_set_destructor_fn(task, compact_db_task_destructor);
+
+    /* Replication changelog */
+    justcl = slapi_entry_attr_get_ref(e, "justChangelog");
+    if (justcl && strcasecmp(justcl, "yes") == 0) {
+        just_changelog = PR_TRUE;
+    }
+
+    task_data = (struct task_compact_data *)slapi_ch_calloc(1, sizeof(struct task_compact_data));
+    task_data->justChangelog = just_changelog;
+    task_data->task = task;
+    slapi_task_set_data(task, task_data);
+
+    /* Start the compaction as a separate thread */
+    thread = PR_CreateThread(PR_USER_THREAD, task_compact_thread,
+             (void *)task_data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+             PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+    if (thread == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "task_compact_db_add", "Unable to create db compact thread!\n");
+        *returncode = LDAP_OPERATIONS_ERROR;
+        slapi_ch_free((void **)&task_data);
+    }
+
+    if (*returncode != LDAP_SUCCESS) {
+        slapi_task_finish(task, *returncode);
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
+
+    return SLAPI_DSE_CALLBACK_OK;
+}
+
 #if defined(ENABLE_LDAPI)
 static void
 task_ldapi_reload_thread(void *arg)
@@ -2721,6 +2831,7 @@ task_init(void)
     slapi_task_register_handler("upgradedb", task_upgradedb_add);
     slapi_task_register_handler("sysconfig reload", task_sysconfig_reload_add);
     slapi_task_register_handler("fixup tombstones", task_fixup_tombstones_add);
+    slapi_task_register_handler("compact db", task_compact_db_add);
 #if defined(ENABLE_LDAPI)
     slapi_task_register_handler("reload ldapi mappings", task_ldapi_dn_mapping_reload_add);
 #endif
