@@ -40,6 +40,7 @@ export class GlobalDatabaseConfig extends React.Component {
             dblocksMonitoringPause: this.props.data.dblocksMonitoringPause,
             chxpoint: this.props.data.chxpoint,
             compactinterval: this.props.data.compactinterval,
+            compacttime: this.props.data.compacttime,
             importcachesize: this.props.data.importcachesize,
             importcacheauto: this.props.data.importcacheauto,
             // These variables store the original value (used for saving config)
@@ -59,6 +60,7 @@ export class GlobalDatabaseConfig extends React.Component {
             _dblocksMonitoringPause: this.props.data.dblocksMonitoringPause,
             _chxpoint: this.props.data.chxpoint,
             _compactinterval: this.props.data.compactinterval,
+            _compacttime: this.props.data.compacttime,
             _importcachesize: this.props.data.importcachesize,
             _importcacheauto: this.props.data.importcacheauto,
             _db_cache_auto: this.props.data.db_cache_auto,
@@ -195,6 +197,10 @@ export class GlobalDatabaseConfig extends React.Component {
         }
         if (this.state._compactinterval != this.state.compactinterval) {
             cmd.push("--compactdb-interval=" + this.state.compactinterval);
+            requireRestart = true;
+        }
+        if (this.state._compacttime != this.state.compacttime) {
+            cmd.push("--compactdb-time=" + this.state.compacttime);
             requireRestart = true;
         }
         if (this.state.import_cache_auto) {
@@ -571,14 +577,28 @@ export class GlobalDatabaseConfig extends React.Component {
                             <FormGroup
                                 label="Database Compact Interval"
                                 fieldId="compactinterval"
-                                title="The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval).  The default is 30 days."
+                                title="The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval).  The default is 30 days at midnight."
                             >
                                 <TextInput
                                     value={this.state.compactinterval}
-                                    type="text"
+                                    type="number"
                                     id="compactinterval"
                                     aria-describedby="compactinterval"
                                     name="compactinterval"
+                                    onChange={this.handleChange}
+                                />
+                            </FormGroup>
+                            <FormGroup
+                                label="Database Compact Time"
+                                fieldId="compacttime"
+                                title="The Time Of Day to perform the database compaction after the compact interval has been met.  Uses the format: 'HH:MM' and defaults to '23:59'. (nsslapd-db-compactdb-time)"
+                            >
+                                <TextInput
+                                    value={this.state.compacttime}
+                                    type="text"
+                                    id="compacttime"
+                                    aria-describedby="compacttime"
+                                    name="compacttime"
                                     onChange={this.handleChange}
                                 />
                             </FormGroup>

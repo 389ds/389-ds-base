@@ -145,6 +145,8 @@ ldbm_back_init(Slapi_PBlock *pb)
                            (void *)ldbm_back_set_info);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_CTRL_INFO_FN,
                            (void *)ldbm_back_ctrl_info);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_COMPACT_FN,
+                           (void *)ldbm_back_compact);
 
     if (rc != 0) {
         slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_init", "Failed %d\n", rc);
