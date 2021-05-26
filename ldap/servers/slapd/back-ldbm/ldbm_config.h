@@ -84,6 +84,7 @@ struct config_info
 #define CONFIG_DB_TRANSACTION_WAIT "nsslapd-db-transaction-wait"
 #define CONFIG_DB_CHECKPOINT_INTERVAL "nsslapd-db-checkpoint-interval"
 #define CONFIG_DB_COMPACTDB_INTERVAL "nsslapd-db-compactdb-interval"
+#define CONFIG_DB_COMPACTDB_TIME "nsslapd-db-compactdb-time"
 #define CONFIG_DB_TRANSACTION_BATCH "nsslapd-db-transaction-batch-val"
 #define CONFIG_DB_TRANSACTION_BATCH_MIN_SLEEP "nsslapd-db-transaction-batch-min-wait"
 #define CONFIG_DB_TRANSACTION_BATCH_MAX_SLEEP "nsslapd-db-transaction-batch-max-wait"

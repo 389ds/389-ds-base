@@ -1044,6 +1044,7 @@ struct slapdplugin
             IFP plg_un_db_ldif2db;              /* ldif 2 database */
             IFP plg_un_db_db2ldif;              /* database 2 ldif */
             IFP plg_un_db_db2index;             /* database 2 index */
+            IFP plg_un_db_dbcompact;            /* compact database */
             IFP plg_un_db_archive2db;           /* ldif 2 database */
             IFP plg_un_db_db2archive;           /* database 2 ldif */
             IFP plg_un_db_upgradedb;            /* convert old idl to new */
@@ -1085,6 +1086,7 @@ struct slapdplugin
 #define plg_result plg_un.plg_un_db.plg_un_db_result
 #define plg_ldif2db plg_un.plg_un_db.plg_un_db_ldif2db
 #define plg_db2ldif plg_un.plg_un_db.plg_un_db_db2ldif
+#define plg_dbcompact plg_un.plg_un_db.plg_un_db_dbcompact
 #define plg_db2index plg_un.plg_un_db.plg_un_db_db2index
 #define plg_archive2db plg_un.plg_un_db.plg_un_db_archive2db
 #define plg_db2archive plg_un.plg_un_db.plg_un_db_db2archive
