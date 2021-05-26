@@ -1761,6 +1761,14 @@ connection_threadmain()
         }
 
         /*
+         * Fix bz 1931820 issue (the check to set OP_FLAG_REPLICATED may be done
+         * before replication session is properly set).
+         */
+        if (replication_connection) {
+            operation_set_flag(op, OP_FLAG_REPLICATED);
+        }
+
+        /*
          * Call the do_<operation> function to process this request.
          */
         connection_dispatch_operation(conn, op, pb);
