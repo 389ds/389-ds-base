@@ -44,6 +44,7 @@ class AttributeUniqueness extends React.Component {
             objectClasses: [],
             modalChecked: false,
             modalSpinning: false,
+            tableKey: 0,
 
             configName: "",
             configEnabled: false,
@@ -130,8 +131,10 @@ class AttributeUniqueness extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let myObject = JSON.parse(content);
+                    let tableKey = this.state.tableKey + 1;
                     this.setState({
-                        configRows: myObject.items.map(item => item.attrs)
+                        configRows: myObject.items.map(item => item.attrs),
+                        tableKey: tableKey
                     });
                 })
                 .fail(err => {
@@ -142,8 +145,8 @@ class AttributeUniqueness extends React.Component {
                 });
     }
 
-    showEditConfigModal(rowData) {
-        this.openModal(rowData.cn[0]);
+    showEditConfigModal(name) {
+        this.openModal(name);
     }
 
     showAddConfigModal(rowData) {
@@ -690,6 +693,7 @@ class AttributeUniqueness extends React.Component {
                 <PluginBasicConfig
                     removeSwitch
                     rows={this.props.rows}
+                    key={this.state.configRows}
                     serverId={this.props.serverId}
                     cn="attribute uniqueness"
                     pluginName="Attribute Uniqueness"
@@ -702,6 +706,7 @@ class AttributeUniqueness extends React.Component {
                     <Row>
                         <Col sm={12}>
                             <AttrUniqConfigTable
+                                key={this.state.tableKey}
                                 rows={this.state.configRows}
                                 editConfig={this.showEditConfigModal}
                                 deleteConfig={this.showConfirmDelete}

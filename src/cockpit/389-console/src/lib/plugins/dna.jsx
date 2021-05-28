@@ -38,6 +38,7 @@ class DNA extends React.Component {
             sharedConfigRows: [],
             attributes: [],
             activeTabKey: 1,
+            tableKey: 1,
             modalSpinning: false,
             modalChecked: false,
             deleteItem: "",
@@ -222,8 +223,10 @@ class DNA extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let myObject = JSON.parse(content);
+                    let tableKey = this.state.tableKey + 1;
                     this.setState({
-                        configRows: myObject.items.map(item => item.attrs)
+                        configRows: myObject.items.map(item => item.attrs),
+                        tableKey: tableKey
                     }, this.toggleLoading());
                 })
                 .fail(err => {
@@ -276,7 +279,7 @@ class DNA extends React.Component {
     }
 
     showEditConfigModal(rowData) {
-        this.openModal(rowData.cn[0]);
+        this.openModal(rowData);
     }
 
     showAddConfigModal(rowData) {
@@ -441,8 +444,8 @@ class DNA extends React.Component {
         }
     }
 
-    showEditSharedConfigModal(rowData) {
-        this.openSharedModal(rowData.dnahostname[0], rowData.dnaportnum[0]);
+    showEditSharedConfigModal(sharedName) {
+        this.openSharedModal(sharedName);
     }
 
     closeModal() {
@@ -605,8 +608,8 @@ class DNA extends React.Component {
         this.cmdOperation("set", muteError);
     }
 
-    openSharedModal(hostname, port) {
-        if (hostname && port) {
+    openSharedModal(sharedName) {
+        if (sharedName) {
             // Get all the attributes and matching rules now
             let cmd = [
                 "dsconf",
@@ -617,7 +620,7 @@ class DNA extends React.Component {
                 "config",
                 this.state.configName,
                 "shared-config-entry",
-                hostname + ":" + port,
+                sharedName,
                 "show"
             ];
             this.toggleLoading();
@@ -749,9 +752,7 @@ class DNA extends React.Component {
                 });
     }
 
-    deleteSharedConfig(rowData) {
-        let sharedHostname = this.state.deleteItem.dnahostname[0];
-        let sharedPort = this.state.deleteItem.dnaportnum[0];
+    deleteSharedConfig() {
         let cmd = [
             "dsconf",
             "-j",
@@ -761,7 +762,7 @@ class DNA extends React.Component {
             "config",
             this.state.configName,
             "shared-config-entry",
-            sharedHostname + ":" + sharedPort,
+            this.state.deleteItem,
             "delete"
         ];
 
@@ -780,7 +781,7 @@ class DNA extends React.Component {
                     console.info("deleteSharedConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Shared config entry ${sharedHostname} and ${sharedPort} was successfully deleted`
+                        `Shared config entry ${this.state.deleteItem} was successfully deleted`
                     );
                     this.closeSharedDeleteConfirm();
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
@@ -1249,9 +1250,11 @@ class DNA extends React.Component {
                             <div className="ds-margin-top-xlg">
                                 <DNASharedTable
                                     rows={sharedConfigRows}
+                                    key={sharedConfigRows}
                                     editConfig={this.showEditSharedConfigModal}
                                     deleteConfig={this.showSharedDeleteConfirm}
                                 />
+                                <hr />
                             </div>
                         </Tab>
                     </Tabs>
@@ -1344,12 +1347,13 @@ class DNA extends React.Component {
                     </Grid>
                 </Modal>
                 <div className="ds-center" hidden={!this.state.loading}>
-                    <h4>Loading Managed Entries configuration</h4>
+                    <h4>Loading DNA configuration</h4>
                     <Spinner size="lg" />
                 </div>
                 <div hidden={this.state.loading}>
                     <PluginBasicConfig
                         rows={this.props.rows}
+                        key={this.state.configRows}
                         serverId={this.props.serverId}
                         cn="Distributed Numeric Assignment Plugin"
                         pluginName="Distributed Numeric Assignment"
@@ -1362,6 +1366,7 @@ class DNA extends React.Component {
                         <div>
                             <DNATable
                                 rows={this.state.configRows}
+                                key={this.state.tableKey}
                                 editConfig={this.showEditConfigModal}
                                 deleteConfig={this.showDeleteConfirm}
                             />

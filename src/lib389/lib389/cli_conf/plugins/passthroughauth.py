@@ -41,6 +41,12 @@ def _get_url_next_num(url_attrs):
 
     return next_num_list[0]
 
+def _get_url_attr(url_attrs,  this_url):
+    for attr, val in url_attrs.items():
+        if val.lower() == this_url.lower():
+            return attr
+
+    return "nsslapd-pluginarg0"
 
 def _validate_url(url):
     failed = False
@@ -54,7 +60,7 @@ def _validate_url(url):
     if (":" not in link) or ("//" not in link) or ("/" not in link) or (params and "," not in params):
         failed = False
 
-    if ldap.dn.is_dn(link.split("/")[-1]):
+    if not ldap.dn.is_dn(link.split("/")[-1]):
         raise ValueError("Subtree is an invalid DN")
 
     if params and len(params.split(",")) != 6 and not all(map(str.isdigit, params.split(","))):
@@ -102,29 +108,29 @@ def pta_edit(inst, basedn, log, args):
     url_attrs = plugin.get_urls()
     urls = list(map(lambda url: url.lower(),
                     [i for _, i in url_attrs.items()]))
-    next_num = _get_url_next_num(url_attrs)
     _validate_url(args.NEW_URL.lower())
     old_url_l = args.OLD_URL.lower()
-    import pdb; pdb.set_trace()
     if old_url_l not in urls:
-        log.info("Entry %s doesn't exists. Adding a new value." % args.OLD_URL)
+        raise ValueError("URL %s doesn't exist." % args.OLD_URL)
     else:
-        for attr, value in url_attrs:
+        for attr, value in url_attrs.items():
             if value.lower() == old_url_l:
                 plugin.remove(attr, old_url_l)
-    plugin.add("nsslapd-pluginarg%s" % next_num, args.NEW_URL)
+                break
+    plugin.add("%s" % _get_url_attr(url_attrs, old_url_l), args.NEW_URL)
 
 
 def pta_del(inst, basedn, log, args):
     log = log.getChild('pta_del')
     plugin = PassThroughAuthenticationPlugin(inst)
+    url_attrs = plugin.get_urls()
     urls = list(map(lambda url: url.lower(),
-                    [i for _, i in plugin.get_urls().items()]))
+                    [i for _, i in url_attrs.items()]))
     old_url_l = args.URL.lower()
     if old_url_l not in urls:
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % args.URL)
 
-    plugin.remove_all("nsslapd-pluginarg%s" % urls.index(old_url_l))
+    plugin.remove_all("%s" % _get_url_attr(url_attrs, old_url_l))
     log.info("Successfully deleted %s", args.URL)
 
 

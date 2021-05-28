@@ -36,6 +36,7 @@ class ManagedEntries extends React.Component {
             configArea: "",
             attributes: [],
             activeTabKey: 1,
+            tableKey: 1,
             wasActiveList: [],
             saveNotOK: false,
             createNotOK: false,
@@ -224,12 +225,6 @@ class ManagedEntries extends React.Component {
         this.updateFields();
     }
 
-    componentDidUpdate(prevProps) {
-        if (this.props.rows !== prevProps.rows) {
-            this.updateFields();
-        }
-    }
-
     handleFieldChange(str, e) {
         let value = e.target.value;
         let id = e.target.id;
@@ -321,8 +316,10 @@ class ManagedEntries extends React.Component {
                             .spawn(cmd, { superuser: true, err: "message" })
                             .done(content => {
                                 let myObject = JSON.parse(content);
+                                let tableKey = this.state.tableKey + 1;
                                 this.setState({
                                     configRows: myObject.items.map(item => item.attrs),
+                                    tableKey: tableKey,
                                     loading: false
                                 });
                             })
@@ -728,7 +725,6 @@ class ManagedEntries extends React.Component {
     updateFields() {
         if (this.props.rows.length > 0) {
             const pluginRow = this.props.rows.find(row => row.cn[0] === "Managed Entries");
-
             this.setState({
                 loading: true,
                 configArea:
@@ -1449,6 +1445,7 @@ class ManagedEntries extends React.Component {
                                     </div>
                                     <ManagedTemplateTable
                                         rows={this.state.templateRows}
+                                        key={this.state.templateRows}
                                         editConfig={this.showEditTempModal}
                                         deleteConfig={this.showTempDeleteConfirm}
                                     />
@@ -1483,6 +1480,7 @@ class ManagedEntries extends React.Component {
                                     </div>
                                     <ManagedDefinitionTable
                                         rows={configRows}
+                                        key={this.state.tableKey}
                                         editConfig={this.showEditDefModal}
                                         deleteConfig={this.showDefDeleteConfirm}
                                     />

@@ -566,7 +566,7 @@ export class DSInstance extends React.Component {
         }
 
         return (
-            <div>
+            <div className={loadingOperate ? "ds-disabled" : ""}>
                 <AlertGroup isToast>
                     {notifications.map(({key, variant, title}) => (
                         <Alert
