@@ -75,9 +75,13 @@ def definition_show(inst, basedn, log, args):
 
 
 def definition_del(inst, basedn, log, args):
+    # First delete regexes, then the defintion
     log = log.getChild('definition_del')
     definitions = AutoMembershipDefinitions(inst)
     definition = definitions.get(args.DEFNAME)
+    regexes = AutoMembershipRegexRules(inst, definition.dn)
+    for regex in regexes.list():
+        regex.delete()
     definition.delete()
     log.info("Successfully deleted the %s definition", args.DEFNAME)
 
@@ -90,7 +94,7 @@ def regex_list(inst, basedn, log, args):
     result_json = []
     for regex in regexes.list():
         if args.json:
-            result_json.append(regex.get_all_attrs_json())
+            result_json.append(json.loads(regex.get_all_attrs_json()))
         else:
             result.append(regex.rdn)
     if args.json:

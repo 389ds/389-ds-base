@@ -16,14 +16,17 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectOption,
+    SelectVariant,
     // TextInput,
     noop
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import { PassthroughAuthURLsTable, PassthroughAuthConfigsTable } from "./pluginTables.jsx";
 import PluginBasicPAMConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 
 class PassthroughAuthentication extends React.Component {
     componentDidUpdate() {
@@ -42,17 +45,25 @@ class PassthroughAuthentication extends React.Component {
             pamConfigRows: [],
             urlRows: [],
             attributes: [],
+            tableKey: 1,
 
             pamConfigName: "",
             pamExcludeSuffix: [],
+            isExcludeOpen: false,
+            excludeOptions: [],
             pamIncludeSuffix: [],
+            isIncludeOpen: false,
+            includeOptions: [],
             pamMissingSuffix: "",
             pamFilter: "",
             pamIDAttr: [],
+            isAttrOpen: false,
+            attrOptions: [],
             pamIDMapMethod: "",
             pamFallback: false,
             pamSecure: false,
             pamService: "",
+            showConfirmDeleteConfig: false,
 
             oldURL: "",
             urlConnType: "ldap",
@@ -64,11 +75,126 @@ class PassthroughAuthentication extends React.Component {
             urlLDVer: "3",
             urlConnLifeTime: "300",
             urlStartTLS: false,
+            showConfirmDeleteURL: false,
 
             newPAMConfigEntry: false,
             newURLEntry: false,
             pamConfigEntryModalShow: false,
             urlEntryModalShow: false
+        };
+
+        this.onExcludeToggle = isExcludedOpen => {
+            this.setState({
+                isExcludedOpen
+            });
+        };
+        this.clearExcludeSelection = () => {
+            this.setState({
+                pamExcludeSuffix: [],
+                isExcludeOpen: false
+            });
+        };
+        this.onExcludeSelect = (event, selection) => {
+            const { pamExcludeSuffix } = this.state;
+            if (pamExcludeSuffix.includes(selection)) {
+                this.setState(
+                    prevState => ({
+                        pamExcludeSuffix: prevState.pamExcludeSuffix.filter(item => item !== selection),
+                        isExcludeOpen: false
+                    })
+                );
+            } else {
+                this.setState(
+                    prevState => ({
+                        pamExcludeSuffix: [...prevState.pamExcludeSuffix, selection],
+                        isExcludeOpen: false
+                    })
+                );
+            }
+        };
+        this.onCreateExcludeOption = newValue => {
+            if (!this.state.excludeOptions.includes(newValue)) {
+                this.setState({
+                    excludeOptions: [...this.state.excludeOptions, newValue],
+                    isExcludeOpen: false
+                });
+            }
+        };
+
+        this.onIncludeToggle = isIncludedOpen => {
+            this.setState({
+                isIncludedOpen
+            });
+        };
+        this.clearIncludeSelection = () => {
+            this.setState({
+                pamIncludeSuffix: [],
+                isIncludeOpen: false
+            });
+        };
+        this.onIncludeSelect = (event, selection) => {
+            const { pamIncludeSuffix } = this.state;
+            if (pamIncludeSuffix.includes(selection)) {
+                this.setState(
+                    prevState => ({
+                        pamIncludeSuffix: prevState.pamIncludeSuffix.filter(item => item !== selection),
+                        isIncludeOpen: false
+                    })
+                );
+            } else {
+                this.setState(
+                    prevState => ({
+                        pamIncludeSuffix: [...prevState.pamIncludeSuffix, selection],
+                        isIncludeOpen: false
+                    })
+                );
+            }
+        };
+        this.onCreateIncludeOption = newValue => {
+            if (!this.state.includeOptions.includes(newValue)) {
+                this.setState({
+                    includeOptions: [...this.state.includeOptions, newValue],
+                    isIncludeOpen: false
+                });
+            }
+        };
+
+        this.onAttrToggle = isAttrOpen => {
+            this.setState({
+                isAttrOpen
+            });
+        };
+        this.clearAttrSelection = () => {
+            this.setState({
+                pamIDAttr: [],
+                isAttrOpen: false
+            });
+        };
+        this.onAttrSelect = (event, selection) => {
+            const { pamIDAttr } = this.state;
+            if (!pamIDAttr.includes(selection)) {
+                this.setState(
+                    prevState => ({
+                        pamIDAttr: prevState.pamIDAttr.filter(item => item !== selection),
+                        isAttrOpen: false
+                    })
+                );
+            } else {
+                this.setState(
+                    prevState => ({
+                        pamIDAttr: [...prevState.pamIDAttr, selection],
+                        isAttrOpen: false
+                    })
+                );
+            }
+        };
+        this.onCreateAttrOption = newValue => {
+            if (!this.state.attributes.includes(newValue)) {
+                this.setState({
+                    attributes: [...this.state.attributes, newValue],
+                    isIncludeOpen: false
+                });
+            }
         };
 
         this.handleFieldChange = this.handleFieldChange.bind(this);
@@ -95,11 +221,52 @@ class PassthroughAuthentication extends React.Component {
         this.deleteURL = this.deleteURL.bind(this);
         this.addURL = this.addURL.bind(this);
         this.editURL = this.editURL.bind(this);
+        this.showConfirmDeleteConfig = this.showConfirmDeleteConfig.bind(this);
+        this.showConfirmDeleteURL = this.showConfirmDeleteURL.bind(this);
+        this.closeConfirmDeleteConfig = this.closeConfirmDeleteConfig.bind(this);
+        this.closeConfirmDeleteURL = this.closeConfirmDeleteURL.bind(this);
+    }
+
+    showConfirmDeleteConfig (name) {
+        this.setState({
+            showConfirmDeleteConfig: true,
+            modalChecked: false,
+            modalSpinning: false,
+            deleteName: name
+        });
+    }
+
+    closeConfirmDeleteConfig () {
+        this.setState({
+            showConfirmDeleteConfig: false,
+            modalChecked: false,
+            modalSpinning: false,
+            deleteName: ""
+        });
+    }
+
+    showConfirmDeleteURL (name) {
+        this.setState({
+            showConfirmDeleteURL: true,
+            modalChecked: false,
+            modalSpinning: false,
+            deleteName: name
+        });
+    }
+
+    closeConfirmDeleteURL () {
+        this.setState({
+            showConfirmDeleteURL: false,
+            modalChecked: false,
+            modalSpinning: false,
+            deleteName: ""
+        });
     }
 
     handleFieldChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
-            [e.target.id]: e.target.value
+            [e.target.id]: value
         });
     }
 
@@ -127,8 +294,10 @@ class PassthroughAuthentication extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let myObject = JSON.parse(content);
+                    let tableKey = this.state.tableKey + 1;
                     this.setState({
-                        pamConfigRows: myObject.items.map(item => item.attrs)
+                        pamConfigRows: myObject.items.map(item => item.attrs),
+                        tableKey: tableKey,
                     });
                 })
                 .fail(err => {
@@ -155,8 +324,10 @@ class PassthroughAuthentication extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let myObject = JSON.parse(content);
+                    let tableKey = this.state.tableKey + 1;
                     this.setState({
-                        urlRows: myObject.items
+                        urlRows: myObject.items,
+                        tableKey: tableKey
                     });
                     this.props.toggleLoadingHandler();
                 })
@@ -170,10 +341,10 @@ class PassthroughAuthentication extends React.Component {
     }
 
     showEditPAMConfigModal(rowData) {
-        this.openPAMModal(rowData.cn[0]);
+        this.openPAMModal(rowData);
     }
 
-    showAddPAMConfigModal(rowData) {
+    showAddPAMConfigModal() {
         this.openPAMModal();
     }
 
@@ -222,9 +393,31 @@ class PassthroughAuthentication extends React.Component {
                     })
                     .done(content => {
                         let pamConfigEntry = JSON.parse(content).attrs;
+                        let tableKey = this.state.tableKey + 1;
+
+                        if (pamConfigEntry["pamexcludesuffix"] !== undefined) {
+                            for (let value of pamConfigEntry["pamexcludesuffix"]) {
+                                pamExcludeSuffixList = [...pamExcludeSuffixList, value];
+                            }
+                        }
+                        if (pamConfigEntry["pamincludesuffix"] !== undefined) {
+                            for (let value of pamConfigEntry["pamincludesuffix"]) {
+                                pamIncludeSuffixList = [...pamIncludeSuffixList, value];
+                            }
+                        }
+                        if (pamConfigEntry["pamidattr"] !== undefined) {
+                            for (let value of pamConfigEntry["pamidattr"]) {
+                                pamIDAttrList = [...pamIDAttrList, value];
+                            }
+                        }
+
                         this.setState({
+                            tableKey: tableKey,
                             pamConfigEntryModalShow: true,
                             newPAMConfigEntry: false,
+                            pamExcludeSuffix: pamExcludeSuffixList,
+                            pamIncludeSuffix: pamIncludeSuffixList,
+                            pamIDAttr: pamIDAttrList,
                             pamConfigName:
                             pamConfigEntry["cn"] === undefined ? "" : pamConfigEntry["cn"][0],
                             pamMissingSuffix:
@@ -250,39 +443,8 @@ class PassthroughAuthentication extends React.Component {
                             pamService:
                             pamConfigEntry["pamservice"] === undefined
                                 ? ""
-                                : pamConfigEntry["pamservice"][0]
+                                : pamConfigEntry["pamservice"][0],
                         });
-                        if (pamConfigEntry["pamexcludesuffix"] === undefined) {
-                            this.setState({ pamExcludeSuffix: [] });
-                        } else {
-                            for (let value of pamConfigEntry["pamexcludesuffix"]) {
-                                pamExcludeSuffixList = [...pamExcludeSuffixList, value];
-                            }
-                            this.setState({
-                                pamExcludeSuffix: pamExcludeSuffixList
-                            });
-                        }
-
-                        if (pamConfigEntry["pamincludesuffix"] === undefined) {
-                            this.setState({ pamIncludeSuffix: [] });
-                        } else {
-                            for (let value of pamConfigEntry["pamincludesuffix"]) {
-                                pamIncludeSuffixList = [...pamIncludeSuffixList, value];
-                            }
-                            this.setState({
-                                pamIncludeSuffix: pamIncludeSuffixList
-                            });
-                        }
-
-                        if (pamConfigEntry["pamidattr"] === undefined) {
-                            this.setState({ pamIDAttr: [] });
-                        } else {
-                            for (let value of pamConfigEntry["pamidattr"]) {
-                                pamIDAttrList = [...pamIDAttrList, value];
-                            }
-                            this.setState({ pamIDAttr: pamIDAttrList });
-                        }
-
                         this.props.toggleLoadingHandler();
                     })
                     .fail(_ => {
@@ -309,8 +471,7 @@ class PassthroughAuthentication extends React.Component {
         this.setState({ pamConfigEntryModalShow: false });
     }
 
-    deletePAMConfig(rowData) {
-        let pamConfigName = rowData.cn[0];
+    deletePAMConfig() {
         let cmd = [
             "dsconf",
             "-j",
@@ -318,9 +479,13 @@ class PassthroughAuthentication extends React.Component {
             "plugin",
             "pass-through-auth",
             "pam-config",
-            pamConfigName,
+            this.state.deleteName,
             "delete"
         ];
+
+        this.setState({
+            modalSpinning: true
+        });
 
         this.props.toggleLoadingHandler();
         log_cmd(
@@ -337,9 +502,10 @@ class PassthroughAuthentication extends React.Component {
                     console.info("deletePAMConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `PAMConfig entry ${pamConfigName} was successfully deleted`
+                        `PAMConfig entry ${this.state.deleteName} was successfully deleted`
                     );
                     this.loadPAMConfigs();
+                    this.closeConfirmDeleteConfig();
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
@@ -349,6 +515,7 @@ class PassthroughAuthentication extends React.Component {
                         `Error during the pamConfig entry removal operation - ${errMsg.desc}`
                     );
                     this.loadPAMConfigs();
+                    this.closeConfirmDeleteConfig();
                     this.props.toggleLoadingHandler();
                 });
     }
@@ -464,10 +631,10 @@ class PassthroughAuthentication extends React.Component {
     }
 
     showEditURLModal(rowData) {
-        this.openURLModal(rowData.url);
+        this.openURLModal(rowData);
     }
 
-    showAddURLModal(rowData) {
+    showAddURLModal() {
         this.openURLModal();
     }
 
@@ -511,8 +678,7 @@ class PassthroughAuthentication extends React.Component {
         this.setState({ urlEntryModalShow: false });
     }
 
-    deleteURL(rowData) {
-        let url = rowData.url;
+    deleteURL() {
         let cmd = [
             "dsconf",
             "-j",
@@ -521,8 +687,12 @@ class PassthroughAuthentication extends React.Component {
             "pass-through-auth",
             "url",
             "delete",
-            url
+            this.state.deleteName
         ];
+
+        this.setState({
+            modalSpinning: true
+        });
 
         this.props.toggleLoadingHandler();
         log_cmd("deleteURL", "Delete the Passthough Authentication Plugin URL entry", cmd);
@@ -533,8 +703,9 @@ class PassthroughAuthentication extends React.Component {
                 })
                 .done(content => {
                     console.info("deleteURL", "Result", content);
-                    this.props.addNotification("success", `URL ${url} was successfully deleted`);
+                    this.props.addNotification("success", `URL ${this.state.deleteName} was successfully deleted`);
                     this.loadURLs();
+                    this.closeConfirmDeleteURL();
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
@@ -544,6 +715,7 @@ class PassthroughAuthentication extends React.Component {
                         `Error during the URL removal operation - ${errMsg.desc}`
                     );
                     this.loadURLs();
+                    this.closeConfirmDeleteURL();
                     this.props.toggleLoadingHandler();
                 });
     }
@@ -788,19 +960,26 @@ class PassthroughAuthentication extends React.Component {
                                         Exclude Suffix
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
-                                                this.setState({
-                                                    pamExcludeSuffix: values
-                                                });
-                                            }}
-                                            selected={pamExcludeSuffix}
-                                            options={[""]}
-                                            newSelectionPrefix="Add a suffix: "
-                                            placeholder="Type a suffix DN..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            isCreatable
+                                            onCreateOption={this.onCreateExcludeOption}
+                                            typeAheadAriaLabel="Add a suffix"
+                                            onToggle={this.onExcludeToggle}
+                                            onSelect={this.onExcludeSelect}
+                                            onClear={this.clearExcludeSelection}
+                                            selections={pamExcludeSuffix}
+                                            isOpen={this.state.isExcludeOpen}
+                                            aria-labelledby="Add a suffix"
+                                            placeholderText="Type a suffix DN ..."
+                                        >
+                                            {this.state.excludeOptions.map((suffix) => (
+                                                <SelectOption
+                                                    key={suffix}
+                                                    value={suffix}
+                                                />
+                                            ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -816,19 +995,26 @@ class PassthroughAuthentication extends React.Component {
                                         Include Suffix
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
-                                                this.setState({
-                                                    pamIncludeSuffix: values
-                                                });
-                                            }}
-                                            selected={pamIncludeSuffix}
-                                            options={[""]}
-                                            newSelectionPrefix="Add a suffix: "
-                                            placeholder="Type a suffix DN..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            isCreatable
+                                            onCreateOption={this.onCreateIncludeOption}
+                                            typeAheadAriaLabel="Add an include suffix"
+                                            onToggle={this.onIncludeToggle}
+                                            onSelect={this.onIncludeSelect}
+                                            onClear={this.clearIncludeSelection}
+                                            selections={pamIncludeSuffix}
+                                            isOpen={this.state.isIncludeOpen}
+                                            aria-labelledby="Add an include suffix"
+                                            placeholderText="Type a suffix DN ..."
+                                        >
+                                            {this.state.includeOptions.map((suffix) => (
+                                                <SelectOption
+                                                    key={suffix}
+                                                    value={suffix}
+                                                />
+                                            ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -840,19 +1026,26 @@ class PassthroughAuthentication extends React.Component {
                                         ID Attribute
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
-                                                this.setState({
-                                                    pamIDAttr: value
-                                                });
-                                            }}
-                                            selected={pamIDAttr}
-                                            options={attributes}
-                                            newSelectionPrefix="Add an attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            isCreatable
+                                            onCreateOption={this.onCreateAttrOption}
+                                            typeAheadAriaLabel="Add an attribute: "
+                                            onToggle={this.onAttrToggle}
+                                            onSelect={this.onAttrSelect}
+                                            onClear={this.clearAttrSelection}
+                                            selections={pamIDAttr}
+                                            isOpen={this.state.isAttrOpen}
+                                            aria-labelledby="Add an attribute: "
+                                            placeholderText="Type an attribute ..."
+                                        >
+                                            {attributes.map((suffix) => (
+                                                <SelectOption
+                                                    key={suffix}
+                                                    value={suffix}
+                                                />
+                                            ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -1068,15 +1261,18 @@ class PassthroughAuthentication extends React.Component {
                                         </Checkbox>
                                     </Col>
                                 </FormGroup>
+                                <hr />
                                 <FormGroup key="resultURL" controlId="resultURL">
                                     <Col componentClass={ControlLabel} sm={5} title="The URL that will be added or modified after you click 'Save'">
                                         Result URL
                                     </Col>
                                     <Col sm={7}>
-                                        {urlConnType}://{urlAuthDS}/{urlSubtree}{" "}
-                                        {urlMaxConns},{urlMaxOps},{urlTimeout},
-                                        {urlLDVer},{urlConnLifeTime},
-                                        {urlStartTLS ? "1" : "0"}
+                                        <b>
+                                            {urlConnType}://{urlAuthDS}/{urlSubtree}{" "}
+                                            {urlMaxConns},{urlMaxOps},{urlTimeout},
+                                            {urlLDVer},{urlConnLifeTime},
+                                            {urlStartTLS ? "1" : "0"}
+                                        </b>
                                     </Col>
                                 </FormGroup>
                             </Form>
@@ -1096,11 +1292,13 @@ class PassthroughAuthentication extends React.Component {
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
                     <Row>
+                        <h5 className="ds-center">URL Table</h5>
                         <Col sm={12}>
                             <PassthroughAuthURLsTable
                                 rows={urlRows}
+                                key={this.state.tableKey}
                                 editConfig={this.showEditURLModal}
-                                deleteConfig={this.deleteURL}
+                                deleteConfig={this.showConfirmDeleteURL}
                             />
                             <Button
                                 className="ds-margin-top"
@@ -1111,12 +1309,15 @@ class PassthroughAuthentication extends React.Component {
                             </Button>
                         </Col>
                     </Row>
+                    <hr />
                     <Row>
+                        <h5 className="ds-center">Configuration Table</h5>
                         <Col sm={12}>
                             <PassthroughAuthConfigsTable
                                 rows={pamConfigRows}
+                                key={this.state.tableKey}
                                 editConfig={this.showEditPAMConfigModal}
-                                deleteConfig={this.deletePAMConfig}
+                                deleteConfig={this.showConfirmDeleteConfig}
                             />
                             <Button
                                 className="ds-margin-top"
@@ -1128,6 +1329,32 @@ class PassthroughAuthentication extends React.Component {
                         </Col>
                     </Row>
                 </PluginBasicPAMConfig>
+                <DoubleConfirmModal
+                    showModal={this.state.showConfirmDeleteConfig}
+                    closeHandler={this.closeConfirmDelete}
+                    handleChange={this.handleFieldChange}
+                    actionHandler={this.deletePAMConfig}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.deleteName}
+                    checked={this.state.modalChecked}
+                    mTitle="Delete PAM Passthrough Configuration"
+                    mMsg="Are you sure you want to delete this configuration?"
+                    mSpinningMsg="Deleting Configuration..."
+                    mBtnName="Delete Configuration"
+                />
+                <DoubleConfirmModal
+                    showModal={this.state.showConfirmDeleteURL}
+                    closeHandler={this.closeConfirmDeleteURL}
+                    handleChange={this.handleFieldChange}
+                    actionHandler={this.deleteURL}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.deleteName}
+                    checked={this.state.modalChecked}
+                    mTitle="Delete Passthru Authentication URL"
+                    mMsg="Are you sure you want to delete this URL?"
+                    mSpinningMsg="Deleting URL..."
+                    mBtnName="Delete URL"
+                />
             </div>
         );
     }
