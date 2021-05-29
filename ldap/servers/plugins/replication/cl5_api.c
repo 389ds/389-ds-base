@@ -266,7 +266,6 @@ static int _cl5TrimInit(void);
 static void _cl5TrimCleanup(void);
 static int _cl5TrimMain(void *param);
 static void _cl5DoTrimming(void);
-static void _cl5CompactDBs(void);
 static void _cl5PurgeRID(Object *file_obj, ReplicaId cleaned_rid);
 static int _cl5PurgeGetFirstEntry(Object *file_obj, CL5Entry *entry, void **iterator, DB_TXN *txnid, int rid, DBT *key);
 static int _cl5PurgeGetNextEntry(CL5Entry *entry, void *iterator, DBT *key);
@@ -3152,7 +3151,7 @@ _cl5TrimMain(void *param __attribute__((unused)))
             if (slapi_current_utc_time() > compactdb_time) {
 				/* time to trim */
 				timeCompactPrev = timeNow;
-				_cl5CompactDBs();
+				cl5CompactDBs();
 				compacting = PR_FALSE;
             }
         }
@@ -3250,8 +3249,8 @@ _cl5DoPurging(cleanruv_purge_data *purge_data)
 }
 
 /* clear free page files to reduce changelog */
-static void
-_cl5CompactDBs(void)
+void
+cl5CompactDBs(void)
 {
     int rc;
     Object *fileObj = NULL;
@@ -3264,14 +3263,14 @@ _cl5CompactDBs(void)
     rc = TXN_BEGIN(s_cl5Desc.dbEnv, NULL, &txnid, 0);
     if (rc) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "_cl5CompactDBs - Failed to begin transaction; db error - %d %s\n",
+                      "cl5CompactDBs - Failed to begin transaction; db error - %d %s\n",
                       rc, db_strerror(rc));
         goto bail;
     }
 
 
     slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
-                  "_cl5CompactDBs - compacting replication changelogs...\n");
+                  "cl5CompactDBs - compacting replication changelogs...\n");
     for (fileObj = objset_first_obj(s_cl5Desc.dbFiles);
          fileObj;
          fileObj = objset_next_obj(s_cl5Desc.dbFiles, fileObj)) {
@@ -3284,17 +3283,17 @@ _cl5CompactDBs(void)
                          &c_data, DB_FREE_SPACE, NULL /*end*/);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                          "_cl5CompactDBs - Failed to compact %s; db error - %d %s\n",
+                          "cl5CompactDBs - Failed to compact %s; db error - %d %s\n",
                           dbFile->replName, rc, db_strerror(rc));
             goto bail;
         }
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "_cl5CompactDBs - %s - %d pages freed\n",
+                      "cl5CompactDBs - %s - %d pages freed\n",
                       dbFile->replName, c_data.compact_pages_free);
     }
 
     slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
-                  "_cl5CompactDBs - compacting replication changelogs finished.\n");
+                  "cl5CompactDBs - compacting replication changelogs finished.\n");
 bail:
     if (fileObj) {
         object_release(fileObj);
@@ -3303,14 +3302,14 @@ bail:
         rc = TXN_ABORT(txnid);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                          "_cl5CompactDBs - Failed to abort transaction; db error - %d %s\n",
+                          "cl5CompactDBs - Failed to abort transaction; db error - %d %s\n",
                           rc, db_strerror(rc));
         }
     } else {
         rc = TXN_COMMIT(txnid);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                          "_cl5CompactDBs - Failed to commit transaction; db error - %d %s\n",
+                          "cl5CompactDBs - Failed to commit transaction; db error - %d %s\n",
                           rc, db_strerror(rc));
         }
     }

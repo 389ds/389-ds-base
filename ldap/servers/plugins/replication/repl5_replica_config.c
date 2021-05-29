@@ -29,6 +29,8 @@
 #define CLEANRUVLEN 8
 #define CLEANALLRUV "CLEANALLRUV"
 #define CLEANALLRUVLEN 11
+#define COMPACT_CL5 "COMPACT_CL5"
+#define COMPACT_CL5_LEN 11
 #define REPLICA_RDN "cn=replica"
 
 #define CLEANALLRUV_MAX_WAIT 7200 /* 2 hours */
@@ -1050,7 +1052,6 @@ replica_config_change_flags(Replica *r, const char *new_flags, char *returntext 
 static int
 replica_execute_task(Replica *r, const char *task_name, char *returntext, int apply_mods)
 {
-
     if (strcasecmp(task_name, CL2LDIF_TASK) == 0) {
         if (apply_mods) {
             return replica_execute_cl2ldif_task(r, returntext);
@@ -1084,6 +1085,12 @@ replica_execute_task(Replica *r, const char *task_name, char *returntext, int ap
             return replica_execute_cleanall_ruv_task(r, (ReplicaId)temprid, empty_task, "no", PR_TRUE, returntext);
         } else
             return LDAP_SUCCESS;
+    } else if (strncasecmp(task_name, COMPACT_CL5, COMPACT_CL5_LEN) == 0) {
+        /* compact the replication changelogs */
+        if (apply_mods) {
+            cl5CompactDBs();
+        }
+        return LDAP_SUCCESS;
     } else {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Unsupported replica task - %s", task_name);
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
