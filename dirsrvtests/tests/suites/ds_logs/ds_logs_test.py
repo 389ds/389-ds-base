@@ -10,6 +10,7 @@ from decimal import *
 import os
 import logging
 import pytest
+import subprocess
 from lib389._mapped_object import DSLdapObject
 from lib389.topologies import topology_st
 from lib389.plugins import AutoMembershipPlugin, ReferentialIntegrityPlugin, AutoMembershipDefinitions
@@ -18,6 +19,7 @@ from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL, PASSWORD
 from lib389.utils import ds_is_older, ds_is_newer
+from lib389.config import RSA
 import ldap
 import glob
 import re
@@ -1112,6 +1114,42 @@ def test_enable_external_libs_debug_log(topology_st):
 
     log.info('Check the error log for OpenLDAP debug log')
     assert not standalone.ds_error_log.match('.*libldap/libber.*')
+
+
+@pytest.mark.skipif(ds_is_older('1.4.3'), reason="Might fail because of bug 1895460")
+@pytest.mark.bz1895460
+@pytest.mark.ds4593
+def test_cert_personality_log_help(topology_st):
+    """Test changing the nsSSLPersonalitySSL attribute will raise help message in log
+
+    :id: d6f17f64-d784-438e-89b6-8595bdf6defb
+    :customerscenario: True
+    :setup: Standalone
+    :steps:
+        1. Create instance
+        2. Change nsSSLPersonalitySSL to wrong certificate nickname
+        3. Check there is a help message in error log
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+
+    WRONG_NICK = 'otherNick'
+    standalone = topology_st.standalone
+    standalone.enable_tls()
+
+    log.info('Change nsSSLPersonalitySSL to wrong certificate nickname')
+    config_RSA = RSA(standalone)
+    config_RSA.set('nsSSLPersonalitySSL', WRONG_NICK)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        standalone.restart()
+
+    assert standalone.ds_error_log.match(r".*Please, make sure that nsSSLPersonalitySSL value "
+                                         r"is correctly set to the certificate from NSS database "
+                                         r"\(currently, nsSSLPersonalitySSL attribute "
+                                         r"is set to '{}'\)\..*".format(WRONG_NICK))
 
 
 if __name__ == '__main__':
