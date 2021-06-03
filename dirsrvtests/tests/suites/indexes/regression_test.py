@@ -15,6 +15,7 @@ from lib389.index import Indexes
 from lib389.backend import Backends
 from lib389.idm.user import UserAccounts
 from lib389.topologies import topology_st as topo
+from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier1
 
