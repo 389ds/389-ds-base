@@ -72,25 +72,25 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
 
     dblayer_private *priv = li->li_dblayer_private;
     priv->dblayer_start_fn = &bdb_start;
-    priv->dblayer_close_fn = &bdb_close; 
+    priv->dblayer_close_fn = &bdb_close;
     priv->dblayer_instance_start_fn = &bdb_instance_start;
-    priv->dblayer_backup_fn = &bdb_backup; 
-    priv->dblayer_verify_fn = &bdb_verify; 
-    priv->dblayer_db_size_fn = &bdb_db_size; 
-    priv->dblayer_ldif2db_fn = &bdb_ldif2db; 
-    priv->dblayer_db2ldif_fn = &bdb_db2ldif; 
-    priv->dblayer_db2index_fn = &bdb_db2index; 
-    priv->dblayer_cleanup_fn = &bdb_cleanup; 
-    priv->dblayer_upgradedn_fn = &bdb_upgradednformat; 
-    priv->dblayer_upgradedb_fn = &bdb_upgradedb; 
+    priv->dblayer_backup_fn = &bdb_backup;
+    priv->dblayer_verify_fn = &bdb_verify;
+    priv->dblayer_db_size_fn = &bdb_db_size;
+    priv->dblayer_ldif2db_fn = &bdb_ldif2db;
+    priv->dblayer_db2ldif_fn = &bdb_db2ldif;
+    priv->dblayer_db2index_fn = &bdb_db2index;
+    priv->dblayer_cleanup_fn = &bdb_cleanup;
+    priv->dblayer_upgradedn_fn = &bdb_upgradednformat;
+    priv->dblayer_upgradedb_fn = &bdb_upgradedb;
     priv->dblayer_restore_fn = &bdb_restore;
-    priv->dblayer_txn_begin_fn = &bdb_txn_begin; 
-    priv->dblayer_txn_commit_fn = &bdb_txn_commit; 
-    priv->dblayer_txn_abort_fn = &bdb_txn_abort; 
+    priv->dblayer_txn_begin_fn = &bdb_txn_begin;
+    priv->dblayer_txn_commit_fn = &bdb_txn_commit;
+    priv->dblayer_txn_abort_fn = &bdb_txn_abort;
     priv->dblayer_get_info_fn = &bdb_get_info;
     priv->dblayer_set_info_fn = &bdb_set_info;
-    priv->dblayer_back_ctrl_fn = &bdb_back_ctrl; 
-    priv->dblayer_get_db_fn = &bdb_get_db; 
+    priv->dblayer_back_ctrl_fn = &bdb_back_ctrl;
+    priv->dblayer_get_db_fn = &bdb_get_db;
     priv->dblayer_rm_db_file_fn = &bdb_rm_db_file;
     priv->dblayer_delete_db_fn = &bdb_delete_db;
     priv->dblayer_import_fn = &bdb_public_bdb_import_main;
@@ -1863,7 +1863,7 @@ retry:
     }
 
     /* NOTE (LK): still needs to investigate and clarify the monitoring split between db layers.
-     * Now still using ldbm functions 
+     * Now still using ldbm functions
      */
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
                                    LDAP_SCOPE_BASE, "(objectclass=*)", bdb_monitor_search,

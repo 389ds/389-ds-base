@@ -118,9 +118,9 @@ typedef struct {
 struct attrinfo;
 
 /*
- * dbimpl.c Function prototypes are stored here instead of in 
+ * dbimpl.c Function prototypes are stored here instead of in
  * proto-back-ldbm.h because this API is used by replication
- * and dbscan tools (and including proto-back-ldbm.h is painful 
+ * and dbscan tools (and including proto-back-ldbm.h is painful
  * because of the complex dependency chain between slapd and backend)
  */
 char *dblayer_get_filename_id(Slapi_Backend *be, dbi_env_t *env);
@@ -143,7 +143,7 @@ void dblayer_value_concat(Slapi_Backend *be, dbi_val_t *data,
     void *buf, size_t buflen, const char *str1, size_t len1,
     const char *str2, size_t len2, const char *str3, size_t len3);
 int dblayer_set_dup_cmp_fn(Slapi_Backend *be, struct attrinfo *a, dbi_dup_cmp_t idx);
-/* 
+/*
  * Note: dblayer_txn_* functions uses back_txn struct and manage backend lock.
  * while dblayer_dbi_txn_* function use dbi_txn_t opaque struct and interface
  * directly the underlying db.

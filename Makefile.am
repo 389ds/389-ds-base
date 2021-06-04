@@ -1291,7 +1291,6 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_misc.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_perfctrs.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_upgrade.c \
-	ldap/servers/slapd/back-ldbm/db-mdb/mdb_version.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_monitor.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_ldif2db.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_import.c \

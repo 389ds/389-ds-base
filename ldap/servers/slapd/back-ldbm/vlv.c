@@ -1010,7 +1010,7 @@ vlv_build_candidate_list_byvalue(backend *be, struct vlvIndex *p, dbi_cursor_t *
 
     dblayer_value_set(be, &key, typedown_value[0]->bv_val, typedown_value[0]->bv_len);
     dblayer_value_protect_data(be, &key);  /* typedown_value[0]->bv_val should not be freed */
-    
+
     dblayer_value_init(be, &data);
     err = dblayer_cursor_op(dbc, DBI_OP_MOVE_NEAR_KEY, &key, &data);
     if (err == 0) {

@@ -1007,32 +1007,27 @@ entry_compute_nscpentrywsi(computed_attr_context *c, char *type, Slapi_Entry *e,
     int rc = 0;
 
     if (strcasecmp(type, nscpEntryWSI) == 0) {
+        struct berval bval = {0};
         /* If not, we return it as zero */
         char *es;
-        char *s;
-        char *p;
+        const char *s;
+        const char *p;
         int len;
         Slapi_Attr our_attr;
         slapi_attr_init(&our_attr, nscpEntryWSI);
         our_attr.a_flags = SLAPI_ATTR_FLAG_OPATTR;
         es = slapi_entry2str_with_options(e, &len, SLAPI_DUMP_STATEINFO | SLAPI_DUMP_UNIQUEID | SLAPI_DUMP_NOWRAP);
         s = es;
-        p = ldif_getline(&s);
+        p = ldif_getline_ro(&s);
         while (p != NULL) {
-            Slapi_Value *v;
-            char *t, *d;
-            /* Strip out the Continuation Markers (JCM - I think that NOWRAP means we don't need to do this any more)*/
-            for (t = p, d = p; *t; t++) {
-                if (*t != 0x01)
-                    *d++ = *t;
-            }
-            *d = '\0';
-            v = slapi_value_new_string(p);
-            slapi_attr_add_value(&our_attr, v);
-            slapi_value_free(&v);
-            p = ldif_getline(&s);
+            Slapi_Value v;
+            dup_ldif_line(&bval, p, s);
+            slapi_value_init_berval(&v, &bval);
+            slapi_attr_add_value(&our_attr, &v);
+            p = ldif_getline_ro(&s);
         }
         slapi_ch_free((void **)&es);
+        slapi_ch_free_string(&bval.bv_val);
         rc = (*outputfn)(c, &our_attr, e);
         attr_done(&our_attr);
         return (rc);

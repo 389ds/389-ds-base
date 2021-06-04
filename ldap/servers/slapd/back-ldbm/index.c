@@ -1794,9 +1794,9 @@ addordel_values_sv(
         }
 
         if (flags & BE_INDEX_ADD) {
-            rc = idl_insert_key(be, db, &key, id, db_txn, a, idl_disposition);
+            rc = idl_insert_key(be, db, &key, id, txn, a, idl_disposition);
         } else {
-            rc = idl_delete_key(be, db, &key, id, db_txn, a);
+            rc = idl_delete_key(be, db, &key, id, txn, a);
             /* check for no such key/id - ok in some cases */
             if (rc == DBI_RC_NOTFOUND || rc == -666) {
                 rc = 0;
@@ -1873,13 +1873,13 @@ addordel_values_sv(
             if (buffer_handle) {
                 rc = index_buffer_insert(buffer_handle, &key, id, be, db_txn, a);
                 if (rc == -2) {
-                    rc = idl_insert_key(be, db, &key, id, db_txn, a, idl_disposition);
+                    rc = idl_insert_key(be, db, &key, id, txn, a, idl_disposition);
                 }
             } else {
-                rc = idl_insert_key(be, db, &key, id, db_txn, a, idl_disposition);
+                rc = idl_insert_key(be, db, &key, id, txn, a, idl_disposition);
             }
         } else {
-            rc = idl_delete_key(be, db, &key, id, db_txn, a);
+            rc = idl_delete_key(be, db, &key, id, txn, a);
             /* check for no such key/id - ok in some cases */
             if (rc == DBI_RC_NOTFOUND || rc == -666) {
                 rc = 0;
@@ -1949,7 +1949,7 @@ index_addordel_values_ext_sv(
     int *idl_disposition,
     void *buffer_handle)
 {
-    dbi_db_t *db;
+    dbi_db_t *db = NULL;
     struct attrinfo *ai = NULL;
     int err = -1;
     Slapi_Value **ivals;

@@ -1288,7 +1288,6 @@ ldbm_config_search_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
                     }
                 }
             }
-        
         }
     }
 

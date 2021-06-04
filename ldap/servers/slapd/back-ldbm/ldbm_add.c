@@ -791,10 +791,10 @@ ldbm_back_add(Slapi_PBlock *pb)
                 pid = parententry->ep_id;
 
                 /* We may need to adjust the DN since parent could be a resurrected conflict entry... */
-                /* TBD better handle tombstone parents, 
+                /* TBD better handle tombstone parents,
                  * we have the entry dn as nsuniqueid=nnnn,<rdn>,parentdn
                  * so is parent will return false
-                 */ 
+                 */
                  if (!is_tombstone_operation && !slapi_sdn_isparent(slapi_entry_get_sdn_const(parententry->ep_entry),
                                                                     slapi_entry_get_sdn_const(addingentry->ep_entry))) {
                     Slapi_DN adjustedsdn = {0};

@@ -62,7 +62,7 @@ dbmdb_compute_limits(struct ldbminfo *li)
     /*
      * There is no db cache with mdb (Or rather
      *  the OS memory management mechanism acts as the cache)
-     *  But some tunable may be autotuned. 
+     *  But some tunable may be autotuned.
      */
     if (dbmdb_count_config_entries("(objectClass=nsMappingTree)", &nbsuffixes) ||
         dbmdb_count_config_entries("(objectClass=nsIndex)", &nbsuffixes) ||
@@ -97,7 +97,7 @@ dbmdb_compute_limits(struct ldbminfo *li)
     limits->max_size = avail_space + cur_dbsize;
     info->strversion = mdb_version(&v1,&v2, &v3);
     info->libversion = DBMDB_LIBVERSION(v1, v2, v3);
-    info->dataversion = DBMDB_DATAVERSION;
+    info->dataversion = DBMDB_CURRENT_DATAVERSION;
     return 0;
 }
 
@@ -184,6 +184,7 @@ int mdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_restore_file_update_fn = &dbmdb_restore_file_update;
     priv->dblayer_import_file_check_fn = &dbmdb_import_file_check;
     priv->dblayer_list_dbs_fn = &dbmdb_list_dbs;
+    priv->dblayer_in_import_fn = &dbmdb_public_in_import;
 
     dbmdb_fake_priv = *priv; /* Copy the callbaks for dbmdb_be() */
     return 0;

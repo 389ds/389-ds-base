@@ -30,8 +30,6 @@ dbmdb_db_size(Slapi_PBlock *pb)
 int
 dbmdb_cleanup(struct ldbminfo *li)
 {
-#ifdef TODO
-
     slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_cleanup", "mdb backend specific cleanup\n");
     /* We assume that dblayer_close has been called already */
     dblayer_private *priv = li->li_dblayer_private;
@@ -42,7 +40,6 @@ dbmdb_cleanup(struct ldbminfo *li)
 
     objset_delete(&(li->li_instance_set));
 
-    slapi_ch_free_string(&BDB_CONFIG(li)->dbmdb_log_directory);
     slapi_ch_free((void **)&priv);
     li->li_dblayer_private = NULL;
 
@@ -52,7 +49,6 @@ dbmdb_cleanup(struct ldbminfo *li)
     slapi_ch_free((void **)&(li->li_dblayer_config));
 
     return 0;
-#endif /* TODO */
 }
 
 /* check if a DN is in the include list but NOT the exclude list
@@ -61,7 +57,6 @@ dbmdb_cleanup(struct ldbminfo *li)
 int
 dbmdb_back_ok_to_dump(const char *dn, char **include, char **exclude)
 {
-#ifdef TODO
     int i = 0;
 
     if (!(include || exclude))
@@ -88,7 +83,6 @@ dbmdb_back_ok_to_dump(const char *dn, char **include, char **exclude)
     }
 
     return (1);
-#endif /* TODO */
 }
 
 /* fetch include/exclude DNs from the pblock and normalize them --
@@ -98,7 +92,6 @@ dbmdb_back_ok_to_dump(const char *dn, char **include, char **exclude)
 int
 dbmdb_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include, char ***exclude)
 {
-#ifdef TODO
     char **pb_incl, **pb_excl;
 
     slapi_pblock_get(pb, SLAPI_LDIF2DB_INCLUDE, &pb_incl);
@@ -113,36 +106,6 @@ dbmdb_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include, char ***exclude)
     *include = slapi_ch_array_dup(pb_incl);
 
     return (pb_incl || pb_excl);
-#endif /* TODO */
-}
-
-PRUint64
-dbmdb_get_id2entry_size(ldbm_instance *inst)
-{
-#ifdef TODO
-    struct ldbminfo *li = NULL;
-    char *id2entry_file = NULL;
-    PRFileInfo64 info;
-    int rc;
-    char inst_dir[MAXPATHLEN], *inst_dirp = NULL;
-
-    if (NULL == inst) {
-        return 0;
-    }
-    li = inst->inst_li;
-    inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
-    id2entry_file = slapi_ch_smprintf("%s/%s", inst_dirp,
-                                      ID2ENTRY LDBM_FILENAME_SUFFIX);
-    if (inst_dirp != inst_dir) {
-        slapi_ch_free_string(&inst_dirp);
-    }
-    rc = PR_GetFileInfo64(id2entry_file, &info);
-    slapi_ch_free_string(&id2entry_file);
-    if (rc) {
-        return 0;
-    }
-    return info.size;
-#endif /* TODO */
 }
 
 int
@@ -179,7 +142,7 @@ dbmdb_count_config_entries(char *filter, int *nbentries)
     slapi_pblock_destroy(search_pb);
     return rval;
 }
-    
+
 
 int
 dbmdb_start_autotune(struct ldbminfo *li)

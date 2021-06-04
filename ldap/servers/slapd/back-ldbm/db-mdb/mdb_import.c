@@ -26,19 +26,17 @@
 
 static char *sourcefile = "dbmdb_import.c";
 
-static int dbmdb_ancestorid_create_index(backend *be, ImportJob *job);
-static int dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job);
-static int dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job);
+static int dbmdb_ancestorid_create_index(backend *be, ImportJob *job, dbi_txn_t * txn);
+static int dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job, dbi_txn_t * txn);
+static int dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job, dbi_txn_t * txn);
 
 /* Start of definitions for a simple cache using a hash table */
 
 typedef struct id2idl
 {
-#ifdef TODO
     ID keyid;
     IDList *idl;
     struct id2idl *next;
-#endif /* TODO */
 } dbmdb_id2idl;
 
 static void dbmdb_id2idl_free(dbmdb_id2idl **ididl);
@@ -54,7 +52,7 @@ typedef Hashtable id2idl_hash;
 static void dbmdb_id2idl_hash_destroy(id2idl_hash *ht);
 /* End of definitions for a simple cache using a hash table */
 
-static int dbmdb_parentid(backend *be, MDB_txn *txn, ID id, ID *ppid);
+static int dbmdb_parentid(backend *be, dbi_txn_t *txn, ID id, ID *ppid);
 static int dbmdb_check_cache(id2idl_hash *ht);
 static IDList *dbmdb_idl_union_allids(backend *be, struct attrinfo *ai, IDList *a, IDList *b);
 
@@ -67,7 +65,6 @@ static IDList *dbmdb_idl_union_allids(backend *be, struct attrinfo *ai, IDList *
 static int
 dbmdb_import_fifo_init(ImportJob *job)
 {
-#ifdef TODO
     ldbm_instance *inst = job->inst;
 
     /* Work out how big the entry fifo can be */
@@ -100,7 +97,6 @@ dbmdb_import_fifo_init(ImportJob *job)
         return -1;
     }
     return 0;
-#endif /* TODO */
 }
 
 /*
@@ -118,7 +114,6 @@ dbmdb_import_fifo_init(ImportJob *job)
 int
 dbmdb_import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize)
 {
-#ifdef TODO
     int result = 1;
     /* We shoot for four times as much to start with. */
     uint64_t request = entrysize * 4;
@@ -145,13 +140,11 @@ dbmdb_import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize)
         result = 0;
     }
     return result;
-#endif /* TODO */
 }
 
 FifoItem *
 dbmdb_import_fifo_fetch(ImportJob *job, ID id, int worker)
 {
-#ifdef TODO
     int idx = id % job->fifo.size;
     FifoItem *fi;
 
@@ -176,13 +169,11 @@ dbmdb_import_fifo_fetch(ImportJob *job, ID id, int worker)
         }
     }
     return fi;
-#endif /* TODO */
 }
 
 static void
 dbmdb_import_fifo_destroy(ImportJob *job)
 {
-#ifdef TODO
     /* Free any entries in the fifo first */
     struct backentry *be = NULL;
     size_t i = 0;
@@ -195,7 +186,6 @@ dbmdb_import_fifo_destroy(ImportJob *job)
     }
     slapi_ch_free((void **)&job->fifo.item);
     job->fifo.item = NULL;
-#endif /* TODO */
 }
 
 
@@ -209,20 +199,17 @@ dbmdb_import_fifo_destroy(ImportJob *job)
 static void
 dbmdb_import_log_status_start(ImportJob *job)
 {
-#ifdef TODO
     if (!job->task_status)
         job->task_status = (char *)slapi_ch_malloc(10 * LOG_BUFFER);
     if (!job->task_status)
         return; /* out of memory? */
 
     job->task_status[0] = 0;
-#endif /* TODO */
 }
 
 static void
 dbmdb_import_log_status_add_line(ImportJob *job, char *format, ...)
 {
-#ifdef TODO
     va_list ap;
     int len = 0;
 
@@ -238,23 +225,19 @@ dbmdb_import_log_status_add_line(ImportJob *job, char *format, ...)
     va_start(ap, format);
     PR_vsnprintf(job->task_status + len, (10 * LOG_BUFFER) - len, format, ap);
     va_end(ap);
-#endif /* TODO */
 }
 
 static void
 dbmdb_import_log_status_done(ImportJob *job)
 {
-#ifdef TODO
     if (job->task) {
         slapi_task_log_status(job->task, "%s", job->task_status);
     }
-#endif /* TODO */
 }
 
 static void
 dbmdb_import_task_destroy(Slapi_Task *task)
 {
-#ifdef TODO
     ImportJob *job = (ImportJob *)slapi_task_get_data(task);
 
     if (!job) {
@@ -271,13 +254,11 @@ dbmdb_import_task_destroy(Slapi_Task *task)
     }
     FREE(job);
     slapi_task_set_data(task, NULL);
-#endif /* TODO */
 }
 
 static void
 dbmdb_import_task_abort(Slapi_Task *task)
 {
-#ifdef TODO
     ImportJob *job;
 
     /* don't log anything from here, because we're still holding the
@@ -299,7 +280,6 @@ dbmdb_import_task_abort(Slapi_Task *task)
     import_abort_all(job, 0);
     while (slapi_task_get_state(task) != SLAPI_TASK_FINISHED)
         DS_Sleep(PR_MillisecondsToInterval(100));
-#endif /* TODO */
 }
 
 
@@ -309,11 +289,10 @@ dbmdb_import_task_abort(Slapi_Task *task)
  * Get parentid of an id by reading the operational attr from id2entry.
  */
 static int
-dbmdb_parentid(backend *be, MDB_txn *txn, ID id, ID *ppid)
+dbmdb_parentid(backend *be, dbi_txn_t *txn, ID id, ID *ppid)
 {
-#ifdef TODO
     int ret = 0;
-    MDB_dbi*db = NULL;
+    dbmdb_dbi_t*db = NULL;
     MDB_val key = {0};
     MDB_val data = {0};
     ID stored_id;
@@ -328,13 +307,11 @@ dbmdb_parentid(backend *be, MDB_txn *txn, ID id, ID *ppid)
 
     /* Initialize key and data MDB_vals */
     id_internal_to_stored(id, (char *)&stored_id);
-    key.data = (char *)&stored_id;
-    key.size = sizeof(stored_id);
-    key.flags = DB_MDB_val_USERMEM;
-    data.flags = DB_MDB_val_MALLOC;
+    key.mv_data = (char *)&stored_id;
+    key.mv_size = sizeof(stored_id);
 
     /* Read id2entry */
-    ret = db->get(db, txn, &key, &data, 0);
+    ret = mdb_get(TXN(txn), db->dbi, &key, &data);
     if (ret != 0) {
         ldbm_nasty("dbmdb_parentid", sourcefile, 13110, ret);
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_parentid",
@@ -346,7 +323,7 @@ dbmdb_parentid(backend *be, MDB_txn *txn, ID id, ID *ppid)
 
 /* Extract the parentid value */
 #define PARENTID_STR "\nparentid:"
-    p = strstr(data.data, PARENTID_STR);
+    p = strstr(data.mv_data, PARENTID_STR);
     if (p == NULL) {
         *ppid = NOID;
         goto out;
@@ -354,38 +331,30 @@ dbmdb_parentid(backend *be, MDB_txn *txn, ID id, ID *ppid)
     *ppid = strtoul(p + strlen(PARENTID_STR), NULL, 10);
 
 out:
-    /* Free the entry value */
-    slapi_ch_free(&(data.data));
 
     /* Release the id2entry file */
     if (db != NULL) {
         dblayer_release_id2entry(be, db);
     }
     return ret;
-#endif /* TODO */
 }
 
 static void
 dbmdb_id2idl_free(dbmdb_id2idl **ididl)
 {
-#ifdef TODO
     idl_free(&((*ididl)->idl));
     slapi_ch_free((void **)ididl);
-#endif /* TODO */
 }
 
 static int
 dbmdb_id2idl_same_key(const void *ididl, const void *k)
 {
-#ifdef TODO
     return (((dbmdb_id2idl *)ididl)->keyid == *(ID *)k);
-#endif /* TODO */
 }
 
 static int
 dbmdb_check_cache(id2idl_hash *ht)
 {
-#ifdef TODO
     dbmdb_id2idl *e;
     u_long i, found = 0;
     int ret = 0;
@@ -408,13 +377,11 @@ dbmdb_check_cache(id2idl_hash *ht)
     }
 
     return ret;
-#endif /* TODO */
 }
 
 static void
 dbmdb_id2idl_hash_destroy(id2idl_hash *ht)
 {
-#ifdef TODO
     u_long i;
     dbmdb_id2idl *e, *next;
 
@@ -430,7 +397,6 @@ dbmdb_id2idl_hash_destroy(id2idl_hash *ht)
         }
     }
     slapi_ch_free((void **)&ht);
-#endif /* TODO */
 }
 
 /*
@@ -440,7 +406,6 @@ dbmdb_id2idl_hash_destroy(id2idl_hash *ht)
 static IDList *
 dbmdb_idl_union_allids(backend *be, struct attrinfo *ai, IDList *a, IDList *b)
 {
-#ifdef TODO
     if (!idl_get_idl_new()) {
         if (a != NULL && b != NULL) {
             if (ALLIDS(a) || ALLIDS(b) ||
@@ -450,14 +415,12 @@ dbmdb_idl_union_allids(backend *be, struct attrinfo *ai, IDList *a, IDList *b)
         }
     }
     return idl_union(be, a, b);
-#endif /* TODO */
 }
 static int
-dbmdb_get_nonleaf_ids(backend *be, MDB_txn *txn, IDList **idl, ImportJob *job)
+dbmdb_get_nonleaf_ids(backend *be, dbi_txn_t *txn, IDList **idl, ImportJob *job)
 {
-#ifdef TODO
     int ret = 0;
-    MDB_dbi*db = NULL;
+    dbmdb_dbi_t*db = NULL;
     MDB_cursor *dbc = NULL;
     MDB_val key = {0};
     MDB_val data = {0};
@@ -466,6 +429,8 @@ dbmdb_get_nonleaf_ids(backend *be, MDB_txn *txn, IDList **idl, ImportJob *job)
     ID id;
     int started_progress_logging = 0;
     int key_count = 0;
+    dbmdb_cursor_t cursor = {0};
+    struct ldbminfo *li = (struct ldbminfo*)be->be_database->plg_private;
 
     /* Open the parentid index */
     ainfo_get(be, LDBM_PARENTID_STR, &ai);
@@ -478,17 +443,19 @@ dbmdb_get_nonleaf_ids(backend *be, MDB_txn *txn, IDList **idl, ImportJob *job)
     }
 
     /* Get a cursor so we can walk through the parentid */
-    ret = db->cursor(db, txn, &dbc, 0);
+    ret = dbmdb_open_cursor(&cursor, MDB_CONFIG(li) ,db ,0);
     if (ret != 0) {
         ldbm_nasty("dbmdb_get_nonleaf_ids", sourcefile, 13020, ret);
         goto out;
     }
+     dbc = cursor.cur;
+     txn = cursor.txn;
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_get_nonleaf_ids", "Gathering ancestorid non-leaf IDs...");
     /* For each key which is an equality key */
     do {
-        ret = dbc->c_get(dbc, &key, &data, DB_NEXT_NODUP);
-        if ((ret == 0) && (*(char *)key.data == EQ_PREFIX)) {
-            id = (ID)strtoul((char *)key.data + 1, NULL, 10);
+        ret = mdb_cursor_get(dbc, &key, &data, MDB_NEXT_NODUP);
+        if ((ret == 0) && (*(char *)key.mv_data == EQ_PREFIX)) {
+            id = (ID)strtoul((char *)key.mv_data + 1, NULL, 10);
             /*
              * TEL 20180711 - switch to idl_append instead of idl_insert because there is no
              * no need to keep the list constantly sorted, which can be very expensive with
@@ -528,7 +495,7 @@ dbmdb_get_nonleaf_ids(backend *be, MDB_txn *txn, IDList **idl, ImportJob *job)
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_get_nonleaf_ids",
                       "Finished gathering ancestorid non-leaf IDs.");
     /* Check for success */
-    if (ret == DB_NOTFOUND)
+    if (ret == MDB_NOTFOUND)
         ret = 0;
     if (ret != 0)
         ldbm_nasty("dbmdb_get_nonleaf_ids", sourcefile, 13030, ret);
@@ -546,15 +513,7 @@ dbmdb_get_nonleaf_ids(backend *be, MDB_txn *txn, IDList **idl, ImportJob *job)
 
 out:
     /* Close the cursor */
-    if (dbc != NULL) {
-        if (ret == 0) {
-            ret = dbc->c_close(dbc);
-            if (ret != 0)
-                ldbm_nasty("dbmdb_get_nonleaf_ids", sourcefile, 13040, ret);
-        } else {
-            (void)dbc->c_close(dbc);
-        }
-    }
+    dbmdb_close_cursor(&cursor, ret);
 
     /* Release the parentid file */
     if (db != NULL) {
@@ -572,7 +531,6 @@ out:
     }
 
     return ret;
-#endif /* TODO */
 }
 /*
  * XXX: This function creates ancestorid index, which is a sort of hack.
@@ -590,11 +548,9 @@ out:
  *
  */
 static int
-dbmdb_ancestorid_create_index(backend *be, ImportJob *job)
+dbmdb_ancestorid_create_index(backend *be, ImportJob *job, dbi_txn_t * txn)
 {
-#ifdef TODO
-    return (idl_get_idl_new()) ? dbmdb_ancestorid_new_idl_create_index(be, job) : dbmdb_ancestorid_default_create_index(be, job);
-#endif /* TODO */
+    return (idl_get_idl_new()) ? dbmdb_ancestorid_new_idl_create_index(be, job, txn) : dbmdb_ancestorid_default_create_index(be, job, txn);
 }
 
 /*
@@ -604,15 +560,13 @@ dbmdb_ancestorid_create_index(backend *be, ImportJob *job)
  * when the new mode is used, particularly with large databases.
  */
 static int
-dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job)
+dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job, dbi_txn_t * txn)
 {
-#ifdef TODO
     int key_count = 0;
     int ret = 0;
-    MDB_dbi*db_pid = NULL;
-    MDB_dbi*db_aid = NULL;
+    dbmdb_dbi_t *db_pid = NULL;
+    dbmdb_dbi_t *db_aid = NULL;
     dbi_val_t key = {0};
-    MDB_txn *txn = NULL;
     struct attrinfo *ai_pid = NULL;
     struct attrinfo *ai_aid = NULL;
     char keybuf[24];
@@ -811,7 +765,6 @@ out:
     }
 
     return ret;
-#endif /* TODO */
 }
 
 /*
@@ -822,15 +775,13 @@ out:
  * large databases.  Cf. bug 469800.
  */
 static int
-dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
+dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job, dbi_txn_t * txn)
 {
-#ifdef TODO
     int key_count = 0;
     int ret = 0;
-    MDB_dbi*db_pid = NULL;
-    MDB_dbi*db_aid = NULL;
+    dbmdb_dbi_t *db_pid = NULL;
+    dbmdb_dbi_t *db_aid = NULL;
     dbi_val_t key = {0};
-    MDB_txn *txn = NULL;
     struct attrinfo *ai_pid = NULL;
     struct attrinfo *ai_aid = NULL;
     char keybuf[24];
@@ -941,7 +892,7 @@ dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
 
         /* Instead of maintaining a full accounting of IDs in a hashtable
          * as is done with dbmdb_ancestorid_default_create_index(), perform
-         * incremental updates straight to the MDB_dbiwith idl_new_store_block()
+         * incremental updates straight to the dbmdb_dbi_t with idl_new_store_block()
          * (used by idl_store_block() when idl_get_idl_new() is true).  This
          * can be a significant performance improvement with large databases,
          * where  the overhead of maintaining and copying the lists is very
@@ -1032,17 +983,14 @@ out:
     }
 
     return ret;
-#endif /* TODO */
 }
 /* Update subordinate count in a hint list, given the parent's ID */
 int
 dbmdb_import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id, size_t count)
 {
-#ifdef TODO
     PR_ASSERT(NULL == PL_HashTableLookup(mothers->hashtable, (void *)((uintptr_t)parent_id)));
     PL_HashTableAdd(mothers->hashtable, (void *)((uintptr_t)parent_id), (void *)count);
     return 0;
-#endif /* TODO */
 }
 
 /* Look for a subordinate count in a hint list, given the parent's ID */
@@ -1051,7 +999,6 @@ dbmdb_import_subcount_mothers_lookup(import_subcount_stuff *mothers,
                                ID parent_id,
                                size_t *count)
 {
-#ifdef TODO
     size_t stored_count = 0;
 
     *count = 0;
@@ -1064,14 +1011,12 @@ dbmdb_import_subcount_mothers_lookup(import_subcount_stuff *mothers,
         return 0;
     }
     return -1;
-#endif /* TODO */
 }
 
 /* Update subordinate count in a hint list, given the parent's ID */
 int
 dbmdb_import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id)
 {
-#ifdef TODO
     size_t stored_count = 0;
 
     /* Lookup the hash table for the target ID */
@@ -1082,13 +1027,11 @@ dbmdb_import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id)
     stored_count++;
     PL_HashTableAdd(mothers->hashtable, (void *)((uintptr_t)parent_id), (void *)stored_count);
     return 0;
-#endif /* TODO */
 }
 
 static int
 dbmdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, int isencrypted)
 {
-#ifdef TODO
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     int ret = 0;
     modify_context mc = {0};
@@ -1135,28 +1078,23 @@ dbmdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, i
     /* entry is unlocked and returned to the cache in modify_term */
     modify_term(&mc, be);
     return ret;
-#endif /* TODO */
 }
 struct _import_subcount_trawl_info
 {
-#ifdef TODO
     struct _import_subcount_trawl_info *next;
     ID id;
     size_t sub_count;
-#endif /* TODO */
 };
 typedef struct _import_subcount_trawl_info import_subcount_trawl_info;
 
 static void
 dbmdb_import_subcount_trawl_add(import_subcount_trawl_info **list, ID id)
 {
-#ifdef TODO
     import_subcount_trawl_info *new_info = CALLOC(import_subcount_trawl_info);
 
     new_info->next = *list;
     new_info->id = id;
     *list = new_info;
-#endif /* TODO */
 }
 
 static int
@@ -1164,7 +1102,6 @@ dbmdb_import_subcount_trawl(backend *be,
                       import_subcount_trawl_info *trawl_list,
                       int isencrypted)
 {
-#ifdef TODO
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     ID id = 1;
     int ret = 0;
@@ -1183,7 +1120,7 @@ dbmdb_import_subcount_trawl(backend *be,
         /* Get the next entry */
         e = id2entry(be, id, NULL, &ret);
         if ((NULL == e) || (0 != ret)) {
-            if (DB_NOTFOUND == ret) {
+            if (MDB_NOTFOUND == ret) {
                 break;
             } else {
                 ldbm_nasty("dbmdb_import_subcount_trawl", sourcefile, 8, ret);
@@ -1214,7 +1151,6 @@ dbmdb_import_subcount_trawl(backend *be,
         }
     }
     return ret;
-#endif /* TODO */
 }
 
 /*
@@ -1224,21 +1160,22 @@ dbmdb_import_subcount_trawl(backend *be,
  *
  */
 static int
-dbmdb_update_subordinatecounts(backend *be, ImportJob *job, MDB_txn *txn)
+dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
 {
-#ifdef TODO
     import_subcount_stuff *mothers = job->mothers;
     int isencrypted = job->encrypt;
     int started_progress_logging = 0;
     int key_count = 0;
     int ret = 0;
-    MDB_dbi*db = NULL;
+    dbmdb_dbi_t*db = NULL;
     MDB_cursor *dbc = NULL;
     struct attrinfo *ai = NULL;
     MDB_val key = {0};
     dbi_val_t dbikey = {0};
     MDB_val data = {0};
     import_subcount_trawl_info *trawl_list = NULL;
+    dbmdb_cursor_t cursor = {0};
+    struct ldbminfo *li = (struct ldbminfo*)be->be_database->plg_private;
 
     /* Open the parentid index */
     ainfo_get(be, LDBM_PARENTID_STR, &ai);
@@ -1249,12 +1186,14 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, MDB_txn *txn)
         return (ret);
     }
     /* Get a cursor so we can walk through the parentid */
-    ret = db->cursor(db, txn, &dbc, 0);
+    ret = dbmdb_open_cursor(&cursor, MDB_CONFIG(li), db, 0);
     if (ret != 0) {
         ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 68, ret);
         dblayer_release_index_file(be, ai, db);
         return ret;
     }
+    dbc = cursor.cur;
+    txn = cursor.txn;
 
     /* Walk along the index */
     while (1) {
@@ -1263,20 +1202,16 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, MDB_txn *txn)
         ID parentid = 0;
 
         /* Foreach key which is an equality key : */
-        data.flags = DB_MDB_val_MALLOC;
-        key.flags = DB_MDB_val_MALLOC;
-        ret = dbc->c_get(dbc, &key, &data, DB_NEXT_NODUP);
-        if (NULL != data.data) {
-            slapi_ch_free(&(data.data));
-            data.data = NULL;
+        ret = mdb_cursor_get(dbc, &key, &data, MDB_NEXT_NODUP);
+        if (NULL!=data.mv_data) {
+            data.mv_data = NULL;
         }
         if (0 != ret) {
-            if (ret != DB_NOTFOUND) {
+            key.mv_data=NULL;
+            if (ret != MDB_NOTFOUND) {
                 ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 62, ret);
-            }
-            if (NULL != key.data) {
-                slapi_ch_free(&(key.data));
-                key.data = NULL;
+            } else {
+                ret = 0;
             }
             break;
         }
@@ -1297,13 +1232,13 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, MDB_txn *txn)
             started_progress_logging = 1;
         }
 
-        if (*(char *)key.data == EQ_PREFIX) {
+        if (*(char *)key.mv_data == EQ_PREFIX) {
             char *idptr = NULL;
 
             /* construct the parent's ID from the key */
             /* Look for the ID in the hint list supplied by the caller */
             /* If its there, we know the answer already */
-            idptr = (((char *)key.data) + 1);
+            idptr = (((char *)key.mv_data) + 1);
             parentid = (ID)atol(idptr);
             PR_ASSERT(0 != parentid);
             ret = dbmdb_import_subcount_mothers_lookup(mothers, parentid, &sub_count);
@@ -1312,9 +1247,8 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, MDB_txn *txn)
 
                 /* If it's not, we need to compute it ourselves: */
                 /* Load the IDL matching the key */
-                key.flags = DB_MDB_val_REALLOC;
+                ret = dbmdb_dbt2dbival(&key, &dbikey, PR_FALSE, 0);
                 ret = NEW_IDL_NO_ALLID;
-                dbmdb_dbt2dbival(&key, &dbikey, PR_FALSE);
                 idl = idl_fetch(be, db, &dbikey, NULL, NULL, &ret);
                 dbmdb_dbival2dbt(&dbikey, &key, PR_TRUE);
                 dblayer_value_protect_data(be, &dbikey);
@@ -1344,10 +1278,6 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, MDB_txn *txn)
                 dbmdb_import_update_entry_subcount(be, parentid, sub_count, isencrypted);
             }
         }
-        if (NULL != key.data) {
-            slapi_ch_free(&(key.data));
-            key.data = NULL;
-        }
     }
     if (started_progress_logging) {
         /* Finish what we started... */
@@ -1357,10 +1287,7 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, MDB_txn *txn)
         job->numsubordinates = key_count;
     }
 
-    ret = dbc->c_close(dbc);
-    if (0 != ret) {
-        ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 6, ret);
-    }
+    dbmdb_close_cursor(&cursor, ret);
     dblayer_release_index_file(be, ai, db);
 
     /* Now see if we need to go trawling through id2entry for the info
@@ -1372,14 +1299,12 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, MDB_txn *txn)
         }
     }
     return (ret);
-#endif /* TODO */
 }
 
 /* Function used to gather a list of indexed attrs */
 static int
 dbmdb_import_attr_callback(void *node, void *param)
 {
-#ifdef TODO
     ImportJob *job = (ImportJob *)param;
     struct attrinfo *a = (struct attrinfo *)node;
 
@@ -1448,13 +1373,11 @@ dbmdb_import_attr_callback(void *node, void *param)
         job->number_indexers++;
     }
     return 0;
-#endif /* TODO */
 }
 
 static void
 dbmdb_import_set_index_buffer_size(ImportJob *job)
 {
-#ifdef TODO
     IndexInfo *current_index = NULL;
     size_t substring_index_count = 0;
     size_t proposed_size = 0;
@@ -1480,13 +1403,11 @@ dbmdb_import_set_index_buffer_size(ImportJob *job)
     }
 
     job->job_index_buffer_suggestion = proposed_size;
-#endif /* TODO */
 }
 
 static void
 dbmdb_import_free_thread_data(ImportJob *job)
 {
-#ifdef TODO
     /* DBMDB_dbifree the lists etc */
     ImportWorkerInfo *worker = job->worker_list;
 
@@ -1496,13 +1417,11 @@ dbmdb_import_free_thread_data(ImportJob *job)
         if (asabird->work_type != PRODUCER)
             slapi_ch_free((void **)&asabird);
     }
-#endif /* TODO */
 }
 
 void
 dbmdb_import_free_job(ImportJob *job)
 {
-#ifdef TODO
     /* DBMDB_dbifree the lists etc */
     IndexInfo *index = job->index_list;
 
@@ -1544,7 +1463,6 @@ dbmdb_import_free_job(ImportJob *job)
     pthread_mutex_destroy(&job->wire_lock);
     pthread_cond_destroy(&job->wire_cv);
     slapi_ch_free((void **)&job->task_status);
-#endif /* TODO */
 }
 
 /* determine if we are the correct backend for this entry
@@ -1556,7 +1474,6 @@ dbmdb_import_free_job(ImportJob *job)
 int
 dbmdb_import_entry_belongs_here(Slapi_Entry *e, backend *be)
 {
-#ifdef TODO
     Slapi_Backend *retbe;
     Slapi_DN *sdn = slapi_entry_get_sdn(e);
 
@@ -1565,7 +1482,6 @@ dbmdb_import_entry_belongs_here(Slapi_Entry *e, backend *be)
 
     retbe = slapi_mapping_tree_find_backend_for_sdn(sdn);
     return (retbe == be);
-#endif /* TODO */
 }
 
 
@@ -1579,20 +1495,18 @@ dbmdb_import_entry_belongs_here(Slapi_Entry *e, backend *be)
 static void
 dbmdb_import_init_worker_info(ImportWorkerInfo *info, ImportJob *job)
 {
-#ifdef TODO
     info->command = PAUSE;
     info->job = job;
     info->first_ID = job->first_ID;
     info->index_buffer_size = job->job_index_buffer_suggestion;
-#endif /* TODO */
 }
 
 static int
 dbmdb_import_start_threads(ImportJob *job)
 {
-#ifdef TODO
     IndexInfo *current_index = NULL;
     ImportWorkerInfo *foreman = NULL, *worker = NULL;
+    ImportWorkerInfo *writer = NULL;
 
     foreman = CALLOC(ImportWorkerInfo);
     if (!foreman)
@@ -1600,6 +1514,7 @@ dbmdb_import_start_threads(ImportJob *job)
 
     /* start the foreman */
     dbmdb_import_init_worker_info(foreman, job);
+    strncpy(foreman->name, "foreman", sizeof foreman->name);
     foreman->work_type = FOREMAN;
     if (!CREATE_THREAD(PR_USER_THREAD, (VFP)dbmdb_import_foreman, foreman,
                        PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
@@ -1614,6 +1529,23 @@ dbmdb_import_start_threads(ImportJob *job)
 
     foreman->next = job->worker_list;
     job->worker_list = foreman;
+    writer = CALLOC(ImportWorkerInfo);
+    strncpy(writer->name, "mdbimportwriter", sizeof writer->name);
+    dbmdb_import_init_worker_info(writer, job);
+    writer->work_type = WRITER;
+    if(!CREATE_THREAD(PR_USER_THREAD, (VFP)dbmdb_import_writer, writer,
+                      PR_PRIORITY_NORMAL,PR_GLOBAL_BOUND_THREAD,
+                      PR_UNJOINABLE_THREAD,SLAPD_DEFAULT_THREAD_STACKSIZE)) {
+        PRErrorCode prerr=PR_GetError();
+        slapi_log_err(SLAPI_LOG_ERR,"dbmdb_import_start_threads",
+                      "Unabletospawnimportwriterthread,"SLAPI_COMPONENT_NAME_NSPR"error%d(%s)\n",
+                      prerr,slapd_pr_strerror(prerr));
+        FREE(writer);
+        goto error;
+    }
+
+    writer->next=job->worker_list;
+    job->worker_list=writer;
 
     /* Start follower threads, if we are doing attribute indexing */
     current_index = job->index_list;
@@ -1628,6 +1560,7 @@ dbmdb_import_start_threads(ImportJob *job)
             dbmdb_import_init_worker_info(worker, job);
             worker->index_info = current_index;
             worker->work_type = WORKER;
+            PR_snprintf(worker->name, sizeof worker->name, "indexer%s", worker->index_info->name);
 
             /* Start the thread */
             if (!CREATE_THREAD(PR_USER_THREAD, (VFP)dbmdb_import_worker, worker,
@@ -1656,7 +1589,6 @@ error:
     import_abort_all(job, 1);
     import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_start_threads", "Import threads aborted.");
     return -1;
-#endif /* TODO */
 }
 
 
@@ -1665,7 +1597,6 @@ error:
 static void
 dbmdb_import_clear_progress_history(ImportJob *job)
 {
-#ifdef TODO
     int i = 0;
 
     for (i = 0; i < IMPORT_JOB_PROG_HISTORY_SIZE /*- 1*/; i++) {
@@ -1674,56 +1605,11 @@ dbmdb_import_clear_progress_history(ImportJob *job)
     }
     /* reset limdb cache stats */
     job->inst->inst_cache_hits = job->inst->inst_cache_misses = 0;
-#endif /* TODO */
-}
-
-static double
-dbmdb_import_grok_db_stats(ldbm_instance *inst)
-{
-#ifdef TODO
-    DB_MPOOL_STAT *mpstat = NULL;
-    DB_MPOOL_FSTAT **mpfstat = NULL;
-    int return_value = -1;
-    double cache_hit_ratio = 0.0;
-
-    return_value = dbmdb_memp_stat_instance(inst, &mpstat, &mpfstat);
-
-    if (!mpstat) {
-        goto out;
-    }
-
-    if (0 == return_value) {
-        unsigned long current_cache_hits = mpstat->st_cache_hit;
-        unsigned long current_cache_misses = mpstat->st_cache_miss;
-
-        if (inst->inst_cache_hits) {
-            unsigned long hit_delta, miss_delta;
-
-            hit_delta = current_cache_hits - inst->inst_cache_hits;
-            miss_delta = current_cache_misses - inst->inst_cache_misses;
-            if (hit_delta != 0) {
-                cache_hit_ratio = (double)hit_delta /
-                                  (double)(hit_delta + miss_delta);
-            }
-        }
-        inst->inst_cache_misses = current_cache_misses;
-        inst->inst_cache_hits = current_cache_hits;
-    }
-
-out:
-    if (mpstat)
-        slapi_ch_free((void **)&mpstat);
-    if (mpfstat) {
-        slapi_ch_free((void **)&mpfstat);
-    }
-    return cache_hit_ratio;
-#endif /* TODO */
 }
 
 static char *
 dbmdb_import_decode_worker_state(int state)
 {
-#ifdef TODO
     switch (state) {
     case WAITING:
         return "W";
@@ -1736,95 +1622,25 @@ dbmdb_import_decode_worker_state(int state)
     default:
         return "?";
     }
-#endif /* TODO */
 }
 
 static void
 dbmdb_import_print_worker_status(ImportWorkerInfo *info)
 {
-#ifdef TODO
-    char *name = (info->work_type == PRODUCER ? "Producer" : (info->work_type == FOREMAN ? "Foreman" : info->index_info->name));
+    char *name = (info->work_type == PRODUCER ? "Producer" : (info->work_type == FOREMAN ? "Foreman" :
+                  (info->work_type == WRITER ? "Writer" : info->index_info->name)));
 
     dbmdb_import_log_status_add_line(info->job,
                                "%-25s %s%10ld %7.1f", name,
                                dbmdb_import_decode_worker_state(info->state),
                                info->last_ID_processed, info->rate);
-#endif /* TODO */
 }
 
 
-#define IMPORT_CHUNK_TEST_HOLDOFF_TIME (5 * 60) /* Seconds */
-
-/* Got to be lower than this: */
-#define IMPORT_CHUNK_TEST_CACHE_HIT_RATIO (0.99)
-/* Less than half as fast as we were doing: */
-#define IMPORT_CHUNK_TEST_SLOWDOWN_RATIO_A (0.5)
-/* A lot less fast than we were doing: */
-#define IMPORT_CHUNK_TEST_SLOWDOWN_RATIO_B (0.1)
-
-static int
-dbmdb_import_throw_in_towel(ImportJob *job, time_t current_time, ID trailing_ID)
-{
-#ifdef TODO
-    static int number_of_times_here = 0;
-
-    /* secret -c option allows specific chunk size to be set... */
-    if (job->merge_chunk_size != 0) {
-        if ((0 != job->lead_ID) &&
-            (trailing_ID > job->first_ID) &&
-            (trailing_ID - job->first_ID > job->merge_chunk_size)) {
-            return 1;
-        }
-        return 0;
-    }
-
-    /* Check stats to decide whether we're getting bogged down and should
-     * terminate this pass.
-     */
-
-    /* Check #1 : are we more than 10 minutes into the chunk ? */
-    if (current_time - job->start_time > IMPORT_CHUNK_TEST_HOLDOFF_TIME) {
-        /* Check #2 : Have we slowed down considerably recently ? */
-        if ((job->recent_progress_rate / job->average_progress_rate) <
-            IMPORT_CHUNK_TEST_SLOWDOWN_RATIO_A) {
-            /* Check #3: Cache performing poorly---the puported reason
-         * for the slowdown */
-            if (job->cache_hit_ratio < IMPORT_CHUNK_TEST_CACHE_HIT_RATIO) {
-                /* We have a winner ! */
-                import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_throw_in_towel",
-                                  "Decided to end this pass because the progress rate has dropped below "
-                                  "the %.0f%% threshold.",
-                                  IMPORT_CHUNK_TEST_SLOWDOWN_RATIO_A * 100.0);
-                return 1;
-            }
-        } else {
-            if ((job->recent_progress_rate / job->average_progress_rate) <
-                IMPORT_CHUNK_TEST_SLOWDOWN_RATIO_B) {
-                /* Alternative check: have we really, really slowed down,
-         * without the test for cache overflow? */
-                /* This is designed to catch the case where the cache has
-         * been misconfigured too large */
-                if (number_of_times_here > 10) {
-                    /* Got to get here ten times at least */
-                    import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_throw_in_towel",
-                                      "Decided to end this pass because the progress rate plummeted below %.0f%%",
-                                      IMPORT_CHUNK_TEST_SLOWDOWN_RATIO_B * 100.0);
-                    return 1;
-                }
-                number_of_times_here++;
-            }
-        }
-    }
-
-    number_of_times_here = 0;
-    return 0;
-#endif /* TODO */
-}
 
 static void
 dbmdb_import_push_progress_history(ImportJob *job, ID current_id, time_t current_time)
 {
-#ifdef TODO
     int i = 0;
 
     for (i = 0; i < IMPORT_JOB_PROG_HISTORY_SIZE - 1; i++) {
@@ -1833,13 +1649,11 @@ dbmdb_import_push_progress_history(ImportJob *job, ID current_id, time_t current
     }
     job->progress_history[i] = current_id;
     job->progress_times[i] = current_time;
-#endif /* TODO */
 }
 
 static void
 dbmdb_import_calc_rate(ImportWorkerInfo *info, int time_interval)
 {
-#ifdef TODO
     size_t ids = info->last_ID_processed - info->previous_ID_counted;
     double rate = (double)ids / time_interval;
 
@@ -1849,7 +1663,6 @@ dbmdb_import_calc_rate(ImportWorkerInfo *info, int time_interval)
         info->rate = 0;
     }
     info->previous_ID_counted = info->last_ID_processed;
-#endif /* TODO */
 }
 
 /* find the rate (ids/time) of work from a worker thread between history
@@ -1864,14 +1677,15 @@ dbmdb_import_calc_rate(ImportWorkerInfo *info, int time_interval)
 static int
 dbmdb_import_monitor_threads(ImportJob *job, int *status)
 {
-#ifdef TODO
     PRIntervalTime tenthsecond = PR_MillisecondsToInterval(100);
     ImportWorkerInfo *current_worker = NULL;
     ImportWorkerInfo *producer = NULL, *foreman = NULL;
+    ImportWorkerInfo *writer = NULL;
     int finished = 0;
     int giveup = 0;
     int count = 1; /* 1 to prevent premature status report */
     int producer_done = 0;
+    int writer_done=0;
     const int display_interval = 200;
     time_t time_now = 0;
     time_t last_time = 0;
@@ -1886,6 +1700,8 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
             producer = current_worker;
         if (current_worker->work_type == FOREMAN)
             foreman = current_worker;
+        if (current_worker->work_type == WRITER)
+            writer = current_worker;
     }
 
 
@@ -1895,6 +1711,11 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
     PR_ASSERT(foreman != NULL);
 
     if (!foreman) {
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_monitor_threads", "Noforeman==>Abortingimport.\n");
+        goto error_abort;
+    }
+    if (!writer) {
+        import_log_notice(job,SLAPI_LOG_ERR,"dbmdb_import_monitor_threads","Nowriter==>Abortingimport.\n");
         goto error_abort;
     }
 
@@ -1929,7 +1750,7 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
                     (double)(TIMES(IMPORT_JOB_PROG_HISTORY_SIZE - 1) - job->start_time);
                 job->recent_progress_rate =
                     PROGRESS(0, IMPORT_JOB_PROG_HISTORY_SIZE - 1);
-                job->cache_hit_ratio = dbmdb_import_grok_db_stats(job->inst);
+                job->cache_hit_ratio = dbmdb_writer_get_progress(job);
             }
         }
 
@@ -1947,6 +1768,7 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
             }
             corestate = current_worker->state & CORESTATE;
             if (current_worker->state == ABORTED) {
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_monitor_threads", "worker %s aborted ==> Aborting import.\n", current_worker->name);
                 goto error_abort;
             } else if ((corestate == QUIT) || (corestate == FINISHED)) {
                 if (DN_NORM_BT == (DN_NORM_BT & current_worker->state)) {
@@ -1971,6 +1793,10 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
             }
         }
 
+        if (finished && writer->state != FINISHED) {
+            finished=0;
+        }
+
         if ((0 == (count % display_interval)) &&
             (job->start_time != time_now)) {
             char buffer[256], *p = buffer;
@@ -1984,24 +1810,8 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
                          job->average_progress_rate);
             p += sprintf(p, "recent rate %.1f/sec, ",
                          job->recent_progress_rate);
-            p += sprintf(p, "hit ratio %.0f%%", job->cache_hit_ratio * 100.0);
+            p += sprintf(p, "recent writer progress %.0f%%", job->cache_hit_ratio * 100.0);
             import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_monitor_threads", "%s", buffer);
-        }
-
-        /* Then let's see if it's time to complete this import pass */
-        if (!giveup) {
-            giveup = dbmdb_import_throw_in_towel(job, time_now, trailing_ID);
-            if (giveup) {
-                /* If so, signal the lead thread to stop */
-                import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_monitor_threads",
-                                  "Ending pass number %d ...", job->total_pass);
-                foreman->command = STOP;
-                while (foreman->state != FINISHED) {
-                    DS_Sleep(tenthsecond);
-                }
-                import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_monitor_threads",
-                                  "Foreman is done; waiting for workers to finish...");
-            }
         }
 
         /* if the producer is finished, and the foreman has caught up... */
@@ -2017,8 +1827,9 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
             if (foreman->state != FINISHED)
                 foreman->command = STOP;
 
-            /* if all the workers are caught up too, we're done */
-            if (trailing_ID == job->lead_ID)
+        writer_done = (writer->state == FINISHED) || (writer->state == QUIT);
+            /* if writer and all the workers are caught up too, we're done */
+        if (trailing_ID == job->lead_ID && writer_done)
                 break;
         }
 
@@ -2075,7 +1886,6 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
 
 error_abort:
     return ERR_IMPORT_ABORTED;
-#endif /* TODO */
 }
 
 
@@ -2084,7 +1894,6 @@ error_abort:
 static int
 dbmdb_import_run_pass(ImportJob *job, int *status)
 {
-#ifdef TODO
     int ret = 0;
 
     /* Start the threads startcfg */
@@ -2107,18 +1916,17 @@ dbmdb_import_run_pass(ImportJob *job, int *status)
 
 error:
     return ret;
-#endif /* TODO */
 }
 
 static void
 dbmdb_import_set_abort_flag_all(ImportJob *job, int wait_for_them)
 {
-#ifdef TODO
 
     ImportWorkerInfo *worker;
 
     /* tell all the worker threads to abort */
     job->flags |= FLAG_ABORT;
+    dbmdb_writer_wakeup(job);
 
     /* setting of the flag in the job will be detected in the worker, foreman
      * threads and if there are any threads which have a sleeptime  200 msecs
@@ -2141,110 +1949,9 @@ dbmdb_import_set_abort_flag_all(ImportJob *job, int wait_for_them)
             }
         }
     }
-#endif /* TODO */
 }
 
 /* Helper function to make up filenames */
-int
-dbmdb_import_make_merge_filenames(char *directory, char *indexname, int pass, char **oldname, char **newname)
-{
-#ifdef TODO
-    /* Filenames look like this: attributename<LDBM_FILENAME_SUFFIX>
-       and need to be renamed to: attributename<LDBM_FILENAME_SUFFIX>.n
-       where n is the pass number.
-       */
-    *oldname = slapi_ch_smprintf("%s/%s%s", directory, indexname, LDBM_FILENAME_SUFFIX);
-    *newname = slapi_ch_smprintf("%s/%s.%d%s", directory, indexname, pass,
-                                 LDBM_FILENAME_SUFFIX);
-    if (!*oldname || !*newname) {
-        slapi_ch_free_string(oldname);
-        slapi_ch_free_string(newname);
-        return -1;
-    }
-    return 0;
-#endif /* TODO */
-}
-
-/* Task here is as follows:
- * First, if this is pass #1, check for the presence of a merge
- *     directory. If it is not present, create it.
- * If it is present, delete all the files in it.
- * Then, flush the dblayer and close files.
- * Now create a numbered subdir of the merge directory for this pass.
- * Next, move the index files, except entrydn, parentid and id2entry to
- *     the merge subdirectory. Important to move if we can, because
- *     that can be millions of times faster than a copy.
- * Finally open the dblayer back up because the caller expects
- *     us to not muck with it.
- */
-static int
-dbmdb_import_sweep_after_pass(ImportJob *job)
-{
-#ifdef TODO
-    backend *be = job->inst->inst_be;
-    int ret = 0;
-
-    import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_sweep_after_pass",
-                      "Sweeping files for merging later...");
-
-    ret = dblayer_instance_close(be);
-
-    if (0 == ret) {
-        /* Walk the list of index jobs */
-        ImportWorkerInfo *current_worker = NULL;
-
-        for (current_worker = job->worker_list; current_worker != NULL;
-             current_worker = current_worker->next) {
-            /* Foreach job, rename the file to <filename>.n, where n is the
-         * pass number */
-            if ((current_worker->work_type != FOREMAN) &&
-                (current_worker->work_type != PRODUCER) &&
-                (strcasecmp(current_worker->index_info->name, LDBM_PARENTID_STR) != 0)) {
-                char *newname = NULL;
-                char *oldname = NULL;
-
-                ret = dbmdb_import_make_merge_filenames(job->inst->inst_dir_name,
-                                                  current_worker->index_info->name, job->current_pass,
-                                                  &oldname, &newname);
-                if (0 != ret) {
-                    break;
-                }
-                if (PR_Access(oldname, PR_ACCESS_EXISTS) == PR_SUCCESS) {
-                    ret = PR_Rename(oldname, newname);
-                    if (ret != PR_SUCCESS) {
-                        PRErrorCode prerr = PR_GetError();
-                        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_sweep_after_pass",
-                                          "Failed to rename file \"%s\" to \"%s\", " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)",
-                                          oldname, newname, prerr, slapd_pr_strerror(prerr));
-                        slapi_ch_free((void **)&newname);
-                        slapi_ch_free((void **)&oldname);
-                        break;
-                    }
-                }
-                slapi_ch_free((void **)&newname);
-                slapi_ch_free((void **)&oldname);
-            }
-        }
-
-        ret = dbmdb_instance_start(be, DBLAYER_IMPORT_MODE);
-    }
-
-    if (0 == ret) {
-        import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_sweep_after_pass", "Sweep done.");
-    } else {
-        if (ENOSPC == ret) {
-            import_log_notice(job, LOG_CRIT, "dbmdb_import_sweep_after_pass",
-                              "NO DISK SPACE LEFT in sweep phase");
-        } else {
-            import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_sweep_after_pass",
-                              "Sweep phase error %d (%s)", ret,
-                              dblayer_strerror(ret));
-        }
-    }
-
-    return ret;
-#endif /* TODO */
-}
 
 /* when the import is done, this function is called to bring stuff back up.
  * returns 0 on success; anything else is an error
@@ -2252,20 +1959,7 @@ dbmdb_import_sweep_after_pass(ImportJob *job)
 static int
 dbmdb_import_all_done(ImportJob *job, int ret)
 {
-#ifdef TODO
     ldbm_instance *inst = job->inst;
-
-    /* Writing this file indicates to future server startups that
-     * the db is OK unless it's in the dry run mode. */
-    if ((ret == 0) && !(job->flags & FLAG_DRYRUN)) {
-        char inst_dir[MAXPATHLEN * 2];
-        char *inst_dirp = NULL;
-        inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
-                                              inst_dir, MAXPATHLEN * 2);
-        ret = dbmdb_version_write(inst->inst_li, inst_dirp, NULL, DBVERSION_ALL);
-        if (inst_dirp != inst_dir)
-            slapi_ch_free_string(&inst_dirp);
-    }
 
     if ((job->task != NULL) && (0 == slapi_task_get_refcount(job->task))) {
         slapi_task_finish(job->task, ret);
@@ -2299,14 +1993,12 @@ dbmdb_import_all_done(ImportJob *job, int ret)
     }
 
     return ret;
-#endif /* TODO */
 }
 
 
 int
 dbmdb_public_dbmdb_import_main(void *arg)
 {
-#ifdef TODO
     ImportJob *job = (ImportJob *)arg;
     ldbm_instance *inst = job->inst;
     backend *be = inst->inst_be;
@@ -2319,6 +2011,8 @@ dbmdb_public_dbmdb_import_main(void *arg)
     int aborted = 0;
     ImportWorkerInfo *producer = NULL;
     char *opstr = "Import";
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    dbi_txn_t *txn = NULL;
 
     if (job->task) {
         slapi_task_inc_refcount(job->task);
@@ -2363,6 +2057,8 @@ dbmdb_public_dbmdb_import_main(void *arg)
         }
         goto error;
     }
+    /* Init writer thread job context as it is needed by foreman */
+    dbmdb_writer_init(job);
 
     if (job->flags & FLAG_USE_FILES) {
         /* importing from files: start up a producer thread to read the
@@ -2472,51 +2168,9 @@ dbmdb_public_dbmdb_import_main(void *arg)
 
         /* No error, but a number of possibilities */
         if (IMPORT_COMPLETE_PASS == status) {
-            if (1 == job->current_pass) {
+            PR_ASSERT(1==job->current_pass); /* Only a single pass with lmdb */
                 /* We're done !!!! */;
-            } else {
-                /* Save the files, then merge */
-                ret = dbmdb_import_sweep_after_pass(job);
-                if (0 != ret) {
-                    goto error;
-                }
-                ret = dbmdb_import_mega_merge(job);
-                if (0 != ret) {
-                    goto error;
-                }
-            }
             finished = 1;
-        } else {
-            if (IMPORT_INCOMPLETE_PASS == status) {
-                /* Need to go round again */
-                /* Time to save the files we've built for later */
-                ret = dbmdb_import_sweep_after_pass(job);
-                if (0 != ret) {
-                    goto error;
-                }
-                if ((inst->inst_li->li_maxpassbeforemerge != 0) &&
-                    (job->current_pass > inst->inst_li->li_maxpassbeforemerge)) {
-                    ret = dbmdb_import_mega_merge(job);
-                    if (0 != ret) {
-                        goto error;
-                    }
-                    job->current_pass = 1;
-                    ret = dbmdb_import_sweep_after_pass(job);
-                    if (0 != ret) {
-                        goto error;
-                    }
-                }
-
-                /* Fixup the first_ID value to reflect previous work */
-                job->first_ID = job->ready_ID + 1;
-                dbmdb_import_free_thread_data(job);
-                job->worker_list = producer;
-                import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_public_dbmdb_import_main",
-                                  "Beginning pass number %d", job->total_pass + 1);
-            } else {
-                /* Bizarro-slapd */
-                goto error;
-            }
         }
     }
 
@@ -2530,6 +2184,12 @@ dbmdb_public_dbmdb_import_main(void *arg)
         }
     }
 
+    ret=START_TXN(&txn,NULL,0);/*Startarwtxntoupdatesomeindexes*/
+                             if(ret){
+                                 import_log_notice(job,SLAPI_LOG_ERR,"dbmdb_public_dbmdb_import_main",
+                                         "Failedtobeginatransaction");
+                                 goto error;
+                             }
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_public_dbmdb_import_main", "Indexing complete.  Post-processing...");
     /* Now do the numsubordinates attribute */
     /* [610066] reindexed db cannot be used in the following backup/restore */
@@ -2551,7 +2211,7 @@ dbmdb_public_dbmdb_import_main(void *arg)
 
         ainfo_get(be, "ancestorid", &ai);
         dblayer_erase_index_file(be, ai, PR_TRUE, 0);
-        if ((ret = dbmdb_ancestorid_create_index(be, job)) != 0) {
+        if ((ret = dbmdb_ancestorid_create_index(be, job, txn)) != 0) {
             import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_public_dbmdb_import_main", "Failed to create ancestorid index");
             goto error;
         }
@@ -2568,6 +2228,7 @@ dbmdb_public_dbmdb_import_main(void *arg)
 error:
     /* If we fail, the database is now in a mess, so we delete it
        except dry run mode */
+    ret=END_TXN(&txn, ret);
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_public_dbmdb_import_main", "Closing files...");
     cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
     if (entryrdn_get_switch()) {
@@ -2710,10 +2371,12 @@ error:
     if((!ret) && (job->skipped)) {
         ret |= WARN_SKIPPED_IMPORT_ENTRY;
     }
+    dbmdb_clear_dirty_flags(MDB_CONFIG(li), inst->inst_name);
 
     /* This instance isn't busy anymore */
     instance_set_not_busy(job->inst);
 
+    dbmdb_writer_cleanup(job);
     dbmdb_import_free_job(job);
     if (!job->task) {
         FREE(job);
@@ -2722,7 +2385,6 @@ error:
         FREE(producer);
 
     return (ret);
-#endif /* TODO */
 }
 
 /*
@@ -2733,18 +2395,15 @@ error:
 void
 dbmdb_import_main(void *arg)
 {
-#ifdef TODO
     /* For online import tasks increment/decrement the global thread count */
     g_incr_active_threadcnt();
     import_main_offline(arg);
     g_decr_active_threadcnt();
-#endif /* TODO */
 }
 
 int
 dbmdb_back_ldif2db(Slapi_PBlock *pb)
 {
-#ifdef TODO
     backend *be = NULL;
     int noattrindexes = 0;
     ImportJob *job = NULL;
@@ -2889,691 +2548,4 @@ dbmdb_back_ldif2db(Slapi_PBlock *pb)
     }
 
     return ret;
-#endif /* TODO */
-}
-
-struct _import_merge_thang
-{
-#ifdef TODO
-    int type;
-#define IMPORT_MERGE_THANG_IDL 1 /* Values for type */
-#define IMPORT_MERGE_THANG_VLV 2
-    union
-    {
-        IDList *idl;  /* if type == IMPORT_MERGE_THANG_IDL */
-        MDB_val vlv_data; /* if type == IMPORT_MERGE_THANG_VLV */
-    } payload;
-#endif /* TODO */
-};
-typedef struct _import_merge_thang import_merge_thang;
-
-struct _import_merge_queue_entry
-{
-#ifdef TODO
-    int *file_referenced_list;
-    import_merge_thang thang;
-    MDB_val key;
-    struct _import_merge_queue_entry *next;
-#endif /* TODO */
-};
-typedef struct _import_merge_queue_entry import_merge_queue_entry;
-
-static int
-dbmdb_import_merge_get_next_thang(backend *be, MDB_cursor *cursor, MDB_dbi*db, import_merge_thang *thang, MDB_val *key, int type)
-{
-#ifdef TODO
-    int ret = 0;
-    MDB_val value = {0};
-    dbi_val_t dbikey = {0};
-
-
-    value.flags = DB_MDB_val_MALLOC;
-    key->flags = DB_MDB_val_MALLOC;
-
-    thang->type = type;
-    if (IMPORT_MERGE_THANG_IDL == type) {
-    /* IDL case */
-    around:
-        ret = cursor->c_get(cursor, key, &value, DB_NEXT_NODUP);
-        if (0 == ret) {
-            /* Check that we've not reached the beginning of continuation
-             * blocks */
-            if (CONT_PREFIX != ((char *)key->data)[0]) {
-                /* If not, read the IDL using idl_fetch() */
-                key->flags = DB_MDB_val_REALLOC;
-                ret = NEW_IDL_NO_ALLID;
-                dbmdb_dbt2dbival(key, &dbikey, PR_FALSE);
-                thang->payload.idl = idl_fetch(be, db, &dbikey, NULL, NULL, &ret);
-                dbmdb_dbival2dbt(&dbikey, key, PR_TRUE);
-                dblayer_value_protect_data(be, &dbikey);
-                PR_ASSERT(NULL != thang->payload.idl);
-            } else {
-                slapi_ch_free(&(value.data));
-                slapi_ch_free(&(key->data));
-                key->flags = DB_MDB_val_MALLOC;
-                goto around; /* Just skip these */
-            }
-            slapi_ch_free(&(value.data));
-        } else {
-            if (DB_NOTFOUND == ret) {
-                /* This means that we're at the end of the file */
-                ret = EOF;
-            }
-        }
-    } else {
-        /* VLV case */
-        ret = cursor->c_get(cursor, key, &value, DB_NEXT);
-        if (0 == ret) {
-            thang->payload.vlv_data = value;
-            thang->payload.vlv_data.flags = 0;
-            key->flags = 0;
-        } else {
-            if (DB_NOTFOUND == ret) {
-                /* This means that we're at the end of the file */
-                ret = EOF;
-            }
-        }
-    }
-
-    return ret;
-#endif /* TODO */
-}
-
-static import_merge_queue_entry *
-dbmdb_import_merge_make_new_queue_entry(import_merge_thang *thang, MDB_val *key, int fileno, int passes)
-{
-#ifdef TODO
-    /* Make a new entry */
-    import_merge_queue_entry *new_entry = (import_merge_queue_entry *)slapi_ch_calloc(1, sizeof(import_merge_queue_entry));
-
-    new_entry->key = *key;
-    new_entry->thang = *thang;
-    new_entry->file_referenced_list =
-        (int *)slapi_ch_calloc(passes, sizeof(fileno));
-
-    (new_entry->file_referenced_list)[fileno] = 1;
-    return new_entry;
-#endif /* TODO */
-}
-
-/* Put an IDL onto the priority queue */
-static int
-dbmdb_import_merge_insert_input_queue(backend *be, import_merge_queue_entry **queue, int fileno, MDB_val *key, import_merge_thang *thang, int passes)
-{
-#ifdef TODO
-    /* Walk the list, looking for a key value which is greater than or equal
-     * to the presented key */
-    /* If an equal key is found, compute the union of the IDLs and store that
-     * back in the queue entry */
-    /* If a key greater than is found, or no key greater than is found, insert
-     * a new queue entry */
-    import_merge_queue_entry *current_entry = NULL;
-    import_merge_queue_entry *previous_entry = NULL;
-
-    PR_ASSERT(NULL != thang);
-    if (NULL == *queue) {
-        /* Queue was empty--- put ourselves at the head */
-        *queue = dbmdb_import_merge_make_new_queue_entry(thang, key, fileno, passes);
-        if (NULL == *queue) {
-            return -1;
-        }
-    } else {
-        for (current_entry = *queue; current_entry != NULL;
-             current_entry = current_entry->next) {
-            int cmp = strcmp(key->data, current_entry->key.data);
-
-            if (0 == cmp) {
-                if (IMPORT_MERGE_THANG_IDL == thang->type) { /* IDL case */
-                    IDList *idl = thang->payload.idl;
-                    /* Equal --- merge into the stored IDL, add file ID
-                     * to the list */
-                    IDList *new_idl =
-                        idl_union(be, current_entry->thang.payload.idl, idl);
-
-                    idl_free(&(current_entry->thang.payload.idl));
-                    idl_free(&idl);
-                    current_entry->thang.payload.idl = new_idl;
-                    /* Add this file id into the entry's referenced list */
-                    (current_entry->file_referenced_list)[fileno] = 1;
-                    /* Because we merged the entries, we no longer need the
-                     * key, so free it */
-                    slapi_ch_free(&(key->data));
-                    goto done;
-                } else {
-                    /* VLV case, we can see exact keys, this is not a bug ! */
-                    /* We want to ensure that they key read most recently is
-                     * put later in the queue than any others though */
-                }
-            } else {
-                if (cmp < 0) {
-                    /* We compare smaller than the stored key, so we should
-                     * insert ourselves before this entry */
-                    break;
-                } else {
-                    /* We compare greater than this entry, so we should keep
-                     * going */;
-                }
-            }
-            previous_entry = current_entry;
-        }
-
-        /* Now insert */
-        {
-            import_merge_queue_entry *new_entry =
-                dbmdb_import_merge_make_new_queue_entry(thang, key, fileno, passes);
-
-            if (NULL == new_entry) {
-                return -1;
-            }
-
-            /* If not, then we must need to insert ourselves after the last
-             * entry */
-            new_entry->next = current_entry;
-            if (NULL == previous_entry) {
-                *queue = new_entry;
-            } else {
-                previous_entry->next = new_entry;
-            }
-        }
-    }
-
-done:
-    return 0;
-#endif /* TODO */
-}
-
-static int
-dbmdb_import_merge_remove_input_queue(backend *be, import_merge_queue_entry **queue, import_merge_thang *thang, MDB_val *key, MDB_cursor **input_cursors, MDB_dbi**input_files, int passes)
-{
-#ifdef TODO
-    import_merge_queue_entry *head = NULL;
-    int file_referenced = 0;
-    int i = 0;
-    int ret = 0;
-
-    PR_ASSERT(NULL != queue);
-    head = *queue;
-    if (head == NULL) {
-        /* Means we've exhausted the queue---we're done */
-        return EOF;
-    }
-    /* Remove the head of the queue */
-    *queue = head->next;
-    /* Get the IDL */
-    *thang = head->thang;
-    *key = head->key;
-    PR_ASSERT(NULL != thang);
-    /* Walk the list of referenced files, reading in the next IDL from each
-     * one to the queue */
-    for (i = 0; i < passes; i++) {
-        import_merge_thang new_thang = {0};
-        MDB_val new_key = {0};
-
-        file_referenced = (head->file_referenced_list)[i];
-        if (file_referenced) {
-            ret = dbmdb_import_merge_get_next_thang(be, input_cursors[i],
-                                              input_files[i], &new_thang, &new_key, thang->type);
-            if (0 != ret) {
-                if (EOF == ret) {
-                    /* Means that we walked off the end of the list,
-                     * do nothing */
-                    ret = 0;
-                } else {
-                    /* Some other error */
-                    break;
-                }
-            } else {
-                /* This function is responsible for any freeing needed */
-                dbmdb_import_merge_insert_input_queue(be, queue, i, &new_key,
-                                                &new_thang, passes);
-            }
-        }
-    }
-    slapi_ch_free((void **)&(head->file_referenced_list));
-    slapi_ch_free((void **)&head);
-
-    return ret;
-#endif /* TODO */
-}
-
-static int
-dbmdb_import_merge_open_input_cursors(MDB_dbi**files, int passes, MDB_cursor ***cursors)
-{
-#ifdef TODO
-    int i = 0;
-    int ret = 0;
-    *cursors = (MDB_cursor **)slapi_ch_calloc(passes, sizeof(MDB_cursor *));
-    if (NULL == *cursors) {
-        return -1;
-    }
-
-    for (i = 0; i < passes; i++) {
-        MDB_dbi*pMDB_dbi= files[i];
-        MDB_cursor *pMDB_cursor = NULL;
-        if (NULL != pDB) {
-            /* Try to open a cursor onto the file */
-            ret = pDB->cursor(pDB, NULL, &pMDB_cursor, 0);
-            if (0 != ret) {
-                break;
-            } else {
-                (*cursors)[i] = pMDB_cursor;
-            }
-        }
-    }
-
-    return ret;
-#endif /* TODO */
-}
-
-static int
-dbmdb_import_count_merge_input_files(ldbm_instance *inst,
-                               char *indexname,
-                               int passes,
-                               int *number_found,
-                               int *pass_number)
-{
-#ifdef TODO
-    int i = 0;
-    int found_one = 0;
-
-    *number_found = 0;
-    *pass_number = 0;
-
-    for (i = 0; i < passes; i++) {
-        int fd;
-        char *filename = slapi_ch_smprintf("%s/%s.%d%s", inst->inst_dir_name, indexname, i + 1,
-                                           LDBM_FILENAME_SUFFIX);
-
-        if (NULL == filename) {
-            return -1;
-        }
-
-        fd = dbmdb_open_huge_file(filename, O_RDONLY, 0);
-        slapi_ch_free((void **)&filename);
-        if (fd >= 0) {
-            close(fd);
-            if (found_one == 0) {
-                *pass_number = i + 1;
-            }
-            found_one = 1;
-            (*number_found)++;
-        } else {
-            ; /* Not finding a file is OK */
-        }
-    }
-
-    return 0;
-#endif /* TODO */
-}
-
-static int
-dbmdb_import_open_merge_input_files(backend *be, IndexInfo *index_info, int passes, MDB_dbi***input_files, int *number_found, int *pass_number)
-{
-#ifdef TODO
-    int i = 0;
-    int ret = 0;
-    int found_one = 0;
-
-    *number_found = 0;
-    *pass_number = 0;
-    *input_files = (MDB_dbi**)slapi_ch_calloc(passes, sizeof(MDB_dbi*));
-    if (NULL == *input_files) {
-        /* Memory allocation error */
-        return -1;
-    }
-    for (i = 0; i < passes; i++) {
-        MDB_dbi*pMDB_dbi= NULL;
-        char *filename = slapi_ch_smprintf("%s.%d", index_info->name, i + 1);
-
-        if (NULL == filename) {
-            return -1;
-        }
-
-        if (vlv_isvlv(filename)) {
-            /* not sure why the file would be marked as a vlv index but
-           not the index configuration . . . but better make sure
-           the new code works with the old semantics */
-            int saved_mask = index_info->ai->ai_indexmask;
-            index_info->ai->ai_indexmask |= INDEX_VLV;
-            ret = dblayer_open_file(be, filename, 0, index_info->ai, (dbi_db_t**)&pDB);
-            index_info->ai->ai_indexmask = saved_mask;
-        } else {
-            ret = dblayer_open_file(be, filename, 0, index_info->ai, (dbi_db_t**)&pDB);
-        }
-
-        slapi_ch_free((void **)&filename);
-        if (0 == ret) {
-            if (found_one == 0) {
-                *pass_number = i + 1;
-            }
-            found_one = 1;
-            (*number_found)++;
-            (*input_files)[i] = pDB;
-        } else {
-            if (ENOENT == ret) {
-                ret = 0; /* Not finding a file is OK */
-            } else {
-                break;
-            }
-        }
-    }
-
-    return ret;
-#endif /* TODO */
-}
-
-/* Performs the n-way merge on one file */
-static int
-dbmdb_import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
-{
-#ifdef TODO
-    ldbm_instance *inst = worker->job->inst;
-    backend *be = inst->inst_be;
-    MDB_dbi*output_file = NULL;
-    int ret = 0;
-    int preclose_ret = 0;
-    int number_found = 0;
-    int pass_number = 0;
-    MDB_dbi**input_files = NULL;
-    MDB_cursor **input_cursors = NULL;
-
-    PR_ASSERT(NULL != inst);
-
-    /* Try to open all the input files.
-       If we can't open file a file, we assume that is
-       because there was no data in it. */
-    ret = dbmdb_import_count_merge_input_files(inst, worker->index_info->name,
-                                         passes, &number_found, &pass_number);
-    if (0 != ret) {
-        goto error;
-    }
-    /* If there were no input files, then we're finished ! */
-    if (0 == number_found) {
-        ret = 0;
-        goto error;
-    }
-    /* Special-case where there's only one input file---just rename it */
-    if (1 == number_found) {
-        char *newname = NULL;
-        char *oldname = NULL;
-
-        ret = dbmdb_import_make_merge_filenames(inst->inst_dir_name,
-                                          worker->index_info->name, pass_number, &oldname, &newname);
-        if (0 != ret) {
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file",
-                              "Failed making filename in merge");
-            goto error;
-        }
-        ret = PR_Rename(newname, oldname);
-        if (0 != ret) {
-            PRErrorCode prerr = PR_GetError();
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file",
-                              "Failed to rename file \"%s\" to \"%s\" "
-                              "in merge, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)",
-                              oldname, newname, prerr, slapd_pr_strerror(prerr));
-            slapi_ch_free((void **)&newname);
-            slapi_ch_free((void **)&oldname);
-            goto error;
-        }
-        slapi_ch_free((void **)&newname);
-        slapi_ch_free((void **)&oldname);
-        *key_count = -1;
-    } else {
-        /* We really need to merge */
-        import_merge_queue_entry *merge_queue = NULL;
-        MDB_val key = {0};
-        dbi_val_t dbikey = {0};
-        import_merge_thang thang = {0};
-        int i = 0;
-        int not_finished = 1;
-        int vlv_index = (INDEX_VLV == worker->index_info->ai->ai_indexmask);
-
-        ret = dblayer_instance_close(be);
-        if (0 != ret) {
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file", "MERGE FAIL 8i %d\n", ret);
-            goto error;
-        }
-        ret = dbmdb_instance_start(be, DBLAYER_IMPORT_MODE);
-        if (0 != ret) {
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file", "MERGE FAIL 8j %d\n", ret);
-            goto error;
-        }
-
-        ret = dbmdb_import_open_merge_input_files(be, worker->index_info,
-                                            passes, &input_files, &number_found, &pass_number);
-        if (0 != ret) {
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file", "MERGE FAIL 10");
-            goto error;
-        }
-
-        ret = dblayer_open_file(be, worker->index_info->name, 1,
-                                worker->index_info->ai, (dbi_db_t**)&output_file);
-        if (0 != ret) {
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file", "Failed to open output file for "
-                                                                                   "index %s in merge",
-                              worker->index_info->name);
-            goto error;
-        }
-
-        /* OK, so we now have input and output files open and can proceed to
-     * merge */
-        /* We want to pre-fill the input IDL queue */
-        /* Open cursors onto the input files */
-        ret = dbmdb_import_merge_open_input_cursors(input_files, passes,
-                                              &input_cursors);
-        if (0 != ret) {
-            import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file", "MERGE FAIL 2 %s %d",
-                              worker->index_info->name, ret);
-            goto error;
-        }
-
-        /* Now read from the first location in each file and insert into the
-     * queue */
-        for (i = 0; i < passes; i++)
-            if (input_files[i]) {
-                import_merge_thang prime_thang = {0};
-
-                /* Read an IDL from the file */
-                ret = dbmdb_import_merge_get_next_thang(be, input_cursors[i],
-                                                  input_files[i], &prime_thang, &key,
-                                                  vlv_index ? IMPORT_MERGE_THANG_VLV : IMPORT_MERGE_THANG_IDL);
-                if (0 != ret) {
-                    import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file", "MERGE FAIL 1 %s %d",
-                                      worker->index_info->name, ret);
-                    goto error;
-                }
-                /* Put it on the queue */
-                ret = dbmdb_import_merge_insert_input_queue(be, &merge_queue, i, &key,
-                                                      &prime_thang, passes);
-                if (0 != ret) {
-                    import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file", "MERGE FAIL 0 %s",
-                                      worker->index_info->name);
-                    goto error;
-                }
-            }
-
-        /* We now have a pre-filled queue, so we may now proceed to remove the
-       head entry and write it to the output file, and repeat this process
-       until we've finished reading all the input data */
-        while (not_finished && (0 == ret)) {
-            ret = dbmdb_import_merge_remove_input_queue(be, &merge_queue, &thang,
-                                                  &key, input_cursors, input_files, passes);
-            if (0 != ret) {
-                /* Have we finished cleanly ? */
-                if (EOF == ret) {
-                    not_finished = 0;
-                } else {
-                    import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file", "MERGE FAIL 3 %s, %d",
-                                      worker->index_info->name, ret);
-                }
-            } else {
-                /* Write it out */
-                (*key_count)++;
-                if (vlv_index) {
-                    /* Write the vlv index */
-                    ret = output_file->put(output_file, NULL, &key,
-                                           &(thang.payload.vlv_data), 0);
-                    slapi_ch_free(&(thang.payload.vlv_data.data));
-                    thang.payload.vlv_data.data = NULL;
-                } else {
-                    /* Write the IDL index */
-                    dbmdb_dbt2dbival(&key, &dbikey, PR_FALSE);
-                    ret = idl_store_block(be, output_file, &dbikey,
-                                          thang.payload.idl, NULL, worker->index_info->ai);
-                    dbmdb_dbival2dbt(&dbikey, &key, PR_TRUE);
-                    dblayer_value_protect_data(be, &dbikey);
-                    /* Free the key we got back from the queue */
-                    idl_free(&(thang.payload.idl));
-                    thang.payload.idl = NULL;
-                }
-                slapi_ch_free(&(key.data));
-                key.data = NULL;
-                if (0 != ret) {
-                    /* Failed to write--- most obvious cause being out of
-                   disk space, let's make sure that we at least print a
-                   sensible error message right here. The caller should
-                   really handle this properly, but we're always bad at
-                   this. */
-                    if (ret == DB_RUNRECOVERY || ret == ENOSPC) {
-                        import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file",
-                                          "OUT OF SPACE ON DISK, failed writing index file %s",
-                                          worker->index_info->name);
-                    } else {
-                        import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file",
-                                          "Failed to write index file %s, errno=%d (%s)\n",
-                                          worker->index_info->name, errno,
-                                          dblayer_strerror(errno));
-                    }
-                }
-            }
-        }
-        preclose_ret = ret;
-        /* Now close the files */
-        dbmdb_close_file(&output_file);
-        /* Close the cursors */
-        /* Close and delete the files */
-        for (i = 0; i < passes; i++) {
-            MDB_cursor *cursor = input_cursors[i];
-            MDB_dbi*db = input_files[i];
-            if (NULL != db) {
-                PR_ASSERT(NULL != cursor);
-                ret = cursor->c_close(cursor);
-                if (0 != ret) {
-                    import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file", "MERGE FAIL 4");
-                }
-                ret = dbmdb_close_file(&db);
-                if (0 != ret) {
-                    import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file", "MERGE FAIL 5");
-                }
-                /* Now make the filename and delete the file */
-                {
-                    char *newname = NULL;
-                    char *oldname = NULL;
-                    ret = dbmdb_import_make_merge_filenames(inst->inst_dir_name,
-                                                      worker->index_info->name, i + 1, &oldname, &newname);
-                    if (0 != ret) {
-                        import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file", "MERGE FAIL 6");
-                    } else {
-                        ret = PR_Delete(newname);
-                        if (0 != ret) {
-                            import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file", "MERGE FAIL 7");
-                        }
-                        slapi_ch_free((void **)&newname);
-                        slapi_ch_free((void **)&oldname);
-                    }
-                }
-            }
-        }
-        if (preclose_ret != 0)
-            ret = preclose_ret;
-    }
-    if (EOF == ret) {
-        ret = 0;
-    }
-
-error:
-    slapi_ch_free((void **)&input_cursors);
-    slapi_ch_free((void **)&input_files);
-    if (ret) {
-        import_log_notice(worker->job, SLAPI_LOG_ERR, "dbmdb_import_merge_one_file",
-                          "%s: Import merge failed. "
-                          "If this is an online-import, shutdown the server "
-                          "and try the offline command line import (ldif2db)",
-                          inst->inst_name);
-    }
-    return ret;
-#endif /* TODO */
-}
-
-/********** the real deal here: **********/
-
-/* Our mission here is as follows:
- * for each index job except entrydn and id2entry:
- *     open all the pass files
- *     open a new output file
- *     iterate cursors over all of the input files picking each distinct
- *         key and combining the input IDLs into a merged IDL. Put that
- *         IDL to the output file.
- */
-int
-dbmdb_import_mega_merge(ImportJob *job)
-{
-#ifdef TODO
-    ImportWorkerInfo *current_worker = NULL;
-    int ret = 0;
-    time_t beginning = 0;
-    time_t end = 0;
-    int passes = job->current_pass;
-
-    if (1 == job->number_indexers) {
-        import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_mega_merge",
-                          "Beginning %d-way merge of one file...", passes);
-    } else {
-        import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_mega_merge",
-                          "Beginning %d-way merge of up to %lu files...",
-                          passes, (long unsigned int)job->number_indexers);
-    }
-
-    beginning = slapi_current_rel_time_t();
-    /* Iterate over the files */
-    for (current_worker = job->worker_list;
-         (ret == 0) && (current_worker != NULL);
-         current_worker = current_worker->next) {
-        /* We need to ignore the primary index */
-        if ((current_worker->work_type != FOREMAN) &&
-            (current_worker->work_type != PRODUCER)) {
-            time_t file_beginning = 0;
-            time_t file_end = 0;
-            int key_count = 0;
-
-            file_beginning = slapi_current_rel_time_t();
-            ret = dbmdb_import_merge_one_file(current_worker, passes, &key_count);
-            file_end = slapi_current_rel_time_t();
-            if (key_count == 0) {
-                import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_mega_merge", "No files to merge for \"%s\".",
-                                  current_worker->index_info->name);
-            } else {
-                if (-1 == key_count) {
-                    import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_mega_merge", "Merged \"%s\": Simple merge - "
-                                                                                "file renamed.",
-                                      current_worker->index_info->name);
-                } else {
-                    import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_mega_merge", "Merged \"%s\": %d keys merged "
-                                                                                "in %ld seconds.",
-                                      current_worker->index_info->name,
-                                      key_count, file_end - file_beginning);
-                }
-            }
-        }
-    }
-
-    end = slapi_current_rel_time_t();
-    if (0 == ret) {
-        int seconds_to_merge = end - beginning;
-        import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_mega_merge", "Merging completed in %d seconds.",
-                          seconds_to_merge);
-    }
-
-    return ret;
-#endif /* TODO */
 }

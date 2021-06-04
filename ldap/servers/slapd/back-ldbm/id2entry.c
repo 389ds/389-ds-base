@@ -106,10 +106,13 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, i
     esize = (uint32_t)data.dsize;
     plugin_call_entrystore_plugins((char **)&data.dptr, &esize);
     data.dsize = esize;
-   
 
     /* store it  */
-    rc = dblayer_db_op(be, db, db_txn, DBI_OP_PUT, &key, &data);
+    if (txn && txn->back_special_handling_fn) {
+        rc = txn->back_special_handling_fn(be, BTXNACT_ID2ENTRY_ADD, db, &key, &data, txn);
+    } else {
+        rc = dblayer_db_op(be, db, db_txn, DBI_OP_PUT, &key, &data);
+    }
     /* DBDB looks like we're freeing memory allocated by another DLL, which is bad */
     slapi_ch_free(&(data.dptr));
 

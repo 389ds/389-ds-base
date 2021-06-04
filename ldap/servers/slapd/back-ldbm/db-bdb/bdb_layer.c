@@ -68,7 +68,7 @@
 #define NEWDIR_MODE 0755
 #define DB_REGION_PREFIX "__db."
 
-
+/* Context used when walking database files */
 typedef struct
 {
     dbi_dbslist_t *list;
