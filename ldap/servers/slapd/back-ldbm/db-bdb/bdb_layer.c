@@ -66,6 +66,14 @@
 #define NEWDIR_MODE 0755
 #define DB_REGION_PREFIX "__db."
 
+/* Context used when walking database files */
+typedef struct
+{
+    dbi_dbslist_t *list;
+    size_t nbdbs;                /*Numberoffiles */
+    size_t pos;                  /*Currentpositioninlist */
+} dbi_dbslist_ctx_t;
+
 static int bdb_perf_threadmain(void *param);
 static int bdb_checkpoint_threadmain(void *param);
 static int bdb_trickle_threadmain(void *param);
@@ -6722,7 +6730,7 @@ bdb_public_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count)
 }
 
 int
-bdb_public_private_open(const char *db_filename, dbi_env_t **env, dbi_db_t **db)
+bdb_public_private_open(backend *be, const char *db_filename, dbi_env_t **env, dbi_db_t **db)
 {
     int rc;
     DB_ENV *bdb_env = NULL;
@@ -6759,4 +6767,144 @@ bdb_public_private_close(dbi_env_t **env, dbi_db_t **db)
     *db = NULL;
     *env = NULL;
     return bdb_map_error(__FUNCTION__, rc);
+}
+
+/*
+ * Walk all database files of a backend (for dbscan)
+ *
+ * directory: The path to examine.
+ * subdir: subdirname(should be NULL when calling the function except for the recursion case)
+ * cb: context struct holding the data
+ * cbctx: cb user context
+ */
+static
+int bdb_walk_dbfiles (const char *directory, const char *subdir,
+                     void (*cb)(const char *dbname, void *cbctx), void *cbctx)
+{
+    int return_value = 0;
+    PRDir *dirhandle = NULL;
+    int len = strlen (DB_REGION_PREFIX);
+
+    dirhandle = PR_OpenDir (directory);
+    if (NULL != dirhandle) {
+        PRDirEntry *direntry = NULL;
+        char *direntry_name, *pt;
+        PRFileInfo64 info;
+
+        while (NULL != (direntry = PR_ReadDir (dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
+            if (NULL == direntry->name) {
+                break;
+            }
+            direntry_name = PR_smprintf ("%s/%s", directory, direntry->name);
+            if (PR_GetFileInfo64 (direntry_name, &info) != PR_SUCCESS) {
+                PR_smprintf_free (direntry_name);
+                continue;
+            }
+            if (PR_FILE_DIRECTORY == info.type) {
+                /* Recurse into this directory but not any further. This is
+                 * because each instance gets its own directory, but in those
+                 * directories there should be only .db3 files. There should
+                 * not be anymore directories in an instance directory.
+                 */
+                if (!subdir) {
+                    bdb_walk_dbfiles (direntry_name, direntry->name, cb, cbctx);
+                }
+                PR_smprintf_free (direntry_name);
+                continue;
+            }
+            PR_smprintf_free (direntry_name);
+            if (strncmp(DB_REGION_PREFIX, direntry->name, len) == 0) {
+                continue;
+            }
+            pt = strrchr (direntry->name, *LDBM_FILENAME_SUFFIX);
+            if (!pt || strcmp (pt, LDBM_FILENAME_SUFFIX)) {
+                continue;
+            }
+            if (subdir) {
+                pt = PR_smprintf ("%s/%s", subdir, direntry->name);
+                cb (pt, cbctx);
+                PR_smprintf_free (pt);
+            } else {
+                cb (direntry->name, cbctx);
+            }
+        }
+        PR_CloseDir (dirhandle);
+    } else {
+        return_value = -1;
+    }
+    return return_value;
+}
+
+static void
+dbslist_count_space_to_reserve(const char * dbname, void *cbctx)
+{
+    dbi_dbslist_ctx_t *ctx = cbctx;
+    ctx->nbdbs++;
+}
+
+static void
+dbslist_store_a_db(const char * dbname, void *cbctx)
+{
+    dbi_dbslist_ctx_t *ctx = cbctx;
+    ctx->nbdbs++;
+    if (ctx->pos < ctx->nbdbs)
+        {
+            strncpy (ctx->list[ctx->pos++].filename, dbname,
+                     MAXPATHLEN);
+        }
+}
+
+dbi_dbslist_t *
+bdb_list_dbs (const char * dbhome)
+{
+    dbi_dbslist_ctx_t cbctx = { 0 };
+    int rc = bdb_walk_dbfiles (dbhome, NULL,
+                          dbslist_count_space_to_reserve,
+                          &cbctx);
+    if (rc) {
+        return NULL;
+    }
+    cbctx.nbdbs++;              /* Reserve space for empty filename that marks end of list */
+    cbctx.list = (dbi_dbslist_t *) slapi_ch_calloc (cbctx.nbdbs, sizeof (dbi_dbslist_ctx_t));
+    bdb_walk_dbfiles (dbhome, NULL, dbslist_store_a_db, &cbctx);
+    if (rc) {
+        slapi_ch_free ((void **) &cbctx.list);
+    }
+    return cbctx.list;
+}
+
+/* [605974] check adb region file's existence to know whether import is executed by other process or not */
+int
+bdb_public_in_import (ldbm_instance * inst)
+{
+    PRDir *dirhandle = NULL;
+    PRDirEntry *direntry = NULL;
+    char inst_dir[MAXPATHLEN];
+    char *inst_dirp = NULL;
+    int rval = 0;
+
+    inst_dirp = dblayer_get_full_inst_dir (inst->inst_li, inst, inst_dir, MAXPATHLEN);
+    if (!inst_dirp || !*inst_dirp) {
+        rval = -1;
+       goto done;
+    }
+    dirhandle = PR_OpenDir (inst_dirp);
+    if (NULL == dirhandle)
+        goto done;
+
+    while (NULL != (direntry = PR_ReadDir (dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
+        if (NULL == direntry->name) {
+            break;
+        }
+        if (0 == strncmp (direntry->name, DB_REGION_PREFIX, 5)) {
+            rval = 1;
+            break;
+        }
+    }
+    PR_CloseDir (dirhandle);
+  done:
+    if (inst_dirp != inst_dir) {
+        slapi_ch_free_string (&inst_dirp);
+    }
+    return rval;
 }

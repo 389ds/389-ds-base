@@ -1370,12 +1370,6 @@ main(int argc, char **argv)
     }
 
 done:
-    if (key.data) {
-        free(key.data);
-    }
-    if (data.data) {
-        free(data.data);
-    }
     dblayer_value_free(be, &key);
     dblayer_value_free(be, &data);
     dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);

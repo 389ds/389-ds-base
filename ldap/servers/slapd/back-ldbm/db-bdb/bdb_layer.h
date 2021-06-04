@@ -208,6 +208,8 @@ int bdb_lookup_dbversion(char *dbversion, int flag);
 int bdb_dse_conf_backup(struct ldbminfo *li, char *destination_directory);
 int bdb_dse_conf_verify(struct ldbminfo *li, char *src_dir);
 int bdb_import_file_check_fn_t(ldbm_instance *inst);
+dbi_dbslist_t *bdb_list_dbs(const char *dbhome);
+int bdb_public_in_import(ldbm_instance *inst);
 
 
 /* dbimpl helpers */

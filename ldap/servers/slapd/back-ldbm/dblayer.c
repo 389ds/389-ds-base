@@ -651,8 +651,10 @@ dblayer_txn_init(struct ldbminfo *li __attribute__((unused)), back_txn *txn)
 
     if (cur_txn && txn) {
         txn->back_txn_txn = cur_txn->back_txn_txn;
+        txn->back_special_handling_fn = NULL;
     } else if (txn) {
         txn->back_txn_txn = NULL;
+        txn->back_special_handling_fn = NULL;
     }
     return 0;
 }
@@ -1232,44 +1234,14 @@ dblayer_get_instance_data_dir(backend *be)
     return ret;
 }
 
-/* [605974] check a db region file's existence to know whether import is executed by other process or not */
+/* check whether import is executed by other process or not */
 int
 dblayer_in_import(ldbm_instance *inst)
 {
-    PRDir *dirhandle = NULL;
-    PRDirEntry *direntry = NULL;
-    char inst_dir[MAXPATHLEN];
-    char *inst_dirp = NULL;
-    int rval = 0;
-
-    inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
-                                          inst_dir, MAXPATHLEN);
-    if (!inst_dirp || !*inst_dirp) {
-        rval = -1;
-        goto done;
-    }
-    dirhandle = PR_OpenDir(inst_dirp);
-
-    if (NULL == dirhandle)
-        goto done;
-
-    while (NULL != (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
-        if (NULL == direntry->name) {
-            break;
-        }
-        if (0 == strncmp(direntry->name, DB_REGION_PREFIX, 5)) {
-            rval = 1;
-            break;
-        }
-    }
-    PR_CloseDir(dirhandle);
-done:
-    if (inst_dirp != inst_dir) {
-        slapi_ch_free_string(&inst_dirp);
-    }
-    return rval;
+    struct ldbminfo *li = (struct ldbminfo *)inst->inst_li;
+    dblayer_private *prv = (dblayer_private *)li->li_dblayer_private;
+    return  prv->dblayer_in_import_fn(inst);
 }
-
 
 int
 ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info)

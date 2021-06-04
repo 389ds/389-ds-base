@@ -15,21 +15,203 @@
  * producer (1)
  * foreman (1)
  * worker (N: 1 for each index)
+ * writer (1)
  *
  * a wire import (aka "fast replica" import) won't have a producer thread.
  */
 
+#include<stddef.h>
 #include "mdb_layer.h"
 #include "../vlv_srch.h"
 
+/* Value to determine when to wait before adding item to write queue and
+ * when to wait until having enough item in queue to start emptying it
+ * Note: the thresholds applies to a single writing queue slot (i.e dbi)
+ */
+#define DATALEN_WAIT_THRESHOLD        (256*1024)
+#define NBELMTS_WAIT_THRESHOLD        1024
+#define DATALEN_READ_THRESHOLD        (DATALEN_WAIT_THRESHOLD/4)
+#define NBELMTS_READ_THRESHOLD        (NBELMTS_WAIT_THRESHOLD/4)
+
+ /*Computethepaddingsizeneededtogetalignedonlonginteger*/
+#define ALIGN_TO_LONG(pos)            ((-(long)(pos))&((sizeof(long))-1))
+
+ /* The writer thread context that is provided as aback_txn when handling indexes */
+ typedef struct {
+     back_txn txn;            /* pseudo back_txn for backend level */
+     ImportJob *job;
+     ImportWorkerInfo *info;
+     dbmdb_wctx_id_t wctx_id;
+     int wqslot;              /*Slotindexinglobal_writer_ctx_t*/
+ } pseudo_back_txn_t;
+
+ /* Buffer info when reading tmpfile (for writer thread queue in delayed mode (i.e upgrading id2index)) */
+ typedef struct {
+     char*buf;
+     char*bufend;
+     char*buflimit;
+     char*cur;
+ } wq_reader_state_t;
+
+ /* synchronisation helper */
+ typedef struct {
+     const char* name;
+     pthread_mutex_t mutex;   /* cv mutex */
+     pthread_cond_t cv;       /* used to wait */
+     volatile int needs_wait;
+     volatile int is_waiting;
+ } sync_t;
+
+/* wqelem_tflags */
+#define WQFL_SYNC_OP        1    /* The operation is synchronous */
+#define WQFL_SYNC_DONE      2    /* The synchronous operation is done */
+
+ /* Writer queue element */
+ typedef struct wqelem {
+     struct wqelem *next;
+     dbmdb_waction_t action;
+     size_t keylen;
+     size_t data_len;
+     struct wqslot *slot;       /* Set when reading the element from the queue */
+     /* Synchronous write operation specific fields */
+     int flags;                 /* Tells that operation is completed */
+     int rc;                    /* returncode */
+     sync_t respsync;           /* used to wait for response from writer thread in synchronous case */
+     size_t len;                /* elem total lenght */
+     /* Key and data values */
+     unsigned char values[1];   /* keylen+data_len-shouldbelastfield */
+ } wqelem_t;
+
+ /*Writerslot(holdingthequeue)andassociatedtoaworkerthread(orforemanthread)andasingledbinstance*/
+ typedef struct wqslot {
+     volatile wqelem_t *q;     /* queue for not delayed slots (asynchronous operations) */
+     FILE *tmpfile;            /* storage for delayed slots */
+     char *tmpfilepath;        /* tmpfile path */
+     char *dbipath;            /* dbi dbname */
+     volatile size_t datalen;  /* sizeof wqelem pushed in the queue */
+     volatile size_t nbelmts;  /* Number of items pushed in the queue*/
+     volatile size_t readdatalen; /* size of wqelem read (and processed) from the queue */
+     volatile size_t readnbelmts; /* Number of items read (and processed) from the queue */
+     volatile int closed;      /* Tells that slot is clsosed */
+     sync_t fullwqsync;        /* used to wait when queue is full */
+     dbmdb_dbi_t dbi;          /* database instanc e*/
+     dbi_cursor_t cursor;      /* writer thread cursor associated with dbi */
+     int idl_disposition;      /* index disposition stored in slot because the one in worker thread stack is not safe */
+ } wqslot_t;
+
+ /* The writer thread global context anchored in ImportJob */
+ typedef struct {
+     pseudo_back_txn_t *predefined_wctx[WCTX_GENERIC];
+     wqslot_t *wqslots;            /* The slots associated to each dbi*/
+     wqelem_t *wqsync;             /* The synchronous operation queue*/
+     wqelem_t **lastwqsync;        /* End of synchronous operation queue*/
+     int max_wqslots;              /* max_dbiconfigparam */
+     long last_wqslot;             /* first unused slot - using long because atomic operation is used */
+     sync_t emptywqsync;           /* Wait until enough data is stored in the queue to start a txn */
+     double writer_progrress;      /* Writer thread progress */
+     int aborted;                  /* Writer aborted ==> should not queue anything more */
+ } global_writer_ctx_t;
+
 static void dbmdb_import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);
-static int dbmdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, MDB_dbi*db, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
+static int dbmdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, dbmdb_dbi_t*db, dbi_txn_t*txn, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
 static int _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value);
+static pseudo_back_txn_t **dbmdb_get_ptwctx(ImportJob*job, ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id);
+static pseudo_back_txn_t *dbmdb_new_wctx(ImportJob*job, ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id);
+static long dbmdb_get_wqslot(ImportJob* job, ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id);
+
+ /* initialize synchroniation point */
+ static void sync_init(sync_t *sync, char *name)
+ {
+     pthread_mutex_init(&sync->mutex, NULL);
+     pthread_cond_init(&sync->cv, NULL);
+     sync->name=name;
+     sync->needs_wait=sync->is_waiting=0;
+ }
+
+ /* free synchroniation point */
+ static void sync_free(sync_t *sync)
+ {
+     pthread_mutex_destroy(&sync->mutex);
+     pthread_cond_destroy(&sync->cv);
+     slapi_ch_free_string((char**)&sync->name);
+ }
+
+ /* wait on synchroniation point */
+ static void sync_wait(sync_t*sync)
+ {
+     if(sync->needs_wait){
+#ifdef DEBUG_IMPORT
+         int haswait=0;
+         pthread_mutex_lock(&sync->mutex);
+         if (sync->needs_wait)
+             slapi_log_err(SLAPI_LOG_INFO, "sync_wait", "Waiting for %s\n", sync->name);
+         while (sync->needs_wait) {
+             haswait = 1;
+             sync->is_waiting = 1;
+             pthread_cond_wait(&sync->cv, &sync->mutex);
+         }
+         sync->is_waiting = 0;
+         pthread_mutex_unlock(&sync->mutex);
+         if(haswait)
+             slapi_log_err(SLAPI_LOG_INFO,"sync_wait","No more waiting for %s\n",sync->name);
+#else
+         pthread_mutex_lock(&sync->mutex);
+         while(sync->needs_wait){
+             sync->is_waiting = 1;
+             pthread_cond_wait(&sync->cv, &sync->mutex);
+         }
+         sync->is_waiting = 0;
+         pthread_mutex_unlock(&sync->mutex);
+#endif
+     }
+ }
+
+ /* wakeup a synchroniation point */
+static void
+sync_wakeup(sync_t*sync)
+{
+    if (sync->needs_wait) {
+#ifdef DEBUG_IMPORT
+        slapi_log_err(SLAPI_LOG_INFO,"sync_wakeup","Wakingupfor%s\n",sync->name);
+#endif
+        pthread_mutex_lock(&sync->mutex);
+        sync->needs_wait = 0;
+        if (sync->is_waiting) {
+            pthread_cond_broadcast(&sync->cv);
+        }
+        pthread_mutex_unlock(&sync->mutex);
+    }
+}
+
+/* tells a synchroniation point that it should wait */
+static void
+sync_set_needs_wait(sync_t* sync)
+{
+     sync->needs_wait = 1;
+}
+
+ /* Atomic operation allowing to add an item in queue */
+ static inline void __attribute__((always_inline))
+ writer_add_in_queue(volatile wqelem_t **q, wqelem_t *elmt)
+ {
+     /* Use atomic operation to push list item to avoid race condition whend equeuing list */
+     /* If atomic operation is not available we should use a mutex */
+     /* We may then have to do some conditionnal compilation as done in /usr/include/nspr4/pratom.h */
+     do {
+         elmt->next = (wqelem_t*)*q;
+     } while (!__sync_bool_compare_and_swap_8((ulong*)q, (ulong)(elmt->next), (ulong)elmt));
+ }
+
+ /* Atomic operation allowing to extract all items from queue */
+ static inline wqelem_t *__attribute__((always_inline))
+ writer_get_from_queue(volatile wqelem_t **q)
+ {
+     return (wqelem_t*)__sync_fetch_and_and_8((wqelem_t*)q, 0);
+ }
 
 static struct backentry *
 dbmdb_import_make_backentry(Slapi_Entry *e, ID id)
 {
-#ifdef TODO
     struct backentry *ep = backentry_alloc();
 
     if (NULL != ep) {
@@ -37,23 +219,19 @@ dbmdb_import_make_backentry(Slapi_Entry *e, ID id)
         ep->ep_id = id;
     }
     return ep;
-#endif /* TODO */
 }
 
 static void
 dbmdb_import_decref_entry(struct backentry *ep)
 {
-#ifdef TODO
     PR_AtomicDecrement(&(ep->ep_refcnt));
     PR_ASSERT(ep->ep_refcnt >= 0);
-#endif /* TODO */
 }
 
 /* generate uniqueid if requested */
 static int
 dbmdb_import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
 {
-#ifdef TODO
     const char *uniqueid = slapi_entry_get_uniqueid(e);
     int rc = UID_SUCCESS;
 
@@ -81,7 +259,6 @@ dbmdb_import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
     }
 
     return (rc);
-#endif /* TODO */
 }
 
 /*
@@ -90,7 +267,6 @@ dbmdb_import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
 static void
 dbmdb_import_generate_tombstone_csn(Slapi_Entry *e)
 {
-#ifdef TODO
     if (e->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
         if (attrlist_find(e->e_attrs, SLAPI_ATTR_TOMBSTONE_CSN) == NULL) {
             const CSN *tombstone_csn = NULL;
@@ -103,7 +279,6 @@ dbmdb_import_generate_tombstone_csn(Slapi_Entry *e)
             }
         }
     }
-#endif /* TODO */
 }
 
 
@@ -118,36 +293,29 @@ dbmdb_import_generate_tombstone_csn(Slapi_Entry *e)
 
 typedef struct
 {
-#ifdef TODO
     char *b;       /* buffer */
     size_t size;   /* how full the buffer is */
     size_t offset; /* where the current entry starts */
-#endif /* TODO */
 } ldif_context;
 
 static void
 dbmdb_import_init_ldif(ldif_context *c)
 {
-#ifdef TODO
     c->size = c->offset = 0;
     c->b = NULL;
-#endif /* TODO */
 }
 
 static void
 dbmdb_import_free_ldif(ldif_context *c)
 {
-#ifdef TODO
     if (c->b)
         FREE(c->b);
     dbmdb_import_init_ldif(c);
-#endif /* TODO */
 }
 
 static char *
 dbmdb_import_get_entry(ldif_context *c, int fd, int *lineno)
 {
-#ifdef TODO
     int ret;
     int done = 0, got_lf = 0;
     size_t bufSize = 0, bufOffset = 0, i;
@@ -266,7 +434,6 @@ error:
     if (buf)
         slapi_ch_free((void **)&buf);
     return NULL;
-#endif /* TODO */
 }
 
 
@@ -281,7 +448,6 @@ error:
 static int
 dbmdb_import_get_version(char *str)
 {
-#ifdef TODO
     char *s;
     char *mystr, *ms;
     int offset;
@@ -312,7 +478,6 @@ dbmdb_import_get_version(char *str)
 
     slapi_ch_free((void **)&mystr);
     return my_version;
-#endif /* TODO */
 }
 
 /*
@@ -321,7 +486,6 @@ dbmdb_import_get_version(char *str)
 static void
 dbmdb_import_add_created_attrs(Slapi_Entry *e)
 {
-#ifdef TODO
     char buf[SLAPI_TIMESTAMP_BUFSIZE];
     struct berval bv;
     struct berval *bvals[2];
@@ -348,7 +512,6 @@ dbmdb_import_add_created_attrs(Slapi_Entry *e)
     if (!attrlist_find(e->e_attrs, "modifytimestamp")) {
         slapi_entry_attr_replace(e, "modifytimestamp", bvals);
     }
-#endif /* TODO */
 }
 
 /* producer thread:
@@ -359,7 +522,6 @@ dbmdb_import_add_created_attrs(Slapi_Entry *e)
 void
 dbmdb_import_producer(void *param)
 {
-#ifdef TODO
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
     ID id = job->first_ID, id_filestart = id;
@@ -780,13 +942,11 @@ dbmdb_import_producer(void *param)
 error:
     slapi_value_free(&(job->usn_value));
     info->state = ABORTED;
-#endif /* TODO */
 }
 
 static int
 dbmdb_index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e, ID id, ID *total_id, int curr_entry)
 {
-#ifdef TODO
     int rc = -1;
     ImportJob *job = info->job;
     int idx;
@@ -896,7 +1056,11 @@ dbmdb_index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e, ID id, ID 
     rc = 0; /* done */
 bail:
     return rc;
-#endif /* TODO */
+ }
+
+static int dbmdb_get_aux_id2entry(backend*be, dbmdb_dbi_t *dbi, char **path)
+{
+     return dbmdb_open_dbi_from_filename(dbi, be, ID2ENTRY, NULL, 0);
 }
 
 /* producer thread for re-indexing:
@@ -907,25 +1071,26 @@ bail:
 void
 dbmdb_index_producer(void *param)
 {
-#ifdef TODO
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
     ID id = job->first_ID;
     Slapi_Entry *e = NULL;
     ldbm_instance *inst = job->inst;
+    struct ldbminfo *li = (struct ldbminfo*)inst->inst_be->be_database->plg_private;
+    dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+    long entrydn_wqslot = -1;
     PRIntervalTime sleeptime;
     int finished = 0;
     int rc = 0;
 
-    /* vars for Berkeley MDB_dbi*/
-    MDB_env *env = NULL;
+
     char *id2entry = NULL;
-    char *tmpid2entry = NULL;
-    MDB_dbi*db = NULL;
-    MDB_dbi*tmp_db = NULL;
-    MDB_cursor *dbc = NULL;
+    dbmdb_dbi_t db={0};
+    dbmdb_cursor_t dbc={0};
     MDB_val key = {0};
     MDB_val data = {0};
+    char *entry_str = NULL;
+    uint entry_len = 0;
     int db_rval = -1;
     backend *be = inst->inst_be;
     int isfirst = 1;
@@ -936,7 +1101,7 @@ dbmdb_index_producer(void *param)
     PR_ASSERT(be != NULL);
 
     if (job->flags & FLAG_ABORT)
-        goto error;
+        goto bail;
 
     sleeptime = PR_MillisecondsToInterval(import_sleep_time);
 
@@ -948,28 +1113,29 @@ dbmdb_index_producer(void *param)
     info->state = RUNNING;
 
     /* open id2entry with dedicated db env and db handler */
-    if (dbmdb_get_aux_id2entry(be, &db, &env, &id2entry) != 0 ||
-        db == NULL || env == NULL) {
+    if (dbmdb_get_aux_id2entry(be, &db, &id2entry) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer", "Could not open id2entry\n");
-        goto error;
+        goto bail;
     }
     if (job->flags & FLAG_DN2RDN) {
         /* open new id2entry for the rdn format entries */
-        if (dbmdb_get_aux_id2entry_ext(be, &tmp_db, &env, &tmpid2entry,
-                                         DBLAYER_AUX_ID2ENTRY_TMP) != 0 ||
-            tmp_db == NULL || env == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer", "Could not open new id2entry\n");
-            goto error;
+        /* We also need to write in id2entry so reserve a slot in writer thread
+         * andf lags delayed writes  oid2entrywillnotgetoverwrittenwhilewearereadingit
+         */
+        if (dbmdb_import_writer_create_dbi(info, WCTX_ENTRYDN,ID2ENTRY LDBM_SUFFIX, PR_TRUE)) {
+             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer", "Could not register writer thread slot for new id2entry\n");
+            goto bail;
         }
+         entrydn_wqslot = dbmdb_get_wqslot(job, NULL, WCTX_ENTRYDN);
     }
 
     /* get a cursor to we can walk over the table */
-    db_rval = db->cursor(db, NULL, &dbc, 0);
-    if (db_rval || !dbc) {
+     db_rval = dbmdb_open_cursor(&dbc, ctx, &db, db.state.flags|MDB_RDONLY);
+     if( db_rval){
         slapi_log_err(SLAPI_LOG_ERR,
                       "dbmdb_index_producer", "Failed to get cursor for reindexing\n");
-        dblayer_release_id2entry(be, db);
-        goto error;
+        dblayer_release_id2entry(be, &db);
+        goto bail;
     }
 
     /* we loop around reading the input files and processing each entry
@@ -980,7 +1146,7 @@ dbmdb_index_producer(void *param)
         ID temp_id;
 
         if (job->flags & FLAG_ABORT) {
-            goto error;
+            goto bail;
         }
         while ((info->command == PAUSE) && !(job->flags & FLAG_ABORT)) {
             info->state = WAITING;
@@ -988,17 +1154,15 @@ dbmdb_index_producer(void *param)
         }
         info->state = RUNNING;
 
-        key.flags = DB_MDB_val_MALLOC;
-        data.flags = DB_MDB_val_MALLOC;
         if (isfirst) {
-            db_rval = dbc->c_get(dbc, &key, &data, DB_FIRST);
+             db_rval = mdb_cursor_get(dbc.cur, &key, &data, MDB_FIRST);
             isfirst = 0;
         } else {
-            db_rval = dbc->c_get(dbc, &key, &data, DB_NEXT);
+             db_rval = mdb_cursor_get(dbc.cur, &key, &data, MDB_NEXT);
         }
 
         if (0 != db_rval) {
-            if (DB_NOTFOUND != db_rval) {
+            if (MDB_NOTFOUND != db_rval) {
                 slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer", "%s: Failed to read database, "
                                                                "errno=%d (%s)\n",
                               inst->inst_name, db_rval,
@@ -1013,36 +1177,39 @@ dbmdb_index_producer(void *param)
             break;
         }
         curr_entry++;
-        temp_id = id_stored_to_internal((char *)key.data);
+        temp_id = id_stored_to_internal((char *)key.mv_data);
 
         /* call post-entry plugin */
-        plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
+         entry_str = data.mv_data;
+         entry_len = data.mv_size;
+         plugin_call_entryfetch_plugins(&entry_str, &entry_len);
         if (entryrdn_get_switch()) {
             char *rdn = NULL;
 
             /* rdn is allocated in get_value_from_string */
-            rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
+            rc = get_value_from_string(entry_str, "rdn", &rdn);
             if (rc) {
                 /* data.dptr may not include rdn: ..., try "dn: ..." */
-                e = slapi_str2entry(data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
+                e = slapi_str2entry(entry_str, SLAPI_STR2ENTRY_NO_ENTRYDN);
                 if (job->flags & FLAG_DN2RDN) {
                     int len = 0;
                     int options = SLAPI_DUMP_STATEINFO | SLAPI_DUMP_UNIQUEID |
                                   SLAPI_DUMP_RDN_ENTRY;
-                    slapi_ch_free(&(data.data));
-                    data.dptr = slapi_entry2str_with_options(e, &len, options);
-                    data.dsize = len + 1;
+                     if (data.mv_data != entry_str) {
+                         slapi_ch_free_string(&entry_str);
+                     }
+                     entry_str = slapi_entry2str_with_options(e, &len, options);
+                     entry_len = len+1;
 
                     /* store it in the new id2entry db file */
-                    rc = tmp_db->put(tmp_db, NULL, &key, &data, 0);
+                    rc = dbmdb_import_write_push(job, entrydn_wqslot, IMPORT_WRITE_ACTION_ADD, &key, &data);
                     if (rc) {
                         slapi_log_err(SLAPI_LOG_TRACE,
                                       "dbmdb_index_producer", "Converting an entry "
                                                         "from dn format to rdn format failed "
                                                         "(dn: %s, ID: %d)\n",
                                       slapi_entry_get_dn_const(e), temp_id);
-                        slapi_ch_free(&(data.data));
-                        goto error;
+                        goto bail;
                     }
                 }
             } else {
@@ -1066,8 +1233,7 @@ dbmdb_index_producer(void *param)
                                       "dbmdb_index_producer", "entryrdn is not available; "
                                                         "composing dn (rdn: %s, ID: %d)\n",
                                       rdn, temp_id);
-                        rc = get_value_from_string((const char *)data.dptr,
-                                                   LDBM_PARENTID_STR, &pid_str);
+                        rc = get_value_from_string(entry_str, LDBM_PARENTID_STR, &pid_str);
                         if (rc) {
                             rc = 0; /* assume this is a suffix */
                         } else {
@@ -1075,7 +1241,7 @@ dbmdb_index_producer(void *param)
                             slapi_ch_free_string(&pid_str);
                             /* if pid is larger than the current pid temp_id,
                              * the parent entry hasn't */
-                            rc = dbmdb_import_get_and_add_parent_rdns(info, inst, db,
+                            rc = dbmdb_import_get_and_add_parent_rdns(info, inst, &db, dbc.txn,
                                                                 pid, &id, &psrdn, &curr_entry);
                             if (rc) {
                                 slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
@@ -1111,13 +1277,12 @@ dbmdb_index_producer(void *param)
                                   "and set to dn cache\n",
                                   normdn);
                 }
-                e = slapi_str2entry_ext(normdn, NULL, data.dptr,
-                                        SLAPI_STR2ENTRY_NO_ENTRYDN);
+                e = slapi_str2entry_ext(normdn, NULL, entry_str, SLAPI_STR2ENTRY_NO_ENTRYDN);
                 slapi_ch_free_string(&rdn);
                 slapi_ch_free_string(&normdn);
             }
         } else {
-            e = slapi_str2entry(data.data, 0);
+            e = slapi_str2entry(entry_str, 0);
             if (NULL == e) {
                 if (job->task) {
                     slapi_task_log_notice(job->task,
@@ -1127,109 +1292,63 @@ dbmdb_index_producer(void *param)
                 slapi_log_err(SLAPI_LOG_WARNING,
                               "dbmdb_index_producer", "%s: Skipping badly formatted entry (id %lu)\n",
                               inst->inst_name, (u_long)temp_id);
+                if (data.mv_data!=entry_str) {
+                    slapi_ch_free_string(&entry_str);
+                }
                 continue;
             }
         }
-        slapi_ch_free(&(key.data));
-        slapi_ch_free(&(data.data));
+         if (data.mv_data!=entry_str) {
+             slapi_ch_free_string(&entry_str);
+         }
 
         rc = dbmdb_index_set_entry_to_fifo(info, e, temp_id, &id, curr_entry);
         if (rc) {
-            goto error;
+            goto bail;
         }
         if (job->flags & FLAG_ABORT) {
-            goto error;
+            goto bail;
         }
         if (info->command == STOP) {
             finished = 1;
         }
     }
 
-    dbc->c_close(dbc);
-    dbc = NULL;
-    db->close(db, 0);
     if (job->flags & FLAG_DN2RDN) {
         /* remove id2entry, then rename tmp to id2entry */
-        tmp_db->close(tmp_db, 0);
-        rc = db_create(&db, env, 0);
-        if (rc) {
+         if(dbmdb_import_write_push(job,entrydn_wqslot,IMPORT_WRITE_ACTION_CLOSE,NULL,NULL)){
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
-                          "Creating db handle to remove %s failed.\n", id2entry);
-            goto bail;
-        }
-        rc = db->remove(db, id2entry, NULL, 0);
-        if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
-                          "Removing %s failed.\n", id2entry);
-            goto bail;
-        }
-        rc = db_create(&db, env, 0);
-        if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
-                          "Creating db handle to rename %s to %s failed.\n",
-                          tmpid2entry, id2entry);
-            goto bail;
-        }
-        rc = db->rename(db, tmpid2entry, NULL, id2entry, 0);
-        if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
-                          "Renaming %s to %s failed.\n",
-                          tmpid2entry, id2entry);
+                          "Failed to close %s slot in writer thread.\n", id2entry);
             goto bail;
         }
     }
-    dbmdb_release_aux_id2entry(be, NULL, env);
+
+    dbmdb_close_cursor(&dbc, 1 /* abortthetxn */);
     slapi_ch_free_string(&id2entry);
-    slapi_ch_free_string(&tmpid2entry);
     info->state = FINISHED;
     return;
 
-error:
-    if (dbc) {
-        dbc->c_close(dbc);
-    }
-    if (job->flags & FLAG_DN2RDN) {
-        if (tmp_db) {
-            tmp_db->close(tmp_db, 0);
-            rc = db_create(&tmp_db, env, 0);
-            if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
-                              "Creating db handle to remove %s s failed.\n",
-                              tmpid2entry);
-                goto bail;
-            }
-            /* remove tmp */
-            rc = tmp_db->remove(tmp_db, tmpid2entry, NULL, 0);
-            if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
-                              "Removing %s failed.\n", tmpid2entry);
-                goto bail;
-            }
-        }
-    }
 bail:
-    dbmdb_release_aux_id2entry(be, db, env);
+    dbmdb_close_cursor(&dbc, 1 /* Abort txn */);
     slapi_ch_free_string(&id2entry);
-    slapi_ch_free_string(&tmpid2entry);
     info->state = ABORTED;
-#endif /* TODO */
+    if (job->flags & FLAG_DN2RDN) {
+        dbmdb_import_write_push(job, entrydn_wqslot, IMPORT_WRITE_ACTION_CLOSE, NULL, NULL);
+    }
 }
 
 struct upgradedn_attr
 {
-#ifdef TODO
     char *ud_type;
     char *ud_value;
     struct upgradedn_attr *ud_next;
     int ud_flags;
 #define OLD_DN_NORMALIZE 0x1
-#endif /* TODO */
 };
 
 static void
 dbmdb_upgradedn_free_list(struct upgradedn_attr **ud_list)
 {
-#ifdef TODO
     struct upgradedn_attr *ptr = *ud_list;
 
     while (ptr) {
@@ -1241,7 +1360,6 @@ dbmdb_upgradedn_free_list(struct upgradedn_attr **ud_list)
     }
     *ud_list = NULL;
     return;
-#endif /* TODO */
 }
 
 static void
@@ -1250,7 +1368,6 @@ dbmdb_upgradedn_add_to_list(struct upgradedn_attr **ud_list,
                       char *value,
                       int flag)
 {
-#ifdef TODO
     struct upgradedn_attr *elem =
         (struct upgradedn_attr *)slapi_ch_malloc(sizeof(struct upgradedn_attr));
     elem->ud_type = type;
@@ -1259,7 +1376,6 @@ dbmdb_upgradedn_add_to_list(struct upgradedn_attr **ud_list,
     elem->ud_next = *ud_list;
     *ud_list = elem;
     return;
-#endif /* TODO */
 }
 
 /*
@@ -1268,7 +1384,6 @@ dbmdb_upgradedn_add_to_list(struct upgradedn_attr **ud_list,
 static int
 dbmdb_has_spaces(const char *str)
 {
-#ifdef TODO
     char *p = (char *)str;
     char *np;
     char *endp = p + strlen(str);
@@ -1291,13 +1406,11 @@ next:
     }
 bail:
     return maxwcnt;
-#endif /* TODO */
 }
 
 static int
 dbmdb_add_IDs_to_IDarray(ID ***dn_norm_sp_conflict, int *max, int i, char *strids)
 {
-#ifdef TODO
     char *p, *next, *start;
     ID my_id;
     ID **conflict;
@@ -1354,13 +1467,11 @@ dbmdb_add_IDs_to_IDarray(ID ***dn_norm_sp_conflict, int *max, int i, char *strid
     }
     conflict[i + 1] = NULL;
     return 0;
-#endif /* TODO */
 }
 
 static void
 dbmdb_free_IDarray(ID ***dn_norm_sp_conflict)
 {
-#ifdef TODO
     int i;
     if ((NULL == dn_norm_sp_conflict) || (NULL == *dn_norm_sp_conflict)) {
         return;
@@ -1369,7 +1480,6 @@ dbmdb_free_IDarray(ID ***dn_norm_sp_conflict)
         slapi_ch_free((void **)&(*dn_norm_sp_conflict)[i]);
     }
     slapi_ch_free((void **)dn_norm_sp_conflict);
-#endif /* TODO */
 }
 
 /*
@@ -1386,7 +1496,6 @@ dbmdb_free_IDarray(ID ***dn_norm_sp_conflict)
 static ID
 dbmdb_is_conflict_ID(ID **dn_norm_sp_conflicts, int max, ID id)
 {
-#ifdef TODO
     int i;
     ID *idp;
     for (i = 0; i < max; i++) {
@@ -1397,7 +1506,6 @@ dbmdb_is_conflict_ID(ID **dn_norm_sp_conflicts, int max, ID id)
         }
     }
     return 0;
-#endif /* TODO */
 }
 
 /*
@@ -1461,13 +1569,15 @@ dbmdb_is_conflict_ID(ID **dn_norm_sp_conflicts, int max, ID id)
 void
 dbmdb_upgradedn_producer(void *param)
 {
-#ifdef TODO
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
     ID id = job->first_ID;
     Slapi_Entry *e = NULL;
     struct backentry *ep = NULL, *old_ep = NULL;
     ldbm_instance *inst = job->inst;
+    struct ldbminfo* li = (struct ldbminfo*)inst->inst_be->be_database->plg_private;
+    dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+    dbmdb_cursor_t dbc={0};
     PRIntervalTime sleeptime;
     int finished = 0;
     int idx;
@@ -1496,9 +1606,7 @@ dbmdb_upgradedn_producer(void *param)
     struct backdn *bdn = NULL;
 
     /* vars for Berkeley MDB_dbi*/
-    MDB_env *env = NULL;
-    MDB_dbi*db = NULL;
-    MDB_cursor *dbc = NULL;
+    dbmdb_dbi_t db={0};
     MDB_val key = {0};
     MDB_val data = {0};
     int db_rval = -1;
@@ -1506,6 +1614,8 @@ dbmdb_upgradedn_producer(void *param)
     int isfirst = 1;
     int curr_entry = 0;
     size_t newesize = 0;
+     char *entry_str = NULL;
+     uint entry_len = 0;
 
     PR_ASSERT(info != NULL);
     PR_ASSERT(inst != NULL);
@@ -1537,19 +1647,18 @@ dbmdb_upgradedn_producer(void *param)
     info->state = RUNNING;
 
     /* open id2entry with dedicated db env and db handler */
-    if (dbmdb_get_aux_id2entry(be, &db, &env, NULL) != 0 || db == NULL ||
-        env == NULL) {
+     if(dbmdb_get_aux_id2entry(be, &db, NULL) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
                       "Could not open id2entry\n");
         goto error;
     }
 
     /* get a cursor to we can walk over the table */
-    db_rval = db->cursor(db, NULL, &dbc, 0);
-    if (db_rval || !dbc) {
+     db_rval = dbmdb_open_cursor(&dbc, ctx,&db, db.state.flags|MDB_RDONLY);
+     if (db_rval) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
-                      "Failed to get cursor for reindexing\n");
-        dblayer_release_id2entry(be, db);
+                 "Failedtoget%scursorforreindexing\n",db.dbname);
+         dblayer_release_id2entry(be,&db);
         goto error;
     }
 
@@ -1570,18 +1679,15 @@ dbmdb_upgradedn_producer(void *param)
         }
         info->state = RUNNING;
 
-        slapi_ch_free(&(data.data));
-        key.flags = DB_MDB_val_MALLOC;
-        data.flags = DB_MDB_val_MALLOC;
         if (isfirst) {
-            db_rval = dbc->c_get(dbc, &key, &data, DB_FIRST);
+            db_rval = mdb_cursor_get(dbc.cur, &key, &data, MDB_FIRST);
             isfirst = 0;
         } else {
-            db_rval = dbc->c_get(dbc, &key, &data, DB_NEXT);
+             db_rval = mdb_cursor_get(dbc.cur, &key, &data, MDB_NEXT);
         }
 
         if (0 != db_rval) {
-            if (DB_NOTFOUND == db_rval) {
+             if( MDB_NOTFOUND == db_rval) {
                 slapi_log_err(SLAPI_LOG_INFO, "dbmdb_upgradedn_producer",
                               "%s: Finished reading database\n", inst->inst_name);
                 if (job->task) {
@@ -1604,16 +1710,17 @@ dbmdb_upgradedn_producer(void *param)
             break; /* error or done */
         }
         curr_entry++;
-        temp_id = id_stored_to_internal((char *)key.data);
-        slapi_ch_free(&(key.data));
+        temp_id = id_stored_to_internal(key.mv_data);
 
         /* call post-entry plugin */
-        plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
+         entry_str = data.mv_data;
+         entry_len = data.mv_size;
+         plugin_call_entryfetch_plugins(&entry_str, &entry_len);
 
         slapi_ch_free_string(&ecopy);
-        ecopy = (char *)slapi_ch_malloc(data.dsize + 1);
-        memcpy(ecopy, data.dptr, data.dsize);
-        *(ecopy + data.dsize) = '\0';
+        ecopy = (char *)slapi_ch_malloc(entry_len + 1);
+        memcpy(ecopy, entry_str, entry_len);
+        ecopy[entry_len] = '\0';
         normdn = NULL;
         do_dn_norm = 0;
         do_dn_norm_sp = 0;
@@ -1622,11 +1729,10 @@ dbmdb_upgradedn_producer(void *param)
         if (entryrdn_get_switch()) {
 
             /* original rdn is allocated in get_value_from_string */
-            rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
+            rc = get_value_from_string(entry_str, "rdn", &rdn);
             if (rc) {
                 /* data.dptr may not include rdn: ..., try "dn: ..." */
-                e = slapi_str2entry(data.dptr,
-                                    SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
+                e = slapi_str2entry(entry_str, SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
             } else {
                 bdn = dncache_find_id(&inst->inst_dncache, temp_id);
                 if (bdn) {
@@ -1648,8 +1754,7 @@ dbmdb_upgradedn_producer(void *param)
                         slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_upgradedn_producer",
                                       "entryrdn is not available; composing dn (rdn: %s, ID: %d)\n",
                                       rdn, temp_id);
-                        rc = get_value_from_string((const char *)data.dptr,
-                                                   LDBM_PARENTID_STR, &pid_str);
+                        rc = get_value_from_string(entry_str, LDBM_PARENTID_STR, &pid_str);
                         if (rc) {
                             rc = 0; /* assume this is a suffix */
                         } else {
@@ -1657,7 +1762,7 @@ dbmdb_upgradedn_producer(void *param)
                             slapi_ch_free_string(&pid_str);
                             /* if pid is larger than the current pid temp_id,
                              * the parent entry hasn't */
-                            rc = dbmdb_import_get_and_add_parent_rdns(info, inst, db,
+                            rc = dbmdb_import_get_and_add_parent_rdns(info, inst, &db,dbc.txn,
                                                                 pid, &id, &psrdn, &curr_entry);
                             if (rc) {
                                 slapi_log_err(SLAPI_LOG_ERR,
@@ -1685,7 +1790,7 @@ dbmdb_upgradedn_producer(void *param)
                         slapi_ch_free_string(&pdn);
                     }
                     if (is_dryrun) {
-                        /* if not dryrun, we may change the DN, In such case,
+                        /* if not dryrun, we may change the DN, In such case ,
                          * we need to put the new value to cache.*/
                         /* dn is dup'ed in slapi_sdn_new_dn_byval.
                          * It's set to bdn and put in the dn cache. */
@@ -1704,12 +1809,12 @@ dbmdb_upgradedn_producer(void *param)
                         dn_in_cache = 1;
                     }
                 }
-                e = slapi_str2entry_ext(normdn, NULL, data.dptr,
+                e = slapi_str2entry_ext(normdn, NULL, entry_str,
                                         SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
                 slapi_ch_free_string(&rdn);
             }
         } else {
-            e = slapi_str2entry(data.data, SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
+            e = slapi_str2entry(entry_str, SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
             rdn = slapi_ch_strdup(slapi_entry_get_rdn_const(e));
             if (NULL == rdn) {
                 Slapi_RDN srdn;
@@ -2125,7 +2230,7 @@ dbmdb_upgradedn_producer(void *param)
             goto error;
         }
 
-        /* Add the newly case-normalized dn to entrydn in the e_attrs list. */
+        /* Add the newly case -normalized dn to entrydn in the e_attrs list. */
         add_update_entrydn_operational_attributes(ep);
 
         if (job->flags & FLAG_ABORT)
@@ -2212,33 +2317,28 @@ dbmdb_upgradedn_producer(void *param)
         }
     }
 bail:
-    dbc->c_close(dbc);
-    dbmdb_release_aux_id2entry(be, db, env);
     info->state = FINISHED | info_state;
     goto done;
 
 error:
-    if (dbc) {
-        dbc->c_close(dbc);
-    }
-    dbmdb_release_aux_id2entry(be, db, env);
     info->state = ABORTED;
 
 done:
+    dbmdb_close_cursor(&dbc, 1 /* Abort txn */);
     dbmdb_free_IDarray(&dn_norm_sp_conflicts);
     slapi_ch_free_string(&ecopy);
-    slapi_ch_free(&(data.data));
+ if(data.mv_data!=entry_str){
+     slapi_ch_free_string(&entry_str);
+ }
     slapi_ch_free_string(&rdn);
     if (job->upgradefd) {
         fclose(job->upgradefd);
     }
-#endif /* TODO */
 }
 
 static void
 dbmdb_import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize)
 {
-#ifdef TODO
     struct backentry *temp_ep = NULL;
     size_t i;
     int slot_found;
@@ -2266,14 +2366,12 @@ dbmdb_import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize)
         if (slot_found == 0)
             DS_Sleep(sleeptime);
     }
-#endif /* TODO */
 }
 
 /* helper function for the foreman: */
 static int
 dbmdb_foreman_do_parentid(ImportJob *job, FifoItem *fi, struct attrinfo *parentid_ai)
 {
-#ifdef TODO
     backend *be = job->inst->inst_be;
     Slapi_Value **svals = NULL;
     Slapi_Attr *attr = NULL;
@@ -2296,10 +2394,10 @@ dbmdb_foreman_do_parentid(ImportJob *job, FifoItem *fi, struct attrinfo *parenti
             } else {
                 const struct berval *bval =
                     slapi_value_get_berval((const Slapi_Value *)value);
-                ret = index_addordel_string(be, "parentid",
+                ret = index_addordel_string(be, LDBM_PARENTID_STR,
                                             bval->bv_val, entry->ep_id,
                                             BE_INDEX_DEL | BE_INDEX_EQUALITY | BE_INDEX_NORMALIZED,
-                                            NULL);
+                                            dbmdb_get_wctx(job, NULL, WCTX_PARENTID));
                 if (ret) {
                     import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_parentid",
                                       "Error: deleting %s from  parentid index "
@@ -2316,7 +2414,8 @@ dbmdb_foreman_do_parentid(ImportJob *job, FifoItem *fi, struct attrinfo *parenti
         svals = attr_get_present_values(attr);
         ret = index_addordel_values_ext_sv(be, LDBM_PARENTID_STR, svals, NULL,
                                            entry->ep_id, BE_INDEX_ADD,
-                                           NULL, &idl_disposition, NULL);
+                                           dbmdb_get_wctx(job, NULL, WCTX_PARENTID),
+                                           &idl_disposition, NULL);
         if (idl_disposition != IDL_INSERT_NORMAL) {
             char *attr_value = slapi_value_get_berval(svals[0])->bv_val;
             ID parent_id = atol(attr_value);
@@ -2336,14 +2435,12 @@ dbmdb_foreman_do_parentid(ImportJob *job, FifoItem *fi, struct attrinfo *parenti
     }
 
     return 0;
-#endif /* TODO */
 }
 
 /* helper function for the foreman: */
 static int
 dbmdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
 {
-#ifdef TODO
     backend *be = job->inst->inst_be;
     struct berval bv;
     int err = 0, ret = 0;
@@ -2366,10 +2463,10 @@ dbmdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
             } else {
                 const struct berval *bval =
                     slapi_value_get_berval((const Slapi_Value *)value);
-                ret = index_addordel_string(be, "entrydn",
+                ret = index_addordel_string(be, LDBM_ENTRYDN_STR,
                                             bval->bv_val, entry->ep_id,
                                             BE_INDEX_DEL | BE_INDEX_EQUALITY | BE_INDEX_NORMALIZED,
-                                            NULL);
+                                            dbmdb_get_wctx(job, NULL, WCTX_ENTRYDN));
                 if (ret) {
                     import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_entrydn",
                                       "Error: deleting %s from  entrydn index "
@@ -2396,7 +2493,7 @@ dbmdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
     IDL = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY, &bv, NULL, &err);
     if (job->flags & (FLAG_UPGRADEDNFORMAT | FLAG_UPGRADEDNFORMAT_V1)) {
         /*
-         * In the UPGRADEDNFORMAT case, if entrydn value exists,
+         * In the UPGRADEDNFORMAT case , if entrydn value exists,
          * that means either 1) entrydn is not upgraded (ID == entry->ep_id)
          * or 2) a duplicated entry is found (ID != entry->ep_id).
          * (1) is normal. For (2), need to return a specific error
@@ -2413,9 +2510,10 @@ dbmdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
                 return LDBM_ERROR_FOUND_DUPDN;
             }
         } else {
-            ret = index_addordel_string(be, "entrydn",
+            ret = index_addordel_string(be, LDBM_ENTRYDN_STR,
                                         bv.bv_val, entry->ep_id,
-                                        BE_INDEX_ADD | BE_INDEX_NORMALIZED, NULL);
+                                        BE_INDEX_ADD | BE_INDEX_NORMALIZED,
+                                        dbmdb_get_wctx(job, NULL, WCTX_ENTRYDN));
             if (ret) {
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_entrydn",
                                   "Error writing entrydn index (error %d: %s)",
@@ -2437,8 +2535,10 @@ dbmdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
             job->skipped++;
             return -1; /* skip to next entry */
         }
-        ret = index_addordel_string(be, "entrydn", bv.bv_val, entry->ep_id,
-                                    BE_INDEX_ADD | BE_INDEX_NORMALIZED, NULL);
+        ret = index_addordel_string(be, LDBM_ENTRYDN_STR, bv.bv_val, entry->ep_id,
+                                    BE_INDEX_ADD | BE_INDEX_NORMALIZED,
+                                    dbmdb_get_wctx(job, NULL, WCTX_ENTRYDN));
+
         if (ret) {
             import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_entrydn",
                               "Error writing entrydn index (error %d: %s)",
@@ -2448,14 +2548,12 @@ dbmdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
     }
 
     return 0;
-#endif /* TODO */
 }
 
 /* helper function for the foreman: */
 static int
 dbmdb_foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
 {
-#ifdef TODO
     backend *be = job->inst->inst_be;
     int ret = 0;
     struct backentry *entry = fi->entry;
@@ -2492,7 +2590,7 @@ dbmdb_foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
                                  slapi_entry_get_dn_const(entry->ep_entry));
         }
     }
-    ret = entryrdn_index_entry(be, entry, BE_INDEX_ADD, NULL);
+    ret = entryrdn_index_entry(be, entry, BE_INDEX_ADD, dbmdb_get_wctx(job, NULL, WCTX_ENTRYRDN));
     if (LDBM_ERROR_FOUND_DUPDN == ret) {
         import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_entryrdn",
                           "Duplicated DN detected: \"%s\": Entry ID: (%d)",
@@ -2505,8 +2603,23 @@ dbmdb_foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
         return ret;
     }
     return 0;
-#endif /* TODO */
 }
+ static void
+close_foreman_wqslots(ImportJob *job)
+ {
+     long wqslot = dbmdb_get_wqslot(job, NULL, WCTX_PARENTID);
+     dbmdb_import_write_push(job, wqslot, IMPORT_WRITE_ACTION_CLOSE, NULL, NULL);
+
+     if(entryrdn_get_switch()){
+         wqslot = dbmdb_get_wqslot(job, NULL, WCTX_ENTRYRDN);
+         dbmdb_import_write_push(job, wqslot, IMPORT_WRITE_ACTION_CLOSE, NULL, NULL);
+     }else{
+         wqslot = dbmdb_get_wqslot(job, NULL, WCTX_ENTRYDN);
+         dbmdb_import_write_push(job, wqslot, IMPORT_WRITE_ACTION_CLOSE, NULL, NULL);
+     }
+     wqslot = dbmdb_get_wqslot(job, NULL, WCTX_ENTRYID);
+     dbmdb_import_write_push(job, wqslot, IMPORT_WRITE_ACTION_CLOSE, NULL, NULL);
+ }
 
 /* foreman thread:
  * i go through the FIFO just like the other worker threads, but i'm
@@ -2516,7 +2629,6 @@ dbmdb_foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
 void
 dbmdb_import_foreman(void *param)
 {
-#ifdef TODO
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
     ldbm_instance *inst = job->inst;
@@ -2541,6 +2653,21 @@ dbmdb_import_foreman(void *param)
     info->state = RUNNING;
 
     ainfo_get(be, LDBM_PARENTID_STR, &parentid_ai);
+    if (dbmdb_import_writer_create_dbi(info, WCTX_PARENTID, LDBM_PARENTID_STR LDBM_SUFFIX, PR_FALSE)) {
+        goto error;
+    }
+    if (entryrdn_get_switch()){
+        if (dbmdb_import_writer_create_dbi(info, WCTX_ENTRYRDN, LDBM_ENTRYRDN_STR LDBM_SUFFIX, PR_FALSE)) {
+            goto error;
+        }
+    } else {
+        if(dbmdb_import_writer_create_dbi(info, WCTX_ENTRYDN, LDBM_ENTRYDN_STR LDBM_SUFFIX, PR_FALSE)) {
+            goto error;
+        }
+    }
+    if (dbmdb_import_writer_create_dbi(info, WCTX_ENTRYID, ID2ENTRY LDBM_SUFFIX, PR_FALSE)) {
+        goto error;
+    }
 
     while (!finished) {
         FifoItem *fi = NULL;
@@ -2745,7 +2872,7 @@ dbmdb_import_foreman(void *param)
             /* id2entry_add_ext replaces an entry if it already exists.
              * therefore, the Entry ID stays the same.
              */
-            ret = id2entry_add_ext(be, fi->entry, NULL, job->encrypt, NULL);
+            ret = id2entry_add_ext(be, fi->entry, dbmdb_get_wctx(job, NULL, WCTX_ENTRYID), job->encrypt, NULL);
             if (ret) {
                 /* DB_RUNRECOVERY usually occurs if disk fills */
                 if (LDBM_OS_ERR_IS_DISKFULL(ret)) {
@@ -2753,7 +2880,7 @@ dbmdb_import_foreman(void *param)
                                       "OUT OF SPACE ON DISK or FILE TOO LARGE -- "
                                       "Could not store the entry ending at line %d of file \"%s\"",
                                       fi->line, fi->filename);
-                } else if (ret == DB_RUNRECOVERY) {
+                } else if (ret == MDB_PANIC) {
                     import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_foreman",
                                       "(LARGEFILE SUPPORT NOT ENABLED? OUT OF SPACE ON DISK?) -- "
                                       "Could not store the entry ending at line %d of file \"%s\"",
@@ -2821,12 +2948,13 @@ dbmdb_import_foreman(void *param)
 
     slapi_pblock_destroy(pb);
     info->state = FINISHED;
+    close_foreman_wqslots(job);
     return;
 
 error:
     slapi_pblock_destroy(pb);
     info->state = ABORTED;
-#endif /* TODO */
+    close_foreman_wqslots(job);
 }
 
 
@@ -2837,7 +2965,6 @@ error:
 void
 dbmdb_import_worker(void *param)
 {
-#ifdef TODO
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
     ImportJob *job = info->job;
     ldbm_instance *inst = job->inst;
@@ -2855,12 +2982,21 @@ dbmdb_import_worker(void *param)
     int is_nscpentrydn_attribute;
     int is_nstombstonecsn_attribute;
     void *attrlist_cursor;
+    long wqslot=-1;
 
     PR_ASSERT(NULL != info);
     PR_ASSERT(NULL != inst);
 
     if (job->flags & FLAG_ABORT) {
         goto error;
+    }
+
+    if (dbmdb_start_txn(__FUNCTION__, NULL, TXNFL_RDONLY, &info->txn)) {
+        goto error;
+    }
+
+    if (dbmdb_import_writer_create_dbi(info, WCTX_GENERIC, info->index_info->name, PR_FALSE)) {
+       goto error;
     }
 
     if (INDEX_VLV == info->index_info->ai->ai_indexmask) {
@@ -2873,7 +3009,7 @@ dbmdb_import_worker(void *param)
     /*
      * If the entry is a Tombstone, then we only add it to the nsuniqeid index,
      * the nscpEntryDN index, and the idlist for (objectclass=tombstone). These
-     * flags are just handy for working out what to do in this case.
+     * flags are just handy for working out what to do in this case .
      */
     is_objectclass_attribute =
         (strcasecmp(info->index_info->name, "objectclass") == 0);
@@ -2989,7 +3125,7 @@ dbmdb_import_worker(void *param)
                                                         fi->entry->ep_id,
                                                         BE_INDEX_DEL | BE_INDEX_EQUALITY |
                                                             BE_INDEX_NORMALIZED,
-                                                        NULL);
+                                                        dbmdb_get_wctx(job, info, WCTX_GENERIC));
                             if (ret) {
                                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_worker",
                                                   "Error deleting %s from %s index "
@@ -3019,8 +3155,10 @@ dbmdb_import_worker(void *param)
                         continue;
                     svals = attr_get_present_values(attr);
                     ret = index_addordel_values_ext_sv(be, info->index_info->name,
-                                                       svals, NULL, ep->ep_id, BE_INDEX_ADD | (job->encrypt ? 0 : BE_INDEX_DONT_ENCRYPT), NULL, &idl_disposition,
-                                                       substring_key_buffer);
+                                                       svals, NULL, ep->ep_id,
+                                                       BE_INDEX_ADD | (job->encrypt ? 0 : BE_INDEX_DONT_ENCRYPT),
+                                                       dbmdb_get_wctx(job, info, WCTX_GENERIC),
+                                                       &idl_disposition, substring_key_buffer);
 
                     if (0 != ret) {
                         /* Something went wrong, eg disk filled up */
@@ -3038,7 +3176,8 @@ dbmdb_import_worker(void *param)
             if (is_nsuniqueid_attribute) {
                 ret = index_addordel_string(be, SLAPI_ATTR_UNIQUEID,
                                             slapi_entry_get_uniqueid(ep->ep_entry), ep->ep_id,
-                                            BE_INDEX_ADD, NULL);
+                                            BE_INDEX_ADD,
+                                            dbmdb_get_wctx(job, info, WCTX_GENERIC));
                 if (0 != ret) {
                     /* Something went wrong, eg disk filled up */
                     goto error;
@@ -3066,9 +3205,10 @@ dbmdb_import_worker(void *param)
                     if (valueset_isempty(&(attr->a_present_values)))
                         continue;
                     svals = attr_get_present_values(attr);
-                    ret = index_addordel_values_ext_sv(be, info->index_info->name,
-                                                       svals, NULL, ep->ep_id, BE_INDEX_ADD | (job->encrypt ? 0 : BE_INDEX_DONT_ENCRYPT), NULL, &idl_disposition,
-                                                       substring_key_buffer);
+                    ret=index_addordel_values_ext_sv(be, info->index_info->name, svals, NULL, ep->ep_id,
+                                                     BE_INDEX_ADD|(job->encrypt ? 0 : BE_INDEX_DONT_ENCRYPT),
+                             dbmdb_get_wctx(job,info,WCTX_GENERIC),
+                             &idl_disposition,substring_key_buffer);
 
                     if (0 != ret) {
                         /* Something went wrong, eg disk filled up */
@@ -3118,11 +3258,9 @@ dbmdb_import_worker(void *param)
     goto done;
 
 error:
-    if (ret == DB_RUNRECOVERY) {
+     if (ret == MDB_PANIC) {
         slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_import_worker",
                       "Cannot import; database recovery needed\n");
-    } else if (ret == DB_LOCK_DEADLOCK) {
-        /* can this occur? */
     }
 
     info->state = ABORTED;
@@ -3131,7 +3269,9 @@ done:
     if (substring_key_buffer) {
         index_buffer_terminate(be, substring_key_buffer);
     }
-#endif /* TODO */
+    wqslot = dbmdb_get_wqslot(job, info, WCTX_GENERIC);
+    dbmdb_end_txn(__FUNCTION__, 1, &info->txn);
+    dbmdb_import_write_push(job, wqslot, IMPORT_WRITE_ACTION_CLOSE, NULL, NULL);
 }
 
 
@@ -3148,7 +3288,6 @@ done:
 static int
 dbmdb_bulk_import_start(Slapi_PBlock *pb)
 {
-#ifdef TODO
     struct ldbminfo *li = NULL;
     ImportJob *job = NULL;
     backend *be = NULL;
@@ -3271,7 +3410,6 @@ fail:
     dbmdb_import_free_job(job);
     FREE(job);
     return ret;
-#endif /* TODO */
 }
 
 /* returns 0 on success, or < 0 on error
@@ -3284,7 +3422,6 @@ fail:
 static int
 dbmdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 {
-#ifdef TODO
     struct backentry *ep = NULL, *old_ep = NULL;
     int idx;
     ID id = 0;
@@ -3453,7 +3590,6 @@ dbmdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 
     pthread_mutex_unlock(&job->wire_lock);
     return 0;
-#endif /* TODO */
 }
 
 /* plugin entry function for replica init
@@ -3466,7 +3602,6 @@ dbmdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 int
 dbmdb_ldbm_back_wire_import(Slapi_PBlock *pb)
 {
-#ifdef TODO
     struct ldbminfo *li;
     backend *be = NULL;
     ImportJob *job = NULL;
@@ -3539,7 +3674,6 @@ dbmdb_ldbm_back_wire_import(Slapi_PBlock *pb)
     slapi_log_err(SLAPI_LOG_ERR, "dbmdb_ldbm_back_wire_import",
                   "ERROR: unknown state %d\n", state);
     return -1;
-#endif /* TODO */
 }
 
 /*
@@ -3554,7 +3688,6 @@ dbmdb_ldbm_back_wire_import(Slapi_PBlock *pb)
 static int
 dbmdb_dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char *filter)
 {
-#ifdef TODO
     Slapi_PBlock *srch_pb = NULL;
     Slapi_Entry **entries = NULL;
     Slapi_Entry **ep = NULL;
@@ -3692,18 +3825,15 @@ out:
     }
 
     return rval;
-#endif /* TODO */
 }
 
 int
 dbmdb_dse_conf_backup(struct ldbminfo *li, char *dest_dir)
 {
-#ifdef TODO
     int rval = 0;
     rval = dbmdb_dse_conf_backup_core(li, dest_dir, DSE_INSTANCE, DSE_INSTANCE_FILTER);
     rval += dbmdb_dse_conf_backup_core(li, dest_dir, DSE_INDEX, DSE_INDEX_FILTER);
     return rval;
-#endif /* TODO */
 }
 
 /*
@@ -3716,7 +3846,6 @@ dbmdb_dse_conf_backup(struct ldbminfo *li, char *dest_dir)
 int
 dbmdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *filter, char *log_str)
 {
-#ifdef TODO
     char *filename = NULL;
     int rval = 0;
     ldif_context c;
@@ -3818,13 +3947,11 @@ out:
     }
 
     return rval;
-#endif /* TODO */
 }
 
 int
 dbmdb_dse_conf_verify(struct ldbminfo *li, char *src_dir)
 {
-#ifdef TODO
     int rval;
     char *instance_entry_filter = NULL;
 
@@ -3838,19 +3965,18 @@ dbmdb_dse_conf_verify(struct ldbminfo *li, char *src_dir)
     slapi_ch_free_string(&instance_entry_filter);
 
     return rval;
-#endif /* TODO */
 }
 
 static int
 dbmdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
                                ldbm_instance *inst,
-                               MDB_dbi*db,
+                               dbmdb_dbi_t *db,
+                               dbi_txn_t *txn,
                                ID id,
                                ID *total_id,
                                Slapi_RDN *srdn,
                                int *curr_entry)
 {
-#ifdef TODO
     int rc = -1;
     struct backdn *bdn = NULL;
     Slapi_Entry *e = NULL;
@@ -3913,20 +4039,18 @@ dbmdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
             return rc;
         }
         id_internal_to_stored(id, (char *)&storedid);
-        key.size = key.ulen = sizeof(ID);
-        key.data = &storedid;
-        key.flags = DB_MDB_val_USERMEM;
+        key.mv_size = sizeof(ID);
+        key.mv_data = &storedid;
 
-        memset(&data, 0, sizeof(data));
-        data.flags = DB_MDB_val_MALLOC;
-        rc = db->get(db, NULL, &key, &data, 0);
+        data.mv_data = NULL;
+        rc = mdb_get(TXN(txn), DB(db), &key, &data);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_get_and_add_parent_rdns",
                           "Failed to position at ID " ID_FMT "\n", id);
             return rc;
         }
         /* rdn is allocated in get_value_from_string */
-        rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
+        rc = get_value_from_string(data.mv_data, "rdn", &rdn);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_get_and_add_parent_rdns",
                           "Failed to get rdn of entry " ID_FMT "\n", id);
@@ -3939,14 +4063,13 @@ dbmdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
                           "Failed to add rdn %s of entry " ID_FMT "\n", rdn, id);
             goto bail;
         }
-        rc = get_value_from_string((const char *)data.dptr,
-                                   LDBM_PARENTID_STR, &pid_str);
+        rc = get_value_from_string(data.mv_data, LDBM_PARENTID_STR, &pid_str);
         if (rc) {
             rc = 0; /* assume this is a suffix */
         } else {
             ID pid = (ID)strtol(pid_str, (char **)NULL, 10);
             slapi_ch_free_string(&pid_str);
-            rc = dbmdb_import_get_and_add_parent_rdns(info, inst, db, pid, total_id,
+            rc = dbmdb_import_get_and_add_parent_rdns(info, inst, db,txn,  pid, total_id,
                                                 &mysrdn, curr_entry);
             if (rc) {
                 slapi_ch_free_string(&rdn);
@@ -3963,7 +4086,7 @@ dbmdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
                           rdn, id);
             goto bail;
         }
-        e = slapi_str2entry_ext(normdn, NULL, data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
+        e = slapi_str2entry_ext(normdn, NULL, data.mv_data, SLAPI_STR2ENTRY_NO_ENTRYDN);
         (*curr_entry)++;
         rc = dbmdb_index_set_entry_to_fifo(info, e, id, total_id, *curr_entry);
         if (rc) {
@@ -3975,17 +4098,14 @@ dbmdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
                           "Failed to merge Slapi_RDN to RDN\n");
         }
     bail:
-        slapi_ch_free(&data.data);
         slapi_ch_free_string(&rdn);
         return rc;
     }
-#endif /* TODO */
 }
 
 static int
 _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value)
 {
-#ifdef TODO
 #define USN_COUNTER_BUF_LEN 64 /* enough size for 64 bit integers */
     static char counter_buf[USN_COUNTER_BUF_LEN] = {0};
     char *usn_init_str = NULL;
@@ -4032,5 +4152,863 @@ _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value)
     usn_berval.bv_len = strlen(usn_berval.bv_val);
     *usn_value = slapi_value_new_berval(&usn_berval);
     return 0;
-#endif /* TODO */
+ }
+
+ /* Worker thread utilities */
+
+ /* Determine if enough data are available to start a new write txn */
+ static int
+check_for_wqslot_data(wqslot_t *slot)
+ {
+     if (slot->tmpfile){
+         return 0;
+     }
+     if (slot->closed && slot->q) {
+         return 1;
+     }
+     if (slot->datalen-slot->readdatalen >= DATALEN_READ_THRESHOLD ||
+             slot->nbelmts-slot->readnbelmts >= NBELMTS_READ_THRESHOLD) {
+         return 1;
+     }
+     return 0;
+ }
+
+ /* Update statistics and determine if thread processing is finished */
+ static int
+update_writer_thread_stats(ImportWorkerInfo*info)
+ {
+     ImportJob *job = info->job;
+     global_writer_ctx_t *gwctx=job->writer_ctx;
+     int finished = (gwctx->last_wqslot >= job->number_indexers);
+     int slotidx;
+     size_t datalen = 0;
+     size_t nbelmts = 0;
+     size_t readdatalen = 0;
+     size_t readnbelmts = 0;
+
+     /*
+     *Threadisfinishedifmostslotshavebeenopenand
+             *allnotdelayedslotsareclosedwithemptyqueue
+             */
+     for (slotidx=0; slotidx < gwctx->last_wqslot; slotidx++) {
+         wqslot_t *slot = &gwctx->wqslots[slotidx];
+         if (!slot->tmpfile && (!slot->closed || slot->q)) {
+             finished = 0;
+         }
+         datalen += slot->datalen;
+         nbelmts += slot->nbelmts;
+         readdatalen += slot->readdatalen;
+         readnbelmts += slot->readnbelmts;
+     }
+     gwctx->writer_progrress = (datalen>0)?((double)readdatalen/datalen):0.0;
+     gwctx->writer_progrress += (nbelmts>0)?((double)readnbelmts/nbelmts):0.0;
+     gwctx->writer_progrress /= 2.0;
+
+     return finished;
+ }
+
+static int
+handle_entryrdn_key(backend *be, wqslot_t *slot,
+         int(*action)(backend*, dbi_cursor_t*, Slapi_RDN*, ID, back_txn*),
+         void* vsrdn, void*vid, back_txn *txn)
+ {
+    dbi_txn_t *db_txn = (txn != NULL) ? txn->back_txn_txn : NULL;
+    Slapi_RDN *srdn = vsrdn;
+    ID *id = vid;
+    int rc = 0;
+
+    if (!slot->cursor.cur) {
+        memset(&slot->cursor, 0, sizeof slot->cursor);
+        rc = dblayer_new_cursor(be, &slot->dbi, db_txn, &slot->cursor);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "entryrdn_index_entry",
+                    "Failed to make a cursor:%s(%d)\n", dblayer_strerror(rc), rc);
+        }
+    }
+    if (!rc) {
+        rc=action(be, &slot->cursor, srdn, *id, txn);
+    }
+    return rc;
+}
+
+#ifdef DEBUG_IMPORT
+static char*
+val2str(void*data, size_tsize)
+{
+    char *ret = slapi_ch_malloc(4*size+3);
+    char *pt = ret;
+    unsigned char *data1 = data;
+    unsigned char *edata = &data1[size];
+
+    while (data1<edata){
+        int pos=50;
+        *pt++='\t';
+        while (data1 < edata && pos > 0) {
+            if (*data1 >= 0x20 && *data1 < 0x7e) {
+                *pt++ = *data1++;
+                pos--;
+            } else {
+                sprintf(pt, "\\%02x", *data1++);
+                pos -= 3;
+                pt += 3;
+            }
+        }
+        *pt++ = '\n';
+    }
+    *pt = 0;
+    return ret;
+}
+
+static void
+log_elmt(const char*msg, wqelem_t *elmt, PRBool verbose)
+{
+#defineS(v)((v)?(v):"")
+    char*actions[]={
+        "NONE",
+        "IMPORT_WRITE_ACTION_RMDIR",
+        "IMPORT_WRITE_ACTION_OPEN",
+        "IMPORT_WRITE_ACTION_ADD_INDEX",
+        "IMPORT_WRITE_ACTION_DEL_INDEX",
+        "IMPORT_WRITE_ACTION_ADD_ENTRYRDN",
+        "IMPORT_WRITE_ACTION_DEL_ENTRYRDN",
+        "IMPORT_WRITE_ACTION_ADD",
+        "IMPORT_WRITE_ACTION_CLOSE"
+    };
+    const char *dbi_str = NULL;
+    char *key_str = NULL;
+    char *data_str = NULL;
+    char *iupd_str = NULL;
+    index_update_t iupd;
+    MDB_val data;
+    MDB_val key;
+    Slapi_RDN *srdn = NULL;
+
+    if (!verbose) {
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_writer", "%p: %s\n", elmt, msg);
+        return;
+    }
+
+    if (elmt->flags&WQFL_SYNC_OP) {
+        key = ((MDB_val*)(elmt->values))[0];
+        data = ((MDB_val*)(elmt->values))[1];
+    } else {
+        key.mv_data = elmt->values;
+        key.mv_size = elmt->keylen;
+        data.mv_data = &elmt->values[key.mv_size];
+        data.mv_size = elmt->data_len;
+    }
+
+    key_str = val2str(key.mv_data, key.mv_size);
+    data_str = val2str(data.mv_data, data.mv_size);
+
+    dbi_str = elmt->slot->dbi.dbname;
+    if (!dbi_str)
+    dbi_str = elmt->slot->dbipath;
+    if (!dbi_str)
+    dbi_str = "???";
+
+    switch (elmt->action) {
+        case IMPORT_WRITE_ACTION_ADD_INDEX:
+        case IMPORT_WRITE_ACTION_DEL_INDEX:
+            memcpy(&iupd, data.mv_data, data.mv_size);
+            iupd_str = slapi_ch_smprintf("ID%dai=%s", iupd.id, iupd.a->ai_type);
+            break;
+        case IMPORT_WRITE_ACTION_ADD_ENTRYRDN:
+        case IMPORT_WRITE_ACTION_DEL_ENTRYRDN:
+            memcpy(&iupd.id, data.mv_data, sizeofiupd.id);
+            srdn = key.mv_data;
+            slapi_ch_free_string(&key_str);
+            slapi_ch_free_string(&data_str);
+            iupd_str = slapi_ch_smprintf("ID%drdn=%s", iupd.id, slapi_rdn_get_rdn(srdn));
+            break;
+        default:
+            break;
+    }
+
+    if (elmt->action < IMPORT_WRITE_ACTION_RMDIR || elmt->action > IMPORT_WRITE_ACTION_CLOSE) {
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_writer", "%p: %s UNKNOWN ACTION %d\n", elmt, msg, elmt->action);
+    }else{
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_writer", "%p: %s %s dbi = %s%s key:\n%s\ndata:\n%s",
+                elmt, msg, actions[elmt->action], dbi_str, S(iupd_str), S(key_str), S(data_str));
+    }
+    slapi_ch_free_string(&iupd_str);
+    slapi_ch_free_string(&key_str);
+    slapi_ch_free_string(&data_str);
+}
+#else
+#define log_elmt(msg, elmt, verbose)
+#endif
+
+
+/* replay an item */
+static int
+wqueue_process_item(ImportWorkerInfo *info, wqelem_t *elmt, dbi_txn_t *txn)
+{
+    ImportJob *job = info->job;
+    ldbm_instance *inst = job->inst;
+    back_txn btxn = {0};
+    wqslot_t *slot = elmt->slot;
+    index_update_t iupd;
+    int open_flags = 0;
+    MDB_val data;
+    MDB_val key;
+    dbi_val_t dkey = {0};
+    int rc = 0;
+
+    log_elmt("wqueue_process_item", elmt, PR_TRUE);
+
+    if (elmt->flags&WQFL_SYNC_OP) {
+        key = ((MDB_val*)(elmt->values))[0];
+        data = ((MDB_val*)(elmt->values))[1];
+    } else {
+        key.mv_data = elmt->values;
+        key.mv_size = elmt->keylen;
+        data.mv_data = &elmt->values[key.mv_size];
+        data.mv_size = elmt->data_len;
+    }
+    btxn.back_txn_txn = txn;
+    switch (elmt->action) {
+        case IMPORT_WRITE_ACTION_CLOSE:
+            /* close should not have been writen in the queue */
+        default:
+            PR_ASSERT(0);
+            abort();
+        case IMPORT_WRITE_ACTION_OPEN:
+            open_flags = MDB_MARK_DIRTY_DBI+MDB_CREATE;
+            rc = dbmdb_open_dbi_from_filename(&slot->dbi, inst->inst_be, slot->dbipath, NULL, open_flags);
+            if (rc) {
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_writer",
+                    "Failed to open %s database instance. Error:%d(%s).\n",
+                    slot->dbipath, rc, mdb_strerror(rc));
+            }
+            break;
+        case IMPORT_WRITE_ACTION_ADD_INDEX:
+            PR_ASSERT(data.mv_size == sizeof iupd);
+            memcpy(&iupd, data.mv_data, data.mv_size);
+            if (iupd.disposition&&(elmt->flags&WQFL_SYNC_OP) == 0) {
+                /* iupd.disposition may not be valid (freed in calling thread)
+                 * so lets use storage in writing thread slot instead
+                 */
+                iupd.disposition = &elmt->slot->idl_disposition;
+            }
+            dblayer_value_set_buffer(inst->inst_be, &dkey, key.mv_data, key.mv_size);
+            rc = idl_insert_key(inst->inst_be, &slot->dbi, &dkey, iupd.id, &btxn, iupd.a, iupd.disposition);
+            break;
+        case IMPORT_WRITE_ACTION_DEL_INDEX:
+            PR_ASSERT(data.mv_size == sizeof iupd);
+            memcpy(&iupd, data.mv_data, data.mv_size);
+            dblayer_value_set_buffer(inst->inst_be, &dkey, key.mv_data, key.mv_size);
+            rc = idl_delete_key(inst->inst_be, &slot->dbi, &dkey, iupd.id, &btxn, iupd.a);
+            break;
+        case IMPORT_WRITE_ACTION_ADD_ENTRYRDN:
+            rc = handle_entryrdn_key(inst->inst_be, slot, entryrdn_insert_key, key.mv_data, data.mv_data, &btxn);
+            break;
+        case IMPORT_WRITE_ACTION_DEL_ENTRYRDN:
+            rc = handle_entryrdn_key(inst->inst_be, slot, entryrdn_delete_key, key.mv_data, data.mv_data, &btxn);
+            break;
+        case IMPORT_WRITE_ACTION_ADD:
+            rc = mdb_put(TXN(info->txn), elmt->slot->dbi.dbi, &key, &data, 0);
+            if (rc) {
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_writer",
+                    "Failed to add item in %s mdb database. error %d(%s).\n",
+                    elmt->slot->dbi.dbname, rc, mdb_strerror(rc));
+            }
+            break;
+    }
+    slot->readnbelmts++;
+    slot->readdatalen += elmt->len;
+    if ((slot->datalen-slot->readdatalen<DATALEN_WAIT_THRESHOLD)&&
+            (slot->nbelmts-slot->readnbelmts<NBELMTS_WAIT_THRESHOLD)) {
+#ifdef DEBUG_IMPORT
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_write_push", "SIGNAL SLOT %s queue lenght: (%ld, %ld)\n",
+                slot->dbi.dbname, slot->datalen-slot->readdatalen, slot->nbelmts-slot->readnbelmts);
+#endif
+        sync_wakeup(&slot->fullwqsync);
+    }
+
+    return rc;
+}
+
+/* Open a write txn and write all items from the list */
+static int
+wqueue_process_queue(ImportWorkerInfo*info, wqelem_t*list, wq_reader_state_t*state)
+{
+    int rc = 0;
+    global_writer_ctx_t *gwctx = info->job->writer_ctx;
+    int idslot_entryrdn = dbmdb_get_wqslot(info->job, NULL, WCTX_ENTRYRDN);
+    wqslot_t *wqslot_entryrdn = idslot_entryrdn>=0?&gwctx->wqslots[idslot_entryrdn]:NULL;
+
+    rc = dbmdb_start_txn(__FUNCTION__, NULL, 0, &info->txn);
+    while (!rc && list) {
+        wqelem_t *next = list->next;
+        rc = wqueue_process_item(info, list, info->txn);
+        /* Free the list element if it is not part of a static buffer not asynchronous operation */
+        if ((!state||(char*)list<state->buf||(char*)list>= state->bufend)&&!(list->flags&WQFL_SYNC_OP)) {
+            slapi_ch_free((void**)&list);
+        }
+        list = next;
+    }
+
+    if (wqslot_entryrdn&&wqslot_entryrdn->cursor.cur) {
+        dblayer_cursor_op(&wqslot_entryrdn->cursor, DBI_OP_CLOSE, NULL, NULL);
+    }
+    rc = dbmdb_end_txn(__FUNCTION__, rc, &info->txn);
+    return rc;
+}
+
+/* resize the state buffer */
+static void
+realloc_state(wq_reader_state_t *state, size_t len)
+{
+    size_t pos = state->cur-state->buf;
+    state->buf = slapi_ch_realloc(state->buf, len);
+    state->bufend = state->buf+len;
+    state->buflimit = state->buf+DATALEN_WAIT_THRESHOLD;
+    state->cur = state->buf+pos;
+}
+
+/* read a single item from tmp file and queue it*/
+static int
+read_elmt_from_tmpfile(ImportJob *job, wqslot_t *slot, wq_reader_state_t *state, wqelem_t **list)
+{
+    wqelem_t *ptelm;
+    char *ptkey;
+    char *ptnext;
+    size_t bytesread;
+    size_t len;
+
+    if (state->buf == NULL) {
+        realloc_state(state, 2*DATALEN_WAIT_THRESHOLD);
+    }
+    ptelm = (wqelem_t*)(state->cur);
+    ptkey = (char*)&ptelm[1];
+    if (ptkey>= state->buflimit) {
+        /* Not eenough space to store the header within the limit ==> tells to flush the queue */
+        state->cur = state->buflimit;
+        return 0;
+    }
+    if (fread(ptelm, (sizeof(wqelem_t)), 1, slot->tmpfile)<1) {
+        if (ferror(slot->tmpfile)) {
+            import_log_notice(job, SLAPI_LOG_ERR, "read_elmt_from_tmpfile",
+                    "mdb writer thread failed to read data from tmpfile %s. Error = %d(%s).\n",
+                    slot->tmpfilepath, errno, slapd_system_strerror(errno));
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+        return 0;
+    }
+    len = ptelm->keylen+ptelm->data_len;
+    len += ALIGN_TO_LONG(len);
+    ptnext = &ptkey[len];
+    if (ptnext>state->bufend) {
+        realloc_state(state, ptnext-state->buf);
+        ptelm = (wqelem_t*)(state->cur);
+        ptkey = (char*)&ptelm[1];
+        ptnext = &ptkey[len];
+    }
+    while (ptkey<ptnext) {
+        bytesread = fread(ptelm, 1, len, slot->tmpfile);
+        if (bytesread<1) {
+            import_log_notice(job, SLAPI_LOG_ERR, "read_elmt_from_tmpfile",
+                    "mdb writer thread failed to read %d bytes from tmp file %s. Error = %d(%s).\n",
+                    len, slot->tmpfilepath, errno, slapd_system_strerror(errno));
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+        ptkey += bytesread;
+        len -= bytesread;
+    }
+    writer_add_in_queue((volatile wqelem_t**)list, ptelm);
+    state->cur = ptnext;
+    return 0;
+}
+
+
+/* Read the elements pushed in tmpfiles and process them */
+static int
+handle_delayed_slots(ImportWorkerInfo*info)
+{
+    ImportJob*job = info->job;
+    global_writer_ctx_t *gwctx = job->writer_ctx;
+    int slotidx;
+    wq_reader_state_t state = {0};
+    wqelem_t *list = NULL;
+    int rc = 0;
+
+    /*
+     * Thread is finished if most slots have been open and
+     * all not delayed slots are closed
+     */
+    for(slotidx = 0; !rc && slotidx<gwctx->last_wqslot; slotidx++) {
+        wqslot_t*slot = &gwctx->wqslots[slotidx];
+        if (slot->tmpfile) {
+            rewind(slot->tmpfile);
+            while (!rc && !feof(slot->tmpfile)) {
+                if (ferror(slot->tmpfile)) {
+                    rc = 1;
+                    break;
+                }
+                rc = read_elmt_from_tmpfile(job, slot, &state, &list);
+                if (rc) {
+                    break;
+                }
+                if (list&&state.cur>= state.buflimit) {
+                    rc = wqueue_process_queue(info, list, &state);
+                    state.cur = state.buf;
+                }
+            }
+            fclose(slot->tmpfile);
+            if (list&&state.cur>= state.buflimit) {
+                rc = wqueue_process_queue(info, list, &state);
+            }
+        }
+    }
+    return rc;
+}
+
+/* writerthread */
+
+/* writerthread:
+ * i go through the writer queue (unlike the other worker threads),
+ * i'm responsible to write data in mdb database as I am the only
+ * import thread allowed to start a read-write transaction.
+ * (The other threads open read-only txn)
+ */
+void
+dbmdb_import_writer(void*param)
+{
+    ImportWorkerInfo*info = (ImportWorkerInfo*)param;
+    ImportJob*job = info->job;
+    global_writer_ctx_t *gwctx = job->writer_ctx;
+    PRIntervalTime sleeptime;
+    wqelem_t *todolist = NULL;
+    wqelem_t *elmt = NULL;
+    int finished = 0;
+    int slotidx = 0;
+
+    sleeptime = PR_MillisecondsToInterval(import_sleep_time);
+    if (job->flags&FLAG_ABORT) {
+        goto error;
+    }
+
+    info->state = RUNNING;
+
+    while (!finished) {
+        if (job->flags&FLAG_ABORT) {
+            goto error;
+        }
+        while((info->command == PAUSE) &&
+                (info->command != STOP) && (info->command != ABORT) &&
+                !(job->flags&FLAG_ABORT)) {
+            /* Check to see if we've been told to stop */
+            info->state = WAITING;
+            DS_Sleep(sleeptime);
+        }
+        if (info->command == STOP) {
+            finished = 1;
+            continue;
+        }
+        if (job->flags&FLAG_ABORT) {
+            goto error;
+        }
+
+        info->state = RUNNING;
+        sync_set_needs_wait(&gwctx->emptywqsync);
+
+        /*Handlessynchronousoperationsfirst*/
+        while(gwctx->wqsync) {
+            /*Getoperationfromqueue*/
+            pthread_mutex_lock(&gwctx->emptywqsync.mutex);
+            elmt = gwctx->wqsync;
+            log_elmt("dbmdb_import_writer starts processing synchronous operation", elmt, PR_TRUE);
+            gwctx->wqsync = elmt->next;
+            elmt->next = NULL;
+            pthread_mutex_unlock(&gwctx->emptywqsync.mutex);
+            PR_ASSERT(elmt->slot->dbi.dbi || elmt->action == IMPORT_WRITE_ACTION_OPEN);
+            /*Processit*/
+            elmt->rc = wqueue_process_queue(info, elmt, NULL);
+            /*Andwarnthatitisdone*/
+            elmt->flags |= WQFL_SYNC_DONE;
+            sync_wakeup(&elmt->respsync);
+            log_elmt("dbmdb_import_writer finished processing synchronous operation", elmt, PR_FALSE);
+            /* Note: synchronous operations are not taken in account while computing writer thread progress
+             * as it will have mostly no impact anyway (as we process the queue as fast as we fill it.
+             * Furthermore the delay would impact the other thread sprogress
+             */
+        }
+
+        todolist = NULL;
+        for(slotidx = 0; slotidx<gwctx->last_wqslot; slotidx++) {
+            wqslot_t*slot = &gwctx->wqslots[slotidx];
+            if (job->flags&FLAG_ABORT) {
+                goto error;
+            }
+            if (check_for_wqslot_data(slot)) {
+                wqelem_t*list = writer_get_from_queue(&slot->q);
+                while(list) {
+                    elmt = list;
+                    list = list->next;
+                    /* Add element in start of list to reverse the list */
+                    elmt->next = todolist;
+                    todolist = elmt;
+                }
+            }
+        }
+        if (todolist) {
+            if (wqueue_process_queue(info, todolist, NULL)) {
+                goto error;
+            }
+            finished = update_writer_thread_stats(info);
+        } else if (gwctx->wqsync == NULL) {
+            finished = update_writer_thread_stats(info);
+            if (finished) {
+                break;
+            }
+            /* Lets wait until enough data is stored in the queue */
+            sync_wait(&gwctx->emptywqsync);
+        }
+    }
+    if (handle_delayed_slots(info)) {
+        goto error;
+    }
+
+    info->state = FINISHED;
+    return;
+
+error:
+    info->state = ABORTED;
+    gwctx->aborted = ABORTED;
+    /*Let flush the synchronized operations queue */
+    pthread_mutex_lock(&gwctx->emptywqsync.mutex);
+    while(gwctx->wqsync) {
+        elmt = gwctx->wqsync;
+        elmt->flags |= WQFL_SYNC_DONE;
+        elmt->rc = ABORTED;
+        sync_wakeup(&elmt->respsync);
+        gwctx->wqsync = elmt->next;
+    }
+    pthread_mutex_unlock(&gwctx->emptywqsync.mutex);
+    /* Let flush the asynchronized operations queues */
+    for(slotidx = 0; slotidx<gwctx->last_wqslot; slotidx++) {
+        wqslot_t *slot = &gwctx->wqslots[slotidx];
+        while (slot->q) {
+            elmt = (wqelem_t*)slot->q;
+            slot->q = elmt->next;
+            slapi_ch_free((void**)&elmt);
+        }
+    }
+}
+
+int
+dbmdb_import_writer_create_dbi(ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id, const char *filename, PRBool delayed)
+{
+    pseudo_back_txn_t **ptxn = dbmdb_get_ptwctx(info->job, info, wctx_id);
+    global_writer_ctx_t *gwctx = info->job->writer_ctx;
+    long slot = PR_ATOMIC_INCREMENT(&gwctx->last_wqslot);
+    ldbm_instance *inst = info->job->inst;
+    dbmdb_ctx_t *ctx = MDB_CONFIG(inst->inst_li);
+    MDB_val vzero = {0};
+    wqslot_t *wqslot;
+
+    if (slot >= gwctx->max_wqslots) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer_create_dbi",
+                "Failedtocreateanimportwriterdbinstanceslot, (Toomanyopenslots)\n");
+        PR_ATOMIC_DECREMENT(&gwctx->last_wqslot);
+        return -1;
+    }
+    *ptxn = dbmdb_new_wctx(info->job, info, wctx_id);
+    slot--;
+    (*ptxn)->wqslot = slot;
+    wqslot = &gwctx->wqslots[slot];
+    if (delayed) {
+        wqslot->tmpfilepath = slapi_ch_smprintf("%s/%s/%s.mdbimport", ctx->home, inst->inst_name, filename);
+        wqslot->tmpfile = fopen(wqslot->tmpfilepath, "w+");
+        if (!wqslot->tmpfile) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer_create_dbi",
+                    "Failedtocreatetemporaryimportfile%s.Erroris%d(%s)\n", wqslot->tmpfilepath, errno, slapd_system_strerror(errno));
+            return -1;
+        }
+    }
+    wqslot->dbipath = slapi_ch_smprintf("%s/%s", inst->inst_name, filename);
+    sync_init(&wqslot->fullwqsync, slapi_ch_smprintf("slot%s", wqslot->dbipath));
+    return dbmdb_import_sync_write(info->job, slot, IMPORT_WRITE_ACTION_OPEN, &vzero, &vzero);
+}
+
+
+/* Perform a synchronous write operation */
+int
+dbmdb_import_sync_write(ImportJob*job, long wqslot, dbmdb_waction_t action, MDB_val*key, MDB_val*data)
+{
+    global_writer_ctx_t*gwctx = job->writer_ctx;
+    wqelem_t*elmt = NULL;
+    size_t elmt_len = 0;
+    int rc = LDAP_SUCCESS;
+
+    if (wqslot<0 || wqslot >= gwctx->last_wqslot) {
+        return LDAP_UNWILLING_TO_PERFORM;/*Slotisnotopen*/
+    }
+    elmt_len = offsetof(wqelem_t, values)+2*sizeof(MDB_val);
+    elmt = (wqelem_t*)slapi_ch_malloc(elmt_len);
+    elmt->action = action;
+    elmt->keylen = key->mv_size;
+    elmt->data_len = data->mv_size;
+    elmt->flags = WQFL_SYNC_OP;
+    elmt->slot = &gwctx->wqslots[wqslot];
+    elmt->next = NULL;
+    elmt->len = elmt_len;
+    sync_init(&elmt->respsync, slapi_ch_smprintf("elmt%p", elmt));
+    elmt->respsync.needs_wait = 1;
+    /* Do not bother to copy the key data and value data in synchronous mode */
+    ((MDB_val*)(&elmt->values[0]))[0] = *key;
+    ((MDB_val*)(&elmt->values[0]))[1] = *data;
+    elmt->slot->datalen += elmt_len;
+    elmt->slot->nbelmts++;
+
+    /* queue the element at end of list */
+    log_elmt("dbmdb_import_sync_write", elmt, PR_TRUE);
+    pthread_mutex_lock(&gwctx->emptywqsync.mutex);
+    if (job->flags&FLAG_ABORT||gwctx->aborted) {
+        pthread_mutex_unlock(&gwctx->emptywqsync.mutex);
+        elmt->rc = -1;
+        goto err;
+    }
+    if (gwctx->wqsync) {
+        *(gwctx->lastwqsync) = elmt;
+    }else{
+        gwctx->wqsync = elmt;
+    }
+    gwctx->lastwqsync = &elmt->next;
+    pthread_mutex_unlock(&gwctx->emptywqsync.mutex);
+    /* Wakup the writer thread */
+    sync_wakeup(&gwctx->emptywqsync);
+    /* Lets wait for the response */
+    sync_wait(&elmt->respsync);
+err:
+    rc = elmt->rc;
+    sync_free(&elmt->respsync);
+    slapi_ch_free((void**)&elmt);
+    return rc;
+}
+
+/* Queue an asynchronous write operation for the writer thread */
+int
+dbmdb_import_write_push(ImportJob*job, long wqslot, dbmdb_waction_t action, MDB_val*key, MDB_val*data)
+{
+    global_writer_ctx_t *gwctx = job->writer_ctx;
+    wqslot_t *slot = &gwctx->wqslots[wqslot];
+    wqelem_t *elmt = NULL;
+    size_t elmt_len = 0;
+    int rc = LDAP_SUCCESS;
+
+    if (wqslot<0||wqslot>= gwctx->last_wqslot) {
+        return LDAP_UNWILLING_TO_PERFORM; /* Slotisnotopen */
+    }
+    if (action == IMPORT_WRITE_ACTION_CLOSE) {
+        slot->closed = 1;
+        if (slot->tmpfile) {
+            rc = fflush(slot->tmpfile);
+        }
+        dbmdb_writer_wakeup(job);
+        return rc;
+    }
+    elmt_len = offsetof(wqelem_t, values)+key->mv_size+data->mv_size;
+    elmt_len += ALIGN_TO_LONG(elmt_len);
+    elmt = (wqelem_t*)slapi_ch_malloc(elmt_len);
+    elmt->action = action;
+    elmt->keylen = key->mv_size;
+    elmt->data_len = data->mv_size;
+    elmt->flags = 0;
+    elmt->slot = slot;
+    elmt->len = elmt_len;
+    if (key->mv_size>0) {
+        memcpy(&elmt->values[0], key->mv_data, key->mv_size);
+    }
+    if (data->mv_size>0) {
+        memcpy(&elmt->values[key->mv_size], data->mv_data, data->mv_size);
+    }
+
+    log_elmt("dbmdb_import_write_push", elmt, PR_TRUE);
+    if (slot->tmpfile) {
+        /*delayedmode:Needtoserializetowritedataintemporaryfile*/
+        pthread_mutex_lock(&slot->fullwqsync.mutex);
+        if (fwrite(elmt, elmt_len, 1, slot->tmpfile) != 1) {
+            import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_write_push",
+                    "Failed to write %ld bytes in import temporary file %s. Errror = %d(%s).\n",
+                    elmt_len, slot->tmpfilepath, errno, slapd_system_strerror(errno));
+            rc = -1;
+        }
+        pthread_mutex_unlock(&slot->fullwqsync.mutex);
+        slapi_ch_free((void**)&elmt);
+        return rc;
+    }
+
+    /*Normalmode:useinmemoryqueue*/
+    /*flowcontrol:Waituntilqueuegetsmallenough*/
+    while ((slot->datalen-slot->readdatalen>= DATALEN_WAIT_THRESHOLD)||
+            (slot->nbelmts-slot->readnbelmts>= NBELMTS_WAIT_THRESHOLD)) {
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_write_push", "Wait until queue isempty slot = %p sync=%p datalen=%ld nbelents=%ld\n",
+                slot, &slot->fullwqsync, slot->datalen-slot->readdatalen, slot->nbelmts-slot->readnbelmts);
+        sync_set_needs_wait(&slot->fullwqsync);
+        sync_wait(&slot->fullwqsync);
+    }
+
+    /* queue the element */
+    /*
+    * Note: only a single thread does queue items in a given slot
+    * so we can avoid using mutex or atomic op
+    * except for changing the queue head (that can also be reset by the
+    * writer thread when it flush the queue to the database)
+    */
+    slot->datalen += elmt_len;
+    slot->nbelmts++;
+    if (gwctx->aborted) {
+        slapi_ch_free((void**)&elmt);
+        return ABORTED;
+    }
+    writer_add_in_queue(&slot->q, elmt);
+
+    /* Wakup the writer threads if enough data are queued */
+    if ((slot->datalen-slot->readdatalen >= DATALEN_READ_THRESHOLD)||
+            (slot->nbelmts-slot->readnbelmts >= NBELMTS_READ_THRESHOLD)) {
+        dbmdb_writer_wakeup(job);
+    }
+    return rc;
+}
+
+/* back_txn special action callback */
+int
+dbmdb_back_special_handling(backend *be, back_txn_action action, dbi_db_t *db, dbi_val_t *key, dbi_val_t *data, back_txn *txn)
+{
+    const pseudo_back_txn_t* btxn = (const pseudo_back_txn_t*)txn;
+    MDB_val mkey;
+    MDB_val mdata;
+
+    mkey.mv_data = key->data;
+    mkey.mv_size = key->size;
+    mdata.mv_data = data->data;
+    mdata.mv_size = data->size;
+    switch (action) {
+        case BTXNACT_INDEX_ADD:
+            return dbmdb_import_write_push(btxn->job, btxn->wqslot, IMPORT_WRITE_ACTION_ADD_INDEX, &mkey, &mdata);
+        case BTXNACT_INDEX_DEL:
+            return dbmdb_import_write_push(btxn->job, btxn->wqslot, IMPORT_WRITE_ACTION_DEL_INDEX, &mkey, &mdata);
+        case BTXNACT_ENTRYRDN_ADD:
+            return dbmdb_import_sync_write(btxn->job, btxn->wqslot, IMPORT_WRITE_ACTION_ADD_ENTRYRDN, &mkey, &mdata);
+        case BTXNACT_ENTRYRDN_DEL:
+            return dbmdb_import_sync_write(btxn->job, btxn->wqslot, IMPORT_WRITE_ACTION_DEL_ENTRYRDN, &mkey, &mdata);
+        case BTXNACT_ID2ENTRY_ADD:
+            return dbmdb_import_sync_write(btxn->job, btxn->wqslot, IMPORT_WRITE_ACTION_ADD, &mkey, &mdata);
+        default:
+            PR_ASSERT(0);
+            abort();
+    }
+}
+
+/* Get pseudo txn from job/workinfo context */
+static pseudo_back_txn_t *
+dbmdb_new_wctx(ImportJob *job, ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id)
+{
+    pseudo_back_txn_t *btxn = (pseudo_back_txn_t*)slapi_ch_calloc(sizeof(pseudo_back_txn_t), 1);
+
+    btxn->txn.back_special_handling_fn = dbmdb_back_special_handling;
+    btxn->txn.back_txn_txn = info->txn;
+    btxn->job = job;
+    btxn->info = info;
+    btxn->wctx_id = wctx_id;
+    btxn->wqslot = -1;
+    return btxn;
+}
+
+/* Get pseudo txn anchor in job/workinfo context */
+static pseudo_back_txn_t **
+dbmdb_get_ptwctx(ImportJob *job, ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id)
+{
+    if (wctx_id == WCTX_GENERIC) {
+        return (pseudo_back_txn_t**)&info->writer_ctx;
+    } else {
+        return (pseudo_back_txn_t**)&((global_writer_ctx_t*)job->writer_ctx)->predefined_wctx[wctx_id];
+    }
+}
+
+back_txn*
+dbmdb_get_wctx(ImportJob*job, ImportWorkerInfo*info, dbmdb_wctx_id_t wctx_id)
+{
+    return(back_txn*)*dbmdb_get_ptwctx(job, info, wctx_id);
+}
+
+static long
+dbmdb_get_wqslot(ImportJob*job, ImportWorkerInfo*info, dbmdb_wctx_id_t wctx_id)
+{
+    pseudo_back_txn_t**txn = dbmdb_get_ptwctx(job, info, wctx_id);
+    return *txn ? (*txn)->wqslot : -1;
+}
+
+void
+dbmdb_writer_init(ImportJob*job)
+{
+    global_writer_ctx_t *gwctx = (global_writer_ctx_t*)slapi_ch_calloc(sizeof*gwctx, 1);
+    ldbm_instance *inst = job->inst;
+    struct ldbminfo*li = inst->inst_be->be_database->plg_private;
+    dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+    dbmdb_dbi_t dummydbi;
+
+    job->writer_ctx = gwctx;
+
+    sync_init(&gwctx->emptywqsync, slapi_ch_strdup("not enough items in writing thread queue"));
+    gwctx->max_wqslots = ctx->startcfg.max_dbs;
+    gwctx->wqslots = (wqslot_t*)slapi_ch_calloc(sizeof gwctx->wqslots[0], gwctx->max_wqslots);
+    gwctx->writer_progrress = 0.0;
+
+    /* Here, it is still possible to open write txn
+    *  so it seems a good place to open all dbis on which we plan to do
+    * some read access from worker threads or from foreman thread.
+    * (The dbi must be open before these threads get created and
+    * starts a read txn (otherwise the dbi is seen as missing
+    * within the txn)
+    */
+    dbmdb_open_dbi_from_filename(&dummydbi, inst->inst_be, LDBM_PARENTID_STR, NULL, MDB_CREATE|MDB_MARK_DIRTY_DBI);
+    if (entryrdn_get_switch()) {
+        dbmdb_open_dbi_from_filename(&dummydbi, inst->inst_be, LDBM_ENTRYRDN_STR, NULL, MDB_CREATE|MDB_MARK_DIRTY_DBI);
+    } else {
+        dbmdb_open_dbi_from_filename(&dummydbi, inst->inst_be, LDBM_ENTRYDN_STR, NULL, MDB_CREATE|MDB_MARK_DIRTY_DBI);
+    }
+    dbmdb_open_dbi_from_filename(&dummydbi, inst->inst_be, ID2ENTRY, NULL, MDB_CREATE|MDB_MARK_DIRTY_DBI);
+}
+
+void
+dbmdb_writer_cleanup(ImportJob *job)
+{
+    global_writer_ctx_t *gwctx = job->writer_ctx;
+    wqslot_t *slot;
+    int i;
+
+    sync_free(&gwctx->emptywqsync);
+    for(i = 0; i<gwctx->last_wqslot; i++) {
+        slot = &gwctx->wqslots[i];
+        if (slot->tmpfile) {
+            fclose(slot->tmpfile);
+            unlink(slot->tmpfilepath);
+        }
+        slapi_ch_free_string(&slot->tmpfilepath);
+        slapi_ch_free_string(&slot->dbipath);
+        sync_free(&slot->fullwqsync);
+    }
+    slapi_ch_free((void**)&gwctx->wqslots);
+    slapi_ch_free(&job->writer_ctx);
+}
+
+/* Wakes up mdb import writer thread */
+void
+dbmdb_writer_wakeup(ImportJob* job)
+{
+    global_writer_ctx_t*gwctx = job->writer_ctx;
+    if (gwctx) {
+        sync_wakeup(&gwctx->emptywqsync);
+    }
+}
+
+/*Getwriterthreadprogressstatistic*/
+double
+dbmdb_writer_get_progress(ImportJob *job)
+{
+    global_writer_ctx_t*gwctx = job->writer_ctx;
+    return gwctx ? gwctx->writer_progrress : 0.0;
 }

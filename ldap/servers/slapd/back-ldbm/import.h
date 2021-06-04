@@ -33,6 +33,8 @@
 #define IMPORT_MIN_INDEX_BUFFER_SIZE 5
 #define IMPORT_INDEX_BUFFER_SIZE_CONSTANT (20 * 20 * 20 * sizeof(ID))
 
+#define WORKER_NAME_LEN 50
+
 static const int import_sleep_time = 200; /* in millisecs */
 
 extern char *numsubordinates;
@@ -137,6 +139,7 @@ typedef struct _ImportJob
     Slapi_Value *usn_value; /* entryusn for import */
     FILE *upgradefd;        /* used for the upgrade */
     int numsubordinates;
+    void *writer_ctx;        /* Context used to push data in worker thread */
 } ImportJob;
 
 #define FLAG_INDEX_ATTRS 0x01         /* should we index the attributes? */
@@ -167,12 +170,16 @@ struct _import_worker_info
     ImportJob *job;
     ImportWorkerInfo *next;
     size_t index_buffer_size; /* Size of index buffering for this index */
+    char name[WORKER_NAME_LEN];	/* For debug */
+    void *writer_ctx;        /* Context used to push data in worker thread */
+    dbi_txn_t *txn;        /* Thread txn */
 };
 
 /* Values for work_type */
 #define WORKER 1
 #define FOREMAN 2
 #define PRODUCER 3
+#define WRITER 4    /* For MDB */
 
 /* Values for command */
 #define RUN 1

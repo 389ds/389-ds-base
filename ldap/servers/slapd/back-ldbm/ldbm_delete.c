@@ -269,11 +269,11 @@ ldbm_back_delete(Slapi_PBlock *pb)
 
         if (0 == retry_count) { /* just once */
             /* find and lock the entry we are about to modify */
-            /* 
-             * A corner case: 
-             * If a conflict occurred in a MMR topology, a replicated delete 
+            /*
+             * A corner case:
+             * If a conflict occurred in a MMR topology, a replicated delete
              * op from another supplier could target a conflict entry; while the
-             * corresponding entry on this server could have been already 
+             * corresponding entry on this server could have been already
              * deleted.  That is, the entry 'e' found with "addr" is a tomb-
              * stone.  If it is the case, we need to back off.
              */
@@ -290,7 +290,7 @@ replace_entry:
             /* JCMACL - Shouldn't the access check be before the has children check...
              * otherwise we're revealing the fact that an entry exists and has children */
             /* Before has children to mask the presence of children disclosure. */
-            ldap_result_code = plugin_call_acl_plugin (pb, e->ep_entry, NULL, NULL, SLAPI_ACL_DELETE, 
+            ldap_result_code = plugin_call_acl_plugin (pb, e->ep_entry, NULL, NULL, SLAPI_ACL_DELETE,
                                                        ACLPLUGIN_ACCESS_DEFAULT, &errbuf );
             if ( ldap_result_code != LDAP_SUCCESS ) {
                 ldap_result_message= errbuf;
@@ -317,7 +317,7 @@ replace_entry:
 
             /* Don't call pre-op for Tombstone entries */
             if (!delete_tombstone_entry) {
-                /* 
+                /*
                  * Some present state information is passed through the PBlock to the
                  * backend pre-op plugin. To ensure a consistent snapshot of this state
                  * we wrap the reading of the entry with the dblock.
@@ -375,14 +375,14 @@ replace_entry:
                 }
                 if (retval)
                 {
-                    /* 
+                    /*
                      * Plugin indicated some kind of failure,
                      * or that this Operation became a No-Op.
                      */
                     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
                     if (!ldap_result_code) {
                         if (LDAP_ALREADY_EXISTS == ldap_result_code) {
-                            /* 
+                            /*
                              * The target entry is already a tombstone.
                              * We need to treat this as a success,
                              * but we need to remove the entry e from the entry cache.
@@ -407,7 +407,7 @@ replace_entry:
             /* Save away a copy of the entry, before modifications */
             slapi_pblock_set(pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup(e->ep_entry));
 
-            /* call the transaction pre delete plugins just after the 
+            /* call the transaction pre delete plugins just after the
              * to-be-deleted entry is prepared. */
             /* these should not need to modify the entry to be deleted -
                if for some reason they ever do, do not use e->ep_entry since
@@ -447,7 +447,7 @@ replace_entry:
                     delete_tombstone_entry = 0;
                 }
             } else {
-                if (is_tombstone_entry) { 
+                if (is_tombstone_entry) {
                     slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_delete",
                             "Attempt to Tombstone again a tombstone entry %s\n", dn);
                     delete_tombstone_entry = 1;
@@ -497,7 +497,7 @@ replace_entry:
                 ldap_result_code = LDAP_UNWILLING_TO_PERFORM;
                 goto error_return;
             }
-        
+
 #ifdef DEBUG
             slapi_log_err(SLAPI_LOG_REPL, "ldbm_back_delete",
                     "entry: %s  - flags: delete %d is_tombstone_entry %d create %d \n",

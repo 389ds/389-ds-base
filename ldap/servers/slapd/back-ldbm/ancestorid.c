@@ -23,7 +23,7 @@ ancestorid_addordel(
     dbi_db_t *db,
     ID node_id,
     ID id,
-    dbi_txn_t *txn,
+    back_txn *txn,
     struct attrinfo *ai,
     int flags,
     int *allids)
@@ -87,7 +87,6 @@ ldbm_ancestorid_index_update(
     ID node_id, sub_id;
     idl_iterator iter;
     int err = 0, ret = 0;
-    dbi_txn_t *db_txn = txn != NULL ? txn->back_txn_txn : NULL;
 
     slapi_sdn_init(&sdn);
     slapi_sdn_init(&nextsdn);
@@ -154,7 +153,7 @@ ldbm_ancestorid_index_update(
         }
 
         /* Update ancestorid for the base entry */
-        ret = ancestorid_addordel(be, db, node_id, id, db_txn, ai, flags, &allids);
+        ret = ancestorid_addordel(be, db, node_id, id, txn, ai, flags, &allids);
         if (ret != 0)
             break;
 
@@ -170,7 +169,7 @@ ldbm_ancestorid_index_update(
         if (subtree_idl != NULL && ((flags & BE_INDEX_ADD) || (!ALLIDS(subtree_idl)))) {
             iter = idl_iterator_init(subtree_idl);
             while ((sub_id = idl_iterator_dereference_increment(&iter, subtree_idl)) != NOID) {
-                ret = ancestorid_addordel(be, db, node_id, sub_id, db_txn, ai, flags, &allids);
+                ret = ancestorid_addordel(be, db, node_id, sub_id, txn, ai, flags, &allids);
                 if (ret != 0)
                     break;
             }

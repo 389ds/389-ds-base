@@ -523,7 +523,7 @@ idl_new_range_fetch(
             /* we got another ID, add it to our IDL */
             if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
                 if ((count == 0) && (suffix == 0)) {
-                    /* First time.  Keep the suffix ID. 
+                    /* First time.  Keep the suffix ID.
                      * note that 'suffix==0' mean we did not retrieve the suffix entry id
                      * from the parentid index (key '=0'), so let assume the first
                      * found entry is the one from the suffix

@@ -406,19 +406,20 @@ int dblayer_private_open(const char *plgname, const char *dbfilename, Slapi_Back
     /* Setup a fake backend that supports dblayer_get_priv */
     *be = (Slapi_Backend*) slapi_ch_calloc(1, sizeof (Slapi_Backend));
     (*be)->be_database = (struct slapdplugin *)slapi_ch_calloc(1, sizeof(struct slapdplugin));
+    (*be)->be_instance_info = (ldbm_instance *)slapi_ch_calloc(1, sizeof(ldbm_instance));
     li = (struct ldbminfo *)slapi_ch_calloc(1, sizeof(struct ldbminfo));
     (*be)->be_database->plg_private = li;
     li->li_plugin = (*be)->be_database;
     li->li_plugin->plg_name = "back-ldbm-dbimpl";
     li->li_plugin->plg_libpath = "libback-ldbm";
-    li->li_directory = dbfilename;
+    li->li_directory = (char*)dbfilename;
 
     /* Initialize database plugin */
     rc = dbimpl_setup(li, plgname);
     /* Then open the env database plugin */
     if (!rc) {
         dblayer_private *priv = li->li_dblayer_private;
-        rc = priv->dblayer_private_open_fn(dbfilename, env, db);
+        rc = priv->dblayer_private_open_fn(*be, dbfilename, env, db);
     }
     if (rc) {
         dblayer_private_close(be, env, db);
@@ -439,6 +440,7 @@ int dblayer_private_close(Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db)
         slapi_ch_free((void**)&li->li_dblayer_private);
         slapi_ch_free((void**)&(*be)->be_database->plg_private);
         slapi_ch_free((void**)&(*be)->be_database);
+        slapi_ch_free((void**)&(*be)->be_instance_info);
         slapi_ch_free((void**)be);
     }
     return rc;
@@ -461,7 +463,7 @@ dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome)
     li->li_plugin = be->be_database;
     li->li_plugin->plg_name = "back-ldbm-dbimpl";
     li->li_plugin->plg_libpath = "libback-ldbm";
-    li->li_directory = dbhome;
+    li->li_directory = (char*)dbhome;
 
     /* Initialize database plugin */
     rc = dbimpl_setup(li, dbimpl_name);

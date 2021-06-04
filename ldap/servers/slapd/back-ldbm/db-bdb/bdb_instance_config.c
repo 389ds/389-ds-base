@@ -112,7 +112,7 @@ bdb_instance_config_set(ldbm_instance *inst, char *attrname, int mod_apply, int 
         return LDAP_SUCCESS;
     } else {
         return bdb_config_set((void *)inst, config->config_name, bdb_instance_config, value, NULL, phase, mod_apply, mod_op);
-    } 
+    }
 }
 
 
@@ -273,7 +273,7 @@ bdb_instance_cleanup(struct ldbm_instance *inst)
     pthread_mutex_destroy(&(inst_env->bdb_thread_count_lock));
     pthread_cond_destroy(&(inst_env->bdb_thread_count_cv));
     slapi_ch_free((void **)&inst->inst_db);
-    /* 
+    /*
     slapi_destroy_rwlock(((bdb_db_env *)inst->inst_db)->bdb_env_lock);
     slapi_ch_free((void **)&inst->inst_db);
     */
