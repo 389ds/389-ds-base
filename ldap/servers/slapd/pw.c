@@ -2356,6 +2356,18 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     if ((sval = attr_get_present_values(attr))) {
                         pwdpolicy->pw_dict_path = (char *)slapi_value_get_string(*sval);
                     }
+                } else if (!strcasecmp(attr_name, CONFIG_PW_TPR_MAXUSE)) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_tpr_maxuse = slapi_value_get_int(*sval);
+                    }
+                } else if (!strcasecmp(attr_name, CONFIG_PW_TPR_DELAY_EXPIRE_AT)) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_tpr_delay_expire_at = slapi_value_get_int(*sval);
+                    }
+                } else if (!strcasecmp(attr_name, CONFIG_PW_TPR_DELAY_VALID_FROM)) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_tpr_delay_valid_from = slapi_value_get_int(*sval);
+                    }
                 }
             } /* end of for() loop */
             if (pw_entry) {
