@@ -518,6 +518,21 @@ class ReferentialIntegrityPlugin(Plugin):
 
         self.set('referint-update-delay', str(value))
 
+    def get_log_file(self):
+        """Get referint log file"""
+
+        return self.get_attr_val_utf8('referint-logfile')
+
+    def get_log_file_formatted(self):
+        """Get referint log file"""
+
+        return self.display_attr('referint-logfile')
+
+    def set_log_file(self, value):
+        """Set referint log file"""
+
+        self.set('referint-logfile', value)
+
     def get_membership_attr(self, formatted=False):
         """Get referint-membership-attr attribute"""
 
