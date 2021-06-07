@@ -110,7 +110,7 @@ typedef unsigned short u_int16_t;
 #define BDB_DNFORMAT_VERSION  "1"            /* DN format version */
 #define BDB_CL_FILENAME       "replication_changelog.db"
 
-#define LMDB_IMPL             "lmdb"
+#define LMDB_IMPL             "mdb"
 
 #define DBVERSION_NEWIDL 0x1
 #define DBVERSION_RDNFORMAT 0x2

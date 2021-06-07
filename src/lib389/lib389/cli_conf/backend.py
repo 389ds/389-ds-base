@@ -62,6 +62,7 @@ arg_to_attr = {
         'backend_opt_level': 'nsslapd-backend-opt-level',
         'deadlock_policy': 'nsslapd-db-deadlock-policy',
         'db_home_directory': 'nsslapd-db-home-directory',
+        'db_lib': 'nsslapd-backend-implement',
         # VLV attributes
         'search_base': 'vlvbase',
         'search_scope': 'vlvscope',
@@ -1041,6 +1042,7 @@ def create_parser(subparsers):
                                                                   'performance.  Valid values are: 0, 1, 2, or 4')
     set_db_config_parser.add_argument('--deadlock-policy', help='Adjusts the backend database deadlock policy (Advanced setting)')
     set_db_config_parser.add_argument('--db-home-directory', help='Sets the directory for the database mmapped files (Advanced setting)')
+    set_db_config_parser.add_argument('--db_lib', help='Sets which db lib is used. Valid values are: bdb or mdb')
 
     #######################################################
     # Database & Suffix Monitor

@@ -283,17 +283,27 @@ ldbm_config_backend_implement_set(void *arg, void *value, char *errorbuf __attri
     struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
 
+    if (strcasecmp(value, BDB_IMPL) && strcasecmp(value, LMDB_IMPL)) {
+		slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_backend_implement_set", "Invalid db implementation value. It should be %s or %s.\n", BDB_IMPL, LMDB_IMPL);
+		return LDAP_UNWILLING_TO_PERFORM;
+	}
+
     if (apply) {
         slapi_ch_free((void **)&(li->li_backend_implement));
         li->li_backend_implement = slapi_ch_strdup((char *)value);
-        /* Set a flag that we can efficiently check which backend
-         * implementation we are using */
-        if (strcasecmp(li->li_backend_implement, BDB_IMPL) == 0) {
-            li->li_flags |= LI_BDB_IMPL;
-        } else if (strcasecmp(li->li_backend_implement, LMDB_IMPL) == 0) {
-            li->li_flags |= LI_LMDB_IMPL;
+        if (CONFIG_PHASE_RUNNING == phase) {
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_directory_set",
+                      "New db implentation will not take affect until the server is restarted\n");
         } else {
-            li->li_flags |= LI_DEFAULT_IMPL_FLAG;
+            /* Set a flag that we can efficiently check which backend
+             * implementation we are using */
+            if (strcasecmp(li->li_backend_implement, BDB_IMPL) == 0) {
+                li->li_flags |= LI_BDB_IMPL;
+            } else if (strcasecmp(li->li_backend_implement, LMDB_IMPL) == 0) {
+                li->li_flags |= LI_LMDB_IMPL;
+            } else {
+                li->li_flags |= LI_DEFAULT_IMPL_FLAG;
+            }
         }
     }
 
@@ -975,7 +985,7 @@ static config_info ldbm_config[] = {
     {CONFIG_PAGEDIDLISTSCANLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedallidsthreshold_get, &ldbm_config_pagedallidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_RANGELOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_rangelookthroughlimit_get, &ldbm_config_rangelookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_BACKEND_OPT_LEVEL, CONFIG_TYPE_INT, "1", &ldbm_config_backend_opt_level_get, &ldbm_config_backend_opt_level_set, CONFIG_FLAG_ALWAYS_SHOW},
-    {CONFIG_BACKEND_IMPLEMENT, CONFIG_TYPE_STRING, "bdb", &ldbm_config_backend_implement_get, &ldbm_config_backend_implement_set, CONFIG_FLAG_ALWAYS_SHOW},
+    {CONFIG_BACKEND_IMPLEMENT, CONFIG_TYPE_STRING, "bdb", &ldbm_config_backend_implement_get, &ldbm_config_backend_implement_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}};
 
 void
