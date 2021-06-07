@@ -206,7 +206,7 @@ sync_set_needs_wait(sync_t* sync)
  static inline wqelem_t *__attribute__((always_inline))
  writer_get_from_queue(volatile wqelem_t **q)
  {
-     return (wqelem_t*)__sync_fetch_and_and_8((wqelem_t*)q, 0);
+     return (wqelem_t*)__sync_fetch_and_and_8(q, 0);
  }
 
 static struct backentry *

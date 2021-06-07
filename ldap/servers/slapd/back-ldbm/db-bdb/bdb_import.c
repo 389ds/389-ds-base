@@ -1464,15 +1464,9 @@ bdb_import_free_job(ImportJob *job)
          * To avoid freeing fifo queue under bdb_bulk_import_queue use
          * job lock to synchronize
          */
-        if (&job->wire_lock) {
-            pthread_mutex_lock(&job->wire_lock);
-        }
-
+        pthread_mutex_lock(&job->wire_lock);
         bdb_import_fifo_destroy(job);
-
-        if (&job->wire_lock) {
-            pthread_mutex_unlock(&job->wire_lock);
-        }
+        pthread_mutex_unlock(&job->wire_lock);
     }
 
     if (NULL != job->uuid_namespace) {

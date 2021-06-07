@@ -2389,7 +2389,6 @@ int dbmdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *ke
             rc = mdb_get(mdb_txn, dbi, &dbmdb_key, &dbmdb_data);
             break;
         case DBI_OP_PUT:
-if (strstr(dbmdb_db->dbname, "parent")) { slapi_log_err(SLAPI_LOG_INFO, __FUNCTION__, "[%d] parentid --> %s\n", __LINE__, (char*)(dbmdb_key.mv_data)); }
             rc = mdb_put(mdb_txn, dbi, &dbmdb_key, &dbmdb_data, 0);
             break;
         case DBI_OP_ADD:

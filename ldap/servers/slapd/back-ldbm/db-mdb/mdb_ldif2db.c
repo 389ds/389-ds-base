@@ -686,7 +686,7 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
 {
     backend *be = NULL;
     struct ldbminfo *li = NULL;
-    MDB_dbi *db = NULL;
+    dbi_db_t *db = NULL;
     struct backentry *ep;
     struct backentry *pending_ruv = NULL;
     MDB_val key = {0};
@@ -903,7 +903,7 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
     if (include_suffix && ok_index)
         get_ids_from_disk(be);
 
-    if (((dblayer_get_id2entry(be, (dbi_db_t**)&db)) != 0) || (db == NULL)) {
+    if (((dblayer_get_id2entry(be, &db)) != 0) || (db == NULL)) {
         slapi_task_log_notice(task,
                 "Backend instance '%s' Unable to open/create database(id2entry)",
                 inst->inst_name);
@@ -1330,7 +1330,7 @@ dbmdb_db2index(Slapi_PBlock *pb)
     int task_flags, run_from_cmdline;
     ldbm_instance *inst;
     backend *be;
-    MDB_dbi*db = NULL; /* MDB_dbihandle for id2entry */
+    dbi_db_t *db = NULL; /* MDB_dbihandle for id2entry */
     char **indexAttrs = NULL;
     struct vlvIndex **pvlv = NULL;
     MDB_val key = {0};
@@ -1415,7 +1415,7 @@ dbmdb_db2index(Slapi_PBlock *pb)
         return return_value;
     }
 
-    if (((dblayer_get_id2entry(be, (dbi_db_t**)&db)) != 0) || (db == NULL)) {
+    if (((dblayer_get_id2entry(be, &db)) != 0) || (db == NULL)) {
         slapi_task_log_notice(task,
                 "%s: Could not open/create database (id2entry)",
                 inst->inst_name);
