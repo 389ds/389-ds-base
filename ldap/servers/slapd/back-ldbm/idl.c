@@ -425,7 +425,7 @@ idl_store(
                 operation_out_of_disk_space();
             }
             slapi_log_err(((DBI_RC_RETRY == rc) ? SLAPI_LOG_TRACE : SLAPI_LOG_ERR),
-                          "idl_store - (%s) Returns %d %s\n",
+                          "idl_store", "(%s) Returns %d %s\n",
                           ((char *)key->dptr)[key->dsize - 1] ? "" : (char *)key->dptr,
                           rc, (msg = dblayer_strerror(rc)) ? msg : "");
             if (rc == DBI_RC_RUNRECOVERY) {
