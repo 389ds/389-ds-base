@@ -3681,8 +3681,6 @@ dbmdb_ldbm_back_wire_import(Slapi_PBlock *pb)
  * this function is called from dblayer_backup (ldbm2archive)
  * [547427] index config must not change between backup and restore
  */
-#define DSE_INDEX "dse_index.ldif"
-#define DSE_INSTANCE "dse_instance.ldif"
 #define DSE_INDEX_FILTER "(objectclass=nsIndex)"
 #define DSE_INSTANCE_FILTER "(objectclass=nsBackendInstance)"
 static int
