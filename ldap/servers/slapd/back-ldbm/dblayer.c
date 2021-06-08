@@ -1173,7 +1173,6 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
     PR_ASSERT(NULL != priv);
 
     return priv->dblayer_restore_fn(li, src_dir, task);
-
 }
 
 void

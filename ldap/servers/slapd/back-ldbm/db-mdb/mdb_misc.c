@@ -15,18 +15,19 @@
 int
 dbmdb_db_size(Slapi_PBlock *pb)
 {
-#ifdef TODO
     struct ldbminfo *li;
-    unsigned int size; /* TODO: make this a 64-bit return value */
-    int rc;
+    uint64_t size64;
+    uint sizekb;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
-    rc = dbmdb_database_size(li, &size);     /* TODO: make this a 64-bit return value */
-    slapi_pblock_set(pb, SLAPI_DBSIZE, &size); /* TODO: make this a 64-bit return value */
+    size64 = dbmdb_database_size(li);
+    size64 /= 1024;
+    sizekb = (uint)size64;
+    slapi_pblock_set(pb, SLAPI_DBSIZE, &sizekb);
 
-    return rc;
-#endif /* TODO */
+    return 0;
 }
+
 int
 dbmdb_cleanup(struct ldbminfo *li)
 {

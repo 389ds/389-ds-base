@@ -10,6 +10,7 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+#include <unistd.h>
 #include "mdb_layer.h"
 #include <prthread.h>
 #include <prclist.h>
@@ -61,7 +62,6 @@ typedef struct {
 #define DB_REGION_PREFIX "__db."
 
 static int dbmdb_force_checkpoint(struct ldbminfo *li);
-static int dbmdb_restore_file_check(struct ldbminfo *li);
 
 #define MEGABYTE (1024 * 1024)
 #define GIGABYTE (1024 * MEGABYTE)
@@ -79,6 +79,7 @@ static int dbmdb_restore_file_check(struct ldbminfo *li);
 /* this flag is used if user remotely turned batching off */
 #define FLUSH_REMOTEOFF 0
 
+static const char *backupfilelists[] = { INFOFILE, DBMAPFILE, DSE_INSTANCE, DSE_INDEX, NULL };
 
 /*
  * return nsslapd-db-home-directory (dbmdb_dbhome_directory), if exists.
@@ -153,17 +154,6 @@ int
 dbmdb_open_huge_file(const char *path, int oflag, int mode)
 {
     return dbmdb_open_large(path, oflag, (mode_t)mode);
-}
-
-/* Helper function for large seeks, db4.3 */
-static int
-dbmdb_seek43_large(int fd, off64_t offset, int whence)
-{
-    off64_t ret = 0;
-
-    ret = lseek64(fd, offset, whence);
-
-    return (ret < 0) ? errno : 0;
 }
 
 #else /* DB_USE_64LFS */
@@ -345,32 +335,8 @@ dbmdb_close(struct ldbminfo *li, int dbmode)
 int
 dbmdb_remove_env(struct ldbminfo *li)
 {
-#ifdef TODO
-    MDB_env *env = NULL;
-    char *home_dir = NULL;
-    int rc = db_env_create(&env, 0);
-    if (rc) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dbmdb_remove_env", "Failed to create MDB_env (returned: %d)\n", rc);
-        return rc;
-    }
-    if (NULL == li) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_remove_env", "No ldbm info is given\n");
-        return -1;
-    }
-
-    home_dir = dbmdb_get_home_dir(li, NULL);
-    if (home_dir) {
-        rc = env->remove(env, home_dir, 0);
-        if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "dbmdb_remove_env", "Failed to remove MDB_dbienvironment files. "
-                                                "Please remove %s/__db.00# (# is 1 through 6)\n",
-                          home_dir);
-        }
-    }
-    return rc;
-#endif /* TODO */
+    /* No removable env file with mdb */
+    return 0;
 }
 
 /* Determine mdb open flags according to dbi type */
@@ -813,7 +779,7 @@ dbmdb_database_size(struct ldbminfo *li)
     priv = (dbmdb_ctx_t *)li->li_dblayer_config;
     PR_ASSERT(NULL != priv);
     PR_ASSERT(NULL != priv->home);
-    PR_snprintf(path, MAXPATHLEN, "%s/data.mdb", priv->home);
+    PR_snprintf(path, MAXPATHLEN, "%s/%s", priv->home, DBMAPFILE);
     PR_GetFileInfo64(path, &info);    /* Ignores errors */
     return info.size;
 }
@@ -930,31 +896,25 @@ error:
 int
 dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
 {
-#ifdef TODO
+    int return_value = LDAP_UNWILLING_TO_PERFORM;
     dblayer_private *priv = NULL;
-    dbmdb_ctx_t *conf = NULL;
-    char **listA = NULL, **listB = NULL, **listi, **listj, *prefix;
-    char *home_dir = NULL;
-    char *db_dir = NULL;
-    int return_value = -1;
+    PRDirEntry *direntry = NULL;
+    PRDir *dirhandle = NULL;
+    dbmdb_ctx_t *conf;
     char *pathname1;
     char *pathname2;
-    back_txn txn;
-    int cnt = 1, ok = 0;
-    Object *inst_obj;
-    char inst_dir[MAXPATHLEN];
-    char *inst_dirp = NULL;
-    char *changelogdir = NULL;
+    const char **pt;
+    char *home;
+
 
     PR_ASSERT(NULL != li);
     conf = (dbmdb_ctx_t *)li->li_dblayer_config;
     priv = li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
+    PR_ASSERT(NULL != conf);
+    home = conf->home;
 
-    db_dir = dbmdb_get_db_dir(li);
-
-    home_dir = dbmdb_get_home_dir(li, NULL);
-    if (NULL == home_dir || '\0' == *home_dir) {
+    if ('\0' == *home) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "dblayer_backup", "Missing db home directory info\n");
         return return_value;
@@ -962,41 +922,11 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
 
     /*
      * What are we doing here ?
+     * check that destinantion is OK
      * We want to copy into the backup directory:
-     * All the backend instance dir / database files;
-     * All the logfiles
-     * The version file
+     * The mdb database 
+     * The info file
      */
-
-    /* changed in may 1999 for political correctness.
-     * 1. take checkpoint
-     * 2. open transaction
-     * 3. get list of logfiles (A)
-     * 4. copy the db# files
-     * 5. get list of logfiles (B)
-     * 6. if !(A in B), goto 3
-     *    (logfiles were flushed during our backup)
-     * 7. copy logfiles from list B
-     * 8. abort transaction
-     * 9. backup index config info
-     */
-
-    /* Order of checkpointing and txn creation reversed to work
-     * around MDB_dbiproblem. If we don't do it this way around DB
-     * thinks all old transaction logs are required for recovery
-     * when the MDB_dbienvironment has been newly created (such as
-     * after an import).
-     */
-
-    /* do a quick checkpoint */
-    dbmdb_force_checkpoint(li);
-    dblayer_txn_init(li, &txn);
-    return_value = dblayer_txn_begin_all(li, NULL, &txn);
-    if (return_value) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_backup", "Transaction error\n");
-        return return_value;
-    }
 
     if (g_get_shutdown() || c_get_shutdown()) {
         slapi_log_err(SLAPI_LOG_WARNING, "dblayer_backup", "Server shutting down, backup aborted\n");
@@ -1004,179 +934,43 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
         goto bail;
     }
 
-    /* repeat this until the logfile sets match... */
-    do {
-        /* get the list of logfiles currently existing */
-        if (conf->dbmdb_enable_transactions) {
-            return_value = LOG_ARCHIVE(((dbmdb_db_env *)priv->dblayer_env)->dbmdb_MDB_env,
-                                       &listA, DB_ARCH_LOG, (void *)slapi_ch_malloc);
-            if (return_value || (listA == NULL)) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dblayer_backup", "Log archive error\n");
-                if (task) {
-                    slapi_task_log_notice(task, "Backup: log archive error\n");
-                }
-                return_value = -1;
-                goto bail;
-            }
-        } else {
-            ok = 1;
+	return_value = mkdir_p(dest_dir, 0700);
+    dirhandle = PR_OpenDir(dest_dir);
+    if (NULL != dirhandle) {
+        while ((direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)) && direntry->name) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_backup", "Backup directory %s is not empty.\n", dest_dir);
+            if (task) {
+                slapi_task_log_notice(task, "dbmdb_backup - Backup directory %s is not empty.\n", dest_dir);
+			}
+            PR_CloseDir(dirhandle);
+            goto error_out;
         }
-        if (g_get_shutdown() || c_get_shutdown()) {
-            slapi_log_err(SLAPI_LOG_ERR, "dblayer_backup", "Server shutting down, backup aborted\n");
-            return_value = -1;
-            goto bail;
+        PR_CloseDir(dirhandle);
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_backup", "Cannot open backup directory %s.\n", dest_dir);
+        if (task) {
+            slapi_task_log_notice(task, "dbmdb_backup - Backup directory %s is not empty.\n", dest_dir);
         }
-
-        for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
-             inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
-            ldbm_instance *inst = (ldbm_instance *)object_get_data(inst_obj);
-            inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
-                                                  inst_dir, MAXPATHLEN);
-            if ((NULL == inst_dirp) || ('\0' == *inst_dirp)) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dblayer_backup", "Instance dir is empty\n");
-                if (task) {
-                    slapi_task_log_notice(task,
-                                          "Backup: Instance dir is empty\n");
-                }
-                if (inst_dirp != inst_dir) {
-                    slapi_ch_free_string(&inst_dirp);
-                }
-                return_value = -1;
-                goto bail;
-            }
-            return_value = dbmdb_copy_directory(li, task, inst_dirp,
-                                                  dest_dir, 0 /* backup */,
-                                                  &cnt, 0, 0);
-            if (return_value) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dblayer_backup", "Error in copying directory "
-                                                "(%s -> %s): err=%d\n",
-                              inst_dirp, dest_dir, return_value);
-                if (task) {
-                    slapi_task_log_notice(task,
-                                          "Backup: error in copying directory "
-                                          "(%s -> %s): err=%d\n",
-                                          inst_dirp, dest_dir, return_value);
-                }
-                if (inst_dirp != inst_dir) {
-                    slapi_ch_free_string(&inst_dirp);
-                }
-                goto bail;
-            }
-            if (inst_dirp != inst_dir)
-                slapi_ch_free_string(&inst_dirp);
+        goto error_out;
+	}
+    /* Copy the mdb database */
+    return_value = mdb_env_copy(conf->env, dest_dir);
+    if (return_value) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_backup", "Failed to backup mdb database to %s.\n", dest_dir);
+        if (task) {
+            slapi_task_log_notice(task, "dbmdb_backup - Failed to backup mdb database to %s.\n", dest_dir);
         }
-        if (conf->dbmdb_enable_transactions) {
-            /* now, get the list of logfiles that still exist */
-            return_value = LOG_ARCHIVE(((dbmdb_db_env *)priv->dblayer_env)->dbmdb_MDB_env,
-                                       &listB, DB_ARCH_LOG, (void *)slapi_ch_malloc);
-            if (return_value || (listB == NULL)) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dblayer_backup", "Can't get list of logs\n");
-                goto bail;
-            }
-
-            /* compare: make sure everything in list A is still in list B */
-            ok = 1;
-            for (listi = listA; listi && *listi && ok; listi++) {
-                int found = 0;
-                for (listj = listB; listj && *listj && !found; listj++) {
-                    if (strcmp(*listi, *listj) == 0) {
-                        found = 1;
-                        break;
-                    }
-                }
-                if (!found) {
-                    ok = 0; /* missing log: start over */
-                    slapi_log_err(SLAPI_LOG_WARNING,
-                                  "dblayer_backup", "Log %s has been swiped "
-                                                    "out from under me! (retrying)\n",
-                                  *listi);
-                    if (task) {
-                        slapi_task_log_notice(task,
-                                              "WARNING: Log %s has been swiped out from under me! "
-                                              "(retrying)",
-                                              *listi);
-                    }
-                }
-            }
-
-            if (g_get_shutdown() || c_get_shutdown()) {
-                slapi_log_err(SLAPI_LOG_ERR, "dblayer_backup", "Server shutting down, backup aborted\n");
-                return_value = -1;
-                goto bail;
-            }
-
-            if (ok) {
-                size_t p1len, p2len;
-                char **listptr;
-
-                prefix = NULL;
-                if ((NULL != conf->dbmdb_log_directory) &&
-                    (0 != strlen(conf->dbmdb_log_directory))) {
-                    prefix = conf->dbmdb_log_directory;
-                } else {
-                    prefix = db_dir;
-                }
-                /* log files have the same filename len(100 is a safety net:) */
-                p1len = strlen(prefix) + strlen(*listB) + 100;
-                pathname1 = (char *)slapi_ch_malloc(p1len);
-                p2len = strlen(dest_dir) + strlen(*listB) + 100;
-                pathname2 = (char *)slapi_ch_malloc(p2len);
-                /* We copy those over */
-                for (listptr = listB; listptr && *listptr && ok; ++listptr) {
-                    PR_snprintf(pathname1, p1len, "%s/%s", prefix, *listptr);
-                    PR_snprintf(pathname2, p2len, "%s/%s", dest_dir, *listptr);
-                    slapi_log_err(SLAPI_LOG_INFO, "dblayer_backup", "Backing up file %d (%s)\n",
-                                  cnt, pathname2);
-                    if (task) {
-                        slapi_task_log_notice(task,
-                                              "Backing up file %d (%s)", cnt, pathname2);
-                        slapi_task_log_status(task,
-                                              "Backing up file %d (%s)", cnt, pathname2);
-                    }
-                    return_value = dbmdb_copyfile(pathname1, pathname2,
-                                                    0, priv->dblayer_file_mode);
-                    if (0 > return_value) {
-                        slapi_log_err(SLAPI_LOG_ERR, "dblayer_backup", "Error in copying file '%s' (err=%d)\n",
-                                      pathname1, return_value);
-                        if (task) {
-                            slapi_task_log_notice(task, "Error copying file '%s' (err=%d)",
-                                                  pathname1, return_value);
-                        }
-                        slapi_ch_free((void **)&pathname1);
-                        slapi_ch_free((void **)&pathname2);
-                        goto bail;
-                    }
-                    if (g_get_shutdown() || c_get_shutdown()) {
-                        slapi_log_err(SLAPI_LOG_ERR, "dblayer_backup", "Server shutting down, backup aborted\n");
-                        return_value = -1;
-                        slapi_ch_free((void **)&pathname1);
-                        slapi_ch_free((void **)&pathname2);
-                        goto bail;
-                    }
-                    cnt++;
-                }
-                slapi_ch_free((void **)&pathname1);
-                slapi_ch_free((void **)&pathname2);
-            }
-
-            slapi_ch_free((void **)&listA);
-            slapi_ch_free((void **)&listB);
-        }
-    } while (!ok);
-
-    /* now copy the version file */
-    pathname1 = slapi_ch_smprintf("%s/%s", home_dir, DBVERSION_FILENAME);
-    pathname2 = slapi_ch_smprintf("%s/%s", dest_dir, DBVERSION_FILENAME);
-    slapi_log_err(SLAPI_LOG_INFO, "dblayer_backup", "Backing up file %d (%s)\n", cnt, pathname2);
-    if (task) {
-        slapi_task_log_notice(task, "Backing up file %d (%s)", cnt, pathname2);
-        slapi_task_log_status(task, "Backing up file %d (%s)", cnt, pathname2);
+        goto error_out;
     }
-    return_value = dbmdb_copyfile(pathname1, pathname2, 0, priv->dblayer_file_mode);
+
+    /* now copy the info file */
+    pathname1 = slapi_ch_smprintf("%s/%s", home, INFOFILE);
+    pathname2 = slapi_ch_smprintf("%s/%s", dest_dir, INFOFILE);
+    slapi_log_err(SLAPI_LOG_INFO, "dblayer_backup", "Backing up file d (%s)\n", pathname2);
+    if (task) {
+        slapi_task_log_notice(task, "Backing up file (%s)", pathname2);
+    }
+    return_value = dbmdb_copyfile(pathname1, pathname2, 0, li->li_mode | 0400);
     if (0 > return_value) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "dblayer_backup", "Error in copying version file "
@@ -1192,17 +986,24 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     slapi_ch_free((void **)&pathname1);
     slapi_ch_free((void **)&pathname2);
 
-    /* Lastly we tell log file truncation to start again */
-
     if (0 == return_value) /* if everything went well, backup the index conf */
         return_value = dbmdb_dse_conf_backup(li, dest_dir);
+    goto bail;
+error_out:
+    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_backup", "Backup to %s aborted.\n", dest_dir);
+    if (task) {
+        slapi_task_log_notice(task, "dbmdb_backup - Backup to %s aborted.\n", dest_dir);
+    }
+    /* Lets remove the backup */
+    for (pt=backupfilelists; *pt; pt++) {
+        pathname2 = slapi_ch_smprintf("%s/%s", dest_dir, *pt);
+        unlink(pathname2);
+        slapi_ch_free_string(&pathname2);
+    }
+    rmdir(dest_dir);
+    return_value = LDAP_UNWILLING_TO_PERFORM;
 bail:
-    slapi_ch_free((void **)&listA);
-    slapi_ch_free((void **)&listB);
-    dblayer_txn_abort_all(li, &txn);
-    slapi_ch_free_string(&changelogdir);
     return return_value;
-#endif /* TODO */
 }
 
 
@@ -1215,57 +1016,42 @@ bail:
  */
 
 /* Helper function first */
+static int
+dbmdb_restore_file(struct ldbminfo *li, Slapi_Task *task, const char *src_dir, const char *filename)
+{
+    char *pathname1 = slapi_ch_smprintf("%s/%s", src_dir, filename);
+    char *pathname2 = slapi_ch_smprintf("%s/%s", MDB_CONFIG(li)->home, filename);
+    int return_value = dbmdb_copyfile(pathname1, pathname2, PR_TRUE, li->li_mode);
+    if (return_value) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "dbmdb_restore", "Failed to copy database map file to %s.\n", pathname2);
+        if (task) {
+            slapi_task_log_notice(task, "Restore: Failed to copy database map file to %s.\n", pathname2);
+        }
+        slapi_ch_free_string(&pathname1);
+        slapi_ch_free_string(&pathname2);
+        return -1;
+    }
+    slapi_ch_free_string(&pathname1);
+    slapi_ch_free_string(&pathname2);
+    return 0;
+}
+
 
 int
 dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
 {
-#ifdef TODO
-    dbmdb_ctx_t *conf = NULL;
     dblayer_private *priv = NULL;
     int return_value = 0;
     int tmp_rval;
-    char filename1[MAXPATHLEN];
-    char filename2[MAXPATHLEN];
-    PRDir *dirhandle = NULL;
-    PRDirEntry *direntry = NULL;
-    PRFileInfo64 info;
-    ldbm_instance *inst = NULL;
-    int seen_logfiles = 0; /* Tells us if we restored any logfiles */
-    int is_a_logfile = 0;
-    int dbmode;
-    int action = 0;
-    char *home_dir = NULL;
-    char *real_src_dir = NULL;
+    int dbmode = DBLAYER_RESTORE_NO_RECOVERY_MODE;
     struct stat sbuf;
-    char *changelogdir = NULL;
-    char *restore_dir = NULL;
-    char *prefix = NULL;
-    int cnt = 1;
+    const char **pt;
+    char *pathname;
 
     PR_ASSERT(NULL != li);
-    conf = (dbmdb_ctx_t *)li->li_dblayer_config;
     priv = li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
-
-    /* DBMDB_dbithis is a hack, take out later */
-    PR_Lock(li->li_config_mutex);
-    /* dbmdb_home_directory is freed in dbmdb_post_close.
-     * li_directory needs to live beyond dblayer. */
-    slapi_ch_free_string(&conf->dbmdb_home_directory);
-    conf->dbmdb_home_directory = slapi_ch_strdup(li->li_directory);
-    conf->dbmdb_cachesize = li->li_dbcachesize;
-    conf->dbmdb_lock_config = li->li_dblock;
-    conf->dbmdb_ncache = li->li_dbncache;
-    priv->dblayer_file_mode = li->li_mode;
-    PR_Unlock(li->li_config_mutex);
-
-    home_dir = dbmdb_get_home_dir(li, NULL);
-
-    if (NULL == home_dir || '\0' == *home_dir) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_restore",
-                      "Missing db home directory info\n");
-        return -1;
-    }
 
     /* We find out if slapd is startcfg */
     /* If it is, we fail */
@@ -1290,276 +1076,37 @@ dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         }
         return LDAP_UNWILLING_TO_PERFORM;
     }
-    if (!dbmdb_version_exists(li, src_dir)) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_restore", "Backup directory %s does not "
-                                                        "contain a complete backup\n",
-                      src_dir);
-        if (task) {
-            slapi_task_log_notice(task, "Restore: backup directory %s does not "
-                                        "contain a complete backup",
-                                  src_dir);
-        }
-        return LDAP_UNWILLING_TO_PERFORM;
-    }
 
-    /*
-     * Check if the target is a superset of the backup.
-     * If not don't restore any db at all, otherwise
-     * the target will be crippled.
-     */
-    dirhandle = PR_OpenDir(src_dir);
-    if (NULL != dirhandle) {
-        while ((direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)) && direntry->name) {
-            PR_snprintf(filename1, sizeof(filename1), "%s/%s",
-                        src_dir, direntry->name);
-            {
-                tmp_rval = PR_GetFileInfo64(filename1, &info);
-                if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
-                    inst = ldbm_instance_find_by_name(li, (char *)direntry->name);
-                    if (inst == NULL) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "dbmdb_restore", "Target server has no backend (%s) configured\n",
-                                      direntry->name);
-                        if (task) {
-                            slapi_task_log_notice(task,
-                                                  "dbmdb_restore - Target server has no backend (%s) configured",
-                                                  direntry->name);
-                            slapi_task_cancel(task, LDAP_UNWILLING_TO_PERFORM);
-                        }
-                        PR_CloseDir(dirhandle);
-                        return_value = LDAP_UNWILLING_TO_PERFORM;
-                        goto error_out;
-                    }
-
-                    if (slapd_comp_path(src_dir, inst->inst_parent_dir_name) == 0) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "dbmdb_restore", "Backup dir %s and target dir %s are identical\n",
-                                      src_dir, inst->inst_parent_dir_name);
-                        if (task) {
-                            slapi_task_log_notice(task,
-                                                  "Restore: backup dir %s and target dir %s are identical",
-                                                  src_dir, inst->inst_parent_dir_name);
-                        }
-                        PR_CloseDir(dirhandle);
-                        return_value = LDAP_UNWILLING_TO_PERFORM;
-                        goto error_out;
-                    }
-                }
+    /* Check that all files are present and not empty */
+    for (pt=backupfilelists; *pt; pt++) {
+        pathname = slapi_ch_smprintf("%s/%s", src_dir, *pt);
+        if (stat(pathname, &sbuf) < 0 || sbuf.st_size == 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_restore",
+                "Backup directory %s does not contain a complete backup.\n", src_dir);
+            if (task) {
+                slapi_task_log_notice(task,
+                    "Restore: backup directory %s does not contain a complete backup.", src_dir);
             }
+            slapi_ch_free_string(&pathname);
+            return LDAP_UNWILLING_TO_PERFORM;
         }
-        PR_CloseDir(dirhandle);
+        slapi_ch_free_string(&pathname);
     }
 
     /* We delete the existing database */
-    /* changelogdir is taken care only when it's not NULL. */
-    return_value = dbmdb_delete_database_ex(li, changelogdir);
-    if (return_value) {
-        goto error_out;
-    }
+	dbmdb_ctx_close(li->li_dblayer_config);
+    dbmdb_delete_db(li);
 
-    {
-        /* Otherwise use the src_dir from the caller */
-        real_src_dir = src_dir;
-    }
-
-    /* We copy the files over from the staging area */
-    /* We want to treat the logfiles specially: if there's
-     * a log file directory configured, copy the logfiles there
-     * rather than to the db dirctory */
-    dirhandle = PR_OpenDir(real_src_dir);
-    if (NULL == dirhandle) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dbmdb_restore", "Failed to open the directory \"%s\"\n", real_src_dir);
-        if (task) {
-            slapi_task_log_notice(task,
-                                  "Restore: failed to open the directory \"%s\"", real_src_dir);
-        }
+    /* Copy db and info files */
+    if (dbmdb_restore_file(li, task, src_dir, DBMAPFILE) ||
+        dbmdb_restore_file(li, task, src_dir, INFOFILE)) {
         return_value = -1;
         goto error_out;
     }
 
-    while (NULL !=
-           (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
-        if (NULL == direntry->name) {
-            /* NSPR doesn't behave like the docs say it should */
-            break;
-        }
-
-        /* Is this entry a directory? */
-        PR_snprintf(filename1, sizeof(filename1), "%s/%s",
-                    real_src_dir, direntry->name);
-        tmp_rval = PR_GetFileInfo64(filename1, &info);
-        if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
-            /* This is an instance directory. It contains the *.db#
-             * files for the backend instance.
-             * restore directory is supposed to be where the backend
-             * directory is located.
-             */
-            if (0 == strcmp(CHANGELOG_BACKUPDIR, direntry->name)) {
-                if (changelogdir) {
-                    char *cldirname = PL_strrchr(changelogdir, '/');
-                    char *p = filename1 + strlen(filename1);
-                    if (NULL == cldirname) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "dbmdb_restore", "Broken changelog dir path %s\n",
-                                      changelogdir);
-                        if (task) {
-                            slapi_task_log_notice(task,
-                                                  "Restore: broken changelog dir path %s",
-                                                  changelogdir);
-                        }
-                        goto error_out;
-                    }
-                    PR_snprintf(p, sizeof(filename1) - (p - filename1),
-                                "/%s", cldirname + 1);
-                    /* Get the parent dir of changelogdir */
-                    *cldirname = '\0';
-                    return_value = dbmdb_copy_directory(li, task, filename1,
-                                                          changelogdir, 1 /* restore */,
-                                                          &cnt, 0, 1);
-                    *cldirname = '/';
-                    if (return_value) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "dbmdb_restore", "Failed to copy directory %s\n",
-                                      filename1);
-                        if (task) {
-                            slapi_task_log_notice(task,
-                                                  "Restore: failed to copy directory %s",
-                                                  filename1);
-                        }
-                        goto error_out;
-                    }
-                    /* Copy DBVERSION */
-                    p = filename1 + strlen(filename1);
-                    PR_snprintf(p, sizeof(filename1) - (p - filename1),
-                                "/%s", DBVERSION_FILENAME);
-                    PR_snprintf(filename2, sizeof(filename2), "%s/%s",
-                                changelogdir, DBVERSION_FILENAME);
-                    return_value = dbmdb_copyfile(filename1, filename2,
-                                                    0, priv->dblayer_file_mode);
-                    if (0 > return_value) {
-                        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_restore", "Failed to copy file %s\n", filename1);
-                        goto error_out;
-                    }
-                }
-                continue;
-            }
-
-            inst = ldbm_instance_find_by_name(li, (char *)direntry->name);
-            if (inst == NULL)
-                continue;
-
-            restore_dir = inst->inst_parent_dir_name;
-            /* If we're doing a partial restore, we need to reset the LSNs on the data files */
-            if (dbmdb_copy_directory(li, task, filename1,
-                                       restore_dir, 1 /* restore */, &cnt, 0, 0) == 0)
-                continue;
-            else {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dbmdb_restore", "Failed to copy directory %s\n",
-                              filename1);
-                if (task) {
-                    slapi_task_log_notice(task,
-                                          "dbmdb_restore - Failed to copy directory %s", filename1);
-                }
-                goto error_out;
-            }
-        }
-
-        if (dbmdb_doskip(direntry->name))
-            continue;
-
-        /* Is this a log file ? */
-        /* Log files have names of the form "log.xxxxx" */
-        /* We detect these by looking for the prefix "log." and
-         * the lack of the ".db#" suffix */
-        is_a_logfile = dbmdb_is_logfilename(direntry->name);
-        if (is_a_logfile) {
-            seen_logfiles = 1;
-        }
-        if (is_a_logfile && (NULL != BDB_CONFIG(li)->dbmdb_log_directory) &&
-            (0 != strlen(BDB_CONFIG(li)->dbmdb_log_directory))) {
-            prefix = BDB_CONFIG(li)->dbmdb_log_directory;
-        } else {
-            prefix = home_dir;
-        }
-        mkdir_p(prefix, 0700);
-        PR_snprintf(filename1, sizeof(filename1), "%s/%s",
-                    real_src_dir, direntry->name);
-        PR_snprintf(filename2, sizeof(filename2), "%s/%s",
-                    prefix, direntry->name);
-        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_restore", "Restoring file %d (%s)\n",
-                      cnt, filename2);
-        if (task) {
-            slapi_task_log_notice(task, "Restoring file %d (%s)",
-                                  cnt, filename2);
-            slapi_task_log_status(task, "Restoring file %d (%s)",
-                                  cnt, filename2);
-        }
-        return_value = dbmdb_copyfile(filename1, filename2, 0,
-                                        priv->dblayer_file_mode);
-        if (0 > return_value) {
-            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_restore", "Failed to copy file %s\n", filename1);
-            goto error_out;
-        }
-        cnt++;
-    }
-    PR_CloseDir(dirhandle);
-
-    /* We're done ! */
-
-    /* [605024] check the DBVERSION and reset idl-switch if needed */
-    if (dbmdb_version_exists(li, home_dir)) {
-        char *ldbmversion = NULL;
-        char *dataversion = NULL;
-
-        if (dbmdb_version_read(li, home_dir, &ldbmversion, &dataversion) != 0) {
-            slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_restore", "Unable to read dbversion file in %s\n",
-                          home_dir);
-        } else {
-            dbmdb_adjust_idl_switch(ldbmversion, li);
-            slapi_ch_free_string(&ldbmversion);
-            slapi_ch_free_string(&dataversion);
-        }
-    }
-
-    return_value = dbmdb_check_db_version(li, &action);
-    if (action &
-        (DBVERSION_UPGRADE_3_4 | DBVERSION_UPGRADE_4_4 | DBVERSION_UPGRADE_4_5)) {
-        dbmode = DBLAYER_CLEAN_RECOVER_MODE; /* upgrade: remove logs & recover */
-    } else if (seen_logfiles) {
-        dbmode = DBLAYER_RESTORE_MODE;
-    } else if (action & DBVERSION_NEED_DN2RDN) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dbmdb_restore", "%s is on, while the instance %s is in the DN format. "
-                                         "Please run dn2rdn to convert the database format.\n",
-                      CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
-        return_value = -1;
-        goto error_out;
-    } else if (action & DBVERSION_NEED_RDN2DN) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dbmdb_restore", "%s is off, while the instance %s is in the RDN format. "
-                                         "Please change the value to on in dse.ldif.\n",
-                      CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
-        return_value = -1;
-        goto error_out;
-    } else {
-        dbmode = DBLAYER_RESTORE_NO_RECOVERY_MODE;
-    }
-
-    /* now start the database code up, to prevent recovery next time the
-     * server starts;
-     * dbmdb_dse_conf_verify may need to have db started, as well. */
-    /* If no logfiles were stored, then fatal recovery isn't required */
-
-    if (li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
-        /* command line mode; no need to run db threads */
-        dbmode |= DBLAYER_NO_MDB_valHREADS_MODE;
-    } else /* on-line mode */
-    {
-        allinstance_set_not_busy(li);
-    }
-
+    /* restart the db */
+    slapi_ch_free(&li->li_dblayer_config);  /* mdb_init will recreate it */
+    mdb_init(li, NULL);
     tmp_rval = dbmdb_start(li, dbmode);
     if (0 != tmp_rval) {
         slapi_log_err(SLAPI_LOG_ERR,
@@ -1571,20 +1118,16 @@ dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         goto error_out;
     }
 
-    if (0 == return_value) { /* only when the copyfile succeeded */
-        /* check the DSE_* files, if any */
-        tmp_rval = dbmdb_dse_conf_verify(li, real_src_dir);
-        if (0 != tmp_rval)
-            slapi_log_err(SLAPI_LOG_WARNING,
-                          "dbmdb_restore", "Unable to verify the index configuration\n");
-    }
+    /* check the DSE_* files, if any */
+    tmp_rval = dbmdb_dse_conf_verify(li, src_dir);
+    if (0 != tmp_rval)
+        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_restore", "Unable to verify the index configuration\n");
 
     if (li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
         /* command line: close the database down again */
         tmp_rval = dblayer_close(li, dbmode);
         if (0 != tmp_rval) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "dbmdb_restore", "Failed to close database\n");
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_restore", "Failed to close database\n");
         }
     } else {
         allinstance_set_busy(li); /* on-line mode */
@@ -1593,14 +1136,7 @@ dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
     return_value = tmp_rval ? tmp_rval : return_value;
 
 error_out:
-    /* Free the restore src dir, but only if we allocated it above */
-    if (real_src_dir && (real_src_dir != src_dir)) {
-        /* If this was an FRI restore and the staging area exists, go ahead and remove it */
-        slapi_ch_free_string(&real_src_dir);
-    }
-    slapi_ch_free_string(&changelogdir);
     return return_value;
-#endif /* TODO */
 }
 
 static char *
@@ -1727,18 +1263,7 @@ dbmdb_import_file_check(ldbm_instance *inst)
     return rc;
 }
 
-static int
-dbmdb_restore_file_check(struct ldbminfo *li)
-{
-    int rc;
-    char *fname = dbmdb_restore_file_name(li);
-    rc = dbmdb_file_check(fname, li->li_mode);
-    slapi_ch_free_string(&fname);
-    return rc;
-}
-
 void
-
 dbmdb_restore_file_update(struct ldbminfo *li, const char *directory)
 {
     PRFileDesc *prfd;

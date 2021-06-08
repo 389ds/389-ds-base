@@ -105,10 +105,6 @@ dbmdb_compute_limits(struct ldbminfo *li)
 int mdb_init(struct ldbminfo *li, config_info *config_array)
 {
     dbmdb_ctx_t *conf = (dbmdb_ctx_t *)slapi_ch_calloc(1, sizeof(dbmdb_ctx_t));
-    if (NULL == conf) {
-        /* Memory allocation failed */
-        return -1;
-    }
     dbmdb_componentid = generate_componentid(NULL, "db-mdb");
 
     li->li_dblayer_config = conf;

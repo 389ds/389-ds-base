@@ -14,10 +14,6 @@
 
 /* Info file used to check version and get parameters needed to open the db in dbscan case */
 
-#define INFOFILE            "INFO.mdb"
-#define DBNAMES             "__DBNAMES"
-#define CHANGELOG_PATTERN   "changelog"   /* pattern in changelog dbi name */
-
 /* Flags allowed in mdb_dbi_open */
 #define MDB_DBIOPEN_MASK (MDB_REVERSEKEY | MDB_DUPSORT | MDB_INTEGERKEY |  \
                 MDB_DUPFIXED | MDB_INTEGERDUP | MDB_REVERSEDUP | MDB_CREATE)
@@ -768,6 +764,7 @@ void dbmdb_ctx_close(dbmdb_ctx_t *ctx)
         mdb_env_close(ctx->env);
         ctx->env = NULL;
     }
+    ctx->nbdbis = 0;
     slapi_ch_free((void**)&ctx->dbis);
     pthread_mutex_destroy(&ctx->dbis_lock);
     pthread_rwlock_destroy(&ctx->dbmdb_env_lock);

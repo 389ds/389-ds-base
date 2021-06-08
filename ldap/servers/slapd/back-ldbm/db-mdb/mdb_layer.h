@@ -56,6 +56,15 @@
 #define MDB_MARK_DIRTY_DBI           0x20000000     /* create/open a dbi in dirty mode (import/reindex case) */
 #define MDB_TRUNCATE_DBI             0x40000000     /* create/open a dbi and insure it is empty */
 
+/* Files and database names */
+#define DSE_INSTANCE        "dse_instance.ldif"		/* dse file in backup */
+#define DSE_INDEX           "dse_index.ldif"		/* dse file in backup */
+#define DBMAPFILE           "data.mdb"
+#define INFOFILE            "INFO.mdb"
+#define DBNAMES             "__DBNAMES"
+#define CHANGELOG_PATTERN   "changelog"   /* pattern in changelog dbi name */
+
+
 /* config parameters */
 typedef struct
 {
@@ -169,7 +178,7 @@ typedef enum {
 
 extern Slapi_ComponentId *dbmdb_componentid;
 
-int dbmdb_init(struct ldbminfo *li, config_info *config_array);
+int mdb_init(struct ldbminfo *li, config_info *config_array);
 
 int dbmdb_close(struct ldbminfo *li, int flags);
 int dbmdb_start(struct ldbminfo *li, int flags);
