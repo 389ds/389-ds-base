@@ -2,7 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -10,10 +9,11 @@ import {
     Icon,
     Row,
     noop,
-    Spinner,
+    Spinner
 } from "patternfly-react";
 import {
-    Button
+    Button,
+    Checkbox
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
@@ -243,17 +243,18 @@ export class ServerLDAPI extends React.Component {
                     >
                         <Col componentClass={ControlLabel} sm={3}>
                             <Checkbox
-                                checked={this.state['nsslapd-ldapimaptoentries']}
+                                isChecked={this.state['nsslapd-ldapimaptoentries']}
                                 id="nsslapd-ldapimaptoentries"
-                                onChange={this.handleChange} className="ds-margin-left-sm"
-                            >
-                                Map System Users to Database Entries
-                            </Checkbox>
+                                onChange={(checked, e) => {
+                                    this.handleChange(e);
+                                }}
+                                label="Map System Users to Database Entries"
+                            />
                         </Col>
                     </Row>
                     {mapUserAttrs}
                     <Button
-                        disabled={this.state.saveDisabled}
+                        isDisabled={this.state.saveDisabled}
                         variant="primary"
                         className="ds-margin-top-med"
                         onClick={this.saveConfig}

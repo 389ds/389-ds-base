@@ -1328,7 +1328,7 @@ class CreateSuffixModal extends React.Component {
                 aria-labelledby="ds-modal"
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={saveHandler} disabled={createNotOK}>
+                    <Button key="confirm" variant="primary" onClick={saveHandler} isDisabled={createNotOK}>
                         Create Suffix
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>

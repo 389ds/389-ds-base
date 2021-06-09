@@ -2,7 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -18,7 +17,8 @@ import {
     TabPane,
 } from "patternfly-react";
 import {
-    Button
+    Button,
+    Checkbox
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
@@ -426,13 +426,12 @@ export class ServerErrorLog extends React.Component {
                                         <Col sm={3}>
                                             <Checkbox
                                                 id="nsslapd-errorlog-logging-enabled"
-                                                defaultChecked={this.state['nsslapd-errorlog-logging-enabled']}
-                                                onChange={(e) => {
+                                                isChecked={this.state['nsslapd-errorlog-logging-enabled']}
+                                                onChange={(checked, e) => {
                                                     this.handleChange(e, "settings");
                                                 }}
-                                            >
-                                                Enable Error Logging
-                                            </Checkbox>
+                                                label="Enable Error Logging"
+                                            />
                                         </Col>
                                     </Row>
                                     <div className="ds-margin-left">
@@ -586,7 +585,7 @@ export class ServerErrorLog extends React.Component {
                                                             onChange={(e) => {
                                                                 this.handleChange(e, "settings");
                                                             }}
-                                                            checked={this.state['errorlevel-2048']}
+                                                            checked={this.state['errorlevel-256']}
                                                             type="checkbox"
                                                         />
                                                     </td>
@@ -673,7 +672,7 @@ export class ServerErrorLog extends React.Component {
                                         </table>
                                     </div>
                                     <Button
-                                        disabled={this.state.saveSettingsDisabled}
+                                        isDisabled={this.state.saveSettingsDisabled}
                                         variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
@@ -792,7 +791,7 @@ export class ServerErrorLog extends React.Component {
                                         </Col>
                                     </Row>
                                     <Button
-                                        disabled={this.state.saveRotationDisabled}
+                                        isDisabled={this.state.saveRotationDisabled}
                                         variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
@@ -874,7 +873,7 @@ export class ServerErrorLog extends React.Component {
                                         </Col>
                                     </Row>
                                     <Button
-                                        disabled={this.state.saveExpDisabled}
+                                        isDisabled={this.state.saveExpDisabled}
                                         variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {

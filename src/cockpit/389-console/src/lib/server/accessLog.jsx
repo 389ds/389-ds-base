@@ -2,7 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -18,7 +17,8 @@ import {
     TabPane,
 } from "patternfly-react";
 import {
-    Button
+    Button,
+    Checkbox
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
@@ -385,13 +385,12 @@ export class ServerAccessLog extends React.Component {
                                         <Col sm={3}>
                                             <Checkbox
                                                 id="nsslapd-accesslog-logging-enabled"
-                                                defaultChecked={this.state['nsslapd-accesslog-logging-enabled']}
-                                                onChange={(e) => {
+                                                isChecked={this.state['nsslapd-accesslog-logging-enabled']}
+                                                onChange={(checked, e) => {
                                                     this.handleChange(e, "settings");
                                                 }}
-                                            >
-                                                Enable Access Logging
-                                            </Checkbox>
+                                                label="Enable Access Logging"
+                                            />
                                         </Col>
                                     </Row>
                                     <div className="ds-margin-left">
@@ -414,13 +413,12 @@ export class ServerAccessLog extends React.Component {
                                             <Col componentClass={ControlLabel} sm={3}>
                                                 <Checkbox
                                                     id="nsslapd-accesslog-logbuffering"
-                                                    defaultChecked={this.state['nsslapd-accesslog-logbuffering']}
-                                                    onChange={(e) => {
+                                                    isChecked={this.state['nsslapd-accesslog-logbuffering']}
+                                                    onChange={(checked, e) => {
                                                         this.handleChange(e, "settings");
                                                     }}
-                                                >
-                                                    Access Log Buffering Enabled
-                                                </Checkbox>
+                                                    label="Access Log Buffering Enabled"
+                                                />
                                             </Col>
                                         </Row>
                                         <table className="table table-striped table-bordered table-hover ds-loglevel-table ds-margin-top-lg" id="accesslog-level-table">
@@ -480,7 +478,7 @@ export class ServerAccessLog extends React.Component {
                                         </table>
                                     </div>
                                     <Button
-                                        disabled={this.state.saveSettingsDisabled}
+                                        isDisabled={this.state.saveSettingsDisabled}
                                         variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
@@ -599,7 +597,7 @@ export class ServerAccessLog extends React.Component {
                                         </Col>
                                     </Row>
                                     <Button
-                                        disabled={this.state.saveRotationDisabled}
+                                        isDisabled={this.state.saveRotationDisabled}
                                         variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
@@ -681,7 +679,7 @@ export class ServerAccessLog extends React.Component {
                                         </Col>
                                     </Row>
                                     <Button
-                                        disabled={this.state.saveExpDisabled}
+                                        isDisabled={this.state.saveExpDisabled}
                                         variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {

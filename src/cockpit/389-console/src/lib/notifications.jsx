@@ -1,7 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
 import {
-    Checkbox,
     Col,
     Form,
     Icon,
@@ -10,6 +9,7 @@ import {
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     // Form,
     // FormGroup,
     Modal,
@@ -134,11 +134,12 @@ export class DoubleConfirmModal extends React.Component {
                         <Col sm={12} className="ds-center">
                             <Checkbox
                                 id="modalChecked"
-                                defaultChecked={checked}
-                                onChange={handleChange}
-                            >
-                                <b>Yes</b>, I am sure.
-                            </Checkbox>
+                                isChecked={checked}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
+                                label={<><b>Yes</b>&nbsp;,I am sure.</>}
+                            />
                         </Col>
                     </Row>
                 </Form>

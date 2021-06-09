@@ -495,7 +495,7 @@ export class ChainingDatabaseConfig extends React.Component {
                         <form>
                             <label className="ds-config-label" htmlFor="chaining-comp-list" title="A list of components to go through chaining"><b>Components to Chain</b></label>
                             <select id="chaining-comp-list" onChange={this.handleSelectComps} className="ds-chaining-list" name="nsactivechainingcomponents" size="10" multiple>
-                                {this.state.comps}}
+                                {this.state.comps}
                             </select>
                         </form>
                         <div className="clearfix ds-container">
