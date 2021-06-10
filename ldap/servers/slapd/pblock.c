@@ -2595,7 +2595,7 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         pblock->pb_conn->c_authtype = slapi_ch_strdup((char *)value);
         pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
-	case SLAPI_CONN_CLIENTNETADDR_ACLIP:
+    case SLAPI_CONN_CLIENTNETADDR_ACLIP:
         if (pblock->pb_conn == NULL) {
             break;
         }
@@ -2603,6 +2603,7 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         slapi_ch_free((void **)&pblock->pb_conn->cin_addr_aclip);
         pblock->pb_conn->cin_addr_aclip = (PRNetAddr *)value;
         pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
+        break;
     case SLAPI_CONN_IS_REPLICATION_SESSION:
         if (pblock->pb_conn == NULL) {
             slapi_log_err(SLAPI_LOG_ERR,
