@@ -140,7 +140,7 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
     connection_content = 'Supplier: '+ m1.host + ':' + str(m1.port)
     content_list = ['Replica Root: dc=example,dc=com',
                     'Replica ID: 1',
-                    'Replica Status: Available',
+                    'Replica Status: Online',
                     'Max CSN',
                     'Status For Agreement: "002" ('+ m2.host + ':' + str(m2.port) + ')',
                     'Replica Enabled: on',
@@ -173,7 +173,7 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
                  'data',
                  '"replica_id": "1"',
                  '"replica_root": "dc=example,dc=com"',
-                 '"replica_status": "Available"',
+                 '"replica_status": "Online"',
                  'maxcsn',
                  'agmts_status',
                  'agmt-name',
