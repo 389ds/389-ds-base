@@ -882,8 +882,6 @@ copy_operation_parameters(Slapi_PBlock *pb)
 
     /* we are only interested in the updates to replicas */
     if (NULL == replica) {
-        slapi_log_err(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
-                      "copy_operation_parameters - replica is null.\n");
         return;
     }
     /* we only save the original operation parameters for replicated operations
