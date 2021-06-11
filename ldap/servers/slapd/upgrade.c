@@ -190,15 +190,14 @@ upgrade_205_fixup_repl_dep(void)
             mods[1] = &mod_add;
             mods[2] = 0;
             for (; *entries; entries++) {
-                slapi_log_err(SLAPI_LOG_CONFIG,
-                        "upgrade_205_fixup_repl_dep",
-                        "Found plugin to update (%s)\n",
-						slapi_entry_get_dn(*entries));
+                slapi_log_err(SLAPI_LOG_NOTICE, "upgrade_205_fixup_repl_dep",
+                              "Upgrade task: updating the Replication Plugin dependency for (%s)\n",
+                              slapi_entry_get_dn(*entries));
                 /* clean the plugin */
                 struct slapi_pblock *mod_pb = slapi_pblock_new();
                 slapi_modify_internal_set_pb(mod_pb, slapi_entry_get_dn(*entries),
                                              mods, 0, 0, plugin_get_default_component_id(),
-											 SLAPI_OP_FLAG_FIXUP);
+                                             SLAPI_OP_FLAG_FIXUP);
                 slapi_modify_internal_pb(mod_pb);
                 slapi_pblock_destroy(mod_pb);
             }
@@ -280,8 +279,8 @@ upgrade_repl_plugin_name(Slapi_Entry *plugin_entry, struct slapdplugin *plugin)
                                          "replication_multisupplier_plugin_init");
             slapi_entry_attr_set_charptr(plugin_entry, "cn", "Multisupplier Replication Plugin");
 
-            slapi_log_err(SLAPI_LOG_CONFIG, "upgrade_repl_plugin_name",
-                          "Changed replication plugin name to: %s\n",
+            slapi_log_err(SLAPI_LOG_NOTICE, "upgrade_repl_plugin_name",
+                          "Upgrade task: changed the replication plugin name to: %s\n",
                           slapi_entry_get_dn(plugin_entry));
         }
     }

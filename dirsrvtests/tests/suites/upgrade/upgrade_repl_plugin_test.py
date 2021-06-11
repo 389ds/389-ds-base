@@ -68,11 +68,13 @@ def test_repl_plugin_name_change(topo):
         plugin = Plugins(topo.standalone).get(REPL_PLUGIN_NAME)
         assert plugin is not None
         assert plugin.get_attr_val_utf8_l(REPL_PLUGIN_INIT_ATTR) == REPL_PLUGIN_INIT_FUNC
+        assert len(plugin.get_attr_vals_utf8_l(REPL_PLUGIN_INIT_ATTR)) == 1
 
         # Verify dependency was updated in retro changelog plugin
         plugin = Plugins(topo.standalone).get(RETROCL_PLUGIN_NAME)
         assert plugin is not None
         assert plugin.get_attr_val_utf8_l(REPL_DEPENDS_ATTR) == REPL_PLUGIN_NAME.lower()
+        assert len(plugin.get_attr_vals_utf8_l(REPL_DEPENDS_ATTR)) == 1
 
 
 if __name__ == '__main__':
