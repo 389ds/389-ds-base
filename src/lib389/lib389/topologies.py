@@ -105,7 +105,10 @@ def _create_instances(topo_dict, suffix):
             if DEBUGGING:
                 instance.config.set('nsslapd-accesslog-logbuffering','off')
                 instance.config.set('nsslapd-errorlog-level','8192')
+                instance.config.set('nsslapd-accesslog-level','260')
                 instance.config.set('nsslapd-auditlog-logging-enabled','on')
+                instance.config.set('nsslapd-auditfaillog-logging-enabled','on')
+                instance.config.set('nsslapd-plugin-logging', 'on')
             log.info("Instance with parameters {} was created.".format(args_instance))
 
     if "standalone1" in instances and len(instances) == 1:
