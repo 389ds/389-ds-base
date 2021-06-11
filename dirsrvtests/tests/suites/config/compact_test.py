@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 
 def test_compact_db_task(topo):
-    """Specify a test case purpose or name here
+    """Test creation of dbcompact task is successful
 
     :id: 1b3222ef-a336-4259-be21-6a52f76e1859
     :setup: Standalone Instance
@@ -18,7 +18,7 @@ def test_compact_db_task(topo):
         1. Create task
         2. Check task was successful
         3. Check errors log to show task was run
-        3. Create task just for replication
+        4. Create task just for replication
     :expectedresults:
         1. Success
         2. Success
@@ -50,7 +50,7 @@ def test_compact_db_task(topo):
 
 
 def test_compaction_interval_and_time(topo):
-    """Specify a test case purpose or name here
+    """Test dbcompact is successful when nsslapd-db-compactdb-interval and nsslapd-db-compactdb-time is set
 
     :id: f361bee9-d7e7-4569-9255-d7b60dd9d92e
     :setup: Supplier Instance
