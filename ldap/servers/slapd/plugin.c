@@ -3366,11 +3366,9 @@ plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type __attr
                      */
                     return PLUGIN_BUSY;
                 }
-                if (plugin->plg_started) {
-                    Slapi_PBlock *pb = slapi_pblock_new();
-                    plugin_call_one(plugin, SLAPI_PLUGIN_CLOSE_FN, pb);
-                    slapi_pblock_destroy(pb);
-                }
+                Slapi_PBlock *pb = slapi_pblock_new();
+                plugin_call_one(plugin, SLAPI_PLUGIN_CLOSE_FN, pb);
+                slapi_pblock_destroy(pb);
 
                 if (plugin_prev) {
                     plugin_prev->plg_next = plugin_next;
