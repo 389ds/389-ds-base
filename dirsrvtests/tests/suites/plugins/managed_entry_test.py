@@ -9,8 +9,8 @@
 import pytest
 import time
 from lib389.topologies import topology_st as topo
-from lib389.idm.user import UserAccount, UserAccounts
-from lib389.idm.account import Account, Accounts
+from lib389.idm.user import UserAccounts
+from lib389.idm.account import Account
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.group import Groups
 from lib389.config import Config
@@ -18,7 +18,6 @@ from lib389.idm.organizationalunit import OrganizationalUnits, OrganizationalUni
 from lib389.plugins import MEPTemplates, MEPConfigs, ManagedEntriesPlugin, MEPTemplate
 from lib389.idm.nscontainer import nsContainers
 from lib389.idm.domain import Domain
-from lib389.tasks import Entry
 import ldap
 
 pytestmark = pytest.mark.tier1
@@ -112,8 +111,7 @@ class WithObjectClass(Account):
         self._rdn_attribute = 'uid'
         self._create_objectclasses = ['top', 'person', 'inetorgperson']
 
-#unstable or unstatus tests, skipped for now
-@pytest.mark.flaky(max_runs=2, min_passes=1)
+
 def test_mentry01(topo, _create_inital):
     """Test Managed Entries basic functionality
 
@@ -155,6 +153,7 @@ def test_mentry01(topo, _create_inital):
     # Check the plug-in status
     mana = ManagedEntriesPlugin(topo.standalone)
     assert mana.status()
+
     # Add Template and definition entry
     org1 = OrganizationalUnits(topo.standalone, DEFAULT_SUFFIX).create(properties={'ou': 'Users'})
     org2 = OrganizationalUnit(topo.standalone, f'ou=Groups,{DEFAULT_SUFFIX}')
@@ -165,29 +164,35 @@ def test_mentry01(topo, _create_inital):
         'mepStaticAttr': 'objectclass: posixGroup',
         'mepMappedAttr': 'cn: $uid|gidNumber: $gidNumber|description: User private group for $uid'.split('|')})
     conf_mep = MEPConfigs(topo.standalone)
-    mep_config = conf_mep.create(properties={
+    conf_mep.create(properties={
         'cn': 'UPG Definition2',
         'originScope': org1.dn,
         'originFilter': 'objectclass=posixaccount',
         'managedBase': org2.dn,
         'managedTemplate': mep_template1.dn})
+
     # Add users with PosixAccount ObjectClass and verify creation of User Private Group
     user = UserAccounts(topo.standalone, f'ou=Users,{DEFAULT_SUFFIX}', rdn=None).create_test_user()
     assert user.get_attr_val_utf8('mepManagedEntry') == f'cn=test_user_1000,ou=Groups,{DEFAULT_SUFFIX}'
+
     # Disable the plug-in and check the status
     mana.disable()
     user.delete()
     topo.standalone.restart()
+
     # Add users with PosixAccount ObjectClass when the plug-in is disabled and creation of UPG should fail
     user = UserAccounts(topo.standalone, f'ou=Users,{DEFAULT_SUFFIX}', rdn=None).create_test_user()
     assert not user.get_attr_val_utf8('mepManagedEntry')
+
     # Enable the plug-in and check the status
     mana.enable()
     user.delete()
     topo.standalone.restart()
+
     # Add users with PosixAccount ObjectClass and verify creation of User Private Group
     user = UserAccounts(topo.standalone, f'ou=Users,{DEFAULT_SUFFIX}', rdn=None).create_test_user()
     assert user.get_attr_val_utf8('mepManagedEntry') == f'cn=test_user_1000,ou=Groups,{DEFAULT_SUFFIX}'
+
     # Add users, run ModRDN operation and check the User Private group
     # Add users, run LDAPMODIFY to change the gidNumber and check the User Private group
     user.rename(new_rdn='uid=UserNewRDN', newsuperior='ou=Users,dc=example,dc=com')
@@ -198,18 +203,21 @@ def test_mentry01(topo, _create_inital):
     user.replace_many(('sn', 'new_modified_sn'), ('gidNumber', '31309'))
     assert entry.get_attr_val_utf8('gidNumber') == '31309'
     user.delete()
+
     # Checking whether creation of User Private group fails for existing group entry
-    grp = Groups(topo.standalone, f'ou=Groups,{DEFAULT_SUFFIX}', rdn=None).create(properties={'cn': 'MENTRY_14'})
+    Groups(topo.standalone, f'ou=Groups,{DEFAULT_SUFFIX}', rdn=None).create(properties={'cn': 'MENTRY_14'})
     user = UserAccounts(topo.standalone, f'ou=Users,{DEFAULT_SUFFIX}', rdn=None).create_test_user()
     with pytest.raises(ldap.NO_SUCH_OBJECT):
         entry.status()
     user.delete()
+
     # Checking whether adding of posixAccount objectClass to existing user creates UPG
     # Add Users without posixAccount objectClass
     users = WithObjectClass(topo.standalone, f'uid=test_test, ou=Users,{DEFAULT_SUFFIX}')
     user_properties1 = {'uid': 'test_test', 'cn': 'test', 'sn': 'test', 'mail': 'sasa@sasa.com', 'telephoneNumber': '123'}
     user = users.create(properties=user_properties1)
     assert not user.get_attr_val_utf8('mepManagedEntry')
+
     # Add posixAccount objectClass
     user.replace_many(('objectclass', ['top', 'person', 'inetorgperson', 'posixAccount']),
                       ('homeDirectory', '/home/ok'),
@@ -217,6 +225,7 @@ def test_mentry01(topo, _create_inital):
     assert not user.get_attr_val_utf8('mepManagedEntry')
     user = UserAccounts(topo.standalone, f'ou=Users,{DEFAULT_SUFFIX}', rdn=None).create_test_user()
     entry = Account(topo.standalone, 'cn=test_user_1000,ou=Groups,dc=example,dc=com')
+
     # Add inetuser objectClass
     user.replace_many(
         ('objectclass', ['top', 'account', 'posixaccount', 'inetOrgPerson',
@@ -227,6 +236,7 @@ def test_mentry01(topo, _create_inital):
     user.delete()
     user = UserAccounts(topo.standalone, f'ou=Users,{DEFAULT_SUFFIX}', rdn=None).create_test_user()
     entry = Account(topo.standalone, 'cn=test_user_1000,ou=Groups,dc=example,dc=com')
+
     # Add groupofNames objectClass
     user.replace_many(
         ('objectclass', ['top', 'account', 'posixaccount', 'inetOrgPerson',
@@ -234,18 +244,34 @@ def test_mentry01(topo, _create_inital):
                          'person', 'mepOriginEntry', 'groupofNames']),
         ('memberOf', user.dn))
     assert entry.status()
-    # Running ModRDN operation and checking the user private groups mepManagedBy attribute
-    user.replace('mepManagedEntry', f'uid=CheckModRDN,ou=Users,{DEFAULT_SUFFIX}')
+
+    # Running ModRDN operation and checking the user private groups mepManagedBy
+    # attribute was also reset because the modrdn on the origin will do a modrdn
+    # on checkManagedEntry to match the new rdn value of the origin entry
+    checkManagedEntry = UserAccounts(topo.standalone, f'ou=Groups,{DEFAULT_SUFFIX}', rdn=None)
+    check_entry = checkManagedEntry.create(properties={
+        'objectclass': ['top', 'extensibleObject'],
+        'uid': 'CheckModRDN',
+        'uidNumber': '12',
+        'gidNumber': '12',
+        'homeDirectory': '/home',
+        'sn': 'tmp',
+        'cn': 'tmp',
+    })
+    user.replace('mepManagedEntry', check_entry.dn)
     user.rename(new_rdn='uid=UserNewRDN', newsuperior='ou=Users,dc=example,dc=com')
-    assert user.get_attr_val_utf8('mepManagedEntry') == f'uid=CheckModRDN,ou=Users,{DEFAULT_SUFFIX}'
+    assert user.get_attr_val_utf8_l('mepManagedEntry') == f'cn=UserNewRDN,ou=Groups,{DEFAULT_SUFFIX}'.lower()
+
     # Deleting mepManagedBy attribute and running ModRDN operation to check if it creates a new UPG
-    user.remove('mepManagedEntry', f'uid=CheckModRDN,ou=Users,{DEFAULT_SUFFIX}')
+    user.remove('mepManagedEntry', f'cn=UserNewRDN,ou=Groups,{DEFAULT_SUFFIX}')
     user.rename(new_rdn='uid=UserNewRDN1', newsuperior='ou=Users,dc=example,dc=com')
     assert user.get_attr_val_utf8('mepManagedEntry') == f'cn=UserNewRDN1,ou=Groups,{DEFAULT_SUFFIX}'
+
     # Change the RDN of template entry, DSA Unwilling to perform error expected
     mep = MEPTemplate(topo.standalone, f'cn=UPG Template,{DEFAULT_SUFFIX}')
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         mep.rename(new_rdn='cn=UPG Template2', newsuperior='dc=example,dc=com')
+
     # Change the RDN of cn=Users to cn=TestUsers and check UPG are deleted
     before = user.get_attr_val_utf8('mepManagedEntry')
     user.rename(new_rdn='uid=Anuj', newsuperior='ou=Users,dc=example,dc=com')
