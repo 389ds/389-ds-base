@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -123,7 +123,7 @@ long ind_cnt = 0;
 long allids_cnt = 0;
 long other_cnt = 0;
 
-Slapi_Backend *be = NULL;     /* Pseudo backend used to interact with db */
+static Slapi_Backend *be = NULL; /* Pseudo backend used to interact with db */
 
 /** db_printf - functioning same as printf but a place for manipluating output.
 */
@@ -1288,12 +1288,6 @@ main(int argc, char **argv)
     }
 
 done:
-    if (key.data) {
-        free(key.data);
-    }
-    if (data.data) {
-        free(data.data);
-    }
     dblayer_value_free(be, &key);
     dblayer_value_free(be, &data);
     dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
