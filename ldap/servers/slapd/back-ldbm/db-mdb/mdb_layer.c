@@ -722,7 +722,7 @@ _dbmdb_delete_instance_dir(ldbm_instance *inst)
 {
     struct ldbminfo *li = inst->inst_li;
     dbmdb_ctx_t *conf = (dbmdb_ctx_t *)li->li_dblayer_config;
-    int rc = dbmdb_dbi_rmdir(conf, inst->inst_dir_name);
+    int rc = dbmdb_dbi_rmdir(conf, inst->inst_name);
     return rc;
 }
 
@@ -1142,9 +1142,9 @@ error_out:
 static char *
 dbmdb__import_file_name(ldbm_instance *inst)
 {
-    char *fname = slapi_ch_smprintf("%s/.import_%s",
-                                    inst->inst_parent_dir_name,
-                                    inst->inst_dir_name);
+    char *fname = slapi_ch_smprintf("%s/../.import_%s",
+                                    inst->inst_li->li_directory,
+                                    inst->inst_name);
     return fname;
 }
 

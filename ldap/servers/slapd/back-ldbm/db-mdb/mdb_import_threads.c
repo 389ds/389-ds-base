@@ -24,6 +24,8 @@
 #include "mdb_layer.h"
 #include "../vlv_srch.h"
 
+#define CV_TIMEOUT    10000000  /* 10 milli seconds timeout */
+
 /* Value to determine when to wait before adding item to write queue and
  * when to wait until having enough item in queue to start emptying it
  * Note: the thresholds applies to a single writing queue slot (i.e dbi)
@@ -82,7 +84,7 @@
      unsigned char values[1];   /* keylen+data_len-shouldbelastfield */
  } wqelem_t;
 
- /*Writerslot(holdingthequeue)andassociatedtoaworkerthread(orforemanthread)andasingledbinstance*/
+ /* Writer slot (holding the queue) and associated to a worker thread (or foreman thread) and a single db instance */
  typedef struct wqslot {
      volatile wqelem_t *q;     /* queue for not delayed slots (asynchronous operations) */
      FILE *tmpfile;            /* storage for delayed slots */
@@ -139,26 +141,30 @@ static long dbmdb_get_wqslot(ImportJob* job, ImportWorkerInfo *info, dbmdb_wctx_
  /* wait on synchroniation point */
  static void sync_wait(sync_t*sync)
  {
-     if(sync->needs_wait){
+    if(sync->needs_wait){
 #ifdef DEBUG_IMPORT
-         int haswait=0;
-         pthread_mutex_lock(&sync->mutex);
-         if (sync->needs_wait)
-             slapi_log_err(SLAPI_LOG_INFO, "sync_wait", "Waiting for %s\n", sync->name);
-         while (sync->needs_wait) {
-             haswait = 1;
-             sync->is_waiting = 1;
-             pthread_cond_wait(&sync->cv, &sync->mutex);
-         }
-         sync->is_waiting = 0;
-         pthread_mutex_unlock(&sync->mutex);
-         if(haswait)
-             slapi_log_err(SLAPI_LOG_INFO,"sync_wait","No more waiting for %s\n",sync->name);
+        int haswait=0;
+        pthread_mutex_lock(&sync->mutex);
+        if (sync->needs_wait)
+            slapi_log_err(SLAPI_LOG_INFO, "sync_wait", "Waiting for %s\n", sync->name);
+        while (sync->needs_wait) {
+            haswait = 1;
+            sync->is_waiting = 1;
+            pthread_cond_wait(&sync->cv, &sync->mutex);
+        }
+        sync->is_waiting = 0;
+        pthread_mutex_unlock(&sync->mutex);
+        if (haswait)
+            slapi_log_err(SLAPI_LOG_INFO,"sync_wait","No more waiting for %s\n",sync->name);
 #else
-         pthread_mutex_lock(&sync->mutex);
-         while(sync->needs_wait){
-             sync->is_waiting = 1;
-             pthread_cond_wait(&sync->cv, &sync->mutex);
+        pthread_mutex_lock(&sync->mutex);
+        
+        while(sync->needs_wait){
+            struct timespec current_time = {0};
+            sync->is_waiting = 1;
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_nsec += CV_TIMEOUT;    /* 10ms */
+            pthread_cond_timedwait(&sync->cv, &sync->mutex, &current_time);
          }
          sync->is_waiting = 0;
          pthread_mutex_unlock(&sync->mutex);
@@ -4562,9 +4568,9 @@ handle_delayed_slots(ImportWorkerInfo*info)
     return rc;
 }
 
-/* writerthread */
+/* writer thread */
 
-/* writerthread:
+/* writer.thread:
  * i go through the writer queue (unlike the other worker threads),
  * i'm responsible to write data in mdb database as I am the only
  * import thread allowed to start a read-write transaction.
@@ -4604,16 +4610,16 @@ dbmdb_import_writer(void*param)
             finished = 1;
             continue;
         }
-        if (job->flags&FLAG_ABORT) {
+        if (job->flags & FLAG_ABORT) {
             goto error;
         }
 
         info->state = RUNNING;
         sync_set_needs_wait(&gwctx->emptywqsync);
 
-        /*Handlessynchronousoperationsfirst*/
+        /* Handles synchronous operations first */
         while(gwctx->wqsync) {
-            /*Getoperationfromqueue*/
+            /* Get operation from queue */
             pthread_mutex_lock(&gwctx->emptywqsync.mutex);
             elmt = gwctx->wqsync;
             log_elmt("dbmdb_import_writer starts processing synchronous operation", elmt, PR_TRUE);
@@ -4621,9 +4627,9 @@ dbmdb_import_writer(void*param)
             elmt->next = NULL;
             pthread_mutex_unlock(&gwctx->emptywqsync.mutex);
             PR_ASSERT(elmt->slot->dbi.dbi || elmt->action == IMPORT_WRITE_ACTION_OPEN);
-            /*Processit*/
+            /* Process it */
             elmt->rc = wqueue_process_queue(info, elmt, NULL);
-            /*Andwarnthatitisdone*/
+            /* And warn that it is done */
             elmt->flags |= WQFL_SYNC_DONE;
             sync_wakeup(&elmt->respsync);
             log_elmt("dbmdb_import_writer finished processing synchronous operation", elmt, PR_FALSE);
@@ -4634,9 +4640,10 @@ dbmdb_import_writer(void*param)
         }
 
         todolist = NULL;
+        /* Extract asynchronous operations out of the slots */
         for(slotidx = 0; slotidx<gwctx->last_wqslot; slotidx++) {
-            wqslot_t*slot = &gwctx->wqslots[slotidx];
-            if (job->flags&FLAG_ABORT) {
+            wqslot_t *slot = &gwctx->wqslots[slotidx];
+            if (job->flags & FLAG_ABORT) {
                 goto error;
             }
             if (check_for_wqslot_data(slot)) {
@@ -4825,7 +4832,7 @@ dbmdb_import_write_push(ImportJob*job, long wqslot, dbmdb_waction_t action, MDB_
 
     log_elmt("dbmdb_import_write_push", elmt, PR_TRUE);
     if (slot->tmpfile) {
-        /*delayedmode:Needtoserializetowritedataintemporaryfile*/
+        /* delayed mode: Need to serialize to write data in temporary file */
         pthread_mutex_lock(&slot->fullwqsync.mutex);
         if (fwrite(elmt, elmt_len, 1, slot->tmpfile) != 1) {
             import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_write_push",
@@ -4838,14 +4845,19 @@ dbmdb_import_write_push(ImportJob*job, long wqslot, dbmdb_waction_t action, MDB_
         return rc;
     }
 
-    /*Normalmode:useinmemoryqueue*/
-    /*flowcontrol:Waituntilqueuegetsmallenough*/
+    /* Normal mode: use in memory queue */
+    /* flowcontrol: Wait until queue get small enough */
     while ((slot->datalen-slot->readdatalen>= DATALEN_WAIT_THRESHOLD)||
             (slot->nbelmts-slot->readnbelmts>= NBELMTS_WAIT_THRESHOLD)) {
         slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_write_push", "Wait until queue isempty slot = %p sync=%p datalen=%ld nbelents=%ld\n",
                 slot, &slot->fullwqsync, slot->datalen-slot->readdatalen, slot->nbelmts-slot->readnbelmts);
+#if 0
+        /* For some reason I sometime got hang with following code */
         sync_set_needs_wait(&slot->fullwqsync);
         sync_wait(&slot->fullwqsync);
+#else
+		pthread_yield();
+#endif
     }
 
     /* queue the element */
