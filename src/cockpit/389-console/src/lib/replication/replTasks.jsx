@@ -6,7 +6,6 @@ import { ExportModal, ExportCLModal } from "./replModals.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import PropTypes from "prop-types";
 import {
-    Button,
     Col,
     ControlLabel,
     Form,
@@ -14,6 +13,9 @@ import {
     noop,
     Row,
 } from "patternfly-react";
+import {
+    Button
+} from "@patternfly/react-core";
 
 export class ReplRUV extends React.Component {
     constructor(props) {
@@ -431,7 +433,7 @@ export class ReplRUV extends React.Component {
                     <Row className="ds-margin-top-lg">
                         <Col sm={3} componentClass={ControlLabel}>
                             <Button
-                                bsStyle="primary"
+                                variant="primary"
                                 onClick={this.showConfirmExport}
                                 title="See Database Tab -> Backups & LDIFs to manage the new LDIF"
                             >
@@ -454,7 +456,7 @@ export class ReplRUV extends React.Component {
                             title="Export the changelog to an LDIF file.  Typically used for changelog encryption purposes, or debugging."
                         >
                             <Button
-                                bsStyle="primary"
+                                variant="primary"
                                 onClick={this.showCLExport}
                             >
                                 Export Changelog
@@ -472,7 +474,7 @@ export class ReplRUV extends React.Component {
                             title="Initialize the changelog with an LDIF file for changelog encryption purposes."
                         >
                             <Button
-                                bsStyle="primary"
+                                variant="primary"
                                 onClick={this.showConfirmCLImport}
                             >
                                 Import Changelog

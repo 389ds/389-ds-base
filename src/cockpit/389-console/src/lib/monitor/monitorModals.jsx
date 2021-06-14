@@ -5,11 +5,11 @@ import {
     ControlLabel,
     Form,
     FormGroup,
-    FormControl,
-    Checkbox
+    FormControl
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     Grid,
     GridItem,
     Modal,
@@ -467,9 +467,11 @@ class ReportCredentialsModal extends React.Component {
                                 </Col>
                                 <Col sm={9}>
                                     <Checkbox
-                                        checked={pwInputInterractive}
+                                        isChecked={pwInputInterractive}
                                         id="pwInputInterractive"
-                                        onChange={handleFieldChange}
+                                        onChange={(checked, e) => {
+                                            handleFieldChange(e);
+                                        }}
                                     />
                                 </Col>
                             </FormGroup>
@@ -697,25 +699,27 @@ class FullReportContent extends React.Component {
                     <FormGroup controlId="showDisabledAgreements">
                         <Col sm={8}>
                             <Checkbox
-                                checked={this.state.showDisabledAgreements}
+                                isChecked={this.state.showDisabledAgreements}
                                 id="showDisabledAgreements"
-                                onChange={this.handleSwitchChange}
+                                onChange={(checked, e) => {
+                                    this.handleSwitchChange(e);
+                                }}
                                 title="Display all agreements including the disabled ones and the ones we failed to connect to"
-                            >
-                                Show Disabled Agreements
-                            </Checkbox>
+                                label="Show Disabled Agreements"
+                            />
                         </Col>
                     </FormGroup>
                     <FormGroup controlId="oneTableReport">
                         <Col sm={6} title="Show all data in one table (it makes it easier to check lag times)">
                             <Checkbox
-                                checked={this.state.oneTableReport}
-                                onChange={this.handleSwitchChange}
+                                isChecked={this.state.oneTableReport}
+                                onChange={(checked, e) => {
+                                    this.handleSwitchChange(e);
+                                }}
                                 id="oneTableReport"
                                 title="Display all agreements including the disabled ones and the ones we failed to connect to"
-                            >
-                                Table View
-                            </Checkbox>
+                                label="Table View"
+                            />
                         </Col>
                     </FormGroup>
                     <Button

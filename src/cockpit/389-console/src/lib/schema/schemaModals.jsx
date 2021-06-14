@@ -1,6 +1,5 @@
 import React from "react";
 import {
-    Checkbox,
     Form,
     FormControl,
     FormGroup,
@@ -9,6 +8,7 @@ import {
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     // Form,
     // FormGroup,
     Modal,
@@ -458,10 +458,12 @@ class AttributeTypeModal extends React.Component {
                             <Col sm={8}>
                                 <Checkbox
                                     id="atMultivalued"
-                                    checked={atMultivalued}
+                                    isChecked={atMultivalued}
                                     title="If attribute can have a multiple values"
-                                    onChange={handleFieldChange}
-                                    disabled={atModalViewOnly}
+                                    onChange={(checked, e) => {
+                                        handleFieldChange(e);
+                                    }}
+                                    isDisabled={atModalViewOnly}
                                 />
                             </Col>
                         </FormGroup>
@@ -474,10 +476,12 @@ class AttributeTypeModal extends React.Component {
                             <Col sm={8}>
                                 <Checkbox
                                     id="atNoUserMod"
-                                    checked={atNoUserMod}
+                                    isChecked={atNoUserMod}
                                     title="If attribute is not modifiable by a client application"
-                                    onChange={handleFieldChange}
-                                    disabled={atModalViewOnly}
+                                    onChange={(checked, e) => {
+                                        handleFieldChange(e);
+                                    }}
+                                    isDisabled={atModalViewOnly}
                                 />
                             </Col>
                         </FormGroup>

@@ -1,7 +1,6 @@
 import React from "react";
 import {
     Row,
-    Checkbox,
     Col,
     ControlLabel,
     Radio,
@@ -10,6 +9,7 @@ import {
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     // Form,
     // FormGroup,
     Modal,
@@ -228,11 +228,13 @@ class ExportModal extends React.Component {
                         <Col sm={12} className="ds-margin-left">
                             <Checkbox
                                 id="includeReplData"
-                                onChange={handleChange}
+                                isChecked={this.props.includeReplData}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
                                 title="Include the replication metadata needed to restore or initialize another replica."
-                            >
-                                Include Replication Data
-                            </Checkbox>
+                                label="Include Replication Data"
+                            />
                         </Col>
                     </Row>
                     {spinner}

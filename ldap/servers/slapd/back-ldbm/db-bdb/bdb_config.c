@@ -133,6 +133,7 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_import_file_check_fn = &bdb_import_file_check;
     priv->dblayer_list_dbs_fn = &bdb_list_dbs;
     priv->dblayer_in_import_fn = &bdb_public_in_import;
+    priv->dblayer_get_db_suffix_fn = &bdb_public_get_db_suffix;
 
     bdb_fake_priv = *priv; /* Copy the callbaks for bdb_be() */
     return 0;
@@ -231,6 +232,102 @@ bdb_config_db_lock_set(void *arg, void *value, char *errorbuf, int phase, int ap
         }
     }
 
+    return retval;
+}
+
+static void *
+bdb_config_db_lock_monitoring_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((intptr_t)(li->li_new_dblock_monitoring));
+}
+
+static int
+bdb_config_db_lock_monitoring_set(void *arg, void *value, char *errorbuf __attribute__((unused)), int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    int val = (int32_t)((intptr_t)value);
+
+    if (apply) {
+        if (CONFIG_PHASE_RUNNING == phase) {
+            li->li_new_dblock_monitoring = val;
+            slapi_log_err(SLAPI_LOG_NOTICE, "bdb_config_db_lock_monitoring_set",
+                          "New nsslapd-db-lock-monitoring value will not take affect until the server is restarted\n");
+        } else {
+            li->li_new_dblock_monitoring = val;
+            li->li_dblock_monitoring = val;
+        }
+    }
+
+    return retval;
+}
+
+static void *
+bdb_config_db_lock_pause_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)(slapi_atomic_load_32((int32_t *)&(li->li_dblock_monitoring_pause), __ATOMIC_RELAXED)));
+}
+
+static int
+bdb_config_db_lock_pause_set(void *arg, void *value, char *errorbuf, int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    u_int32_t val = (u_int32_t)((uintptr_t)value);
+
+    if (val == 0) {
+        slapi_log_err(SLAPI_LOG_NOTICE, "bdb_config_db_lock_pause_set",
+                      "%s was set to '0'. The default value will be used (%s)",
+                      CONFIG_DB_LOCKS_PAUSE, DEFAULT_DBLOCK_PAUSE_STR);
+        val = DEFAULT_DBLOCK_PAUSE;
+    }
+
+    if (apply) {
+        slapi_atomic_store_32((int32_t *)&(li->li_dblock_monitoring_pause), val, __ATOMIC_RELAXED);
+    }
+    return retval;
+}
+
+static void *
+bdb_config_db_lock_threshold_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)(li->li_new_dblock_threshold));
+}
+
+static int
+bdb_config_db_lock_threshold_set(void *arg, void *value, char *errorbuf, int phase __attribute__((unused)), int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int retval = LDAP_SUCCESS;
+    u_int32_t val = (u_int32_t)((uintptr_t)value);
+
+    if (val < 70 || val > 95) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%d\" is invalid, threshold is indicated as a percentage and it must lie in range of 70 and 95",
+                              CONFIG_DB_LOCKS_THRESHOLD, val);
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_config_db_lock_threshold_set",
+                      "%s: \"%d\" is invalid, threshold is indicated as a percentage and it must lie in range of 70 and 95",
+                      CONFIG_DB_LOCKS_THRESHOLD, val);
+        retval = LDAP_OPERATIONS_ERROR;
+        return retval;
+    }
+
+    if (apply) {
+        if (CONFIG_PHASE_RUNNING == phase) {
+            li->li_new_dblock_threshold = val;
+            slapi_log_err(SLAPI_LOG_NOTICE, "bdb_config_db_lock_threshold_set",
+                          "New nsslapd-db-lock-monitoring-threshold value will not take affect until the server is restarted\n");
+        } else {
+            li->li_new_dblock_threshold = val;
+            li->li_dblock_threshold = val;
+        }
+    }
     return retval;
 }
 
@@ -622,6 +719,84 @@ bdb_config_db_compactdb_interval_set(void *arg,
     if (apply) {
         BDB_CONFIG(li)->bdb_compactdb_interval = val;
     }
+
+    return retval;
+}
+
+static void *
+bdb_config_db_compactdb_time_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    return (void *)slapi_ch_strdup(BDB_CONFIG(li)->bdb_compactdb_time);
+}
+
+static int
+bdb_config_db_compactdb_time_set(void *arg,
+                                 void *value,
+                                 char *errorbuf __attribute__((unused)),
+                                 int phase __attribute__((unused)),
+                                 int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    char *val = slapi_ch_strdup((char *)value);
+    char *endp = NULL;
+    char *hour_str = NULL;
+    char *min_str = NULL;
+    char *default_time = "23:59";
+    int32_t hour, min;
+    int retval = LDAP_SUCCESS;
+    errno = 0;
+
+    if (strstr(val, ":")) {
+        /* Get the hour and minute */
+        hour_str = ldap_utf8strtok_r(val, ":", &min_str);
+
+        /* Validate hour */
+        hour = strtoll(hour_str, &endp, 10);
+        if (*endp != '\0' || errno == ERANGE || hour < 0 || hour > 23 || strlen(hour_str) != 2) {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Invalid hour set (%s), must be a two digit number between 00 and 23",
+                    hour_str);
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_config_db_compactdb_interval_set",
+                    "Invalid minute set (%s), must be a two digit number between 00 and 59.  "
+                    "Using default of 23:59\n", hour_str);
+            retval = LDAP_OPERATIONS_ERROR;
+            goto done;
+        }
+
+        /* Validate minute */
+        min = strtoll(min_str, &endp, 10);
+        if (*endp != '\0' || errno == ERANGE || min < 0 || min > 59 || strlen(min_str) != 2) {
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Invalid minute set (%s), must be a two digit number between 00 and 59",
+                    hour_str);
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_config_db_compactdb_interval_set",
+                    "Invalid minute set (%s), must be a two digit number between 00 and 59.  "
+                    "Using default of 23:59\n", min_str);
+            retval = LDAP_OPERATIONS_ERROR;
+            goto done;
+        }
+    } else {
+        /* Wrong format */
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Invalid setting (%s), must have a time format of HH:MM", val);
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_config_db_compactdb_interval_set",
+                "Invalid setting (%s), must have a time format of HH:MM\n", val);
+        retval = LDAP_OPERATIONS_ERROR;
+        goto done;
+    }
+
+done:
+    if (apply) {
+        slapi_ch_free((void **)&(BDB_CONFIG(li)->bdb_compactdb_time));
+        if (retval) {
+            /* Something went wrong, use the default */
+            BDB_CONFIG(li)->bdb_compactdb_time = slapi_ch_strdup(default_time);
+        } else {
+            BDB_CONFIG(li)->bdb_compactdb_time = slapi_ch_strdup((char *)value);
+        }
+    }
+    slapi_ch_free_string(&val);
 
     return retval;
 }
@@ -1421,6 +1596,7 @@ static config_info bdb_config_param[] = {
     {CONFIG_DB_TRANSACTION_WAIT, CONFIG_TYPE_ONOFF, "off", &bdb_config_db_transaction_wait_get, &bdb_config_db_transaction_wait_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_CHECKPOINT_INTERVAL, CONFIG_TYPE_INT, "60", &bdb_config_db_checkpoint_interval_get, &bdb_config_db_checkpoint_interval_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_COMPACTDB_INTERVAL, CONFIG_TYPE_INT, "2592000" /*30days*/, &bdb_config_db_compactdb_interval_get, &bdb_config_db_compactdb_interval_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_COMPACTDB_TIME, CONFIG_TYPE_STRING, "23:59", &bdb_config_db_compactdb_time_get, &bdb_config_db_compactdb_time_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH, CONFIG_TYPE_INT, "0", &bdb_get_batch_transactions, &bdb_set_batch_transactions, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH_MIN_SLEEP, CONFIG_TYPE_INT, "50", &bdb_get_batch_txn_min_sleep, &bdb_set_batch_txn_min_sleep, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH_MAX_SLEEP, CONFIG_TYPE_INT, "50", &bdb_get_batch_txn_max_sleep, &bdb_set_batch_txn_max_sleep, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
@@ -1453,6 +1629,9 @@ static config_info bdb_config_param[] = {
     {CONFIG_SERIAL_LOCK, CONFIG_TYPE_ONOFF, "on", &bdb_config_serial_lock_get, &bdb_config_serial_lock_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_USE_LEGACY_ERRORCODE, CONFIG_TYPE_ONOFF, "off", &bdb_config_legacy_errcode_get, &bdb_config_legacy_errcode_set, 0},
     {CONFIG_DB_DEADLOCK_POLICY, CONFIG_TYPE_INT, STRINGIFYDEFINE(DB_LOCK_YOUNGEST), &bdb_config_db_deadlock_policy_get, &bdb_config_db_deadlock_policy_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_LOCKS_MONITORING, CONFIG_TYPE_ONOFF, "on", &bdb_config_db_lock_monitoring_get, &bdb_config_db_lock_monitoring_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_LOCKS_THRESHOLD, CONFIG_TYPE_INT, "90", &bdb_config_db_lock_threshold_get, &bdb_config_db_lock_threshold_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_LOCKS_PAUSE, CONFIG_TYPE_INT, DEFAULT_DBLOCK_PAUSE_STR, &bdb_config_db_lock_pause_get, &bdb_config_db_lock_pause_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}};
 
 void

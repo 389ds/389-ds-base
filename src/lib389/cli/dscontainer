@@ -310,7 +310,7 @@ binddn = cn=Directory Manager
         # "-i", "/data/run/slapd-localhost.pid",
         # See /ldap/servers/slapd/slap.h SLAPD_DEFAULT_ERRORLOG_LEVEL
         "-d", "266354688",
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=os.environ.copy())
+        ], stdout=None, stderr=None, env=os.environ.copy())
 
     # Setup the process and shutdown handler in an init-esque fashion.
     def kill_ds():

@@ -19,6 +19,8 @@
 
 #define MDB_CONFIG(li) ((dbmdb_ctx_t *)(li)->li_dblayer_config)
 
+#define LDBM_SUFFIX                ".db"        /* db instance name suffix */
+#define LDBM_FILENAME_SUFFIX       LDBM_SUFFIX
 #define DBMDB_LIBVERSION(v1,v2,v3) ((v3)+1000*(v2)+1000000*(v1))
 #define DBMDB_CURRENT_DATAVERSION   0
 /* Data Versioning should be handled like that:

@@ -112,7 +112,8 @@ class WithObjectClass(Account):
         self._rdn_attribute = 'uid'
         self._create_objectclasses = ['top', 'person', 'inetorgperson']
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_mentry01(topo, _create_inital):
     """Test Managed Entries basic functionality
 

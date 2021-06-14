@@ -7,12 +7,12 @@ import { log_cmd } from "../tools.jsx";
 import {
     Icon,
     Row,
-    Checkbox,
     Col,
     Form,
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     // Form,
     // FormGroup,
     Modal,
@@ -170,10 +170,11 @@ export class SuffixIndexes extends React.Component {
             errObj: {},
             mrs: [],
             addIndexName: [],
-            addIndexTypeEq: "",
-            addIndexTypeSub: "",
-            addIndexTypePres:"",
-            addIndexTypeApprox: "",
+            addIndexTypeEq: false,
+            addIndexTypeSub: false,
+            addIndexTypePres: false,
+            addIndexTypeApprox: false,
+            reindexOnAdd: false,
         });
     }
 
@@ -548,6 +549,11 @@ export class SuffixIndexes extends React.Component {
                     mrs={this.state.mrs}
                     attributeName={this.state.addIndexName}
                     handleTypeaheadChange={this.handleTypeaheadChange}
+                    addIndexTypeEq={this.state.addIndexTypeEq}
+                    addIndexTypePres={this.state.addIndexTypePres}
+                    addIndexTypeSub={this.state.addIndexTypeSub}
+                    addIndexTypeApprox={this.state.addIndexTypeApprox}
+                    reindexOnAdd={this.state.reindexOnAdd}
                 />
                 <EditIndexModal
                     showModal={this.state.showEditIndexModal}
@@ -559,6 +565,11 @@ export class SuffixIndexes extends React.Component {
                     matchingRules={this.state.matchingRules}
                     indexName={this.state.editIndexName}
                     handleTypeaheadChange={this.handleTypeaheadChange}
+                    editIndexTypeEq={this.state.editIndexTypeEq}
+                    editIndexTypePres={this.state.editIndexTypePres}
+                    editIndexTypeSub={this.state.editIndexTypeSub}
+                    editIndexTypeApprox={this.state.editIndexTypeApprox}
+                    reindexOnAdd={this.state.reindexOnAdd}
                 />
                 <ConfirmPopup
                     showModal={this.state.showConfirmReindex}
@@ -641,22 +652,49 @@ class AddIndexModal extends React.Component {
                     <div className="ds-indent ds-margin-top">
                         <Row>
                             <Col sm={5}>
-                                <Checkbox id="addIndexTypeEq" onChange={handleChange}> Equailty Indexing</Checkbox>
+                                <Checkbox
+                                    id="addIndexTypeEq"
+                                    isChecked={this.props.addIndexTypeEq}
+                                    onChange={(checked, e) => {
+                                        handleChange(e);
+                                    }}
+                                    label="Equailty Indexing"
+                                />
                             </Col>
                         </Row>
                         <Row>
                             <Col sm={5}>
-                                <Checkbox id="addIndexTypePres" onChange={handleChange}> Presence Indexing</Checkbox>
+                                <Checkbox
+                                    id="addIndexTypePres"
+                                    isChecked={this.props.addIndexTypePres}
+                                    onChange={(checked, e) => {
+                                        handleChange(e);
+                                    }}
+                                    label="Presence Indexing"
+                                />
                             </Col>
                         </Row>
                         <Row>
                             <Col sm={5}>
-                                <Checkbox id="addIndexTypeSub" onChange={handleChange}> Substring Indexing</Checkbox>
+                                <Checkbox
+                                    id="addIndexTypeSub"
+                                    isChecked={this.props.addIndexTypeSub}
+                                    onChange={(checked, e) => {
+                                        handleChange(e);
+                                    }}
+                                    label="Substring Indexing"
+                                />
                             </Col>
                         </Row>
                         <Row>
                             <Col sm={5}>
-                                <Checkbox id="addIndexTypeApprox" onChange={handleChange}> Approximate Indexing</Checkbox>
+                                <Checkbox
+                                    id="addIndexTypeApprox"
+                                    isChecked={this.props.addIndexTypeApprox}
+                                    onChange={(checked, e) => {
+                                        handleChange(e);
+                                    }}
+                                    label="Approximate Indexing" />
                             </Col>
                         </Row>
                     </div>
@@ -681,9 +719,15 @@ class AddIndexModal extends React.Component {
                     <hr />
                     <Row>
                         <Col sm={12}>
-                            <Checkbox className="ds-float-right" id="reindexOnAdd" onChange={handleChange}>
-                                Index attribute after creation
-                            </Checkbox>
+                            <Checkbox
+                                className="ds-float-right"
+                                id="reindexOnAdd"
+                                isChecked={this.props.reindexOnAdd}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
+                                label="Index attribute after creation"
+                            />
                         </Col>
                     </Row>
                 </Form>
@@ -723,44 +767,92 @@ class EditIndexModal extends React.Component {
 
         // Default settings
         let eq = <div>
-            <Checkbox id="editIndexTypeEq" onChange={handleChange}> Equailty Indexing</Checkbox>
+            <Checkbox
+                id="editIndexTypeEq"
+                isChecked={this.props.editIndexTypeEq}
+                onChange={(checked, e) => {
+                    handleChange(e);
+                }}
+                label="Equailty Indexing"
+            />
         </div>;
         let pres = <div>
-            <Checkbox id="editIndexTypePres" onChange={handleChange}> Presence Indexing</Checkbox>
+            <Checkbox
+                id="editIndexTypePres"
+                isChecked={this.props.editIndexTypePres}
+                onChange={(checked, e) => {
+                    handleChange(e);
+                }}
+                label="Presence Indexing"
+            />
         </div>;
         let sub = <div>
-            <Checkbox id="editIndexTypeSub" onChange={handleChange}> Substring Indexing</Checkbox>
+            <Checkbox
+                id="editIndexTypeSub"
+                isChecked={this.props.editIndexTypeSub}
+                onChange={(checked, e) => {
+                    handleChange(e);
+                }}
+                label="Substring Indexing"
+            />
         </div>;
         let approx = <div>
-            <Checkbox id="editIndexTypeApprox" onChange={handleChange}> Approximate Indexing</Checkbox>
+            <Checkbox
+                id="editIndexTypeApprox"
+                isChecked={this.props.editIndexTypeApprox}
+                onChange={(checked, e) => {
+                    handleChange(e);
+                }}
+                label="Approximate Indexing"
+            />
         </div>;
 
         if (attrTypes.includes('eq')) {
             eq = <div>
-                <Checkbox id="editIndexTypeEq" onChange={handleChange} defaultChecked>
-                    Equality Indexing
-                </Checkbox>
+                <Checkbox
+                    id="editIndexTypeEq"
+                    isChecked={this.props.editIndexTypeEq}
+                    onChange={(checked, e) => {
+                        handleChange(e);
+                    }}
+                    label="Equality Indexing"
+                />
             </div>;
         }
         if (attrTypes.includes('pres')) {
             pres = <div>
-                <Checkbox id="editIndexTypePres" onChange={handleChange} defaultChecked>
-                    Presence Indexing
-                </Checkbox>
+                <Checkbox
+                    id="editIndexTypePres"
+                    isChecked={this.props.editIndexTypePres}
+                    onChange={(checked, e) => {
+                        handleChange(e);
+                    }}
+                    label="Presence Indexing"
+                />
             </div>;
         }
         if (attrTypes.includes('sub')) {
             sub = <div>
-                <Checkbox id="editIndexTypeSub" onChange={handleChange} defaultChecked>
-                    Substring Indexing
-                </Checkbox>
+                <Checkbox
+                    id="editIndexTypeSub"
+                    isChecked={this.props.editIndexTypeSub}
+                    onChange={(checked, e) => {
+                        handleChange(e);
+                    }}
+                    label="Substring Indexing"
+                />
             </div>;
         }
         if (attrTypes.includes('approx')) {
             approx = <div>
-                <Checkbox id="editIndexTypeApprox" onChange={handleChange} defaultChecked>
-                    Approximate Indexing
-                </Checkbox>
+                <Checkbox
+                    id="editIndexTypeApprox"
+                    isChecked={this.props.editIndexTypeApprox}
+                    onChange={(checked, e) => {
+                        handleChange(e);
+                    }}
+                    label="Approximate Indexing"
+                />
             </div>;
         }
 
@@ -828,9 +920,15 @@ class EditIndexModal extends React.Component {
                     <hr />
                     <Row>
                         <Col sm={12}>
-                            <Checkbox className="ds-float-right" id="reindexOnAdd" onChange={handleChange}>
-                                Reindex Attribute After Saving
-                            </Checkbox>
+                            <Checkbox
+                                className="ds-float-right"
+                                id="reindexOnAdd"
+                                isChecked={this.props.reindexOnAdd}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
+                                label="Reindex Attribute After Saving"
+                            />
                         </Col>
                     </Row>
                 </Form>
@@ -867,8 +965,13 @@ AddIndexModal.propTypes = {
     matchingRules: PropTypes.array,
     attributes: PropTypes.array,
     mrs: PropTypes.array,
-    attributeName: PropTypes.array,
     handleTypeaheadChange: PropTypes.func,
+    attributeName: PropTypes.array,
+    addIndexTypeEq:  PropTypes.bool,
+    addIndexTypePres:  PropTypes.bool,
+    addIndexTypeSub:  PropTypes.bool,
+    addIndexTypeApprox:  PropTypes.bool,
+    reindexOnAdd:  PropTypes.bool,
 };
 
 AddIndexModal.defaultProps = {
@@ -881,6 +984,11 @@ AddIndexModal.defaultProps = {
     mrs: [],
     attributeName: [],
     handleTypeaheadChange: noop,
+    addIndexTypeEq:  false,
+    addIndexTypePres:  false,
+    addIndexTypeSub:  false,
+    addIndexTypeApprox:  false,
+    reindexOnAdd:  false,
 };
 
 EditIndexModal.propTypes = {
@@ -893,6 +1001,11 @@ EditIndexModal.propTypes = {
     mrs: PropTypes.array,
     indexName: PropTypes.string,
     handleTypeaheadChange: PropTypes.func,
+    editIndexTypeEq:  PropTypes.bool,
+    editIndexTypePres:  PropTypes.bool,
+    editIndexTypeSub:  PropTypes.bool,
+    editIndexTypeApprox:  PropTypes.bool,
+    reindexOnAdd:  PropTypes.bool,
 };
 
 EditIndexModal.defaultProps = {
@@ -905,4 +1018,9 @@ EditIndexModal.defaultProps = {
     mrs: [],
     indexName: "",
     handleTypeaheadChange: noop,
+    editIndexTypeEq:  false,
+    editIndexTypePres:  false,
+    editIndexTypeSub:  false,
+    editIndexTypeApprox:  false,
+    reindexOnAdd:  false,
 };

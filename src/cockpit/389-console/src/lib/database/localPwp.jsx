@@ -4,8 +4,6 @@ import { log_cmd, valid_dn } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { PwpTable } from "./databaseTables.jsx";
 import {
-    Button,
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -20,10 +18,10 @@ import {
 } from "patternfly-react";
 import { Typeahead } from "react-bootstrap-typeahead";
 import {
+    Button,
+    Checkbox,
     ExpandableSection,
-    Spinner,
-    // Button,
-    // Checkbox,
+    Spinner
     // Form,
     // FormGroup,
     // Tab,
@@ -202,40 +200,48 @@ class CreatePolicy extends React.Component {
                                 <Col sm={11}>
                                     <Checkbox
                                         id="create_passwordtrackupdatetime"
-                                        onChange={this.props.handleChange}
-                                    >
-                                        Track Password Update Time
-                                    </Checkbox>
+                                        isChecked={this.props.create_passwordtrackupdatetime}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                        label="Track Password Update Time"
+                                    />
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top" title="Allow user's to change their passwords (passwordChange).">
                                 <Col sm={11}>
                                     <Checkbox
                                         id="create_passwordchange"
-                                        onChange={this.props.handleChange}
-                                    >
-                                        Allow Users To Change Their Passwords
-                                    </Checkbox>
+                                        isChecked={this.props.create_passwordchange}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                        label="Allow Users To Change Their Passwords"
+                                    />
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top" title="User must change its password after its been reset by an administrator (passwordMustChange).">
                                 <Col sm={11}>
                                     <Checkbox
                                         id="create_passwordmustchange"
-                                        onChange={this.props.handleChange}
-                                    >
-                                        User Must Change Password After Reset
-                                    </Checkbox>
+                                        isChecked={this.props.create_passwordmustchange}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                        label="User Must Change Password After Reset"
+                                    />
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top" title="Maintain a password history for each user (passwordHistory).">
                                 <Col sm={11}>
                                     <Checkbox
                                         id="create_passwordhistory"
-                                        onChange={this.props.handleChange}
-                                    >
-                                        Keep Password History
-                                    </Checkbox>
+                                        isChecked={this.props.create_passwordhistory}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                        label="Keep Password History"
+                                    />
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top ds-margin-bottom" title="The number of passwords to remember for each user (passwordInHistory).">
@@ -266,10 +272,12 @@ class CreatePolicy extends React.Component {
                                 <Col sm={11}>
                                     <Checkbox
                                         id="create_passwordexp"
-                                        onChange={this.props.handleChange}
-                                    >
-                                        Enforce Password Expiration
-                                    </Checkbox>
+                                        isChecked={this.props.create_passwordexp}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                        label="Enforce Password Expiration"
+                                    />
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top" title="The maxiumum age of a password in seconds before it expires (passwordMaxAge).">
@@ -321,11 +329,13 @@ class CreatePolicy extends React.Component {
                                 <Col componentClass={ControlLabel} sm={6}>
                                     <Checkbox
                                         id="create_passwordsendexpiringtime"
-                                        onChange={this.props.handleChange}
+                                        isChecked={this.props.create_passwordsendexpiringtime}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
                                         disabled={!this.props.passwordexp}
-                                    >
-                                        Always Send <i>Password Expiring</i> Control
-                                    </Checkbox>
+                                        label={<>Always Send <i>Password Expiring</i>&nbsp; Control</>}
+                                    />
                                 </Col>
                             </Row>
                         </div>
@@ -342,10 +352,12 @@ class CreatePolicy extends React.Component {
                                 <Col sm={11}>
                                     <Checkbox
                                         id="create_passwordlockout"
-                                        onChange={this.props.handleChange}
-                                    >
-                                        Enable Account Lockout
-                                    </Checkbox>
+                                        isChecked={this.props.create_passwordlockout}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                        label="Enable Account Lockout"
+                                    />
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top" title="The maximum number of failed logins before account gets locked (passwordMaxFailure).">
@@ -397,11 +409,13 @@ class CreatePolicy extends React.Component {
                                 <Col componentClass={ControlLabel} sm={6}>
                                     <Checkbox
                                         id="create_passwordunlock"
-                                        onChange={this.props.handleChange}
+                                        isChecked={this.props.create_passwordunlock}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
                                         disabled={!this.props.passwordlockout}
-                                    >
-                                        Do Not Lockout Account Forever
-                                    </Checkbox>
+                                        label="Do Not Lockout Account Forever"
+                                    />
                                 </Col>
                             </Row>
                         </div>
@@ -418,10 +432,12 @@ class CreatePolicy extends React.Component {
                                 <Col sm={11}>
                                     <Checkbox
                                         id="create_passwordchecksyntax"
-                                        onChange={this.props.handleChange}
-                                    >
-                                        Enable Password Syntax Checking
-                                    </Checkbox>
+                                        isChecked={this.props.create_passwordchecksyntax}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                        label="Enable Password Syntax Checking"
+                                    />
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top" title="The minimum number of characters in the password (passwordMinLength).">
@@ -641,22 +657,26 @@ class CreatePolicy extends React.Component {
                                 <Col componentClass={ControlLabel} sm={3}>
                                     <Checkbox
                                         id="create_passworddictcheck"
-                                        onChange={this.props.handleChange}
+                                        isChecked={this.props.create_passworddictcheck}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
                                         disabled={!this.props.passwordchecksyntax}
-                                    >
-                                        Dictionary Check
-                                    </Checkbox>
+                                        label="Dictionary Check"
+                                    />
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top" title="Reject a password if it is a palindrome (passwordPalindrome).">
                                 <Col componentClass={ControlLabel} sm={3}>
                                     <Checkbox
                                         id="create_passwordpalindrome"
-                                        onChange={this.props.handleChange}
+                                        isChecked={this.props.create_passwordpalindrome}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
                                         disabled={!this.props.passwordchecksyntax}
-                                    >
-                                        Reject Palindromes
-                                    </Checkbox>
+                                        label="Reject Palindromes"
+                                    />
                                 </Col>
                             </Row>
                         </div>
@@ -664,7 +684,7 @@ class CreatePolicy extends React.Component {
                 </Form>
                 <Button
                     disabled={this.props.createDisabled}
-                    bsStyle="primary"
+                    variant="primary"
                     className="ds-margin-top-lg ds-margin-left"
                     onClick={this.props.createPolicy}
                 >
@@ -1030,7 +1050,8 @@ export class LocalPwPolicy extends React.Component {
             action = "addsubtree";
         }
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'localpwp', action, this.state.policyDN
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'localpwp', action, this.state.policyDN
         ];
 
         for (let attr of all_attrs) {
@@ -1111,7 +1132,8 @@ export class LocalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'localpwp', 'set', this.state.policyName
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'localpwp', 'set', this.state.policyName
         ];
 
         for (let attr of general_attrs) {
@@ -1187,7 +1209,8 @@ export class LocalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'localpwp', 'set', this.state.policyName
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'localpwp', 'set', this.state.policyName
         ];
 
         for (let attr of exp_attrs) {
@@ -1263,7 +1286,8 @@ export class LocalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'localpwp', 'set', this.state.policyName
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'localpwp', 'set', this.state.policyName
         ];
 
         for (let attr of lockout_attrs) {
@@ -1364,7 +1388,8 @@ export class LocalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'localpwp', 'set', this.state.policyName
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'localpwp', 'set', this.state.policyName
         ];
 
         for (let attr of syntax_attrs) {
@@ -1414,7 +1439,8 @@ export class LocalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "localpwp", "remove", this.state.deleteName
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "localpwp", "remove", this.state.deleteName
         ];
         log_cmd("deletePolicy", "delete policy", cmd);
         cockpit
@@ -1437,7 +1463,8 @@ export class LocalPwPolicy extends React.Component {
             loading: true,
         });
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "localpwp", "list"
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "localpwp", "list"
         ];
         log_cmd("loadPolicies", "Load all the local password policies for the table", cmd);
         cockpit
@@ -1625,7 +1652,8 @@ export class LocalPwPolicy extends React.Component {
 
     loadLocal(name) {
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "localpwp", "get", name
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "localpwp", "get", name
         ];
         log_cmd("loadLocal", "Load a local password policy", cmd);
         cockpit
@@ -2116,22 +2144,24 @@ export class LocalPwPolicy extends React.Component {
                         <Col componentClass={ControlLabel} sm={3}>
                             <Checkbox
                                 id="passworddictcheck"
-                                defaultChecked={this.state.passworddictcheck}
-                                onChange={this.handleSyntaxChange}
-                            >
-                                Dictionary Check
-                            </Checkbox>
+                                isChecked={this.state.passworddictcheck}
+                                onChange={(checked, e) => {
+                                    this.handleSyntaxChange(e);
+                                }}
+                                label="Dictionary Check"
+                            />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top" title="Reject a password if it is a palindrome (passwordPalindrome).">
                         <Col componentClass={ControlLabel} sm={3}>
                             <Checkbox
                                 id="passwordpalindrome"
-                                defaultChecked={this.state.passwordpalindrome}
-                                onChange={this.handleSyntaxChange}
-                            >
-                                Reject Palindromes
-                            </Checkbox>
+                                isChecked={this.state.passwordpalindrome}
+                                onChange={(checked, e) => {
+                                    this.handleSyntaxChange(e);
+                                }}
+                                label="Reject Palindromes"
+                            />
                         </Col>
                     </Row>
                 </div>;
@@ -2189,11 +2219,12 @@ export class LocalPwPolicy extends React.Component {
                         <Col sm={5}>
                             <Checkbox
                                 id="passwordunlock"
-                                defaultChecked={this.state.passwordunlock}
-                                onChange={this.handleLockoutChange}
-                            >
-                                Do Not Lockout Account Forever
-                            </Checkbox>
+                                isChecked={this.state.passwordunlock}
+                                onChange={(checked, e) => {
+                                    this.handleLockoutChange(e);
+                                }}
+                                label="Do Not Lockout Account Forever"
+                            />
                         </Col>
                     </Row>
                 </div>;
@@ -2251,11 +2282,12 @@ export class LocalPwPolicy extends React.Component {
                         <Col componentClass={ControlLabel} sm={5}>
                             <Checkbox
                                 id="passwordsendexpiringtime"
-                                defaultChecked={this.state.passwordsendexpiringtime}
-                                onChange={this.handleExpChange}
-                            >
-                                Always Send <i>Password Expiring</i> Control
-                            </Checkbox>
+                                isChecked={this.state.passwordsendexpiringtime}
+                                onChange={(checked, e) => {
+                                    this.handleExpChange(e);
+                                }}
+                                label={<>Always Send <i>Password Expiring</i>&nbsp; Control</>}
+                            />
                         </Col>
                     </Row>
                 </div>;
@@ -2317,33 +2349,36 @@ export class LocalPwPolicy extends React.Component {
                                             <Col sm={11}>
                                                 <Checkbox
                                                     id="passwordtrackupdatetime"
-                                                    defaultChecked={this.state.passwordtrackupdatetime}
-                                                    onChange={this.handleGeneralChange}
-                                                >
-                                                    Track Password Update Time
-                                                </Checkbox>
+                                                    isChecked={this.state.passwordtrackupdatetime}
+                                                    onChange={(checked, e) => {
+                                                        this.handleGeneralChange(e);
+                                                    }}
+                                                    label="Track Password Update Time"
+                                                />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top" title="Allow user's to change their passwords (passwordChange).">
                                             <Col sm={11}>
                                                 <Checkbox
                                                     id="passwordchange"
-                                                    defaultChecked={this.state.passwordchange}
-                                                    onChange={this.handleGeneralChange}
-                                                >
-                                                    Allow Users To Change Their Passwords
-                                                </Checkbox>
+                                                    isChecked={this.state.passwordchange}
+                                                    onChange={(checked, e) => {
+                                                        this.handleGeneralChange(e);
+                                                    }}
+                                                    label="Allow Users To Change Their Passwords"
+                                                />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top" title="User must change its password after its been reset by an administrator (passwordMustChange).">
                                             <Col sm={11}>
                                                 <Checkbox
                                                     id="passwordmustchange"
-                                                    defaultChecked={this.state.passwordmustchange}
-                                                    onChange={this.handleGeneralChange}
-                                                >
-                                                    User Must Change Password After Reset
-                                                </Checkbox>
+                                                    isChecked={this.state.passwordmustchange}
+                                                    onChange={(checked, e) => {
+                                                        this.handleGeneralChange(e);
+                                                    }}
+                                                    label="User Must Change Password After Reset"
+                                                />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top" title="Maintain a password history for each user (passwordHistory).">
@@ -2351,11 +2386,12 @@ export class LocalPwPolicy extends React.Component {
                                                 <div className="ds-inline">
                                                     <Checkbox
                                                         id="passwordhistory"
-                                                        defaultChecked={this.state.passwordhistory}
-                                                        onChange={this.handleUserChange}
-                                                    >
-                                                        Keep Password History
-                                                    </Checkbox>
+                                                        isChecked={this.state.passwordhistory}
+                                                        onChange={(checked, e) => {
+                                                            this.handleUserChange(e);
+                                                        }}
+                                                        label="Keep Password History"
+                                                    />
                                                 </div>
                                                 <div className="ds-inline ds-left-margin ds-raise-field ds-width-sm">
                                                     <FormControl
@@ -2391,7 +2427,7 @@ export class LocalPwPolicy extends React.Component {
                                         </Row>
                                         <Button
                                             disabled={this.state.saveGeneralDisabled}
-                                            bsStyle="primary"
+                                            variant="primary"
                                             className="ds-margin-top-lg"
                                             onClick={this.saveGeneral}
                                             title="Save the General Settings"
@@ -2407,17 +2443,18 @@ export class LocalPwPolicy extends React.Component {
                                             <Col sm={11}>
                                                 <Checkbox
                                                     id="passwordexp"
-                                                    defaultChecked={this.state.passwordexp}
-                                                    onChange={this.handleExpChange}
-                                                >
-                                                    Enforce Password Expiration
-                                                </Checkbox>
+                                                    isChecked={this.state.passwordexp}
+                                                    onChange={(checked, e) => {
+                                                        this.handleExpChange(e);
+                                                    }}
+                                                    label="Enforce Password Expiration"
+                                                />
                                             </Col>
                                         </Row>
                                         {pwExpirationRows}
                                         <Button
                                             disabled={this.state.saveExpDisabled}
-                                            bsStyle="primary"
+                                            variant="primary"
                                             className="ds-margin-top-lg ds-margin-left"
                                             onClick={this.saveExp}
                                             title="Save the Expiration Settings"
@@ -2433,17 +2470,18 @@ export class LocalPwPolicy extends React.Component {
                                             <Col sm={11}>
                                                 <Checkbox
                                                     id="passwordlockout"
-                                                    defaultChecked={this.state.passwordlockout}
-                                                    onChange={this.handleLockoutChange}
-                                                >
-                                                    Enable Account Lockout
-                                                </Checkbox>
+                                                    isChecked={this.state.passwordlockout}
+                                                    onChange={(checked, e) => {
+                                                        this.handleLockoutChange(e);
+                                                    }}
+                                                    label="Enable Account Lockout"
+                                                />
                                             </Col>
                                         </Row>
                                         {pwLockoutRows}
                                         <Button
                                             disabled={this.state.saveLockoutDisabled}
-                                            bsStyle="primary"
+                                            variant="primary"
                                             className="ds-margin-top-lg ds-margin-left"
                                             onClick={this.saveLockout}
                                             title="Save the Lockout Settings"
@@ -2459,17 +2497,18 @@ export class LocalPwPolicy extends React.Component {
                                             <Col sm={11}>
                                                 <Checkbox
                                                     id="passwordchecksyntax"
-                                                    checked={this.state.passwordchecksyntax}
-                                                    onChange={this.handleSyntaxChange}
-                                                >
-                                                    Enable Password Syntax Checking
-                                                </Checkbox>
+                                                    isChecked={this.state.passwordchecksyntax}
+                                                    onChange={(checked, e) => {
+                                                        this.handleSyntaxChange(e);
+                                                    }}
+                                                    label="Enable Password Syntax Checking"
+                                                />
                                             </Col>
                                         </Row>
                                         {pwSyntaxRows}
                                         <Button
                                             disabled={this.state.saveSyntaxDisabled}
-                                            bsStyle="primary"
+                                            variant="primary"
                                             className="ds-margin-top-lg ds-margin-left"
                                             onClick={this.saveSyntax}
                                             title="Save the Syntax Settings"
@@ -2526,6 +2565,17 @@ export class LocalPwPolicy extends React.Component {
                                     createPolicy={this.createPolicy}
                                     invalid_dn={this.state.invalid_dn}
                                     key={this.state.rows}
+                                    create_passwordtrackupdatetime={this.state.create_passwordtrackupdatetime}
+                                    create_passwordchange={this.state.create_passwordchange}
+                                    create_passwordmustchange={this.state.create_passwordmustchange}
+                                    create_passwordhistory={this.state.create_passwordhistory}
+                                    create_passwordexp={this.state.create_passwordexp}
+                                    create_passwordsendexpiringtime={this.state.create_passwordsendexpiringtime}
+                                    create_passwordlockout={this.state.create_passwordlockout}
+                                    create_passwordunlock={this.state.create_passwordunlock}
+                                    create_passwordchecksyntax={this.state.create_passwordchecksyntax}
+                                    create_passworddictcheck={this.state.create_passworddictcheck}
+                                    create_passwordpalindrome={this.state.create_passwordpalindrome}
                                 />
                             </TabPane>
                         </TabContent>

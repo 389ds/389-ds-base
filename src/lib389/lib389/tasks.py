@@ -230,6 +230,19 @@ class EntryUUIDFixupTask(Task):
         self._must_attributes.extend(['basedn'])
 
 
+class DBCompactTask(Task):
+    """A single instance of compactdb task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'compact_db_' + Task._get_task_date()
+        dn = "cn=" + self.cn + "," + DN_COMPACTDB_TASK
+        super(DBCompactTask, self).__init__(instance, dn)
+
+
 class SchemaReloadTask(Task):
     """A single instance of schema reload task entry
 
@@ -240,7 +253,6 @@ class SchemaReloadTask(Task):
     def __init__(self, instance, dn=None):
         self.cn = 'schema_reload_' + Task._get_task_date()
         dn = "cn=" + self.cn + ",cn=schema reload task," + DN_TASKS
-
         super(SchemaReloadTask, self).__init__(instance, dn)
 
 

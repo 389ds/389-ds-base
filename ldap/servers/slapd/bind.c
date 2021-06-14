@@ -733,6 +733,12 @@ do_bind(Slapi_PBlock *pb)
                 slapi_pblock_get(pb, SLAPI_BACKEND, &be);
                 if (!isroot && !slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
                     bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
+                    myrc = slapi_check_tpr_limits(pb, bind_target_entry, 1 /* send result */);
+                    if (myrc) {
+                        /* a result was sent, similar to account locked */
+                        rc = myrc;
+                        goto account_locked;
+                    }
                     myrc = slapi_check_account_lock(pb, bind_target_entry, pw_response_requested, 1, 1);
                     if (1 == myrc) { /* account is locked */
                         rc = myrc;

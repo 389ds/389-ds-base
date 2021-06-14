@@ -87,6 +87,9 @@ static char *ldbm_config_moved_attributes[] =
         CONFIG_SERIAL_LOCK,
         CONFIG_USE_LEGACY_ERRORCODE,
         CONFIG_DB_DEADLOCK_POLICY,
+        CONFIG_DB_LOCKS_MONITORING,
+        CONFIG_DB_LOCKS_THRESHOLD,
+        CONFIG_DB_LOCKS_PAUSE,
         ""};
 
 /* Used to add an array of entries, like the one above and

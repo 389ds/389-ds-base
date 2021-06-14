@@ -8,7 +8,6 @@ import { ReplRUV } from "./replTasks.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { EnableReplModal } from "./replModals.jsx";
 import {
-    Button,
     Col,
     ControlLabel,
     Icon,
@@ -21,6 +20,9 @@ import {
     TabContent,
     TabPane,
 } from "patternfly-react";
+import {
+    Button
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { log_cmd, valid_dn } from "../tools.jsx";
 
@@ -372,7 +374,7 @@ export class ReplSuffix extends React.Component {
         if (this.props.replicated) {
             replActionButton =
                 <Button
-                    bsStyle="danger"
+                    variant="danger"
                     onClick={this.handleReplChange}
                     title="Disable replication, and remove all replication agreements."
                 >
@@ -385,7 +387,7 @@ export class ReplSuffix extends React.Component {
                         Replication is not enabled for this suffix
                     </h4>
                     <Button
-                        bsStyle="primary"
+                        variant="primary"
                         onClick={this.handleReplChange}
                         className="ds-margin-top-lg"
                     >

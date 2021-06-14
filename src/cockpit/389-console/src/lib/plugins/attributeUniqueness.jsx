@@ -7,11 +7,11 @@ import {
     Switch,
     FormGroup,
     FormControl,
-    Checkbox,
     ControlLabel
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     // Form,
     // FormGroup,
     Modal,
@@ -44,6 +44,7 @@ class AttributeUniqueness extends React.Component {
             objectClasses: [],
             modalChecked: false,
             modalSpinning: false,
+            tableKey: 0,
 
             configName: "",
             configEnabled: false,
@@ -83,9 +84,9 @@ class AttributeUniqueness extends React.Component {
         });
     }
 
-    handleCheckboxChange(e) {
+    handleCheckboxChange(checked, e) {
         this.setState({
-            [e.target.id]: e.target.checked
+            [e.target.id]: checked
         });
     }
 
@@ -130,8 +131,10 @@ class AttributeUniqueness extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let myObject = JSON.parse(content);
+                    let tableKey = this.state.tableKey + 1;
                     this.setState({
-                        configRows: myObject.items.map(item => item.attrs)
+                        configRows: myObject.items.map(item => item.attrs),
+                        tableKey: tableKey
                     });
                 })
                 .fail(err => {
@@ -142,8 +145,8 @@ class AttributeUniqueness extends React.Component {
                 });
     }
 
-    showEditConfigModal(rowData) {
-        this.openModal(rowData.cn[0]);
+    showEditConfigModal(name) {
+        this.openModal(name);
     }
 
     showAddConfigModal(rowData) {
@@ -649,12 +652,11 @@ class AttributeUniqueness extends React.Component {
                                     <Col sm={3}>
                                         <Checkbox
                                             id="acrossAllSubtrees"
-                                            checked={acrossAllSubtrees}
+                                            isChecked={acrossAllSubtrees}
                                             title="If enabled (on), the plug-in checks that the attribute is unique across all subtrees set. If you set the attribute to off, uniqueness is only enforced within the subtree of the updated entry (uniqueness-across-all-subtrees)"
                                             onChange={this.handleCheckboxChange}
-                                        >
-                                            Across All Subtrees
-                                        </Checkbox>
+                                            label="Across All Subtrees"
+                                        />
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -690,6 +692,7 @@ class AttributeUniqueness extends React.Component {
                 <PluginBasicConfig
                     removeSwitch
                     rows={this.props.rows}
+                    key={this.state.configRows}
                     serverId={this.props.serverId}
                     cn="attribute uniqueness"
                     pluginName="Attribute Uniqueness"
@@ -702,6 +705,7 @@ class AttributeUniqueness extends React.Component {
                     <Row>
                         <Col sm={12}>
                             <AttrUniqConfigTable
+                                key={this.state.tableKey}
                                 rows={this.state.configRows}
                                 editConfig={this.showEditConfigModal}
                                 deleteConfig={this.showConfirmDelete}

@@ -2,8 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -18,6 +16,10 @@ import {
     noop,
     TabPane,
 } from "patternfly-react";
+import {
+    Button,
+    Checkbox
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
 const errorlog_levels = [
@@ -151,7 +153,8 @@ export class ServerErrorLog extends React.Component {
         }
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
         for (let attr of config_attrs) {
@@ -295,7 +298,8 @@ export class ServerErrorLog extends React.Component {
             loading: true,
         });
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "config", "get"
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get"
         ];
         log_cmd("reloadConfig", "load Error Log configuration", cmd);
         cockpit
@@ -422,13 +426,12 @@ export class ServerErrorLog extends React.Component {
                                         <Col sm={3}>
                                             <Checkbox
                                                 id="nsslapd-errorlog-logging-enabled"
-                                                defaultChecked={this.state['nsslapd-errorlog-logging-enabled']}
-                                                onChange={(e) => {
+                                                isChecked={this.state['nsslapd-errorlog-logging-enabled']}
+                                                onChange={(checked, e) => {
                                                     this.handleChange(e, "settings");
                                                 }}
-                                            >
-                                                Enable Error Logging
-                                            </Checkbox>
+                                                label="Enable Error Logging"
+                                            />
                                         </Col>
                                     </Row>
                                     <div className="ds-margin-left">
@@ -582,7 +585,7 @@ export class ServerErrorLog extends React.Component {
                                                             onChange={(e) => {
                                                                 this.handleChange(e, "settings");
                                                             }}
-                                                            checked={this.state['errorlevel-2048']}
+                                                            checked={this.state['errorlevel-256']}
                                                             type="checkbox"
                                                         />
                                                     </td>
@@ -669,8 +672,8 @@ export class ServerErrorLog extends React.Component {
                                         </table>
                                     </div>
                                     <Button
-                                        disabled={this.state.saveSettingsDisabled}
-                                        bsStyle="primary"
+                                        isDisabled={this.state.saveSettingsDisabled}
+                                        variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
                                             this.saveConfig("settings");
@@ -788,8 +791,8 @@ export class ServerErrorLog extends React.Component {
                                         </Col>
                                     </Row>
                                     <Button
-                                        disabled={this.state.saveRotationDisabled}
-                                        bsStyle="primary"
+                                        isDisabled={this.state.saveRotationDisabled}
+                                        variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
                                             this.saveConfig("rotation");
@@ -870,8 +873,8 @@ export class ServerErrorLog extends React.Component {
                                         </Col>
                                     </Row>
                                     <Button
-                                        disabled={this.state.saveExpDisabled}
-                                        bsStyle="primary"
+                                        isDisabled={this.state.saveExpDisabled}
+                                        variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
                                             this.saveConfig("exp");

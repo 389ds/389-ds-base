@@ -5,22 +5,20 @@ import { ConfirmPopup } from "../notifications.jsx";
 import { ManagerTable } from "./replTables.jsx";
 import { AddManagerModal, ChangeReplRoleModal } from "./replModals.jsx";
 import {
-    Button,
     Row,
-    Checkbox,
     Col,
     ControlLabel,
     Form,
     FormControl,
 } from "patternfly-react";
 import {
+    Button,
+    Checkbox,
     ExpandableSection,
-    // Button,
-    // Checkbox,
     // Form,
     // FormGroup,
     // TextInput,
-    Spinner,
+    Spinner
     // Grid,
     // GridItem,
     // noop
@@ -413,7 +411,7 @@ export class ReplConfig extends React.Component {
         if (this.props.role == "Supplier") {
             roleButton =
                 <Button
-                    bsStyle="primary"
+                    variant="primary"
                     onClick={this.showPromoteDemoteModal}
                     title="Demote this Supplier replica to a Hub or Consumer"
                     className="ds-inline-btn"
@@ -423,7 +421,7 @@ export class ReplConfig extends React.Component {
         } else if (this.props.role == "Hub") {
             roleButton =
                 <Button
-                    bsStyle="primary"
+                    variant="primary"
                     onClick={this.showPromoteDemoteModal}
                     title="Promote or Demote this Hub replica to a Supplier or Consumer"
                     className="ds-inline-btn"
@@ -434,7 +432,7 @@ export class ReplConfig extends React.Component {
             // Consumer
             roleButton =
                 <Button
-                    bsStyle="primary"
+                    variant="primary"
                     onClick={this.showPromoteDemoteModal}
                     title="Promote this Consumer replica to a Supplier or Hub"
                     className="ds-inline-btn"
@@ -497,7 +495,7 @@ export class ReplConfig extends React.Component {
                         <Row className="ds-margin-top">
                             <Col sm={4}>
                                 <Button
-                                    bsStyle="primary"
+                                    variant="primary"
                                     onClick={this.showAddManager}
                                 >
                                     Add Replication Manager
@@ -624,15 +622,17 @@ export class ReplConfig extends React.Component {
                                         <Col sm={6}>
                                             <Checkbox
                                                 id="nsds5replicaprecisetombstonepurging"
-                                                defaultChecked={this.props.data.nsds5replicaprecisetombstonepurging}
-                                                onChange={this.handleChange}
+                                                isChecked={this.state.nsds5replicaprecisetombstonepurging}
+                                                onChange={(checked, e) => {
+                                                    this.handleChange(e);
+                                                }}
                                             />
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top-lg">
                                         <Col componentClass={ControlLabel} sm={4}>
                                             <Button
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 onClick={this.saveConfig}
                                             >
                                                 Save Configuration

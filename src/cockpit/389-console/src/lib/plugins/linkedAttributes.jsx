@@ -22,6 +22,7 @@ import { LinkedAttributesTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 
 class LinkedAttributes extends React.Component {
     componentDidMount() {
@@ -38,6 +39,7 @@ class LinkedAttributes extends React.Component {
             firstLoad: true,
             configRows: [],
             attributes: [],
+            tableKey: 1,
 
             configName: "",
             linkType: [],
@@ -46,13 +48,16 @@ class LinkedAttributes extends React.Component {
 
             newEntry: false,
             showConfigModal: false,
-            showConfirmDeleteConfig: false
+            showConfirmDelete: false,
+            modalChecked: false,
+            modalSpinning: false,
         };
 
         this.getAttributes = this.getAttributes.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
         this.loadConfigs = this.loadConfigs.bind(this);
         this.showEditConfigModal = this.showEditConfigModal.bind(this);
+        this.showConfirmDelete = this.showConfirmDelete.bind(this);
         this.showAddConfigModal = this.showAddConfigModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
         this.openModal = this.openModal.bind(this);
@@ -60,11 +65,31 @@ class LinkedAttributes extends React.Component {
         this.deleteConfig = this.deleteConfig.bind(this);
         this.addConfig = this.addConfig.bind(this);
         this.editConfig = this.editConfig.bind(this);
+        this.closeConfirmDelete = this.closeConfirmDelete.bind(this);
+    }
+
+    showConfirmDelete (name) {
+        this.setState({
+            showConfirmDelete: true,
+            modalChecked: false,
+            modalSpinning: false,
+            deleteName: name
+        });
+    }
+
+    closeConfirmDelete () {
+        this.setState({
+            showConfirmDelete: false,
+            modalChecked: false,
+            modalSpinning: false,
+            deleteName: ""
+        });
     }
 
     handleFieldChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
-            [e.target.id]: e.target.value
+            [e.target.id]: value
         });
     }
 
@@ -86,8 +111,10 @@ class LinkedAttributes extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let myObject = JSON.parse(content);
+                    let tableKey = this.state.tableKey + 1;
                     this.setState({
-                        configRows: myObject.items.map(item => item.attrs)
+                        configRows: myObject.items.map(item => item.attrs),
+                        tableKey: tableKey
                     });
                 })
                 .fail(err => {
@@ -99,7 +126,7 @@ class LinkedAttributes extends React.Component {
     }
 
     showEditConfigModal(rowData) {
-        this.openModal(rowData.cn[0]);
+        this.openModal(rowData);
     }
 
     showAddConfigModal(rowData) {
@@ -243,8 +270,7 @@ class LinkedAttributes extends React.Component {
                 });
     }
 
-    deleteConfig(rowData) {
-        let configName = rowData.cn[0];
+    deleteConfig() {
         let cmd = [
             "dsconf",
             "-j",
@@ -252,11 +278,14 @@ class LinkedAttributes extends React.Component {
             "plugin",
             "linked-attr",
             "config",
-            configName,
+            this.state.deleteName,
             "delete"
         ];
 
-        this.props.toggleLoadingHandler();
+        this.setState({
+            modalSpinning: true
+        });
+
         log_cmd("deleteConfig", "Delete the Linked Attributes Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
@@ -267,11 +296,11 @@ class LinkedAttributes extends React.Component {
                     console.info("deleteConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${configName} was successfully deleted`
+                        `Config entry ${this.state.deleteName} was successfully deleted`
                     );
                     this.loadConfigs();
                     this.closeModal();
-                    this.props.toggleLoadingHandler();
+                    this.closeConfirmDelete();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -281,7 +310,7 @@ class LinkedAttributes extends React.Component {
                     );
                     this.loadConfigs();
                     this.closeModal();
-                    this.props.toggleLoadingHandler();
+                    this.closeConfirmDelete();
                 });
     }
 
@@ -423,6 +452,7 @@ class LinkedAttributes extends React.Component {
 
                 <PluginBasicConfig
                     rows={this.props.rows}
+                    key={this.state.configRows}
                     serverId={this.props.serverId}
                     cn="Linked Attributes"
                     pluginName="Linked Attributes"
@@ -436,8 +466,9 @@ class LinkedAttributes extends React.Component {
                         <Col sm={12}>
                             <LinkedAttributesTable
                                 rows={this.state.configRows}
+                                key={this.state.tableKey}
                                 editConfig={this.showEditConfigModal}
-                                deleteConfig={this.deleteConfig}
+                                deleteConfig={this.showConfirmDelete}
                             />
                             <Button
                                 key="addconf"
@@ -450,6 +481,19 @@ class LinkedAttributes extends React.Component {
                         </Col>
                     </Row>
                 </PluginBasicConfig>
+                <DoubleConfirmModal
+                    showModal={this.state.showConfirmDelete}
+                    closeHandler={this.closeConfirmDelete}
+                    handleChange={this.handleFieldChange}
+                    actionHandler={this.deleteConfig}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.deleteName}
+                    checked={this.state.modalChecked}
+                    mTitle="Delete Linked Attribute Configuration"
+                    mMsg="Are you sure you want to delete this configuration?"
+                    mSpinningMsg="Deleting Configuration..."
+                    mBtnName="Delete Configuration"
+                />
             </div>
         );
     }

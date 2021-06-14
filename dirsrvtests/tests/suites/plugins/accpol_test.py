@@ -520,7 +520,8 @@ def test_glinact_limit(topology_st, accpol_global):
     modify_attr(topology_st, ACCP_CONF, 'accountInactivityLimit', '12')
     del_users(topology_st, suffix, subtree, userid, nousrs)
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_glnologin_attr(topology_st, accpol_global):
     """Verify if user account is inactivated based on createTimeStamp attribute, no lastLoginTime attribute present
 
@@ -610,7 +611,8 @@ def test_glnologin_attr(topology_st, accpol_global):
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Enabled")
     del_users(topology_st, suffix, subtree, userid, nousrs)
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_glnoalt_stattr(topology_st, accpol_global):
     """Verify if user account can be inactivated based on lastLoginTime attribute, altstateattrname set to 1.1
 
@@ -656,6 +658,8 @@ def test_glnoalt_stattr(topology_st, accpol_global):
     del_users(topology_st, suffix, subtree, userid, nousrs)
 
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_glattr_modtime(topology_st, accpol_global):
     """Verify if user account can be inactivated based on modifyTimeStamp attribute
 
@@ -705,6 +709,8 @@ def test_glattr_modtime(topology_st, accpol_global):
     del_users(topology_st, suffix, subtree, userid, nousrs)
 
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_glnoalt_nologin(topology_st, accpol_global):
     """Verify if account policy plugin works if we set altstateattrname set to 1.1 and alwaysrecordlogin to NO
 
@@ -763,6 +769,8 @@ def test_glnoalt_nologin(topology_st, accpol_global):
     del_users(topology_st, suffix, subtree, userid, nousrs)
 
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_glinact_nsact(topology_st, accpol_global):
     """Verify if user account can be activated using dsidm.
 
@@ -813,6 +821,8 @@ def test_glinact_nsact(topology_st, accpol_global):
     del_users(topology_st, suffix, subtree, userid, nousrs)
 
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_glinact_acclock(topology_st, accpol_global):
     """Verify if user account is activated when account is unlocked by passwordlockoutduration.
 
@@ -869,6 +879,8 @@ def test_glinact_acclock(topology_st, accpol_global):
     del_users(topology_st, suffix, subtree, userid, nousrs)
 
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_glnact_pwexp(topology_st, accpol_global):
     """Verify if user account is activated when password is reset after password is expired
 
@@ -952,6 +964,8 @@ def test_glnact_pwexp(topology_st, accpol_global):
     del_users(topology_st, suffix, subtree, userid, nousrs)
 
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_locact_inact(topology_st, accpol_local):
     """Verify if user account is inactivated when accountInactivityLimit is exceeded.
 
@@ -996,6 +1010,8 @@ def test_locact_inact(topology_st, accpol_local):
     del_users(topology_st, suffix, subtree, userid, nousrs)
 
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_locinact_modrdn(topology_st, accpol_local):
     """Verify if user account is inactivated when moved from ou=groups to ou=people subtree.
 

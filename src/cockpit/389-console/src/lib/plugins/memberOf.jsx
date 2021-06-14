@@ -6,12 +6,11 @@ import {
     Form,
     FormGroup,
     FormControl,
-    Checkbox,
     ControlLabel
 } from "patternfly-react";
 import {
     Button,
-    // Checkbox
+    Checkbox,
     // Form,
     // FormGroup,
     Modal,
@@ -397,9 +396,9 @@ class MemberOf extends React.Component {
         this.cmdOperation("set");
     }
 
-    handleCheckboxChange(e) {
+    handleCheckboxChange(checked, e) {
         this.setState({
-            [e.target.id]: e.target.checked
+            [e.target.id]: checked
         });
     }
 
@@ -767,12 +766,11 @@ class MemberOf extends React.Component {
                                     <Col sm={3}>
                                         <Checkbox
                                             id="configAllBackends"
-                                            checked={configAllBackends}
+                                            isChecked={configAllBackends}
                                             onChange={this.handleCheckboxChange}
                                             title="Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)"
-                                        >
-                                            All Backends
-                                        </Checkbox>
+                                            label="All Backends"
+                                        />
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -797,12 +795,11 @@ class MemberOf extends React.Component {
                                     <Col sm={3}>
                                         <Checkbox
                                             id="configSkipNested"
-                                            checked={configSkipNested}
+                                            isChecked={configSkipNested}
                                             onChange={this.handleCheckboxChange}
                                             title="Specifies wherher to skip nested groups or not (memberOfSkipNested)"
-                                        >
-                                            Skip Nested
-                                        </Checkbox>
+                                            label="Skip Nested"
+                                        />
                                     </Col>
                                 </FormGroup>
                             </Form>
@@ -938,12 +935,11 @@ class MemberOf extends React.Component {
                                     <Col sm={3}>
                                         <Checkbox
                                             id="memberOfAllBackends"
-                                            checked={memberOfAllBackends}
+                                            isChecked={memberOfAllBackends}
                                             onChange={this.handleCheckboxChange}
                                             title="Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)"
-                                        >
-                                            All Backends
-                                        </Checkbox>
+                                            label="All Backends"
+                                        />
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -968,12 +964,11 @@ class MemberOf extends React.Component {
                                     <Col sm={3}>
                                         <Checkbox
                                             id="memberOfSkipNested"
-                                            checked={memberOfSkipNested}
+                                            isChecked={memberOfSkipNested}
                                             onChange={this.handleCheckboxChange}
                                             title="Specifies wherher to skip nested groups or not (memberOfSkipNested)"
-                                        >
-                                            Skip Nested
-                                        </Checkbox>
+                                            label="Skip Nested"
+                                        />
                                     </Col>
                                 </FormGroup>
                             </Form>

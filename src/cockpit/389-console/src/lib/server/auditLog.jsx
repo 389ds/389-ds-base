@@ -2,8 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -18,6 +16,10 @@ import {
     noop,
     TabPane,
 } from "patternfly-react";
+import {
+    Button,
+    Checkbox
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
 const settings_attrs = [
@@ -129,7 +131,8 @@ export class ServerAuditLog extends React.Component {
         }
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
         for (let attr of config_attrs) {
@@ -221,7 +224,8 @@ export class ServerAuditLog extends React.Component {
             loading: true,
         });
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "config", "get"
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get"
         ];
         log_cmd("reloadConfig", "load Audit Log configuration", cmd);
         cockpit
@@ -309,13 +313,12 @@ export class ServerAuditLog extends React.Component {
                                         <Col sm={3}>
                                             <Checkbox
                                                 id="nsslapd-auditlog-logging-enabled"
-                                                defaultChecked={this.state['nsslapd-auditlog-logging-enabled']}
-                                                onChange={(e) => {
+                                                isChecked={this.state['nsslapd-auditlog-logging-enabled']}
+                                                onChange={(checked, e) => {
                                                     this.handleChange(e, "settings");
                                                 }}
-                                            >
-                                                Enable Audit Logging
-                                            </Checkbox>
+                                                label="Enable Audit Logging"
+                                            />
                                         </Col>
                                     </Row>
                                     <div className="ds-margin-left">
@@ -336,8 +339,8 @@ export class ServerAuditLog extends React.Component {
                                         </Row>
                                     </div>
                                     <Button
-                                        disabled={this.state.saveSettingsDisabled}
-                                        bsStyle="primary"
+                                        isDisabled={this.state.saveSettingsDisabled}
+                                        variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
                                             this.saveConfig("settings");
@@ -455,8 +458,8 @@ export class ServerAuditLog extends React.Component {
                                         </Col>
                                     </Row>
                                     <Button
-                                        disabled={this.state.saveRotationDisabled}
-                                        bsStyle="primary"
+                                        isDisabled={this.state.saveRotationDisabled}
+                                        variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
                                             this.saveConfig("rotation");
@@ -537,8 +540,8 @@ export class ServerAuditLog extends React.Component {
                                         </Col>
                                     </Row>
                                     <Button
-                                        disabled={this.state.saveExpDisabled}
-                                        bsStyle="primary"
+                                        isDisabled={this.state.saveExpDisabled}
+                                        variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
                                             this.saveConfig("exp");

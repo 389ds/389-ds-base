@@ -134,7 +134,7 @@ export class ServerMonitor extends React.Component {
                     cockpit
                             .script(cpu_cmd, [], { superuser: true, err: "message" })
                             .done(top_output => {
-                                let top_parts = top_output.split(/\s+/);
+                                let top_parts = top_output.trim().split(/\s+/);
                                 virt_mem = top_parts[4];
                                 res_mem = top_parts[5];
                                 cpu = parseInt(top_parts[8]);

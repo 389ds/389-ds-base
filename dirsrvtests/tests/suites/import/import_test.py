@@ -14,6 +14,7 @@ import os
 import pytest
 import time
 import glob
+import logging
 from lib389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX, TaskWarning
 from lib389.dbgen import dbgen_users
@@ -28,6 +29,12 @@ from lib389.idm.account import Accounts
 
 pytestmark = pytest.mark.tier1
 
+DEBUGGING = os.getenv("DEBUGGING", default=False)
+if DEBUGGING:
+    logging.getLogger(__name__).setLevel(logging.DEBUG)
+else:
+    logging.getLogger(__name__).setLevel(logging.INFO)
+log = logging.getLogger(__name__)
 
 def _generate_ldif(topo, no_no):
     """
@@ -350,7 +357,8 @@ def _toggle_private_import_mem(request, topo):
             ('nsslapd-db-private-import-mem', 'off'))
     request.addfinalizer(finofaci)
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
     """With nsslapd-db-private-import-mem: on is faster import.
 
@@ -382,16 +390,19 @@ def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
     # Let's set nsslapd-db-private-import-mem:on, nsslapd-import-cache-autosize: 0
     config = LDBMConfig(topo.standalone)
     # Measure offline import time duration total_time1
-    total_time1 = _import_offline(topo, 20)
+    total_time1 = _import_offline(topo, 1000)
     # Now nsslapd-db-private-import-mem:off
     config.replace('nsslapd-db-private-import-mem', 'off')
     accounts = Accounts(topo.standalone, DEFAULT_SUFFIX)
     for i in accounts.filter('(uid=*)'):
         UserAccount(topo.standalone, i.dn).delete()
     # Measure offline import time duration total_time2
-    total_time2 = _import_offline(topo, 20)
+    total_time2 = _import_offline(topo, 1000)
     # total_time1 < total_time2
+    log.info("total_time1 = %f" % total_time1)
+    log.info("total_time2 = %f" % total_time2)
     assert total_time1 < total_time2
+
     # Set nsslapd-db-private-import-mem:on, nsslapd-import-cache-autosize: -1
     config.replace_many(
         ('nsslapd-db-private-import-mem', 'on'),
@@ -399,14 +410,16 @@ def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
     for i in accounts.filter('(uid=*)'):
         UserAccount(topo.standalone, i.dn).delete()
     # Measure offline import time duration total_time1
-    total_time1 = _import_offline(topo, 20)
+    total_time1 = _import_offline(topo, 1000)
     # Now nsslapd-db-private-import-mem:off
     config.replace('nsslapd-db-private-import-mem', 'off')
     for i in accounts.filter('(uid=*)'):
         UserAccount(topo.standalone, i.dn).delete()
     # Measure offline import time duration total_time2
-    total_time2 = _import_offline(topo, 20)
+    total_time2 = _import_offline(topo, 1000)
     # total_time1 < total_time2
+    log.info("toral_time1 = %f" % total_time1)
+    log.info("total_time2 = %f" % total_time2)
     assert total_time1 < total_time2
 
 

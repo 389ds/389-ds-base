@@ -30,6 +30,8 @@ ATTR_CARLICENSE = 'carLicense'
 
 log = logging.getLogger(__name__)
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_retrocl_exclude_attr_add(topology_st):
     """ Test exclude attribute feature of the retrocl plugin for add operation
 
@@ -57,13 +59,6 @@ def test_retrocl_exclude_attr_add(topology_st):
     """
 
     st = topology_st.standalone
-
-    log.info('Enable dynamic plugins')
-    try:
-        st.config.set('nsslapd-dynamic-plugins', 'on')
-    except ldap.LDAPError as e:
-        ldap.error('Failed to enable dynamic plugins ' + e.args[0]['desc'])
-        assert False
 
     log.info('Configure retrocl plugin')
     rcl = RetroChangelogPlugin(st)
@@ -129,8 +124,12 @@ def test_retrocl_exclude_attr_add(topology_st):
     disconnect_instance(inst)
     assert result is None
 
-    log.info("5s delay for retrocl plugin to restart")
-    time.sleep(5)
+    log.info('Restarting instance')
+    try:
+        st.restart()
+    except ldap.LDAPError as e:
+        ldap.error('Failed to restart instance ' + e.args[0]['desc'])
+        assert False
 
     log.info('Adding user2')
     try:
@@ -163,6 +162,8 @@ def test_retrocl_exclude_attr_add(topology_st):
         log.fatal("Changelog search failed, error: " +str(e))
         assert False
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_retrocl_exclude_attr_mod(topology_st):
     """ Test exclude attribute feature of the retrocl plugin for mod operation
 
@@ -190,13 +191,6 @@ def test_retrocl_exclude_attr_mod(topology_st):
     """
 
     st = topology_st.standalone
-
-    log.info('Enable dynamic plugins')
-    try:
-        st.config.set('nsslapd-dynamic-plugins', 'on')
-    except ldap.LDAPError as e:
-        ldap.error('Failed to enable dynamic plugins ' + e.args[0]['desc'])
-        assert False
 
     log.info('Configure retrocl plugin')
     rcl = RetroChangelogPlugin(st)
@@ -262,8 +256,12 @@ def test_retrocl_exclude_attr_mod(topology_st):
     disconnect_instance(inst)
     assert result is None
 
-    log.info("5s delay for retrocl plugin to restart")
-    time.sleep(5)
+    log.info('Restarting instance')
+    try:
+        st.restart()
+    except ldap.LDAPError as e:
+        ldap.error('Failed to restart instance ' + e.args[0]['desc'])
+        assert False
 
     log.info('Modify user1 carLicense attribute')
     try:

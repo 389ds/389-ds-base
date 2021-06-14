@@ -3,17 +3,19 @@ import React from "react";
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
     Col,
     ControlLabel,
-    Checkbox,
     Form,
     FormControl,
     noop,
     Row,
     Spinner,
 } from "patternfly-react";
-import { Tooltip } from '@patternfly/react-core';
+import {
+    Button,
+    Checkbox,
+    Tooltip
+} from '@patternfly/react-core';
 import OutlinedQuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 
 export class Changelog extends React.Component {
@@ -297,17 +299,19 @@ export class Changelog extends React.Component {
                             <Col sm={1}>
                                 <Checkbox
                                     id="clEncrypt"
-                                    checked={this.state.clEncrypt}
-                                    onChange={this.handleChange}
+                                    isChecked={this.state.clEncrypt}
+                                    onChange={(checked, e) => {
+                                        this.handleChange(e);
+                                    }}
                                 />
                             </Col>
                         </Row>
                         <Row className="ds-margin-top-lg">
                             <Col sm={2}>
                                 <Button
-                                    bsStyle="primary"
+                                    variant="primary"
                                     onClick={this.saveSettings}
-                                    disabled={!this.state.saveOK}
+                                    isDisabled={!this.state.saveOK}
                                 >
                                     Save
                                 </Button>

@@ -14,6 +14,16 @@
 
 #define BDB_CONFIG(li) ((bdb_config *)(li)->li_dblayer_config)
 
+#if 1000 * DB_VERSION_MAJOR + 100 * DB_VERSION_MINOR >= 5000
+#define LDBM_SUFFIX_OLD ".db4"
+#define LDBM_SUFFIX     ".db"
+#else
+#define LDBM_SUFFIX_OLD ".db3"
+#define LDBM_SUFFIX     ".db4"
+#endif
+
+#define LDBM_FILENAME_SUFFIX LDBM_SUFFIX
+
 typedef struct bdb_db_env
 {
     DB_ENV *bdb_DB_ENV;
@@ -79,9 +89,10 @@ typedef struct bdb_config
 #define BDB_LOCK_NB_MIN 10000
     int bdb_lock_config;
     int bdb_previous_lock_config;  /* Max lock count when we last shut down--
-                                      * used to determine if we delete the mpool */
+                                    * used to determine if we delete the mpool */
     u_int32_t bdb_deadlock_policy; /* i.e. the atype to DB_ENV->lock_detect in bdb_deadlock_threadmain */
     int bdb_compactdb_interval;    /* interval to execute compact id2entry dbs */
+    char *bdb_compactdb_time;       /* time of day to execute compact id2entry dbs */
 } bdb_config;
 
 int bdb_init(struct ldbminfo *li, config_info *config_array);
@@ -98,6 +109,7 @@ int bdb_db_size(Slapi_PBlock *pb);
 int bdb_upgradedb(Slapi_PBlock *pb);
 int bdb_upgradednformat(Slapi_PBlock *pb);
 int bdb_upgradeddformat(Slapi_PBlock *pb);
+int32_t bdb_compact(struct ldbminfo *li, PRBool just_changelog);
 int bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task);
 int bdb_cleanup(struct ldbminfo *li);
 int bdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool use_lock);
@@ -136,6 +148,7 @@ dblayer_get_entries_count_fn_t bdb_get_entries_count;
 dblayer_cursor_get_count_fn_t bdb_public_cursor_get_count;
 dblayer_private_open_fn_t bdb_public_private_open;
 dblayer_private_close_fn_t bdb_public_private_close;
+dblayer_get_db_suffix_fn_t bdb_public_get_db_suffix;
 
 /* instance functions */
 int bdb_instance_cleanup(struct ldbm_instance *inst);

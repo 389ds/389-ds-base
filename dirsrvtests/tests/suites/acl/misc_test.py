@@ -493,7 +493,7 @@ def test_info_disclosure(request, topo):
         pass
     # Try ONE level search instead of BASE
     try:
-        Accounts(conn, "ou=does_not_exist," + DEFAULT_SUFFIX).filter("(objectclass=top)", ldap.SCOPE_ONELEVEL)
+        Accounts(conn, "ou=does_not_exist," + DEFAULT_SUFFIX).filter("(objectclass=top)", scope=ldap.SCOPE_ONELEVEL)
     except IndexError:
         pass
 
@@ -512,7 +512,7 @@ def test_info_disclosure(request, topo):
     with pytest.raises(ldap.NO_SUCH_OBJECT):
         conn = UserAccount(topo.standalone, USER_DN).bind(PW_DM)
         DN = "ou=also does not exist,ou=does_not_exist," + DEFAULT_SUFFIX
-        Accounts(conn, DN).filter("(objectclass=top)", ldap.SCOPE_ONELEVEL, strict=True)
+        Accounts(conn, DN).filter("(objectclass=top)", scope=ldap.SCOPE_ONELEVEL, strict=True)
 
 
 if __name__ == "__main__":

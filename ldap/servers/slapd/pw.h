@@ -47,5 +47,6 @@ int pw_is_pwp_admin(Slapi_PBlock *pb, struct passwordpolicyarray *pwp);
  */
 Slapi_Entry *get_entry(Slapi_PBlock *pb, const char *dn);
 int set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count);
+int set_tpr_usecount_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count);
 
 #endif /* _SLAPD_PW_H_ */

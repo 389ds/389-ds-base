@@ -2,8 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -18,6 +16,10 @@ import {
     noop,
     TabPane,
 } from "patternfly-react";
+import {
+    Button,
+    Checkbox
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
 const accesslog_levels = [
@@ -142,7 +144,8 @@ export class ServerAccessLog extends React.Component {
         }
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
         for (let attr of config_attrs) {
@@ -203,7 +206,8 @@ export class ServerAccessLog extends React.Component {
             loading: true
         });
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "config", "get"
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get"
         ];
         log_cmd("reloadConfig", "load Access Log configuration", cmd);
         cockpit
@@ -381,13 +385,12 @@ export class ServerAccessLog extends React.Component {
                                         <Col sm={3}>
                                             <Checkbox
                                                 id="nsslapd-accesslog-logging-enabled"
-                                                defaultChecked={this.state['nsslapd-accesslog-logging-enabled']}
-                                                onChange={(e) => {
+                                                isChecked={this.state['nsslapd-accesslog-logging-enabled']}
+                                                onChange={(checked, e) => {
                                                     this.handleChange(e, "settings");
                                                 }}
-                                            >
-                                                Enable Access Logging
-                                            </Checkbox>
+                                                label="Enable Access Logging"
+                                            />
                                         </Col>
                                     </Row>
                                     <div className="ds-margin-left">
@@ -410,13 +413,12 @@ export class ServerAccessLog extends React.Component {
                                             <Col componentClass={ControlLabel} sm={3}>
                                                 <Checkbox
                                                     id="nsslapd-accesslog-logbuffering"
-                                                    defaultChecked={this.state['nsslapd-accesslog-logbuffering']}
-                                                    onChange={(e) => {
+                                                    isChecked={this.state['nsslapd-accesslog-logbuffering']}
+                                                    onChange={(checked, e) => {
                                                         this.handleChange(e, "settings");
                                                     }}
-                                                >
-                                                    Access Log Buffering Enabled
-                                                </Checkbox>
+                                                    label="Access Log Buffering Enabled"
+                                                />
                                             </Col>
                                         </Row>
                                         <table className="table table-striped table-bordered table-hover ds-loglevel-table ds-margin-top-lg" id="accesslog-level-table">
@@ -476,8 +478,8 @@ export class ServerAccessLog extends React.Component {
                                         </table>
                                     </div>
                                     <Button
-                                        disabled={this.state.saveSettingsDisabled}
-                                        bsStyle="primary"
+                                        isDisabled={this.state.saveSettingsDisabled}
+                                        variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
                                             this.saveConfig("settings");
@@ -595,8 +597,8 @@ export class ServerAccessLog extends React.Component {
                                         </Col>
                                     </Row>
                                     <Button
-                                        disabled={this.state.saveRotationDisabled}
-                                        bsStyle="primary"
+                                        isDisabled={this.state.saveRotationDisabled}
+                                        variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
                                             this.saveConfig("rotation");
@@ -677,8 +679,8 @@ export class ServerAccessLog extends React.Component {
                                         </Col>
                                     </Row>
                                     <Button
-                                        disabled={this.state.saveExpDisabled}
-                                        bsStyle="primary"
+                                        isDisabled={this.state.saveExpDisabled}
+                                        variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
                                             this.saveConfig("exp");

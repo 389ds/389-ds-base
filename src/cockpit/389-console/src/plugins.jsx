@@ -294,13 +294,14 @@ export class Plugins extends React.Component {
             allPlugins: {
                 name: "All Plugins",
                 component: (
-                    <PluginTable rows={this.state.rows} loadModalHandler={this.openPluginModal} />
+                    <PluginTable key={this.state.rows} rows={this.state.rows} />
                 )
             },
             accountPolicy: {
                 name: "Account Policy",
                 component: (
                     <AccountPolicy
+                        key={this.state.rows}
                         rows={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
@@ -315,20 +316,20 @@ export class Plugins extends React.Component {
                 component: (
                     <AttributeUniqueness
                         rows={this.state.rows}
+                        key={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
-                        key={this.props.wasActiveList}
                     />
                 )
             },
-            linkedAttributes: {
-                name: "Linked Attributes",
+            autoMembership: {
+                name: "Auto Membership",
                 component: (
-                    <LinkedAttributes
+                    <AutoMembership
                         rows={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
@@ -354,25 +355,10 @@ export class Plugins extends React.Component {
                     />
                 )
             },
-            autoMembership: {
-                name: "Auto Membership",
+            linkedAttributes: {
+                name: "Linked Attributes",
                 component: (
-                    <AutoMembership
-                        rows={this.state.rows}
-                        serverId={this.props.serverId}
-                        savePluginHandler={this.savePlugin}
-                        pluginListHandler={this.pluginList}
-                        addNotification={this.props.addNotification}
-                        toggleLoadingHandler={this.toggleLoading}
-                        wasActiveList={this.props.wasActiveList}
-                        key={this.props.wasActiveList}
-                    />
-                )
-            },
-            memberOf: {
-                name: "MemberOf",
-                component: (
-                    <MemberOf
+                    <LinkedAttributes
                         rows={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
@@ -389,10 +375,26 @@ export class Plugins extends React.Component {
                 component: (
                     <ManagedEntries
                         rows={this.state.rows}
+                        key={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
                         addNotification={this.props.addNotification}
+                    />
+                )
+            },
+            memberOf: {
+                name: "MemberOf",
+                component: (
+                    <MemberOf
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.props.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                        wasActiveList={this.props.wasActiveList}
+                        key={this.props.wasActiveList}
                     />
                 )
             },
@@ -416,6 +418,7 @@ export class Plugins extends React.Component {
                 component: (
                     <WinSync
                         rows={this.state.rows}
+                        key={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
@@ -490,15 +493,7 @@ export class Plugins extends React.Component {
                     <h4>Loading Plugins ...</h4>
                     <Spinner className="ds-margin-top-lg" size="xl" />
                 </div>
-                <div hidden={this.state.firstLoad}>
-                    <Row className="clearfix" hidden={!this.state.loading}>
-                        <Col sm={12}>
-                            <Spinner
-                                className="ds-float-left ds-plugin-spinner"
-                                size="md"
-                            />
-                        </Col>
-                    </Row>
+                <div hidden={this.state.firstLoad} className={this.state.loading ? "ds-disabled" : ""}>
                     <Tab.Container
                         id="left-tabs-example"
                         defaultActiveKey={Object.keys(selectPlugins)[0]}

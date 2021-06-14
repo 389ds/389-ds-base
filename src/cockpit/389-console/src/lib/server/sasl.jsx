@@ -3,8 +3,6 @@ import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
-    // Button,
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -15,7 +13,8 @@ import {
 } from "patternfly-react";
 import {
     Button,
-} from '@patternfly/react-core';
+    Checkbox
+} from "@patternfly/react-core";
 import { SASLTable } from "./serverTables.jsx";
 import { SASLMappingModal } from "./serverModals.jsx";
 import { Typeahead } from "react-bootstrap-typeahead";
@@ -120,7 +119,6 @@ export class ServerSASL extends React.Component {
                 chkBox = true;
             }
         }
-
         // Check if a setting was changed, if so enable the save button
         if (attr == 'mappingFallback' && this.state._mappingFallback != value) {
             disableSaveBtn = false;
@@ -274,7 +272,8 @@ export class ServerSASL extends React.Component {
 
     loadConfig() {
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "config", 'get'
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", 'get'
         ];
         log_cmd("loadConfig", "Get SASL settings", cmd);
         cockpit
@@ -314,7 +313,7 @@ export class ServerSASL extends React.Component {
 
     loadMechs() {
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "sasl", 'get-mechs'
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", "sasl", 'get-mechs'
         ];
         log_cmd("loadMechs", "Get supported SASL mechanisms", cmd);
         cockpit
@@ -328,7 +327,7 @@ export class ServerSASL extends React.Component {
     }
 
     loadSASLMappings() {
-        let cmd = ["dsconf", '-j', this.props.serverId, 'sasl', 'list', '--details'];
+        let cmd = ["dsconf", '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'sasl', 'list', '--details'];
         log_cmd('get_and_set_sasl', 'Get SASL mappings', cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -419,7 +418,7 @@ export class ServerSASL extends React.Component {
             tableLoading: true,
         });
         let cmd = [
-            'dsconf', '-j', this.props.serverId,
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'create',
             '--cn=' + this.state.saslMapName,
             '--nsSaslMapFilterTemplate=' + this.state.saslFilter,
@@ -467,11 +466,11 @@ export class ServerSASL extends React.Component {
 
         // Delete and create
         let delete_cmd = [
-            'dsconf', '-j', this.props.serverId,
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'delete', this.state._saslMapName
         ];
         let create_cmd = [
-            'dsconf', '-j', this.props.serverId,
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'create',
             '--cn=' + this.state.saslMapName,
             '--nsSaslMapFilterTemplate=' + this.state.saslFilter,
@@ -532,7 +531,7 @@ export class ServerSASL extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId,
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'delete', this.state.saslMapName
         ];
         log_cmd("deleteMapping", "Delete sasl mapping", cmd);
@@ -564,7 +563,7 @@ export class ServerSASL extends React.Component {
 
         // Build up the command list
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'config', 'replace'
         ];
 
         let mech_str_new = this.state.allowedMechs.join(' ');
@@ -683,17 +682,18 @@ export class ServerSASL extends React.Component {
                             className="ds-margin-top"
                         >
                             <Checkbox
-                                checked={this.state.mappingFallback}
+                                isChecked={this.state.mappingFallback}
                                 id="mappingFallback"
-                                onChange={this.handleChange} className="ds-margin-left-sm"
-                            >
-                                Allow SASL Mapping Fallback
-                            </Checkbox>
+                                onChange={(checked, e) => {
+                                    this.handleChange(e);
+                                }}
+                                label="Allow SASL Mapping Fallback"
+                            />
                         </Row>
                     </Form>
                     <Button
-                        disabled={this.state.saveDisabled}
-                        bsStyle="primary"
+                        isDisabled={this.state.saveDisabled}
+                        variant="primary"
                         className="ds-margin-top-med"
                         onClick={this.saveConfig}
                     >
@@ -722,7 +722,7 @@ export class ServerSASL extends React.Component {
                         className="ds-margin-top"
                     />
                     <Button
-                        bsStyle="primary"
+                        variant="primary"
                         className="ds-margin-top-med"
                         onClick={this.showCreateMapping}
                     >

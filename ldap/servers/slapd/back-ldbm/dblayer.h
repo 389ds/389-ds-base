@@ -117,8 +117,7 @@ typedef void dblayer_restore_file_update_fn_t(struct ldbminfo *li, const char *d
 typedef int dblayer_import_file_check_fn_t(ldbm_instance *inst);
 typedef dbi_dbslist_t *dblayer_list_dbs_fn_t(const char *dbhome);
 typedef int dblayer_in_import_fn_t(ldbm_instance *inst);
-
-
+typedef const char *dblayer_get_db_suffix_fn_t(void);
 
 struct dblayer_private
 {
@@ -196,6 +195,7 @@ struct dblayer_private
     dblayer_import_file_check_fn_t *dblayer_import_file_check_fn;
     dblayer_list_dbs_fn_t *dblayer_list_dbs_fn;
     dblayer_in_import_fn_t *dblayer_in_import_fn;
+    dblayer_get_db_suffix_fn_t *dblayer_get_db_suffix_fn;
 };
 
 #define DBLAYER_PRIV_SET_DATA_DIR 0x1
@@ -205,6 +205,7 @@ void dblayer_push_pvt_txn(back_txn *txn);
 back_txn *dblayer_get_pvt_txn(void);
 void dblayer_pop_pvt_txn(void);
 int dbimpl_setup(struct ldbminfo *li, const char *plgname);
+const char *dblayer_get_db_suffix(Slapi_Backend *be);
 
 /* Return the last four characters of a string; used for comparing extensions. */
 char *last_four_chars(const char *s);

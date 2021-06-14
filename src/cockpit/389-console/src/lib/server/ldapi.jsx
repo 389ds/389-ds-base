@@ -2,8 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -11,8 +9,12 @@ import {
     Icon,
     Row,
     noop,
-    Spinner,
+    Spinner
 } from "patternfly-react";
+import {
+    Button,
+    Checkbox
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
 const ldapi_attrs = [
@@ -112,7 +114,8 @@ export class ServerLDAPI extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
         for (let attr of ldapi_attrs) {
@@ -240,18 +243,19 @@ export class ServerLDAPI extends React.Component {
                     >
                         <Col componentClass={ControlLabel} sm={3}>
                             <Checkbox
-                                checked={this.state['nsslapd-ldapimaptoentries']}
+                                isChecked={this.state['nsslapd-ldapimaptoentries']}
                                 id="nsslapd-ldapimaptoentries"
-                                onChange={this.handleChange} className="ds-margin-left-sm"
-                            >
-                                Map System Users to Database Entries
-                            </Checkbox>
+                                onChange={(checked, e) => {
+                                    this.handleChange(e);
+                                }}
+                                label="Map System Users to Database Entries"
+                            />
                         </Col>
                     </Row>
                     {mapUserAttrs}
                     <Button
-                        disabled={this.state.saveDisabled}
-                        bsStyle="primary"
+                        isDisabled={this.state.saveDisabled}
+                        variant="primary"
                         className="ds-margin-top-med"
                         onClick={this.saveConfig}
                     >

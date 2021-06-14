@@ -10,12 +10,12 @@ import {
     FormGroup,
     ControlLabel,
     Form,
-    Checkbox,
     Row,
     Col,
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     // Form,
     // FormGroup,
     Modal,
@@ -614,8 +614,10 @@ export class CreateInstanceModal extends React.Component {
                         <Col sm={7}>
                             <Checkbox
                                 id="createTLSCert"
-                                checked={createTLSCert}
-                                onChange={this.handleFieldChange}
+                                isChecked={createTLSCert}
+                                onChange={(checked, e) => {
+                                    this.handleFieldChange(e);
+                                }}
                             />
                         </Col>
                     </FormGroup>
@@ -672,15 +674,22 @@ export class CreateInstanceModal extends React.Component {
                         </Col>
                     </FormGroup>
                     <hr />
-                    <FormGroup controlId="createDBCheckbox">
-                        <Col componentClass={ControlLabel} sm={5} title="Confirm password.">
+                    <FormGroup controlId="createDatabase">
+                        <Col
+                            componentClass={ControlLabel}
+                            sm={5}
+                            title="Create Database"
+                        >
+                            Create Database
+                        </Col>
+                        <Col sm={7}>
                             <Checkbox
                                 id="createDBCheckbox"
-                                checked={createDBCheckbox}
-                                onChange={this.handleFieldChange}
-                            >
-                                Create Database
-                            </Checkbox>
+                                isChecked={createDBCheckbox}
+                                onChange={(checked, e) => {
+                                    this.handleFieldChange(e);
+                                }}
+                            />
                         </Col>
                     </FormGroup>
                     <FormGroup className="ds-margin-top-lg" controlId="createDBSuffix">
@@ -1014,7 +1023,7 @@ export class ManageBackupsModal extends React.Component {
                         let cmd = [
                             "dsconf",
                             "-j",
-                            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                            "ldapi://%2fvar%2frun%2fslapd-" + "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket" + ".socket",
                             "backup",
                             "create"
                         ];
@@ -1094,7 +1103,7 @@ export class ManageBackupsModal extends React.Component {
                         const cmd = [
                             "dsconf",
                             "-j",
-                            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                            "ldapi://%2fvar%2frun%2fslapd-" + "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket" + ".socket",
                             "backup",
                             "restore",
                             this.state.backupName

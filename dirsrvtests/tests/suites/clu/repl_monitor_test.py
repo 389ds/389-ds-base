@@ -90,6 +90,8 @@ def get_hostnames_from_log(port1, port2):
         host_m2 = match.group(2)
     return (host_m1, host_m2)
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 @pytest.mark.ds50545
 @pytest.mark.bz1739718
 @pytest.mark.skipif(ds_is_older("1.4.0"), reason="Not implemented")

@@ -61,6 +61,8 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
 @pytest.mark.ds50873
 @pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_healthcheck_replication_out_of_sync_not_broken(topology_m3):
     """Check if HealthCheck returns DSREPLLE0003 code
 

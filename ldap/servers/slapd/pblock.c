@@ -910,6 +910,12 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         }
         (*(IFP *)value) = pblock->pb_plugin->plg_db2ldif;
         break;
+    case SLAPI_PLUGIN_DB_COMPACT_FN:
+        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
+            return (-1);
+        }
+        (*(IFP *)value) = pblock->pb_plugin->plg_dbcompact;
+        break;
     case SLAPI_PLUGIN_DB_DB2INDEX_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
@@ -2577,7 +2583,7 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         pblock->pb_conn->c_authtype = slapi_ch_strdup((char *)value);
         pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
-	case SLAPI_CONN_CLIENTNETADDR_ACLIP:
+    case SLAPI_CONN_CLIENTNETADDR_ACLIP:
         if (pblock->pb_conn == NULL) {
             break;
         }
@@ -2585,6 +2591,7 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         slapi_ch_free((void **)&pblock->pb_conn->cin_addr_aclip);
         pblock->pb_conn->cin_addr_aclip = (PRNetAddr *)value;
         pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
+        break;
     case SLAPI_CONN_IS_REPLICATION_SESSION:
         if (pblock->pb_conn == NULL) {
             slapi_log_err(SLAPI_LOG_ERR,
@@ -2891,7 +2898,12 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         }
         pblock->pb_backend->be_noacl = *((int *)value);
         break;
-
+    case SLAPI_PLUGIN_DB_COMPACT_FN:
+        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
+            return (-1);
+        }
+        pblock->pb_plugin->plg_dbcompact = (IFP)value;
+        break;
 
     /* extendedop plugin functions */
     case SLAPI_PLUGIN_EXT_OP_FN:
@@ -4108,8 +4120,8 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         break;
 
     case SLAPI_URP_TOMBSTONE_CONFLICT_DN:
-	pblock->pb_intop->pb_urp_tombstone_conflict_dn = (char *)value;
-	break;
+        pblock->pb_intop->pb_urp_tombstone_conflict_dn = (char *)value;
+        break;
 
     case SLAPI_URP_TOMBSTONE_UNIQUEID:
         _pblock_assert_pb_intop(pblock);

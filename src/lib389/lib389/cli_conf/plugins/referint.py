@@ -33,7 +33,6 @@ def referint_add_config(inst, basedn, log, args):
     config = generic_object_add(ReferentialIntegrityConfig, inst, log, args, arg_to_attr, dn=targetdn)
     plugin = ReferentialIntegrityPlugin(inst)
     plugin.replace('nsslapd-pluginConfigArea', config.dn)
-    import pdb; pdb.set_trace()
     log.info('ReferentialIntegrity attribute nsslapd-pluginConfigArea (config-entry) '
              'was set in the main plugin config')
 

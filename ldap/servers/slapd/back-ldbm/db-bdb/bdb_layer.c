@@ -35,6 +35,8 @@
     (env)->txn_checkpoint((env), (kbyte), (min), (flags))
 #define MEMP_STAT(env, gsp, fsp, flags, malloc) \
     (env)->memp_stat((env), (gsp), (fsp), (flags))
+#define LOCK_STAT(env, statp, flags, malloc) \
+    (env)->lock_stat((env), (statp), (flags))
 #define MEMP_TRICKLE(env, pct, nwrotep) \
     (env)->memp_trickle((env), (pct), (nwrotep))
 #define LOG_ARCHIVE(env, listp, flags, malloc) \
@@ -70,8 +72,8 @@
 typedef struct
 {
     dbi_dbslist_t *list;
-    size_t nbdbs;                /*Numberoffiles */
-    size_t pos;                  /*Currentpositioninlist */
+    size_t nbdbs;                /* Number of files */
+    size_t pos;                  /* Current position in list */
 } dbi_dbslist_ctx_t;
 
 static int bdb_perf_threadmain(void *param);
@@ -82,6 +84,7 @@ static int bdb_commit_good_database(bdb_config *priv, int mode);
 static int bdb_read_metadata(struct ldbminfo *li);
 static int bdb_count_dbfiles_in_dir(char *directory, int *count, int recurse);
 static int bdb_override_libdb_functions(void);
+static int bdb_locks_monitoring_threadmain(void *param);
 static int bdb_force_checkpoint(struct ldbminfo *li);
 static int bdb_force_logrenewal(struct ldbminfo *li);
 static int bdb_log_flush_threadmain(void *param);
@@ -93,6 +96,7 @@ static int bdb_start_checkpoint_thread(struct ldbminfo *li);
 static int bdb_start_trickle_thread(struct ldbminfo *li);
 static int bdb_start_perf_thread(struct ldbminfo *li);
 static int bdb_start_txn_test_thread(struct ldbminfo *li);
+static int bdb_start_locks_monitoring_thread(struct ldbminfo *li);
 static int trans_batch_count = 0;
 static int trans_batch_limit = 0;
 static int trans_batch_txn_min_sleep = 50; /* ms */
@@ -1309,6 +1313,10 @@ bdb_start(struct ldbminfo *li, int dbmode)
                 return return_value;
             }
 
+            if (0 != (return_value = bdb_start_locks_monitoring_thread(li))) {
+                return return_value;
+            }
+
             /* We need to free the memory to avoid a leak
              * Also, we have to evaluate if the performance counter
              * should be preserved or not for database restore.
@@ -2128,6 +2136,7 @@ bdb_post_close(struct ldbminfo *li, int dbmode)
          */
         slapi_ch_free_string(&conf->bdb_dbhome_directory);
         slapi_ch_free_string(&conf->bdb_home_directory);
+        slapi_ch_free_string(&conf->bdb_compactdb_time);
     }
 
     return return_value;
@@ -2971,6 +2980,7 @@ bdb_start_perf_thread(struct ldbminfo *li)
     return return_value;
 }
 
+
 /* Performance thread */
 static int
 bdb_perf_threadmain(void *param)
@@ -2995,6 +3005,82 @@ bdb_perf_threadmain(void *param)
     slapi_log_err(SLAPI_LOG_TRACE, "bdb_perf_threadmain", "Leaving bdb_perf_threadmain\n");
     return 0;
 }
+
+
+/*
+ * create a thread for bdb_locks_monitoring_threadmain
+ */
+static int
+bdb_start_locks_monitoring_thread(struct ldbminfo *li)
+{
+    int return_value = 0;
+    if (li->li_dblock_monitoring) {
+        if (NULL == PR_CreateThread(PR_USER_THREAD,
+                                    (VFP)(void *)bdb_locks_monitoring_threadmain, li,
+                                    PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                                    PR_UNJOINABLE_THREAD,
+                                    SLAPD_DEFAULT_THREAD_STACKSIZE)) {
+            PRErrorCode prerr = PR_GetError();
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_start_locks_monitoring_thread",
+                        "Failed to create database locks monitoring thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                        prerr, slapd_pr_strerror(prerr));
+            return_value = -1;
+        }
+    }
+    return return_value;
+}
+
+
+/* DB Locks Monitoring thread */
+static int
+bdb_locks_monitoring_threadmain(void *param)
+{
+    int ret = 0;
+    uint64_t current_locks = 0;
+    uint64_t max_locks = 0;
+    uint32_t lock_exhaustion = 0;
+    PRIntervalTime interval;
+    struct ldbminfo *li = NULL;
+
+    PR_ASSERT(NULL != param);
+    li = (struct ldbminfo *)param;
+
+    dblayer_private *priv = li->li_dblayer_private;
+    bdb_db_env *pEnv = (bdb_db_env *)priv->dblayer_env;
+    PR_ASSERT(NULL != priv);
+
+    INCR_THREAD_COUNT(pEnv);
+
+    while (!BDB_CONFIG(li)->bdb_stop_threads) {
+        if (bdb_uses_locking(pEnv->bdb_DB_ENV)) {
+            DB_LOCK_STAT *lockstat = NULL;
+            ret = LOCK_STAT(pEnv->bdb_DB_ENV, &lockstat, 0, (void *)slapi_ch_malloc);
+            if (0 == ret) {
+                current_locks = lockstat->st_nlocks;
+                max_locks = lockstat->st_maxlocks;
+                if (max_locks){
+                    lock_exhaustion = (uint32_t)((double)current_locks / (double)max_locks * 100.0);
+                } else {
+                    lock_exhaustion = 0;
+                }
+                if ((li->li_dblock_threshold) &&
+                    (lock_exhaustion >= li->li_dblock_threshold)) {
+                    slapi_atomic_store_32((int32_t *)&(li->li_dblock_threshold_reached), 1, __ATOMIC_RELAXED);
+                } else {
+                    slapi_atomic_store_32((int32_t *)&(li->li_dblock_threshold_reached), 0, __ATOMIC_RELAXED);
+                }
+            }
+            slapi_ch_free((void **)&lockstat);
+        }
+        interval = PR_MillisecondsToInterval(slapi_atomic_load_32((int32_t *)&(li->li_dblock_monitoring_pause), __ATOMIC_RELAXED));
+        DS_Sleep(interval);
+    }
+
+    DECR_THREAD_COUNT(pEnv);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_locks_monitoring_threadmain", "Leaving bdb_locks_monitoring_threadmain\n");
+    return 0;
+}
+
 
 /*
  * create a thread for deadlock_threadmain
@@ -3646,6 +3732,39 @@ bdb_log_flush_threadmain(void *param)
 }
 
 /*
+ * This refreshes the TOD expiration.  So live changes to the configuration
+ * will take effect immediately.
+ */
+static time_t
+bdb_get_tod_expiration(char *expire_time)
+{
+    time_t start_time, todays_elapsed_time, now = time(NULL);
+    struct tm *tm_struct = localtime(&now);
+    char hour_str[3] = {0};
+    char min_str[3] = {0};
+    char *s = expire_time;
+    char *endp = NULL;
+    int32_t hour, min, expiring_time;
+
+    /* Get today's start time */
+    todays_elapsed_time = (tm_struct->tm_hour * 3600) + (tm_struct->tm_min * 60) + (tm_struct->tm_sec);
+    start_time = slapi_current_utc_time() - todays_elapsed_time;
+
+    /* Get the hour and minute and calculate the expiring time.  The time was
+     * already validated in bdb_config.c:  HH:MM */
+    hour_str[0] = *s++;
+    hour_str[1] = *s++;
+    s++;  /* skip colon */
+    min_str[0] = *s++;
+    min_str[1] = *s++;
+    hour = strtoll(hour_str, &endp, 10);
+    min = strtoll(min_str, &endp, 10);
+    expiring_time = (hour * 60 * 60) + (min * 60);
+
+    return start_time + expiring_time;
+}
+
+/*
  * create a thread for checkpoint_threadmain
  */
 static int
@@ -3686,6 +3805,8 @@ bdb_checkpoint_threadmain(void *param)
     time_t checkpoint_interval_update = 0;
     time_t compactdb_interval = 0;
     time_t checkpoint_interval = 0;
+    int32_t compactdb_time = 0;
+    PRBool compacting = PR_FALSE;
 
     PR_ASSERT(NULL != param);
     li = (struct ldbminfo *)param;
@@ -3724,21 +3845,34 @@ bdb_checkpoint_threadmain(void *param)
     slapi_timespec_expire_at(checkpoint_interval, &checkpoint_expire);
 
     while (!BDB_CONFIG(li)->bdb_stop_threads) {
-        /* sleep for a while */
-        /* why aren't we sleeping exactly the right amount of time ? */
-        /* answer---because the interval might be changed after the server
-         * starts up */
+        PR_Lock(li->li_config_mutex);
+        checkpoint_interval_update = (time_t)BDB_CONFIG(li)->bdb_checkpoint_interval;
+        compactdb_interval_update = (time_t)BDB_CONFIG(li)->bdb_compactdb_interval;
+        if (!compacting) {
+            /* Once we know we want to compact we need to stop refreshing the
+             * TOD expiration. Otherwise if the compact time is close to
+             * midnight we could roll over past midnight during the checkpoint
+             * sleep interval, and we'd never actually compact the databases.
+             * We also need to get this value before the sleep.
+             */
+            compactdb_time = bdb_get_tod_expiration((char *)BDB_CONFIG(li)->bdb_compactdb_time);
+        }
+        PR_Unlock(li->li_config_mutex);
 
+        if (compactdb_interval_update != compactdb_interval) {
+            /* Compact interval was changed, so reset the timer */
+            slapi_timespec_expire_at(compactdb_interval_update, &compactdb_expire);
+        }
+
+        /* Sleep for a while ...
+         * Why aren't we sleeping exactly the right amount of time ?
+         * Answer---because the interval might be changed after the server
+         * starts up */
         DS_Sleep(interval);
 
         if (0 == BDB_CONFIG(li)->bdb_enable_transactions) {
             continue;
         }
-
-        PR_Lock(li->li_config_mutex);
-        checkpoint_interval_update = (time_t)BDB_CONFIG(li)->bdb_checkpoint_interval;
-        compactdb_interval_update = (time_t)BDB_CONFIG(li)->bdb_compactdb_interval;
-        PR_Unlock(li->li_config_mutex);
 
         /* If the checkpoint has been updated OR we have expired */
         if (checkpoint_interval != checkpoint_interval_update ||
@@ -3807,53 +3941,28 @@ bdb_checkpoint_threadmain(void *param)
 
         /*
          * Remember that if compactdb_interval is 0, timer_expired can
-         * never occur unless the value in compctdb_interval changes.
+         * never occur unless the value in compactdb_interval changes.
          *
-         * this could have been a bug infact, where compactdb_interval
+         * this could have been a bug in fact, where compactdb_interval
          * was 0, if you change while running it would never take effect ....
          */
-        if (compactdb_interval_update != compactdb_interval ||
-            slapi_timespec_expire_check(&compactdb_expire) == TIMER_EXPIRED) {
-            int rc = 0;
-            Object *inst_obj;
-            ldbm_instance *inst;
-            DB *db = NULL;
-
-            for (inst_obj = objset_first_obj(li->li_instance_set);
-                 inst_obj;
-                 inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
-                inst = (ldbm_instance *)object_get_data(inst_obj);
-                rc = dblayer_get_id2entry(inst->inst_be, (dbi_db_t **)&db);
-                if (!db || rc) {
-                    continue;
-                }
-                slapi_log_err(SLAPI_LOG_NOTICE, "bdb_checkpoint_threadmain", "Compacting DB start: %s\n",
-                              inst->inst_name);
-
-                rc = bdb_db_compact_one_db(db, inst);
-                if (rc) {
-                    slapi_log_err(SLAPI_LOG_ERR, "bdb_checkpoint_threadmain",
-                                  "compactdb: failed to compact id2entry for %s; db error - %d %s\n",
-                                   inst->inst_name, rc, db_strerror(rc));
-                    break;
-                }
-
-                /* compact changelog db */
-                /* NOTE (LK) this is now done along regular compaction,
-                 * if it should be configurable add a switch to changelog config
-                 */
-                dblayer_get_changelog(inst->inst_be, (dbi_db_t **)&db, 0);
-
-                rc = bdb_db_compact_one_db(db, inst);
-                if (rc) {
-                    slapi_log_err(SLAPI_LOG_ERR, "bdb_checkpoint_threadmain",
-                                  "compactdb: failed to compact changelog for %s; db error - %d %s\n",
-                                   inst->inst_name, rc, db_strerror(rc));
-                    break;
-                }
+        if (slapi_timespec_expire_check(&compactdb_expire) == TIMER_EXPIRED) {
+            compacting = PR_TRUE;
+            if (slapi_current_utc_time() < compactdb_time) {
+                /* We have passed the interval, but we need to wait for a
+                 * particular TOD to pass before compacting */
+                continue;
             }
+
+            /* Time to compact the DB's */
+            bdb_force_checkpoint(li);
+            bdb_compact(li, PR_FALSE);
+            bdb_force_checkpoint(li);
+
+            /* Now reset the timer and compacting flag */
             compactdb_interval = compactdb_interval_update;
             slapi_timespec_expire_at(compactdb_interval, &compactdb_expire);
+            compacting = PR_FALSE;
         }
     }
     slapi_log_err(SLAPI_LOG_TRACE, "bdb_checkpoint_threadmain", "Check point before leaving\n");
@@ -6252,7 +6361,7 @@ dbi_error_t bdb_map_error(const char *funcname, int err)
                 msg = "";
             }
             slapi_log_err(SLAPI_LOG_ERR, "bdb_map_error",
-                "%s failed with db error %d : %s", funcname, err, msg);
+                "%s failed with db error %d : %s\n", funcname, err, msg);
             return DBI_RC_OTHER;
     }
 }
@@ -6907,4 +7016,74 @@ bdb_public_in_import (ldbm_instance * inst)
         slapi_ch_free_string (&inst_dirp);
     }
     return rval;
+}
+
+const char *
+bdb_public_get_db_suffix(void)
+{
+    return LDBM_FILENAME_SUFFIX;
+}
+
+int32_t
+ldbm_back_compact(Slapi_Backend *be, PRBool just_changelog)
+{
+    struct ldbminfo *li = NULL;
+    int32_t rc = -1;
+
+    li = (struct ldbminfo *)be->be_database->plg_private;
+    bdb_force_checkpoint(li);
+    rc = bdb_compact(li, just_changelog);
+    bdb_force_checkpoint(li);
+    return rc;
+}
+
+int32_t
+bdb_compact(struct ldbminfo *li, PRBool just_changelog)
+{
+    Object *inst_obj;
+    ldbm_instance *inst;
+    DB *db = NULL;
+    int rc = 0;
+
+    slapi_log_err(SLAPI_LOG_NOTICE, "bdb_compact",
+                  "Compacting databases ...\n");
+    for (inst_obj = objset_first_obj(li->li_instance_set);
+        inst_obj;
+        inst_obj = objset_next_obj(li->li_instance_set, inst_obj))
+    {
+        inst = (ldbm_instance *)object_get_data(inst_obj);
+        if (!just_changelog) {
+            rc = dblayer_get_id2entry(inst->inst_be, (dbi_db_t **)&db);
+            if (!db || rc) {
+                continue;
+            }
+            slapi_log_err(SLAPI_LOG_NOTICE, "bdb_compact",
+                    "Compacting DB: %s\n", inst->inst_name);
+            rc = bdb_db_compact_one_db(db, inst);
+            if (rc) {
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_compact",
+                        "failed to compact id2entry for %s; db error - %d %s\n",
+                        inst->inst_name, rc, db_strerror(rc));
+                break;
+            }
+        }
+
+        /* Compact changelog db */
+        slapi_log_err(SLAPI_LOG_NOTICE, "bdb_compact",
+                "Compacting Replication Changelog: %s\n", inst->inst_name);
+        dblayer_get_changelog(inst->inst_be, (dbi_db_t **)&db, 0);
+        if (db) {
+            rc = bdb_db_compact_one_db(db, inst);
+            if (rc) {
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_compact",
+                        "failed to compact changelog for %s; db error - %d %s\n",
+                        inst->inst_name, rc, db_strerror(rc));
+                break;
+            }
+        }
+    }
+
+    slapi_log_err(SLAPI_LOG_NOTICE, "bdb_compact", "Compacting databases finished.\n");
+
+    return rc;
 }

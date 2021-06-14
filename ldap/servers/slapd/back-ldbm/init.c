@@ -49,6 +49,9 @@ ldbm_back_init(Slapi_PBlock *pb)
     /* Initialize the set of instances. */
     li->li_instance_set = objset_new(&ldbm_back_instance_set_destructor);
 
+    /* Init lock threshold value */
+    li->li_dblock_threshold_reached = 0;
+
     /* ask the factory to give us space in the Connection object
          * (only bulk import uses this)
          */
@@ -142,6 +145,8 @@ ldbm_back_init(Slapi_PBlock *pb)
                            (void *)ldbm_back_set_info);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_CTRL_INFO_FN,
                            (void *)ldbm_back_ctrl_info);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_COMPACT_FN,
+                           (void *)ldbm_back_compact);
 
     if (rc != 0) {
         slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_init", "Failed %d\n", rc);

@@ -2,8 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -18,8 +16,8 @@ import {
 } from "patternfly-react";
 import {
     Spinner,
-    // Button,
-    // Checkbox,
+    Button,
+    Checkbox
     // Form,
     // FormGroup,
     // Tab,
@@ -160,7 +158,8 @@ export class GlobalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
         for (let attr of general_attrs) {
@@ -263,7 +262,8 @@ export class GlobalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
         for (let attr of exp_attrs) {
@@ -339,7 +339,8 @@ export class GlobalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
         for (let attr of lockout_attrs) {
@@ -440,7 +441,8 @@ export class GlobalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
         for (let attr of syntax_attrs) {
@@ -488,7 +490,8 @@ export class GlobalPwPolicy extends React.Component {
             loading: true
         });
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "config", "get"
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get"
         ];
         log_cmd("loadGlobal", "Load global password policy", cmd);
         cockpit
@@ -911,22 +914,24 @@ export class GlobalPwPolicy extends React.Component {
                         <Col componentClass={ControlLabel} sm={3}>
                             <Checkbox
                                 id="passworddictcheck"
-                                defaultChecked={this.state.passworddictcheck}
-                                onChange={this.handleSyntaxChange}
-                            >
-                                Dictionary Check
-                            </Checkbox>
+                                isChecked={this.state.passworddictcheck}
+                                onChange={(checked, e) => {
+                                    this.handleSyntaxChange(e);
+                                }}
+                                label="Dictionary Check"
+                            />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top" title="Reject a password if it is a palindrome (passwordPalindrome).">
                         <Col componentClass={ControlLabel} sm={3}>
                             <Checkbox
                                 id="passwordpalindrome"
-                                defaultChecked={this.state.passwordpalindrome}
-                                onChange={this.handleSyntaxChange}
-                            >
-                                Reject Palindromes
-                            </Checkbox>
+                                isChecked={this.state.passwordpalindrome}
+                                onChange={(checked, e) => {
+                                    this.handleSyntaxChange(e);
+                                }}
+                                label="Reject Palindromes"
+                            />
                         </Col>
                     </Row>
                 </div>;
@@ -984,11 +989,12 @@ export class GlobalPwPolicy extends React.Component {
                         <Col componentClass={ControlLabel} sm={5}>
                             <Checkbox
                                 id="passwordunlock"
-                                defaultChecked={this.state.passwordunlock}
-                                onChange={this.handleLockoutChange}
-                            >
-                                Do Not Lockout Account Forever
-                            </Checkbox>
+                                isChecked={this.state.passwordunlock}
+                                onChange={(checked, e) => {
+                                    this.handleLockoutChange(e);
+                                }}
+                                label="Do Not Lockout Account Forever"
+                            />
                         </Col>
                     </Row>
                 </div>;
@@ -1046,11 +1052,12 @@ export class GlobalPwPolicy extends React.Component {
                         <Col componentClass={ControlLabel} sm={5}>
                             <Checkbox
                                 id="passwordsendexpiringtime"
-                                defaultChecked={this.state.passwordsendexpiringtime}
-                                onChange={this.handleExpChange}
-                            >
-                                Always Send <i>Password Expiring</i> Control
-                            </Checkbox>
+                                isChecked={this.state.passwordsendexpiringtime}
+                                onChange={(checked, e) => {
+                                    this.handleExpChange(e);
+                                }}
+                                label={<>Always Send <i>Password Expiring</i>&nbsp; Control</>}
+                            />
                         </Col>
                     </Row>
                 </div>;
@@ -1112,77 +1119,84 @@ export class GlobalPwPolicy extends React.Component {
                                                 <Col sm={11}>
                                                     <Checkbox
                                                         id="nsslapd-pwpolicy-local"
-                                                        defaultChecked={this.state['nsslapd-pwpolicy-local']}
-                                                        onChange={this.handleGeneralChange}
-                                                    >
-                                                        Allow Local Password Policies
-                                                    </Checkbox>
+                                                        isChecked={this.state['nsslapd-pwpolicy-local']}
+                                                        onChange={(checked, e) => {
+                                                            this.handleGeneralChange(e);
+                                                        }}
+                                                        label="Allow Local Password Policies"
+                                                    />
                                                 </Col>
                                             </Row>
                                             <Row className="ds-margin-top" title="If a local password policy does not defined any syntax rules then inherit the local policy syntax (nsslapd-pwpolicy-inherit-global).">
                                                 <Col sm={11}>
                                                     <Checkbox
                                                         id="nsslapd-pwpolicy-inherit-global"
-                                                        defaultChecked={this.state["nsslapd-pwpolicy-inherit-global"]}
-                                                        onChange={this.handleGeneralChange}
-                                                    >
-                                                        Local Policies Inherit Global Policy
-                                                    </Checkbox>
+                                                        isChecked={this.state["nsslapd-pwpolicy-inherit-global"]}
+                                                        onChange={(checked, e) => {
+                                                            this.handleGeneralChange(e);
+                                                        }}
+                                                        label="Local Policies Inherit Global Policy"
+                                                    />
                                                 </Col>
                                             </Row>
                                             <Row className="ds-margin-top" title="Allow anyone to add a prehashed password (nsslapd-allow-hashed-passwords).">
                                                 <Col sm={11}>
                                                     <Checkbox
                                                         id="nsslapd-allow-hashed-passwords"
-                                                        defaultChecked={this.state["nsslapd-allow-hashed-passwords"]}
-                                                        onChange={this.handleGeneralChange}
-                                                    >
-                                                        Allow Adding Pre-Hashed Passwords
-                                                    </Checkbox>
+                                                        isChecked={this.state["nsslapd-allow-hashed-passwords"]}
+                                                        onChange={(checked, e) => {
+                                                            this.handleGeneralChange(e);
+                                                        }}
+                                                        label="Allow Adding Pre-Hashed Passwords"
+                                                    />
                                                 </Col>
                                             </Row>
                                             <Row className="ds-margin-top" title="Allow password policy state attributes to replicate (passwordIsGlobalPolicy).">
                                                 <Col sm={11}>
                                                     <Checkbox
                                                         id="passwordisglobalpolicy"
-                                                        defaultChecked={this.state.passwordisglobalpolicy}
-                                                        onChange={this.handleGeneralChange}
-                                                    >
-                                                        Replicate Password Policy State Attributes
-                                                    </Checkbox>
+                                                        isChecked={this.state.passwordisglobalpolicy}
+                                                        onChange={(checked, e) => {
+                                                            this.handleGeneralChange(e);
+                                                        }}
+                                                        label="Replicate Password Policy State Attributes"
+                                                    />
                                                 </Col>
                                             </Row>
                                             <Row className="ds-margin-top" title="Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime).">
                                                 <Col sm={11}>
                                                     <Checkbox
                                                         id="passwordtrackupdatetime"
-                                                        defaultChecked={this.state.passwordtrackupdatetime}
-                                                        onChange={this.handleGeneralChange}
-                                                    >
-                                                        Track Password Update Time
-                                                    </Checkbox>
+                                                        isChecked={this.state.passwordtrackupdatetime}
+                                                        onChange={(checked, e) => {
+                                                            this.handleGeneralChange(e);
+                                                        }}
+                                                        label="Track Password Update Time"
+                                                    />
                                                 </Col>
                                             </Row>
                                             <Row className="ds-margin-top" title="Allow user's to change their passwords (passwordChange).">
                                                 <Col sm={11}>
                                                     <Checkbox
                                                         id="passwordchange"
-                                                        defaultChecked={this.state.passwordchange}
-                                                        onChange={this.handleGeneralChange}
-                                                    >
-                                                        Allow Users To Change Their Passwords
-                                                    </Checkbox>
+                                                        isChecked={this.state.passwordchange}
+                                                        onChange={(checked, e) => {
+                                                            this.handleGeneralChange(e);
+                                                        }}
+                                                        label="Allow Users To Change Their Passwords"
+                                                    />
                                                 </Col>
                                             </Row>
                                             <Row className="ds-margin-top" title="User must change its password after its been reset by an administrator (passwordMustChange).">
                                                 <Col sm={11}>
                                                     <Checkbox
                                                         id="passwordmustchange"
-                                                        defaultChecked={this.state.passwordmustchange}
-                                                        onChange={this.handleGeneralChange}
-                                                    >
-                                                        User Must Change Password After Reset
-                                                    </Checkbox>
+                                                        isChecked={this.state.passwordmustchange}
+                                                        onChange={(checked, e) => {
+                                                            this.handleGeneralChange(e);
+                                                        }}
+                                                        label="User Must Change Password After Reset"
+                                                    />
                                                 </Col>
                                             </Row>
                                             <Row className="ds-margin-top" title="Maintain a password history for each user (passwordHistory).">
@@ -1190,11 +1204,12 @@ export class GlobalPwPolicy extends React.Component {
                                                     <div className="ds-inline">
                                                         <Checkbox
                                                             id="passwordhistory"
-                                                            defaultChecked={this.state.passwordhistory}
-                                                            onChange={this.handleGeneralChange}
-                                                        >
-                                                            Keep Password History
-                                                        </Checkbox>
+                                                            isChecked={this.state.passwordhistory}
+                                                            onChange={(checked, e) => {
+                                                                this.handleGeneralChange(e);
+                                                            }}
+                                                            label="Keep Password History"
+                                                        />
                                                     </div>
                                                     <div className="ds-inline ds-left-margin ds-raise-field ds-width-sm">
                                                         <FormControl
@@ -1243,7 +1258,7 @@ export class GlobalPwPolicy extends React.Component {
                                             </Row>
                                             <Button
                                                 disabled={this.state.saveGeneralDisabled}
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 className="ds-margin-top-lg"
                                                 onClick={this.saveGeneral}
                                             >
@@ -1258,17 +1273,18 @@ export class GlobalPwPolicy extends React.Component {
                                                 <Col sm={11}>
                                                     <Checkbox
                                                         id="passwordexp"
-                                                        defaultChecked={this.state.passwordexp}
-                                                        onChange={this.handleExpChange}
-                                                    >
-                                                        Enforce Password Expiration
-                                                    </Checkbox>
+                                                        isChecked={this.state.passwordexp}
+                                                        onChange={(checked, e) => {
+                                                            this.handleExpChange(e);
+                                                        }}
+                                                        label="Enforce Password Expiration"
+                                                    />
                                                 </Col>
                                             </Row>
                                             {pwExpirationRows}
                                             <Button
                                                 disabled={this.state.saveExpDisabled}
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 className="ds-margin-top-lg ds-margin-left"
                                                 onClick={this.saveExp}
                                             >
@@ -1283,17 +1299,18 @@ export class GlobalPwPolicy extends React.Component {
                                                 <Col sm={11}>
                                                     <Checkbox
                                                         id="passwordlockout"
-                                                        defaultChecked={this.state.passwordlockout}
-                                                        onChange={this.handleLockoutChange}
-                                                    >
-                                                        Enable Account Lockout
-                                                    </Checkbox>
+                                                        isChecked={this.state.passwordlockout}
+                                                        onChange={(checked, e) => {
+                                                            this.handleLockoutChange(e);
+                                                        }}
+                                                        label="Enable Account Lockout"
+                                                    />
                                                 </Col>
                                             </Row>
                                             {pwLockoutRows}
                                             <Button
                                                 disabled={this.state.saveLockoutDisabled}
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 className="ds-margin-top-lg ds-margin-left"
                                                 onClick={this.saveLockout}
                                             >
@@ -1308,17 +1325,18 @@ export class GlobalPwPolicy extends React.Component {
                                                 <Col sm={11}>
                                                     <Checkbox
                                                         id="passwordchecksyntax"
-                                                        defaultChecked={this.state.passwordchecksyntax}
-                                                        onChange={this.handleSyntaxChange}
-                                                    >
-                                                        Enable Password Syntax Checking
-                                                    </Checkbox>
+                                                        isChecked={this.state.passwordchecksyntax}
+                                                        onChange={(checked, e) => {
+                                                            this.handleSyntaxChange(e);
+                                                        }}
+                                                        label="Enable Password Syntax Checking"
+                                                    />
                                                 </Col>
                                             </Row>
                                             {pwSyntaxRows}
                                             <Button
                                                 disabled={this.state.saveSyntaxDisabled}
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 className="ds-margin-top-lg ds-margin-left"
                                                 onClick={this.saveSyntax}
                                             >

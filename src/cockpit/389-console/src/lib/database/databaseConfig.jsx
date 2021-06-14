@@ -11,6 +11,7 @@ import {
     Spinner,
     Grid,
     GridItem,
+    ValidatedOptions,
     noop
 } from "@patternfly/react-core";
 
@@ -34,8 +35,12 @@ export class GlobalDatabaseConfig extends React.Component {
             txnlogdir: this.props.data.txnlogdir,
             dbhomedir: this.props.data.dbhomedir,
             dblocks: this.props.data.dblocks,
+            dblocksMonitoring: this.props.data.dblocksMonitoring,
+            dblocksMonitoringThreshold: this.props.data.dblocksMonitoringThreshold,
+            dblocksMonitoringPause: this.props.data.dblocksMonitoringPause,
             chxpoint: this.props.data.chxpoint,
             compactinterval: this.props.data.compactinterval,
+            compacttime: this.props.data.compacttime,
             importcachesize: this.props.data.importcachesize,
             importcacheauto: this.props.data.importcacheauto,
             // These variables store the original value (used for saving config)
@@ -50,8 +55,12 @@ export class GlobalDatabaseConfig extends React.Component {
             _txnlogdir: this.props.data.txnlogdir,
             _dbhomedir: this.props.data.dbhomedir,
             _dblocks: this.props.data.dblocks,
+            _dblocksMonitoring: this.props.data.dblocksMonitoring,
+            _dblocksMonitoringThreshold: this.props.data.dblocksMonitoringThreshold,
+            _dblocksMonitoringPause: this.props.data.dblocksMonitoringPause,
             _chxpoint: this.props.data.chxpoint,
             _compactinterval: this.props.data.compactinterval,
+            _compacttime: this.props.data.compacttime,
             _importcachesize: this.props.data.importcachesize,
             _importcacheauto: this.props.data.importcacheauto,
             _db_cache_auto: this.props.data.db_cache_auto,
@@ -59,6 +68,7 @@ export class GlobalDatabaseConfig extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
+        this.select_db_locks_monitoring = this.select_db_locks_monitoring.bind(this);
         this.select_auto_cache = this.select_auto_cache.bind(this);
         this.select_auto_import_cache = this.select_auto_import_cache.bind(this);
         this.save_db_config = this.save_db_config.bind(this);
@@ -83,6 +93,12 @@ export class GlobalDatabaseConfig extends React.Component {
     select_auto_import_cache (val, e) {
         this.setState({
             import_cache_auto: !this.state.import_cache_auto
+        }, this.handleChange(val, e));
+    }
+
+    select_db_locks_monitoring (val, e) {
+        this.setState({
+            dblocksMonitoring: !this.state.dblocksMonitoring
         }, this.handleChange(val, e));
     }
 
@@ -160,12 +176,31 @@ export class GlobalDatabaseConfig extends React.Component {
             cmd.push("--locks=" + this.state.dblocks);
             requireRestart = true;
         }
+        if (this.state._dblocksMonitoring != this.state.dblocksMonitoring) {
+            if (this.state.dblocksMonitoring) {
+                cmd.push("--locks-monitoring-enabled=on");
+            } else {
+                cmd.push("--locks-monitoring-enabled=off");
+            }
+            requireRestart = true;
+        }
+        if (this.state._dblocksMonitoringThreshold != this.state.dblocksMonitoringThreshold) {
+            cmd.push("--locks-monitoring-threshold=" + this.state.dblocksMonitoringThreshold);
+            requireRestart = true;
+        }
+        if (this.state._dblocksMonitoringPause != this.state.dblocksMonitoringPause) {
+            cmd.push("--locks-monitoring-pause=" + this.state.dblocksMonitoringPause);
+        }
         if (this.state._chxpoint != this.state.chxpoint) {
             cmd.push("--checkpoint-interval=" + this.state.chxpoint);
             requireRestart = true;
         }
         if (this.state._compactinterval != this.state.compactinterval) {
             cmd.push("--compactdb-interval=" + this.state.compactinterval);
+            requireRestart = true;
+        }
+        if (this.state._compacttime != this.state.compacttime) {
+            cmd.push("--compactdb-time=" + this.state.compacttime);
             requireRestart = true;
         }
         if (this.state.import_cache_auto) {
@@ -226,6 +261,45 @@ export class GlobalDatabaseConfig extends React.Component {
         let import_cache_form;
         let db_auto_checked = false;
         let import_auto_checked = false;
+        let dblocksMonitor = "";
+        let dblocksThreshold = this.state.dblocksMonitoringThreshold;
+        let dblocksPause = this.state.dblocksMonitoringPause;
+
+        if (this.state.dblocksMonitoring) {
+            dblocksMonitor =
+                <div className="ds-margin-left ds-margin-top">
+                    <FormGroup
+                        label="DB Locks Threshold Percentage"
+                        fieldId="monitoringthreshold"
+                        title="Sets the DB lock exhaustion value in percentage (valid range is 70-95). If too many locks are acquired, the server will abort the searches while the number of locks are not decreased. It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold)"
+                    >
+                        <TextInput
+                            id="dblocksMonitoringThreshold"
+                            name="dblocksMonitoringThreshold"
+                            type="number"
+                            aria-describedby="dblocksMonitoringThreshold"
+                            value={dblocksThreshold}
+                            onChange={this.handleChange}
+                            validated={parseInt(dblocksThreshold) < 70 || parseInt(dblocksThreshold) > 95 ? ValidatedOptions.error : ValidatedOptions.default}
+                        />
+                    </FormGroup>
+                    <FormGroup
+                        label="DB Locks Pause Milliseconds"
+                        fieldId="monitoringpause"
+                        title="Sets the amount of time (milliseconds) that the monitoring thread spends waiting between checks. (nsslapd-db-locks-monitoring-pause)"
+                    >
+                        <TextInput
+                            id="dblocksMonitoringPause"
+                            name="dblocksMonitoringPause"
+                            type="number"
+                            aria-describedby="dblocksMonitoringPause"
+                            value={dblocksPause}
+                            onChange={this.handleChange}
+                            validated={parseInt(dblocksPause) < 1 ? ValidatedOptions.error : ValidatedOptions.default}
+                        />
+                    </FormGroup>
+                </div>;
+        }
 
         if (this.state.db_cache_auto) {
             db_cache_form = <div className="ds-margin-left">
@@ -487,20 +561,6 @@ export class GlobalDatabaseConfig extends React.Component {
                                 />
                             </FormGroup>
                             <FormGroup
-                                label="Database Locks"
-                                fieldId="dblocks"
-                                title="The number of database locks (nsslapd-db-locks)."
-                            >
-                                <TextInput
-                                    value={this.state.dblocks}
-                                    type="text"
-                                    id="dblocks"
-                                    aria-describedby="dblocks"
-                                    name="dblocks"
-                                    onChange={this.handleChange}
-                                />
-                            </FormGroup>
-                            <FormGroup
                                 label="Database Checkpoint Interval"
                                 fieldId="chxpoint"
                                 title="Amount of time in seconds after which the Directory Server sends a checkpoint entry to the database transaction log (nsslapd-db-checkpoint-interval)."
@@ -517,17 +577,63 @@ export class GlobalDatabaseConfig extends React.Component {
                             <FormGroup
                                 label="Database Compact Interval"
                                 fieldId="compactinterval"
-                                title="The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval).  The default is 30 days."
+                                title="The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval).  The default is 30 days at midnight."
                             >
                                 <TextInput
                                     value={this.state.compactinterval}
-                                    type="text"
+                                    type="number"
                                     id="compactinterval"
                                     aria-describedby="compactinterval"
                                     name="compactinterval"
                                     onChange={this.handleChange}
                                 />
                             </FormGroup>
+                            <FormGroup
+                                label="Database Compact Time"
+                                fieldId="compacttime"
+                                title="The Time Of Day to perform the database compaction after the compact interval has been met.  Uses the format: 'HH:MM' and defaults to '23:59'. (nsslapd-db-compactdb-time)"
+                            >
+                                <TextInput
+                                    value={this.state.compacttime}
+                                    type="text"
+                                    id="compacttime"
+                                    aria-describedby="compacttime"
+                                    name="compacttime"
+                                    onChange={this.handleChange}
+                                />
+                            </FormGroup>
+                            <FormGroup
+                                label="Database Locks"
+                                fieldId="dblocks"
+                                title="The number of database locks (nsslapd-db-locks)."
+                            >
+                                <TextInput
+                                    value={this.state.dblocks}
+                                    type="text"
+                                    id="dblocks"
+                                    aria-describedby="dblocks"
+                                    name="dblocks"
+                                    onChange={this.handleChange}
+                                />
+                            </FormGroup>
+                            <Grid className="ds-margin-top-xlg">
+                                <GridItem span={12}>
+                                    <h5 className="ds-sub-header">DB Locks Monitoring</h5>
+                                    <hr />
+                                </GridItem>
+                                <GridItem span={12}>
+                                    <Checkbox
+                                        label="Enable Monitoring"
+                                        id="dblocksMonitoring"
+                                        isChecked={this.state.dblocksMonitoring}
+                                        onChange={this.select_db_locks_monitoring}
+                                        aria-label="uncontrolled checkbox example"
+                                    />
+                                </GridItem>
+                                <GridItem span={12}>
+                                    {dblocksMonitor}
+                                </GridItem>
+                            </Grid>
                         </Form>
                     </ExpandableSection>
                     <hr />

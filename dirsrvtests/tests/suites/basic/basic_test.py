@@ -22,6 +22,8 @@ from lib389.idm.directorymanager import DirectoryManager
 from lib389.config import LDBMConfig
 from lib389.dseldif import DSEldif
 from lib389.rootdse import RootDSE
+from ....conftest import get_rpm_version
+from lib389._mapped_object import DSLdapObjects
 
 
 pytestmark = pytest.mark.tier0
@@ -904,6 +906,7 @@ def test_basic_systemctl(topology_st, import_example_ldif):
     log.info('test_basic_systemctl: PASSED')
 
 
+pytestmark = pytest.mark.skipif(get_rpm_version("389-ds-base-snmp") == "not installed", reason="389-ds-base-snmp package is not present")
 def test_basic_ldapagent(topology_st, import_example_ldif):
     """Tests that the ldap agent starts
 
@@ -1310,6 +1313,33 @@ def test_critical_msg_on_empty_range_idl(topology_st):
 
     # Step 5
     assert not topology_st.standalone.searchErrorsLog('CRIT - list_candidates - NULL idl was recieved from filter_candidates_ext.')
+
+@pytest.mark.bz1870624
+@pytest.mark.ds4379
+@pytest.mark.parametrize("case,value", [('positive', ['cn','','']),
+                                        ("positive", ['cn', '', '', '', '', '', '', '', '', '', '']),
+                                        ("negative", ['cn', '', '', '', '', '', '', '', '', '', '', ''])])
+def test_attr_description_limit(topology_st, case, value):
+    """Test that up to 10 empty attributeDescription is allowed
+
+    :id: 5afd3dcd-1028-428d-822d-a489ecf4b67e
+    :customerscenario: True
+    :parametrized: yes
+    :setup: Standalone instance
+    :steps:
+        1. Check that 2 empty values are allowed
+        2. Check that 10 empty values are allowed
+        3. Check that more than 10 empty values are allowed
+    :expectedresults:
+        1. Should succeed
+        2. Should succeed
+        3. Should fail
+    """
+    if case == 'positive':
+        DSLdapObjects(topology_st.standalone, basedn='').filter("(objectclass=*)", attrlist=value, scope=0)
+    else:
+        with pytest.raises(ldap.PROTOCOL_ERROR):
+            DSLdapObjects(topology_st.standalone, basedn='').filter("(objectclass=*)", attrlist=value, scope=0)
 
 
 @pytest.mark.bz1647099

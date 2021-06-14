@@ -176,6 +176,7 @@ export class Database extends React.Component {
                     const attrs = config.attrs;
                     let db_cache_auto = false;
                     let import_cache_auto = false;
+                    let dblocksMonitoring = false;
                     let dbhome = "";
 
                     if ('nsslapd-db-home-directory' in attrs) {
@@ -186,6 +187,9 @@ export class Database extends React.Component {
                     }
                     if (attrs['nsslapd-import-cache-autosize'] != "0") {
                         import_cache_auto = true;
+                    }
+                    if (attrs['nsslapd-db-locks-monitoring-enabled'][0] == "on") {
+                        dblocksMonitoring = true;
                     }
 
                     this.setState(() => (
@@ -206,8 +210,12 @@ export class Database extends React.Component {
                                     txnlogdir: attrs['nsslapd-db-logdirectory'],
                                     dbhomedir: dbhome,
                                     dblocks: attrs['nsslapd-db-locks'],
+                                    dblocksMonitoring: dblocksMonitoring,
+                                    dblocksMonitoringThreshold: attrs['nsslapd-db-locks-monitoring-threshold'],
+                                    dblocksMonitoringPause: attrs['nsslapd-db-locks-monitoring-pause'],
                                     chxpoint: attrs['nsslapd-db-checkpoint-interval'],
                                     compactinterval: attrs['nsslapd-db-compactdb-interval'],
+                                    compacttime: attrs['nsslapd-db-compactdb-time'],
                                     importcacheauto: attrs['nsslapd-import-cache-autosize'],
                                     importcachesize: attrs['nsslapd-import-cachesize'],
                                 },
@@ -1320,7 +1328,7 @@ class CreateSuffixModal extends React.Component {
                 aria-labelledby="ds-modal"
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={saveHandler} disabled={createNotOK}>
+                    <Button key="confirm" variant="primary" onClick={saveHandler} isDisabled={createNotOK}>
                         Create Suffix
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>

@@ -8,8 +8,6 @@ import { CertificateManagement } from "./lib/security/certificateManagement.jsx"
 import { SecurityEnableModal } from "./lib/security/securityModals.jsx";
 import { Ciphers } from "./lib/security/ciphers.jsx";
 import {
-    Button,
-    Checkbox,
     Col,
     ControlLabel,
     Form,
@@ -24,6 +22,10 @@ import {
     noop,
     TabPane
 } from "patternfly-react";
+import {
+    Button,
+    Checkbox
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
 export class Security extends React.Component {
@@ -711,52 +713,56 @@ export class Security extends React.Component {
                             <Col componentClass={ControlLabel} sm={4}>
                                 <Checkbox
                                     id="requireSecureBinds"
-                                    defaultChecked={this.state.requireSecureBinds}
-                                    onChange={this.handleChange}
+                                    isChecked={this.state.requireSecureBinds}
+                                    onChange={(checked, e) => {
+                                        this.handleChange(e);
+                                    }}
                                     title="Require all connections use TLS (nsslapd-require-secure-binds)."
-                                >
-                                    Require Secure Connections
-                                </Checkbox>
+                                    label="Require Secure Connections"
+                                />
                             </Col>
                         </Row>
                         <Row>
                             <Col componentClass={ControlLabel} sm={4}>
                                 <Checkbox
                                     id="checkHostname"
-                                    defaultChecked={this.state.checkHostname}
-                                    onChange={this.handleChange}
+                                    isChecked={this.state.checkHostname}
+                                    onChange={(checked, e) => {
+                                        this.handleChange(e);
+                                    }}
                                     title="Verify authenticity of a request by matching the host name against the value assigned to the common name (cn) attribute of the subject name (subjectDN field) in the certificate being presented. (nsslapd-ssl-check-hostname)."
-                                >
-                                    Verify Certificate Subject Hostname
-                                </Checkbox>
+                                    label="Verify Certificate Subject Hostname"
+                                />
                             </Col>
                         </Row>
                         <Row>
                             <Col componentClass={ControlLabel} sm={4}>
                                 <Checkbox
                                     id="allowWeakCipher"
-                                    defaultChecked={this.state.allowWeakCipher}
-                                    onChange={this.handleChange}
+                                    isChecked={this.state.allowWeakCipher}
+                                    onChange={(checked, e) => {
+                                        this.handleChange(e);
+                                    }}
                                     title="Allow weak ciphers (allowWeakCipher)."
-                                >
-                                    Allow Weak Ciphers
-                                </Checkbox>
+                                    label="Allow Weak Ciphers"
+                                />
                             </Col>
                         </Row>
                         <Row>
                             <Col componentClass={ControlLabel} sm={4}>
                                 <Checkbox
                                     id="nstlsallowclientrenegotiation"
-                                    defaultChecked={this.state.nstlsallowclientrenegotiation}
-                                    onChange={this.handleChange}
+                                    isChecked={this.state.nstlsallowclientrenegotiation}
+                                    onChange={(checked, e) => {
+                                        this.handleChange(e);
+                                    }}
                                     title="Allow client-initiated renegotiation (nsTLSAllowClientRenegotiation)."
-                                >
-                                    Allow Client Renegotiation
-                                </Checkbox>
+                                    label="Allow Client Renegotiation"
+                                />
                             </Col>
                         </Row>
                         <Button
-                            bsStyle="primary"
+                            variant="primary"
                             className="ds-margin-top-lg"
                             onClick={() => {
                                 this.saveSecurityConfig();

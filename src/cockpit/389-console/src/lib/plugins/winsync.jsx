@@ -6,11 +6,11 @@ import {
     Form,
     FormControl,
     FormGroup,
-    Checkbox,
     ControlLabel
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     // Form,
     // FormGroup,
     Modal,
@@ -112,9 +112,9 @@ class WinSync extends React.Component {
         }
     }
 
-    handleCheckboxChange(e) {
+    handleCheckboxChange(checked, e) {
         this.setState({
-            [e.target.id]: e.target.checked
+            [e.target.id]: checked
         });
     }
 
@@ -264,7 +264,7 @@ class WinSync extends React.Component {
                                     <Col sm={2}>
                                         <Checkbox
                                             id="posixWinsyncCreateMemberOfTask"
-                                            checked={posixWinsyncCreateMemberOfTask}
+                                            isChecked={posixWinsyncCreateMemberOfTask}
                                             onChange={this.handleCheckboxChange}
                                         />
                                     </Col>
@@ -283,7 +283,7 @@ class WinSync extends React.Component {
                                     <Col sm={2}>
                                         <Checkbox
                                             id="posixWinsyncLowerCaseUID"
-                                            checked={posixWinsyncLowerCaseUID}
+                                            isChecked={posixWinsyncLowerCaseUID}
                                             onChange={this.handleCheckboxChange}
                                         />
                                     </Col>
@@ -302,7 +302,7 @@ class WinSync extends React.Component {
                                     <Col sm={2}>
                                         <Checkbox
                                             id="posixWinsyncMapMemberUID"
-                                            checked={posixWinsyncMapMemberUID}
+                                            isChecked={posixWinsyncMapMemberUID}
                                             onChange={this.handleCheckboxChange}
                                         />
                                     </Col>
@@ -321,7 +321,7 @@ class WinSync extends React.Component {
                                     <Col sm={2}>
                                         <Checkbox
                                             id="posixWinsyncMapNestedGrouping"
-                                            checked={posixWinsyncMapNestedGrouping}
+                                            isChecked={posixWinsyncMapNestedGrouping}
                                             onChange={this.handleCheckboxChange}
                                         />
                                     </Col>
@@ -340,7 +340,7 @@ class WinSync extends React.Component {
                                     <Col sm={2}>
                                         <Checkbox
                                             id="posixWinsyncMsSFUSchema"
-                                            checked={posixWinsyncMsSFUSchema}
+                                            isChecked={posixWinsyncMsSFUSchema}
                                             onChange={this.handleCheckboxChange}
                                         />
                                     </Col>

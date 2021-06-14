@@ -128,6 +128,12 @@ int ldbm_back_ctrl_info(Slapi_Backend *be, int cmd, void *info);
 
 int dblayer_is_restored(void);
 void dblayer_set_restored(void);
+int dblayer_restore_file_init(struct ldbminfo *li);
+void dblayer_restore_file_update(struct ldbminfo *li, char *directory);
+int dblayer_import_file_init(ldbm_instance *inst);
+void dblayer_import_file_update(ldbm_instance *inst);
+int dblayer_import_file_check(ldbm_instance *inst);
+const char *dblayer_get_db_suffix(Slapi_Backend *be);
 
 /*
  * dn2entry.c
@@ -446,6 +452,7 @@ void ldbm_back_search_results_release(void **search_results);
 int ldbm_back_init(Slapi_PBlock *pb);
 void ldbm_back_prev_search_results(Slapi_PBlock *pb);
 int ldbm_back_isinitialized(void);
+int32_t ldbm_back_compact(Slapi_Backend *be, PRBool just_changelog);
 
 /*
  * vlv.c

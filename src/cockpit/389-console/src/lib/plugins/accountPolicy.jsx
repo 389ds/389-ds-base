@@ -6,11 +6,11 @@ import {
     Form,
     FormGroup,
     FormControl,
-    Checkbox,
     ControlLabel
 } from "patternfly-react";
 import {
     Button,
+    Checkbox,
     // Form,
     // FormGroup,
     Modal,
@@ -314,9 +314,9 @@ class AccountPolicy extends React.Component {
         this.cmdOperation("set");
     }
 
-    handleCheckboxChange(e) {
+    handleCheckboxChange(checked, e) {
         this.setState({
-            [e.target.id]: e.target.checked
+            [e.target.id]: checked
         });
     }
 
@@ -467,12 +467,11 @@ class AccountPolicy extends React.Component {
                                     <Col sm={3}>
                                         <Checkbox
                                             id="alwaysRecordLogin"
-                                            checked={alwaysRecordLogin}
+                                            isChecked={alwaysRecordLogin}
                                             title="Sets that every entry records its last login time (alwaysRecordLogin)"
                                             onChange={this.handleCheckboxChange}
-                                        >
-                                            Always Record Login
-                                        </Checkbox>
+                                            label="Always Record Login"
+                                        />
                                     </Col>
                                 </FormGroup>
                             </Form>

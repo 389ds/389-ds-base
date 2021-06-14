@@ -14,14 +14,17 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectOption,
+    SelectVariant,
     // TextInput,
     noop
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import { AutoMembershipDefinitionTable, AutoMembershipRegexTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 
 class AutoMembership extends React.Component {
     componentDidMount() {
@@ -40,6 +43,8 @@ class AutoMembership extends React.Component {
             regexRows: [],
             regexesToDelete: [],
             attributes: [],
+            modalSpinning: false,
+            modalChecked: false,
 
             definitionName: "",
             defaultGroup: "",
@@ -50,13 +55,113 @@ class AutoMembership extends React.Component {
 
             regexName: "",
             regexExclusive: [],
+            excludeOptions: [],
+            isRegexExcludeOpen: false,
+            regexTableKey: 0,
+
             regexInclusive: [],
+            includeOptions: [],
+            isRegexIncludeOpen: false,
+
             regexTargetGroup: "",
+            isGroupAttrOpen: false,
 
             newDefinitionEntry: false,
             newRegexEntry: false,
             definitionEntryModalShow: false,
-            regexEntryModalShow: false
+            regexEntryModalShow: false,
+            showConfirmDelete: false,
+        };
+
+        this.onGroupAttrSelect = (event, selection) => {
+            this.setState({
+                groupingAttrMember: selection,
+                isGroupAttrOpen: false
+            });
+        };
+        this.onGroupAttrToggle = isGroupAttrOpen => {
+            this.setState({
+                isGroupAttrOpen
+            });
+        };
+        this.clearGroupAttrSelection = () => {
+            this.setState({
+                groupingAttrMember: "",
+                isGroupAttrOpen: false
+            });
+        };
+
+        this.onRegexExcludeSelect = (event, selection) => {
+            const { regexExclusive } = this.state;
+            if (regexExclusive.includes(selection)) {
+                this.setState(
+                    prevState => ({
+                        regexExclusive: prevState.regexExclusive.filter(item => item !== selection),
+                        isRegexExcludeOpen: false
+                    })
+                );
+            } else {
+                this.setState(
+                    prevState => ({
+                        regexExclusive: [...prevState.regexExclusive, selection],
+                        isRegexExcludeOpen: false,
+                    })
+                );
+            }
+        };
+        this.onCreateRegexExcludeOption = newValue => {
+            if (!this.state.excludeOptions.includes(newValue)) {
+                this.setState({
+                    excludeOptions: [...this.state.excludeOptions, newValue],
+                    isRegexExcludeOpen: false
+                });
+            }
+        };
+        this.onRegexExcludeToggle = isRegexExcludeOpen => {
+            this.setState({
+                isRegexExcludeOpen
+            });
+        };
+        this.clearRegexExcludeSelection = () => {
+            this.setState({
+                regexExclusive: [],
+                isRegexExcludeOpen: false
+            });
+        };
+
+        this.onRegexIncludeSelect = (event, selection) => {
+            const { regexInclusive } = this.state;
+            if (regexInclusive.includes(selection)) {
+                this.setState(
+                    prevState => ({
+                        regexInclusive: prevState.regexInclusive.filter(item => item !== selection),
+                        isRegexIncludeOpen: false
+                    })
+                );
+            } else {
+                this.setState(
+                    prevState => ({
+                        regexInclusive: [...prevState.regexInclusive, selection],
+                        isRegexIncludeOpen: false
+                    })
+                );
+            }
+        };
+        this.onCreateRegexIncludeOption = newValue => {
+            this.setState({
+                includeOptions: [...this.state.includeOptions, newValue]
+            });
+        };
+        this.onRegexIncludeToggle = isRegexIncludeOpen => {
+            this.setState({
+                isRegexIncludeOpen
+            });
+        };
+        this.clearRegexIncludeSelection = () => {
+            this.setState({
+                regexInclusive: [],
+                isRegexIncludeOpen: false
+            });
         };
 
         this.handleFieldChange = this.handleFieldChange.bind(this);
@@ -82,11 +187,14 @@ class AutoMembership extends React.Component {
         this.deleteRegex = this.deleteRegex.bind(this);
         this.addRegex = this.addRegex.bind(this);
         this.editRegex = this.editRegex.bind(this);
+        this.showConfirmDelete = this.showConfirmDelete.bind(this);
+        this.closeConfirmDelete = this.closeConfirmDelete.bind(this);
     }
 
     handleFieldChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
-            [e.target.id]: e.target.value
+            [e.target.id]: value
         });
     }
 
@@ -131,28 +239,27 @@ class AutoMembership extends React.Component {
             "regexes",
             defName
         ];
-        this.props.toggleLoadingHandler();
         log_cmd("loadRegexes", "Get Auto Membership Plugin regexes", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let myObject = JSON.parse(content);
+                    let regexTableKey = this.state.regexTableKey + 1;
                     this.setState({
-                        regexRows: myObject.items.map(item => item.attrs)
+                        regexRows: myObject.items.map(item => item.attrs),
+                        regexTableKey: regexTableKey
                     });
-                    this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadRegexes failed", errMsg.desc);
                     }
-                    this.props.toggleLoadingHandler();
                 });
     }
 
     showEditDefinitionModal(rowData) {
-        this.openModal(rowData.cn[0]);
+        this.openModal(rowData);
     }
 
     showAddDefinitionModal(rowData) {
@@ -169,7 +276,7 @@ class AutoMembership extends React.Component {
                 definitionName: "",
                 defaultGroup: "",
                 filter: "",
-                groupingAttrMember: [],
+                groupingAttrMember: "",
                 groupingAttrEntry: "",
                 scope: ""
             });
@@ -216,7 +323,7 @@ class AutoMembership extends React.Component {
 
                         if (definitionEntry["automembergroupingattr"] === undefined) {
                             this.setState({
-                                groupingAttrMember: [],
+                                groupingAttrMember: "",
                                 groupingAttrEntry: ""
                             });
                         } else {
@@ -237,7 +344,7 @@ class AutoMembership extends React.Component {
                             definitionName: "",
                             defaultGroup: "",
                             filter: "",
-                            groupingAttrMember: [],
+                            groupingAttrMember: "",
                             groupingAttrEntry: "",
                             scope: ""
                         });
@@ -246,11 +353,11 @@ class AutoMembership extends React.Component {
         }
     }
 
-    showEditRegexModal(rowData) {
-        this.openRegexModal(rowData.cn[0]);
+    showEditRegexModal(name) {
+        this.openRegexModal(name);
     }
 
-    showAddRegexModal(rowData) {
+    showAddRegexModal() {
         this.openRegexModal();
     }
 
@@ -276,7 +383,7 @@ class AutoMembership extends React.Component {
             definitionName === "" ||
             scope === "" ||
             filter === "" ||
-            groupingAttrMember.length == 0 ||
+            groupingAttrMember == "" ||
             groupingAttrEntry === ""
         ) {
             this.props.addNotification(
@@ -303,7 +410,7 @@ class AutoMembership extends React.Component {
 
             cmd = [...cmd, "--grouping-attr"];
             if (groupingAttrMember.length != 0 && groupingAttrEntry.length != 0) {
-                cmd = [...cmd, `${groupingAttrMember[0].id}:${groupingAttrEntry}`];
+                cmd = [...cmd, `${groupingAttrMember}:${groupingAttrEntry}`];
             } else if (action == "add") {
                 cmd = [...cmd, ""];
             } else {
@@ -489,8 +596,24 @@ class AutoMembership extends React.Component {
         }
     }
 
-    deleteDefinition(rowData) {
-        let definitionName = rowData.cn[0];
+    showConfirmDelete(definitionName) {
+        this.setState({
+            showConfirmDelete: true,
+            modalChecked: false,
+            modalSpinning: false,
+            deleteName: definitionName
+        });
+    }
+
+    closeConfirmDelete() {
+        this.setState({
+            showConfirmDelete: false,
+            modalChecked: false,
+            modalSpinning: false,
+        });
+    }
+
+    deleteDefinition() {
         let cmd = [
             "dsconf",
             "-j",
@@ -498,11 +621,13 @@ class AutoMembership extends React.Component {
             "plugin",
             "automember",
             "definition",
-            definitionName,
+            this.state.deleteName,
             "delete"
         ];
 
-        this.props.toggleLoadingHandler();
+        this.setState({
+            modalSpinning: true
+        });
         log_cmd("deleteDefinition", "Delete the Auto Membership Plugin definition entry", cmd);
         cockpit
                 .spawn(cmd, {
@@ -513,11 +638,10 @@ class AutoMembership extends React.Component {
                     console.info("deleteDefinition", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Definition entry ${definitionName} was successfully deleted`
+                        `Definition entry ${this.state.deleteName} was successfully deleted`
                     );
                     this.loadDefinitions();
                     this.closeModal();
-                    this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -527,7 +651,6 @@ class AutoMembership extends React.Component {
                     );
                     this.loadDefinitions();
                     this.closeModal();
-                    this.props.toggleLoadingHandler();
                 });
     }
 
@@ -600,6 +723,7 @@ class AutoMembership extends React.Component {
         if (regexName === "" || regexTargetGroup === "") {
             this.props.addNotification("warning", "Name and Target Group are required.");
         } else {
+            let regexTableKey = this.state.regexTableKey + 1;
             if (action == "add") {
                 if (!regexExists) {
                     this.setState(prevState => ({
@@ -618,7 +742,8 @@ class AutoMembership extends React.Component {
                                         : [],
                                 needsadd: true
                             }
-                        ]
+                        ],
+                        regexTableKey: regexTableKey
                     }));
                 } else {
                     this.props.addNotification("error", `Regex "${regexName}" already exists`);
@@ -628,7 +753,6 @@ class AutoMembership extends React.Component {
                     this.setState({
                         regexRows: regexRows.filter(row => row.cn[0] !== regexName)
                     });
-
                     this.setState(prevState => ({
                         regexRows: [
                             ...prevState.regexRows,
@@ -645,7 +769,8 @@ class AutoMembership extends React.Component {
                                         : [],
                                 needsupdate: true
                             }
-                        ]
+                        ],
+                        regexTableKey: regexTableKey
                     }));
                 } else {
                     this.props.addNotification(
@@ -658,13 +783,13 @@ class AutoMembership extends React.Component {
         }
     }
 
-    deleteRegex(rowData) {
+    deleteRegex(regexName) {
         const { regexRows } = this.state;
-        const regexName = rowData.cn[0];
-
+        let regexTableKey = this.state.regexTableKey + 1;
         if (regexRows.some(row => row.cn[0] === regexName)) {
             this.setState({
-                regexRows: regexRows.filter(row => row.cn[0] !== regexName)
+                regexRows: regexRows.filter(row => row.cn[0] !== regexName),
+                regexTableKey: regexTableKey
             });
             this.setState(prevState => ({
                 regexesToDelete: [...prevState.regexesToDelete, regexName]
@@ -754,7 +879,7 @@ class AutoMembership extends React.Component {
         return (
             <div>
                 <Modal
-                    variant={ModalVariant.medium}
+                    variant={ModalVariant.large}
                     title={title}
                     isOpen={definitionEntryModalShow}
                     aria-labelledby="ds-modal"
@@ -768,7 +893,7 @@ class AutoMembership extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Row>
+                    <Row className="ds-margin-top">
                         <Col sm={12}>
                             <Form horizontal>
                                 <FormGroup key="definitionName" controlId="definitionName">
@@ -809,18 +934,24 @@ class AutoMembership extends React.Component {
                                         Grouping Attributes
                                     </Col>
                                     <Col sm={4}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
-                                                this.setState({
-                                                    groupingAttrMember: value
-                                                });
-                                            }}
-                                            selected={groupingAttrMember}
-                                            options={attributes}
-                                            newSelectionPrefix="Set an attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            typeAheadAriaLabel="Type an attribute"
+                                            onToggle={this.onGroupAttrToggle}
+                                            onSelect={this.onGroupAttrSelect}
+                                            onClear={this.clearGroupAttrSelection}
+                                            selections={groupingAttrMember}
+                                            isOpen={this.state.isGroupAttrOpen}
+                                            aria-labelledby="typeAhead-rdn"
+                                            placeholderText="Type an attribute..."
+                                        >
+                                            {attributes.map((attr) => (
+                                                <SelectOption
+                                                    key={attr}
+                                                    value={attr}
+                                                />
+                                            ))}
+                                        </Select>
                                     </Col>
                                     <Col sm={1}>:</Col>
                                     <Col sm={4}>
@@ -836,10 +967,12 @@ class AutoMembership extends React.Component {
                         </Col>
                     </Row>
                     <hr />
+                    <h5 className="ds-center">Membership Regular Expressions</h5>
                     <Row>
                         <Col sm={12}>
                             <AutoMembershipRegexTable
                                 rows={regexRows}
+                                key={this.state.regexTableKey}
                                 editConfig={this.showEditRegexModal}
                                 deleteConfig={this.deleteRegex}
                             />
@@ -849,13 +982,14 @@ class AutoMembership extends React.Component {
                         <Col sm={12}>
                             <Button
                                 className="ds-margin-top"
-                                variant="primary"
+                                variant="secondary"
                                 onClick={this.showAddRegexModal}
                             >
                                 Add Regex
                             </Button>
                         </Col>
                     </Row>
+                    <hr />
                 </Modal>
 
                 <Modal
@@ -895,19 +1029,26 @@ class AutoMembership extends React.Component {
                                         Exclusive Regex
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
-                                                this.setState({
-                                                    regexExclusive: value
-                                                });
-                                            }}
-                                            selected={regexExclusive}
-                                            options={[]}
-                                            newSelectionPrefix="Set an exclusive regex: "
-                                            placeholder="Type a regex..."
-                                        />
+                                        <Select
+                                            isCreatable
+                                            onCreateOption={this.onCreateRegexExcludeOption}
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type a regular expression"
+                                            onToggle={this.onRegexExcludeToggle}
+                                            onSelect={this.onRegexExcludeSelect}
+                                            onClear={this.clearRegexExcludeSelection}
+                                            selections={regexExclusive}
+                                            isOpen={this.state.isRegexExcludeOpen}
+                                            aria-labelledby="typeAhead-rdn"
+                                            placeholderText="Type a regex ..."
+                                        >
+                                            {this.state.excludeOptions.map((regex, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={regex}
+                                                />
+                                            ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup key="regexInclusive" controlId="regexInclusive">
@@ -915,19 +1056,26 @@ class AutoMembership extends React.Component {
                                         Inclusive Regex
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
-                                                this.setState({
-                                                    regexInclusive: value
-                                                });
-                                            }}
-                                            selected={regexInclusive}
-                                            options={[]}
-                                            newSelectionPrefix="Set an inclusive regex: "
-                                            placeholder="Type a regex..."
-                                        />
+                                        <Select
+                                            isCreatable
+                                            onCreateOption={this.onCreateRegexIncludeOption}
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type a regular expression"
+                                            onToggle={this.onRegexIncludeToggle}
+                                            onSelect={this.onRegexIncludeSelect}
+                                            onClear={this.clearRegexIncludeSelection}
+                                            selections={regexInclusive}
+                                            isOpen={this.state.isRegexIncludeOpen}
+                                            aria-labelledby="typeAhead-include"
+                                            placeholderText="Type a regex ..."
+                                        >
+                                            {this.state.includeOptions.map((regex) => (
+                                                <SelectOption
+                                                    key={regex}
+                                                    value={regex}
+                                                />
+                                            ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -966,8 +1114,9 @@ class AutoMembership extends React.Component {
                         <Col sm={12}>
                             <AutoMembershipDefinitionTable
                                 rows={this.state.definitionRows}
+                                key={this.state.definitionRows}
                                 editConfig={this.showEditDefinitionModal}
-                                deleteConfig={this.deleteDefinition}
+                                deleteConfig={this.showConfirmDelete}
                             />
                             <Button
                                 className="ds-margin-top"
@@ -979,6 +1128,19 @@ class AutoMembership extends React.Component {
                         </Col>
                     </Row>
                 </PluginBasicConfig>
+                <DoubleConfirmModal
+                    showModal={this.state.showConfirmDelete}
+                    closeHandler={this.closeConfirmDelete}
+                    handleChange={this.handleFieldChange}
+                    actionHandler={this.deleteDefinition}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.deleteName}
+                    checked={this.state.modalChecked}
+                    mTitle="Delete Autemebership Configuration"
+                    mMsg="Are you sure you want to delete this configuration?"
+                    mSpinningMsg="Deleting Configuration..."
+                    mBtnName="Delete Configuration"
+                />
             </div>
         );
     }

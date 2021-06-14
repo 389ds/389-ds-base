@@ -1619,17 +1619,17 @@ do_dse_search(struct dse *pdse, Slapi_PBlock *pb, int scope, const Slapi_DN *bas
 int
 dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from this function! */
 {
-    int scope;            /*Scope of the search*/
-    Slapi_Filter *filter; /*The filter*/
-    char **attrs;         /*Attributes*/
-    int attrsonly;        /*Should we just return the attributes found?*/
-    /*int nentries= 0; Number of entries found thus far*/
-    struct dse *pdse;
-    int returncode = LDAP_SUCCESS;
-    int isrootdse = 0;
-    char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = "";
+    Slapi_Filter *filter;
     Slapi_DN *basesdn = NULL;
+    Slapi_DN *old_repl_sdn = NULL;
+    struct dse *pdse;
+    char **attrs;
+    char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = "";
+    int attrsonly;
     int estimate = 0; /* estimated search result set size */
+    int isrootdse = 0;
+    int returncode = LDAP_SUCCESS;
+    int scope;
 
     /*
      * Get private information created in the init routine.
@@ -1650,6 +1650,16 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
      * acl checks on it, or allow onelevel or subtree searches on it.
      */
     isrootdse = slapi_sdn_isempty(basesdn);
+
+    /* Hopefully this plugin DN mapping can be removed in 3.x */
+    old_repl_sdn = slapi_sdn_new_dn_byval("cn=Multimaster Replication Plugin,cn=plugins,cn=config");
+    if(slapi_sdn_compare(basesdn, old_repl_sdn) == 0) {
+        /* Map the old name to the new one */
+        slapi_sdn_free(&basesdn);
+        basesdn = slapi_sdn_new_dn_byval("cn=Multisupplier Replication Plugin,cn=plugins,cn=config");
+        slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, basesdn);
+    }
+    slapi_sdn_free(&old_repl_sdn);
 
     switch (scope) {
     case LDAP_SCOPE_BASE: {
@@ -1804,6 +1814,7 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     int returncode = LDAP_SUCCESS;
     char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = "";
     Slapi_DN *sdn = NULL;
+    Slapi_DN *old_repl_sdn = NULL;
     int dont_write_file = 0; /* default */
     int rc = SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
     int retval = -1;
@@ -1828,6 +1839,16 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         /* already returned result */
         return retval;
     }
+
+    /* Hopefully this plugin DN mapping can be removed in 3.x */
+    old_repl_sdn = slapi_sdn_new_dn_byval("cn=Multimaster Replication Plugin,cn=plugins,cn=config");
+    if(slapi_sdn_compare(sdn, old_repl_sdn) == 0) {
+        /* Map the old name to the new one */
+        slapi_sdn_free(&sdn);
+        sdn = slapi_sdn_new_dn_byval("cn=Multisupplier Replication Plugin,cn=plugins,cn=config");
+        slapi_pblock_set(pb, SLAPI_MODIFY_TARGET_SDN, sdn);
+    }
+    slapi_sdn_free(&old_repl_sdn);
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     if (pb_op){

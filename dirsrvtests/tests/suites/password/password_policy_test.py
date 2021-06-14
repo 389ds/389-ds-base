@@ -897,7 +897,7 @@ def test_password_minimum_age_section(topo, _policy_setup, _fixture_for_password
     ])
     # Wait 5 secs and try to change again.  Should fail.
     count = 0
-    while count < 8:
+    while count < 5:
         with pytest.raises(ldap.CONSTRAINT_VIOLATION):
             change_password(topo, [
                 ('uid=orla,ou=dirsec', '000rLb2', '000rLb1'),
@@ -908,7 +908,7 @@ def test_password_minimum_age_section(topo, _policy_setup, _fixture_for_password
         time.sleep(1)
         count += 1
     # Wait more time to complete password min age
-    time.sleep(3)
+    time.sleep(6)
     # Now user can change password
     change_password(topo, [
         ('uid=orla,ou=dirsec', '000rLb2', '000rLb1'),
@@ -1283,6 +1283,10 @@ def _fixture_for_additional_cases(topo):
     ])
     for instance in [orl, joe, people]:
         instance.replace_many(('passwordChange', 'on'),
+                              ('passwordwarning', '86400'),
+                              ('passwordGraceLimit', '0'),
+                              ('passwordexp', 'off'),
+                              ('passwordMaxAge', '8640000'),
                               ('passwordchecksyntax', 'off'))
 
 

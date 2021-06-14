@@ -495,7 +495,7 @@ export class ChainingDatabaseConfig extends React.Component {
                         <form>
                             <label className="ds-config-label" htmlFor="chaining-comp-list" title="A list of components to go through chaining"><b>Components to Chain</b></label>
                             <select id="chaining-comp-list" onChange={this.handleSelectComps} className="ds-chaining-list" name="nsactivechainingcomponents" size="10" multiple>
-                                {this.state.comps}}
+                                {this.state.comps}
                             </select>
                         </form>
                         <div className="clearfix ds-container">
@@ -838,7 +838,7 @@ export class ChainingConfig extends React.Component {
             return;
         }
 
-        // Buld up the command of all the hcnge we have to do
+        // Build up the command of all the changes we need to make
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "link-set", this.props.suffix
@@ -984,7 +984,7 @@ export class ChainingConfig extends React.Component {
                     </Col>
                     <Col sm={2}>
                         <Button
-                            bsStyle="danger"
+                            variant="danger"
                             onClick={this.showDeleteConfirm}
                         >
                             Delete Link
