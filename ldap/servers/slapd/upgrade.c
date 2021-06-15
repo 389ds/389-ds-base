@@ -190,16 +190,31 @@ upgrade_205_fixup_repl_dep(void)
             mods[1] = &mod_add;
             mods[2] = 0;
             for (; *entries; entries++) {
-                slapi_log_err(SLAPI_LOG_NOTICE, "upgrade_205_fixup_repl_dep",
-                              "Upgrade task: updating the Replication Plugin dependency for (%s)\n",
-                              slapi_entry_get_dn(*entries));
-                /* clean the plugin */
-                struct slapi_pblock *mod_pb = slapi_pblock_new();
+                Slapi_PBlock *mod_pb = slapi_pblock_new();
+                Slapi_PBlock *entry_pb = NULL;
+                Slapi_DN *edn = slapi_sdn_new_dn_byval(slapi_entry_get_dn(*entries));
+                Slapi_Entry *plugin_e = NULL;
+
+                /* Update plugin entry */
                 slapi_modify_internal_set_pb(mod_pb, slapi_entry_get_dn(*entries),
                                              mods, 0, 0, plugin_get_default_component_id(),
                                              SLAPI_OP_FLAG_FIXUP);
                 slapi_modify_internal_pb(mod_pb);
                 slapi_pblock_destroy(mod_pb);
+
+                /*
+                 * Get a fresh copy of the new entry, and update the global
+                 * plugin dependencies list
+                 */
+                if (slapi_search_get_entry(&entry_pb, edn, NULL, &plugin_e, NULL) == LDAP_SUCCESS) {
+                    plugin_update_dep_entries(plugin_e);
+                }
+                slapi_search_get_entry_done(&entry_pb);
+                slapi_sdn_free(&edn);
+
+                slapi_log_err(SLAPI_LOG_NOTICE, "upgrade_205_fixup_repl_dep",
+                        "Upgrade task: updated plugin dependencies for (%s)\n",
+                        slapi_entry_get_dn(*entries));
             }
         }
         slapi_free_search_results_internal(pb);
