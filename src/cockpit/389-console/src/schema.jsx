@@ -69,6 +69,10 @@ export class Schema extends React.Component {
             newOcEntry: true,
             ocTableLoading: false,
             ocModalLoading: false,
+            // Select Typeahead
+            ocAddParentOcSelectExpanded: false,
+            ocAddRequiredAttrsSelectExpanded: false,
+            ocAddAllowedAttrsSelectExpanded: false,
 
             atName: "",
             atDesc: "",
@@ -87,7 +91,14 @@ export class Schema extends React.Component {
             attributeModalShow: false,
             newAtEntry: true,
             atTableLoading: false,
-            atModalLoading: false
+            atModalLoading: false,
+            // Select Typeahead
+            atAddParentAttrSelectExpanded: false,
+            atAddSyntaxNameSelectEXpanded: false,
+            atAddAliasNameSelectExpanded: false,
+            atAddEqualityMrsSelectExpanded: false,
+            atAddOrderMrsSelectExpanded: false,
+            atAddSubstringMrsSelectExpanded: false
         };
 
         this.handleFieldChange = this.handleFieldChange.bind(this);
@@ -118,6 +129,8 @@ export class Schema extends React.Component {
         this.cmdOperationAttribute = this.cmdOperationAttribute.bind(this);
         this.showConfirmAttrDelete = this.showConfirmAttrDelete.bind(this);
         this.closeConfirmAttrDelete = this.closeConfirmAttrDelete.bind(this);
+        this.onSelectToggle = this.onSelectToggle;
+        this.onSelectClear = this.onSelectClear;
     }
 
     toggleLoading(item) {
@@ -196,22 +209,13 @@ export class Schema extends React.Component {
                     let ocKey = this.state.ocTableKey + 1;
                     let attrKey = this.state.attrTableKey + 1;
                     for (let content of myObject.attributetypes.items) {
-                        attrs.push({
-                            id: content.name[0],
-                            label: content.name[0]
-                        });
+                        attrs.push(content.name[0]);
                     }
                     for (let content of myObject.objectclasses.items) {
-                        ocs.push({
-                            id: content.name[0],
-                            label: content.name[0]
-                        });
+                        ocs.push(content.name[0]);
                     }
                     for (let content of myObject.matchingrules.items) {
-                        mrs.push({
-                            id: content.name[0],
-                            label: content.name[0]
-                        });
+                        mrs.push(content.name[0]);
                     }
                     this.setState({
                         objectclassRows: myObject.objectclasses.items,
@@ -337,18 +341,13 @@ export class Schema extends React.Component {
                             ocParent:
                             item["sup"].length == 0
                                 ? []
-                                : [
-                                    {
-                                        id: item["sup"][0],
-                                        label: item["sup"][0]
-                                    }
-                                ]
+                                : [item["sup"][0]]
                         });
                         if (item["must"] === undefined) {
                             this.setState({ ocMust: [] });
                         } else {
                             for (let value of item["must"]) {
-                                ocMustList = [...ocMustList, { id: value, label: value }];
+                                ocMustList = [...ocMustList, value];
                             }
                             this.setState({
                                 ocMust: ocMustList
@@ -358,7 +357,7 @@ export class Schema extends React.Component {
                             this.setState({ ocMay: [] });
                         } else {
                             for (let value of item["may"]) {
-                                ocMayList = [...ocMayList, { id: value, label: value }];
+                                ocMayList = [...ocMayList, value];
                             }
                             this.setState({
                                 ocMay: ocMayList
@@ -469,7 +468,7 @@ export class Schema extends React.Component {
                 cmd = [...cmd, "--oid", ocOID];
             }
             if (ocParent.length != 0) {
-                cmd = [...cmd, "--sup", ocParent[0].label];
+                cmd = [...cmd, "--sup", ocParent[0]];
             }
             if (ocKind != "") {
                 cmd = [...cmd, "--kind", ocKind];
@@ -480,13 +479,13 @@ export class Schema extends React.Component {
             if (ocMust.length != 0) {
                 cmd = [...cmd, "--must"];
                 for (let value of ocMust) {
-                    cmd = [...cmd, value.label];
+                    cmd = [...cmd, value];
                 }
             }
             if (ocMay.length != 0) {
                 cmd = [...cmd, "--may"];
                 for (let value of ocMay) {
-                    cmd = [...cmd, value.label];
+                    cmd = [...cmd, value];
                 }
             }
 
@@ -589,59 +588,34 @@ export class Schema extends React.Component {
                             atParent:
                             item["sup"].length == 0
                                 ? []
-                                : [
-                                    {
-                                        id: item["sup"][0],
-                                        label: item["sup"][0]
-                                    }
-                                ],
+                                : [item["sup"][0]],
                             atSyntax:
                             item["syntax"] === undefined
                                 ? []
-                                : [
-                                    {
-                                        id: item["syntax"][0],
-                                        label: this.state.syntaxes.filter(
-                                            attr => attr.id === item["syntax"][0]
-                                        )[0]["label"]
-                                    }
-                                ],
+                                : [this.state.syntaxes.filter(
+                                    attr => attr.id === item["syntax"][0]
+                                )[0]["label"]],
                             atUsage: item["usage"] === undefined ? "" : atUsageOpts[item["usage"]],
                             atMultivalued: !item["single_value"],
                             atNoUserMod: item["no_user_mod"],
                             atEqMr:
                             item["equality"] === null
                                 ? []
-                                : [
-                                    {
-                                        id: item["equality"][0],
-                                        label: item["equality"][0]
-                                    }
-                                ],
+                                : [item["equality"][0]],
                             atOrder:
                             item["ordering"] === null
                                 ? []
-                                : [
-                                    {
-                                        id: item["ordering"][0],
-                                        label: item["ordering"][0]
-                                    }
-                                ],
+                                : [item["ordering"][0]],
                             atSubMr:
                             item["substr"] === null
                                 ? []
-                                : [
-                                    {
-                                        id: item["substr"][0],
-                                        label: item["substr"][0]
-                                    }
-                                ]
+                                : [item["substr"][0]]
                         });
                         if (item["aliases"] === null) {
                             this.setState({ atAlias: [] });
                         } else {
                             for (let value of item["aliases"]) {
-                                atAliasList = [...atAliasList, { id: value, label: value }];
+                                atAliasList = [...atAliasList, value];
                             }
                             this.setState({
                                 atAlias: atAliasList
@@ -767,11 +741,11 @@ export class Schema extends React.Component {
                 action,
                 atName
             ];
-            cmd = [...cmd, "--syntax", atSyntax[0].id];
+            cmd = [...cmd, "--syntax", atSyntax[0]];
             if (atAlias.length != 0) {
                 cmd = [...cmd, "--aliases"];
                 for (let value of atAlias) {
-                    cmd = [...cmd, value.label];
+                    cmd = [...cmd, value];
                 }
             }
             if (atMultivalued) {
@@ -790,28 +764,28 @@ export class Schema extends React.Component {
 
             cmd = [...cmd, "--sup"];
             if (atParent != "") {
-                cmd = [...cmd, atParent[0].label];
+                cmd = [...cmd, atParent[0]];
             } else {
                 cmd = [...cmd, ""];
             }
 
             cmd = [...cmd, "--equality"];
             if (atEqMr != "") {
-                cmd = [...cmd, atEqMr[0].label];
+                cmd = [...cmd, atEqMr[0]];
             } else {
                 cmd = [...cmd, ""];
             }
 
             cmd = [...cmd, "--substr"];
             if (atSubMr != "") {
-                cmd = [...cmd, atSubMr[0].label];
+                cmd = [...cmd, atSubMr[0]];
             } else {
                 cmd = [...cmd, ""];
             }
 
             cmd = [...cmd, "--ordering"];
             if (atOrder != "") {
-                cmd = [...cmd, atOrder[0].label];
+                cmd = [...cmd, atOrder[0]];
             } else {
                 cmd = [...cmd, ""];
             }
@@ -853,9 +827,24 @@ export class Schema extends React.Component {
         });
     }
 
-    handleTypeaheadChange(state, values) {
+    handleTypeaheadChange(state, value) {
+        if (!this.state[state].includes(value)) {
+            this.setState({
+                [state]: [...this.state[state], value]
+            });
+        }
+    }
+
+    onSelectToggle = (isExpanded, toggleId) => {
         this.setState({
-            [state]: values
+            [toggleId]: isExpanded
+        });
+    }
+
+    onSelectClear = (toggleId, collection) => {
+        this.setState({
+            [toggleId]: false,
+            [collection]: []
         });
     }
 
@@ -984,6 +973,11 @@ export class Schema extends React.Component {
                                                 }
                                                 closeModal={this.closeObjectclassModal}
                                                 loading={this.state.ocModalLoading}
+                                                ocAddParentOcSelectExpanded={this.state.ocAddParentOcSelectExpanded}
+                                                ocAddRequiredAttrsSelectExpanded={this.state.ocAddRequiredAttrsSelectExpanded}
+                                                ocAddAllowedAttrsSelectExpanded={this.state.ocAddAllowedAttrsSelectExpanded}
+                                                onSelectToggle={this.onSelectToggle}
+                                                onSelectClear={this.onSelectClear}
                                             />
                                         </div>
                                     </TabPane>
@@ -1041,6 +1035,14 @@ export class Schema extends React.Component {
                                                 attributeModalShow={this.state.attributeModalShow}
                                                 closeModal={this.closeAttributeModal}
                                                 loading={this.state.atModalLoading}
+                                                atAddParentAttrSelectExpanded={this.state.atAddParentAttrSelectExpanded}
+                                                atAddSyntaxNameSelectExpanded={this.state.atAddSyntaxNameSelectExpanded}
+                                                atAddAliasNameSelectExpanded={this.state.atAddAliasNameSelectExpanded}
+                                                atAddEqualityMrsSelectExpanded={this.state.atAddEqualityMrsSelectExpanded}
+                                                atAddOrderMrsSelectExpanded={this.state.atAddOrderMrsSelectExpanded}
+                                                atAddSubstringMrsSelectExpanded={this.state.atAddSubstringMrsSelectExpanded}
+                                                onSelectToggle={this.onSelectToggle}
+                                                onSelectClear={this.onSelectClear}
                                             />
                                         </div>
                                     </TabPane>

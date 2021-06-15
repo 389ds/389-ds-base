@@ -69,6 +69,9 @@ export class WinsyncAgmts extends React.Component {
             // Init agmt
             agmtInitCounter: 0,
             agmtInitIntervals: [],
+            // Select Typeahead
+            agmtFracAttrsSelectExpanded: false,
+            agmtFracAttrsEditSelectExpanded: false,
         };
         this.showCreateAgmtModal = this.showCreateAgmtModal.bind(this);
         this.closeCreateAgmtModal = this.closeCreateAgmtModal.bind(this);
@@ -96,6 +99,10 @@ export class WinsyncAgmts extends React.Component {
         // Table sort and search
         this.onSort = this.onSort.bind(this);
         this.onSearchChange = this.onSearchChange.bind(this);
+        // Select Typeahead
+        this.onSelectToggle = this.onSelectToggle.bind(this);
+        this.onSelectClear = this.onSelectClear.bind(this);
+        this.getToggleId = this.getToggleId.bind(this);
     }
 
     componentDidMount () {
@@ -364,7 +371,8 @@ export class WinsyncAgmts extends React.Component {
             // End of agmt modal live validation
         }
         this.setState({
-            [e.target.id]: value,
+            // We handle strings and arrays here, need to find a better way to differentiate.
+            [e.target.id]: e.target.id.endsWith('Attrs') ? [...this.state[e.target.id], value] : value,
             errObj: errObj,
             agmtSaveOK: all_good,
             modalMsg: modal_msg,
@@ -679,6 +687,43 @@ export class WinsyncAgmts extends React.Component {
                         `Failed to get agreement information for: "${agmtName}" - ${errMsg.desc}`
                     );
                 });
+    }
+
+    onSelectToggle = (isExpanded, toggleId) => {
+        this.setState({
+            [toggleId]: isExpanded
+        });
+    }
+
+    onSelectClear = (toggleId, collection) => {
+        this.setState({
+            [toggleId]: false,
+            [collection]: []
+        });
+    }
+
+    getToggleId = (modalTitle) => {
+        let modalSelect = {
+            stripAttrsName: "",
+            fracAttrsName: "",
+            fracInitAttrsName: "",
+            stripAttrsBool: false,
+            fracAttrsBool: false,
+            fracInitAttrsBoo: false,
+        };
+
+        switch (modalTitle) {
+        case "Create Winsync Agreement":
+            modalSelect.fracAttrsName = "agmtFracAttrsSelectExpanded";
+            modalSelect.fracAttrsBool = this.state.agmtFracAttrsSelectExpanded;
+            return modalSelect;
+        case "Edit Winsync Agreement":
+            modalSelect.fracAttrsName = "agmtFracAttrsEditSelectExpanded";
+            modalSelect.fracAttrsBool = this.state.agmtFracAttrsEditSelectExpanded;
+            return modalSelect;
+        default:
+            break;
+        }
     }
 
     saveAgmt () {
@@ -1129,6 +1174,9 @@ export class WinsyncAgmts extends React.Component {
                     handleChange={this.handleChange}
                     handleFracChange={this.handleTAFracAttrChange}
                     saveHandler={this.createAgmt}
+                    onSelectToggle={this.onSelectToggle}
+                    onSelectClear={this.onSelectClear}
+                    getToggleId={this.getToggleId}
                     spinning={this.state.savingAgmt}
                     agmtName={this.state.agmtName}
                     agmtHost={this.state.agmtHost}
@@ -1166,6 +1214,9 @@ export class WinsyncAgmts extends React.Component {
                     closeHandler={this.closeEditAgmtModal}
                     handleChange={this.handleChange}
                     handleFracChange={this.handleTAFracAttrChangeEdit}
+                    onSelectToggle={this.onSelectToggle}
+                    onSelectClear={this.onSelectClear}
+                    getToggleId={this.getToggleId}
                     saveHandler={this.saveAgmt}
                     spinning={this.state.savingAgmt}
                     agmtName={this.state.agmtName}

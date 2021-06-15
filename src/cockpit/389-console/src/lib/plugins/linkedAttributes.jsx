@@ -14,10 +14,12 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     // TextInput,
     noop
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import { LinkedAttributesTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
@@ -51,6 +53,9 @@ class LinkedAttributes extends React.Component {
             showConfirmDelete: false,
             modalChecked: false,
             modalSpinning: false,
+            // Select Typeahead
+            linkedTypeSelectExpanded: false,
+            managedTypeSelectExpanded: false,
         };
 
         this.getAttributes = this.getAttributes.bind(this);
@@ -400,18 +405,42 @@ class LinkedAttributes extends React.Component {
                                         Link Type
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    linkType: value
+                                                    linkedTypeSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={linkType}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a managed attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                    this.setState({
+                                                        linkType: values
+                                                    });
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    linkedTypeSelectExpanded: false,
+                                                    linkType: []
+                                                });
+                                            }}
+                                            selections={linkType}
+                                            isOpen={this.state.linkedTypeSelectExpanded}
+                                            placeholderText="Type an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    linkType: values
+                                                });
+                                            }}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup controlId="managedType">
@@ -419,18 +448,44 @@ class LinkedAttributes extends React.Component {
                                         Managed Type
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    managedType: value
+                                                    managedTypeSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={managedType}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a dynamic attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                if (!this.state.linkType.includes(values)) {
+                                                    this.setState({
+                                                        managedType: values
+                                                    });
+                                                }
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    managedTypeSelectExpanded: false,
+                                                    managedType: []
+                                                });
+                                            }}
+                                            selections={managedType}
+                                            isOpen={this.state.managedTypeSelectExpanded}
+                                            placeholderText="Type an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    managedType: values
+                                                });
+                                            }}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup controlId="linkScope">

@@ -10,10 +10,12 @@ import {
     ControlLabel,
 } from "patternfly-react";
 import {
-    Checkbox
+    Checkbox,
+    Select,
+    SelectVariant,
+    SelectOption,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
-import { Typeahead } from "react-bootstrap-typeahead";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd } from "../tools.jsx";
 
@@ -43,12 +45,16 @@ class RetroChangelog extends React.Component {
             directory: "",
             maxAge: "",
             excludeSuffix: "",
-            attributes: []
+            attributes: [],
+            // Select Typeahead
+            isRetroClAddAttrSelectOpen: false
         };
 
         this.updateFields = this.updateFields.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
         this.handleCheckboxChange = this.handleCheckboxChange.bind(this);
+        this.onSelectToggle = this.onSelectToggle.bind(this);
+        this.onSelectClear = this.onSelectClear.bind(this);
     }
 
     handleCheckboxChange(checked, e) {
@@ -60,6 +66,19 @@ class RetroChangelog extends React.Component {
     handleFieldChange(e) {
         this.setState({
             [e.target.id]: e.target.value
+        });
+    }
+
+    onSelectToggle = (isExpanded, toggleId) => {
+        this.setState({
+            [toggleId]: isExpanded
+        });
+    }
+
+    onSelectClear = item => event => {
+        this.setState({
+            attribute: [],
+            isRetroClAddAttrSelectOpen: false
         });
     }
 
@@ -176,18 +195,29 @@ class RetroChangelog extends React.Component {
                                         Attribute
                                     </Col>
                                     <Col sm={7}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            onToggle={(isExpanded) => {
+                                                this.onSelectToggle(isExpanded, "isRetroClAddAttrSelectOpen");
+                                            }}
+                                            onClear={this.onSelectClear("addRetroClAttribute")}
+                                            onSelect={(event, values) => {
                                                 this.setState({
-                                                    attribute: value
+                                                    attribute: [values]
                                                 });
                                             }}
-                                            selected={attribute}
-                                            options={attributes}
-                                            newSelectionPrefix="Add an attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                            selections={attribute}
+                                            isOpen={this.state.isRetroClAddAttrSelectOpen}
+                                            placeholderText="Type an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                            ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup key="directory" controlId="directory">

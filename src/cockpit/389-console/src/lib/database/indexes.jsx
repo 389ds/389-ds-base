@@ -17,6 +17,9 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     Tab,
     Tabs,
     TabTitleText,
@@ -24,7 +27,6 @@ import {
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
-import { Typeahead } from "react-bootstrap-typeahead";
 
 export class SuffixIndexes extends React.Component {
     constructor (props) {
@@ -53,6 +55,10 @@ export class SuffixIndexes extends React.Component {
             addIndexTypeSub: false,
             addIndexTypeApprox: false,
             reindexOnAdd: false,
+            // Select Typeahead
+            isAddIndexSelectOpen: false,
+            isAddMrsSelectOpen: false,
+            isEditIndexSelectOpen: false,
             // Edit indexes
             errObj: {},
             _isMounted: true
@@ -70,6 +76,8 @@ export class SuffixIndexes extends React.Component {
         this.closeIndexModal = this.closeIndexModal.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
+        this.onSelectToggle = this.onSelectToggle.bind(this);
+        this.onSelectClear = this.onSelectClear.bind(this);
         this.saveIndex = this.saveIndex.bind(this);
         this.saveEditIndex = this.saveEditIndex.bind(this);
         this.reindexIndex = this.reindexIndex.bind(this);
@@ -304,15 +312,21 @@ export class SuffixIndexes extends React.Component {
         });
     }
 
-    handleTypeaheadChange(values, item) {
-        if (item == "matchingRules") {
+    handleTypeaheadChange = item => (event, values) => {
+        switch (item) {
+        case "addIndexAttributes":
             this.setState({
-                mrs: values
+                addIndexName: [...this.state.addIndexName, values]
             });
-        } else if (item == "indexName") {
+            break;
+        case "addMatchingRules":
+        case "matchingRulesEdit":
             this.setState({
-                addIndexName: values
+                mrs: [...this.state.mrs, values]
             });
+            break;
+        default:
+            break;
         }
     }
 
@@ -510,6 +524,37 @@ export class SuffixIndexes extends React.Component {
                 });
     }
 
+    onSelectToggle = (isExpanded, toggleId) => {
+        this.setState({
+            [toggleId]: isExpanded
+        });
+    }
+
+    onSelectClear = item => event => {
+        switch (item) {
+        case "addIndexAttributes":
+            this.setState({
+                addIndexName: [],
+                isAddIndexSelectOpen: false
+            });
+            break;
+        case "addMatchingRules":
+            this.setState({
+                mrs: [],
+                isAddMrsSelectOpen: false
+            });
+            break;
+        case "matchingRulesEdit":
+            this.setState({
+                mrs: [],
+                isEditIndexSelectOpen: false
+            });
+            break;
+        default:
+            break;
+        }
+    }
+
     render() {
         const reindex_attr = <b>{this.state.reindexAttrName}</b>;
         const delete_attr = <b>{this.state.deleteAttrName}</b>;
@@ -554,6 +599,10 @@ export class SuffixIndexes extends React.Component {
                     addIndexTypeSub={this.state.addIndexTypeSub}
                     addIndexTypeApprox={this.state.addIndexTypeApprox}
                     reindexOnAdd={this.state.reindexOnAdd}
+                    onSelectToggle={this.onSelectToggle}
+                    onSelectClear={this.onSelectClear}
+                    isAddIndexSelectOpen={this.state.isAddIndexSelectOpen}
+                    isAddMrsSelectOpen={this.state.isAddMrsSelectOpen}
                 />
                 <EditIndexModal
                     showModal={this.state.showEditIndexModal}
@@ -570,6 +619,9 @@ export class SuffixIndexes extends React.Component {
                     editIndexTypeSub={this.state.editIndexTypeSub}
                     editIndexTypeApprox={this.state.editIndexTypeApprox}
                     reindexOnAdd={this.state.reindexOnAdd}
+                    onSelectToggle={this.onSelectToggle}
+                    onSelectClear={this.onSelectClear}
+                    isEditIndexSelectOpen={this.state.isEditIndexSelectOpen}
                 />
                 <ConfirmPopup
                     showModal={this.state.showConfirmReindex}
@@ -608,7 +660,11 @@ class AddIndexModal extends React.Component {
             attributes,
             mrs,
             handleTypeaheadChange,
-            attributeName
+            attributeName,
+            isAddIndexSelectOpen,
+            isAddMrsSelectOpen,
+            onSelectToggle,
+            onSelectClear,
         } = this.props;
 
         let availMR = [];
@@ -638,16 +694,25 @@ class AddIndexModal extends React.Component {
             >
                 <Form horizontal autoComplete="off">
                     <label className="ds-config-label" htmlFor="indexAttributeName" title="Select an attribute to index">Select An Attribute</label>
-                    <Typeahead
-                        id="indexAttributeName"
-                        onChange={values => {
-                            handleTypeaheadChange(values, "indexName");
+                    <Select
+                        variant={SelectVariant.typeahead}
+                        onToggle={(isExpanded) => {
+                            onSelectToggle(isExpanded, "isAddIndexSelectOpen");
                         }}
-                        selected={attributeName}
-                        maxResults={1000}
-                        options={availAttrs}
-                        placeholder="Type a attribute name to index..."
-                    />
+                        onClear={onSelectClear("addIndexAttributes")}
+                        onSelect={handleTypeaheadChange("addIndexAttributes")}
+                        selections={attributeName}
+                        isOpen={isAddIndexSelectOpen}
+                        placeholderText="Type a attribute name to index.."
+                        noResultsFoundText="There are no matching entries"
+                        >
+                        {availAttrs.map((attr, index) => (
+                            <SelectOption
+                                key={index}
+                                value={attr}
+                            />
+                        ))}
+                    </Select>
                     <p className="ds-margin-top"><b>Index Types</b></p>
                     <div className="ds-indent ds-margin-top">
                         <Row>
@@ -702,17 +767,26 @@ class AddIndexModal extends React.Component {
                         <Col sm={12} title="List of matching rules separated by a 'space'">
                             <p><b>Matching Rules</b></p>
                             <div className="ds-indent ds-margin-top">
-                                <Typeahead
-                                    multiple
-                                    id="matchingRules"
-                                    onChange={values => {
-                                        handleTypeaheadChange(values, "matchingRules");
+                                <Select
+                                    id="addMatchingRules"
+                                    variant={SelectVariant.typeaheadMulti}
+                                    onToggle={(isExpanded) => {
+                                        onSelectToggle(isExpanded, "isAddMrsSelectOpen");
                                     }}
-                                    maxResults={1000}
-                                    selected={mrs}
-                                    options={availMR}
-                                    placeholder="Type a matching rule name..."
-                                />
+                                    onSelect={handleTypeaheadChange("addMatchingRules")}
+                                    onClear={onSelectClear("addMatchingRules")}
+                                    selections={mrs}
+                                    isOpen={isAddMrsSelectOpen}
+                                    placeholderText="Type a matching rule name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                    {availMR.map((mrs, index) => (
+                                        <SelectOption
+                                           key={index}
+                                           value={mrs}
+                                       />
+                                   ))}
+                                </Select>
                             </div>
                         </Col>
                     </Row>
@@ -755,6 +829,9 @@ class EditIndexModal extends React.Component {
             mrs,
             matchingRules,
             handleTypeaheadChange,
+            onSelectToggle,
+            onSelectClear,
+            isEditIndexSelectOpen,
         } = this.props;
 
         let attrTypes = "";
@@ -904,16 +981,25 @@ class EditIndexModal extends React.Component {
                         <Col sm={12}>
                             <p><b>Matching Rules</b></p>
                             <div className="ds-indent ds-margin-top">
-                                <Typeahead
-                                    multiple
-                                    id="matchingRulesEdit"
-                                    onChange={values => {
-                                        handleTypeaheadChange(values, "matchingRules");
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    onToggle={(isExpanded) => {
+                                        onSelectToggle(isExpanded, "isEditIndexSelectOpen");
                                     }}
-                                    selected={currentMrs}
-                                    options={availMR}
-                                    placeholder="Type a matching rule name..."
-                                />
+                                    onSelect={handleTypeaheadChange("matchingRulesEdit")}
+                                    onClear={onSelectClear("matchingRulesEdit")}
+                                    selections={currentMrs}
+                                    isOpen={isEditIndexSelectOpen}
+                                    placeholderText="Type a matching rule name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                    {availMR.map((mr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={mr}
+                                        />
+                                    ))}
+                                </Select>
                             </div>
                         </Col>
                     </Row>

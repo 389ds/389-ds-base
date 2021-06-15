@@ -16,10 +16,12 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     // TextInput,
     noop
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import { AttrUniqConfigTable } from "./pluginTables.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -56,7 +58,12 @@ class AttributeUniqueness extends React.Component {
 
             newEntry: false,
             showConfigModal: false,
-            showConfirmDelete: false
+            showConfirmDelete: false,
+            // Select Typeahead
+            subtreeEntriesOcSelectExpanded: false,
+            topEntryOcSelectExpanded: false,
+            subtreeOcSelectExpanded: false,
+            attrNamesOcSelectExpanded: false
         };
 
         this.handleSwitchChange = this.handleSwitchChange.bind(this);
@@ -309,7 +316,7 @@ class AttributeUniqueness extends React.Component {
 
         cmd = [...cmd, "--top-entry-oc"];
         if (topEntryOc.length != 0) {
-            cmd = [...cmd, topEntryOc[0]];
+            cmd = [...cmd, topEntryOc];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -318,7 +325,7 @@ class AttributeUniqueness extends React.Component {
 
         cmd = [...cmd, "--subtree-entries-oc"];
         if (subtreeEnriesOc.length != 0) {
-            cmd = [...cmd, subtreeEnriesOc[0]];
+            cmd = [...cmd, subtreeEnriesOc];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -549,19 +556,46 @@ class AttributeUniqueness extends React.Component {
                                         Attribute Names
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    attrNames: values
+                                                    attrNamesOcSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={attrNames}
-                                            newSelectionPrefix="Add an attribute: "
-                                            options={attributes}
-                                            placeholder="Type an attribute name..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                if (!this.state.attrNames.includes(values)) {
+                                                    this.setState({
+                                                        attrNames: [...this.state.attrNames, values]
+                                                    });
+                                                }
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    attrNamesOcSelectExpanded: false,
+                                                    attrNames: []
+                                                });
+                                            }}
+                                            selections={attrNames}
+                                            isOpen={this.state.attrNamesOcSelectExpanded}
+                                            placeholderText="Type an attribute name..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                if (!this.state.attrNames.includes(values)) {
+                                                    this.setState({
+                                                        attrNames: [...this.state.attrNames, values]
+                                                    });
+                                                }
+                                            }}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -577,17 +611,46 @@ class AttributeUniqueness extends React.Component {
                                         Subtrees
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
-                                                this.handleTypeaheadChange(values);
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            onToggle={(isExpanded) => {
+                                                this.setState({
+                                                    subtreeOcSelectExpanded: isExpanded
+                                                });
                                             }}
-                                            selected={subtrees}
-                                            options={[""]}
-                                            newSelectionPrefix="Add a subtree: "
-                                            placeholder="Type a subtree DN..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                if (!this.state.subtrees.includes(values)) {
+                                                    this.setState({
+                                                        subtrees: [...this.state.subtrees, values]
+                                                    });
+                                                }
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    subtreeOcSelectExpanded: false,
+                                                    subtrees: []
+                                                });
+                                            }}
+                                            selections={subtrees}
+                                            isOpen={this.state.subtreeOcSelectExpanded}
+                                            placeholderText="Type a subtree DN..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                if (!this.state.subtrees.includes(values)) {
+                                                    this.setState({
+                                                        subtrees: [...this.state.subtrees, values]
+                                                    });
+                                                }
+                                            }}
+                                            >
+                                            {[""].map((dn, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={dn}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>
@@ -609,18 +672,42 @@ class AttributeUniqueness extends React.Component {
                                         Top Entry OC
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    topEntryOc: value
+                                                    topEntryOcSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={topEntryOc}
-                                            options={objectClasses}
-                                            newSelectionPrefix="Add a top entry objectClass: "
-                                            placeholder="Type an objectClass..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                this.setState({
+                                                    topEntryOc: values
+                                                });
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    topEntryOcSelectExpanded: false,
+                                                    topEntryOc: []
+                                                });
+                                            }}
+                                            selections={topEntryOc}
+                                            isOpen={this.state.topEntryOcSelectExpanded}
+                                            placeholderText="Type an objectClass..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    topEntryOc: values
+                                                });
+                                            }}
+                                            >
+                                            {objectClasses.map((obj, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={obj}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -636,18 +723,42 @@ class AttributeUniqueness extends React.Component {
                                         Subtree Entries OC
                                     </Col>
                                     <Col sm={5}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    subtreeEnriesOc: value
+                                                    subtreeEntriesOcSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={subtreeEnriesOc}
-                                            options={objectClasses}
-                                            newSelectionPrefix="Add a subtree entries objectClass: "
-                                            placeholder="Type an objectClass..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                this.setState({
+                                                    subtreeEnriesOc: values
+                                                });
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    subtreeEntriesOcSelectExpanded: false,
+                                                    subtreeEnriesOc: []
+                                                });
+                                            }}
+                                            selections={subtreeEnriesOc}
+                                            isOpen={this.state.subtreeEntriesOcSelectExpanded}
+                                            placeholderText="Type an objectClass..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    subtreeEnriesOc: values
+                                                });
+                                            }}
+                                            >
+                                            {objectClasses.map((attr, index) => (
+                                                <SelectOption
+                                                    key={attr}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                     <Col sm={3}>
                                         <Checkbox

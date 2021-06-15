@@ -15,10 +15,12 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     // TextInput,
     noop
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd } from "../tools.jsx";
@@ -84,7 +86,15 @@ class MemberOf extends React.Component {
             newEntry: true,
 
             fixupDN: "",
-            fixupFilter: ""
+            fixupFilter: "",
+            // Select Typeahead
+            memberOfManageAttrSelectExpanded: false,
+            memberOfManageGroupAttrSelectExpanded: false,
+            memberOfManageObjectclassSelectExpanded: false,
+            memberOfAttrSelectExpanded: false,
+            memberOfGroupAttrSelectExpanded: false,
+            memberObjectclassSelectExpanded: false,
+
         };
     }
 
@@ -545,7 +555,8 @@ class MemberOf extends React.Component {
             newEntry,
             fixupModalShow,
             fixupDN,
-            fixupFilter
+            fixupFilter,
+
         } = this.state;
 
         let specificPluginCMD = [
@@ -695,19 +706,44 @@ class MemberOf extends React.Component {
                                         Attribute
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    configAttr: values
+                                                    memberOfAttrSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={configAttr}
-                                            newSelectionPrefix="Add a member: "
-                                            options={["memberOf"]}
-                                            placeholder="Type a member attribute..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                if (!this.state.configAttr.includes(values)) {
+                                                    this.setState({
+                                                        configAttr: [...this.state.configAttr, values]
+                                                    });
+                                                }
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    memberOfAttrSelectExpanded: false,
+                                                    configAttr: []
+                                                });
+                                            }}
+                                            selections={configAttr}
+                                            isOpen={this.state.memberOfAttrSelectExpanded}
+                                            placeholderText="Type a member attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    configAttr: [...this.state.configAttr, values]
+                                                });
+                                            }}
+                                            >
+                                            {["memberOf"].map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -723,19 +759,44 @@ class MemberOf extends React.Component {
                                         Group Attribute
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    configGroupAttr: values
+                                                    memberOfManageGroupAttrSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={configGroupAttr}
-                                            newSelectionPrefix="Add a group member attribute: "
-                                            options={attributeTypes}
-                                            placeholder="Type a member group attribute..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                if (!this.state.configGroupAttr.includes(values)) {
+                                                    this.setState({
+                                                        configGroupAttr: [...this.state.configGroupAttr, values]
+                                                    });
+                                                }
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    memberOfManageGroupAttrSelectExpanded: false,
+                                                    configGroupAttr: []
+                                                });
+                                            }}
+                                            selections={configGroupAttr}
+                                            isOpen={this.state.memberOfManageGroupAttrSelectExpanded}
+                                            placeholderText="Type a hostname (wild cards are allowed)..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    configGroupAttr: [...this.state.configGroupAttr, values]
+                                                });
+                                            }}
+                                            >
+                                            {attributeTypes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>
@@ -813,18 +874,42 @@ class MemberOf extends React.Component {
                                         Auto Add OC
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    configAutoAddOC: value
+                                                    memberOfManageObjectclassSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={configAutoAddOC}
-                                            options={objectClasses}
-                                            newSelectionPrefix="Add a memberOf objectClass: "
-                                            placeholder="Type an objectClass..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                this.setState({
+                                                    configAutoAddOC: values
+                                                });
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    memberOfManageObjectclassSelectExpanded: false,
+                                                    configAutoAddOC: []
+                                                });
+                                            }}
+                                            selections={configAutoAddOC}
+                                            isOpen={this.state.memberOfManageObjectclassSelectExpanded}
+                                            placeholderText="Type an objectClass..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    configAutoAddOC: values
+                                                });
+                                            }}
+                                            >
+                                            {objectClasses.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>
@@ -860,23 +945,44 @@ class MemberOf extends React.Component {
                                         Attribute
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    memberOfAttr: values
+                                                    memberOfAttrSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={memberOfAttr}
-                                            newSelectionPrefix="Add a member attrbiute: "
-                                            options={[
-                                                "member",
-                                                "memberCertificate",
-                                                "uniqueMember"
-                                            ]}
-                                            placeholder="Type a member attribute..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                if (!this.state.memberOfAttr.includes(values)) {
+                                                    this.setState({
+                                                        memberOfAttr: [...this.state.memberOfAttr, values]
+                                                    });
+                                                }
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    memberOfAttrSelectExpanded: false,
+                                                    memberOfAttr: []
+                                                });
+                                            }}
+                                            selections={memberOfAttr}
+                                            isOpen={this.state.memberOfAttrSelectExpanded}
+                                            placeholderText="Type a member attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    memberOfAttr: [...this.state.memberOfAttr, values]
+                                                });
+                                            }}
+                                            >
+                                            {["member", "memberCertificate", "uniqueMember"].map((attr) => (
+                                                <SelectOption
+                                                    key={attr}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -892,19 +998,45 @@ class MemberOf extends React.Component {
                                         Group Attribute
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type a member group attribute"
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    memberOfGroupAttr: values
+                                                    memberOfGroupAttrSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={memberOfGroupAttr}
-                                            newSelectionPrefix="Add a group member attribute: "
-                                            options={attributeTypes}
-                                            placeholder="Type a member group attribute..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                if (!this.state.memberOfGroupAttr.includes(values)) {
+                                                    this.setState({
+                                                        memberOfGroupAttr: [...this.state.memberOfGroupAttr, values]
+                                                    });
+                                                }
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    memberOfGroupAttrSelectExpanded: false,
+                                                    memberOfGroupAttr: []
+                                                });
+                                            }}
+                                            selections={memberOfGroupAttr}
+                                            isOpen={this.state.memberOfGroupAttrSelectExpanded}
+                                            placeholderText="Type a member group attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    memberOfGroupAttr: [...this.state.memberOfGroupAttr, values]
+                                                });
+                                            }}
+                                            >
+                                            {attributeTypes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>
@@ -1016,18 +1148,42 @@ class MemberOf extends React.Component {
                                         Auto Add OC
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    memberOfAutoAddOC: value
+                                                    memberObjectclassSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={memberOfAutoAddOC}
-                                            options={objectClasses}
-                                            newSelectionPrefix="Add a memberOf objectClass: "
-                                            placeholder="Type an objectClass..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                this.setState({
+                                                    memberOfAutoAddOC: values
+                                                });
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    memberObjectclassSelectExpanded: false,
+                                                    memberOfAutoAddOC: []
+                                                });
+                                            }}
+                                            selections={memberOfAutoAddOC}
+                                            isOpen={this.state.memberObjectclassSelectExpanded}
+                                            placeholderText="Type an objectClass..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    memberOfAutoAddOC: [...this.state.memberOfAutoAddOC, values]
+                                                });
+                                            }}
+                                            >
+                                            {objectClasses.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>

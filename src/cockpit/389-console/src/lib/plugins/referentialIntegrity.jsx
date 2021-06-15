@@ -14,10 +14,12 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     // TextInput,
     noop
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd } from "../tools.jsx";
@@ -61,7 +63,10 @@ class ReferentialIntegrity extends React.Component {
             configLogFile: "",
             newEntry: true,
 
-            attributes: []
+            attributes: [],
+            // Select Typeahead
+            configMembershipAttrSelectExpanded: false,
+            membershipAttrSelectExpanded: false
         };
 
         this.updateFields = this.updateFields.bind(this);
@@ -500,19 +505,46 @@ class ReferentialIntegrity extends React.Component {
                                         Membership Attribute
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    configMembershipAttr: value
+                                                    configMembershipAttrSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={configMembershipAttr}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a membership attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                if (!this.state.configMembershipAttr.includes(values)) {
+                                                    this.setState({
+                                                        configMembershipAttr: [...this.state.configMembershipAttr, values]
+                                                    });
+                                                }
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    configMembershipAttrSelectExpanded: false,
+                                                    configMembershipAttr: []
+                                                });
+                                            }}
+                                            selections={configMembershipAttr}
+                                            isOpen={this.state.configMembershipAttrSelectExpanded}
+                                            placeholderText="Type an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                if (!this.state.configMembershipAttr.includes(values)) {
+                                                    this.setState({
+                                                        configMembershipAttr: [...this.state.configMembershipAttr, values]
+                                                    });
+                                                }
+                                            }}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -635,19 +667,46 @@ class ReferentialIntegrity extends React.Component {
                                         Membership Attribute
                                     </Col>
                                     <Col sm={6}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    membershipAttr: value
+                                                    membershipAttrSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={membershipAttr}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a membership attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                if (!this.state.membershipAttr.includes(values)) {
+                                                    this.setState({
+                                                        membershipAttr: [...this.state.membershipAttr, values]
+                                                    });
+                                                }
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    membershipAttrSelectExpanded: false,
+                                                    membershipAttr: []
+                                                });
+                                            }}
+                                            selections={membershipAttr}
+                                            isOpen={this.state.membershipAttrSelectExpanded}
+                                            placeholderText="Type a suffix DN..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                if (!this.state.membershipAttr.includes(values)) {
+                                                    this.setState({
+                                                        membershipAttr: [...this.state.membershipAttr, values]
+                                                    });
+                                                }
+                                            }}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup key="entryScope" controlId="entryScope">

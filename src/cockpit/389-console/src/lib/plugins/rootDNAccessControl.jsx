@@ -1,6 +1,6 @@
 import React from "react";
 import { noop, FormGroup, FormControl, Row, Col, Form, ControlLabel } from "patternfly-react";
-import { Typeahead } from "react-bootstrap-typeahead";
+import { Select, SelectVariant, SelectOption } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 
@@ -25,7 +25,12 @@ class RootDNAccessControl extends React.Component {
             denyIP: [],
             openTime: "",
             closeTime: "",
-            daysAllowed: ""
+            daysAllowed: "",
+            // Select Typeahead
+            allowHostSelectOpen: false,
+            denyHostSelectOpen: false,
+            allowIPSelectOpen: false,
+            denyIPSelectOpen: false
         };
 
         this.updateFields = this.updateFields.bind(this);
@@ -182,19 +187,42 @@ class RootDNAccessControl extends React.Component {
                                         Allow Host
                                     </Col>
                                     <Col sm={6}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    allowHost: value
+                                                    allowHostSelectOpen: isExpanded
                                                 });
                                             }}
-                                            selected={allowHost}
-                                            options={[]}
-                                            newSelectionPrefix="Add a host to allow: "
-                                            placeholder="Type a hostname (wild cards are allowed)..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                this.setState({
+                                                    allowHost: [...this.state.allowHost, values]
+                                                });
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    allowHostSelectOpen: false,
+                                                    allowHost: []
+                                                });
+                                            }}
+                                            selections={allowHost}
+                                            isOpen={this.state.allowHostSelectOpen}
+                                            placeholderText="Type a hostname (wild cards are allowed)..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    allowHost: [...this.state.allowHost, values]
+                                                });
+                                            }}
+                                            >
+                                            {[].map((obj, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={obj.label}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup key="denyHost" controlId="denyHost">
@@ -206,19 +234,42 @@ class RootDNAccessControl extends React.Component {
                                         Deny Host
                                     </Col>
                                     <Col sm={6}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    denyHost: value
+                                                    denyHostSelectOpen: isExpanded
                                                 });
                                             }}
-                                            selected={denyHost}
-                                            options={[]}
-                                            newSelectionPrefix="Add a host to deny: "
-                                            placeholder="Type a hostname (wild cards are allowed)..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                this.setState({
+                                                    denyHost: [...this.state.denyHost, values]
+                                                });
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    denyHostSelectOpen: false,
+                                                    denyHost: []
+                                                });
+                                            }}
+                                            selections={denyHost}
+                                            isOpen={this.state.denyHostSelectOpen}
+                                            placeholderText="Type a hostname (wild cards are allowed)..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    denyHost: [...this.state.denyHost, values]
+                                                });
+                                            }}
+                                            >
+                                            {[].map((obj, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={obj.label}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup key="allowIP" controlId="allowIP">
@@ -230,19 +281,42 @@ class RootDNAccessControl extends React.Component {
                                         Allow IP address
                                     </Col>
                                     <Col sm={6}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    allowIP: value
+                                                    allowIPSelectOpen: isExpanded
                                                 });
                                             }}
-                                            selected={allowIP}
-                                            options={[]}
-                                            newSelectionPrefix="Add an IP address to allow: "
-                                            placeholder="Type an IP address (wild cards are allowed)..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                this.setState({
+                                                    allowIP: [...this.state.allowIP, values]
+                                                });
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    allowIPSelectOpen: false,
+                                                    allowIP: []
+                                                });
+                                            }}
+                                            selections={allowIP}
+                                            isOpen={this.state.allowIPSelectOpen}
+                                            placeholderText="Type an IP address (wild cards are allowed)..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    allowIP: [...this.state.allowIP, values]
+                                                });
+                                            }}
+                                            >
+                                            {[].map((obj, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={obj.label}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup key="denyIP" controlId="denyIP">
@@ -254,19 +328,42 @@ class RootDNAccessControl extends React.Component {
                                         Deny IP address
                                     </Col>
                                     <Col sm={6}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    denyIP: value
+                                                    denyIPSelectOpen: isExpanded
                                                 });
                                             }}
-                                            selected={denyIP}
-                                            options={[]}
-                                            newSelectionPrefix="Add an IP address to deny: "
-                                            placeholder="Type an IP address (wild cards are allowed)..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                this.setState({
+                                                    denyIP: [...this.state.denyIP, values]
+                                                });
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    denyIPSelectOpen: false,
+                                                    denyIP: []
+                                                });
+                                            }}
+                                            selections={denyIP}
+                                            isOpen={this.state.denyIPSelectOpen}
+                                            placeholderText="Type an IP (wild cards are allowed)..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    denyIP: [...this.state.denyIP, values]
+                                                });
+                                            }}
+                                            >
+                                            {[].map((obj, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={obj.label}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup key="openTime" controlId="openTime">

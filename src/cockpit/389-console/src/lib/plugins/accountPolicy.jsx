@@ -15,10 +15,12 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     // TextInput,
     noop
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd } from "../tools.jsx";
@@ -62,7 +64,13 @@ class AccountPolicy extends React.Component {
             stateAttrName: [],
             configEntryModalShow: false,
             fixupModalShow: false,
-            newEntry: false
+            newEntry: false,
+            // Select typeahead
+            alwaysRecordLoginAttrSelectExpanded: false,
+            specAttrNameSelectExpanded: false,
+            stateAttrNameSelectExpanded: false,
+            altStateAttrNameSelectExpanded: false,
+            limiteAttrNameSelectExpanded: false,
         };
     }
 
@@ -451,18 +459,43 @@ class AccountPolicy extends React.Component {
                                         Always Record Login Attribute
                                     </Col>
                                     <Col sm={5}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    alwaysRecordLoginAttr: value
+                                                    alwaysRecordLoginAttrSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={alwaysRecordLoginAttr}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a managed attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                if (!this.state.alwaysRecordLoginAttr.includes(values)) {
+                                                    this.setState({
+                                                        alwaysRecordLoginAttr: values
+                                                    });
+                                                }
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    alwaysRecordLoginAttrSelectExpanded: false,
+                                                    alwaysRecordLoginAttr: []
+                                                });
+                                            }}
+                                            selections={alwaysRecordLoginAttr}
+                                            isOpen={this.state.alwaysRecordLoginAttrSelectExpanded}
+                                            placeholderText="Type an attribute..."
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    alwaysRecordLoginAttr: values
+                                                });
+                                            }}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                     <Col sm={3}>
                                         <Checkbox
@@ -493,18 +526,44 @@ class AccountPolicy extends React.Component {
                                         Specific Attribute
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    specAttrName: value
+                                                    specAttrNameSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={specAttrName}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a managed attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                if (!this.state.alwaysRecordLoginAttr.includes(values)) {
+                                                    this.setState({
+                                                        specAttrName: values
+                                                    });
+                                                }
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    specAttrNameSelectExpanded: false,
+                                                    specAttrName: []
+                                                });
+                                            }}
+                                            selections={specAttrName}
+                                            isOpen={this.state.specAttrNameSelectExpanded}
+                                            placeholderText="Type an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    specAttrName: values
+                                                });
+                                            }}
+                                            >
+                                            {attributes.map((attr) => (
+                                                <SelectOption
+                                                    key={attr}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -516,18 +575,42 @@ class AccountPolicy extends React.Component {
                                         State Attribute
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    stateAttrName: value
+                                                    stateAttrNameSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={stateAttrName}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a managed attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                this.setState({
+                                                    stateAttrName: values
+                                                });
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    stateAttrNameSelectExpanded: false,
+                                                    stateAttrName: []
+                                                });
+                                            }}
+                                            selections={stateAttrName}
+                                            isOpen={this.state.stateAttrNameSelectExpanded}
+                                            placeholderText="Type an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    stateAttrName: values
+                                                });
+                                            }}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>
@@ -549,18 +632,42 @@ class AccountPolicy extends React.Component {
                                         Alternative State Attribute
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    altStateAttrName: value
+                                                    altStateAttrNameSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={altStateAttrName}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a managed attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                this.setState({
+                                                    altStateAttrName: values
+                                                });
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    altStateAttrNameSelectExpanded: false,
+                                                    altStateAttrName: []
+                                                });
+                                            }}
+                                            selections={altStateAttrName}
+                                            isOpen={this.state.altStateAttrNameSelectExpanded}
+                                            placeholderText="Type an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    altStateAttrName: values
+                                                });
+                                            }}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup controlId="limitAttrName" disabled={false}>
@@ -572,18 +679,42 @@ class AccountPolicy extends React.Component {
                                         Limit Attribute
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            onToggle={(isExpanded) => {
                                                 this.setState({
-                                                    limitAttrName: value
+                                                    limitAttrNameSelectExpanded: isExpanded
                                                 });
                                             }}
-                                            selected={limitAttrName}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a managed attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                            onSelect={(e, values) => {
+                                                this.setState({
+                                                    limitAttrName: values
+                                                });
+                                            }}
+                                            onClear={e => {
+                                                this.setState({
+                                                    limitAttrNameSelectExpanded: false,
+                                                    limitAttrName: []
+                                                });
+                                            }}
+                                            selections={limitAttrName}
+                                            isOpen={this.state.limitAttrNameSelectExpanded}
+                                            placeholderText="Type an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={(values) => {
+                                                this.setState({
+                                                    limitAttrName: values
+                                                });
+                                            }}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>

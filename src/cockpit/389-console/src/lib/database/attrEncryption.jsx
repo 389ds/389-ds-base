@@ -10,10 +10,12 @@ import {
     Button,
     // Form,
     // FormGroup,
+    Select,
+    SelectVariant,
+    SelectOption,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
-import { Typeahead } from "react-bootstrap-typeahead";
 import { log_cmd } from "../tools.jsx";
 
 export class AttrEncryption extends React.Component {
@@ -22,17 +24,20 @@ export class AttrEncryption extends React.Component {
 
         this.state = {
             showConfirmAttrDelete: false,
-            typeahead: "",
             addAttr: "",
             delAttr: "",
+            isSelectOpen: false,
         };
 
         // Delete referral and confirmation
         this.showConfirmAttrDelete = this.showConfirmAttrDelete.bind(this);
         this.closeConfirmAttrDelete = this.closeConfirmAttrDelete.bind(this);
-        this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
         this.addEncryptedAttr = this.addEncryptedAttr.bind(this);
         this.delEncryptedAttr = this.delEncryptedAttr.bind(this);
+        // Select Typeahead
+        this.onSelect = this.onSelect.bind(this);
+        this.onSelectToggle = this.onSelectToggle.bind(this);
+        this.onSelectClear = this.onSelectClear.bind(this);
     }
 
     showConfirmAttrDelete (name) {
@@ -48,15 +53,27 @@ export class AttrEncryption extends React.Component {
         });
     }
 
-    handleTypeaheadChange (value) {
+    onSelect = (event, selection) => {
         this.setState({
-            addAttr: value
+            addAttr: selection,
+            isSelectOpen: false
+        });
+    }
+
+    onSelectToggle = isSelectOpen => {
+        this.setState({
+            isSelectOpen
+        });
+    }
+
+    onSelectClear = () => {
+        this.setState({
+            addAttr: "",
+            isSelectOpen: false
         });
     }
 
     addEncryptedAttr () {
-        // reset typeahead input field
-        this.typeahead.getInstance().clear();
         if (this.state.addAttr == "") {
             return;
         }
@@ -135,16 +152,24 @@ export class AttrEncryption extends React.Component {
                 />
                 <Row className="ds-margin-top">
                     <Col sm={6}>
-                        <Typeahead
-                            id="attrEncrypt"
-                            onChange={value => {
-                                this.handleTypeaheadChange(value);
-                            }}
-                            maxResults={1000}
-                            options={attrs}
-                            placeholder="Type attribute name to be encrypted"
-                            ref={(typeahead) => { this.typeahead = typeahead }}
-                        />
+                        <Select
+                            variant={SelectVariant.typeahead}
+                            onToggle={this.onSelectToggle}
+                            onSelect={this.onSelect}
+                            onClear={this.onSelectClear}
+                            selections={this.state.addAttr}
+                            isOpen={this.state.isSelectOpen}
+                            aria-labelledby="typeAhead-AttrEnc"
+                            placeholderText="Type attribute name to be encrypted"
+                            noResultsFoundText="There are no matching entries"
+                            >
+                            {attrs.map((attr, index) => (
+                                <SelectOption
+                                    key={index}
+                                    value={attr}
+                                />
+                            ))}
+                        </Select>
                     </Col>
                     <Col sm={3} bsClass="ds-no-padding">
                         <Button

@@ -16,12 +16,14 @@ import {
     TabContent,
     TabPane,
 } from "patternfly-react";
-import { Typeahead } from "react-bootstrap-typeahead";
 import {
     Button,
     Checkbox,
     ExpandableSection,
-    Spinner
+    Spinner,
+    Select,
+    SelectVariant,
+    SelectOption
     // Form,
     // FormGroup,
     // Tab,
@@ -89,6 +91,7 @@ class CreatePolicy extends React.Component {
             isGeneralExpanded: false,
             isLockoutExpanded: false,
             isSyntaxExpanded: false,
+            isCreatePolicySelectExpanded: false,
         };
 
         this.onGeneralToggle = (isGeneralExpanded) => {
@@ -641,16 +644,28 @@ class CreatePolicy extends React.Component {
                                     Check User Attributes
                                 </Col>
                                 <Col sm={8}>
-                                    <Typeahead
-                                        onChange={values => {
-                                            this.props.handleChange(values);
+                                    <Select
+                                        variant={SelectVariant.typeaheadMulti}
+                                        onToggle={(isExpanded) => {
+                                            this.props.onSelectToggle(isExpanded, "isCreatePolicySelectExpanded");
                                         }}
-                                        multiple
-                                        selected={this.props.passworduserattributes}
-                                        options={this.props.attrs}
-                                        placeholder="Type attributes to check..."
-                                        disabled={!this.props.passwordchecksyntax}
-                                    />
+                                        onSelect={(e, values) => {
+                                            this.props.handleChange(e, values);
+                                        }}
+                                        onClear={this.props.onSelectClear("createPwdPolicy")}
+                                        selections={this.props.passworduserattributes}
+                                        isOpen={this.props.isCreatePolicySelectExpanded}
+                                        placeholderText="Type attributes to check..."
+                                        noResultsFoundText="There are no matching entries"
+                                        isDisabled={!this.props.passwordchecksyntax}
+                                        >
+                                        {this.props.attrs.map((attr, index) => (
+                                            <SelectOption
+                                                key={index}
+                                                value={attr}
+                                            />
+                                            ))}
+                                    </Select>
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top-lg" title="Check the password against the system's CrackLib dictionary (passwordDictCheck).">
@@ -866,6 +881,9 @@ export class LocalPwPolicy extends React.Component {
             _create_passwordmintokenlength: "0",
             _create_passwordbadwords: "",
             _create_passworduserattributes: [],
+            // Select typeahead
+            isLocalPwdPolicySelectExpanded: false,
+            isCreatePolicySelectExpanded: false,
 
             attrMap: {
                 "passwordstoragescheme": "--pwdscheme",
@@ -925,6 +943,8 @@ export class LocalPwPolicy extends React.Component {
         this.saveLockout = this.saveLockout.bind(this);
         this.saveSyntax = this.saveSyntax.bind(this);
         this.showDeletePolicy = this.showDeletePolicy.bind(this);
+        this.onSelectToggle = this.onSelectToggle.bind(this);
+        this.onSelectClear = this.onSelectClear.bind(this);
     }
 
     componentDidMount() {
@@ -973,32 +993,29 @@ export class LocalPwPolicy extends React.Component {
         });
     }
 
-    handleCreateChange(e) {
+    handleCreateChange(e, selection) {
         let attr;
         let value;
         let disableSaveBtn = true;
         let invalid_dn = false;
         let all_attrs = general_attrs.concat(exp_attrs, lockout_attrs, syntax_attrs);
-
-        if (Array.isArray(e)) {
-            // Typeahead - convert array to string
+        if (selection) {
             attr = "create_passworduserattributes";
-            value = e.join(' ');
+            value = selection;
         } else {
             value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
             attr = e.target.id;
         }
-
         // Check if a setting was changed, if so enable the save button
         for (let all_attr of all_attrs) {
             if (all_attr == 'passworduserattributes' && attr == 'create_passworduserattributes') {
                 let orig_val = this.state['_' + all_attr].join(' ');
                 if (orig_val != value) {
-                    value = e; // restore value
+                    value = selection; // restore value
                     disableSaveBtn = false;
                     break;
                 }
-                value = e; // restore value
+                value = selection; // restore value
             } else if (attr == "create_" + all_attr && this.state['_create_' + all_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -1032,7 +1049,7 @@ export class LocalPwPolicy extends React.Component {
         }
 
         this.setState({
-            [attr]: value,
+            [attr]: selection ? [...this.state[attr], value] : value,
             createDisabled: disableSaveBtn,
             invalid_dn: invalid_dn,
         });
@@ -1065,7 +1082,7 @@ export class LocalPwPolicy extends React.Component {
                         new_val = "off";
                     }
                 } else if (attr == 'passworduserattributes') {
-                    if (old_val.join(' ') == new_val.join(' ')) {
+                    if (old_val == new_val) {
                         continue;
                     }
                 }
@@ -1330,30 +1347,27 @@ export class LocalPwPolicy extends React.Component {
                 });
     }
 
-    handleSyntaxChange(e) {
-        // Could be a typeahead change, check if "e" is an Array
+    handleSyntaxChange(e, selection) {
         let attr;
         let value;
-        if (Array.isArray(e)) {
-            // Typeahead - convert array to string
+        if (selection) {
             attr = "passworduserattributes";
-            value = e.join(' ');
+            value = selection;
         } else {
             value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
             attr = e.target.id;
         }
         let disableSaveBtn = true;
-
         // Check if a setting was changed, if so enable the save button
         for (let syntax_attr of syntax_attrs) {
             if (syntax_attr == 'passworduserattributes' && attr == 'passworduserattributes') {
                 let orig_val = this.state['_' + syntax_attr].join(' ');
                 if (orig_val != value) {
-                    value = e; // restore value
+                    value = selection; // restore value
                     disableSaveBtn = false;
                     break;
                 }
-                value = e; // restore value
+                value = selection; // restore value
             } else if (attr == syntax_attr && this.state['_' + syntax_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -1377,9 +1391,34 @@ export class LocalPwPolicy extends React.Component {
         }
 
         this.setState({
-            [attr]: value,
+            [attr]: selection ? [...this.state[attr], value] : value,
             saveSyntaxDisabled: disableSaveBtn,
         });
+    }
+
+    onSelectToggle = (isExpanded, toggleId) => {
+        this.setState({
+            [toggleId]: isExpanded
+        });
+    }
+
+    onSelectClear = item => event => {
+        switch (item) {
+        case "createPwdPolicy":
+            this.setState({
+                create_passworduserattributes: [],
+                isCreatePolicySelectExpanded: false
+            });
+            break;
+        case "localPwdPolicy":
+            this.setState({
+                passworduserattributes: [],
+                isLocalPolicySelectExpanded: false
+            });
+            break;
+        default:
+            break;
+        }
     }
 
     saveSyntax() {
@@ -2129,7 +2168,7 @@ export class LocalPwPolicy extends React.Component {
                             Check User Attributes
                         </Col>
                         <Col sm={8}>
-                            <Typeahead
+                            {/* <Typeahead
                                 onChange={values => {
                                     this.handleSyntaxChange(values);
                                 }}
@@ -2137,7 +2176,28 @@ export class LocalPwPolicy extends React.Component {
                                 selected={this.state.passworduserattributes}
                                 options={this.props.attrs}
                                 placeholder="Type attributes to check..."
-                            />
+                            /> */}
+                            <Select
+                                variant={SelectVariant.typeaheadMulti}
+                                onToggle={(isExpanded) => {
+                                    this.onSelectToggle(isExpanded, "isLocalPwdPolicySelectExpanded");
+                                }}
+                                onSelect={(e, values) => {
+                                    this.handleSyntaxChange(e, values);
+                                }}
+                                onClear={this.onSelectClear("localPwdPolicy")}
+                                selections={this.state.passworduserattributes}
+                                isOpen={this.state.isLocalPwdPolicySelectExpanded}
+                                placeholderText="Type attributes to check..."
+                                noResultsFoundText="There are no matching entries"
+                                >
+                                {this.props.attrs.map((attr, index) => (
+                                    <SelectOption
+                                        key={index}
+                                        value={attr}
+                                    />
+                                    ))}
+                            </Select>
                         </Col>
                     </Row>
                     <Row className="ds-margin-top-lg" title="Check the password against the system's CrackLib dictionary (passwordDictCheck).">
@@ -2576,6 +2636,9 @@ export class LocalPwPolicy extends React.Component {
                                     create_passwordchecksyntax={this.state.create_passwordchecksyntax}
                                     create_passworddictcheck={this.state.create_passworddictcheck}
                                     create_passwordpalindrome={this.state.create_passwordpalindrome}
+                                    onSelectToggle={this.onSelectToggle}
+                                    onSelectClear={this.onSelectClear}
+                                    isCreatePolicySelectExpanded={this.state.isCreatePolicySelectExpanded}
                                 />
                             </TabPane>
                         </TabContent>

@@ -17,7 +17,10 @@ import {
 import {
     Spinner,
     Button,
-    Checkbox
+    Checkbox,
+    Select,
+    SelectVariant,
+    SelectOption
     // Form,
     // FormGroup,
     // Tab,
@@ -27,7 +30,6 @@ import {
     // Grid,
     // GridItem,
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 
 const general_attrs = [
@@ -98,6 +100,7 @@ export class GlobalPwPolicy extends React.Component {
             saveExpDisabled: true,
             saveLockoutDisabled: true,
             saveSyntaxDisabled: true,
+            isSelectOpen: false,
         };
 
         this.handleNavSelect = this.handleNavSelect.bind(this);
@@ -110,6 +113,9 @@ export class GlobalPwPolicy extends React.Component {
         this.handleSyntaxChange = this.handleSyntaxChange.bind(this);
         this.saveSyntax = this.saveSyntax.bind(this);
         this.loadGlobal = this.loadGlobal.bind(this);
+        // Select Typeahead
+        this.onSelectToggle = this.onSelectToggle.bind(this);
+        this.onSelectClear = this.onSelectClear.bind(this);
     }
 
     componentDidMount() {
@@ -383,30 +389,31 @@ export class GlobalPwPolicy extends React.Component {
                 });
     }
 
-    handleSyntaxChange(e) {
-        // Could be a typeahead change, check if "e" is an Array
+    handleSyntaxChange = (e, selection, isPlaceholder) => {
         let attr;
         let value;
-        if (Array.isArray(e)) {
-            // Typeahead - convert array to string
+        if (selection) {
             attr = "passworduserattributes";
-            value = e.join(' ');
+            value = selection;
         } else {
             value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
             attr = e.target.id;
         }
         let disableSaveBtn = true;
 
+        // If the array already contains selection, do nothing
+        if (this.state.passworduserattributes.includes(selection)) return;
+
         // Check if a setting was changed, if so enable the save button
         for (let syntax_attr of syntax_attrs) {
             if (syntax_attr == 'passworduserattributes' && attr == 'passworduserattributes') {
                 let orig_val = this.state['_' + syntax_attr].join(' ');
                 if (orig_val != value) {
-                    value = e; // restore value
+                    value = selection; // restore value
                     disableSaveBtn = false;
                     break;
                 }
-                value = e; // restore value
+                value = selection; // restore value
             } else if (attr == syntax_attr && this.state['_' + syntax_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -428,9 +435,8 @@ export class GlobalPwPolicy extends React.Component {
                 break;
             }
         }
-
         this.setState({
-            [attr]: value,
+            [attr]: value === e.target.checked ? e.target.checked : [...this.state.passworduserattributes, selection],
             saveSyntaxDisabled: disableSaveBtn,
         });
     }
@@ -689,6 +695,19 @@ export class GlobalPwPolicy extends React.Component {
                 });
     }
 
+    onSelectToggle = isSelectOpen => {
+        this.setState({
+            isSelectOpen
+        });
+    }
+
+    onSelectClear = () => {
+        this.setState({
+            passworduserattributes: [],
+            isSelectOpen: false
+        });
+    }
+
     render() {
         let pwp_element = "";
         let pwExpirationRows = "";
@@ -899,15 +918,23 @@ export class GlobalPwPolicy extends React.Component {
                             Check User Attributes
                         </Col>
                         <Col sm={8}>
-                            <Typeahead
-                                onChange={values => {
-                                    this.handleSyntaxChange(values);
-                                }}
-                                multiple
-                                selected={this.state.passworduserattributes}
-                                options={this.props.attrs}
-                                placeholder="Type attributes to check..."
-                            />
+                            <Select
+                                variant={SelectVariant.typeaheadMulti}
+                                onToggle={this.onSelectToggle}
+                                onSelect={this.handleSyntaxChange}
+                                onClear={this.onSelectClear}
+                                selections={this.state.passworduserattributes}
+                                isOpen={this.state.isSelectOpen}
+                                placeholderText="Type attributes to check..."
+                                noResultsFoundText="There are no matching entries"
+                                >
+                                {this.props.attrs.map((attr, index) => (
+                                    <SelectOption
+                                        key={index}
+                                        value={attr}
+                                    />
+                                ))}
+                            </Select>
                         </Col>
                     </Row>
                     <Row className="ds-margin-top-lg" title="Check the password against the system's CrackLib dictionary (passwordDictCheck).">

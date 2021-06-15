@@ -13,10 +13,12 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     // TextInput,
     noop
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 
 class ObjectClassModal extends React.Component {
@@ -27,6 +29,8 @@ class ObjectClassModal extends React.Component {
             addHandler,
             editHandler,
             handleTypeaheadChange,
+            onSelectToggle,
+            onSelectClear,
             handleFieldChange,
             objectclasses,
             attributes,
@@ -39,7 +43,10 @@ class ObjectClassModal extends React.Component {
             ocMay,
             objectclassModalShow,
             closeModal,
-            loading
+            loading,
+            ocAddParentOcSelectExpanded,
+            ocAddRequiredAttrsSelectExpanded,
+            ocAddAllowedAttrsSelectExpanded
         } = this.props;
 
         let modalTitle =
@@ -143,17 +150,34 @@ class ObjectClassModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    allowNew
-                                    onChange={values => {
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    onToggle={(isExpanded) => {
+                                        onSelectToggle(isExpanded, "ocAddParentOcSelectExpanded");
+                                    }}
+                                    onSelect={(e, values) => {
                                         handleTypeaheadChange("ocParent", values);
                                     }}
-                                    selected={ocParent}
-                                    newSelectionPrefix="Add a parent: "
-                                    options={objectclasses}
-                                    placeholder="Type a parent objectClass..."
-                                    disabled={ocModalViewOnly}
-                                />
+                                    onClear={e => {
+                                        onSelectClear("ocAddParentOcSelectExpanded", "ocParent");
+                                    }}
+                                    selections={ocParent}
+                                    isOpen={ocAddParentOcSelectExpanded}
+                                    // aria-labelledby="typeAhead-Mrs"
+                                    placeholderText="Type a parent objectClass..."
+                                    noResultsFoundText="There are no matching entries"
+                                    isCreatable
+                                    onCreateOption={(values) => {
+                                        handleTypeaheadChange("ocParent", values);
+                                    }}
+                                    >
+                                    {objectclasses.map((obj, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={obj}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="ocKind" controlId="ocKind" disabled={false}>
@@ -183,18 +207,33 @@ class ObjectClassModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    allowNew
-                                    multiple
-                                    onChange={values => {
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    onToggle={(isExpanded) => {
+                                        onSelectToggle(isExpanded, "ocAddRequiredAttrsSelectExpanded");
+                                    }}
+                                    onSelect={(e, values) => {
                                         handleTypeaheadChange("ocMust", values);
                                     }}
-                                    selected={ocMust}
-                                    newSelectionPrefix="Add a required attribute: "
-                                    options={attributes}
-                                    placeholder="Type an attribute name..."
-                                    disabled={ocModalViewOnly}
-                                />
+                                    onClear={e => {
+                                        onSelectClear("ocAddRequiredAttrsSelectExpanded", "ocMust");
+                                    }}
+                                    selections={ocMust}
+                                    isOpen={ocAddRequiredAttrsSelectExpanded}
+                                    placeholderText="Type an attribute name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    isCreatable
+                                    onCreateOption={(values) => {
+                                        handleTypeaheadChange("ocMust", values);
+                                    }}
+                                    >
+                                    {attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="ocMay" controlId="ocMay" disabled={false}>
@@ -204,18 +243,33 @@ class ObjectClassModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    allowNew
-                                    multiple
-                                    onChange={values => {
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    onToggle={(isExpanded) => {
+                                        onSelectToggle(isExpanded, "ocAddAllowedAttrsSelectExpanded");
+                                    }}
+                                    onSelect={(e, values) => {
                                         handleTypeaheadChange("ocMay", values);
                                     }}
-                                    selected={ocMay}
-                                    newSelectionPrefix="Add an allowed attribute: "
-                                    options={attributes}
-                                    placeholder="Type an attribute name..."
-                                    disabled={ocModalViewOnly}
-                                />
+                                    onClear={e => {
+                                        onSelectClear("ocAddAllowedAttrsSelectExpanded", "ocMay");
+                                    }}
+                                    selections={ocMay}
+                                    isOpen={ocAddAllowedAttrsSelectExpanded}
+                                    placeholderText="Type an attribute name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    isCreatable
+                                    onCreateOption={(values) => {
+                                        handleTypeaheadChange("ocMay", values);
+                                    }}
+                                    >
+                                    {attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                     </Form>
@@ -288,12 +342,20 @@ class AttributeTypeModal extends React.Component {
             addHandler,
             editHandler,
             handleTypeaheadChange,
+            onSelectToggle,
+            onSelectClear,
             handleFieldChange,
             attributes,
             syntaxes,
             matchingrules,
             closeModal,
-            loading
+            loading,
+            atAddParentAttrSelectExpanded,
+            atAddSyntaxNameSelectExpanded,
+            atAddAliasNameSelectExpanded,
+            atAddEqualityMrsSelectExpanded,
+            atAddOrderMrsSelectExpanded,
+            atAddSubstringMrsSelectExpanded
         } = this.props;
         let modalTitle =
             atModalViewOnly ? (
@@ -396,17 +458,33 @@ class AttributeTypeModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    allowNew
-                                    onChange={values => {
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    onToggle={(isExpanded) => {
+                                        onSelectToggle(isExpanded, "atAddParentAttrSelectExpanded");
+                                    }}
+                                    onSelect={(e, values) => {
                                         handleTypeaheadChange("atParent", values);
                                     }}
-                                    selected={atParent}
-                                    newSelectionPrefix="Add a parent: "
-                                    options={attributes}
-                                    placeholder="Type a parent attribute..."
-                                    disabled={atModalViewOnly}
-                                />
+                                    onClear={e => {
+                                        onSelectClear("atAddParentAttrSelectExpanded", "atParent");
+                                    }}
+                                    selections={atParent}
+                                    isOpen={atAddParentAttrSelectExpanded}
+                                    placeholderText="Type an attribute name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    isCreatable
+                                    onCreateOption={(values) => {
+                                        handleTypeaheadChange("atParent", values);
+                                    }}
+                                    >
+                                    {attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="atSyntax" controlId="atSyntax" disabled={false}>
@@ -416,16 +494,29 @@ class AttributeTypeModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    onChange={values => {
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    onToggle={(isExpanded) => {
+                                        onSelectToggle(isExpanded, "atAddSyntaxNameSelectExpanded");
+                                    }}
+                                    onSelect={(e, values) => {
                                         handleTypeaheadChange("atSyntax", values);
                                     }}
-                                    selected={atSyntax}
-                                    newSelectionPrefix="Add a syntax: "
-                                    options={syntaxes}
-                                    placeholder="Type a syntax name..."
-                                    disabled={atModalViewOnly}
-                                />
+                                    onClear={e => {
+                                        onSelectClear("atAddSyntaxNameSelectExpanded", "atSyntax");
+                                    }}
+                                    selections={atSyntax}
+                                    isOpen={atAddSyntaxNameSelectExpanded}
+                                    placeholderText="Type a syntax name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                    {syntaxes.map((syntax, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={syntax.label}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="atUsage" controlId="atUsage" disabled={false}>
@@ -492,18 +583,33 @@ class AttributeTypeModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    allowNew
-                                    multiple
-                                    onChange={values => {
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    onToggle={(isExpanded) => {
+                                        onSelectToggle(isExpanded, "atAddAliasNameSelectExpanded");
+                                    }}
+                                    onSelect={(e, values) => {
                                         handleTypeaheadChange("atAlias", values);
                                     }}
-                                    selected={atAlias}
-                                    options={[]}
-                                    newSelectionPrefix="Add an alias: "
-                                    placeholder="Type an alias name..."
-                                    disabled={atModalViewOnly}
-                                />
+                                    onClear={e => {
+                                        onSelectClear("atAddAliasNameSelectExpanded", "atAlias");
+                                    }}
+                                    selections={atAlias}
+                                    isOpen={atAddAliasNameSelectExpanded}
+                                    placeholderText="Type an alias name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    isCreatable
+                                    onCreateOption={(values) => {
+                                        handleTypeaheadChange("atAlias", values);
+                                    }}
+                                    >
+                                    {[].map((alias, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={alias}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="atEqMr" controlId="atEqMr" disabled={false}>
@@ -513,16 +619,29 @@ class AttributeTypeModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    onChange={values => {
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    onToggle={(isExpanded) => {
+                                        onSelectToggle(isExpanded, "atAddEqualityMrsSelectExpanded");
+                                    }}
+                                    onSelect={(e, values) => {
                                         handleTypeaheadChange("atEqMr", values);
                                     }}
-                                    selected={atEqMr}
-                                    newSelectionPrefix="Add an matching rule: "
-                                    options={matchingrules}
-                                    placeholder="Type an matching rule..."
-                                    disabled={atModalViewOnly}
-                                />
+                                    onClear={e => {
+                                        onSelectClear("atAddEqualityMrsSelectExpanded", "atEqMr");
+                                    }}
+                                    selections={atEqMr}
+                                    isOpen={atAddEqualityMrsSelectExpanded}
+                                    placeholderText="Type an matching rule..."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                    {matchingrules.map((mr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={mr}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="atOrder" controlId="atOrder" disabled={false}>
@@ -532,16 +651,29 @@ class AttributeTypeModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    onChange={values => {
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    onToggle={(isExpanded) => {
+                                        onSelectToggle(isExpanded, "atAddOrderMrsSelectExpanded");
+                                    }}
+                                    onSelect={(e, values) => {
                                         handleTypeaheadChange("atOrder", values);
                                     }}
-                                    selected={atOrder}
-                                    newSelectionPrefix="Add an matching rule: "
-                                    options={matchingrules}
-                                    placeholder="Type an matching rule..."
-                                    disabled={atModalViewOnly}
-                                />
+                                    onClear={e => {
+                                        onSelectClear("atAddOrderMrsSelectExpanded", "atOrder");
+                                    }}
+                                    selections={atOrder}
+                                    isOpen={atAddOrderMrsSelectExpanded}
+                                    placeholderText="Type an matching rule.."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                    {matchingrules.map((mr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={mr}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="atSubMr" controlId="atSubMr" disabled={false}>
@@ -551,16 +683,29 @@ class AttributeTypeModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    onChange={values => {
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    onToggle={(isExpanded) => {
+                                        onSelectToggle(isExpanded, "atAddSubstringMrsSelectExpanded");
+                                    }}
+                                    onSelect={(e, values) => {
                                         handleTypeaheadChange("atSubMr", values);
                                     }}
-                                    selected={atSubMr}
-                                    newSelectionPrefix="Add an matching rule: "
-                                    options={matchingrules}
-                                    placeholder="Type an matching rule..."
-                                    disabled={atModalViewOnly}
-                                />
+                                    onClear={e => {
+                                        onSelectClear("atAddSubstringMrsSelectExpanded", "atSubMr");
+                                    }}
+                                    selections={atSubMr}
+                                    isOpen={atAddSubstringMrsSelectExpanded}
+                                    placeholderText="Type an matching rule..."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                    {matchingrules.map((mr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={mr}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                     </Form>

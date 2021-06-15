@@ -70,6 +70,13 @@ export class ReplAgmts extends React.Component {
             // Init agmt
             agmtInitCounter: 0,
             agmtInitIntervals: [],
+            // Select Typeahead
+            agmtStripAttrsSelectExpanded: false,
+            agmtFracAttrsSelectExpanded: false,
+            agmtFracInitAttrsSelectExpanded: false,
+            agmtStripAttrsEditSelectExpanded: "",
+            agmtFracAttrsEditSelectExpanded: false,
+            agmtFracInitAttrsEditSelectExpanded: false,
         };
         this.showCreateAgmtModal = this.showCreateAgmtModal.bind(this);
         this.closeCreateAgmtModal = this.closeCreateAgmtModal.bind(this);
@@ -101,6 +108,10 @@ export class ReplAgmts extends React.Component {
         // Table sort and search
         this.onSort = this.onSort.bind(this);
         this.onSearchChange = this.onSearchChange.bind(this);
+        // Select Typeahead
+        this.onSelectToggle = this.onSelectToggle.bind(this);
+        this.onSelectClear = this.onSelectClear.bind(this);
+        this.getToggleId = this.getToggleId.bind(this);
     }
 
     componentDidMount () {
@@ -514,9 +525,9 @@ export class ReplAgmts extends React.Component {
             }
             // End of agmt modal live validation
         }
-
         this.setState({
-            [attr]: value,
+            // We handle strings and arrays here, need to find a better way to differentiate.
+            [attr]: e.target.id.endsWith('Attrs') ? [...this.state[attr], value] : value,
             errObj: errObj,
             agmtSaveOK: all_good,
             modalMsg: modal_msg,
@@ -600,6 +611,51 @@ export class ReplAgmts extends React.Component {
             }
         };
         this.handleChange(e);
+    }
+
+    onSelectToggle = (isExpanded, toggleId) => {
+        this.setState({
+            [toggleId]: isExpanded
+        });
+    }
+
+    onSelectClear = (toggleId, collection) => {
+        this.setState({
+            [toggleId]: false,
+            [collection]: []
+        });
+    }
+
+    getToggleId = (modalTitle) => {
+        let modalSelect = {
+            stripAttrsName: "",
+            fracAttrsName: "",
+            fracInitAttrsName: "",
+            stripAttrsBool: false,
+            fracAttrsBool: false,
+            fracInitAttrsBoo: false,
+        };
+
+        switch (modalTitle) {
+        case "Create Replication Agreement":
+            modalSelect.stripAttrsName = "agmtStripAttrsSelectExpanded";
+            modalSelect.fracAttrsName = "agmtFracAttrsSelectExpanded";
+            modalSelect.fracInitAttrsName = "agmtFracInitAttrsSelectExpanded";
+            modalSelect.stripAttrsBool = this.state.agmtStripAttrsSelectExpanded;
+            modalSelect.fracAttrsBool = this.state.agmtFracAttrsSelectExpanded;
+            modalSelect.fracInitAttrsBool = this.state.agmtFracInitAttrsSelectExpanded;
+            return modalSelect;
+        case "Edit Replication Agreement":
+            modalSelect.stripAttrsName = "agmtStripAttrsEditSelectExpanded";
+            modalSelect.fracAttrsName = "agmtFracAttrsEditSelectExpanded";
+            modalSelect.fracInitAttrsName = "agmtFracInitAttrsEditSelectExpanded";
+            modalSelect.stripAttrsBool = this.state.agmtStripAttrsEditSelectExpanded;
+            modalSelect.fracAttrsBool = this.state.agmtFracAttrsEditSelectExpanded;
+            modalSelect.fracInitAttrsBool = this.state.agmtFracInitAttrsEditSelectExpanded;
+            return modalSelect;
+        default:
+            break;
+        }
     }
 
     showConfirmDeleteAgmt (agmtName) {
@@ -1345,6 +1401,9 @@ export class ReplAgmts extends React.Component {
                     handleStripChange={this.handleTAStripAttrChange}
                     handleFracChange={this.handleTAFracAttrChange}
                     handleFracInitChange={this.handleTAFracInitAttrChange}
+                    onSelectToggle={this.onSelectToggle}
+                    onSelectClear={this.onSelectClear}
+                    getToggleId={this.getToggleId}
                     saveHandler={this.createAgmt}
                     spinning={this.state.savingAgmt}
                     agmtName={this.state.agmtName}
@@ -1387,6 +1446,9 @@ export class ReplAgmts extends React.Component {
                     handleStripChange={this.handleTAStripAttrChangeEdit}
                     handleFracChange={this.handleTAFracAttrChangeEdit}
                     handleFracInitChange={this.handleTAFracInitAttrChangeEdit}
+                    onSelectToggle={this.onSelectToggle}
+                    onSelectClear={this.onSelectClear}
+                    getToggleId={this.getToggleId}
                     saveHandler={this.saveAgmt}
                     spinning={this.state.savingAgmt}
                     agmtName={this.state.agmtName}

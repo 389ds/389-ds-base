@@ -3,7 +3,6 @@ import React from "react";
 import Switch from "react-switch";
 import { ConfirmPopup } from "./lib/notifications.jsx";
 import { log_cmd } from "./lib/tools.jsx";
-import { Typeahead } from "react-bootstrap-typeahead";
 import { CertificateManagement } from "./lib/security/certificateManagement.jsx";
 import { SecurityEnableModal } from "./lib/security/securityModals.jsx";
 import { Ciphers } from "./lib/security/ciphers.jsx";
@@ -24,7 +23,10 @@ import {
 } from "patternfly-react";
 import {
     Button,
-    Checkbox
+    Checkbox,
+    Select,
+    SelectOption,
+    SelectVariant
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
@@ -68,7 +70,10 @@ export class Security extends React.Component {
             _sslVersionMax: '',
             _allowWeakCipher: false,
             _nssslpersonalityssl: '',
+            _nssslpersonalityssllist: "",
             _nstlsallowclientrenegotiation: true,
+            // Select Typeahead
+            serverCertSelectExpanded: false,
         };
 
         this.handleChange = this.handleChange.bind(this);
@@ -86,6 +91,9 @@ export class Security extends React.Component {
         this.saveSecurityConfig = this.saveSecurityConfig.bind(this);
         this.closeSecurityEnableModal = this.closeSecurityEnableModal.bind(this);
         this.reloadConfig = this.reloadConfig.bind(this);
+        this.onSelectToggle = this.onSelectToggle.bind(this);
+        this.onSelectClear = this.onSelectClear.bind(this);
+        this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
     }
 
     componentDidMount () {
@@ -590,12 +598,9 @@ export class Security extends React.Component {
         }
     }
 
-    handleTypeaheadChange(value) {
-        if (value.length == 0) {
-            return;
-        }
+    handleTypeaheadChange(value, collection) {
         this.setState({
-            nssslpersonalityssl: value[0],
+            [collection]: [...this.state[collection], value],
         });
     }
 
@@ -617,6 +622,19 @@ export class Security extends React.Component {
         this.setState({
             [e.target.id]: value,
             errObj: errObj
+        });
+    }
+
+    onSelectToggle = (isExpanded, toggleId) => {
+        this.setState({
+            [toggleId]: isExpanded
+        });
+    }
+
+    onSelectClear = (toggleId, collection) => {
+        this.setState({
+            [toggleId]: false,
+            [collection]: []
         });
     }
 
@@ -646,15 +664,29 @@ export class Security extends React.Component {
                                 Server Certificate Name
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    id="serverCertNameTypeahead"
-                                    onChange={this.handleTypeaheadChange}
-                                    selected={serverCert}
-                                    emptyLabel="No matching certificates found"
-                                    options={this.state.serverCertNames}
-                                    newSelectionPrefix="Select a server certificate"
-                                    placeholder="Type a sever certificate nickname..."
-                                />
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    onToggle={(isExpanded) => {
+                                        this.onSelectToggle(isExpanded, "serverCertSelectExpanded");
+                                    }}
+                                    onSelect={(e, values) => {
+                                        this.handleTypeaheadChange(values, "nssslpersonalityssl");
+                                    }}
+                                    onClear={e => {
+                                        this.onSelectClear("serverCertSelectExpanded", "nssslpersonalityssl");
+                                    }}
+                                    selections={serverCert}
+                                    isOpen={this.state.serverCertSelectExpanded}
+                                    placeholderText="Type a sever certificate nickname..."
+                                    noResultsFoundText="There are no matching entries"
+                                >
+                                    {this.state.serverCertNames.map((cert, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={cert}
+                                        />
+                                    ))}
+                                </Select>
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="The minimum SSL/TLS version the server will accept (sslversionmin).">
