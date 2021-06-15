@@ -45,6 +45,9 @@ def test_repl_plugin_name_change(topo):
     RETROCL_PLUGIN_DN = "cn=Retro Changelog Plugin,cn=plugins,cn=config"
     RETROCL_PLUGIN_NAME = "Retro Changelog Plugin"
 
+    MEP_PLUGIN_DN = "cn=Managed Entries,cn=plugins,cn=config"
+    MEP_PLUGIN_NAME = "Managed Entries"
+
     # Stop the server
     topo.standalone.stop()
 
@@ -53,8 +56,10 @@ def test_repl_plugin_name_change(topo):
     dse_ldif.replace(REPL_PLUGIN_DN, REPL_PLUGIN_INIT_ATTR, "multi_old_init_function")
     dse_ldif.rename(REPL_PLUGIN_DN, OLD_REPL_PLUGIN_DN)
 
-    # Add dependency for repl plugin in retro changelog plugin
+    # Add dependency for repl plugin in retro changelog plugin and managed entries
     dse_ldif.replace(RETROCL_PLUGIN_DN, REPL_DEPENDS_ATTR, OLD_REPL_PLUGIN_NAME)
+    dse_ldif.replace(MEP_PLUGIN_DN, REPL_DEPENDS_ATTR, OLD_REPL_PLUGIN_NAME)
+    # assert 0
 
     # Restart the server, loop twice to verify settings stick after restart
     for loop in [0, 1]:
@@ -75,6 +80,11 @@ def test_repl_plugin_name_change(topo):
         assert plugin is not None
         assert plugin.get_attr_val_utf8_l(REPL_DEPENDS_ATTR) == REPL_PLUGIN_NAME.lower()
         assert len(plugin.get_attr_vals_utf8_l(REPL_DEPENDS_ATTR)) == 1
+
+        # Verify dependency was updated in MEP plugin
+        plugin = Plugins(topo.standalone).get(MEP_PLUGIN_NAME)
+        assert plugin is not None
+        assert plugin.get_attr_val_utf8_l(REPL_DEPENDS_ATTR) == REPL_PLUGIN_NAME.lower()
 
 
 if __name__ == '__main__':
