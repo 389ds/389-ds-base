@@ -2,55 +2,53 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Col,
-    ControlLabel,
-    Form,
-    FormControl,
-    Icon,
-    Nav,
-    NavItem,
-    Row,
-    Spinner,
-    TabContainer,
-    TabContent,
-    noop,
-    TabPane,
-} from "patternfly-react";
-import {
     Button,
-    Checkbox
+    Checkbox,
+    Form,
+    FormGroup,
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
+    Spinner,
+    Tab,
+    Tabs,
+    TabTitleText,
+    TextInput,
+    TimePicker,
+    noop
 } from "@patternfly/react-core";
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableVariant
+} from '@patternfly/react-table';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faSyncAlt
+} from '@fortawesome/free-solid-svg-icons';
+import '@fortawesome/fontawesome-svg-core/styles.css';
 import PropTypes from "prop-types";
-
-const errorlog_levels = [
-    1, 2, 4, 8, 16, 32, 64, 128, 2048,
-    4096, 8192, 32768, 65536, 262144,
-];
 
 const settings_attrs = [
     'nsslapd-errorlog',
     'nsslapd-errorlog-level',
     'nsslapd-errorlog-logging-enabled',
-    'errorlevel-1',
-    'errorlevel-2',
-    'errorlevel-4',
-    'errorlevel-8',
-    'errorlevel-16',
-    'errorlevel-32',
-    'errorlevel-64',
-    'errorlevel-128',
-    'errorlevel-2048',
-    'errorlevel-4096',
-    'errorlevel-8192',
-    'errorlevel-32768',
-    'errorlevel-65536',
-    'errorlevel-262144',
 ];
 
 const rotation_attrs = [
     'nsslapd-errorlog-logrotationsync-enabled',
     'nsslapd-errorlog-logrotationsynchour',
     'nsslapd-errorlog-logrotationsyncmin',
+    'nsslapd-errorlog-logrotationtime',
+    'nsslapd-errorlog-logrotationtimeunit',
+    'nsslapd-errorlog-maxlogsize',
+    'nsslapd-errorlog-maxlogsperdir',
+];
+
+const rotation_attrs_no_time = [
+    'nsslapd-errorlog-logrotationsync-enabled',
     'nsslapd-errorlog-logrotationtime',
     'nsslapd-errorlog-logrotationtimeunit',
     'nsslapd-errorlog-maxlogsize',
@@ -70,18 +68,46 @@ export class ServerErrorLog extends React.Component {
         this.state = {
             loading: false,
             loaded: false,
-            activeKey: 1,
+            activeTabKey: 0,
             saveSettingsDisabled: true,
             saveRotationDisabled: true,
             saveExpDisabled: true,
             attrs: this.props.attrs,
+            canSelectAll: false,
+            rows: [
+                {cells: ['Trace Function Calls'], level: 1, selected: false},
+                {cells: ['Packet Handling'], level: 2, selected: false},
+                {cells: ['Heavy Trace Output'], level: 4, selected: false},
+                {cells: ['Connection Management'], level: 8, selected: false},
+                {cells: ['Packets Sent & Received'], level: 16, selected: false},
+                {cells: ['Search Filter Processing'], level: 32, selected: false},
+                {cells: ['Config File Processing'], level: 64, selected: false},
+                {cells: ['Access Control List Processing'], level: 128, selected: false},
+                {cells: ['Log Entry Parsing'], level: 256, selected: false},
+                {cells: ['Housekeeping'], level: 4096, selected: false},
+                {cells: ['Replication'], level: 8192, selected: false},
+                {cells: ['Entry Cache'], level: 32768, selected: false},
+                {cells: ['Plugin'], level: 65536, selected: false},
+                {cells: ['Access Control Summary'], level: 262144, selected: false},
+            ],
+            columns: [
+                { title: 'Logging Level' },
+            ],
+        };
+
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
         };
 
         this.handleChange = this.handleChange.bind(this);
-        this.handleNavSelect = this.handleNavSelect.bind(this);
+        this.handleTimeChange = this.handleTimeChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.reloadConfig = this.reloadConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
+        this.onSelect = this.onSelect.bind(this);
     }
 
     componentDidMount() {
@@ -93,8 +119,35 @@ export class ServerErrorLog extends React.Component {
         }
     }
 
-    handleNavSelect(key) {
-        this.setState({ activeKey: key });
+    handleTimeChange(time_str) {
+        let disableSaveBtn = true;
+        let time_parts = time_str.split(":");
+        let hour = time_parts[0];
+        let min = time_parts[1];
+        if (hour.length == 2 && hour[0] == "0") {
+            hour = hour[1];
+        }
+        if (min.length == 2 && min[0] == "0") {
+            min = min[1];
+        }
+
+        // Start doing the Save button checking
+        for (let config_attr of rotation_attrs_no_time) {
+            if (this.state[config_attr] != this.state['_' + config_attr]) {
+                disableSaveBtn = false;
+                break;
+            }
+        }
+        if (hour != this.state['_nsslapd-errorlog-logrotationsynchour'] ||
+            min != this.state['_nsslapd-errorlog-logrotationsyncmin']) {
+            disableSaveBtn = false;
+        }
+
+        this.setState({
+            'nsslapd-errorlog-logrotationsynchour': hour,
+            'nsslapd-errorlog-logrotationsyncmin': min,
+            saveRotationDisabled: disableSaveBtn,
+        });
     }
 
     handleChange(e, nav_tab) {
@@ -106,9 +159,20 @@ export class ServerErrorLog extends React.Component {
         if (nav_tab == "settings") {
             config_attrs = settings_attrs;
             disableBtnName = "saveSettingsDisabled";
+            // Handle the table contents check now
+            for (let row of this.state.rows) {
+                for (let orig_row of this.state['_rows']) {
+                    if (orig_row.cells[0] == row.cells[0]) {
+                        if (orig_row.selected != row.selected) {
+                            disableSaveBtn = false;
+                            break;
+                        }
+                    }
+                }
+            }
         } else if (nav_tab == "rotation") {
-            config_attrs = rotation_attrs;
             disableBtnName = "saveRotationDisabled";
+            config_attrs = rotation_attrs;
         } else {
             config_attrs = exp_attrs;
             disableBtnName = "saveExpDisabled";
@@ -137,7 +201,6 @@ export class ServerErrorLog extends React.Component {
     }
 
     saveConfig(nav_tab) {
-        let level_change = false;
         let new_level = 0;
         this.setState({
             loading: true
@@ -159,10 +222,6 @@ export class ServerErrorLog extends React.Component {
 
         for (let attr of config_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
-                if (attr.startsWith("errorlevel-")) {
-                    level_change = true;
-                    continue;
-                }
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -175,16 +234,24 @@ export class ServerErrorLog extends React.Component {
             }
         }
 
-        if (level_change) {
-            for (let level of errorlog_levels) {
-                if (this.state['errorlevel-' + level.toString()]) {
-                    new_level += level;
-                }
+        for (let row of this.state.rows) {
+            if (row.selected) {
+                new_level += row.level;
+            }
+        }
+        if (new_level.toString() != this.state['_nsslapd-errorlog-level']) {
+            if (new_level == 0) {
+                new_level = 256; // default
             }
             cmd.push("nsslapd-errorlog-level" + "=" + new_level.toString());
         }
 
-        log_cmd("saveConfig", "Saving error log settings", cmd);
+        if (cmd.length == 5) {
+            // Nothing to save, just return
+            return;
+        }
+
+        log_cmd("saveConfig", "Saving Error log settings", cmd);
         cockpit
                 .spawn(cmd, {superuser: true, "err": "message"})
                 .done(content => {
@@ -210,93 +277,12 @@ export class ServerErrorLog extends React.Component {
                 });
     }
 
-    loadConfig() {
-        let attrs = this.state.attrs;
-        let enabled = false;
-        let level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
-        let loglevel = {};
-
-        if (attrs['nsslapd-errorlog-logging-enabled'][0] == "on") {
-            enabled = true;
-        }
-        for (let level of errorlog_levels) {
-            if (level & level_val) {
-                loglevel[level.toString()] = true;
-            } else {
-                loglevel[level.toString()] = false;
-            }
-        }
-
+    reloadConfig(refresh) {
         this.setState({
-            loading: false,
-            loaded: true,
-            saveSettingsDisabled: true,
-            saveRotationDisabled: true,
-            saveExpDisabled: true,
-            'nsslapd-errorlog': attrs['nsslapd-errorlog'][0],
-            'nsslapd-errorlog-level': attrs['nsslapd-errorlog-level'][0],
-            'errorlevel-1': loglevel['1'],
-            'errorlevel-2': loglevel['2'],
-            'errorlevel-4': loglevel['4'],
-            'errorlevel-8': loglevel['8'],
-            'errorlevel-16': loglevel['16'],
-            'errorlevel-32': loglevel['32'],
-            'errorlevel-64': loglevel['64'],
-            'errorlevel-128': loglevel['128'],
-            'errorlevel-2048': loglevel['2048'],
-            'errorlevel-4096': loglevel['4096'],
-            'errorlevel-8192': loglevel['8192'],
-            'errorlevel-32768': loglevel['32768'],
-            'errorlevel-65536': loglevel['65536'],
-            'errorlevel-262144': loglevel['262144'],
-            'nsslapd-errorlog-logexpirationtime': attrs['nsslapd-errorlog-logexpirationtime'][0],
-            'nsslapd-errorlog-logexpirationtimeunit': attrs['nsslapd-errorlog-logexpirationtimeunit'][0],
-            'nsslapd-errorlog-logging-enabled': enabled,
-            'nsslapd-errorlog-logmaxdiskspace': attrs['nsslapd-errorlog-logmaxdiskspace'][0],
-            'nsslapd-errorlog-logminfreediskspace': attrs['nsslapd-errorlog-logminfreediskspace'][0],
-            'nsslapd-errorlog-logrotationsync-enabled': attrs['nsslapd-errorlog-logrotationsync-enabled'][0],
-            'nsslapd-errorlog-logrotationsynchour': attrs['nsslapd-errorlog-logrotationsynchour'][0],
-            'nsslapd-errorlog-logrotationsyncmin': attrs['nsslapd-errorlog-logrotationsyncmin'][0],
-            'nsslapd-errorlog-logrotationtime': attrs['nsslapd-errorlog-logrotationtime'][0],
-            'nsslapd-errorlog-logrotationtimeunit': attrs['nsslapd-errorlog-logrotationtimeunit'][0],
-            'nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
-            'nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
-            // Record original values
-            '_nsslapd-errorlog': attrs['nsslapd-errorlog'][0],
-            '_nsslapd-errorlog-level': attrs['nsslapd-errorlog-level'][0],
-            '_errorlevel-1': loglevel['1'],
-            '_errorlevel-2': loglevel['2'],
-            '_errorlevel-4': loglevel['4'],
-            '_errorlevel-8': loglevel['8'],
-            '_errorlevel-16': loglevel['16'],
-            '_errorlevel-32': loglevel['32'],
-            '_errorlevel-64': loglevel['64'],
-            '_errorlevel-128': loglevel['128'],
-            '_errorlevel-2048': loglevel['2048'],
-            '_errorlevel-4096': loglevel['4096'],
-            '_errorlevel-8192': loglevel['8192'],
-            '_errorlevel-32768': loglevel['32768'],
-            '_errorlevel-65536': loglevel['65536'],
-            '_errorlevel-262144': loglevel['262144'],
-            '_nsslapd-errorlog-logexpirationtime': attrs['nsslapd-errorlog-logexpirationtime'][0],
-            '_nsslapd-errorlog-logexpirationtimeunit': attrs['nsslapd-errorlog-logexpirationtimeunit'][0],
-            '_nsslapd-errorlog-logging-enabled': enabled,
-            '_nsslapd-errorlog-logmaxdiskspace': attrs['nsslapd-errorlog-logmaxdiskspace'][0],
-            '_nsslapd-errorlog-logminfreediskspace': attrs['nsslapd-errorlog-logminfreediskspace'][0],
-            '_nsslapd-errorlog-logrotationsync-enabled': attrs['nsslapd-errorlog-logrotationsync-enabled'][0],
-            '_nsslapd-errorlog-logrotationsynchour': attrs['nsslapd-errorlog-logrotationsynchour'][0],
-            '_nsslapd-errorlog-logrotationsyncmin': attrs['nsslapd-errorlog-logrotationsyncmin'][0],
-            '_nsslapd-errorlog-logrotationtime': attrs['nsslapd-errorlog-logrotationtime'][0],
-            '_nsslapd-errorlog-logrotationtimeunit': attrs['nsslapd-errorlog-logrotationtimeunit'][0],
-            '_nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
-            '_nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
-        }, this.props.enableTree);
-    }
-
-    reloadConfig() {
-        this.setState({
-            loading: true,
+            loading: refresh,
+            loaded: !refresh,
         });
+
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
@@ -309,16 +295,16 @@ export class ServerErrorLog extends React.Component {
                     let attrs = config.attrs;
                     let enabled = false;
                     let level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
-                    let loglevel = {};
+                    let rows = [...this.state.rows];
 
                     if (attrs['nsslapd-errorlog-logging-enabled'][0] == "on") {
                         enabled = true;
                     }
-                    for (let level of errorlog_levels) {
-                        if (level & level_val) {
-                            loglevel[level.toString()] = true;
+                    for (let row in rows) {
+                        if (rows[row].level & level_val) {
+                            rows[row].selected = true;
                         } else {
-                            loglevel[level.toString()] = false;
+                            rows[row].selected = false;
                         }
                     }
 
@@ -331,20 +317,6 @@ export class ServerErrorLog extends React.Component {
                             saveExpDisabled: true,
                             'nsslapd-errorlog': attrs['nsslapd-errorlog'][0],
                             'nsslapd-errorlog-level': attrs['nsslapd-errorlog-level'][0],
-                            'errorlevel-1': loglevel['1'],
-                            'errorlevel-2': loglevel['2'],
-                            'errorlevel-4': loglevel['4'],
-                            'errorlevel-8': loglevel['8'],
-                            'errorlevel-16': loglevel['16'],
-                            'errorlevel-32': loglevel['32'],
-                            'errorlevel-64': loglevel['64'],
-                            'errorlevel-128': loglevel['128'],
-                            'errorlevel-2048': loglevel['2048'],
-                            'errorlevel-4096': loglevel['4096'],
-                            'errorlevel-8192': loglevel['8192'],
-                            'errorlevel-32768': loglevel['32768'],
-                            'errorlevel-65536': loglevel['65536'],
-                            'errorlevel-262144': loglevel['262144'],
                             'nsslapd-errorlog-logexpirationtime': attrs['nsslapd-errorlog-logexpirationtime'][0],
                             'nsslapd-errorlog-logexpirationtimeunit': attrs['nsslapd-errorlog-logexpirationtimeunit'][0],
                             'nsslapd-errorlog-logging-enabled': enabled,
@@ -357,23 +329,11 @@ export class ServerErrorLog extends React.Component {
                             'nsslapd-errorlog-logrotationtimeunit': attrs['nsslapd-errorlog-logrotationtimeunit'][0],
                             'nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
                             'nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
+                            rows: rows,
                             // Record original values
+                            '_rows':  JSON.parse(JSON.stringify(rows)),
                             '_nsslapd-errorlog': attrs['nsslapd-errorlog'][0],
                             '_nsslapd-errorlog-level': attrs['nsslapd-errorlog-level'][0],
-                            '_errorlevel-1': loglevel['1'],
-                            '_errorlevel-2': loglevel['2'],
-                            '_errorlevel-4': loglevel['4'],
-                            '_errorlevel-8': loglevel['8'],
-                            '_errorlevel-16': loglevel['16'],
-                            '_errorlevel-32': loglevel['32'],
-                            '_errorlevel-64': loglevel['64'],
-                            '_errorlevel-128': loglevel['128'],
-                            '_errorlevel-2048': loglevel['2048'],
-                            '_errorlevel-4096': loglevel['4096'],
-                            '_errorlevel-8192': loglevel['8192'],
-                            '_errorlevel-32768': loglevel['32768'],
-                            '_errorlevel-65536': loglevel['65536'],
-                            '_errorlevel-262144': loglevel['262144'],
                             '_nsslapd-errorlog-logexpirationtime': attrs['nsslapd-errorlog-logexpirationtime'][0],
                             '_nsslapd-errorlog-logexpirationtimeunit': attrs['nsslapd-errorlog-logexpirationtimeunit'][0],
                             '_nsslapd-errorlog-logging-enabled': enabled,
@@ -402,511 +362,401 @@ export class ServerErrorLog extends React.Component {
                 });
     }
 
+    loadConfig() {
+        let attrs = this.state.attrs;
+        let enabled = false;
+        let level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
+        let rows = [...this.state.rows];
+
+        if (attrs['nsslapd-errorlog-logging-enabled'][0] == "on") {
+            enabled = true;
+        }
+        for (let row in rows) {
+            if (rows[row].level & level_val) {
+                rows[row].selected = true;
+            } else {
+                rows[row].selected = false;
+            }
+        }
+
+        this.setState({
+            loading: false,
+            loaded: true,
+            saveSettingsDisabled: true,
+            saveRotationDisabled: true,
+            saveExpDisabled: true,
+            'nsslapd-errorlog': attrs['nsslapd-errorlog'][0],
+            'nsslapd-errorlog-level': attrs['nsslapd-errorlog-level'][0],
+            'nsslapd-errorlog-logexpirationtime': attrs['nsslapd-errorlog-logexpirationtime'][0],
+            'nsslapd-errorlog-logexpirationtimeunit': attrs['nsslapd-errorlog-logexpirationtimeunit'][0],
+            'nsslapd-errorlog-logging-enabled': enabled,
+            'nsslapd-errorlog-logmaxdiskspace': attrs['nsslapd-errorlog-logmaxdiskspace'][0],
+            'nsslapd-errorlog-logminfreediskspace': attrs['nsslapd-errorlog-logminfreediskspace'][0],
+            'nsslapd-errorlog-logrotationsync-enabled': attrs['nsslapd-errorlog-logrotationsync-enabled'][0],
+            'nsslapd-errorlog-logrotationsynchour': attrs['nsslapd-errorlog-logrotationsynchour'][0],
+            'nsslapd-errorlog-logrotationsyncmin': attrs['nsslapd-errorlog-logrotationsyncmin'][0],
+            'nsslapd-errorlog-logrotationtime': attrs['nsslapd-errorlog-logrotationtime'][0],
+            'nsslapd-errorlog-logrotationtimeunit': attrs['nsslapd-errorlog-logrotationtimeunit'][0],
+            'nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
+            'nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
+            rows: rows,
+            // Record original values
+            '_rows': JSON.parse(JSON.stringify(rows)),
+            '_nsslapd-errorlog': attrs['nsslapd-errorlog'][0],
+            '_nsslapd-errorlog-level': attrs['nsslapd-errorlog-level'][0],
+            '_nsslapd-errorlog-logexpirationtime': attrs['nsslapd-errorlog-logexpirationtime'][0],
+            '_nsslapd-errorlog-logexpirationtimeunit': attrs['nsslapd-errorlog-logexpirationtimeunit'][0],
+            '_nsslapd-errorlog-logging-enabled': enabled,
+            '_nsslapd-errorlog-logmaxdiskspace': attrs['nsslapd-errorlog-logmaxdiskspace'][0],
+            '_nsslapd-errorlog-logminfreediskspace': attrs['nsslapd-errorlog-logminfreediskspace'][0],
+            '_nsslapd-errorlog-logrotationsync-enabled': attrs['nsslapd-errorlog-logrotationsync-enabled'][0],
+            '_nsslapd-errorlog-logrotationsynchour': attrs['nsslapd-errorlog-logrotationsynchour'][0],
+            '_nsslapd-errorlog-logrotationsyncmin': attrs['nsslapd-errorlog-logrotationsyncmin'][0],
+            '_nsslapd-errorlog-logrotationtime': attrs['nsslapd-errorlog-logrotationtime'][0],
+            '_nsslapd-errorlog-logrotationtimeunit': attrs['nsslapd-errorlog-logrotationtimeunit'][0],
+            '_nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
+            '_nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
+        }, this.props.enableTree);
+    }
+
+    onSelect(event, isSelected, rowId) {
+        let disableSaveBtn = true;
+        let rows = JSON.parse(JSON.stringify(this.state.rows));
+
+        // Update the row
+        rows[rowId].selected = isSelected;
+
+        // Handle "save button" state, first check the other config settings
+        for (let config_attr of settings_attrs) {
+            if (this.state['_' + config_attr] != this.state[config_attr]) {
+                disableSaveBtn = false;
+                break;
+            }
+        }
+
+        // Handle the table contents
+        for (let row of rows) {
+            for (let orig_row of this.state['_rows']) {
+                if (orig_row.cells[0] == row.cells[0]) {
+                    if (orig_row.selected != row.selected) {
+                        disableSaveBtn = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        this.setState({
+            rows,
+            saveSettingsDisabled: disableSaveBtn,
+        });
+    }
+
     render() {
+        let saveSettingsName = "Save Log Settings";
+        let saveRotationName = "Save Rotation Settings";
+        let saveDeletionName = "Save Deletion Settings";
+        let extraPrimaryProps = {};
+        let rotationTime = "";
+        let hour = this.state['nsslapd-errorlog-logrotationsynchour'] ? this.state['nsslapd-errorlog-logrotationsynchour'] : "00";
+        let min = this.state['nsslapd-errorlog-logrotationsyncmin'] ? this.state['nsslapd-errorlog-logrotationsyncmin'] : "00";
+
+        if (this.state.loading) {
+            saveSettingsName = "Saving settings ...";
+            saveRotationName = "Saving settings ...";
+            saveDeletionName = "Saving settings ...";
+            extraPrimaryProps.spinnerAriaValueText = "Loading";
+        }
+
+        // Adjust time string for TimePicket
+        if (hour.length == 1) {
+            hour = "0" + hour;
+        }
+        if (min.length == 1) {
+            min = "0" + min;
+        }
+        rotationTime = hour + ":" + min;
+
         let body =
             <div className="ds-margin-top-lg">
-                <TabContainer id="error-log-settings" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                    <div className="ds-margin-top">
-                        <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                            <NavItem eventKey={1}>
-                                <div dangerouslySetInnerHTML={{__html: 'Settings'}} />
-                            </NavItem>
-                            <NavItem eventKey={2}>
-                                <div dangerouslySetInnerHTML={{__html: 'Rotation Policy'}} />
-                            </NavItem>
-                            <NavItem eventKey={3}>
-                                <div dangerouslySetInnerHTML={{__html: 'Deletion Policy'}} />
-                            </NavItem>
-                        </Nav>
+                <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText><b>Settings</b></TabTitleText>}>
+                        <Checkbox
+                            className="ds-margin-top-xlg"
+                            id="nsslapd-errorlog-logging-enabled"
+                            isChecked={this.state['nsslapd-errorlog-logging-enabled']}
+                            onChange={(checked, e) => {
+                                this.handleChange(e, "settings");
+                            }}
+                            title="Enable Error logging (nsslapd-errorlog-logging-enabled)."
+                            label="Enable Error Logging"
+                        />
+                        <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
+                            <FormGroup
+                                label="Error Log Location"
+                                fieldId="nsslapd-errorlog"
+                                title="Enable Error logging (nsslapd-errorlog)."
+                            >
+                                <TextInput
+                                    value={this.state['nsslapd-errorlog']}
+                                    type="text"
+                                    id="nsslapd-errorlog"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="nsslapd-errorlog"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e, "settings");
+                                    }}
+                                />
+                            </FormGroup>
+                        </Form>
 
-                        <TabContent className="ds-margin-top-lg">
-                            <TabPane eventKey={1}>
-                                <Form>
-                                    <Row className="ds-margin-top" title="Enable access logging (nsslapd-errorlog-logging-enabled).">
-                                        <Col sm={3}>
-                                            <Checkbox
-                                                id="nsslapd-errorlog-logging-enabled"
-                                                isChecked={this.state['nsslapd-errorlog-logging-enabled']}
-                                                onChange={(checked, e) => {
-                                                    this.handleChange(e, "settings");
-                                                }}
-                                                label="Enable Error Logging"
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <div className="ds-margin-left">
-                                        <Row className="ds-margin-top" title="Enable access logging (nsslapd-errorlog).">
-                                            <Col componentClass={ControlLabel} sm={3}>
-                                                Error Log Location
-                                            </Col>
-                                            <Col sm={6}>
-                                                <FormControl
-                                                    id="nsslapd-errorlog"
-                                                    type="text"
-                                                    value={this.state['nsslapd-errorlog']}
-                                                    onChange={(e) => {
-                                                        this.handleChange(e, "settings");
-                                                    }}
-                                                />
-                                            </Col>
-                                        </Row>
-                                        <table className="table table-striped table-bordered table-hover ds-loglevel-table ds-margin-top-lg" id="errorlog-level-table">
-                                            <thead>
-                                                <tr>
-                                                    <th className="ds-table-checkbox" />
-                                                    <th>Logging Level</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-1"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-1']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Trace Function Calls
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-2"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-2']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Packet Handling
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-4"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-4']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Heavy Trace Output
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-8"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-8']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Connection Management
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-16"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-16']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Packets Sent & Received
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-32"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-32']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Search Filter Processing
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-64"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-64']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Config File Processing
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-128"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-128']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Access Control List Processing
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-256"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-256']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Log Entry Parsing
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-4096"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-4096']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Housekeeping
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-8192"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-8192']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Replication
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-32768"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-32768']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Entry Cache
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-65536"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-65536']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Plugin
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="ds-table-checkbox">
-                                                        <input
-                                                            id="errorlevel-262144"
-                                                            onChange={(e) => {
-                                                                this.handleChange(e, "settings");
-                                                            }}
-                                                            checked={this.state['errorlevel-262144']}
-                                                            type="checkbox"
-                                                        />
-                                                    </td>
-                                                    <td className="ds-left-align">
-                                                        Access Control Summary
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <Button
-                                        isDisabled={this.state.saveSettingsDisabled}
-                                        variant="primary"
-                                        className="ds-margin-top-med"
-                                        onClick={() => {
-                                            this.saveConfig("settings");
+                        <Table
+                            className="ds-left-indent-md ds-margin-top-xlg"
+                            onSelect={this.onSelect}
+                            canSelectAll={this.state.canSelectAll}
+                            variant={TableVariant.compact}
+                            aria-label="Selectable Table"
+                            cells={this.state.columns}
+                            rows={this.state.rows}
+                        >
+                            <TableHeader />
+                            <TableBody />
+                        </Table>
+                        <Button
+                            key="save settings"
+                            isDisabled={this.state.saveSettingsDisabled}
+                            variant="primary"
+                            className="ds-margin-top-xlg"
+                            onClick={() => {
+                                this.saveConfig("settings");
+                            }}
+                            isLoading={this.state.loading}
+                            spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveSettingsName}
+                        </Button>
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText><b>Rotation Policy</b></TabTitleText>}>
+                        <Form className="ds-margin-top-lg" isHorizontal>
+                            <Grid
+                                className="ds-margin-top"
+                                title="The maximum number of logs that are archived (nsslapd-errorlog-maxlogsperdir)."
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Maximum Number Of Logs
+                                </GridItem>
+                                <GridItem span={3}>
+                                    <TextInput
+                                        value={this.state['nsslapd-errorlog-maxlogsperdir']}
+                                        type="number"
+                                        id="nsslapd-errorlog-maxlogsperdir"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="server-errorlog-maxlogsperdir"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e, "rotation");
                                         }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title="The maximum size of each log file in megabytes (nsslapd-errorlog-maxlogsize).">
+                                <GridItem className="ds-label" span={3}>
+                                    Maximum Log Size (in MB)
+                                </GridItem>
+                                <GridItem span={3}>
+                                    <TextInput
+                                        value={this.state['nsslapd-errorlog-maxlogsize']}
+                                        type="number"
+                                        id="nsslapd-errorlog-maxlogsize"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="server-errorlog-maxlogsize"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e, "rotation");
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <hr />
+                            <Grid title="Rotate the log based this number of time units (nsslapd-errorlog-logrotationtime).">
+                                <GridItem className="ds-label" span={3}>
+                                    Create New Log Every ...
+                                </GridItem>
+                                <GridItem span={1}>
+                                    <TextInput
+                                        value={this.state['nsslapd-errorlog-logrotationtime']}
+                                        type="number"
+                                        id="nsslapd-errorlog-logrotationtime"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="server-errorlog-logrotationtime"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e, "rotation");
+                                        }}
+                                    />
+                                </GridItem>
+                                <GridItem span={2} className="ds-left-margin">
+                                    <FormSelect
+                                        id="nsslapd-errorlog-logrotationtimeunit"
+                                        value={this.state['nsslapd-errorlog-logrotationtimeunit']}
+                                        onChange={(str, e) => {
+                                            this.handleChange(e, "rotation");
+                                        }}
+                                        aria-label="FormSelect Input"
                                     >
-                                        Save Settings
-                                    </Button>
-                                </Form>
-                            </TabPane>
-                        </TabContent>
+                                        <FormSelectOption key="0" value="minute" label="minute" />
+                                        <FormSelectOption key="1" value="hour" label="hour" />
+                                        <FormSelectOption key="2" value="day" label="day" />
+                                        <FormSelectOption key="3" value="week" label="week" />
+                                        <FormSelectOption key="4" value="month" label="month" />
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
+                            <Grid title="The time when the log should be rotated (nsslapd-errorlog-logrotationsynchour, nsslapd-errorlog-logrotationsyncmin).">
+                                <GridItem className="ds-label" span={3}>
+                                    Time Of Day
+                                </GridItem>
+                                <GridItem span={3}>
+                                    <TimePicker
+                                        time={rotationTime}
+                                        onChange={this.handleTimeChange}
+                                        is24Hour
+                                    />
+                                </GridItem>
+                            </Grid>
+                        </Form>
+                        <Button
+                            key="save rot settings"
+                            isDisabled={this.state.saveRotationDisabled}
+                            variant="primary"
+                            className="ds-margin-top-xlg"
+                            onClick={() => {
+                                this.saveConfig("rotation");
+                            }}
+                            isLoading={this.state.loading}
+                            spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveRotationName}
+                        </Button>
+                    </Tab>
 
-                        <TabContent className="ds-margin-top-lg">
-                            <TabPane eventKey={2}>
-                                <Form horizontal>
-                                    <Row className="ds-margin-top-xlg" title="The maximum number of logs that are archived (nsslapd-errorlog-maxlogsperdir).">
-                                        <Col componentClass={ControlLabel} sm={3}>
-                                            Maximum Number Of Logs
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-errorlog-maxlogsperdir"
-                                                type="number"
-                                                min="1"
-                                                max="2147483647"
-                                                value={this.state['nsslapd-errorlog-maxlogsperdir']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top-lg" title="The maximum size of each log file in megabytes (nsslapd-errorlog-maxlogsize).">
-                                        <Col componentClass={ControlLabel} sm={3}>
-                                            Maximum Log Size (in MB)
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-errorlog-maxlogsize"
-                                                type="number"
-                                                min="1"
-                                                max="2147483647"
-                                                value={this.state['nsslapd-errorlog-maxlogsize']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <hr />
-                                    <Row className="ds-margin-top" title="Rotate the log based this number of time units (nsslapd-errorlog-logrotationtime).">
-                                        <Col componentClass={ControlLabel} sm={3}>
-                                            Create New Log Every...
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-errorlog-logrotationtime"
-                                                type="number"
-                                                min="1"
-                                                max="2147483647"
-                                                value={this.state['nsslapd-errorlog-logrotationtime']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                            />
-                                        </Col>
-                                        <Col sm={2}>
-                                            <select
-                                                className="btn btn-default dropdown"
-                                                id="nsslapd-errorlog-logrotationtimeunit"
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                                value={this.state['nsslapd-errorlog-logrotationtimeunit']}
-                                            >
-                                                <option>minute</option>
-                                                <option>hour</option>
-                                                <option>day</option>
-                                                <option>week</option>
-                                                <option>month</option>
-                                            </select>
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="The hour whenthe log should be rotated (nsslapd-errorlog-logrotationsynchour).">
-                                        <Col componentClass={ControlLabel} sm={3}>
-                                            Hour
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-errorlog-logrotationsynchour"
-                                                type="number"
-                                                min="0"
-                                                max="23"
-                                                value={this.state['nsslapd-errorlog-logrotationsynchour']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="The minute within the hour to rotate the log (nsslapd-errorlog-logrotationsyncmin).">
-                                        <Col componentClass={ControlLabel} sm={3}>
-                                            Minute
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-errorlog-logrotationsyncmin"
-                                                type="number"
-                                                min="0"
-                                                max="59"
-                                                value={this.state['nsslapd-errorlog-logrotationsyncmin']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "rotation");
-                                                }}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Button
-                                        isDisabled={this.state.saveRotationDisabled}
-                                        variant="primary"
-                                        className="ds-margin-top-med"
-                                        onClick={() => {
-                                            this.saveConfig("rotation");
+                    <Tab eventKey={2} title={<TabTitleText><b>Deletion Policy</b></TabTitleText>}>
+                        <Form className="ds-margin-top-lg" isHorizontal>
+                            <Grid
+                                className="ds-margin-top"
+                                title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-errorlog-logmaxdiskspace)."
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Log Archive Exceeds (in MB)
+                                </GridItem>
+                                <GridItem span={1}>
+                                    <TextInput
+                                        value={this.state['nsslapd-errorlog-logmaxdiskspace']}
+                                        type="number"
+                                        id="nsslapd-errorlog-logmaxdiskspace"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="server-errorlog-logmaxdiskspace"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e, "exp");
                                         }}
-                                    >
-                                        Save Rotation Settings
-                                    </Button>
-                                </Form>
-                            </TabPane>
-                        </TabContent>
-
-                        <TabContent className="ds-margin-top-lg">
-                            <TabPane eventKey={3}>
-                                <Form horizontal>
-                                    <Row className="ds-margin-top-xlg" title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-errorlog-logmaxdiskspace).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Total Log Archive Exceeds (in MB)
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-errorlog-logmaxdiskspace"
-                                                type="number"
-                                                min="1"
-                                                max="2147483647"
-                                                value={this.state['nsslapd-errorlog-logmaxdiskspace']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "exp");
-                                                }}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-errorlog-logminfreediskspace).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Free Disk Space (in MB)
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-errorlog-logminfreediskspace"
-                                                type="number"
-                                                min="1"
-                                                max="2147483647"
-                                                value={this.state['nsslapd-errorlog-logminfreediskspace']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "exp");
-                                                }}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-errorlog-logexpirationtime).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Log File is Older Than...
-                                        </Col>
-                                        <Col sm={2}>
-                                            <FormControl
-                                                id="nsslapd-errorlog-logexpirationtime"
-                                                type="number"
-                                                min="1"
-                                                max="2147483647"
-                                                value={this.state['nsslapd-errorlog-logexpirationtime']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "exp");
-                                                }}
-                                            />
-                                        </Col>
-                                        <Col sm={2}>
-                                            <select
-                                                className="btn btn-default dropdown"
-                                                id="nsslapd-errorlog-logexpirationtimeunit"
-                                                value={this.state['nsslapd-errorlog-logexpirationtimeunit']}
-                                                onChange={(e) => {
-                                                    this.handleChange(e, "exp");
-                                                }}
-                                            >
-                                                <option>day</option>
-                                                <option>week</option>
-                                                <option>month</option>
-                                            </select>
-                                        </Col>
-                                    </Row>
-                                    <Button
-                                        isDisabled={this.state.saveExpDisabled}
-                                        variant="primary"
-                                        className="ds-margin-top-med"
-                                        onClick={() => {
-                                            this.saveConfig("exp");
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                className="ds-margin-top"
+                                title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-errorlog-logminfreediskspace)."
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Free Disk Space (in MB)
+                                </GridItem>
+                                <GridItem span={1}>
+                                    <TextInput
+                                        value={this.state['nsslapd-errorlog-logminfreediskspace']}
+                                        type="number"
+                                        id="nsslapd-errorlog-logminfreediskspace"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="server-errorlog-logminfreediskspace"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e, "exp");
                                         }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                className="ds-margin-top"
+                                title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-errorlog-logexpirationtime)."
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Log File is Older Than ...
+                                </GridItem>
+                                <GridItem span={1}>
+                                    <TextInput
+                                        value={this.state['nsslapd-errorlog-logexpirationtime']}
+                                        type="number"
+                                        id="nsslapd-errorlog-logexpirationtime"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="server-errorlog-logexpirationtime"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e, "exp");
+                                        }}
+                                    />
+                                </GridItem>
+                                <GridItem span={2} className="ds-left-margin">
+                                    <FormSelect
+                                        id="nsslapd-errorlog-logexpirationtimeunit"
+                                        value={this.state['nsslapd-errorlog-logexpirationtimeunit']}
+                                        onChange={(str, e) => {
+                                            this.handleChange(e, "exp");
+                                        }}
+                                        aria-label="FormSelect Input"
                                     >
-                                        Save Deletion Settings
-                                    </Button>
-                                </Form>
-                            </TabPane>
-                        </TabContent>
-                    </div>
-                </TabContainer>
+                                        <FormSelectOption key="2" value="day" label="day" />
+                                        <FormSelectOption key="3" value="week" label="week" />
+                                        <FormSelectOption key="4" value="month" label="month" />
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
+                        </Form>
+                        <Button
+                            key="save del settings"
+                            isDisabled={this.state.saveExpDisabled}
+                            variant="primary"
+                            className="ds-margin-top-xlg"
+                            onClick={() => {
+                                this.saveConfig("exp");
+                            }}
+                            isLoading={this.state.loading}
+                            spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveDeletionName}
+                        </Button>
+                    </Tab>
+                </Tabs>
             </div>;
 
-        if (this.state.loading || !this.state.loaded) {
-            body = <Spinner loading size="md" />;
+        if (!this.state.loaded) {
+            body =
+                <div className="ds-margin-top-xlg ds-center">
+                    <Spinner size="xl" />
+                </div>;
         }
 
         return (
-            <div id="server-errorlog-page">
-                <Row>
-                    <Col sm={5}>
-                        <ControlLabel className="ds-suffix-header ds-margin-top-lg">
-                            Error Log Settings
-                            <Icon className="ds-left-margin ds-refresh"
-                                type="fa" name="refresh" title="Refresh the Access Log settings"
-                                onClick={this.reloadConfig}
-                                disabled={this.state.loading}
-                            />
-                        </ControlLabel>
-                    </Col>
-                </Row>
+            <div id="server-errorlog-page" className={this.state.loading ? "ds-disabled" : ""}>
+                <Grid>
+                    <GridItem span={3}>
+                        <h4>Error Log Settings <FontAwesomeIcon
+                            size="lg"
+                            className="ds-left-margin ds-refresh"
+                            icon={faSyncAlt}
+                            title="Refresh Error Log settings"
+                            onClick={() => {
+                                this.reloadConfig(true);
+                            }}
+                        />
+                        </h4>
+                    </GridItem>
+                </Grid>
                 {body}
             </div>
         );

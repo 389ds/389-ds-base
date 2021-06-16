@@ -138,7 +138,7 @@ export class DoubleConfirmModal extends React.Component {
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                label={<><b>Yes</b>&nbsp;,I am sure.</>}
+                                label={<><b>Yes</b>, I am sure.</>}
                             />
                         </Col>
                     </Row>

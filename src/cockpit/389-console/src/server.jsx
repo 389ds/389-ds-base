@@ -167,7 +167,7 @@ export class Server extends React.Component {
     }
 
     onTreeClick(evt, treeViewItem, parentItem) {
-        if (treeViewItem.id != "logging-config") {
+        if (treeViewItem.id != "logging-config" && treeViewItem.id != this.state.node_name) {
             this.setState({
                 activeItems: [treeViewItem, parentItem],
                 node_name: treeViewItem.id,

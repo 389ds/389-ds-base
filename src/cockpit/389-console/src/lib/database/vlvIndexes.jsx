@@ -1,40 +1,25 @@
 import cockpit from "cockpit";
 import React from "react";
-import { ConfirmPopup } from "../notifications.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
+import { VLVTable } from "./databaseTables.jsx";
 import { log_cmd } from "../tools.jsx";
-import {
-    DropdownButton,
-    MenuItem,
-    ListView,
-    ListViewItem,
-    ListViewIcon,
-    Row,
-    Col,
-    ControlLabel,
-    Form,
-} from "patternfly-react";
 import {
     Button,
     Checkbox,
-    // Form,
-    // FormGroup,
+    Form,
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
     Modal,
     ModalVariant,
     Select,
     SelectVariant,
     SelectOption,
-    // TextInput,
+    TextInput,
+    ValidatedOptions,
     noop
 } from "@patternfly/react-core";
-import {
-    Table,
-    TableHeader,
-    TableBody,
-    TableVariant,
-    sortable,
-    SortByDirection,
-} from '@patternfly/react-table';
-import TrashAltIcon from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
 import PropTypes from "prop-types";
 
 export class VLVIndexes extends React.Component {
@@ -43,10 +28,20 @@ export class VLVIndexes extends React.Component {
         this.state = {
             vlvItems: [],
             showVLVModal: false,
-            showVLVEditModal: false,
             showDeleteConfirm: false,
             showReindexConfirm: false,
             isVlvSortIndexSelectOpen: false,
+            saving: false,
+            saveBtnDisabled: true,
+            updating: false,
+            modalSpinning: false,
+            modalChecked: false,
+            showCreateSortIndex: false,
+            showDeleteSortIndexConfirm: false,
+            createIndexParent: "",
+            deleteIndexParent: "",
+            deleteIndexName: "",
+            deleteVLVName: "",
             errObj: {},
             vlvName: "",
             vlvBase: "",
@@ -63,15 +58,11 @@ export class VLVIndexes extends React.Component {
         // Create VLV Modal
         this.showVLVModal = this.showVLVModal.bind(this);
         this.closeVLVModal = this.closeVLVModal.bind(this);
+        this.handleModalChange = this.handleModalChange.bind(this);
         this.handleVLVChange = this.handleVLVChange.bind(this);
-        this.handleVLVSortChange = this.handleVLVSortChange.bind(this);
         this.saveVLV = this.saveVLV.bind(this);
-        this.saveEditVLV = this.saveEditVLV.bind(this);
         this.deleteVLV = this.deleteVLV.bind(this);
         this.reindexVLV = this.reindexVLV.bind(this);
-        // Edit VLV modal
-        this.showVLVEditModal = this.showVLVEditModal.bind(this);
-        this.closeVLVEditModal = this.closeVLVEditModal.bind(this);
         this.showDeleteConfirm = this.showDeleteConfirm.bind(this);
         this.closeDeleteConfirm = this.closeDeleteConfirm.bind(this);
         this.showReindexConfirm = this.showReindexConfirm.bind(this);
@@ -79,6 +70,13 @@ export class VLVIndexes extends React.Component {
         // Select typeahead
         this.onSelectToggle = this.onSelectToggle.bind(this);
         this.onSelectClear = this.onSelectClear.bind(this);
+        this.deleteSortIndex = this.deleteSortIndex.bind(this);
+        this.createSortIndex = this.createSortIndex.bind(this);
+        // Sort index
+        this.showCreateSortIndex = this.showCreateSortIndex.bind(this);
+        this.closeCreateSortIndex = this.closeCreateSortIndex.bind(this);
+        this.showDeleteSortIndexConfirm = this.showDeleteSortIndexConfirm.bind(this);
+        this.closeDeleteSortIndexConfirm = this.closeDeleteSortIndexConfirm.bind(this);
     }
 
     //
@@ -93,6 +91,7 @@ export class VLVIndexes extends React.Component {
             vlvScope: "subtree",
             vlvFilter: "",
             vlvSortList: [],
+            saving: false,
         });
     }
 
@@ -102,66 +101,37 @@ export class VLVIndexes extends React.Component {
         });
     }
 
-    handleVLVChange(e, selection) {
+    handleVLVChange(e) {
         let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
         let errObj = this.state.errObj;
+        let attr = e.target.id;
+        let saveBtnDisabled = false;
+        let vlvCreateAttrs = ['vlvName', 'vlvBase', 'vlvFilter'];
+
+        for (let createAttr of vlvCreateAttrs) {
+            if (attr != createAttr && this.state[createAttr] == "") {
+                saveBtnDisabled = true;
+            }
+        }
         if (value == "") {
             valueErr = true;
+            saveBtnDisabled = true;
         }
+
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
+            errObj: errObj,
+            saveBtnDisabled: saveBtnDisabled
         });
     }
 
-    handleVLVSortChange(sorts) {
-        // "sorts" is a table obj that uses the key "sortName"
-        let sortList = [];
-        for (let sort of sorts) {
-            // Create array of sorts from array of objs
-            sortList.push(sort.sortName);
-        }
+    handleModalChange(e) {
+        // Basic handler, no error checking
+        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
-            vlvSortList: [...this.state.vlvSortList, sorts]
-        });
-    }
-
-    // Edit VLVIndex
-    showVLVEditModal(e) {
-        const vlvName = e.target.name;
-        for (let item of this.props.vlvItems) {
-            const vlvAttrs = item.attrs;
-            if (vlvAttrs.cn[0] == vlvName) {
-                let sortRows = [];
-                let sortList = [];
-                for (let vlvSort of item.sorts) {
-                    sortRows.push(vlvSort.attrs.vlvsort[0]);
-                    sortList.push(vlvSort.attrs.vlvsort[0]);
-                }
-                this.setState({
-                    showVLVEditModal: true,
-                    errObj: {},
-                    vlvName: vlvAttrs.cn[0],
-                    vlvBase: vlvAttrs.vlvbase[0],
-                    vlvScope: this.getScopeKey(vlvAttrs.vlvscope[0]),
-                    vlvFilter: vlvAttrs.vlvfilter[0],
-                    vlvSortList: sortList,
-                    _vlvName: vlvAttrs.cn[0],
-                    _vlvBase: vlvAttrs.vlvbase[0],
-                    _vlvScope: this.getScopeKey(vlvAttrs.vlvscope[0]),
-                    _vlvFilter: vlvAttrs.vlvfilter[0],
-                    _vlvSortList: sortList,
-                });
-                break;
-            }
-        }
-    }
-
-    closeVLVEditModal() {
-        this.setState({
-            showVLVEditModal: false
+            [e.target.id]: value,
         });
     }
 
@@ -174,194 +144,124 @@ export class VLVIndexes extends React.Component {
         return mapping[scope];
     }
 
-    getScopeKey(scope) {
-        let mapping = {
-            '2': 'subtree',
-            '1': 'one',
-            '0': 'base'
-        };
-        return mapping[scope];
+    showCreateSortIndex(parent) {
+        this.setState({
+            showCreateSortIndex: true,
+            createIndexParent: parent,
+        });
     }
 
-    saveEditVLV() {
-        let missingArgs = {};
-        let errors = false;
-        if (this.state.vlvBase == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing VLV search base`
-            );
-            missingArgs.vlvBase = true;
-            errors = true;
-        }
-        if (this.state.vlvFilter == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing VLV search filter`
-            );
-            missingArgs.vlvFilter = true;
-            errors = true;
-        }
-        if (errors) {
-            this.setState({
-                errObj: missingArgs
-            });
-            return;
-        }
+    closeCreateSortIndex() {
+        this.setState({
+            showCreateSortIndex: false,
+            createIndexParent: "",
+        });
+    }
 
+    createSortIndex(index) {
+        let index_value = index.join(' ');
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "vlv-index", "edit-search", "--name=" + this.state.vlvName,
-            this.props.suffix
+            "backend", "vlv-index", "add-index", "--parent-name=" + this.state.createIndexParent,
+            "--index-name=" + this.state.createIndexParent + " - " + index_value,
+            "--sort=" + index_value, this.props.suffix
         ];
-        if (this.state.vlvBase != this.state._vlvBase) {
-            cmd.push("--search-base=" + this.state.vlvBase);
-        }
-        if (this.state.vlvScope != this.state._vlvScope) {
-            cmd.push("--search-scope=" + this.getScopeVal(this.state.vlvScope));
-        }
-        if (this.state.vlvFilter != this.state._vlvFilter) {
-            cmd.push("--search-filter=" + this.state.vlvFilter);
-        }
-        if (cmd.length > 8) {
-            log_cmd("saveEditVLV", "Add vlv search", cmd);
-            cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
-                    .done(content => {
-                        this.closeVLVEditModal();
-                        this.props.reload(this.props.suffix);
-                        this.props.addNotification(
-                            "success",
-                            "Successfully edited VLV search"
-                        );
-                    })
-                    .fail(err => {
-                        let errMsg = JSON.parse(err);
-                        this.closeVLVEditModal();
-                        this.props.reload(this.props.suffix);
-                        this.props.addNotification(
-                            "error",
-                            `Failed to edit VLV search - ${errMsg.desc}`
-                        );
-                    });
+        if (this.state.reindexVLV) {
+            cmd.push("--index-it");
         }
 
-        // Check the sort indexes now
-        // Loop over sorts and create indexes or each one
-        let addIndexList = [];
-        let delIndexList = [];
-        for (let sort of this.state.vlvSortList) {
-            if (this.state._vlvSortList.indexOf(sort) == -1) {
-                // Add sort index
-                addIndexList.push(sort);
-            }
-        }
-        for (let sort of this.state._vlvSortList) {
-            if (this.state.vlvSortList.indexOf(sort) == -1) {
-                // Del sort index
-                delIndexList.push(sort);
-            }
-        }
+        this.setState({
+            updating: true,
+        });
 
-        // Add VLV index/sort
-        for (let index of addIndexList) {
-            cmd = [
-                "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-                "backend", "vlv-index", "add-index", "--parent-name=" + this.state.vlvName,
-                "--index-name=" + this.state.vlvName + " - " + index,
-                "--sort=" + index, this.props.suffix
-            ];
-            if (this.state.reindexVLV) {
-                cmd.push("--index-it");
-            }
-            log_cmd("saveEditVLV", "Add index", cmd);
-            cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
-                    .done(content => {
-                        this.closeVLVEditModal();
-                        this.props.reload(this.props.suffix);
-                        this.props.addNotification(
-                            "success",
-                            "Successfully added VLV index " + this.state.vlvName + " - " + index
-                        );
-                    })
-                    .fail(err => {
-                        let errMsg = JSON.parse(err);
-                        this.closeVLVEditModal();
-                        this.props.reload(this.props.suffix);
-                        this.props.addNotification(
-                            "error",
-                            `Failed to add VLV index entry - ${errMsg.desc}`
-                        );
+        log_cmd("createSortIndex", "Add index", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    this.closeCreateSortIndex();
+                    this.props.reload(this.props.suffix);
+                    this.props.addNotification(
+                        "success",
+                        "Successfully added VLV sort index"
+                    );
+                    this.setState({
+                        updating: false,
                     });
-        }
+                })
+                .fail(err => {
+                    let errMsg = JSON.parse(err);
+                    this.closeCreateSortIndex();
+                    this.props.reload(this.props.suffix);
+                    this.props.addNotification(
+                        "error",
+                        `Failed to add VLV index entry - ${errMsg.desc}`
+                    );
+                    this.setState({
+                        updating: false,
+                    });
+                });
+    }
 
-        // Del VLV index/sort
-        for (let index of delIndexList) {
-            cmd = [
-                "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-                "backend", "vlv-index", "del-index", "--parent-name=" + this.state.vlvName,
-                "--sort=" + index, this.props.suffix
-            ];
-            if (this.state.reindexVLV) {
-                cmd.push("--index-it");
-            }
-            log_cmd("saveEditVLV", "delete index", cmd);
-            cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
-                    .done(content => {
-                        this.closeVLVEditModal();
-                        this.props.reload(this.props.suffix);
-                        this.props.addNotification(
-                            "success",
-                            "Successfully added VLV index " + this.state.vlvName + " - " + index
-                        );
-                    })
-                    .fail(err => {
-                        let errMsg = JSON.parse(err);
-                        this.closeVLVEditModal();
-                        this.props.reload(this.props.suffix);
-                        this.props.addNotification(
-                            "error",
-                            `Failed to add VLV index entry - ${errMsg.desc}`
-                        );
+    showDeleteSortIndexConfirm(parent, name) {
+        this.setState({
+            showDeleteSortIndexConfirm: true,
+            deleteIndexParent: parent,
+            deleteIndexName: name
+        });
+    }
+
+    closeDeleteSortIndexConfirm() {
+        this.setState({
+            showDeleteSortIndexConfirm: false,
+            deleteIndexParent: "",
+            deleteIndexName: "",
+        });
+    }
+
+    deleteSortIndex() {
+        let cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "backend", "vlv-index", "del-index", "--parent-name=" + this.state.deleteIndexParent,
+            "--sort=" + this.state.deleteIndexName, this.props.suffix
+        ];
+        this.setState({
+            updating: true,
+            modalSpinning: true,
+        });
+        log_cmd("deleteSortIndex", "delete index", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    this.closeDeleteSortIndexConfirm();
+                    this.props.reload(this.props.suffix);
+                    this.props.addNotification(
+                        "success",
+                        "Successfully removed VLV sort index"
+                    );
+                    this.setState({
+                        updating: false,
+                        modalSpinning: false,
                     });
-        }
+                })
+                .fail(err => {
+                    let errMsg = JSON.parse(err);
+                    this.closeDeleteSortIndexConfirm();
+                    this.props.reload(this.props.suffix);
+                    this.props.addNotification(
+                        "error",
+                        `Failed to delete VLV sort index - ${errMsg.desc}`
+                    );
+                    this.setState({
+                        updating: false,
+                        modalSpinning: false,
+                    });
+                });
     }
 
     saveVLV() {
-        let missingArgs = {};
-        let errors = false;
-        if (this.state.vlvName == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing VLV Search Name`
-            );
-            missingArgs.vlvName = true;
-            errors = true;
-        }
-        if (this.state.vlvBase == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing VLV search base`
-            );
-            missingArgs.vlvBase = true;
-            errors = true;
-        }
-        if (this.state.vlvFilter == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing VLV search filter`
-            );
-            missingArgs.vlvFilter = true;
-            errors = true;
-        }
-        if (errors) {
-            this.setState({
-                errObj: missingArgs
-            });
-            return;
-        }
+        this.setState({
+            saving: true
+        });
 
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -376,77 +276,33 @@ export class VLVIndexes extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
+                    this.closeVLVModal();
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "success",
                         "Successfully added VLV search: " + this.state.vlvName
                     );
-                    // Loop over sorts and create indexes or each one
-                    for (let sort of this.state.vlvSortList) {
-                        const indexName = this.state.vlvName + " - " + sort;
-                        let idx_cmd = [
-                            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-                            "backend", "vlv-index", "add-index",
-                            "--parent-name=" + this.state.vlvName,
-                            "--index-name=" + indexName,
-                            "--sort=" + sort,
-                            this.props.suffix
-                        ];
-                        if (this.state.reindexVLV) {
-                            idx_cmd.push("--index");
-                        }
-                        log_cmd("saveVLV", "Add vlv index", idx_cmd);
-                        cockpit
-                                .spawn(idx_cmd, { superuser: true, err: "message" })
-                                .done(content => {
-                                    this.props.reload(this.props.suffix);
-                                    this.props.addNotification(
-                                        "success",
-                                        "Successfully added VLV index: " + indexName
-                                    );
-                                })
-                                .fail(err => {
-                                    let errMsg = JSON.parse(err);
-                                    this.props.addNotification(
-                                        "error",
-                                        `Failed create VLV index entry - ${errMsg.desc}`
-                                    );
-                                });
-                    }
+                    this.setState({
+                        saving: false
+                    });
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
+                    this.closeVLVModal();
                     this.props.addNotification(
                         "error",
                         `Failed create VLV search entry - ${errMsg.desc}`
                     );
+                    this.setState({
+                        saving: false
+                    });
                 });
-        this.closeVLVModal();
     }
 
-    renderVLVActions(id) {
-        return (
-            <div>
-                <DropdownButton bsStyle="default" title="Actions" id={id}>
-                    <MenuItem eventKey="1" name={id} onClick={this.showVLVEditModal}>
-                        Edit VLV Index
-                    </MenuItem>
-                    <MenuItem eventKey="2" name={id} onClick={this.showReindexConfirm}>
-                        Reindex VLV Index
-                    </MenuItem>
-                    <MenuItem divider />
-                    <MenuItem eventKey="3" name={id} onClick={this.showDeleteConfirm}>
-                        Delete VLV Index
-                    </MenuItem>
-                </DropdownButton>
-            </div>
-        );
-    }
-
-    showDeleteConfirm (e) {
+    showDeleteConfirm(name) {
         this.setState({
             showDeleteConfirm: true,
-            deleteVLVName: e.target.name
+            deleteVLVName: name
         });
     }
 
@@ -456,10 +312,13 @@ export class VLVIndexes extends React.Component {
         });
     }
 
-    deleteVLV(vlv) {
+    deleteVLV() {
+        this.setState({
+            modalSpinning: true
+        });
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "vlv-index", "del-search", "--name=" + vlv, this.props.suffix
+            "backend", "vlv-index", "del-search", "--name=" + this.state.deleteVLVName, this.props.suffix
         ];
         log_cmd("deleteVLV", "delete LV search and indexes", cmd);
         cockpit
@@ -470,6 +329,9 @@ export class VLVIndexes extends React.Component {
                         "success",
                         `Successfully deleted VLV index`
                     );
+                    this.setState({
+                        modalSpinning: false
+                    });
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -478,13 +340,16 @@ export class VLVIndexes extends React.Component {
                         "error",
                         `Failed to deletre VLV index - ${errMsg.desc}`
                     );
+                    this.setState({
+                        modalSpinning: false
+                    });
                 });
     }
 
-    showReindexConfirm (e) {
+    showReindexConfirm (name) {
         this.setState({
             showReindexConfirm: true,
-            reindexVLVName: e.target.name
+            reindexVLVName: name
         });
     }
 
@@ -494,10 +359,13 @@ export class VLVIndexes extends React.Component {
         });
     }
 
-    reindexVLV(vlv) {
+    reindexVLV() {
+        this.setState({
+            modalSpinning: true
+        });
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "vlv-index", "reindex", "--parent-name=" + vlv, this.props.suffix
+            "backend", "vlv-index", "reindex", "--parent-name=" + this.state.reindexVLVName, this.props.suffix
         ];
         log_cmd("reindexVLV", "reindex VLV indexes", cmd);
         cockpit
@@ -508,6 +376,9 @@ export class VLVIndexes extends React.Component {
                         "success",
                         `Successfully completed VLV indexing`
                     );
+                    this.setState({
+                        modalSpinning: false
+                    });
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -516,6 +387,9 @@ export class VLVIndexes extends React.Component {
                         "error",
                         `Failed to index VLV index - ${errMsg.desc}`
                     );
+                    this.setState({
+                        modalSpinning: false
+                    });
                 });
     }
 
@@ -533,115 +407,103 @@ export class VLVIndexes extends React.Component {
     }
 
     render() {
-        const vlvIndexes = this.props.vlvItems.map((vlvItem) =>
-            <ListViewItem
-                actions={this.renderVLVActions(vlvItem.attrs.cn[0])}
-                leftContent={<ListViewIcon name="list" />}
-                key={vlvItem.attrs.cn[0]}
-                heading={vlvItem.attrs.cn[0]}
-            >
-                <Row>
-                    <Col sm={11} key={vlvItem.dn}>
-                        <p key={vlvItem.dn + "-p"}><label className="ds-divider-lrg">Base</label>{vlvItem.attrs.vlvbase[0]}</p>
-                        <p><label className="ds-divider-lrg">Filter</label>{vlvItem.attrs.vlvfilter[0]}</p>
-                        <p><label className="ds-divider-lrg">Scope</label>{this.getScopeKey(vlvItem.attrs.vlvscope[0])}</p>
-                        <hr />
-                        {
-                            vlvItem.sorts.map(sort => {
-                                let indexState;
-                                if (sort.attrs.vlvenabled[0] == "0") {
-                                    indexState = <font size="2" color="#d01c8b"><b>Disabled</b></font>;
-                                } else {
-                                    indexState = <font size="2" color="#4dac26"><b>Uses: </b>{sort.attrs.vlvuses[0]}</font>;
-                                }
-                                return (<p key={sort.dn + sort.attrs.vlvsort[0]}><label className="ds-divider-lrg">Sort</label>{sort.attrs.vlvsort[0]} ({indexState})</p>);
-                            })
-                        }
-                    </Col>
-                </Row>
-            </ListViewItem>
-        );
-
         return (
             <div className="ds-tab-table">
-                <h5>Virtual List View Indexes</h5>
-                <ListView>
-                    {vlvIndexes}
-                </ListView>
-                <button className="btn btn-primary ds-margin-top" onClick={this.showVLVModal} type="button">Create VLV Index</button>
+                <h5 className="ds-center ds-margin-top-xlg">Virtual List View Indexes</h5>
+                <VLVTable
+                    rows={this.props.vlvItems}
+                    key={this.props.vlvItems}
+                    deleteFunc={this.showDeleteConfirm}
+                    reindexFunc={this.showReindexConfirm}
+                    deleteSortFunc={this.showDeleteSortIndexConfirm}
+                    addSortFunc={this.showCreateSortIndex}
+                    updating={this.state.updating}
+                />
+                <Button
+                    className="ds-margin-top"
+                    variant="primary"
+                    onClick={this.showVLVModal}
+                >
+                    Create VLV Index
+                </Button>
+                <AddVLVIndexModal
+                    showModal={this.state.showCreateSortIndex}
+                    closeHandler={this.closeCreateSortIndex}
+                    handleChange={this.handleModalChange}
+                    saveHandler={this.createSortIndex}
+                    onSelectToggle={this.onSelectToggle}
+                    onSelectClear={this.onSelectClear}
+                    handleTypeaheadChange={this.handleTypeaheadChange}
+                    attrs={this.props.attrs}
+                    reindexVLV={this.state.reindexVLV}
+                    vlvSortList={this.state.vlvSortList}
+                    saving={this.state.saving || this.state.updating}
+                    saveBtnDisabled={this.state.saveBtnDisabled}
+                />
                 <AddVLVModal
                     showModal={this.state.showVLVModal}
                     closeHandler={this.closeVLVModal}
                     handleChange={this.handleVLVChange}
-                    handleSortChange={this.handleVLVSortChange}
                     saveHandler={this.saveVLV}
-                    onSelectToggle={this.onSelectToggle}
-                    onSelectClear={this.onSelectClear}
-                    handleTypeaheadChange={this.handleTypeaheadChange}
-                    isVlvSortIndexSelectOpen={this.isVlvSortIndexSelectOpen}
                     error={this.state.errObj}
-                    attrs={this.props.attrs}
-                    reindexVLV={this.state.reindexVLV}
-                />
-                <AddVLVModal
-                    showModal={this.state.showVLVEditModal}
-                    closeHandler={this.closeVLVEditModal}
-                    handleChange={this.handleVLVChange}
-                    handleSortChange={this.handleVLVSortChange}
-                    saveHandler={this.saveEditVLV}
-                    onSelectToggle={this.onSelectToggle}
-                    onSelectClear={this.onSelectClear}
-                    handleTypeaheadChange={this.handleTypeaheadChange}
-                    isVlvSortIndexSelectOpen={this.isVlvSortIndexSelectOpen}
-                    edit
-                    error={this.state.errObj}
-                    attrs={this.props.attrs}
                     vlvName={this.state.vlvName}
                     vlvBase={this.state.vlvBase}
                     vlvScope={this.state.vlvScope}
                     vlvFilter={this.state.vlvFilter}
-                    vlvSortList={this.state.vlvSortList}
-                    reindexVLV={this.state.reindexVLV}
+                    saving={this.state.saving}
+                    saveBtnDisabled={this.state.saveBtnDisabled}
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showDeleteConfirm}
                     closeHandler={this.closeDeleteConfirm}
-                    actionFunc={this.deleteVLV}
-                    actionParam={this.state.deleteVLVName}
-                    msg="Are you sure you want to delete this VLV index?"
-                    msgContent={this.state.deleteVLVName}
+                    handleChange={this.handleModalChange}
+                    actionHandler={this.deleteVLV}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.deleteVLVName}
+                    checked={this.state.modalChecked}
+                    mTitle="Delete VLV Index"
+                    mMsg="Are you sure you want to delete this VLV index??"
+                    mSpinningMsg="Deleting Index ..."
+                    mBtnName="Delete Index"
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showReindexConfirm}
                     closeHandler={this.closeReindexConfirm}
-                    actionFunc={this.reindexVLV}
-                    actionParam={this.state.reindexVLVName}
-                    msg="Are you sure you want to reindex this VLV index?"
-                    msgContent={this.state.reindexVLVName}
+                    handleChange={this.handleModalChange}
+                    actionHandler={this.reindexVLV}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.reindexVLVName}
+                    checked={this.state.modalChecked}
+                    mTitle="Reindex VLV Index"
+                    mMsg="Are you sure you want to reindex this VLV index??"
+                    mSpinningMsg="Reindex ..."
+                    mBtnName="Reindex"
+                />
+                <DoubleConfirmModal
+                    showModal={this.state.showDeleteSortIndexConfirm}
+                    closeHandler={this.closeDeleteSortIndexConfirm}
+                    handleChange={this.handleModalChange}
+                    actionHandler={this.deleteSortIndex}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.deleteIndexName}
+                    checked={this.state.modalChecked}
+                    mTitle="Delete VLV Sort Index"
+                    mMsg="Are you really sure you want to delete this sorting index?"
+                    mSpinningMsg="Deleting Index ..."
+                    mBtnName="Delete Index"
                 />
             </div>
         );
     }
 }
 
-// Add and edit modal
-class AddVLVModal extends React.Component {
+// Add Sort Index modal
+class AddVLVIndexModal extends React.Component {
     constructor(props) {
         super(props);
-        let sortRows = [];
-        if (this.props.edit !== undefined && this.props.vlvSortList !== undefined) {
-            sortRows = this.props.vlvSortList;
-        }
+
         this.state = {
-            sortRows: sortRows,
             sortValue: [],
-            sortBy: {},
-            rows: [],
-            columns: [
-                { title: 'VLV Sort Indexes', transforms: [sortable] },
-                { title: '' },
-            ],
-            edit: false,
             isVLVSortOpen: false,
         };
 
@@ -658,40 +520,7 @@ class AddVLVModal extends React.Component {
             });
         };
 
-        this.updateSorts = this.updateSorts.bind(this);
-        this.handleVLVSortChange = this.handleVLVSortChange.bind(this);
-        this.close = this.close.bind(this);
-        this.save = this.save.bind(this);
-        this.onSort = this.onSort.bind(this);
-        this.getDeleteButton = this.getDeleteButton.bind(this);
         this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
-    }
-
-    getDeleteButton(name) {
-        return (
-            <TrashAltIcon
-                className="ds-center"
-                onClick={() => {
-                    this.handleVLVSortChange(name);
-                }}
-                title="Remove this VLV Sort Index"
-            />
-        );
-    }
-
-    handleVLVSortChange(name) {
-        // VLV index was removed from table
-        let rows = this.state.sortRows;
-        for (let i = 0; i < rows.length; i++) {
-            if (rows[i] == name) {
-                rows.splice(i, 1);
-                this.setState({
-                    sortRows: rows
-                });
-                this.props.handleSortChange(rows);
-                return;
-            }
-        }
     }
 
     handleTypeaheadChange(e, selection) {
@@ -712,193 +541,217 @@ class AddVLVModal extends React.Component {
         }
     }
 
-    updateSorts() {
-        let rows = this.state.sortRows;
-        if (this.state.sortValue.length > 0) {
-            rows.push(this.state.sortValue);
-            this.setState({
-                sortRows: rows,
-                sortValue: []
-            });
-            this.props.handleSortChange(rows);
-        }
-    }
-
-    save() {
-        // reset the rows, and call the save handler
-        this.state.sortRows = [];
-        this.props.saveHandler();
-    }
-
-    close() {
-        this.state.sortRows = [];
-        this.props.closeHandler();
-    }
-
-    onSort(_event, index, direction) {
-        let sortedRows = [...this.state.sortRows];
-
-        // Sort and build the new rows
-        sortedRows.sort();
-        if (direction !== SortByDirection.asc) {
-            sortedRows.reverse();
-        }
-        this.setState({
-            sortBy: {
-                index,
-                direction
-            },
-            sortRows: sortedRows,
-        });
-    }
-
     render() {
         const {
             showModal,
             handleChange,
-            error,
             attrs,
+            saving,
         } = this.props;
-        let title;
-        let nameInput;
-        let base = "";
-        let scope = "subtree";
-        let filter = "";
-        let rows = [];
-        let columns = this.state.columns;
-        if (this.props.edit) {
-            title = "Edit VLV Index";
-            nameInput = <input className="ds-input-auto" type="text" value={this.props.vlvName} readOnly />;
-            base = this.props.vlvBase;
-            scope = this.props.vlvScope;
-            filter = this.props.vlvFilter;
-        } else {
-            // Create new index
-            // this.state.sortRows = [];
-            title = "Create VLV Index";
-            nameInput = <input className={error.vlvName ? "ds-input-auto-bad" : "ds-input-auto"} type="text" onChange={handleChange} id="vlvName" />;
-        }
-
-        let vlvscope =
-            <Row className="ds-margin-top">
-                <Col sm={3}>
-                    <ControlLabel>Search Scope</ControlLabel>
-                </Col>
-                <Col sm={9}>
-                    <select defaultValue={scope}
-                        onChange={this.props.handleChange} className="btn btn-default dropdown" id="vlvScope">
-                        <option>subtree</option>
-                        <option>one</option>
-                        <option>base</option>
-                    </select>
-                </Col>
-            </Row>;
-
-        if (this.state.sortRows.length == 0) {
-            rows = [{cells: ['No sorting indexes']}];
-            columns = [{title: 'VLV Sort Indexes'}];
-        } else {
-            // let sortRows = JSON.parse(JSON.stringify(this.state.sortRows));
-            for (let row of this.state.sortRows) {
-                rows.push({ cells: [row.join(' '), { props: { textCenter: true }, title: this.getDeleteButton(row) }] });
-            }
+        let saveBtnName = "Create Sort Index";
+        let extraPrimaryProps = {};
+        if (this.props.saving) {
+            saveBtnName = "Creating Index ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
         return (
             <Modal
                 variant={ModalVariant.medium}
                 aria-labelledby="ds-modal"
-                title={title}
+                title="Create VLV Sort Index"
                 isOpen={showModal}
                 onClose={this.close}
+                className={this.state.isVLVSortOpen ? "ds-modal-select-tall" : "ds-modal-select"}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={this.save}>
-                        Save VLV Index
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={() => {
+                            this.props.saveHandler(this.state.sortValue);
+                        }}
+                        isLoading={saving}
+                        spinnerAriaValueText={saving ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={this.state.sortValue.length == 0}
+                    >
+                        {saveBtnName}
                     </Button>,
-                    <Button key="cancel" variant="link" onClick={this.close}>
+                    <Button key="cancel" variant="link" onClick={this.props.closeHandler}>
                         Cancel
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
-                    <Row>
-                        <Col sm={3}>
-                            <ControlLabel>VLV Index Name</ControlLabel>
-                        </Col>
-                        <Col sm={9}>
-                            {nameInput}
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>Search Base</ControlLabel>
-                        </Col>
-                        <Col sm={9}>
-                            <input className={error.vlvBase ? "ds-input-auto-bad" : "ds-input-auto"}
-                                onChange={handleChange} type="text" id="vlvBase" defaultValue={base} />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={3}>
-                            <ControlLabel>Search Filter</ControlLabel>
-                        </Col>
-                        <Col sm={9}>
-                            <input className={error.vlvFilter ? "ds-input-auto-bad" : "ds-input-auto"}
-                                onChange={handleChange} type="text" id="vlvFilter" defaultValue={filter} />
-                        </Col>
-                    </Row>
-                    {vlvscope}
-                    <hr />
-                    <div>
-                        <div className="ds-margin-top">
-                            <Table
-                                className="ds-margin-top"
-                                aria-label="referral table"
-                                cells={columns}
-                                rows={rows}
-                                variant={TableVariant.compact}
-                                sortBy={this.state.sortBy}
-                                onSort={this.onSort}
-                            >
-                                <TableHeader />
-                                <TableBody />
-                            </Table>
-                            <Select
-                                variant={SelectVariant.typeaheadMulti}
-                                typeAheadAriaLabel="Type an attribute names to create a sort index"
-                                onToggle={this.onVLVSortToggle}
-                                onClear={this.onVLVSortClear}
-                                onSelect={this.handleTypeaheadChange}
-                                maxHeight={1000}
-                                selections={this.state.sortValue}
-                                isOpen={this.state.isVLVSortOpen}
-                                aria-labelledby="typeAhead-vlv-sort-index"
-                                placeholderText="Type an attribute names to create a sort index..."
-                                noResultsFoundText="There are no matching entries"
-                                >
-                                {attrs.map((attr, index) => (
-                                    <SelectOption
-                                        key={index}
-                                        value={attr}
-                                    />
-                                    ))}
-                            </Select>
-                            <button className="ds-margin-top" type="button" onClick={this.updateSorts}>Add Sort Index</button>
-                        </div>
-                    </div>
-                    <hr />
-                    <Row>
-                        <Col sm={12}>
+                <Form isHorizontal>
+                    <Grid className="ds-margin-top">
+                        <GridItem className="ds-label" span={12}>
+                            Build a list of attributes to form the "Sort" index
+                        </GridItem>
+                        <Select
+                            variant={SelectVariant.typeaheadMulti}
+                            typeAheadAriaLabel="Type an attribute names to create a sort index"
+                            className="ds-margin-top-lg"
+                            onToggle={this.onVLVSortToggle}
+                            onClear={this.onVLVSortClear}
+                            onSelect={this.handleTypeaheadChange}
+                            maxHeight={1000}
+                            selections={this.state.sortValue}
+                            isOpen={this.state.isVLVSortOpen}
+                            aria-labelledby="typeAhead-vlv-sort-index"
+                            placeholderText="Type an attribute name ..."
+                            noResultsFoundText="There are no matching entries"
+                        >
+                            {attrs.map((attr, index) => (
+                                <SelectOption
+                                    key={index}
+                                    value={attr}
+                                />
+                                ))}
+                        </Select>
+                        <GridItem className="ds-margin-top-xlg" span={12}>
                             <Checkbox
                                 id="reindexVLV"
                                 isChecked={this.props.reindexVLV}
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                label="Index VLV on Save"
+                                label="Reindex After Saving"
                             />
-                        </Col>
-                    </Row>
+                        </GridItem>
+                    </Grid>
+                </Form>
+            </Modal>
+        );
+    }
+}
+
+// Add modal
+class AddVLVModal extends React.Component {
+    render() {
+        const {
+            showModal,
+            handleChange,
+            saveHandler,
+            closeHandler,
+            error,
+            saving
+        } = this.props;
+        let saveBtnName = "Save VLV Index";
+        let extraPrimaryProps = {};
+        if (saving) {
+            saveBtnName = "Saving Index ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
+
+        return (
+            <Modal
+                variant={ModalVariant.medium}
+                aria-labelledby="ds-modal"
+                title="Create VLV Search Index"
+                isOpen={showModal}
+                onClose={this.close}
+                actions={[
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={saving}
+                        spinnerAriaValueText={saving ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={this.props.saveBtnDisabled}
+                    >
+                        {saveBtnName}
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal>
+                    <Grid className="ds-margin-top">
+                        <GridItem className="ds-label" span={2}>
+                            VLV Index Name
+                        </GridItem>
+                        <GridItem span={10}>
+                            <TextInput
+                                value={this.props.vlvName}
+                                type="text"
+                                id="vlvName"
+                                aria-describedby="vlvName"
+                                name="vlvName"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.vlvName ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid>
+                        <GridItem className="ds-label" span={2}>
+                            Search Base
+                        </GridItem>
+                        <GridItem span={10}>
+                            <TextInput
+                                value={this.props.vlvBase}
+                                type="text"
+                                id="vlvBase"
+                                aria-describedby="vlvBase"
+                                name="vlvBase"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.vlvBase ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid>
+                        <GridItem className="ds-label" span={2}>
+                            Search Filter
+                        </GridItem>
+                        <GridItem span={10}>
+                            <TextInput
+                                type="text"
+                                id="vlvFilter"
+                                aria-describedby="vlvFilter"
+                                name="vlvFilter"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                value={this.props.filter}
+                                validated={error.vlvFilter ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid>
+                        <GridItem className="ds-label" span={2}>
+                            Search Scope
+                        </GridItem>
+                        <GridItem span={10}>
+                            <FormSelect
+                                value={this.props.vlvScope}
+                                onChange={(value, event) => {
+                                    handleChange(event);
+                                }}
+                                id="vlvScope"
+                                aria-label="FormSelect Input"
+                            >
+                                <FormSelectOption key="0" value="subtree" label="subtree" />
+                                <FormSelectOption key="1" value="one" label="one" />
+                                <FormSelectOption key="2" value="base" label="base" />
+                            </FormSelect>
+                        </GridItem>
+                    </Grid>
+                    <Grid>
+                        <GridItem offset={1} className="ds-margin-top-lg ds-margin-bottom" span={10}>
+                            <h5>
+                                After creating this VLV Search entry you can goto
+                                the table and add VLV Sort Indexes to this VLV
+                                Search.  After adding the Sort Indexes you will
+                                need to <i>reindex</i> the VLV Index to make it
+                                active.
+                            </h5>
+                        </GridItem>
+                    </Grid>
                 </Form>
             </Modal>
         );
@@ -931,7 +784,6 @@ AddVLVModal.propTypes = {
     handleChange: PropTypes.func,
     handleSortChange: PropTypes.func,
     saveHandler: PropTypes.func,
-    edit: PropTypes.bool,
     error: PropTypes.object,
     attrs: PropTypes.array,
     vlvName: PropTypes.string,
@@ -947,7 +799,6 @@ AddVLVModal.defaultProps = {
     handleChange: noop,
     handleSortChange: noop,
     saveHandler: noop,
-    edit: false,
     error: {},
     attrs: [],
     vlvName: "",

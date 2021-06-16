@@ -1,18 +1,13 @@
 import React from "react";
 import {
-    Col,
-    ControlLabel,
-    Form,
-    FormControl,
-    Row,
-} from "patternfly-react";
-import {
     Button,
-    // Form,
-    // FormGroup,
+    Form,
+    Grid,
+    GridItem,
     Modal,
     ModalVariant,
-    // TextInput,
+    TextInput,
+    ValidatedOptions,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
@@ -57,58 +52,71 @@ export class SASLMappingModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form horizontal>
-                    <Row
-                        className="ds-margin-top"
+                <Form isHorizontal>
+                    <Grid
                         title="SASL Mapping entry name"
                     >
-                        <Col componentClass={ControlLabel} sm={5}>
+                        <GridItem className="ds-label" span={3}>
                             SASL Mapping Name
-                        </Col>
-                        <Col sm={5}>
-                            <FormControl
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={this.props.name}
+                                type="text"
                                 id="saslMapName"
-                                type="text"
-                                onChange={this.props.handleChange}
-                                className={this.props.error.saslMapName ? "ds-input-bad" : ""}
-                                defaultValue={this.props.name}
+                                aria-describedby="horizontal-form-name-helper"
+                                name="saslMapName"
+                                onChange={(str, e) => {
+                                    this.props.handleChange(e);
+                                }}
+                                validated={this.props.error.saslMapName ? ValidatedOptions.error : ValidatedOptions.default}
+                                isRequired
                             />
-                        </Col>
-                    </Row>
-                    <Row
-                        className="ds-margin-top"
+                        </GridItem>
+                    </Grid>
+                    <Grid
                         title="SASL mapping Regular Expression"
-                    >
-                        <Col componentClass={ControlLabel} sm={5}>
-                            SASL Mapping Regex
-                        </Col>
-                        <Col sm={5}>
-                            <FormControl
-                                id="saslMapRegex"
-                                type="text"
-                                onChange={this.props.handleChange}
-                                className={this.props.error.saslMapRegex ? "ds-input-bad" : ""}
-                                defaultValue={this.props.regex}
-                            />
-                        </Col>
-                    </Row>
-                    <Row
                         className="ds-margin-top"
-                        title="Test Regular Expression"
                     >
-                        <Col componentClass={ControlLabel} sm={5}>
-                            <font size="2">* Test Regex</font>
-                        </Col>
-                        <Col sm={5}>
-                            <FormControl
-                                id="saslTestText"
+                        <GridItem className="ds-label" span={3}>
+                            SASL mapping Regular Expression
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={this.props.regex}
                                 type="text"
-                                onChange={this.props.handleChange}
-                                defaultValue={this.props.testText}
+                                id="saslMapRegex"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="saslMapRegex"
+                                onChange={(str, e) => {
+                                    this.props.handleChange(e);
+                                }}
+                                isRequired
+                                validated={this.props.error.saslMapRegex ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="Test Regular Expression"
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            <font size="2">* Test Regex</font>
+                        </GridItem>
+                        <GridItem span={5}>
+                            <TextInput
+                                value={this.props.testText}
+                                type="text"
+                                id="saslTestText"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="saslTestText"
+                                onChange={(str, e) => {
+                                    this.props.handleChange(e);
+                                }}
                                 placeholder="Enter text to test regex"
                             />
-                        </Col>
-                        <Col sm={1}>
+                        </GridItem>
+                        <GridItem span={4}>
                             <Button
                                 isDisabled={this.props.testBtnDisabled}
                                 variant="primary"
@@ -116,61 +124,73 @@ export class SASLMappingModal extends React.Component {
                             >
                                 Test It
                             </Button>
-                        </Col>
-                    </Row>
-                    <Row
-                        className="ds-margin-top"
+                        </GridItem>
+                    </Grid>
+                    <Grid
                         title="The search base or a specific entry DN to match against the constructed DN"
+                        className="ds-margin-top"
                     >
-                        <Col componentClass={ControlLabel} sm={5}>
+                        <GridItem className="ds-label" span={3}>
                             SASL Mapping Base
-                        </Col>
-                        <Col sm={5}>
-                            <FormControl
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={this.props.base}
+                                type="text"
                                 id="saslBase"
-                                type="text"
-                                onChange={this.props.handleChange}
-                                className={this.props.error.saslBase ? "ds-input-bad" : ""}
-                                defaultValue={this.props.base}
+                                aria-describedby="horizontal-form-name-helper"
+                                name="saslBase"
+                                onChange={(str, e) => {
+                                    this.props.handleChange(e);
+                                }}
+                                isRequired
+                                validated={this.props.error.saslBase ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
-                    <Row
-                        className="ds-margin-top"
+                        </GridItem>
+                    </Grid>
+                    <Grid
                         title="SASL mapping search filter"
-                    >
-                        <Col componentClass={ControlLabel} sm={5}>
-                            SASL Mapping Filter
-                        </Col>
-                        <Col sm={5}>
-                            <FormControl
-                                id="saslFilter"
-                                type="text"
-                                onChange={this.props.handleChange}
-                                className={this.props.error.saslFilter ? "ds-input-bad" : ""}
-                                defaultValue={this.props.filter}
-                            />
-                        </Col>
-                    </Row>
-                    <Row
                         className="ds-margin-top"
-                        title="Set the mapping priority for which mappins should be tried first"
                     >
-                        <Col componentClass={ControlLabel} sm={5}>
-                            SASL Mapping Priority
-                        </Col>
-                        <Col sm={5}>
-                            <FormControl
-                                id="saslPriority"
-                                type="number"
-                                min="1"
-                                max="100"
-                                value={this.props.priority}
-                                onChange={this.props.handleChange}
-                                className={this.props.error.saslPriority ? "ds-input-bad" : ""}
+                        <GridItem className="ds-label" span={3}>
+                            SASL Mapping Filter
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={this.props.filter}
+                                type="text"
+                                id="saslFilter"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="saslFilter"
+                                onChange={(str, e) => {
+                                    this.props.handleChange(e);
+                                }}
+                                isRequired
+                                validated={this.props.error.saslFilter ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="Set the mapping priority for which mappings should be tried first"
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            SASL Mapping Priority
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={this.props.priority}
+                                type="number"
+                                id="saslPriority"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="saslPriority"
+                                onChange={(str, e) => {
+                                    this.props.handleChange(e);
+                                }}
+                                validated={this.props.error.saslPriority ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
                 </Form>
             </Modal>
         );

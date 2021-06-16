@@ -1,20 +1,14 @@
 import cockpit from "cockpit";
 import React from "react";
-import { ConfirmPopup } from "../notifications.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 import { IndexTable } from "./databaseTables.jsx";
-import { ReindexModal } from "./databaseModal.jsx";
 import { log_cmd } from "../tools.jsx";
-import {
-    Icon,
-    Row,
-    Col,
-    Form,
-} from "patternfly-react";
 import {
     Button,
     Checkbox,
-    // Form,
-    // FormGroup,
+    Form,
+    Grid,
+    GridItem,
     Modal,
     ModalVariant,
     Select,
@@ -23,10 +17,13 @@ import {
     Tab,
     Tabs,
     TabTitleText,
-    // TextInput,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
+
+const edit_attrs = ['mrs', 'editIndexTypeEq', 'editIndexTypeSub',
+    'editIndexTypePres', 'editIndexTypeApprox',
+];
 
 export class SuffixIndexes extends React.Component {
     constructor (props) {
@@ -35,9 +32,9 @@ export class SuffixIndexes extends React.Component {
             // indexes
             showIndexModal: false,
             showEditIndexModal: false,
-            showReindexModal: false,
             activeTabKey: 0,
-            reindexMsg: "",
+            modalChecked: false,
+            modalSpinning: false,
             editIndexName: "",
             types: "",
             attributes: [],
@@ -48,6 +45,8 @@ export class SuffixIndexes extends React.Component {
             reindexAttrName: "",
             showConfirmDeleteIndex: false,
             deleteAttrName: "",
+            saving: false,
+            saveBtnDisabled: true,
             // Add indexes
             addIndexName: [],
             addIndexTypeEq: false,
@@ -105,18 +104,36 @@ export class SuffixIndexes extends React.Component {
 
         // Add Matching Rule
         this.onMatchingruleAddSelect = (event, selection) => {
-            if (this.state.mrs.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        mrs: prevState.mrs.filter((item) => item !== selection),
-                        isMatchingruleAddOpen: false
-                    }),
-                );
+            let saveBtnDisabled = true;
+            let new_mrs = this.state.mrs;
+            if (new_mrs.includes(selection)) {
+                const index = new_mrs.indexOf(selection);
+                new_mrs.splice(index, 1);
+                if (JSON.stringify(this.state._mrs) != JSON.stringify(new_mrs)) {
+                    saveBtnDisabled = false;
+                }
+                // We must have at least one index type set
+                if ((!this.state.addIndexTypeEq && !this.state.addIndexTypeSub &&
+                     !this.state.addIndexTypePres && !this.state.addIndexTypeApprox) ||
+                    this.state.addIndexName == "") {
+                    // Must always have one index type
+                    saveBtnDisabled = true;
+                }
+                this.setState({
+                    mrs: new_mrs,
+                    isMatchingruleAddOpen: false,
+                    saveBtnDisabled: saveBtnDisabled
+                });
             } else {
+                new_mrs.push(selection);
+                if (JSON.stringify(this.state._mrs) != JSON.stringify(new_mrs)) {
+                    saveBtnDisabled = false;
+                }
                 this.setState(
                     (prevState) => ({
-                        mrs: [...prevState.mrs, selection],
-                        isMatchingruleAddOpen: false
+                        mrs: new_mrs,
+                        isMatchingruleAddOpen: false,
+                        saveBtnDisabled: saveBtnDisabled
                     }),
                 );
             }
@@ -167,6 +184,8 @@ export class SuffixIndexes extends React.Component {
         this.showIndexModal = this.showIndexModal.bind(this);
         this.closeIndexModal = this.closeIndexModal.bind(this);
         this.handleChange = this.handleChange.bind(this);
+        this.handleAddChange = this.handleAddChange.bind(this);
+        this.handleEditChange = this.handleEditChange.bind(this);
         this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
         this.onSelectToggle = this.onSelectToggle.bind(this);
         this.onSelectClear = this.onSelectClear.bind(this);
@@ -180,7 +199,6 @@ export class SuffixIndexes extends React.Component {
         this.closeConfirmReindex = this.closeConfirmReindex.bind(this);
         this.showConfirmDeleteIndex = this.showConfirmDeleteIndex.bind(this);
         this.closeConfirmDeleteIndex = this.closeConfirmDeleteIndex.bind(this);
-        this.closeReindexModal = this.closeReindexModal.bind(this);
     }
 
     componentDidMount () {
@@ -240,6 +258,7 @@ export class SuffixIndexes extends React.Component {
                                                 this.setState({
                                                     matchingRules: mrs,
                                                     attributes: attrs,
+                                                    saveBtnDisabled: true,
                                                 });
                                             }
                                         })
@@ -275,6 +294,9 @@ export class SuffixIndexes extends React.Component {
             addIndexTypePres: false,
             addIndexTypeApprox: false,
             reindexOnAdd: false,
+            modalChecked: false,
+            modalSpinning: false,
+            saveBtnDisabled: true,
         });
     }
 
@@ -282,40 +304,114 @@ export class SuffixIndexes extends React.Component {
         this.setState({
             showIndexModal: false
         });
+        if (this.state.isMatchingruleAddOpen) {
+            this.setState({
+                isMatchingruleAddOpen: false
+            });
+        }
     }
 
     handleChange(e) {
+        // Handle the modal changes
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let valueErr = false;
-        let errObj = this.state.errObj;
-        if (value == "") {
-            valueErr = true;
-        }
-        errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
+        });
+    }
+
+    handleAddChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        let saveBtnDisabled = true;
+        let attr = e.target.id;
+
+        // We must have at least one index type set
+        const index_types = ['addIndexTypeEq', 'addIndexTypeSub',
+            'addIndexTypePres', 'addIndexTypeApprox'];
+        for (let index_type of index_types) {
+            if (attr != index_type && this.state[index_type]) {
+                saveBtnDisabled = false;
+            }
+        }
+        if (index_types.includes(attr) && value) {
+            saveBtnDisabled = false;
+        }
+        // Finally we must have an attribute choosen or else we deny access to Save
+        if (attr != 'addIndexName') {
+            if (this.state.addIndexName == "") {
+                saveBtnDisabled = true;
+            }
+        } else {
+            if (value == "") {
+                saveBtnDisabled = true;
+            }
+        }
+
+        this.setState({
+            [attr]: value,
+            saveBtnDisabled: saveBtnDisabled
+        });
+    }
+
+    handleEditChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        let attr = e.target.id;
+        let saveBtnDisabled = true;
+
+        // Check if a setting was changed, if so enable the save button
+        for (let edit_attr of edit_attrs) {
+            if (attr == edit_attr && this.state['_' + edit_attr] != value) {
+                saveBtnDisabled = false;
+                break;
+            }
+        }
+        // Now check for differences in values that we did not touch
+        for (let edit_attr of edit_attrs) {
+            if (attr != edit_attr && this.state['_' + edit_attr] != this.state[edit_attr]) {
+                saveBtnDisabled = false;
+                break;
+            }
+        }
+
+        if (JSON.stringify(this.state.mrs) != JSON.stringify(this.state._mrs)) {
+            saveBtnDisabled = false;
+        }
+
+        // We must have at least one index type set
+        let index_types = ['editIndexTypeEq', 'editIndexTypeSub',
+            'editIndexTypePres', 'editIndexTypeApprox'];
+        if (index_types.includes(attr)) {
+            const index = index_types.indexOf(attr);
+            index_types.splice(index, 1);
+            let type_set = false;
+            // Check the old values
+            for (let index_type of index_types) {
+                if (this.state[index_type]) {
+                    type_set = true;
+                    break;
+                }
+            }
+            // Check the new current value
+            if (attr) {
+                type_set = true;
+            }
+            if (!type_set) {
+                saveBtnDisabled = true;
+            }
+        } else {
+            if (!this.state.editIndexTypeEq && !this.state.editIndexTypeSub &&
+                !this.state.editIndexTypePres && !this.state.editIndexTypeApprox) {
+                // Must always have one index type
+                saveBtnDisabled = true;
+            }
+        }
+
+        this.setState({
+            [attr]: value,
+            saveBtnDisabled: saveBtnDisabled,
         });
     }
 
     saveIndex() {
-        // Validate the form
-        if (!this.state.addIndexTypeEq && !this.state.addIndexTypePres &&
-            !this.state.addIndexTypeSub && !this.state.addIndexTypeApprox) {
-            this.props.addNotification(
-                "warning",
-                "You must select at least one 'Index Type'"
-            );
-            return;
-        }
-        if (this.state.addIndexName == "" || this.state.addIndexName.length == 0) {
-            this.props.addNotification(
-                "warning",
-                "You must select an attribute to index"
-            );
-            return;
-        }
-
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "index", "add", "--attr=" + this.state.addIndexName[0],
@@ -341,6 +437,10 @@ export class SuffixIndexes extends React.Component {
             cmd.push('--reindex');
         }
 
+        this.setState({
+            saving: true,
+        });
+
         log_cmd("saveIndex", "Create new index", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -355,6 +455,10 @@ export class SuffixIndexes extends React.Component {
                         "success",
                         `Successfully created new index`
                     );
+                    this.setState({
+                        saving: false,
+                        saveBtnDisabled: true,
+                    });
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -364,6 +468,10 @@ export class SuffixIndexes extends React.Component {
                         "error",
                         `Error creating index - ${errMsg.desc}`
                     );
+                    this.setState({
+                        saving: false,
+                        saveBtnDisabled: true,
+                    });
                 });
     }
 
@@ -391,10 +499,13 @@ export class SuffixIndexes extends React.Component {
             editIndexTypeSub: item[1].includes("sub"),
             editIndexTypePres: item[1].includes("pres"),
             editIndexTypeApprox: item[1].includes("approx"),
-            _eq: item[1].includes("eq"),
-            _sub: item[1].includes("sub"),
-            _pres: item[1].includes("pres"),
-            _approx: item[1].includes("approx"),
+            _editIndexTypeEq: item[1].includes("eq"),
+            _editIndexTypeSub: item[1].includes("sub"),
+            _editIndexTypePres: item[1].includes("pres"),
+            _editIndexTypeApprox: item[1].includes("approx"),
+            modalChecked: false,
+            modalSpinning: false,
+            saveBtnDisabled: true,
         });
     }
 
@@ -402,6 +513,11 @@ export class SuffixIndexes extends React.Component {
         this.setState({
             showEditIndexModal: false
         });
+        if (this.state.isMatchingruleEditOpen) {
+            this.setState({
+                isMatchingruleEditOpen: false
+            });
+        }
     }
 
     handleTypeaheadChange = item => (event, values) => {
@@ -428,10 +544,8 @@ export class SuffixIndexes extends React.Component {
             "backend", "index", "reindex", "--wait", "--attr=" + attr, this.props.suffix,
         ];
 
-        // Open spinner modal
         this.setState({
-            showReindexModal: true,
-            reindexMsg: attr
+            modalSpinning: true,
         });
         log_cmd("reindexAttr", "index attribute", reindex_cmd);
         cockpit
@@ -442,7 +556,9 @@ export class SuffixIndexes extends React.Component {
                         "Attribute (" + attr + ") has successfully been reindexed"
                     );
                     this.setState({
-                        showReindexModal: false,
+                        saving: false,
+                        modalSpinning: false,
+                        showConfirmReindex: false,
                     });
                 })
                 .fail(err => {
@@ -451,6 +567,11 @@ export class SuffixIndexes extends React.Component {
                         "error",
                         `Error indexing attribute ${attr} - ${errMsg.desc}`
                     );
+                    this.setState({
+                        saving: false,
+                        modalSpinning: false,
+                        showConfirmReindex: false,
+                    });
                 });
     }
 
@@ -462,16 +583,6 @@ export class SuffixIndexes extends React.Component {
             "backend", "index", "set", "--attr=" + this.state.editIndexName,
             this.props.suffix,
         ];
-
-        // Make sure we have at least one index type
-        if (!this.state.editIndexTypeEq && !this.state.editIndexTypeSub &&
-            !this.state.editIndexTypePres && !this.state.editIndexTypeApprox) {
-            this.props.addNotification(
-                "warning",
-                "You must have at least one index type"
-            );
-            return;
-        }
 
         // Check if we have to add mrs
         for (let newMR of newMRS) {
@@ -502,29 +613,32 @@ export class SuffixIndexes extends React.Component {
         }
 
         // Check if we have to add/delete index types
-        if (this.state.editIndexTypeEq && !this.state._eq) {
+        if (this.state.editIndexTypeEq && !this.state._editIndexTypeEq) {
             cmd.push('--add-type=eq');
-        } else if (!this.state.editIndexTypeEq && this.state._eq) {
+        } else if (!this.state.editIndexTypeEq && this.state._editIndexTypeEq) {
             cmd.push('--del-type=eq');
         }
-        if (this.state.editIndexTypeSub && !this.state._sub) {
+        if (this.state.editIndexTypeSub && !this.state._editIndexTypeSub) {
             cmd.push('--add-type=sub');
-        } else if (!this.state.editIndexTypeSub && this.state._sub) {
+        } else if (!this.state.editIndexTypeSub && this.state._editIndexTypeSub) {
             cmd.push('--del-type=sub');
         }
-        if (this.state.editIndexTypePres && !this.state._pres) {
+        if (this.state.editIndexTypePres && !this.state._editIndexTypePres) {
             cmd.push('--add-type=pres');
-        } else if (!this.state.editIndexTypePres && this.state._pres) {
+        } else if (!this.state.editIndexTypePres && this.state._editIndexTypePres) {
             cmd.push('--del-type=pres');
         }
-        if (this.state.editIndexTypeApprox && !this.state._approx) {
+        if (this.state.editIndexTypeApprox && !this.state._editIndexTypeApprox) {
             cmd.push('--add-type=approx');
-        } else if (!this.state.editIndexTypeApprox && this.state._approx) {
+        } else if (!this.state.editIndexTypeApprox && this.state._editIndexTypeApprox) {
             cmd.push('--del-type=approx');
         }
 
         if (cmd.length > 8) {
             // We have changes, do it
+            this.setState({
+                saving: true,
+            });
             log_cmd("saveEditIndex", "Edit index", cmd);
             cockpit
                     .spawn(cmd, { superuser: true, err: "message" })
@@ -537,6 +651,10 @@ export class SuffixIndexes extends React.Component {
                         );
                         if (this.state.reindexOnAdd) {
                             this.reindexAttr(this.state.editIndexName);
+                        } else {
+                            this.setState({
+                                saving: false,
+                            });
                         }
                     })
                     .fail(err => {
@@ -547,6 +665,9 @@ export class SuffixIndexes extends React.Component {
                             "error",
                             `Error editing index - ${errMsg.desc}`
                         );
+                        this.setState({
+                            saving: false,
+                        });
                     });
         }
     }
@@ -554,7 +675,9 @@ export class SuffixIndexes extends React.Component {
     showConfirmReindex(item) {
         this.setState({
             reindexAttrName: item,
-            showConfirmReindex: true
+            showConfirmReindex: true,
+            modalChecked: false,
+            modalSpinning: false,
         });
     }
 
@@ -568,25 +691,21 @@ export class SuffixIndexes extends React.Component {
     showConfirmDeleteIndex(item) {
         this.setState({
             deleteAttrName: item,
-            showConfirmDeleteIndex: true
+            showConfirmDeleteIndex: true,
+            modalChecked: false,
+            modalSpinning: false,
         });
     }
 
     closeConfirmDeleteIndex(item) {
         this.setState({
             deleteAttrName: "",
-            showConfirmDeleteIndex: false
+            showConfirmDeleteIndex: false,
         });
     }
 
     reindexIndex(attr) {
         this.reindexAttr(attr);
-    }
-
-    closeReindexModal() {
-        this.setState({
-            showReindexModal: false
-        });
     }
 
     deleteIndex(idxName) {
@@ -596,6 +715,9 @@ export class SuffixIndexes extends React.Component {
             this.props.suffix,
         ];
 
+        this.setState({
+            modalSpinning: true,
+        });
         log_cmd("deleteIndex", "deleteEdit index", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -605,6 +727,10 @@ export class SuffixIndexes extends React.Component {
                         "success",
                         "Successfully deleted index: " + idxName
                     );
+                    this.setState({
+                        showConfirmDeleteIndex: false,
+                        modalSpinning: false,
+                    });
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -613,6 +739,10 @@ export class SuffixIndexes extends React.Component {
                         "error",
                         `Error deleting index - ${errMsg.desc}`
                     );
+                    this.setState({
+                        showConfirmDeleteIndex: false,
+                        modalSpinning: false,
+                    });
                 });
     }
 
@@ -648,9 +778,6 @@ export class SuffixIndexes extends React.Component {
     }
 
     render() {
-        const reindex_attr = <b>{this.state.reindexAttrName}</b>;
-        const delete_attr = <b>{this.state.deleteAttrName}</b>;
-
         return (
             <div className="ds-margin-top-lg">
                 <Tabs isSecondary activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
@@ -679,7 +806,7 @@ export class SuffixIndexes extends React.Component {
                 <AddIndexModal
                     showModal={this.state.showIndexModal}
                     closeHandler={this.closeIndexModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.handleAddChange}
                     saveHandler={this.saveIndex}
                     matchingRules={this.state.matchingRules}
                     attributes={this.state.attributes}
@@ -698,11 +825,13 @@ export class SuffixIndexes extends React.Component {
                     onMatchingruleAddToggle={this.onMatchingruleAddToggle}
                     onMatchingruleAddClear={this.onMatchingruleAddClear}
                     isMatchingruleAddOpen={this.state.isMatchingruleAddOpen}
+                    saving={this.state.saving}
+                    saveBtnDisabled={this.state.saveBtnDisabled}
                 />
                 <EditIndexModal
                     showModal={this.state.showEditIndexModal}
                     closeHandler={this.closeEditIndexModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.handleEditChange}
                     saveHandler={this.saveEditIndex}
                     types={this.state.types}
                     mrs={this.state.mrs}
@@ -718,27 +847,34 @@ export class SuffixIndexes extends React.Component {
                     onMatchingruleEditToggle={this.onMatchingruleEditToggle}
                     onMatchingruleEditClear={this.onMatchingruleEditClear}
                     isMatchingruleEditOpen={this.state.isMatchingruleEditOpen}
+                    saving={this.state.saving}
+                    saveBtnDisabled={this.state.saveBtnDisabled}
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmReindex}
                     closeHandler={this.closeConfirmReindex}
-                    actionFunc={this.reindexIndex}
-                    actionParam={this.state.reindexAttrName}
-                    msg="Are you sure you want to reindex this attribute?"
-                    msgContent={reindex_attr}
+                    handleChange={this.handleChange}
+                    actionHandler={this.reindexIndex}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.reindexAttrName}
+                    checked={this.state.modalChecked}
+                    mTitle="Reindex Attribute"
+                    mMsg="Are you sure you want to reindex this attribute?"
+                    mSpinningMsg="Reindexing ..."
+                    mBtnName="Reindex"
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmDeleteIndex}
                     closeHandler={this.closeConfirmDeleteIndex}
-                    actionFunc={this.deleteIndex}
-                    actionParam={this.state.deleteAttrName}
-                    msg="Are you sure you want to delete this attribute index?"
-                    msgContent={delete_attr}
-                />
-                <ReindexModal
-                    showModal={this.state.showReindexModal}
-                    closeHandler={this.closeReindexModal}
-                    msg={this.state.reindexMsg}
+                    handleChange={this.handleChange}
+                    actionHandler={this.deleteIndex}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.deleteAttrName}
+                    checked={this.state.modalChecked}
+                    mTitle="Delete Index"
+                    mMsg="Are you sure you want to delete this index?"
+                    mSpinningMsg="Deleting ..."
+                    mBtnName="Delete"
                 />
             </div>
         );
@@ -764,6 +900,8 @@ class AddIndexModal extends React.Component {
             onMatchingruleAddClear,
             onMatchingruleAddSelect,
             isMatchingruleAddOpen,
+            saving,
+            saveBtnDisabled
         } = this.props;
 
         let availMR = [];
@@ -774,25 +912,39 @@ class AddIndexModal extends React.Component {
         for (let attr of attributes) {
             availAttrs.push(attr);
         }
+        let saveBtnName = "Create Index";
+        let extraPrimaryProps = {};
+        if (saving) {
+            saveBtnName = "Creating ...";
+            extraPrimaryProps.spinnerAriaValueText = "Creating";
+        }
 
         return (
             <Modal
-                variant={ModalVariant.small}
+                variant={ModalVariant.medium}
                 title="Add Database Index"
                 isOpen={showModal}
                 onClose={closeHandler}
                 aria-labelledby="ds-modal"
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={saveHandler}>
-                        Create Index
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={saving}
+                        spinnerAriaValueText={saving ? "Creating" : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={saveBtnDisabled}
+                    >
+                        {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
-                    <label className="ds-config-label" htmlFor="indexAttributeName" title="Select an attribute to index">Select An Attribute</label>
+                <Form isHorizontal autoComplete="off">
+                    <h5 title="Select an attribute to index">Select An Attribute</h5>
                     <Select
                         variant={SelectVariant.typeahead}
                         typeAheadAriaLabel="Type a attribute name to index"
@@ -804,7 +956,8 @@ class AddIndexModal extends React.Component {
                         aria-labelledby="typeAhead-attr-add"
                         placeholderText="Type a attribute name to index.."
                         noResultsFoundText="There are no matching entries"
-                        >
+                        validated={attributeName == "" ? "error" : "default"}
+                    >
                         {availAttrs.map((attr, index) => (
                             <SelectOption
                                 key={index}
@@ -812,10 +965,10 @@ class AddIndexModal extends React.Component {
                             />
                         ))}
                     </Select>
-                    <p className="ds-margin-top"><b>Index Types</b></p>
-                    <div className="ds-indent ds-margin-top">
-                        <Row>
-                            <Col sm={5}>
+                    <h5 className="ds-margin-top">Index Types</h5>
+                    <div className="ds-indent">
+                        <Grid>
+                            <GridItem>
                                 <Checkbox
                                     id="addIndexTypeEq"
                                     isChecked={this.props.addIndexTypeEq}
@@ -824,10 +977,10 @@ class AddIndexModal extends React.Component {
                                     }}
                                     label="Equailty Indexing"
                                 />
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col sm={5}>
+                            </GridItem>
+                        </Grid>
+                        <Grid className="ds-margin-top">
+                            <GridItem>
                                 <Checkbox
                                     id="addIndexTypePres"
                                     isChecked={this.props.addIndexTypePres}
@@ -836,10 +989,10 @@ class AddIndexModal extends React.Component {
                                     }}
                                     label="Presence Indexing"
                                 />
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col sm={5}>
+                            </GridItem>
+                        </Grid>
+                        <Grid className="ds-margin-top">
+                            <GridItem>
                                 <Checkbox
                                     id="addIndexTypeSub"
                                     isChecked={this.props.addIndexTypeSub}
@@ -848,10 +1001,10 @@ class AddIndexModal extends React.Component {
                                     }}
                                     label="Substring Indexing"
                                 />
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col sm={5}>
+                            </GridItem>
+                        </Grid>
+                        <Grid className="ds-margin-top">
+                            <GridItem>
                                 <Checkbox
                                     id="addIndexTypeApprox"
                                     isChecked={this.props.addIndexTypeApprox}
@@ -859,12 +1012,12 @@ class AddIndexModal extends React.Component {
                                         handleChange(e);
                                     }}
                                     label="Approximate Indexing" />
-                            </Col>
-                        </Row>
+                            </GridItem>
+                        </Grid>
                     </div>
-                    <Row className="ds-margin-top-lg">
-                        <Col sm={12} title="List of matching rules separated by a 'space'">
-                            <p><b>Matching Rules</b></p>
+                    <Grid className="ds-margin-top-lg">
+                        <GridItem span={12} title="List of matching rules separated by a 'space'">
+                            <h5>Matching Rules</h5>
                             <div className="ds-indent ds-margin-top">
                                 <Select
                                     id="addMatchingRules"
@@ -887,13 +1040,11 @@ class AddIndexModal extends React.Component {
                                    ))}
                                 </Select>
                             </div>
-                        </Col>
-                    </Row>
-                    <hr />
-                    <Row>
-                        <Col sm={12}>
+                        </GridItem>
+                    </Grid>
+                    <Grid>
+                        <GridItem className="ds-margin-top" span={12}>
                             <Checkbox
-                                className="ds-float-right"
                                 id="reindexOnAdd"
                                 isChecked={this.props.reindexOnAdd}
                                 onChange={(checked, e) => {
@@ -901,8 +1052,9 @@ class AddIndexModal extends React.Component {
                                 }}
                                 label="Index attribute after creation"
                             />
-                        </Col>
-                    </Row>
+                        </GridItem>
+                    </Grid>
+                    <hr />
                 </Form>
             </Modal>
         );
@@ -931,7 +1083,16 @@ class EditIndexModal extends React.Component {
             onMatchingruleEditClear,
             onMatchingruleEditSelect,
             isMatchingruleEditOpen,
+            saving,
+            saveBtnDisabled
         } = this.props;
+
+        let saveBtnName = "Save Index";
+        let extraPrimaryProps = {};
+        if (saving) {
+            saveBtnName = "Saving index ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
 
         let attrTypes = "";
         if (types != "" && types.length > 0) {
@@ -1032,53 +1193,59 @@ class EditIndexModal extends React.Component {
             </div>;
         }
 
-        let title = "Edit Database Index (" + indexName + ")";
+        let title = <div>Edit Database Index (<b>{indexName}</b>)</div>;
 
         return (
             <Modal
-                variant={ModalVariant.small}
+                variant={ModalVariant.medium}
                 title={title}
                 isOpen={showModal}
                 aria-labelledby="ds-modal"
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={saveHandler}>
-                        Save Index
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={saving}
+                        spinnerAriaValueText={saving ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={saveBtnDisabled}
+                    >
+                        {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
-                    <p><Icon type="pf" style={{'marginRight': '15px'}} name="edit" /><font size="4"><b>{indexName}</b></font></p>
-                    <hr />
-                    <p><b>Index Types</b></p>
-                    <div className="ds-indent ds-margin-top">
-                        <Row>
-                            <Col sm={9}>
+                <Form isHorizontal autoComplete="off">
+                    <h5 className="ds-margin-top">Index Types</h5>
+                    <div className="ds-indent">
+                        <Grid>
+                            <GridItem span={9}>
                                 {eq}
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col sm={9}>
+                            </GridItem>
+                        </Grid>
+                        <Grid className="ds-margin-top">
+                            <GridItem span={9}>
                                 {pres}
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col sm={9}>
+                            </GridItem>
+                        </Grid>
+                        <Grid className="ds-margin-top">
+                            <GridItem span={9}>
                                 {sub}
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col sm={9}>
+                            </GridItem>
+                        </Grid>
+                        <Grid className="ds-margin-top">
+                            <GridItem span={9}>
                                 {approx}
-                            </Col>
-                        </Row>
+                            </GridItem>
+                        </Grid>
                     </div>
-                    <Row className="ds-margin-top-lg">
-                        <Col sm={12}>
-                            <p><b>Matching Rules</b></p>
+                    <Grid className="ds-margin-top-lg">
+                        <GridItem span={12}>
+                            <h5>Matching Rules</h5>
                             <div className="ds-indent ds-margin-top">
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
@@ -1100,13 +1267,11 @@ class EditIndexModal extends React.Component {
                                     ))}
                                 </Select>
                             </div>
-                        </Col>
-                    </Row>
-                    <hr />
-                    <Row>
-                        <Col sm={12}>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={12}>
                             <Checkbox
-                                className="ds-float-right"
                                 id="reindexOnAdd"
                                 isChecked={this.props.reindexOnAdd}
                                 onChange={(checked, e) => {
@@ -1114,8 +1279,9 @@ class EditIndexModal extends React.Component {
                                 }}
                                 label="Reindex Attribute After Saving"
                             />
-                        </Col>
-                    </Row>
+                        </GridItem>
+                    </Grid>
+                    <hr />
                 </Form>
             </Modal>
         );
