@@ -110,6 +110,11 @@ def init_sync_repl_plugins(topology, request):
                 pass
     request.addfinalizer(fin)
 
+#unstable or unstatus tests, skipped for now
+#it fails, let's say 1 time out of 10, while decoding asn1 response
+@pytest.mark.flaky(max_runs=2, min_passes=1)
+@pytest.mark.skipif(ldap.__version__ < '3.3.1',
+    reason="python ldap versions less that 3.3.1 have bugs in sync repl that will cause this to fail!")
 def test_syncrepl_basic(topology):
     """ Test basic functionality of the SyncRepl interface
 
