@@ -1,22 +1,16 @@
 import React from "react";
 import {
-    Row,
-    Col,
-    ControlLabel,
-    FormControl,
-    Form,
-} from "patternfly-react";
-import {
     Button,
     Checkbox,
+    Form,
+    FormSelect,
+    FormSelectOption,
     Grid,
     GridItem,
-    // Form,
-    // FormGroup,
     Modal,
     ModalVariant,
-    Spinner,
-    // TextInput,
+    TextInput,
+    ValidatedOptions,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
@@ -31,15 +25,11 @@ export class SecurityAddCACertModal extends React.Component {
             spinning,
             error
         } = this.props;
-
-        let spinner = "";
+        let saveBtnName = "Add Certificate";
+        let extraPrimaryProps = {};
         if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-modal-spinner">
-                        <Spinner inline size="lg" />Adding CA certificate...
-                    </div>
-                </Row>;
+            saveBtnName = "Adding Certificate ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
         return (
@@ -50,47 +40,64 @@ export class SecurityAddCACertModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={saveHandler}>
-                        Add Certificate
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={error.certFile || error.certName}
+                    >
+                        {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
-                    <h4>
-                        Add CA certificate to the security database.
-                    </h4>
+                <Form isHorizontal autoComplete="off">
+                    <h5>
+                        Add a CA Certificate to the security database.
+                    </h5>
                     <hr />
-                    <Row title="Enter full path to and and including certificate file name">
-                        <Col sm={4}>
-                            <ControlLabel>Certificate File</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
+                    <Grid title="Enter full path to and and including certificate file name">
+                        <GridItem className="ds-label" span={3}>
+                            Certificate File
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
                                 type="text"
                                 id="certFile"
-                                className={error.certFile ? "ds-input-bad" : ""}
-                                onChange={handleChange}
+                                aria-describedby="horizontal-form-name-helper"
+                                name="certFile"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.certFile ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="Enter name/nickname of the certificate">
-                        <Col sm={4}>
-                            <ControlLabel>Certificate Nickname</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="Enter name/nickname of the certificate"
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Certificate Nickname
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
                                 type="text"
                                 id="certName"
-                                className={error.certName ? "ds-input-bad" : ""}
-                                onChange={handleChange}
+                                aria-describedby="horizontal-form-name-helper"
+                                name="certName"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.certName ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
-                    <p />
-                    {spinner}
+                        </GridItem>
+                    </Grid>
                 </Form>
             </Modal>
         );
@@ -108,14 +115,11 @@ export class SecurityAddCertModal extends React.Component {
             error
         } = this.props;
 
-        let spinner = "";
+        let saveBtnName = "Add Certificate";
+        let extraPrimaryProps = {};
         if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-modal-spinner">
-                        <Spinner size="lg" />Adding certificate...
-                    </div>
-                </Row>;
+            saveBtnName = "Adding Certificate ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
         return (
@@ -126,46 +130,64 @@ export class SecurityAddCertModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={saveHandler}>
-                        Add Certificate
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={error.certFile || error.certName}
+                    >
+                        {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
-                    <h4>
-                        Add certificate to the security database.
-                    </h4>
+                <Form isHorizontal>
+                    <h5>
+                        Add a certificate to the security database.
+                    </h5>
                     <hr />
-                    <Row title="Enter full path to and and including certificate file name">
-                        <Col sm={4}>
-                            <ControlLabel>Certificate File</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
+                    <Grid title="Enter full path to and and including certificate file name">
+                        <GridItem className="ds-label" span={3}>
+                            Certificate File
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
                                 type="text"
                                 id="certFile"
-                                className={error.certFile ? "ds-input-bad" : ""}
-                                onChange={handleChange}
+                                aria-describedby="horizontal-form-name-helper"
+                                name="certFile"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.certFile ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="Enter name/nickname of the certificate">
-                        <Col sm={4}>
-                            <ControlLabel>Certificate Nickname</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="Enter name/nickname of the certificate"
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Certificate Nickname
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
                                 type="text"
                                 id="certName"
-                                className={error.certName ? "ds-input-bad" : ""}
-                                onChange={handleChange}
+                                aria-describedby="horizontal-form-name-helper"
+                                name="certName"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.certName ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
-                    {spinner}
+                        </GridItem>
+                    </Grid>
                 </Form>
             </Modal>
         );
@@ -189,17 +211,12 @@ export class SecurityEnableModal extends React.Component {
         for (let cert of certs) {
             certNames.push(cert.attrs['nickname']);
         }
-        let certNameOptions = certNames.map((name) =>
-            <option key={name} value={name}>{name}</option>
-        );
-        let spinner = "";
+
+        let saveBtnName = "Enable Security";
+        let extraPrimaryProps = {};
         if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-modal-spinner">
-                        <Spinner size="lg" />Enabling security...
-                    </div>
-                </Row>;
+            saveBtnName = "Enabling Security ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
         return (
@@ -210,32 +227,47 @@ export class SecurityEnableModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={saveHandler}>
-                        Enable Security
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                    >
+                        {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
-                    <h4>
+                <Form isHorizontal>
+                    <h5>
                         You are choosing to enable security for the Directory Server which
                         allows the server to accept incoming client TLS connections.  Please
                         select which certificate the server should use.
-                    </h4>
+                    </h5>
                     <hr />
-                    <Row className="ds-margin-top" title="The server certificate the Directory Server will use">
-                        <Col sm={4}>
-                            <ControlLabel>Available Certificates</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <select id="certNameSelect" onChange={handleChange} defaultValue={primaryName}>
-                                {certNameOptions}
-                            </select>
-                        </Col>
-                    </Row>
-                    {spinner}
+                    <Grid className="ds-margin-top" title="The server certificate the Directory Server will use">
+                        <GridItem className="ds-label" span={4}>
+                            Available Certificates
+                        </GridItem>
+                        <GridItem sm={8}>
+                            <FormSelect
+                                value={primaryName}
+                                id="certNameSelect"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                aria-label="FormSelect Input"
+                            >
+                                {certNames.map((option) => (
+                                    <FormSelectOption key={option} value={option} label={option} />
+                                ))}
+                            </FormSelect>
+                        </GridItem>
+                    </Grid>
                 </Form>
             </Modal>
         );
@@ -253,14 +285,11 @@ export class EditCertModal extends React.Component {
             spinning
         } = this.props;
 
-        let spinner = "";
+        let saveBtnName = "Save Flags";
+        let extraPrimaryProps = {};
         if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-modal-spinner">
-                        <Spinner size="lg" />Saving certificate...
-                    </div>
-                </Row>;
+            saveBtnName = "Saving flags ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
         // Process the cert flags
@@ -352,8 +381,16 @@ export class EditCertModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={saveHandler}>
-                        Save
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={this.props.disableSaveBtn}
+                    >
+                        {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
@@ -553,7 +590,6 @@ export class EditCertModal extends React.Component {
                             disabled
                         />
                     </GridItem>
-                    {spinner}
                 </Grid>
             </Modal>
         );

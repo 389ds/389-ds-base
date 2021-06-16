@@ -30,7 +30,6 @@ class ObjectClassesTable extends React.Component {
             value: '',
             sortBy: {},
             rows: [],
-            dropdownIsOpen: false,
             columns: [
                 { title: 'Objectclass Name',
                   transforms: [sortable],
@@ -308,7 +307,6 @@ class AttributesTable extends React.Component {
             value: '',
             sortBy: {},
             rows: [],
-            dropdownIsOpen: false,
             columns: [
                 { title: 'Attribute Name',
                   transforms: [sortable],
@@ -598,7 +596,6 @@ class MatchingRulesTable extends React.Component {
             value: '',
             sortBy: {},
             rows: [],
-            dropdownIsOpen: false,
             columns: [
                 { title: 'Matching Rule',
                   transforms: [sortable],

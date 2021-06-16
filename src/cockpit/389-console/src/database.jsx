@@ -14,9 +14,11 @@ import {
     Button,
     Form,
     FormGroup,
+    FormSelect,
+    FormSelectOption,
+    FormHelperText,
     Modal,
     ModalVariant,
-    Radio,
     Spinner,
     TextInput,
     TreeView,
@@ -71,6 +73,7 @@ export class Database extends React.Component {
             createSampleEntries: false,
             noSuffixInit: true,
             disableTree: false,
+            createInitOption: "noInit",
 
             // DB config
             globalDBConfig: {},
@@ -78,6 +81,7 @@ export class Database extends React.Component {
             // Chaining Config
             chainingConfig: {},
             chainingUpdated: 0,
+            chainingActiveKey: 0,
             // Chaining Link
             chainingLoading: false,
             // Suffix
@@ -86,8 +90,10 @@ export class Database extends React.Component {
             // Loaded suffix configurations
             suffix: {},
             // Other
+            vlvTableKey: 0,
             LDIFRows: [],
             BackupRows: [],
+            backupRefreshing: false,
             suffixList: [],
             loaded: false,
         };
@@ -95,7 +101,7 @@ export class Database extends React.Component {
         // General
         this.onTreeClick = this.onTreeClick.bind(this);
         this.handleChange = this.handleChange.bind(this);
-        this.handleRadioChange = this.handleRadioChange.bind(this);
+        this.handleSelectChange = this.handleSelectChange.bind(this);
         this.loadGlobalConfig = this.loadGlobalConfig.bind(this);
         this.loadLDIFs = this.loadLDIFs.bind(this);
         this.loadBackups = this.loadBackups.bind(this);
@@ -237,7 +243,7 @@ export class Database extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "config-get", "--avail-controls"
         ];
-        log_cmd("loadChainingConfig", "Get available controls", cmd);
+        log_cmd("loadAvailableControls", "Get available controls", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -261,7 +267,7 @@ export class Database extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "config-get-def"
         ];
-        log_cmd("loadChainingConfig", "Load chaining default configuration", cmd);
+        log_cmd("loadDefaultConfig", "Load chaining default configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -321,7 +327,7 @@ export class Database extends React.Component {
                 });
     }
 
-    loadChainingConfig() {
+    loadChainingConfig(tabIdx) {
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "config-get"
@@ -334,6 +340,7 @@ export class Database extends React.Component {
                     let availableComps = config.attrs.nspossiblechainingcomponents;
                     let compList = [];
                     let oidList = [];
+                    let activeKey = 0;
                     if ('nsactivechainingcomponents' in config.attrs) {
                         availableComps = config.attrs.nspossiblechainingcomponents.filter((el) => !config.attrs.nsactivechainingcomponents.includes(el));
                         compList = config.attrs.nsactivechainingcomponents;
@@ -341,6 +348,10 @@ export class Database extends React.Component {
                     if ('nstransmittedcontrols' in config.attrs) {
                         oidList = config.attrs.nstransmittedcontrols;
                     }
+                    if (tabIdx) {
+                        activeKey = tabIdx;
+                    }
+
                     this.setState(() => (
                         {
                             chainingConfig: {
@@ -348,10 +359,28 @@ export class Database extends React.Component {
                                 oidList: oidList,
                                 compList: compList,
                                 availableComps: availableComps
-                            }
+                            },
+                            chainingActiveKey: activeKey,
                         }
                     ), this.loadDefaultConfig());
                 });
+    }
+
+    processTree(suffixData) {
+        for (let suffix of suffixData) {
+            if (suffix['type'] == "suffix") {
+                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faTree} />;
+            } else if (suffix['type'] == "subsuffix") {
+                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faLeaf} />;
+            } else {
+                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faLink} />;
+            }
+            if (suffix['children'].length == 0) {
+                delete suffix.children;
+            } else {
+                this.processTree(suffix.children);
+            }
+        }
     }
 
     loadSuffixTree(fullReset) {
@@ -366,18 +395,7 @@ export class Database extends React.Component {
                     let suffixData = [];
                     if (content != "") {
                         suffixData = JSON.parse(content);
-                        for (let suffix of suffixData) {
-                            if (suffix['type'] == "suffix") {
-                                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faTree} />;
-                            } else if (suffix['type'] == "subsuffix") {
-                                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faLeaf} />;
-                            } else {
-                                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faLink} />;
-                            }
-                            if (suffix['children'].length == 0) {
-                                delete suffix.children;
-                            }
-                        }
+                        this.processTree(suffixData);
                     }
                     let treeData = [
                         {
@@ -391,7 +409,7 @@ export class Database extends React.Component {
                             id: "chaining-config",
                         },
                         {
-                            name: "Backups & LDIFS",
+                            name: "Backups & LDIFs",
                             icon: <CopyIcon />,
                             id: "backups",
                         },
@@ -448,7 +466,7 @@ export class Database extends React.Component {
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
-                    let bindmech = "Simple";
+                    let bindmech = "SIMPLE";
                     let usestarttls = false;
                     let refOnScope = false;
                     let proxiedAuth = false;
@@ -594,19 +612,20 @@ export class Database extends React.Component {
         });
     }
 
-    handleRadioChange(val, e) {
-        // Handle the create suffix init option radio button group
+    handleSelectChange(value, event) {
         let noInit = false;
         let addSuffix = false;
         let addSample = false;
-        if (e.target.id == "noSuffixInit") {
+
+        if (value == "noInit") {
             noInit = true;
-        } else if (e.target.id == "createSuffixEntry") {
+        } else if (value == "addSuffix") {
             addSuffix = true;
-        } else { // createSampleEntries
+        } else { // addSample
             addSample = true;
         }
         this.setState({
+            createInitOption: value,
             noSuffixInit: noInit,
             createSuffixEntry: addSuffix,
             createSampleEntries: addSample
@@ -789,6 +808,7 @@ export class Database extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "vlv-index", "list", suffix
         ];
+        let tableKey = this.state.vlvTableKey + 1;
         log_cmd("loadVLV", "Load VLV indexes", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -798,7 +818,8 @@ export class Database extends React.Component {
                         [suffix]: {
                             ...this.state[suffix],
                             vlvItems: config.items,
-                        }
+                        },
+                        vlvTableKey: tableKey,
                     });
                 });
     }
@@ -1087,11 +1108,17 @@ export class Database extends React.Component {
                     }
                     this.setState({
                         LDIFRows: rows,
+                        backupRefreshing: false,
                     });
                 });
     }
 
-    loadBackups() {
+    loadBackups(refreshing) {
+        if (refreshing) {
+            this.setState({
+                backupRefreshing: true
+            });
+        }
         const cmd = [
             "dsctl", "-j", this.props.serverId, "backups"
         ];
@@ -1105,7 +1132,7 @@ export class Database extends React.Component {
                         rows.push([row[0], row[1], row[2]]);
                     }
                     this.setState({
-                        BackupRows: rows
+                        BackupRows: rows,
                     }, this.loadLDIFs());
                 });
     }
@@ -1172,6 +1199,7 @@ export class Database extends React.Component {
                         reload={this.loadChainingConfig}
                         data={this.state.chainingConfig}
                         enableTree={this.enableTree}
+                        activeKey={this.state.chainingActiveKey}
                         key={this.state.chainingUpdated}
                     />;
             } else if (this.state.node_name == PWP_CONFIG) {
@@ -1200,6 +1228,7 @@ export class Database extends React.Component {
                         ldifs={this.state.LDIFRows}
                         enableTree={this.enableTree}
                         reload={this.loadBackups}
+                        refreshing={this.state.backupRefreshing}
                     />;
             } else if (this.state.node_name != "") {
                 // We have a suffix, or database link
@@ -1221,6 +1250,7 @@ export class Database extends React.Component {
                                 reloadRefs={this.loadReferrals}
                                 reloadIndexes={this.loadIndexes}
                                 reloadVLV={this.loadVLV}
+                                vlvTableKey={this.state.vlvTableKey}
                                 reloadAttrEnc={this.loadAttrEncrypt}
                                 addNotification={this.props.addNotification}
                                 reloadLDIFs={this.loadLDIFs}
@@ -1292,11 +1322,9 @@ export class Database extends React.Component {
                     showModal={this.state.showSuffixModal}
                     closeHandler={this.closeSuffixModal}
                     handleChange={this.handleChange}
-                    handleRadioChange={this.handleRadioChange}
+                    handleSelectChange={this.handleSelectChange}
                     saveHandler={this.createSuffix}
-                    noInit={this.state.noSuffixInit}
-                    addSuffix={this.state.createSuffixEntry}
-                    addSample={this.state.createSampleEntries}
+                    initOption={this.state.createInitOption}
                     createNotOK={this.state.createNotOK}
                     error={this.state.errObj}
                 />
@@ -1311,18 +1339,16 @@ class CreateSuffixModal extends React.Component {
             showModal,
             closeHandler,
             handleChange,
-            handleRadioChange,
+            handleSelectChange,
             saveHandler,
-            noInit,
-            addSuffix,
-            addSample,
             createNotOK,
+            initOption,
             error
         } = this.props;
 
         return (
             <Modal
-                variant={ModalVariant.small}
+                variant={ModalVariant.medium}
                 title="Create New Suffix"
                 isOpen={showModal}
                 aria-labelledby="ds-modal"
@@ -1354,6 +1380,9 @@ class CreateSuffixModal extends React.Component {
                             onChange={handleChange}
                             validated={error.createSuffix ? "error" : "noval"}
                         />
+                        <FormHelperText isError isHidden={!error.createSuffix}>
+                            Required field
+                        </FormHelperText>
                     </FormGroup>
                     <FormGroup
                         label="Database Name"
@@ -1372,13 +1401,20 @@ class CreateSuffixModal extends React.Component {
                             onChange={handleChange}
                             validated={error.createBeName ? "error" : "noval"}
                         />
+                        <FormHelperText isError isHidden={!error.createBeName}>
+                            Required field
+                        </FormHelperText>
                     </FormGroup>
-                    <hr />
-                    <div className="ds-indent">
-                        <Radio name="radioGroup" label="Do Not Initialize Database" id="noSuffixInit" onChange={handleRadioChange} isChecked={noInit} />
-                        <Radio name="radioGroup" label="Create The Top Suffix Entry" id="createSuffixEntry" onChange={handleRadioChange} isChecked={addSuffix} />
-                        <Radio name="radioGroup" label="Add Sample Entries" id="createSampleEntries" onChange={handleRadioChange} isChecked={addSample} />
-                    </div>
+                    <FormGroup
+                        label="Initialization Option"
+                        fieldId="initOptions"
+                    >
+                        <FormSelect value={initOption} onChange={handleSelectChange} aria-label="FormSelect Input">
+                            <FormSelectOption key={1} value="noInit" label="Do Not Initialize Database" />
+                            <FormSelectOption key={2} value="addSuffix" label="Create The Top Sub-Suffix Entry" />
+                            <FormSelectOption key={3} value="addSample" label="Add Sample Entries" />
+                        </FormSelect>
+                    </FormGroup>
                 </Form>
             </Modal>
         );
@@ -1401,11 +1437,8 @@ CreateSuffixModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
     handleChange: PropTypes.func,
-    handleRadioChange: PropTypes.func,
+    handleSelectChange: PropTypes.func,
     saveHandler: PropTypes.func,
-    noInit: PropTypes.bool,
-    addSuffix: PropTypes.bool,
-    addSample: PropTypes.bool,
     error: PropTypes.object,
 };
 
@@ -1413,10 +1446,7 @@ CreateSuffixModal.defaultProps = {
     showModal: false,
     closeHandler: noop,
     handleChange: noop,
-    handleRadioChange: noop,
+    handleSelectChange: noop,
     saveHandler: noop,
-    noInit: true,
-    addSuffix: false,
-    addSample: false,
     error: {},
 };

@@ -1,12 +1,15 @@
 import React from "react";
 import {
     Button,
+    Grid,
+    GridItem,
     Pagination,
     PaginationVariant,
     SearchInput,
     noop
 } from '@patternfly/react-core';
 import {
+    expandable,
     Table,
     TableHeader,
     TableBody,
@@ -15,6 +18,7 @@ import {
     SortByDirection,
 } from '@patternfly/react-table';
 import TrashAltIcon from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
+import ArrowRightIcon from '@patternfly/react-icons/dist/js/icons/arrow-right-icon';
 import PropTypes from "prop-types";
 
 class ReferralTable extends React.Component {
@@ -917,7 +921,281 @@ class PwpTable extends React.Component {
     }
 }
 
+class VLVTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
+            noRows: true,
+            columns: [
+                { title: 'Name',
+                  transforms: [sortable],
+                  cellFormatters: [expandable]
+                },
+                { title: 'Search Base',
+                  transforms: [sortable],
+                },
+            ],
+        };
+
+        this.onSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.onPerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage: perPage
+            });
+        };
+
+        this.onSort = this.onSort.bind(this);
+        this.onCollapse = this.onCollapse.bind(this);
+    }
+
+    onSort(_event, index, direction) {
+        let sorted_rows = [];
+        let rows = [];
+        let count = 0;
+
+        // Convert the rows pairings into a sortable array based on the column indexes
+        for (let idx = 0; idx < this.state.rows.length; idx += 2) {
+            sorted_rows.push({
+                'expandedRow': this.state.rows[idx + 1],
+                '1': this.state.rows[idx].cells[0],
+                '2': this.state.rows[idx].cells[1],
+            });
+        }
+
+        // Sort the rows and build the new rows
+        sorted_rows.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
+        if (direction !== SortByDirection.asc) {
+            sorted_rows.reverse();
+        }
+        for (let srow of sorted_rows) {
+            rows.push({
+                isOpen: false,
+                cells: [
+                    srow[1],
+                    srow[2],
+                ],
+            });
+            srow.expandedRow.parent = count; // reset parent idx
+            rows.push(srow.expandedRow);
+            count += 2;
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: rows,
+            page: 1,
+        });
+    }
+
+    getScopeKey(scope) {
+        let mapping = {
+            '2': 'subtree',
+            '1': 'one',
+            '0': 'base'
+        };
+        return mapping[scope];
+    }
+
+    getExpandedRow(row) {
+        let sort_indexes = row.sorts.map((sort) => {
+            let indexState;
+            if (sort.attrs.vlvenabled[0] == "0") {
+                // html 5 deprecated font ...
+                indexState = <font size="2" color="#d01c8b"><b>Disabled</b></font>;
+            } else {
+                indexState = <font size="2" color="#4dac26"><b>Uses: </b>{sort.attrs.vlvuses[0]}</font>;
+            }
+            return (
+                <GridItem key={sort.attrs.vlvsort[0]} className="ds-container ds-margin-topZZ">
+                    <div className="ds-lower-field">
+                        <ArrowRightIcon /> {sort.attrs.vlvsort[0]} ({indexState})
+                    </div>
+                    <div>
+                        <Button
+                            className="ds-left-margin"
+                            onClick={() => {
+                                this.props.deleteSortFunc(row.attrs['cn'][0], sort.attrs.vlvsort[0]);
+                            }}
+                            id={row.attrs['cn'][0]}
+                            icon={<TrashAltIcon />}
+                            variant="link"
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                </GridItem>
+            );
+        });
+
+        return (
+            <Grid>
+                <GridItem className="ds-label" span={2}>
+                    Search Base:
+                </GridItem>
+                <GridItem span={10}>
+                    {row.attrs.vlvbase[0]}
+                </GridItem>
+                <GridItem className="ds-label" span={2}>
+                    Search Filter:
+                </GridItem>
+                <GridItem span={10}>
+                    {row.attrs.vlvfilter[0]}
+                </GridItem>
+                <GridItem className="ds-label" span={2}>
+                    Scope:
+                </GridItem>
+                <GridItem span={10}>
+                    {this.getScopeKey(row.attrs.vlvscope[0])}
+                </GridItem>
+                <GridItem className="ds-label" span={12}>
+                    Sort Indexes:
+                </GridItem>
+                <div className="ds-margin-top ds-indent">
+                    {sort_indexes}
+                </div>
+                <GridItem className="ds-label" span={1}>
+                    <Button
+                        className="ds-margin-top"
+                        onClick={() => {
+                            this.props.addSortFunc(row.attrs['cn'][0]);
+                        }}
+                        variant="primary"
+                    >
+                        Create Sort Index
+                    </Button>
+                </GridItem>
+            </Grid>
+        );
+    }
+
+    componentDidMount() {
+        let rows = [];
+        let columns = this.state.columns;
+        let count = 0;
+        let noRows = true;
+
+        for (let row of this.props.rows) {
+            rows.push(
+                {
+                    isOpen: false,
+                    cells: [row.attrs['cn'][0], row.attrs.vlvbase[0]],
+                },
+                {
+                    parent: count,
+                    fullWidth: true,
+                    cells: [{ title: this.getExpandedRow(row) }]
+                },
+            );
+            count += 2;
+        }
+        if (rows.length == 0) {
+            rows = [{cells: ['No VLV Indexes']}];
+            columns = [{title: 'VLV Indexes'}];
+        } else {
+            noRows = false;
+        }
+        this.setState({
+            rows: rows,
+            columns: columns,
+            noRows: noRows,
+        });
+    }
+
+    onCollapse(event, rowKey, isOpen) {
+        const { rows } = this.state;
+
+        rows[rowKey].isOpen = isOpen;
+        this.setState({
+            rows
+        });
+    }
+
+    actions() {
+        return [
+            {
+                title: 'Reindex VLV',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.reindexFunc(rowData.cells[0])
+            },
+            {
+                title: 'Delete VLV',
+                onClick: (event, rowId, rowData, extra) => {
+                    this.props.deleteFunc(rowData.cells[0]);
+                }
+            }
+        ];
+    }
+
+    render() {
+        const { perPage, page, sortBy, rows, columns } = this.state;
+        let origRows = [...rows];
+        let startIdx = ((perPage * page) - perPage) * 2;
+        let tableRows = origRows.splice(startIdx, perPage * 2);
+
+        for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
+            // Rewrite parent index to match new spliced array
+            tableRows[idx]['parent'] = count;
+        }
+
+        return (
+            <div className={(this.props.saving || this.props.updating) ? "ds-margin-top-lg ds-disabled" : "ds-margin-top-lg"}>
+                <Table
+                    className="ds-margin-top"
+                    aria-label="vlv table"
+                    cells={columns}
+                    rows={tableRows}
+                    variant={TableVariant.compact}
+                    sortBy={sortBy}
+                    onSort={this.onSort}
+                    onCollapse={this.onCollapse}
+                    actions={!this.state.noRows ? this.actions() : null}
+                    dropdownPosition="right"
+                    dropdownDirection="bottom"
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+                <Pagination
+                    itemCount={this.state.rows.length / 2}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant={PaginationVariant.bottom}
+                    onSetPage={this.onSetPage}
+                    onPerPageSelect={this.onPerPageSelect}
+                />
+            </div>
+        );
+    }
+}
+
 // Property types and defaults
+
+VLVTable.propTypes = {
+    rows: PropTypes.array,
+    deleteFunc: PropTypes.func,
+    reindexFunc: PropTypes.func,
+};
+
+VLVTable.defaultProps = {
+    rows: [],
+    deletedeleteFunc: noop,
+    reindexFunc: noop,
+};
 
 PwpTable.propTypes = {
     rows: PropTypes.array,
@@ -1008,5 +1286,6 @@ export {
     EncryptedAttrTable,
     LDIFTable,
     LDIFManageTable,
-    BackupTable
+    BackupTable,
+    VLVTable,
 };

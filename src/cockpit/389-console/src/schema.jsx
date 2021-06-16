@@ -1067,41 +1067,30 @@ export class Schema extends React.Component {
             } else {
                 cmd = [...cmd, "--user-mod"];
             }
-            cmd = [...cmd, "--oid", atOID];
-            cmd = [...cmd, "--usage", atUsage];
-            cmd = [...cmd, "--desc", atDesc];
-
-            cmd = [...cmd, "--sup"];
-            if (atParent != "") {
-                cmd = [...cmd, atParent[0]];
-            } else {
-                cmd = [...cmd, ""];
+            if (atOID != "") {
+                cmd = [...cmd, "--oid", atOID];
             }
-
-            cmd = [...cmd, "--equality"];
-            if (atEqMr != "") {
-                cmd = [...cmd, atEqMr[0]];
-            } else {
-                cmd = [...cmd, ""];
+            if (atUsage != "") {
+                cmd = [...cmd, "--usage", atUsage];
             }
-
-            cmd = [...cmd, "--substr"];
-            if (atSubMr != "") {
-                cmd = [...cmd, atSubMr[0]];
-            } else {
-                cmd = [...cmd, ""];
+            if (atDesc != "") {
+                cmd = [...cmd, "--desc", atDesc];
             }
-
-            cmd = [...cmd, "--ordering"];
-            if (atOrder != "") {
-                cmd = [...cmd, atOrder[0]];
-            } else {
-                cmd = [...cmd, ""];
+            if (atParent[0] != "") {
+                cmd = [...cmd, "--sup", atParent[0]];
+            }
+            if (atEqMr[0] != "") {
+                cmd = [...cmd, "--equality", atEqMr[0]];
+            }
+            if (atSubMr[0] != "") {
+                cmd = [...cmd, "--substr", atSubMr[0]];
+            }
+            if (atOrder[0] != "") {
+                cmd = [...cmd, "--ordering", atOrder[0]];
             }
 
             this.toggleLoading("atModal");
             this.toggleLoading("atTable");
-            console.error("cmd", cmd);
             log_cmd("cmdOperationAttribute", `Do the ${action} operation on Attribute`, cmd);
             cockpit
                     .spawn(cmd, {

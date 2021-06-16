@@ -1,16 +1,12 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Nav,
-    NavItem,
-    TabContainer,
-    TabContent,
-    TabPane,
+    Button,
+    Tab,
+    Tabs,
+    TabTitleText,
     Spinner,
     noop
-} from "patternfly-react";
-import {
-    Button
 } from "@patternfly/react-core";
 import { DoubleConfirmModal } from "../../lib/notifications.jsx";
 import {
@@ -28,7 +24,7 @@ export class CertificateManagement extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            activeKey: 1,
+            activeTabKey: 0,
             ServerCerts: this.props.ServerCerts,
             CACerts: this.props.CACerts,
             tableKey: 0,
@@ -39,14 +35,21 @@ export class CertificateManagement extends React.Component {
             certName: "",
             certFile: "",
             flags: "",
+            _flags: "",
             errObj: {},
             isCACert: false,
             showConfirmCAChange: false,
             loading: false,
             modalChecked: false,
+            disableSaveBtn: true,
         };
 
-        this.handleNavSelect = this.handleNavSelect.bind(this);
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+
         this.addCACert = this.addCACert.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.addCert = this.addCert.bind(this);
@@ -66,12 +69,6 @@ export class CertificateManagement extends React.Component {
         this.closeConfirmDelete = this.closeConfirmDelete.bind(this);
         this.reloadCerts = this.reloadCerts.bind(this);
         this.reloadCACerts = this.reloadCACerts.bind(this);
-    }
-
-    handleNavSelect(key) {
-        this.setState({
-            activeKey: key
-        });
     }
 
     showAddModal () {
@@ -288,6 +285,7 @@ export class CertificateManagement extends React.Component {
             showEditModal: true,
             certName: nickname,
             flags: flags,
+            _flags: flags,
             isCACert: true,
         });
     }
@@ -385,6 +383,8 @@ export class CertificateManagement extends React.Component {
         let SSLFlags = '';
         let EmailFlags = '';
         let OSFlags = '';
+        let newFlags = "";
+        let disableSaveBtn = true;
         [SSLFlags, EmailFlags, OSFlags] = flags.split(',');
 
         if (id.endsWith('SSL')) {
@@ -419,8 +419,13 @@ export class CertificateManagement extends React.Component {
                 }
             }
         }
+        newFlags = SSLFlags + "," + EmailFlags + "," + OSFlags;
+        if (newFlags != this.state._flags) {
+            disableSaveBtn = false;
+        }
         this.setState({
-            flags: SSLFlags + "," + EmailFlags + "," + OSFlags
+            flags: newFlags,
+            disableSaveBtn: disableSaveBtn
         });
     }
 
@@ -496,74 +501,55 @@ export class CertificateManagement extends React.Component {
     }
 
     render () {
-        let CATitle = 'Trusted Certificate Authorites <font size="2">(' + this.state.CACerts.length + ')</font>';
-        let ServerTitle = 'TLS Certificates <font size="2">(' + this.state.ServerCerts.length + ')</font>';
-
         let certificatePage = '';
-
         if (this.state.loading) {
             certificatePage =
-                <div className="ds-loading-spinner ds-center">
-                    <p />
+                <div className="ds-loading-spinner ds-center ds-margin-top-lg">
                     <h4>Loading certificates ...</h4>
-                    <Spinner loading size="md" />
+                    <Spinner size="lg" />
                 </div>;
         } else {
             certificatePage =
-                <div className="container-fluid">
-                    <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                        <div>
-                            <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                                <NavItem eventKey={1}>
-                                    <div dangerouslySetInnerHTML={{__html: CATitle}} />
-                                </NavItem>
-                                <NavItem eventKey={2}>
-                                    <div dangerouslySetInnerHTML={{__html: ServerTitle}} />
-                                </NavItem>
-                            </Nav>
-                            <TabContent>
-                                <TabPane eventKey={1}>
-                                    <div className="ds-margin-top-lg">
-                                        <CertTable
-                                            certs={this.state.CACerts}
-                                            key={this.state.tableKey}
-                                            editCert={this.showEditCAModal}
-                                            delCert={this.showDeleteConfirm}
-                                        />
-                                        <Button
-                                            variant="primary"
-                                            className="ds-margin-top-med"
-                                            onClick={() => {
-                                                this.showAddCAModal();
-                                            }}
-                                        >
-                                            Add CA Certificate
-                                        </Button>
-                                    </div>
-                                </TabPane>
-                                <TabPane eventKey={2}>
-                                    <div className="ds-margin-top-lg">
-                                        <CertTable
-                                            certs={this.state.ServerCerts}
-                                            key={this.state.tableKey}
-                                            editCert={this.showEditModal}
-                                            delCert={this.showDeleteConfirm}
-                                        />
-                                        <Button
-                                            variant="primary"
-                                            className="ds-margin-top-med"
-                                            onClick={() => {
-                                                this.showAddModal();
-                                            }}
-                                        >
-                                            Add Server Certificate
-                                        </Button>
-                                    </div>
-                                </TabPane>
-                            </TabContent>
+                <Tabs className="ds-margin-top-lg ds-left-indent" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText><b>Trusted Certificate Authorites </b><font size="2">({this.state.CACerts.length})</font></TabTitleText>}>
+                        <div className="ds-margin-top-lg ds-left-indent">
+                            <CertTable
+                                certs={this.state.CACerts}
+                                key={this.state.tableKey}
+                                editCert={this.showEditCAModal}
+                                delCert={this.showDeleteConfirm}
+                            />
+                            <Button
+                                variant="primary"
+                                className="ds-margin-top-med"
+                                onClick={() => {
+                                    this.showAddCAModal();
+                                }}
+                            >
+                                Add CA Certificate
+                            </Button>
                         </div>
-                    </TabContainer>
-                </div>;
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText><b>TLS Certificates </b><font size="2">({this.state.ServerCerts.length})</font></TabTitleText>}>
+                        <div className="ds-margin-top-lg  ds-left-indent">
+                            <CertTable
+                                certs={this.state.ServerCerts}
+                                key={this.state.tableKey}
+                                editCert={this.showEditModal}
+                                delCert={this.showDeleteConfirm}
+                            />
+                            <Button
+                                variant="primary"
+                                className="ds-margin-top-med"
+                                onClick={() => {
+                                    this.showAddModal();
+                                }}
+                            >
+                                Add Server Certificate
+                            </Button>
+                        </div>
+                    </Tab>
+                </Tabs>;
         }
         return (
             <div>
@@ -574,6 +560,7 @@ export class CertificateManagement extends React.Component {
                     handleChange={this.handleFlagChange}
                     saveHandler={this.editCert}
                     flags={this.state.flags}
+                    disableSaveBtn={this.state.disableSaveBtn}
                     spinning={this.state.modalSpinning}
                 />
                 <SecurityAddCertModal

@@ -3,23 +3,24 @@ import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
-    Col,
-    ControlLabel,
-    Form,
-    FormControl,
-    Icon,
-    Row,
-    Spinner,
-} from "patternfly-react";
-import {
     Button,
     Checkbox,
+    Form,
+    Grid,
+    GridItem,
     Select,
     SelectVariant,
-    SelectOption
+    SelectOption,
+    Spinner,
+    TextInput,
 } from "@patternfly/react-core";
 import { SASLTable } from "./serverTables.jsx";
 import { SASLMappingModal } from "./serverModals.jsx";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faSyncAlt
+} from '@fortawesome/free-solid-svg-icons';
+import '@fortawesome/fontawesome-svg-core/styles.css';
 
 export class ServerSASL extends React.Component {
     constructor(props) {
@@ -138,14 +139,12 @@ export class ServerSASL extends React.Component {
         // Check if a setting was changed, if so enable the save button
         if (attr == 'mappingFallback' && this.state._mappingFallback != value) {
             disableSaveBtn = false;
-        } else if (attr == 'saslPriority' && this.state._saslPriority != value) {
-            disableSaveBtn = false;
         } else if (attr == 'maxBufSize' && this.state._maxBufSize != value) {
             disableSaveBtn = false;
         } else if (attr == 'allowedMechs' && !this.state._allowedMechs.includes(value)) {
             if (this.state._allowedMechs.length > value.length) {
                 // The way allow mechanisms work if that once you set it initially
-                // you can't edit it without removing all the current mecahisms.  So
+                // you can't edit it without removing all the current mechanisms.  So
                 // if we remove one, just remove them all and make the user start over.
                 // !! THIS DOES NOT WORK
                 value = [];
@@ -155,8 +154,6 @@ export class ServerSASL extends React.Component {
 
         // Now check for differences in values that we did not touch
         if (attr != 'mappingFallback' && this.state._mappingFallback != this.state.mappingFallback) {
-            disableSaveBtn = false;
-        } else if (attr != 'saslPriority' && this.state._saslPriority != this.state.saslPriority) {
             disableSaveBtn = false;
         } else if (attr != 'maxBufSize' && this.state._maxBufSize != this.state.maxBufSize) {
             disableSaveBtn = false;
@@ -643,66 +640,62 @@ export class ServerSASL extends React.Component {
     }
 
     render() {
-        let configSpinner = "";
-        let tableSpinner = " ";
         let body = "";
-        if (this.state.tableLoading) {
-            tableSpinner = <Spinner loading size="sm" />;
-        }
+        let saveBtnName = "Save Settings";
+        let extraPrimaryProps = {};
         if (this.state.configLoading) {
-            configSpinner = <Spinner loading size="md" />;
+            saveBtnName = "Saving settings ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
         if (!this.state.loaded) {
             body =
                 <div className="ds-loading-spinner ds-margin-top ds-center">
                     <h4>Loading SASL configuration ...</h4>
-                    <Spinner className="ds-margin-top" loading size="md" />
+                    <Spinner className="ds-margin-top" size="lg" />
                 </div>;
         } else {
             body =
-                <div className="ds-margin-left-sm">
-                    <Row>
-                        <Col sm={3} className="ds-word-wrap">
-                            <ControlLabel className="ds-suffix-header ds-margin-top-lg">
-                                SASL Settings
-                                <Icon className="ds-left-margin ds-refresh"
-                                    type="fa" name="refresh" title="Refresh SASL configuration"
-                                    onClick={() => {
-                                        this.loadConfig();
-                                    }}
-                                />
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={1} className="ds-margin-top-lg">
-                            {configSpinner}
-                        </Col>
-                    </Row>
+                <div className={this.state.configLoading ? "ds-disabled ds-margin-left-sm" : "ds-margin-left-sm"}>
+                    <Grid>
+                        <GridItem span={3}>
+                            <h4>SASL Settings <FontAwesomeIcon
+                                size="lg"
+                                className="ds-left-margin ds-refresh"
+                                icon={faSyncAlt}
+                                title="Refresh SASL configuration"
+                                onClick={this.loadConfig}
+                            />
+                            </h4>
+                        </GridItem>
+                    </Grid>
                     <hr />
                     <Form>
-                        <Row title="The maximum SASL buffer size in bytes (nsslapd-sasl-max-buffer-size)." className="ds-margin-top">
-                            <Col componentClass={ControlLabel} sm={3}>
+                        <Grid title="The maximum SASL buffer size in bytes (nsslapd-sasl-max-buffer-size)." className="ds-margin-top">
+                            <GridItem className="ds-label" span={3}>
                                 Max SASL Buffer Size
-                            </Col>
-                            <Col sm={4}>
-                                <FormControl
-                                    id="maxBufSize"
-                                    type="number"
-                                    min="-1"
-                                    max="2147483647"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
                                     value={this.state.maxBufSize}
-                                    onChange={this.handleChange}
+                                    type="number"
+                                    id="maxBufSize"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="maxBufSize"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
                                 />
-                            </Col>
-                        </Row>
-                        <Row
+                            </GridItem>
+                        </Grid>
+                        <Grid
                             title="A list of SASL mechanisms the server will only accept (nsslapd-allowed-sasl-mechanisms).  The default is all mechanisms are allowed."
                             className="ds-margin-top"
                         >
-                            <Col componentClass={ControlLabel} sm={3}>
+                            <GridItem className="ds-label" span={3}>
                                 Allowed SASL Mechanisms
-                            </Col>
-                            <Col sm={4}>
+                            </GridItem>
+                            <GridItem span={9}>
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type SASL mechanism to allow"
@@ -722,9 +715,9 @@ export class ServerSASL extends React.Component {
                                         />
                                             ))}
                                 </Select>
-                            </Col>
-                        </Row>
-                        <Row
+                            </GridItem>
+                        </Grid>
+                        <Grid
                             title="Check all sasl mappings until one succeeds or they all fail (nsslapd-sasl-mapping-fallback)."
                             className="ds-margin-top"
                         >
@@ -736,31 +729,28 @@ export class ServerSASL extends React.Component {
                                 }}
                                 label="Allow SASL Mapping Fallback"
                             />
-                        </Row>
+                        </Grid>
                     </Form>
                     <Button
                         isDisabled={this.state.saveDisabled}
                         variant="primary"
-                        className="ds-margin-top-med"
+                        className="ds-margin-top-xlg"
                         onClick={this.saveConfig}
+                        isLoading={this.state.configLoading}
+                        spinnerAriaValueText={this.state.configLoading ? "Saving" : undefined}
+                        {...extraPrimaryProps}
                     >
-                        Save Settings
+                        {saveBtnName}
                     </Button>
                     <hr />
-                    <Row>
-                        <h4 className="ds-center">
-                            <div className="ds-inline">
-                                <ControlLabel>
-                                    <b>SASL Mappings</b>
-                                </ControlLabel>
-                            </div>
-                            <div className="ds-left-indent ds-inline">
-                                <ControlLabel>
-                                    {tableSpinner}
-                                </ControlLabel>
-                            </div>
+                    <Grid
+                        title="A list of SASL mechanisms the server will only accept (nsslapd-allowed-sasl-mechanisms).  The default is all mechanisms are allowed."
+                        className="ds-margin-top"
+                    >
+                        <h4 className="ds-center ds-margin-top" span={12}>
+                            SASL Mappings
                         </h4>
-                    </Row>
+                    </Grid>
                     <SASLTable
                         key={this.state.mappingKey}
                         rows={this.state.mappings}
@@ -770,7 +760,6 @@ export class ServerSASL extends React.Component {
                     />
                     <Button
                         variant="primary"
-                        className="ds-margin-top-med"
                         onClick={this.showCreateMapping}
                     >
                         Create New Mapping

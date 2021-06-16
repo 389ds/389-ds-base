@@ -3,13 +3,9 @@ import React from "react";
 import { ConfirmPopup } from "../notifications.jsx";
 import { EncryptedAttrTable } from "./databaseTables.jsx";
 import {
-    Row,
-    Col,
-} from "patternfly-react";
-import {
     Button,
-    // Form,
-    // FormGroup,
+    Grid,
+    GridItem,
     Select,
     SelectVariant,
     SelectOption,
@@ -161,8 +157,8 @@ export class AttrEncryption extends React.Component {
                     rows={this.props.rows}
                     deleteAttr={this.showConfirmAttrDelete}
                 />
-                <Row className="ds-margin-top">
-                    <Col sm={6}>
+                <Grid className="ds-margin-top">
+                    <GridItem span={6}>
                         <Select
                             variant={SelectVariant.typeahead}
                             onToggle={this.onSelectToggle}
@@ -181,16 +177,16 @@ export class AttrEncryption extends React.Component {
                                 />
                             ))}
                         </Select>
-                    </Col>
-                    <Col sm={3} bsClass="ds-no-padding">
+                    </GridItem>
+                    <GridItem span={3} className="ds-no-padding">
                         <Button
                             variant="primary"
                             onClick={this.addEncryptedAttr}
                         >
                             Add Attribute
                         </Button>
-                    </Col>
-                </Row>
+                    </GridItem>
+                </Grid>
                 <ConfirmPopup
                     showModal={this.state.showConfirmAttrDelete}
                     closeHandler={this.closeConfirmAttrDelete}
