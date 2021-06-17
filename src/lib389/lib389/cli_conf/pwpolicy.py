@@ -255,6 +255,9 @@ def create_parser(subparsers):
     set_parser.add_argument('--pwpinheritglobal', help="Set to \"on\" to allow local policies to inherit the global policy")
     set_parser.add_argument('--pwddictcheck', help="Set to \"on\" to enforce CrackLib dictionary checking")
     set_parser.add_argument('--pwddictpath', help="Filesystem path to specific/custom CrackLib dictionary files")
+    set_parser.add_argument('--pwptprmaxuse', help="Number of times a reset password can be used for authentication")
+    set_parser.add_argument('--pwptprdelayexpireat', help="Number of seconds after which a reset password expires")
+    set_parser.add_argument('--pwptprdelayvalidfrom', help="Number of seconds to wait before using a reset password to authenticated")
     # delete local password policy
     del_parser = local_subcommands.add_parser('remove', help='Remove a local password policy')
     del_parser.set_defaults(func=del_local_policy)
