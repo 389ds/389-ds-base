@@ -65,7 +65,10 @@ class PwPolicyManager(object):
             'pwddictcheck': 'passworddictcheck',
             'pwddictpath': 'passworddictpath',
             'pwdallowhash': 'nsslapd-allow-hashed-passwords',
-            'pwpinheritglobal': 'nsslapd-pwpolicy-inherit-global'
+            'pwpinheritglobal': 'nsslapd-pwpolicy-inherit-global',
+            'pwptprmaxuse': 'passwordTPRMaxUse',
+            'pwptprdelayexpireat': 'passwordTPRDelayExpireAt',
+            'pwptprdelayvalidfrom': 'passwordTPRDelayValidFrom'
         }
 
     def is_subtree_policy(self, dn):
