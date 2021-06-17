@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="module")
-def create_user(topology_st, request):
+def test_user(topology_st, request):
     """User for binding operation"""
     topology_st.standalone.config.set('nsslapd-auditlog-logging-enabled', 'on')
     log.info('Adding test user {}')
@@ -56,10 +56,11 @@ def create_user(topology_st, request):
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     request.addfinalizer(fin)
+    return user
 
 
 @pytest.fixture(scope="module")
-def password_policy(topology_st, create_user):
+def password_policy(topology_st, test_user):
     """Set up password policy for subtree and user"""
 
     pwp = PwPolicyManager(topology_st.standalone)
@@ -72,7 +73,7 @@ def password_policy(topology_st, create_user):
 
 @pytest.mark.bz1845094
 @pytest.mark.skipif(ds_is_older('1.4.3.3'), reason="Not implemented")
-def test_pwdReset_by_user_DM(topology_st, create_user):
+def test_pwdReset_by_user_DM(topology_st, test_user):
     """Test new password policy attribute "pwdReset"
 
     :id: 232bc7dc-8cb6-11eb-9791-98fa9ba19b65
@@ -115,7 +116,7 @@ def test_pwdReset_by_user_DM(topology_st, create_user):
 
 
 @pytest.mark.skipif(ds_is_older('1.4.3.3'), reason="Not implemented")
-def test_pwd_reset(topology_st, create_user):
+def test_pwd_reset(topology_st, test_user):
     """Test new password policy attribute "pwdReset"
 
     :id: 03db357b-4800-411e-a36e-28a534293004
@@ -169,7 +170,7 @@ def test_pwd_reset(topology_st, create_user):
                          [('on', 'off', ldap.UNWILLING_TO_PERFORM),
                           ('off', 'off', ldap.UNWILLING_TO_PERFORM),
                           ('off', 'on', False), ('on', 'on', False)])
-def test_change_pwd(topology_st, create_user, password_policy,
+def test_change_pwd(topology_st, test_user, password_policy,
                     subtree_pwchange, user_pwchange, exception):
     """Verify that 'passwordChange' attr works as expected
     User should have a priority over a subtree.
@@ -229,7 +230,7 @@ def test_change_pwd(topology_st, create_user, password_policy,
         user.reset_password(TEST_USER_PWD)
 
 
-def test_pwd_min_age(topology_st, create_user, password_policy):
+def test_pwd_min_age(topology_st, test_user, password_policy):
     """If we set passwordMinAge to some value, for example to 10, then it
     should not allow the user to change the password within 10 seconds after
     his previous change.
@@ -305,7 +306,7 @@ def test_pwd_min_age(topology_st, create_user, password_policy):
         pwp.delete_local_policy(OU_PEOPLE)
 
 
-def test_global_tpr_maxuse_1(topology_st, create_user, request):
+def test_global_tpr_maxuse_1(topology_st, test_user, request):
     """Test global TPR policy : passwordTPRMaxUse
     Test that after passwordTPRMaxUse failures to bind
     additional bind with valid password are failing with CONSTRAINT_VIOLATION
@@ -422,7 +423,7 @@ def test_global_tpr_maxuse_1(topology_st, create_user, request):
 
     request.addfinalizer(fin)
 
-def test_global_tpr_maxuse_2(topology_st, create_user, request):
+def test_global_tpr_maxuse_2(topology_st, test_user, request):
     """Test global TPR policy : passwordTPRMaxUse
     Test that after less than passwordTPRMaxUse failures to bind
     additional bind with valid password are successfull
@@ -522,7 +523,7 @@ def test_global_tpr_maxuse_2(topology_st, create_user, request):
 
     request.addfinalizer(fin)
 
-def test_global_tpr_maxuse_3(topology_st, create_user, request):
+def test_global_tpr_maxuse_3(topology_st, test_user, request):
     """Test global TPR policy : passwordTPRMaxUse
     Test that after less than passwordTPRMaxUse failures to bind
     A bind with valid password is successfull but passwordMustChange
@@ -635,7 +636,7 @@ def test_global_tpr_maxuse_3(topology_st, create_user, request):
 
     request.addfinalizer(fin)
 
-def test_global_tpr_maxuse_4(topology_st, create_user, request):
+def test_global_tpr_maxuse_4(topology_st, test_user, request):
     """Test global TPR policy : passwordTPRMaxUse
     Test that a TPR attribute passwordTPRMaxUse
     can be updated by DM but not the by user itself
@@ -749,7 +750,148 @@ def test_global_tpr_maxuse_4(topology_st, create_user, request):
 
     request.addfinalizer(fin)
 
-def test_global_tpr_delayValidFrom_1(topology_st, create_user, request):
+def test_local_tpr_maxuse_5(topology_st, test_user, request):
+    """Test TPR local policy overpass global one: passwordTPRMaxUse
+    Test that after passwordTPRMaxUse failures to bind
+    additional bind with valid password are failing with CONSTRAINT_VIOLATION
+
+    :id: c3919707-d804-445a-8754-8385b1072c42
+    :customerscenario: False
+    :setup: Standalone instance
+    :steps:
+        1. Global password policy Enable passwordMustChange
+        2. Global password policy Set passwordTPRMaxUse=5
+        3. Global password policy Set passwordMaxFailure to a higher value to not disturb the test
+        4. Local password policy Enable passwordMustChange
+        5. Local password policy Set passwordTPRMaxUse=10 (higher than global)
+        6. Bind with a wrong password 10 times and check INVALID_CREDENTIALS
+        7. Check that passwordTPRUseCount got to the limit (5)
+        8. Bind with a wrong password (CONSTRAINT_VIOLATION)
+           and check passwordTPRUseCount overpass the limit by 1 (11)
+        9. Bind with a valid password 10 times and check CONSTRAINT_VIOLATION
+           and check passwordTPRUseCount increases
+        10. Reset password policy configuration and remove local password from user
+    :expected results:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+    """
+
+    global_tpr_maxuse = 5
+    # Set global password policy config, passwordMaxFailure being higher than
+    # passwordTPRMaxUse so that TPR is enforced first
+    topology_st.standalone.config.replace('passwordMustChange', 'on')
+    topology_st.standalone.config.replace('passwordMaxFailure', str(global_tpr_maxuse + 20))
+    topology_st.standalone.config.replace('passwordTPRMaxUse', str(global_tpr_maxuse))
+    time.sleep(.5)
+
+    local_tpr_maxuse = global_tpr_maxuse + 5
+    # Reset user's password with a local password policy
+    # that has passwordTPRMaxUse higher than global
+    #our_user = UserAccount(topology_st.standalone, TEST_USER_DN)
+    subprocess.call(['%s/dsconf' % topology_st.standalone.get_sbin_dir(),
+                     'slapd-standalone1',
+                     'localpwp',
+                     'adduser',
+                     test_user.dn])
+    subprocess.call(['%s/dsconf' % topology_st.standalone.get_sbin_dir(),
+                     'slapd-standalone1',
+                     'localpwp',
+                     'set',
+                     '--pwptprmaxuse',
+                     str(local_tpr_maxuse),
+                     '--pwdmustchange',
+                     'on',
+                     test_user.dn])
+    test_user.replace('userpassword', PASSWORD)
+    time.sleep(.5)
+
+    # look up to passwordTPRMaxUse with failing
+    # bind to check that the limits of TPR are enforced
+    for i in range(local_tpr_maxuse):
+        # Bind as user with a wrong password
+        with pytest.raises(ldap.INVALID_CREDENTIALS):
+            test_user.rebind('wrong password')
+        time.sleep(.5)
+
+        # Check that pwdReset is TRUE
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        #assert test_user.get_attr_val_utf8('pwdReset') == 'TRUE'
+
+        # Check that pwdTPRReset is TRUE
+        assert test_user.get_attr_val_utf8('pwdTPRReset') == 'TRUE'
+        assert test_user.get_attr_val_utf8('pwdTPRUseCount') == str(i+1)
+        log.info("%dth failing bind (INVALID_CREDENTIALS) => pwdTPRUseCount = %d" % (i+1, i+1))
+
+
+    # Now the #failures reached passwordTPRMaxUse
+    # Check that pwdReset is TRUE
+    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+
+    # Check that pwdTPRReset is TRUE
+    assert test_user.get_attr_val_utf8('pwdTPRReset') == 'TRUE'
+    assert test_user.get_attr_val_utf8('pwdTPRUseCount') == str(local_tpr_maxuse)
+    log.info("last failing bind (INVALID_CREDENTIALS) => pwdTPRUseCount = %d" % (local_tpr_maxuse))
+
+    # Bind as user with wrong password --> ldap.CONSTRAINT_VIOLATION
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        test_user.rebind("wrong password")
+    time.sleep(.5)
+
+    # Check that pwdReset is TRUE
+    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+
+    # Check that pwdTPRReset is TRUE
+    assert test_user.get_attr_val_utf8('pwdTPRReset') == 'TRUE'
+    assert test_user.get_attr_val_utf8('pwdTPRUseCount') == str(local_tpr_maxuse + 1)
+    log.info("failing bind (CONSTRAINT_VIOLATION) => pwdTPRUseCount = %d" % (local_tpr_maxuse + i))
+
+    # Now check that all next attempts with correct password are all in LDAP_CONSTRAINT_VIOLATION
+    # and passwordTPRRetryCount remains unchanged
+    # account is now similar to locked
+    for i in range(10):
+        # Bind as user with valid password
+        with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+            test_user.rebind(PASSWORD)
+        time.sleep(.5)
+
+        # Check that pwdReset is TRUE
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+
+        # Check that pwdTPRReset is TRUE
+        # pwdTPRUseCount keeps increasing
+        assert test_user.get_attr_val_utf8('pwdTPRReset') == 'TRUE'
+        assert test_user.get_attr_val_utf8('pwdTPRUseCount') == str(local_tpr_maxuse + i + 2)
+        log.info("Rejected bind (CONSTRAINT_VIOLATION) => pwdTPRUseCount = %d" % (local_tpr_maxuse + i + 2))
+
+
+    def fin():
+        topology_st.standalone.restart()
+        # Reset password policy config
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        topology_st.standalone.config.replace('passwordMustChange', 'off')
+
+        # Remove local password policy from that entry
+        subprocess.call(['%s/dsconf' % topology_st.standalone.get_sbin_dir(),
+                        'slapd-standalone1',
+                        'localpwp',
+                        'remove',
+                        test_user.dn])
+
+        # Reset user's password
+        test_user.replace('userpassword', TEST_USER_PWD)
+
+
+    request.addfinalizer(fin)
+
+def test_global_tpr_delayValidFrom_1(topology_st, test_user, request):
     """Test global TPR policy : passwordTPRDelayValidFrom
     Test that a TPR password is not valid before reset time +
     passwordTPRDelayValidFrom
@@ -814,7 +956,7 @@ def test_global_tpr_delayValidFrom_1(topology_st, create_user, request):
 
     request.addfinalizer(fin)
 
-def test_global_tpr_delayValidFrom_2(topology_st, create_user, request):
+def test_global_tpr_delayValidFrom_2(topology_st, test_user, request):
     """Test global TPR policy : passwordTPRDelayValidFrom
     Test that a TPR password is valid after reset time +
     passwordTPRDelayValidFrom
@@ -886,7 +1028,7 @@ def test_global_tpr_delayValidFrom_2(topology_st, create_user, request):
 
     request.addfinalizer(fin)
 
-def test_global_tpr_delayValidFrom_3(topology_st, create_user, request):
+def test_global_tpr_delayValidFrom_3(topology_st, test_user, request):
     """Test global TPR policy : passwordTPRDelayValidFrom
     Test that a TPR attribute passwordTPRDelayValidFrom
     can be updated by DM but not the by user itself
@@ -988,7 +1130,7 @@ def test_global_tpr_delayValidFrom_3(topology_st, create_user, request):
 
     request.addfinalizer(fin)
 
-def test_global_tpr_delayExpireAt_1(topology_st, create_user, request):
+def test_global_tpr_delayExpireAt_1(topology_st, test_user, request):
     """Test global TPR policy : passwordTPRDelayExpireAt
     Test that a TPR password is not valid after reset time +
     passwordTPRDelayExpireAt
@@ -1058,7 +1200,7 @@ def test_global_tpr_delayExpireAt_1(topology_st, create_user, request):
 
     request.addfinalizer(fin)
 
-def test_global_tpr_delayExpireAt_2(topology_st, create_user, request):
+def test_global_tpr_delayExpireAt_2(topology_st, test_user, request):
     """Test global TPR policy : passwordTPRDelayExpireAt
     Test that a TPR password is valid before reset time +
     passwordTPRDelayExpireAt
@@ -1130,7 +1272,7 @@ def test_global_tpr_delayExpireAt_2(topology_st, create_user, request):
 
     request.addfinalizer(fin)
 
-def test_global_tpr_delayExpireAt_3(topology_st, create_user, request):
+def test_global_tpr_delayExpireAt_3(topology_st, test_user, request):
     """Test global TPR policy : passwordTPRDelayExpireAt
     Test that a TPR attribute passwordTPRDelayExpireAt
     can be updated by DM but not the by user itself
