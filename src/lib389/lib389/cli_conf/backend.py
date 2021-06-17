@@ -1012,12 +1012,14 @@ def create_parser(subparsers):
     set_db_config_parser.add_argument('--logbufsize', help='Specifies the transaction log information buffer size')
     set_db_config_parser.add_argument('--locks', help='Sets the maximum number of database locks')
     set_db_config_parser.add_argument('--locks-monitoring-enabled', help='Set to "on" or "off" to monitor DB locks. When it crosses the percentage value '
-                                                                         'set with "--locks-monitoring-threshold" ("on" by default)')
-    set_db_config_parser.add_argument('--locks-monitoring-threshold', help='Sets the DB lock exhaustion value in percentage (valid range is 70-95). If too many locks are '
-                                                                           'acquired, the server will abort the searches while the number of locks '
-                                                                           'are not decreased. It helps to avoid DB corruption and long recovery.')
+                                                                         'set with "--locks-monitoring-threshold" (nsslapd-db-locks-monitoring-pause) ("on" by default)')
+    set_db_config_parser.add_argument('--locks-monitoring-threshold', help='Sets the DB lock exhaustion threshold in percentage (valid range is 70-95). '
+                                                                           'When the threshold is reached, all searches are aborted until the number of active '
+                                                                           'locks decreases below the configured threshold and/or the directory server '
+                                                                           'administrator increases the number of Database Locks (nsslapd-db-locks). '
+                                                                           'It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold)')
     set_db_config_parser.add_argument('--locks-monitoring-pause', help='Sets the DB lock monitoring value in milliseconds for the amount of time '
-                                                                       'that the monitoring thread spends waiting between checks.')
+                                                                       'that the monitoring thread spends waiting between checks. (nsslapd-db-locks-monitoring-pause)')
     set_db_config_parser.add_argument('--import-cache-autosize', help='Set to "on" or "off" to automatically set the size of the import '
                                                                        'cache to be used during the the import process of LDIF files')
     set_db_config_parser.add_argument('--cache-autosize', help='Sets the percentage of free memory that is used in total for the database '
