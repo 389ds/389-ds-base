@@ -66,6 +66,7 @@ void check_entry_cache(struct cache *cache, struct backentry *e);
 Hashtable *new_hash(u_long size, u_long offset, HashFn hfn, HashTestFn tfn);
 int add_hash(Hashtable *ht, void *key, uint32_t keylen, void *entry, void **alt);
 int find_hash(Hashtable *ht, const void *key, uint32_t keylen, void **entry);
+int find_hash_move_front(Hashtable *ht, const void *key, uint32_t keylen, void **entry);
 int remove_hash(Hashtable *ht, const void *key, uint32_t keylen);
 
 struct backdn *dncache_find_id(struct cache *cache, ID id);
