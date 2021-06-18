@@ -255,22 +255,6 @@ ldbm_instance_config_require_internalop_index_get(void *arg)
     return (void *)((uintptr_t)inst->require_internalop_index);
 }
 
-static void *
-ldbm_instance_config_ignored_get(void *arg)
-{
-    return NULL;
-}
-
-static int
-ldbm_instance_config_ignored_set(void *arg,
-                                  void *value,
-                                  char *errorbuf __attribute__((unused)),
-                                  int phase,
-                                  int apply)
-{
-    return LDAP_SUCCESS;
-}
-
 static int
 ldbm_instance_config_readonly_set(void *arg,
                                   void *value,
@@ -351,8 +335,6 @@ static config_info ldbm_instance_config[] = {
     {CONFIG_INSTANCE_REQUIRE_INDEX, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_require_index_get, &ldbm_instance_config_require_index_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_REQUIRE_INTERNALOP_INDEX, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_require_internalop_index_get, &ldbm_instance_config_require_internalop_index_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_DNCACHEMEMSIZE, CONFIG_TYPE_UINT64, DEFAULT_DNCACHE_SIZE_STR, &ldbm_instance_config_dncachememsize_get, &ldbm_instance_config_dncachememsize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    /* CONFIG_INSTANCE_DIR is now handled within db impl plugin. so lets ignoreit */
-    {CONFIG_INSTANCE_DIR, CONFIG_TYPE_STRING, NULL, &ldbm_instance_config_ignored_get, &ldbm_instance_config_ignored_set, CONFIG_FLAG_SKIP_DEFAULT_SETTING },
     {NULL, 0, NULL, NULL, NULL, 0}};
 
 void
@@ -372,6 +354,8 @@ ldbm_instance_config_set(ldbm_instance *inst, char *attr_name, config_info *conf
 {
     config_info *config;
     int rc = LDAP_SUCCESS;
+
+slapi_log_err(SLAPI_LOG_INFO, "ldbm_instance_config_set", "instance: %s attr %s \n", inst->inst_name, attr_name);
 
     config = config_info_get(config_array, attr_name);
     if (NULL == config) {
@@ -561,12 +545,9 @@ parse_ldbm_instance_config_entry(ldbm_instance *inst, Slapi_Entry *e, config_inf
 
         if (ldbm_instance_config_set((void *)inst, attr_name, config_array, bval,
                             err_buf, CONFIG_PHASE_STARTUP, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
-            int len;
-            char *estr = slapi_entry2str(e, &len);
             slapi_log_err(SLAPI_LOG_ERR, "parse_ldbm_instance_config_entry",
-                          "Error with config attribute %s : %s in entry: %s\n",
-                          attr_name, err_buf, estr);
-            slapi_ch_free_string(&estr);
+                          "Error with config attribute %s : %s\n",
+                          attr_name, err_buf);
             return 1;
         }
     }

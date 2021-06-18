@@ -36,59 +36,6 @@ static dbmdb_descinfo_t dbmdb_descinfo[] = {
     { 0 }
 };
 
-/* helper to pretty print flags values */
-typedef struct {
-    char *name;
-    int val;
-} flagsdesc_t;
-
-static flagsdesc_t mdb_env_flags_desc[] = {
-    { "MDB_FIXEDMAP", MDB_FIXEDMAP},
-    { "MDB_NOSUBDIR", MDB_NOSUBDIR},
-    { "MDB_NOSYNC", MDB_NOSYNC},
-    { "MDB_RDONLY", MDB_RDONLY},
-    { "MDB_NOMETASYNC", MDB_NOMETASYNC},
-    { "MDB_WRITEMAP", MDB_WRITEMAP},
-    { "MDB_MAPASYNC", MDB_MAPASYNC},
-    { "MDB_NOTLS", MDB_NOTLS},
-    { "MDB_NOLOCK", MDB_NOLOCK},
-    { "MDB_NORDAHEAD", MDB_NORDAHEAD},
-    { "MDB_NOMEMINIT", MDB_NOMEMINIT},
-    { 0 }
-};
-#if 0
-
-static flagsdesc_t mdb_op_flags_desc[] = {
-    { "MDB_NOOVERWRITE", MDB_NOOVERWRITE},
-    { "MDB_NODUPDATA", MDB_NODUPDATA},
-    { "MDB_CURRENT", MDB_CURRENT},
-    { "MDB_RESERVE", MDB_RESERVE},
-    { "MDB_APPEND", MDB_APPEND},
-    { "MDB_APPENDDUP", MDB_APPENDDUP},
-    { "MDB_MULTIPLE", MDB_MULTIPLE},
-    { 0 }
-};
-#endif
-
-static flagsdesc_t mdb_dbi_flags_desc[] = {
-    { "MDB_REVERSEKEY", MDB_REVERSEKEY},
-    { "MDB_DUPSORT", MDB_DUPSORT},
-    { "MDB_INTEGERKEY", MDB_INTEGERKEY},
-    { "MDB_DUPFIXED", MDB_DUPFIXED},
-    { "MDB_INTEGERDUP", MDB_INTEGERDUP},
-    { "MDB_REVERSEDUP", MDB_REVERSEDUP},
-    { "MDB_CREATE", MDB_CREATE},
-    { "MDB_OPEN_DIRTY_DBI", MDB_OPEN_DIRTY_DBI},
-    { "MDB_MARK_DIRTY_DBI", MDB_MARK_DIRTY_DBI},
-    { "MDB_TRUNCATE_DBI", MDB_TRUNCATE_DBI},
-    { 0 }
-};
-
-static flagsdesc_t mdb_state_desc[] = {
-    { "DBIST_DIRTY", DBIST_DIRTY },
-    { 0 }
-};
-
 /* Context needed when having to spawn a new thread to open a dbi */
 typedef struct {
     dbmdb_dbi_t *dbi;
@@ -262,7 +209,7 @@ static void *dbmdb_mdb_open_dbname(void *arg)
 
     if (octx->ctx->nbdbis > 0 && (open_flags & MDB_CREATE)) {
         /* Adding the entry in DBNAMES while holding the txn */
-        octx->rc = mdb_put(TXN(txn), octx->ctx->dbinames_dbi, &octx->key, &octx->data, 0);
+        octx->rc = MDB_PUT(TXN(txn), octx->ctx->dbinames_dbi, &octx->key, &octx->data, 0);
         if (octx->rc) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_dbname",
                 "Failed to add item in DBNAMES database err=%d: %s while opening database %s\n", octx->rc, mdb_strerror(octx->rc), octx->dbname);
@@ -495,7 +442,7 @@ static int dbmdb_init_dbilist(dbmdb_ctx_t *ctx)
         return rc;
     }
 
-    rc = mdb_cursor_get(dbicur.cur, &key, &data, MDB_FIRST);
+    rc = MDB_CURSOR_GET(dbicur.cur, &key, &data, MDB_FIRST);
     while (rc == 0) {
         if (ctx->nbdbis >= ctx->startcfg.max_dbs) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_init_dbilist",
@@ -508,7 +455,7 @@ static int dbmdb_init_dbilist(dbmdb_ctx_t *ctx)
         ctx->dbis[ctx->nbdbis].dbi = 0;
         ctx->dbis[ctx->nbdbis].env = ctx->env;
         ctx->nbdbis++;
-        rc = mdb_cursor_get(dbicur.cur, &key, &data, MDB_NEXT);
+        rc = MDB_CURSOR_GET(dbicur.cur, &key, &data, MDB_NEXT);
     }
     dbmdb_close_cursor(&dbicur, 1);
     if (rc == MDB_NOTFOUND) {
@@ -770,52 +717,12 @@ void dbmdb_ctx_close(dbmdb_ctx_t *ctx)
     pthread_rwlock_destroy(&ctx->dbmdb_env_lock);
 }
 
-/* concat two strings to a buffer */
-int append_str(char *buff, int bufsize, int pos, const char *str1, const char *str2)
-{
-    int l1 = strlen(str1);
-    int l2 = strlen(str2);
-    if (pos+l1+l2+1 < bufsize) {
-        strcpy(buff+pos, str1);
-        strcpy(buff+pos+l1, str2);
-        buff[pos+l1+l2] = 0;
-        pos += l1+l2;
-    }
-    return pos;
-}
-
-/* Utility to add flags values to a buffer */
-int append_flags(char *buff, int bufsize, int pos, const char *name, int flags, flagsdesc_t *desc)
-{
-    int remainder = flags;
-    char b[12];
-
-    pos = append_str(buff, bufsize, pos, name, ": ");
-    for (; desc->name; desc++) {
-        if ((flags & desc->val) == desc->val) {
-            pos = append_str(buff, bufsize, pos, desc->name, "|");
-            remainder &= ~desc->val;
-        }
-    }
-    snprintf(b, (sizeof b), "0x%x", remainder);
-    pos = append_str(buff, bufsize, pos, b, " ");
-    return pos;
-}
-
-/* convert mdb_env_open flags to string */
-void dbmdb_envflags2str(int flags, char *str, int maxlen)
-{
-    char buf[30];
-    PR_snprintf(buf, sizeof buf, "flags=0x%x", flags);
-    append_flags(str, maxlen, 0, buf, flags, mdb_env_flags_desc);
-}
-
 /* API used by dbscan to list the dbs */
 dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
 {
     dbi_dbslist_t *dbs = NULL;
+    dbmdb_dbi_t dbi;
     dbmdb_ctx_t ctx = {0};
-    int len = 0;
     int i;
 
     strncpy(ctx.home, dbhome, MAXPATHLEN);
@@ -824,11 +731,11 @@ dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
     }
     dbs = (dbi_dbslist_t*)slapi_ch_calloc(ctx.nbdbis+1, sizeof (dbi_dbslist_t));
     for (i=0; i<ctx.nbdbis; i++) {
+        if (ctx.dbis[i].dbi == 0) {
+            dbmdb_open_dbname(&dbi, &ctx, ctx.dbis[i].dbname, NULL, 0);
+        }
         PR_snprintf(dbs[i].filename, PATH_MAX, "%s/%s", dbhome, ctx.dbis[i].dbname);
-        len = 0;
-        len = append_flags(dbs[i].info, PATH_MAX, len, "flags", ctx.dbis[i].state.flags, mdb_dbi_flags_desc);
-        len = append_flags(dbs[i].info, PATH_MAX, len, "state", ctx.dbis[i].state.state, mdb_state_desc);
-        PR_snprintf(dbs[i].info+len, PATH_MAX-len, " dataversion: %d", ctx.dbis[i].state.dataversion);
+        dbmdb_format_dbslist_info(dbs[i].info, &ctx.dbis[i]);
     }
     dbs[i].filename[0]=0;
     dbmdb_ctx_close(&ctx);
@@ -946,7 +853,7 @@ int dbmdb_dbi_set_dirty(dbmdb_ctx_t *conf, dbmdb_dbi_t *dbi, int dirty_flags)
         key.mv_size = strlen(dbi->dbname)+1;
         data.mv_data = &db.state;
         data.mv_size = sizeof db.state;
-        rc = mdb_put(TXN(txn), conf->dbinames_dbi, &key, &data, 0);
+        rc = MDB_PUT(TXN(txn), conf->dbinames_dbi, &key, &data, 0);
     }
     rc = END_TXN(&txn, rc);
     if (rc == 0) {
@@ -978,10 +885,11 @@ int dbmdb_clear_dirty_flags(dbmdb_ctx_t *conf, const char *dirname)
             key.mv_size = strlen(dbi->dbname)+1;
             data.mv_data = &dbi->state;
             data.mv_size = sizeof dbi->state;
-            rc |= mdb_put(TXN(txn), conf->dbinames_dbi, &key, &data, 0);
+            rc |= MDB_PUT(TXN(txn), conf->dbinames_dbi, &key, &data, 0);
         }
     }
     rc = END_TXN(&txn, rc);
     pthread_mutex_unlock(&conf->dbis_lock);
     return dbmdb_map_error(__FUNCTION__, rc);
 }
+

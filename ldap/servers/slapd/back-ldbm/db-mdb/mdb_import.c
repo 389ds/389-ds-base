@@ -453,7 +453,7 @@ dbmdb_get_nonleaf_ids(backend *be, dbi_txn_t *txn, IDList **idl, ImportJob *job)
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_get_nonleaf_ids", "Gathering ancestorid non-leaf IDs...");
     /* For each key which is an equality key */
     do {
-        ret = mdb_cursor_get(dbc, &key, &data, MDB_NEXT_NODUP);
+        ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_NEXT_NODUP);
         if ((ret == 0) && (*(char *)key.mv_data == EQ_PREFIX)) {
             id = (ID)strtoul((char *)key.mv_data + 1, NULL, 10);
             /*
@@ -1202,7 +1202,7 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
         ID parentid = 0;
 
         /* Foreach key which is an equality key : */
-        ret = mdb_cursor_get(dbc, &key, &data, MDB_NEXT_NODUP);
+        ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_NEXT_NODUP);
         if (NULL!=data.mv_data) {
             data.mv_data = NULL;
         }
