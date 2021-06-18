@@ -20,9 +20,10 @@
  * a wire import (aka "fast replica" import) won't have a producer thread.
  */
 
-#include<stddef.h>
+#include <stddef.h>
 #include "mdb_layer.h"
 #include "../vlv_srch.h"
+#include "mdb_import_threads.h"
 
 #define CV_TIMEOUT    10000000  /* 10 milli seconds timeout */
 
@@ -30,89 +31,13 @@
  * when to wait until having enough item in queue to start emptying it
  * Note: the thresholds applies to a single writing queue slot (i.e dbi)
  */
-#define DATALEN_WAIT_THRESHOLD        (256*1024)
-#define NBELMTS_WAIT_THRESHOLD        1024
-#define DATALEN_READ_THRESHOLD        (DATALEN_WAIT_THRESHOLD/4)
-#define NBELMTS_READ_THRESHOLD        (NBELMTS_WAIT_THRESHOLD/4)
+#define MAX_WEIGHT        (256*1024)        /* queue full threshold */
+#define MIN_WEIGHT        (MAX_WEIGHT/4)    /* enough data to open a txn threshold */
+#define BASE_WEIGHT       256               /* minimum weight of a queue element */
 
- /*Computethepaddingsizeneededtogetalignedonlonginteger*/
+ /* Compute the padding size needed to get aligned on long integer */
 #define ALIGN_TO_LONG(pos)            ((-(long)(pos))&((sizeof(long))-1))
 
- /* The writer thread context that is provided as aback_txn when handling indexes */
- typedef struct {
-     back_txn txn;            /* pseudo back_txn for backend level */
-     ImportJob *job;
-     ImportWorkerInfo *info;
-     dbmdb_wctx_id_t wctx_id;
-     int wqslot;              /*Slotindexinglobal_writer_ctx_t*/
- } pseudo_back_txn_t;
-
- /* Buffer info when reading tmpfile (for writer thread queue in delayed mode (i.e upgrading id2index)) */
- typedef struct {
-     char*buf;
-     char*bufend;
-     char*buflimit;
-     char*cur;
- } wq_reader_state_t;
-
- /* synchronisation helper */
- typedef struct {
-     const char* name;
-     pthread_mutex_t mutex;   /* cv mutex */
-     pthread_cond_t cv;       /* used to wait */
-     volatile int needs_wait;
-     volatile int is_waiting;
- } sync_t;
-
-/* wqelem_tflags */
-#define WQFL_SYNC_OP        1    /* The operation is synchronous */
-#define WQFL_SYNC_DONE      2    /* The synchronous operation is done */
-
- /* Writer queue element */
- typedef struct wqelem {
-     struct wqelem *next;
-     dbmdb_waction_t action;
-     size_t keylen;
-     size_t data_len;
-     struct wqslot *slot;       /* Set when reading the element from the queue */
-     /* Synchronous write operation specific fields */
-     int flags;                 /* Tells that operation is completed */
-     int rc;                    /* returncode */
-     sync_t respsync;           /* used to wait for response from writer thread in synchronous case */
-     size_t len;                /* elem total lenght */
-     /* Key and data values */
-     unsigned char values[1];   /* keylen+data_len-shouldbelastfield */
- } wqelem_t;
-
- /* Writer slot (holding the queue) and associated to a worker thread (or foreman thread) and a single db instance */
- typedef struct wqslot {
-     volatile wqelem_t *q;     /* queue for not delayed slots (asynchronous operations) */
-     FILE *tmpfile;            /* storage for delayed slots */
-     char *tmpfilepath;        /* tmpfile path */
-     char *dbipath;            /* dbi dbname */
-     volatile size_t datalen;  /* sizeof wqelem pushed in the queue */
-     volatile size_t nbelmts;  /* Number of items pushed in the queue*/
-     volatile size_t readdatalen; /* size of wqelem read (and processed) from the queue */
-     volatile size_t readnbelmts; /* Number of items read (and processed) from the queue */
-     volatile int closed;      /* Tells that slot is clsosed */
-     sync_t fullwqsync;        /* used to wait when queue is full */
-     dbmdb_dbi_t dbi;          /* database instanc e*/
-     dbi_cursor_t cursor;      /* writer thread cursor associated with dbi */
-     int idl_disposition;      /* index disposition stored in slot because the one in worker thread stack is not safe */
- } wqslot_t;
-
- /* The writer thread global context anchored in ImportJob */
- typedef struct {
-     pseudo_back_txn_t *predefined_wctx[WCTX_GENERIC];
-     wqslot_t *wqslots;            /* The slots associated to each dbi*/
-     wqelem_t *wqsync;             /* The synchronous operation queue*/
-     wqelem_t **lastwqsync;        /* End of synchronous operation queue*/
-     int max_wqslots;              /* max_dbiconfigparam */
-     long last_wqslot;             /* first unused slot - using long because atomic operation is used */
-     sync_t emptywqsync;           /* Wait until enough data is stored in the queue to start a txn */
-     double writer_progrress;      /* Writer thread progress */
-     int aborted;                  /* Writer aborted ==> should not queue anything more */
- } global_writer_ctx_t;
 
 static void dbmdb_import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);
 static int dbmdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, dbmdb_dbi_t*db, dbi_txn_t*txn, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
@@ -120,100 +45,6 @@ static int _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value);
 static pseudo_back_txn_t **dbmdb_get_ptwctx(ImportJob*job, ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id);
 static pseudo_back_txn_t *dbmdb_new_wctx(ImportJob*job, ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id);
 static long dbmdb_get_wqslot(ImportJob* job, ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id);
-
- /* initialize synchroniation point */
- static void sync_init(sync_t *sync, char *name)
- {
-     pthread_mutex_init(&sync->mutex, NULL);
-     pthread_cond_init(&sync->cv, NULL);
-     sync->name=name;
-     sync->needs_wait=sync->is_waiting=0;
- }
-
- /* free synchroniation point */
- static void sync_free(sync_t *sync)
- {
-     pthread_mutex_destroy(&sync->mutex);
-     pthread_cond_destroy(&sync->cv);
-     slapi_ch_free_string((char**)&sync->name);
- }
-
- /* wait on synchroniation point */
- static void sync_wait(sync_t*sync)
- {
-    if(sync->needs_wait){
-#ifdef DEBUG_IMPORT
-        int haswait=0;
-        pthread_mutex_lock(&sync->mutex);
-        if (sync->needs_wait)
-            slapi_log_err(SLAPI_LOG_INFO, "sync_wait", "Waiting for %s\n", sync->name);
-        while (sync->needs_wait) {
-            haswait = 1;
-            sync->is_waiting = 1;
-            pthread_cond_wait(&sync->cv, &sync->mutex);
-        }
-        sync->is_waiting = 0;
-        pthread_mutex_unlock(&sync->mutex);
-        if (haswait)
-            slapi_log_err(SLAPI_LOG_INFO,"sync_wait","No more waiting for %s\n",sync->name);
-#else
-        pthread_mutex_lock(&sync->mutex);
-        
-        while(sync->needs_wait){
-            struct timespec current_time = {0};
-            sync->is_waiting = 1;
-            clock_gettime(CLOCK_MONOTONIC, &current_time);
-            current_time.tv_nsec += CV_TIMEOUT;    /* 10ms */
-            pthread_cond_timedwait(&sync->cv, &sync->mutex, &current_time);
-         }
-         sync->is_waiting = 0;
-         pthread_mutex_unlock(&sync->mutex);
-#endif
-     }
- }
-
- /* wakeup a synchroniation point */
-static void
-sync_wakeup(sync_t*sync)
-{
-    if (sync->needs_wait) {
-#ifdef DEBUG_IMPORT
-        slapi_log_err(SLAPI_LOG_INFO,"sync_wakeup","Wakingupfor%s\n",sync->name);
-#endif
-        pthread_mutex_lock(&sync->mutex);
-        sync->needs_wait = 0;
-        if (sync->is_waiting) {
-            pthread_cond_broadcast(&sync->cv);
-        }
-        pthread_mutex_unlock(&sync->mutex);
-    }
-}
-
-/* tells a synchroniation point that it should wait */
-static void
-sync_set_needs_wait(sync_t* sync)
-{
-     sync->needs_wait = 1;
-}
-
- /* Atomic operation allowing to add an item in queue */
- static inline void __attribute__((always_inline))
- writer_add_in_queue(volatile wqelem_t **q, wqelem_t *elmt)
- {
-     /* Use atomic operation to push list item to avoid race condition whend equeuing list */
-     /* If atomic operation is not available we should use a mutex */
-     /* We may then have to do some conditionnal compilation as done in /usr/include/nspr4/pratom.h */
-     do {
-         elmt->next = (wqelem_t*)*q;
-     } while (!__sync_bool_compare_and_swap_8((ulong*)q, (ulong)(elmt->next), (ulong)elmt));
- }
-
- /* Atomic operation allowing to extract all items from queue */
- static inline wqelem_t *__attribute__((always_inline))
- writer_get_from_queue(volatile wqelem_t **q)
- {
-     return (wqelem_t*)__sync_fetch_and_and_8(q, 0);
- }
 
 static struct backentry *
 dbmdb_import_make_backentry(Slapi_Entry *e, ID id)
@@ -268,7 +99,7 @@ dbmdb_import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
 }
 
 /*
- * Check if the tombstonecsn is missing, if so add it.
+ * Check if the tombstone csn is missing, if so add it.
  */
 static void
 dbmdb_import_generate_tombstone_csn(Slapi_Entry *e)
@@ -1161,10 +992,10 @@ dbmdb_index_producer(void *param)
         info->state = RUNNING;
 
         if (isfirst) {
-             db_rval = mdb_cursor_get(dbc.cur, &key, &data, MDB_FIRST);
+             db_rval = MDB_CURSOR_GET(dbc.cur, &key, &data, MDB_FIRST);
             isfirst = 0;
         } else {
-             db_rval = mdb_cursor_get(dbc.cur, &key, &data, MDB_NEXT);
+             db_rval = MDB_CURSOR_GET(dbc.cur, &key, &data, MDB_NEXT);
         }
 
         if (0 != db_rval) {
@@ -1686,10 +1517,10 @@ dbmdb_upgradedn_producer(void *param)
         info->state = RUNNING;
 
         if (isfirst) {
-            db_rval = mdb_cursor_get(dbc.cur, &key, &data, MDB_FIRST);
+            db_rval = MDB_CURSOR_GET(dbc.cur, &key, &data, MDB_FIRST);
             isfirst = 0;
         } else {
-             db_rval = mdb_cursor_get(dbc.cur, &key, &data, MDB_NEXT);
+             db_rval = MDB_CURSOR_GET(dbc.cur, &key, &data, MDB_NEXT);
         }
 
         if (0 != db_rval) {
@@ -4160,53 +3991,33 @@ _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value)
 
  /* Worker thread utilities */
 
- /* Determine if enough data are available to start a new write txn */
- static int
-check_for_wqslot_data(wqslot_t *slot)
- {
-     if (slot->tmpfile){
-         return 0;
-     }
-     if (slot->closed && slot->q) {
-         return 1;
-     }
-     if (slot->datalen-slot->readdatalen >= DATALEN_READ_THRESHOLD ||
-             slot->nbelmts-slot->readnbelmts >= NBELMTS_READ_THRESHOLD) {
-         return 1;
-     }
-     return 0;
- }
-
- /* Update statistics and determine if thread processing is finished */
- static int
+/* Update statistics and determine if thread processing is finished */
+static int
 update_writer_thread_stats(ImportWorkerInfo*info)
- {
-     ImportJob *job = info->job;
-     global_writer_ctx_t *gwctx=job->writer_ctx;
-     int finished = (gwctx->last_wqslot >= job->number_indexers);
-     int slotidx;
-     size_t datalen = 0;
-     size_t nbelmts = 0;
-     size_t readdatalen = 0;
-     size_t readnbelmts = 0;
+{
+    ImportJob *job = info->job;
+    global_writer_ctx_t *gwctx = job->writer_ctx;
+    int finished = (gwctx->last_wqslot >= job->number_indexers);
+    int slotidx;
 
      /*
-     *Threadisfinishedifmostslotshavebeenopenand
-             *allnotdelayedslotsareclosedwithemptyqueue
-             */
-     for (slotidx=0; slotidx < gwctx->last_wqslot; slotidx++) {
-         wqslot_t *slot = &gwctx->wqslots[slotidx];
-         if (!slot->tmpfile && (!slot->closed || slot->q)) {
-             finished = 0;
-         }
-         datalen += slot->datalen;
-         nbelmts += slot->nbelmts;
-         readdatalen += slot->readdatalen;
-         readnbelmts += slot->readnbelmts;
-     }
-     gwctx->writer_progrress = (datalen>0)?((double)readdatalen/datalen):0.0;
-     gwctx->writer_progrress += (nbelmts>0)?((double)readnbelmts/nbelmts):0.0;
-     gwctx->writer_progrress /= 2.0;
+      * Writer thread loop is finished if most slots have been open and
+      * all not delayed slots are closed with empty queue
+      */
+    if (gwctx->first) {
+        finished = 0;
+    }
+    for (slotidx=0; finished && slotidx < gwctx->last_wqslot; slotidx++) {
+        wqslot_t *slot = &gwctx->wqslots[slotidx];
+        if (!slot->tmpfile && !slot->closed) {
+            finished = 0;
+        }
+    }
+    if (gwctx->weight_in  > 0) {
+       gwctx->writer_progress = (gwctx->weight_out * 1.0 / gwctx->weight_in);
+    } else {
+       gwctx->writer_progress = 0.0;
+    }
 
      return finished;
  }
@@ -4235,119 +4046,102 @@ handle_entryrdn_key(backend *be, wqslot_t *slot,
     return rc;
 }
 
-#ifdef DEBUG_IMPORT
-static char*
-val2str(void*data, size_tsize)
-{
-    char *ret = slapi_ch_malloc(4*size+3);
-    char *pt = ret;
-    unsigned char *data1 = data;
-    unsigned char *edata = &data1[size];
+static inline int __attribute__((always_inline))
+is_sync_op(wqelem_t *item) {
+    return (item && (item->flags & WQFL_SYNC_OP));
+}
 
-    while (data1<edata){
-        int pos=50;
-        *pt++='\t';
-        while (data1 < edata && pos > 0) {
-            if (*data1 >= 0x20 && *data1 < 0x7e) {
-                *pt++ = *data1++;
-                pos--;
-            } else {
-                sprintf(pt, "\\%02x", *data1++);
-                pos -= 3;
-                pt += 3;
-            }
+static inline int __attribute__((always_inline))
+has_queue_sync_op(global_writer_ctx_t *wctx) {
+    return (is_sync_op(wctx->first));
+}
+
+static inline int __attribute__((always_inline))
+is_queue_full(global_writer_ctx_t *wctx) {
+    /* Queue is full if first queued operation is a synchronos one */
+    return (wctx->weight_in - wctx->weight_out >= wctx->max_weight);
+}
+
+static inline int __attribute__((always_inline))
+has_item_in_queue(global_writer_ctx_t *wctx) {
+    return (wctx->weight_in - wctx->weight_out >= wctx->min_weight);
+}
+
+static inline void __attribute__((always_inline))
+push_item_in_queue(global_writer_ctx_t *wctx, wqelem_t *item)
+{
+    pthread_mutex_lock(&wctx->mutex);
+    PR_ASSERT(wctx->weight_in >= wctx->weight_out);
+    if (is_sync_op(item)) {
+        while (!wctx->aborted && has_queue_sync_op(wctx)) {
+            LOG_ELMT_INFO("Waiting until there is space in queue (synchronous operation)", item);
+            pthread_cond_wait(&wctx->queue_full_cv, &wctx->mutex);
+            LOG_ELMT_INFO("Found space in queue", item);
         }
-        *pt++ = '\n';
-    }
-    *pt = 0;
-    return ret;
-}
-
-static void
-log_elmt(const char*msg, wqelem_t *elmt, PRBool verbose)
-{
-#defineS(v)((v)?(v):"")
-    char*actions[]={
-        "NONE",
-        "IMPORT_WRITE_ACTION_RMDIR",
-        "IMPORT_WRITE_ACTION_OPEN",
-        "IMPORT_WRITE_ACTION_ADD_INDEX",
-        "IMPORT_WRITE_ACTION_DEL_INDEX",
-        "IMPORT_WRITE_ACTION_ADD_ENTRYRDN",
-        "IMPORT_WRITE_ACTION_DEL_ENTRYRDN",
-        "IMPORT_WRITE_ACTION_ADD",
-        "IMPORT_WRITE_ACTION_CLOSE"
-    };
-    const char *dbi_str = NULL;
-    char *key_str = NULL;
-    char *data_str = NULL;
-    char *iupd_str = NULL;
-    index_update_t iupd;
-    MDB_val data;
-    MDB_val key;
-    Slapi_RDN *srdn = NULL;
-
-    if (!verbose) {
-        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_writer", "%p: %s\n", elmt, msg);
-        return;
-    }
-
-    if (elmt->flags&WQFL_SYNC_OP) {
-        key = ((MDB_val*)(elmt->values))[0];
-        data = ((MDB_val*)(elmt->values))[1];
+        wctx->flush_queue = 1;
     } else {
-        key.mv_data = elmt->values;
-        key.mv_size = elmt->keylen;
-        data.mv_data = &elmt->values[key.mv_size];
-        data.mv_size = elmt->data_len;
+        while (!wctx->aborted && is_queue_full(wctx)) {
+            LOG_ELMT_INFO("Waiting until there is space in queue (non synchronous operation)", item);
+            pthread_cond_wait(&wctx->queue_full_cv, &wctx->mutex);
+            LOG_ELMT_INFO("Found space in queue", item);
+        }
     }
 
-    key_str = val2str(key.mv_data, key.mv_size);
-    data_str = val2str(data.mv_data, data.mv_size);
-
-    dbi_str = elmt->slot->dbi.dbname;
-    if (!dbi_str)
-    dbi_str = elmt->slot->dbipath;
-    if (!dbi_str)
-    dbi_str = "???";
-
-    switch (elmt->action) {
-        case IMPORT_WRITE_ACTION_ADD_INDEX:
-        case IMPORT_WRITE_ACTION_DEL_INDEX:
-            memcpy(&iupd, data.mv_data, data.mv_size);
-            iupd_str = slapi_ch_smprintf("ID%dai=%s", iupd.id, iupd.a->ai_type);
-            break;
-        case IMPORT_WRITE_ACTION_ADD_ENTRYRDN:
-        case IMPORT_WRITE_ACTION_DEL_ENTRYRDN:
-            memcpy(&iupd.id, data.mv_data, sizeofiupd.id);
-            srdn = key.mv_data;
-            slapi_ch_free_string(&key_str);
-            slapi_ch_free_string(&data_str);
-            iupd_str = slapi_ch_smprintf("ID%drdn=%s", iupd.id, slapi_rdn_get_rdn(srdn));
-            break;
-        default:
-            break;
+    if (wctx->aborted) {
+        slapi_ch_free((void**)&item);
+    } else {
+        if (wctx->first==NULL) {  /* Queue first item */
+            LOG_ELMT_INFO("Added as first item", item);
+            item->next = NULL;
+            wctx->first = wctx->last = item;
+        } else if (is_sync_op(item)) {  /* Add item in queue head */
+            LOG_ELMT_INFO("Added at head", item);
+            item->next = wctx->first;
+            wctx->first = item;
+        } else {  /* Add item in queue tail */
+            LOG_ELMT_INFO("Added at tail", item);
+            item->next = NULL;
+            wctx->last->next = item;
+            wctx->last = item;
+        }
+        wctx->weight_in += BASE_WEIGHT + item->len;
+        if (has_item_in_queue(wctx) || wctx->flush_queue) {
+            LOG_ELMT_INFO("Signaling import writer thread that new data may be available", wctx->first);
+            pthread_cond_signal(&wctx->data_available_cv);
+        }
     }
-
-    if (elmt->action < IMPORT_WRITE_ACTION_RMDIR || elmt->action > IMPORT_WRITE_ACTION_CLOSE) {
-        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_writer", "%p: %s UNKNOWN ACTION %d\n", elmt, msg, elmt->action);
-    }else{
-        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_writer", "%p: %s %s dbi = %s%s key:\n%s\ndata:\n%s",
-                elmt, msg, actions[elmt->action], dbi_str, S(iupd_str), S(key_str), S(data_str));
-    }
-    slapi_ch_free_string(&iupd_str);
-    slapi_ch_free_string(&key_str);
-    slapi_ch_free_string(&data_str);
+    pthread_mutex_unlock(&wctx->mutex);
 }
-#else
-#define log_elmt(msg, elmt, verbose)
-#endif
+
+static inline wqelem_t * __attribute__((always_inline))
+get_items_from_queue(global_writer_ctx_t *wctx)
+{
+    wqelem_t *item_list = NULL;
+
+    pthread_mutex_lock(&wctx->mutex);
+    while (!wctx->aborted && !has_item_in_queue(wctx) && !wctx->flush_queue) {
+        dbg_log(__FILE__, __LINE__, __FUNCTION__, DBGMDB_LEVEL_IMPORT, "Queue size is %ld. \n", wctx->weight_in - wctx->weight_out);
+        LOG_ELMT_INFO("Waiting until enough data get queued", item_list);
+        pthread_cond_wait(&wctx->data_available_cv, &wctx->mutex);
+        LOG_ELMT_INFO("Finished waiting until enough data get queued", item_list);
+    }
+    item_list = wctx->first;
+    wctx->first = wctx->last = NULL;
+    wctx->weight_out = wctx->weight_in;
+    wctx->flush_queue = 0;
+    /* Wakes up threads bloqued because queue was full */
+    LOG_ELMT_INFO("Broadcasting worker threads that queue may have some space available", item_list);
+    pthread_cond_broadcast(&wctx->queue_full_cv);
+    pthread_mutex_unlock(&wctx->mutex);
+    return item_list;
+}
 
 
 /* replay an item */
 static int
 wqueue_process_item(ImportWorkerInfo *info, wqelem_t *elmt, dbi_txn_t *txn)
 {
+    global_writer_ctx_t *gwctx = info->job->writer_ctx;
     ImportJob *job = info->job;
     ldbm_instance *inst = job->inst;
     back_txn btxn = {0};
@@ -4359,12 +4153,17 @@ wqueue_process_item(ImportWorkerInfo *info, wqelem_t *elmt, dbi_txn_t *txn)
     dbi_val_t dkey = {0};
     int rc = 0;
 
-    log_elmt("wqueue_process_item", elmt, PR_TRUE);
+    LOG_ELMT("wqueue_process_item", elmt, PR_TRUE);
 
-    if (elmt->flags&WQFL_SYNC_OP) {
+    if (gwctx->aborted) {
+        return -1;
+    }
+    if (is_sync_op(elmt)) {
+        /* Get key and data pointer (anyway ther lifespawn cover the whole synchronous operation) */
         key = ((MDB_val*)(elmt->values))[0];
         data = ((MDB_val*)(elmt->values))[1];
     } else {
+        /* Get key and data duplicates (as original value may be gone while doing the operation */
         key.mv_data = elmt->values;
         key.mv_size = elmt->keylen;
         data.mv_data = &elmt->values[key.mv_size];
@@ -4389,7 +4188,7 @@ wqueue_process_item(ImportWorkerInfo *info, wqelem_t *elmt, dbi_txn_t *txn)
         case IMPORT_WRITE_ACTION_ADD_INDEX:
             PR_ASSERT(data.mv_size == sizeof iupd);
             memcpy(&iupd, data.mv_data, data.mv_size);
-            if (iupd.disposition&&(elmt->flags&WQFL_SYNC_OP) == 0) {
+            if (iupd.disposition && is_sync_op(elmt) == 0) {
                 /* iupd.disposition may not be valid (freed in calling thread)
                  * so lets use storage in writing thread slot instead
                  */
@@ -4411,7 +4210,7 @@ wqueue_process_item(ImportWorkerInfo *info, wqelem_t *elmt, dbi_txn_t *txn)
             rc = handle_entryrdn_key(inst->inst_be, slot, entryrdn_delete_key, key.mv_data, data.mv_data, &btxn);
             break;
         case IMPORT_WRITE_ACTION_ADD:
-            rc = mdb_put(TXN(info->txn), elmt->slot->dbi.dbi, &key, &data, 0);
+            rc = MDB_PUT(TXN(info->txn), elmt->slot->dbi.dbi, &key, &data, 0);
             if (rc) {
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_writer",
                     "Failed to add item in %s mdb database. error %d(%s).\n",
@@ -4419,44 +4218,48 @@ wqueue_process_item(ImportWorkerInfo *info, wqelem_t *elmt, dbi_txn_t *txn)
             }
             break;
     }
-    slot->readnbelmts++;
-    slot->readdatalen += elmt->len;
-    if ((slot->datalen-slot->readdatalen<DATALEN_WAIT_THRESHOLD)&&
-            (slot->nbelmts-slot->readnbelmts<NBELMTS_WAIT_THRESHOLD)) {
-#ifdef DEBUG_IMPORT
-        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_write_push", "SIGNAL SLOT %s queue lenght: (%ld, %ld)\n",
-                slot->dbi.dbname, slot->datalen-slot->readdatalen, slot->nbelmts-slot->readnbelmts);
-#endif
-        sync_wakeup(&slot->fullwqsync);
-    }
 
     return rc;
 }
 
 /* Open a write txn and write all items from the list */
 static int
-wqueue_process_queue(ImportWorkerInfo*info, wqelem_t*list, wq_reader_state_t*state)
+wqueue_process_queue(ImportWorkerInfo *info, wqelem_t *list, wq_reader_state_t *state)
 {
     int rc = 0;
     global_writer_ctx_t *gwctx = info->job->writer_ctx;
     int idslot_entryrdn = dbmdb_get_wqslot(info->job, NULL, WCTX_ENTRYRDN);
     wqslot_t *wqslot_entryrdn = idslot_entryrdn>=0?&gwctx->wqslots[idslot_entryrdn]:NULL;
+    wqelem_t *sync_op = NULL;
 
     rc = dbmdb_start_txn(__FUNCTION__, NULL, 0, &info->txn);
     while (!rc && list) {
         wqelem_t *next = list->next;
         rc = wqueue_process_item(info, list, info->txn);
-        /* Free the list element if it is not part of a static buffer not asynchronous operation */
-        if ((!state||(char*)list<state->buf||(char*)list>= state->bufend)&&!(list->flags&WQFL_SYNC_OP)) {
-            slapi_ch_free((void**)&list);
+        if (is_sync_op(list)) {
+            sync_op  = list;
+        } else {
+            /* Free the list element if it is not part of a static buffer */
+            if ((!state || (char*)list < state->buf || (char*)list >= state->bufend)) {
+                slapi_ch_free((void**)&list);
+            }
         }
         list = next;
     }
 
-    if (wqslot_entryrdn&&wqslot_entryrdn->cursor.cur) {
+    if (wqslot_entryrdn && wqslot_entryrdn->cursor.cur) {
         dblayer_cursor_op(&wqslot_entryrdn->cursor, DBI_OP_CLOSE, NULL, NULL);
     }
     rc = dbmdb_end_txn(__FUNCTION__, rc, &info->txn);
+    if (sync_op) {
+        /* Synchronous operation ==> should store result and wake up the thread waiting for response */
+        LOG_ELMT_INFO("Signaling worker thread waiting on synchronous operation response", sync_op);
+        pthread_mutex_lock(sync_op->response_mutex);
+        sync_op->rc = rc;
+        sync_op->flags |= WQFL_SYNC_DONE;
+        pthread_cond_signal(sync_op->response_cv);
+        pthread_mutex_unlock(sync_op->response_mutex);
+    }
     return rc;
 }
 
@@ -4467,7 +4270,7 @@ realloc_state(wq_reader_state_t *state, size_t len)
     size_t pos = state->cur-state->buf;
     state->buf = slapi_ch_realloc(state->buf, len);
     state->bufend = state->buf+len;
-    state->buflimit = state->buf+DATALEN_WAIT_THRESHOLD;
+    state->buflimit = state->buf+MAX_WEIGHT;
     state->cur = state->buf+pos;
 }
 
@@ -4475,6 +4278,7 @@ realloc_state(wq_reader_state_t *state, size_t len)
 static int
 read_elmt_from_tmpfile(ImportJob *job, wqslot_t *slot, wq_reader_state_t *state, wqelem_t **list)
 {
+    global_writer_ctx_t *wctx = job->writer_ctx;
     wqelem_t *ptelm;
     char *ptkey;
     char *ptnext;
@@ -4482,7 +4286,7 @@ read_elmt_from_tmpfile(ImportJob *job, wqslot_t *slot, wq_reader_state_t *state,
     size_t len;
 
     if (state->buf == NULL) {
-        realloc_state(state, 2*DATALEN_WAIT_THRESHOLD);
+        realloc_state(state, 2*MAX_WEIGHT);
     }
     ptelm = (wqelem_t*)(state->cur);
     ptkey = (char*)&ptelm[1];
@@ -4520,7 +4324,7 @@ read_elmt_from_tmpfile(ImportJob *job, wqslot_t *slot, wq_reader_state_t *state,
         ptkey += bytesread;
         len -= bytesread;
     }
-    writer_add_in_queue((volatile wqelem_t**)list, ptelm);
+    push_item_in_queue(wctx, ptelm);
     state->cur = ptnext;
     return 0;
 }
@@ -4582,11 +4386,9 @@ dbmdb_import_writer(void*param)
     ImportWorkerInfo*info = (ImportWorkerInfo*)param;
     ImportJob*job = info->job;
     global_writer_ctx_t *gwctx = job->writer_ctx;
+    wqelem_t *item_list = NULL;
     PRIntervalTime sleeptime;
-    wqelem_t *todolist = NULL;
-    wqelem_t *elmt = NULL;
     int finished = 0;
-    int slotidx = 0;
 
     sleeptime = PR_MillisecondsToInterval(import_sleep_time);
     if (job->flags&FLAG_ABORT) {
@@ -4615,61 +4417,11 @@ dbmdb_import_writer(void*param)
         }
 
         info->state = RUNNING;
-        sync_set_needs_wait(&gwctx->emptywqsync);
 
         /* Handles synchronous operations first */
-        while(gwctx->wqsync) {
-            /* Get operation from queue */
-            pthread_mutex_lock(&gwctx->emptywqsync.mutex);
-            elmt = gwctx->wqsync;
-            log_elmt("dbmdb_import_writer starts processing synchronous operation", elmt, PR_TRUE);
-            gwctx->wqsync = elmt->next;
-            elmt->next = NULL;
-            pthread_mutex_unlock(&gwctx->emptywqsync.mutex);
-            PR_ASSERT(elmt->slot->dbi.dbi || elmt->action == IMPORT_WRITE_ACTION_OPEN);
-            /* Process it */
-            elmt->rc = wqueue_process_queue(info, elmt, NULL);
-            /* And warn that it is done */
-            elmt->flags |= WQFL_SYNC_DONE;
-            sync_wakeup(&elmt->respsync);
-            log_elmt("dbmdb_import_writer finished processing synchronous operation", elmt, PR_FALSE);
-            /* Note: synchronous operations are not taken in account while computing writer thread progress
-             * as it will have mostly no impact anyway (as we process the queue as fast as we fill it.
-             * Furthermore the delay would impact the other thread sprogress
-             */
-        }
-
-        todolist = NULL;
-        /* Extract asynchronous operations out of the slots */
-        for(slotidx = 0; slotidx<gwctx->last_wqslot; slotidx++) {
-            wqslot_t *slot = &gwctx->wqslots[slotidx];
-            if (job->flags & FLAG_ABORT) {
-                goto error;
-            }
-            if (check_for_wqslot_data(slot)) {
-                wqelem_t*list = writer_get_from_queue(&slot->q);
-                while(list) {
-                    elmt = list;
-                    list = list->next;
-                    /* Add element in start of list to reverse the list */
-                    elmt->next = todolist;
-                    todolist = elmt;
-                }
-            }
-        }
-        if (todolist) {
-            if (wqueue_process_queue(info, todolist, NULL)) {
-                goto error;
-            }
-            finished = update_writer_thread_stats(info);
-        } else if (gwctx->wqsync == NULL) {
-            finished = update_writer_thread_stats(info);
-            if (finished) {
-                break;
-            }
-            /* Lets wait until enough data is stored in the queue */
-            sync_wait(&gwctx->emptywqsync);
-        }
+        item_list = get_items_from_queue(gwctx);
+        wqueue_process_queue(info, item_list, NULL);
+        finished = update_writer_thread_stats(info);
     }
     if (handle_delayed_slots(info)) {
         goto error;
@@ -4681,25 +4433,9 @@ dbmdb_import_writer(void*param)
 error:
     info->state = ABORTED;
     gwctx->aborted = ABORTED;
-    /*Let flush the synchronized operations queue */
-    pthread_mutex_lock(&gwctx->emptywqsync.mutex);
-    while(gwctx->wqsync) {
-        elmt = gwctx->wqsync;
-        elmt->flags |= WQFL_SYNC_DONE;
-        elmt->rc = ABORTED;
-        sync_wakeup(&elmt->respsync);
-        gwctx->wqsync = elmt->next;
-    }
-    pthread_mutex_unlock(&gwctx->emptywqsync.mutex);
-    /* Let flush the asynchronized operations queues */
-    for(slotidx = 0; slotidx<gwctx->last_wqslot; slotidx++) {
-        wqslot_t *slot = &gwctx->wqslots[slotidx];
-        while (slot->q) {
-            elmt = (wqelem_t*)slot->q;
-            slot->q = elmt->next;
-            slapi_ch_free((void**)&elmt);
-        }
-    }
+    /* Let flush the operations queue */
+    item_list = get_items_from_queue(gwctx);
+    wqueue_process_queue(info, item_list, NULL);
 }
 
 int
@@ -4733,7 +4469,6 @@ dbmdb_import_writer_create_dbi(ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id, 
         }
     }
     wqslot->dbipath = slapi_ch_smprintf("%s/%s", inst->inst_name, filename);
-    sync_init(&wqslot->fullwqsync, slapi_ch_smprintf("slot%s", wqslot->dbipath));
     return dbmdb_import_sync_write(info->job, slot, IMPORT_WRITE_ACTION_OPEN, &vzero, &vzero);
 }
 
@@ -4742,13 +4477,15 @@ dbmdb_import_writer_create_dbi(ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id, 
 int
 dbmdb_import_sync_write(ImportJob*job, long wqslot, dbmdb_waction_t action, MDB_val*key, MDB_val*data)
 {
-    global_writer_ctx_t*gwctx = job->writer_ctx;
-    wqelem_t*elmt = NULL;
+    pthread_mutex_t response_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_cond_t response_cv = PTHREAD_COND_INITIALIZER;
+    global_writer_ctx_t* gwctx = job->writer_ctx;
+    wqelem_t *elmt = NULL;
     size_t elmt_len = 0;
     int rc = LDAP_SUCCESS;
 
     if (wqslot<0 || wqslot >= gwctx->last_wqslot) {
-        return LDAP_UNWILLING_TO_PERFORM;/*Slotisnotopen*/
+        return LDAP_UNWILLING_TO_PERFORM;   /* Slot is not open */
     }
     elmt_len = offsetof(wqelem_t, values)+2*sizeof(MDB_val);
     elmt = (wqelem_t*)slapi_ch_malloc(elmt_len);
@@ -4759,36 +4496,31 @@ dbmdb_import_sync_write(ImportJob*job, long wqslot, dbmdb_waction_t action, MDB_
     elmt->slot = &gwctx->wqslots[wqslot];
     elmt->next = NULL;
     elmt->len = elmt_len;
-    sync_init(&elmt->respsync, slapi_ch_smprintf("elmt%p", elmt));
-    elmt->respsync.needs_wait = 1;
+    elmt->response_mutex = &response_mutex;
+    elmt->response_cv = &response_cv;
     /* Do not bother to copy the key data and value data in synchronous mode */
     ((MDB_val*)(&elmt->values[0]))[0] = *key;
     ((MDB_val*)(&elmt->values[0]))[1] = *data;
-    elmt->slot->datalen += elmt_len;
-    elmt->slot->nbelmts++;
+    elmt->rc = -1;
 
-    /* queue the element at end of list */
-    log_elmt("dbmdb_import_sync_write", elmt, PR_TRUE);
-    pthread_mutex_lock(&gwctx->emptywqsync.mutex);
-    if (job->flags&FLAG_ABORT||gwctx->aborted) {
-        pthread_mutex_unlock(&gwctx->emptywqsync.mutex);
+    /* queue the element at head of list */
+    LOG_ELMT("dbmdb_import_sync_write", elmt, PR_TRUE);
+    push_item_in_queue(gwctx, elmt);
+
+    /* Wait for response */
+    LOG_ELMT_INFO("Waiting for synchronous operation response", elmt);
+    pthread_mutex_lock(&response_mutex);
+    while (!gwctx->aborted && !(job->flags&FLAG_ABORT) && !(elmt->flags & WQFL_SYNC_DONE)) {
+        pthread_cond_wait(&response_cv, &response_mutex);
+    }
+    LOG_ELMT_INFO("Got response from synchronous operation response", elmt);
+    pthread_mutex_unlock(&response_mutex);
+    if ((job->flags & FLAG_ABORT) || gwctx->aborted) {
         elmt->rc = -1;
         goto err;
     }
-    if (gwctx->wqsync) {
-        *(gwctx->lastwqsync) = elmt;
-    }else{
-        gwctx->wqsync = elmt;
-    }
-    gwctx->lastwqsync = &elmt->next;
-    pthread_mutex_unlock(&gwctx->emptywqsync.mutex);
-    /* Wakup the writer thread */
-    sync_wakeup(&gwctx->emptywqsync);
-    /* Lets wait for the response */
-    sync_wait(&elmt->respsync);
 err:
     rc = elmt->rc;
-    sync_free(&elmt->respsync);
     slapi_ch_free((void**)&elmt);
     return rc;
 }
@@ -4804,14 +4536,17 @@ dbmdb_import_write_push(ImportJob*job, long wqslot, dbmdb_waction_t action, MDB_
     int rc = LDAP_SUCCESS;
 
     if (wqslot<0||wqslot>= gwctx->last_wqslot) {
-        return LDAP_UNWILLING_TO_PERFORM; /* Slotisnotopen */
+        return LDAP_UNWILLING_TO_PERFORM; /* Slot is not open */
     }
     if (action == IMPORT_WRITE_ACTION_CLOSE) {
         slot->closed = 1;
         if (slot->tmpfile) {
             rc = fflush(slot->tmpfile);
         }
-        dbmdb_writer_wakeup(job);
+        pthread_mutex_lock(&gwctx->mutex);
+        gwctx->flush_queue = 1;
+        pthread_cond_signal(&gwctx->data_available_cv);
+        pthread_mutex_unlock(&gwctx->mutex);
         return rc;
     }
     elmt_len = offsetof(wqelem_t, values)+key->mv_size+data->mv_size;
@@ -4830,56 +4565,24 @@ dbmdb_import_write_push(ImportJob*job, long wqslot, dbmdb_waction_t action, MDB_
         memcpy(&elmt->values[key->mv_size], data->mv_data, data->mv_size);
     }
 
-    log_elmt("dbmdb_import_write_push", elmt, PR_TRUE);
+    LOG_ELMT("dbmdb_import_write_push", elmt, PR_TRUE);
     if (slot->tmpfile) {
         /* delayed mode: Need to serialize to write data in temporary file */
-        pthread_mutex_lock(&slot->fullwqsync.mutex);
+        pthread_mutex_lock(&gwctx->mutex);
         if (fwrite(elmt, elmt_len, 1, slot->tmpfile) != 1) {
             import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_write_push",
                     "Failed to write %ld bytes in import temporary file %s. Errror = %d(%s).\n",
                     elmt_len, slot->tmpfilepath, errno, slapd_system_strerror(errno));
             rc = -1;
         }
-        pthread_mutex_unlock(&slot->fullwqsync.mutex);
+        pthread_mutex_unlock(&gwctx->mutex);
         slapi_ch_free((void**)&elmt);
         return rc;
     }
 
     /* Normal mode: use in memory queue */
     /* flowcontrol: Wait until queue get small enough */
-    while ((slot->datalen-slot->readdatalen>= DATALEN_WAIT_THRESHOLD)||
-            (slot->nbelmts-slot->readnbelmts>= NBELMTS_WAIT_THRESHOLD)) {
-        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_write_push", "Wait until queue isempty slot = %p sync=%p datalen=%ld nbelents=%ld\n",
-                slot, &slot->fullwqsync, slot->datalen-slot->readdatalen, slot->nbelmts-slot->readnbelmts);
-#if 0
-        /* For some reason I sometime got hang with following code */
-        sync_set_needs_wait(&slot->fullwqsync);
-        sync_wait(&slot->fullwqsync);
-#else
-		pthread_yield();
-#endif
-    }
-
-    /* queue the element */
-    /*
-    * Note: only a single thread does queue items in a given slot
-    * so we can avoid using mutex or atomic op
-    * except for changing the queue head (that can also be reset by the
-    * writer thread when it flush the queue to the database)
-    */
-    slot->datalen += elmt_len;
-    slot->nbelmts++;
-    if (gwctx->aborted) {
-        slapi_ch_free((void**)&elmt);
-        return ABORTED;
-    }
-    writer_add_in_queue(&slot->q, elmt);
-
-    /* Wakup the writer threads if enough data are queued */
-    if ((slot->datalen-slot->readdatalen >= DATALEN_READ_THRESHOLD)||
-            (slot->nbelmts-slot->readnbelmts >= NBELMTS_READ_THRESHOLD)) {
-        dbmdb_writer_wakeup(job);
-    }
+    push_item_in_queue(gwctx, elmt);
     return rc;
 }
 
@@ -4962,10 +4665,16 @@ dbmdb_writer_init(ImportJob*job)
 
     job->writer_ctx = gwctx;
 
-    sync_init(&gwctx->emptywqsync, slapi_ch_strdup("not enough items in writing thread queue"));
     gwctx->max_wqslots = ctx->startcfg.max_dbs;
     gwctx->wqslots = (wqslot_t*)slapi_ch_calloc(sizeof gwctx->wqslots[0], gwctx->max_wqslots);
-    gwctx->writer_progrress = 0.0;
+    gwctx->writer_progress = 0.0;
+    gwctx->min_weight = MIN_WEIGHT;
+    gwctx->max_weight = MAX_WEIGHT;
+    gwctx->flush_queue = 0;
+    pthread_mutex_init(&gwctx->mutex, NULL);
+    pthread_cond_init(&gwctx->data_available_cv, NULL);
+    pthread_cond_init(&gwctx->queue_full_cv, NULL);
+
 
     /* Here, it is still possible to open write txn
     *  so it seems a good place to open all dbis on which we plan to do
@@ -4990,7 +4699,6 @@ dbmdb_writer_cleanup(ImportJob *job)
     wqslot_t *slot;
     int i;
 
-    sync_free(&gwctx->emptywqsync);
     for(i = 0; i<gwctx->last_wqslot; i++) {
         slot = &gwctx->wqslots[i];
         if (slot->tmpfile) {
@@ -4999,26 +4707,26 @@ dbmdb_writer_cleanup(ImportJob *job)
         }
         slapi_ch_free_string(&slot->tmpfilepath);
         slapi_ch_free_string(&slot->dbipath);
-        sync_free(&slot->fullwqsync);
     }
     slapi_ch_free((void**)&gwctx->wqslots);
+    pthread_mutex_destroy(&gwctx->mutex);
+    pthread_cond_destroy(&gwctx->data_available_cv);
+    pthread_cond_destroy(&gwctx->queue_full_cv);
     slapi_ch_free(&job->writer_ctx);
 }
 
-/* Wakes up mdb import writer thread */
-void
-dbmdb_writer_wakeup(ImportJob* job)
-{
-    global_writer_ctx_t*gwctx = job->writer_ctx;
-    if (gwctx) {
-        sync_wakeup(&gwctx->emptywqsync);
-    }
-}
-
-/*Getwriterthreadprogressstatistic*/
+/* Get writer thread progress statistic */
 double
 dbmdb_writer_get_progress(ImportJob *job)
 {
     global_writer_ctx_t*gwctx = job->writer_ctx;
-    return gwctx ? gwctx->writer_progrress : 0.0;
+    return gwctx ? gwctx->writer_progress : 0.0;
 }
+
+void dbmdb_writer_wakeup(ImportJob *job)
+{
+    global_writer_ctx_t *gwctx = job->writer_ctx;
+    LOG_ELMT_INFO("Signaling import writer thread that new data may be available", NULL);
+    pthread_cond_signal(&gwctx->data_available_cv);
+}
+

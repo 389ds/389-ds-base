@@ -938,7 +938,7 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
             return_value = -1;
             goto bye;
         }
-        return_value = mdb_cursor_get(cur.cur, &key, &data, MDB_LAST);
+        return_value = MDB_CURSOR_GET(cur.cur, &key, &data, MDB_LAST);
         if (0 != return_value) {
             keepgoing = 0;
         } else {
@@ -1018,7 +1018,7 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
             key.mv_data = (char *)&temp_id;
             key.mv_size = sizeof(temp_id);
 
-            return_value = mdb_cursor_get(cur.cur,  &key, &data, MDB_SET);
+            return_value = MDB_CURSOR_GET(cur.cur,  &key, &data, MDB_SET);
             if (return_value) {
                 slapi_task_log_notice(task, "Backend %s: Failed to read entry %lu, err %d\n",
                         inst->inst_name, (u_long)idl->b_ids[idindex], return_value);
@@ -1035,10 +1035,10 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
         } else {
             /* follow the cursor */
             if (isfirst) {
-                return_value = mdb_cursor_get(cur.cur,  &key, &data, MDB_FIRST);
+                return_value = MDB_CURSOR_GET(cur.cur,  &key, &data, MDB_FIRST);
                 isfirst = 0;
             } else {
-                return_value = mdb_cursor_get(cur.cur,  &key, &data, MDB_NEXT);
+                return_value = MDB_CURSOR_GET(cur.cur,  &key, &data, MDB_NEXT);
             }
 
             if (MDB_NOTFOUND == return_value) {
@@ -1436,7 +1436,7 @@ dbmdb_db2index(Slapi_PBlock *pb)
     }
 
     /* ask for the last id so we can give cute percentages */
-    rc = mdb_cursor_get(cur.cur, &key, &data, MDB_LAST);
+    rc = MDB_CURSOR_GET(cur.cur, &key, &data, MDB_LAST);
     if (rc == MDB_NOTFOUND) {
         lastid = 0;
         isfirst = 0; /* neither a first nor a last */
@@ -1618,7 +1618,7 @@ dbmdb_db2index(Slapi_PBlock *pb)
             key.mv_data = (char *)&temp_id;
             key.mv_size = sizeof(temp_id);
 
-            rc = mdb_cursor_get(cur.cur, &key, &data, MDB_SET);
+            rc = MDB_CURSOR_GET(cur.cur, &key, &data, MDB_SET);
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR, "dbmdb_db2index", "%s: Failed "
                                                                      "to read database, errno=%d (%s)\n",
@@ -1631,10 +1631,10 @@ dbmdb_db2index(Slapi_PBlock *pb)
             temp_id = idl->b_ids[idindex];
         } else {
             if (isfirst) {
-                rc = mdb_cursor_get(cur.cur, &key, &data, MDB_FIRST);
+                rc = MDB_CURSOR_GET(cur.cur, &key, &data, MDB_FIRST);
                 isfirst = 0;
             } else {
-                rc = mdb_cursor_get(cur.cur, &key, &data, MDB_NEXT);
+                rc = MDB_CURSOR_GET(cur.cur, &key, &data, MDB_NEXT);
             }
 
             if (MDB_NOTFOUND == rc) {

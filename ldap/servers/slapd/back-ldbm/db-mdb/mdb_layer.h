@@ -176,6 +176,8 @@ typedef enum {
     WCTX_GENERIC    /* Must be last one */
 } dbmdb_wctx_id_t;  /* Allow to identify predefined writer context for some well known index */
 
+#include "mdb_debug.h"
+
 extern Slapi_ComponentId *dbmdb_componentid;
 
 int mdb_init(struct ldbminfo *li, config_info *config_array);

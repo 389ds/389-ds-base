@@ -30,6 +30,7 @@ typedef struct {
     MDB_cursor *cursor;      /* cursor position */
     int op;                  /* MDB operation to get next value */
     int maxrecords;          /* Number maximum of operation before moving to next block */
+    MDB_val data0;           /* data got when setting the cursor */
     MDB_val data;            /* data for single or multiple operation */
     MDB_val key;             /* key */
     size_t data_size;        /* Size of a single item in data */
@@ -924,7 +925,7 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
      * What are we doing here ?
      * check that destinantion is OK
      * We want to copy into the backup directory:
-     * The mdb database 
+     * The mdb database
      * The info file
      */
 
@@ -934,14 +935,14 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
         goto bail;
     }
 
-	return_value = mkdir_p(dest_dir, 0700);
+    return_value = mkdir_p(dest_dir, 0700);
     dirhandle = PR_OpenDir(dest_dir);
     if (NULL != dirhandle) {
         while ((direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)) && direntry->name) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_backup", "Backup directory %s is not empty.\n", dest_dir);
             if (task) {
                 slapi_task_log_notice(task, "dbmdb_backup - Backup directory %s is not empty.\n", dest_dir);
-			}
+            }
             PR_CloseDir(dirhandle);
             goto error_out;
         }
@@ -952,7 +953,7 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
             slapi_task_log_notice(task, "dbmdb_backup - Backup directory %s is not empty.\n", dest_dir);
         }
         goto error_out;
-	}
+    }
     /* Copy the mdb database */
     return_value = mdb_env_copy(conf->env, dest_dir);
     if (return_value) {
@@ -1094,7 +1095,7 @@ dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
     }
 
     /* We delete the existing database */
-	dbmdb_ctx_close(li->li_dblayer_config);
+    dbmdb_ctx_close(li->li_dblayer_config);
     dbmdb_delete_db(li);
 
     /* Copy db and info files */
@@ -1622,7 +1623,8 @@ int dbmdb_dbt2dbival(MDB_val *dbt, dbi_val_t *dbi, PRBool isresponse, int rc)
         dbi->ulen = dbi->size = dbt->mv_size;
         dbi->data = slapi_ch_realloc(dbi->data, dbi->size);
     }
-    memcpy(dbi->data, dbt->mv_data, dbi->size);
+    dbi->size = dbt->mv_size;
+    memcpy(dbi->data, dbt->mv_data, dbt->mv_size);
     return rc;
 }
 
@@ -1653,17 +1655,22 @@ int dbmdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
     PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_DATA);
     if (dbmdb_data->use_multiple) {
         PR_ASSERT(dbmdb_data->data_size);
-        if (*idx >= dbmdb_data->data.mv_size / dbmdb_data->data_size) {
-            return DBI_RC_NOTFOUND;
-        }
-        v += dbmdb_data->data_size * (*idx)++;
-        dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data_size);
+		if (dbmdb_data->data0.mv_data) {
+            dblayer_value_set_buffer(bulkdata->be, data, dbmdb_data->data0.mv_data, dbmdb_data->data_size);
+			dbmdb_data->data0.mv_data = NULL;
+		} else {
+            if (*idx >= dbmdb_data->data.mv_size / dbmdb_data->data_size) {
+                return DBI_RC_NOTFOUND;
+            }
+            v += dbmdb_data->data_size * (*idx)++;
+            dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data_size);
+		}
     } else {
         if (!dbmdb_data->op || (*idx)++ >= dbmdb_data->maxrecords) {
             return DBI_RC_NOTFOUND;
         }
         dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data.mv_size);
-        rc = mdb_cursor_get(dbmdb_data->cursor, &dbmdb_data->key, &dbmdb_data->data, dbmdb_data->op);
+        rc = MDB_CURSOR_GET(dbmdb_data->cursor, &dbmdb_data->key, &dbmdb_data->data, dbmdb_data->op);
     }
     rc = dbmdb_map_error(__FUNCTION__, rc);
     return rc;
@@ -1683,7 +1690,7 @@ int dbmdb_public_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t
     }
     dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data.mv_size);
     dblayer_value_set_buffer(bulkdata->be, key, dbmdb_data->key.mv_data, dbmdb_data->key.mv_size);
-    rc = mdb_cursor_get(dbmdb_data->cursor, &dbmdb_data->key, &dbmdb_data->data, dbmdb_data->op);
+    rc = MDB_CURSOR_GET(dbmdb_data->cursor, &dbmdb_data->key, &dbmdb_data->data, dbmdb_data->op);
     rc = dbmdb_map_error(__FUNCTION__, rc);
     return rc;
 }
@@ -1734,34 +1741,37 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
     {
         case DBI_OP_MOVE_TO_FIRST:
                 /* Returns dups of first entries */
-            rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_FIRST);
+            rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_FIRST);
             if (rc == 0) {
                 dbmdb_data->op =  (bulkdata->v.flags & DBI_VF_BULK_RECORD) ? MDB_NEXT : MDB_NEXT_DUP;
                 if (dbmdb_data->use_multiple) {
+                    dbmdb_data->data0 = *mval;
                     dbmdb_data->data_size = mval->mv_size;
                     memset(mval, 0, sizeof dbmdb_data->data);
-                    rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_GET_MULTIPLE);
+                    rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_GET_MULTIPLE);
                 }
             }
             break;
         case DBI_OP_MOVE_TO_KEY:
                 /* Move customer to the specified key and returns dups */
-            rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_SET);
+            rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_SET);
             if (rc == 0) {
                 dbmdb_data->op =  (bulkdata->v.flags & DBI_VF_BULK_RECORD) ? MDB_NEXT : MDB_NEXT_DUP;
                 if (dbmdb_data->use_multiple) {
+                    dbmdb_data->data0 = *mval;
                     dbmdb_data->data_size = mval->mv_size;
                     memset(mval, 0, sizeof dbmdb_data->data);
-                    rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_GET_MULTIPLE);
+                    rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_GET_MULTIPLE);
                 }
             }
             break;
         case DBI_OP_NEXT_KEY:
             if (dbmdb_data->use_multiple) {
+                memset(&dbmdb_data->data0, 0, sizeof dbmdb_data->data0);
                 memset(mval, 0, sizeof dbmdb_data->data);
-                rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_NEXT_MULTIPLE);
+                rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_NEXT_MULTIPLE);
             } else {
-                rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_NEXT_NODUP);
+                rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_NEXT_NODUP);
                 if (rc == 0) {
                     dbmdb_data->op =  (bulkdata->v.flags & DBI_VF_BULK_RECORD) ? MDB_NEXT : MDB_NEXT_DUP;
                 }
@@ -1771,7 +1781,7 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
                 /* Move cursor to next position and returns dups and/or nodups */
             PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
             PR_ASSERT(!dbmdb_data->use_multiple);
-            rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_NEXT);
+            rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_NEXT);
             if (rc == 0) {
                 dbmdb_data->op = MDB_NEXT;
             }
@@ -1817,26 +1827,26 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
     switch (op)
     {
         case DBI_OP_MOVE_TO_KEY:
-            rc = mdb_cursor_get(dbmdb_cur,  &dbmdb_key, &dbmdb_data, MDB_SET);
+            rc = MDB_CURSOR_GET(dbmdb_cur,  &dbmdb_key, &dbmdb_data, MDB_SET);
             break;
         case DBI_OP_MOVE_NEAR_KEY:
-            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_SET_RANGE);
+            rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_SET_RANGE);
             break;
         case DBI_OP_MOVE_TO_DATA:
-            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_GET_BOTH);
+            rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_GET_BOTH);
             break;
         case DBI_OP_MOVE_NEAR_DATA:
-            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_GET_BOTH_RANGE);
+            rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_GET_BOTH_RANGE);
             break;
         case DBI_OP_MOVE_TO_RECNO:
 /* TODO */ PR_ASSERT(0);
-/*            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_SET_RECNO); */
+/*            rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_SET_RECNO); */
             break;
         case DBI_OP_MOVE_TO_FIRST:
-            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_FIRST);
+            rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_FIRST);
             break;
         case DBI_OP_MOVE_TO_LAST:
-            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_LAST);
+            rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_LAST);
             break;
         case DBI_OP_GET:
             /* not a dbmdb_cur operation (db operation) */
@@ -1848,16 +1858,16 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
 /*            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_GET_RECNO); */
             break;
         case DBI_OP_NEXT:
-            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NEXT);
+            rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NEXT);
             break;
         case DBI_OP_NEXT_DATA:
-            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NEXT_DUP);
+            rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NEXT_DUP);
             break;
         case DBI_OP_NEXT_KEY:
-            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NEXT_NODUP);
+            rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NEXT_NODUP);
             break;
         case DBI_OP_PREV:
-            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_PREV);
+            rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_PREV);
             break;
         case DBI_OP_PUT:
             /* not a dbmdb_cur operation (db operation) */
@@ -1914,10 +1924,10 @@ int dbmdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *ke
             rc = mdb_get(mdb_txn, dbi, &dbmdb_key, &dbmdb_data);
             break;
         case DBI_OP_PUT:
-            rc = mdb_put(mdb_txn, dbi, &dbmdb_key, &dbmdb_data, 0);
+            rc = MDB_PUT(mdb_txn, dbi, &dbmdb_key, &dbmdb_data, 0);
             break;
         case DBI_OP_ADD:
-            rc = mdb_put(mdb_txn, dbi, &dbmdb_key, &dbmdb_data, MDB_NODUPDATA);
+            rc = MDB_PUT(mdb_txn, dbi, &dbmdb_key, &dbmdb_data, MDB_NODUPDATA);
             break;
         case DBI_OP_DEL:
             rc = mdb_del(mdb_txn, dbi, &dbmdb_key, &dbmdb_data);

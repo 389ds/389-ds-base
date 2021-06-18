@@ -12,36 +12,8 @@
 #endif
 #include "mdb_layer.h"
 
-/* #define DEBUG_TXN 1 */
-
-#ifdef DEBUG_TXN
-#include <execinfo.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <syscall.h>
-
-int dbg_txn_begin(const char *funcname, MDB_env *env, MDB_txn *parent_txn, int flags, MDB_txn **txn);
-int dbg_txn_end(const char *funcname, MDB_txn *txn, int iscommit);
-
-#define TXN_BEGIN(env, parent_txn, flags, txn)  dbg_txn_begin(__FUNCTION__, env, parent_txn, flags, txn)
-#define TXN_COMMIT(txn)                         dbg_txn_end(__FUNCTION__, txn, 1)
-#define TXN_ABORT(txn)                          dbg_txn_end(__FUNCTION__, txn, 0)
-#define TXN_LOG(msg,txn)                        slapi_log_err(SLAPI_LOG_INFO, (char*)__FUNCTION__, msg, (ulong)(txn))
-#define pthread_gettid()                        syscall(__NR_gettid)
-
-#else
-#define TXN_BEGIN(env, parent_txn, flags, txn)  mdb_txn_begin(env, parent_txn, flags, txn)
-#define TXN_COMMIT(txn)                         mdb_txn_commit(txn)
-#define TXN_ABORT(txn)                          mdb_txn_abort(txn)
-#define TXN_LOG(msg,txn)
-#define pthread_gettid()                        0
-#endif
-#define TXN(txn)                                dbmdb_txn(txn)
 #define TXN_MAGIC0                              0x7A78A89A9AAABBBL
 #define TXN_MAGIC1                              0xdeadbeefdeadbeefL
-
 
 
 /* transaction context (on which dbi_txn_t is mapped) */
@@ -109,71 +81,6 @@ static dbmdb_txn_t *pop_mdbtxn(void)
     return txn;
 }
 
-
-
-/* Info file used to check version and get parameters needed to open the db in dbscan case */
-
-#ifdef DEBUG_TXN
-
-static void get_stack(char *buff, size_t buflen)
-{
-    /* faster version but provides less info */
-    void *frames[50];
-    int nbframes;
-    char *pt = buff;
-    char *end = &buff[buflen] - 1;  /* reserve space for final \0 */
-    char **symbols;
-    int len, i;
-
-    nbframes = backtrace(frames, (sizeof frames)/sizeof frames[0]);
-    symbols = backtrace_symbols(frames, nbframes);
-    if (symbols) {
-        for (i=0; i<nbframes; i++) {
-            len = strlen(symbols[i]);
-            if (pt + len + 2 >= end) {
-                break;  /* Buffer too small */
-            }
-            *pt++ = '\t';
-            strcpy(pt, symbols[i]);
-            pt += len;
-            *pt++ = '\n';
-        }
-        free(symbols);
-    }
-    *pt = 0;
-}
-
-
-int dbg_txn_begin(const char *funcname, MDB_env *env, MDB_txn *parent_txn, int flags, MDB_txn **txn)
-{
-    char stack[2048];
-    char strflags[100];
-    get_stack(stack, sizeof stack);
-    dbmdb_envflags2str(flags, strflags, sizeof strflags);
-    slapi_log_err(SLAPI_LOG_INFO, (char*)funcname, "TXN_BEGIN[%d]. txn_parent=0x%lx, %s, stack is:\n%s\n Waiting ...", pthread_gettid(), (ulong)parent_txn, strflags, stack);
-    int rc = mdb_txn_begin(env, parent_txn, flags, txn);
-    slapi_log_err(SLAPI_LOG_INFO, (char*)funcname,
-        "Done. txn_begin(env=0x%lx, txn_parent=0x%lx, flags=0x%x, txn=0x%lx) returned %d.\n",
-        (ulong)env, (ulong)parent_txn, flags, (ulong)*txn, rc);
-    return rc;
-}
-
-int dbg_txn_end(const char *funcname, MDB_txn *txn, int iscommit)
-{
-    int rc = 0;
-    char stack[2048];
-    get_stack(stack, sizeof stack);
-    if (iscommit) {
-        rc = mdb_txn_commit(txn);
-        slapi_log_err(SLAPI_LOG_INFO, (char*)funcname, "TXN_COMMIT[%d] (txn=0x%lx) returned %d. stack is:\n%s\n", pthread_gettid(), (ulong)txn, rc, stack);
-    } else {
-        mdb_txn_abort(txn);
-        slapi_log_err(SLAPI_LOG_INFO, (char*)funcname, "TXN_ABORT[%d] (txn=0x%lx). stack is:\n%s\n", pthread_gettid(), (ulong)txn, stack);
-    }
-    return rc;
-}
-#endif
-
 int dbmdb_is_read_only_txn_thread(void)
 {
     dbmdb_txn_t *ltxn = *get_mdbtxnanchor();
@@ -231,9 +138,7 @@ int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_
         ltxn->parent = parent_txn;
         push_mdbtxn(ltxn);
         *txn = (dbi_txn_t*)ltxn;
-#ifdef DEBUG_TXN
-        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_start_txn", "dbi_txn_t=0x%lx mdb_txn=0x%lx\n", (ulong)ltxn, (ulong)mtxn);
-#endif
+        dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_TXN, "dbi_txn_t=%p mdb_txn=%p\n", ltxn, mtxn);
     } else {
         slapi_log_error(SLAPI_LOG_ERR, "dbmdb_start_txn",
             "Failed to begin a txn for function %s. err=%d %s\n",
