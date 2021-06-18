@@ -69,10 +69,6 @@ export class Schema extends React.Component {
             newOcEntry: true,
             ocTableLoading: false,
             ocModalLoading: false,
-            // Select Typeahead
-            ocAddParentOcSelectExpanded: false,
-            ocAddRequiredAttrsSelectExpanded: false,
-            ocAddAllowedAttrsSelectExpanded: false,
 
             atName: "",
             atDesc: "",
@@ -92,18 +88,280 @@ export class Schema extends React.Component {
             newAtEntry: true,
             atTableLoading: false,
             atModalLoading: false,
-            // Select Typeahead
-            atAddParentAttrSelectExpanded: false,
-            atAddSyntaxNameSelectEXpanded: false,
-            atAddAliasNameSelectExpanded: false,
-            atAddEqualityMrsSelectExpanded: false,
-            atAddOrderMrsSelectExpanded: false,
-            atAddSubstringMrsSelectExpanded: false
+
+            isParentObjOpen: false,
+            isRequiredAttrsOpen: false,
+            isAllowedAttrsOpen: false,
+
+            isParentAttrOpen: false,
+            isSyntaxNameOpen: false,
+            isAliasNameOpen: false,
+            isEqualityMROpen: false,
+            isOrderMROpen: false,
+            isSubstringMROpen: false,
+        };
+
+        // Substring Matching Rule
+        this.onSubstringMRToggle = isSubstringMROpen => {
+            this.setState({
+                isSubstringMROpen
+            });
+        };
+        this.onSubstringMRClear = () => {
+            this.setState({
+                atSubMr: [],
+                isSubstringMROpen: false
+            });
+        };
+        this.onSubstringMRSelect = (event, selection) => {
+            if (this.state.atSubMr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        atSubMr: prevState.atSubMr.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ atSubMr: [...prevState.atSubMr, selection] }),
+                );
+            }
+        };
+
+        // Order Matching Rule
+        this.onOrderMRToggle = isOrderMROpen => {
+            this.setState({
+                isOrderMROpen
+            });
+        };
+        this.onOrderMRClear = () => {
+            this.setState({
+                atOrder: [],
+                isOrderMROpen: false
+            });
+        };
+        this.onOrderMRSelect = (event, selection) => {
+            if (this.state.atOrder.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        atOrder: prevState.atOrder.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ atOrder: [...prevState.atOrder, selection] }),
+                );
+            }
+        };
+
+        // Equaliry Matching Rule
+        this.onEqualityMRToggle = isEqualityMROpen => {
+            this.setState({
+                isEqualityMROpen
+            });
+        };
+        this.onEqualityMRClear = () => {
+            this.setState({
+                atEqMr: [],
+                isEqualityMROpen: false
+            });
+        };
+        this.onEqualityMRSelect = (event, selection) => {
+            if (this.state.atEqMr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        atEqMr: prevState.atEqMr.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ atEqMr: [...prevState.atEqMr, selection] }),
+                );
+            }
+        };
+
+        // Alias Name
+        this.onAliasNameToggle = isAliasNameOpen => {
+            this.setState({
+                isAliasNameOpen
+            });
+        };
+        this.onAliasNameClear = () => {
+            this.setState({
+                atAlias: [],
+                isAliasNameOpen: false
+            });
+        };
+        this.onAliasNameSelect = (event, selection) => {
+            if (this.state.atAlias.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        atAlias: prevState.atAlias.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ atAlias: [...prevState.atAlias, selection] }),
+                );
+            }
+        };
+        this.onAliasNameCreateOption = newValue => {
+            this.setState({
+                atAlias: [...this.state.atAlias, { value: newValue }]
+            });
+        };
+
+        // Syntax Name
+        this.onSyntaxNameToggle = isSyntaxNameOpen => {
+            this.setState({
+                isSyntaxNameOpen
+            });
+        };
+        this.onSyntaxNameClear = () => {
+            this.setState({
+                atSyntax: [],
+                isSyntaxNameOpen: false
+            });
+        };
+        this.onSyntaxNameSelect = (event, selection) => {
+            if (this.state.atSyntax.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        atSyntax: prevState.atSyntax.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ atSyntax: [...prevState.atSyntax, selection] }),
+                );
+            }
+        };
+
+        // Parent Attribute
+        this.onParentAttrToggle = isParentAttrOpen => {
+            this.setState({
+                isParentAttrOpen
+            });
+        };
+        this.onParentAttrClear = () => {
+            this.setState({
+                atParent: [],
+                isParentAttrOpen: false
+            });
+        };
+        this.onParentAttrSelect = (event, selection) => {
+            if (this.state.atParent.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        atParent: prevState.atParent.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ atParent: [...prevState.atParent, selection] }),
+                );
+            }
+        };
+        this.onParentAttrCreateOption = newValue => {
+            this.setState({
+                atParent: [...this.state.atParent, { value: newValue }]
+            });
+        };
+
+        // Parent Objectclass
+        this.onParentObjToggle = isParentObjOpen => {
+            this.setState({
+                isParentObjOpen
+            });
+        };
+        this.onParentObjClear = () => {
+            this.setState({
+                ocParent: [],
+                isParentObjOpen: false
+            });
+        };
+        this.onParentObjSelect = (event, selection) => {
+            if (this.state.ocParent.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        ocParent: prevState.ocParent.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ ocParent: [...prevState.ocParent, selection] }),
+                );
+            }
+        };
+        this.onParentObjCreateOption = newValue => {
+            this.setState({
+                ocParent: [...this.state.ocParent, { value: newValue }]
+            });
+        };
+
+        // Required Attributes
+        this.onRequiredAttrsToggle = isRequiredAttrsOpen => {
+            this.setState({
+                isRequiredAttrsOpen
+            });
+        };
+        this.onRequiredAttrsClear = () => {
+            this.setState({
+                ocMust: [],
+                isRequiredAttrsOpen: false
+            });
+        };
+        this.onRequiredAttrsSelect = (event, selection) => {
+            if (this.state.ocMust.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        ocMust: prevState.ocMust.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ ocMust: [...prevState.ocMust, selection] }),
+                );
+            }
+        };
+        this.onRequiredAttrsCreateOption = newValue => {
+            this.setState({
+                ocMust: [...this.state.ocMust, { value: newValue }]
+            });
+        };
+
+        // Allowed Attributes
+        this.onAllowedAttrsToggle = isAllowedAttrsOpen => {
+            this.setState({
+                isAllowedAttrsOpen
+            });
+        };
+        this.onAllowedAttrsClear = () => {
+            this.setState({
+                ocMay: [],
+                isAllowedAttrsOpen: false
+            });
+        };
+        this.onAllowedAttrsSelect = (event, selection) => {
+            if (this.state.ocMay.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        ocMay: prevState.ocMay.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ ocMay: [...prevState.ocMay, selection] }),
+                );
+            }
+        };
+        this.onAllowedAttrsCreateOption = newValue => {
+            this.setState({
+                ocMay: [...this.state.ocMay, { value: newValue }]
+            });
         };
 
         this.handleFieldChange = this.handleFieldChange.bind(this);
         this.handleNavSelect = this.handleNavSelect.bind(this);
-        this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
         this.loadSchemaData = this.loadSchemaData.bind(this);
         this.loadSyntaxesFirst = this.loadSyntaxesFirst.bind(this);
         this.toggleLoading = this.toggleLoading.bind(this);
@@ -129,8 +387,6 @@ export class Schema extends React.Component {
         this.cmdOperationAttribute = this.cmdOperationAttribute.bind(this);
         this.showConfirmAttrDelete = this.showConfirmAttrDelete.bind(this);
         this.closeConfirmAttrDelete = this.closeConfirmAttrDelete.bind(this);
-        this.onSelectToggle = this.onSelectToggle;
-        this.onSelectClear = this.onSelectClear;
     }
 
     toggleLoading(item) {
@@ -827,27 +1083,6 @@ export class Schema extends React.Component {
         });
     }
 
-    handleTypeaheadChange(state, value) {
-        if (!this.state[state].includes(value)) {
-            this.setState({
-                [state]: [...this.state[state], value]
-            });
-        }
-    }
-
-    onSelectToggle = (isExpanded, toggleId) => {
-        this.setState({
-            [toggleId]: isExpanded
-        });
-    }
-
-    onSelectClear = (toggleId, collection) => {
-        this.setState({
-            [toggleId]: false,
-            [collection]: []
-        });
-    }
-
     handleFieldChange(e) {
         let value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
         let ocKey = this.state.ocTableKey + 1;
@@ -957,7 +1192,6 @@ export class Schema extends React.Component {
                                                 editHandler={this.editObjectclass}
                                                 newOcEntry={this.state.newOcEntry}
                                                 ocModalViewOnly={this.state.ocModalViewOnly}
-                                                handleTypeaheadChange={this.handleTypeaheadChange}
                                                 handleFieldChange={this.handleFieldChange}
                                                 objectclasses={this.state.objectclasses}
                                                 attributes={this.state.attributes}
@@ -973,11 +1207,21 @@ export class Schema extends React.Component {
                                                 }
                                                 closeModal={this.closeObjectclassModal}
                                                 loading={this.state.ocModalLoading}
-                                                ocAddParentOcSelectExpanded={this.state.ocAddParentOcSelectExpanded}
-                                                ocAddRequiredAttrsSelectExpanded={this.state.ocAddRequiredAttrsSelectExpanded}
-                                                ocAddAllowedAttrsSelectExpanded={this.state.ocAddAllowedAttrsSelectExpanded}
-                                                onSelectToggle={this.onSelectToggle}
-                                                onSelectClear={this.onSelectClear}
+                                                isParentObjOpen={this.state.isParentObjOpen}
+                                                isRequiredAttrsOpen={this.state.isRequiredAttrsOpen}
+                                                isAllowedAttrsOpen={this.state.isAllowedAttrsOpen}
+                                                onParentObjToggle={this.onParentObjToggle}
+                                                onParentObjClear={this.onParentObjClear}
+                                                onParentObjSelect={this.onParentObjSelect}
+                                                onParentObjCreateOption={this.onParentObjCreateOption}
+                                                onRequiredAttrsToggle={this.onRequiredAttrsToggle}
+                                                onRequiredAttrsClear={this.onRequiredAttrsClear}
+                                                onRequiredAttrsSelect={this.onRequiredAttrsSelect}
+                                                onRequiredAttrsCreateOption={this.onRequiredAttrsCreateOption}
+                                                onAllowedAttrsToggle={this.onAllowedAttrsToggle}
+                                                onAllowedAttrsClear={this.onAllowedAttrsClear}
+                                                onAllowedAttrsSelect={this.onAllowedAttrsSelect}
+                                                onAllowedAttrsCreateOption={this.onAllowedAttrsCreateOption}
                                             />
                                         </div>
                                     </TabPane>
@@ -1014,7 +1258,6 @@ export class Schema extends React.Component {
                                                 editHandler={this.editAttribute}
                                                 newAtEntry={this.state.newAtEntry}
                                                 atModalViewOnly={this.state.atModalViewOnly}
-                                                handleTypeaheadChange={this.handleTypeaheadChange}
                                                 handleFieldChange={this.handleFieldChange}
                                                 objectclasses={this.state.objectclasses}
                                                 attributes={this.state.attributes}
@@ -1035,14 +1278,32 @@ export class Schema extends React.Component {
                                                 attributeModalShow={this.state.attributeModalShow}
                                                 closeModal={this.closeAttributeModal}
                                                 loading={this.state.atModalLoading}
-                                                atAddParentAttrSelectExpanded={this.state.atAddParentAttrSelectExpanded}
-                                                atAddSyntaxNameSelectExpanded={this.state.atAddSyntaxNameSelectExpanded}
-                                                atAddAliasNameSelectExpanded={this.state.atAddAliasNameSelectExpanded}
-                                                atAddEqualityMrsSelectExpanded={this.state.atAddEqualityMrsSelectExpanded}
-                                                atAddOrderMrsSelectExpanded={this.state.atAddOrderMrsSelectExpanded}
-                                                atAddSubstringMrsSelectExpanded={this.state.atAddSubstringMrsSelectExpanded}
-                                                onSelectToggle={this.onSelectToggle}
-                                                onSelectClear={this.onSelectClear}
+                                                isParentAttrOpen={this.state.isParentAttrOpen}
+                                                isSyntaxNameOpen={this.state.isSyntaxNameOpen}
+                                                isAliasNameOpen={this.state.isAliasNameOpen}
+                                                isEqualityMROpen={this.state.isEqualityMROpen}
+                                                isOrderMROpen={this.state.isOrderMROpen}
+                                                isSubstringMROpen={this.state.isSubstringMROpen}
+                                                onParentAttrToggle={this.onParentAttrToggle}
+                                                onParentAttrClear={this.onParentAttrClear}
+                                                onParentAttrSelect={this.onParentAttrSelect}
+                                                onParentAttrCreateOption={this.onParentObjCreateOption}
+                                                onSyntaxNameToggle={this.onSyntaxNameToggle}
+                                                onSyntaxNameClear={this.onSyntaxNameClear}
+                                                onSyntaxNameSelect={this.onSyntaxNameSelect}
+                                                onAliasNameToggle={this.onAliasNameToggle}
+                                                onAliasNameClear={this.onAliasNameClear}
+                                                onAliasNameSelect={this.onAliasNameSelect}
+                                                onAliasNameCreateOption={this.onAliasNameCreateOption}
+                                                onEqualityMRToggle={this.onEqualityMRToggle}
+                                                onEqualityMRClear={this.onEqualityMRClear}
+                                                onEqualityMRSelect={this.onEqualityMRSelect}
+                                                onOrderMRToggle={this.onOrderMRToggle}
+                                                onOrderMRClear={this.onOrderMRClear}
+                                                onOrderMRSelect={this.onOrderMRSelect}
+                                                onSubstringMRToggle={this.onSubstringMRToggle}
+                                                onSubstringMRClear={this.onSubstringMRClear}
+                                                onSubstringMRSelect={this.onSubstringMRSelect}
                                             />
                                         </div>
                                     </TabPane>

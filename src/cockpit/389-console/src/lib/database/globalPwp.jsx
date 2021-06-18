@@ -920,11 +920,13 @@ export class GlobalPwPolicy extends React.Component {
                         <Col sm={8}>
                             <Select
                                 variant={SelectVariant.typeaheadMulti}
+                                typeAheadAriaLabel="Type an attribute to check"
                                 onToggle={this.onSelectToggle}
                                 onSelect={this.handleSyntaxChange}
                                 onClear={this.onSelectClear}
                                 selections={this.state.passworduserattributes}
                                 isOpen={this.state.isSelectOpen}
+                                aria-labelledby="typeAhead-user-attr"
                                 placeholderText="Type attributes to check..."
                                 noResultsFoundText="There are no matching entries"
                                 >

@@ -28,9 +28,6 @@ class ObjectClassModal extends React.Component {
             ocModalViewOnly,
             addHandler,
             editHandler,
-            handleTypeaheadChange,
-            onSelectToggle,
-            onSelectClear,
             handleFieldChange,
             objectclasses,
             attributes,
@@ -44,9 +41,21 @@ class ObjectClassModal extends React.Component {
             objectclassModalShow,
             closeModal,
             loading,
-            ocAddParentOcSelectExpanded,
-            ocAddRequiredAttrsSelectExpanded,
-            ocAddAllowedAttrsSelectExpanded
+            isParentObjOpen,
+            isRequiredAttrsOpen,
+            isAllowedAttrsOpen,
+            onParentObjToggle,
+            onParentObjClear,
+            onParentObjSelect,
+            onParentObjCreateOption,
+            onRequiredAttrsToggle,
+            onRequiredAttrsClear,
+            onRequiredAttrsSelect,
+            onRequiredAttrsCreateOption,
+            onAllowedAttrsToggle,
+            onAllowedAttrsClear,
+            onAllowedAttrsSelect,
+            onAllowedAttrsCreateOption,
         } = this.props;
 
         let modalTitle =
@@ -152,24 +161,17 @@ class ObjectClassModal extends React.Component {
                             <Col sm={8}>
                                 <Select
                                     variant={SelectVariant.typeahead}
-                                    onToggle={(isExpanded) => {
-                                        onSelectToggle(isExpanded, "ocAddParentOcSelectExpanded");
-                                    }}
-                                    onSelect={(e, values) => {
-                                        handleTypeaheadChange("ocParent", values);
-                                    }}
-                                    onClear={e => {
-                                        onSelectClear("ocAddParentOcSelectExpanded", "ocParent");
-                                    }}
+                                    typeAheadAriaLabel="Type a parent objectClass"
+                                    onToggle={onParentObjToggle}
+                                    onSelect={onParentObjSelect}
+                                    onClear={onParentObjClear}
                                     selections={ocParent}
-                                    isOpen={ocAddParentOcSelectExpanded}
-                                    // aria-labelledby="typeAhead-Mrs"
+                                    isOpen={isParentObjOpen}
+                                    aria-labelledby="typeAhead-parent-obj"
                                     placeholderText="Type a parent objectClass..."
                                     noResultsFoundText="There are no matching entries"
                                     isCreatable
-                                    onCreateOption={(values) => {
-                                        handleTypeaheadChange("ocParent", values);
-                                    }}
+                                    onCreateOption={onParentObjCreateOption}
                                     >
                                     {objectclasses.map((obj, index) => (
                                         <SelectOption
@@ -209,23 +211,17 @@ class ObjectClassModal extends React.Component {
                             <Col sm={8}>
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
-                                    onToggle={(isExpanded) => {
-                                        onSelectToggle(isExpanded, "ocAddRequiredAttrsSelectExpanded");
-                                    }}
-                                    onSelect={(e, values) => {
-                                        handleTypeaheadChange("ocMust", values);
-                                    }}
-                                    onClear={e => {
-                                        onSelectClear("ocAddRequiredAttrsSelectExpanded", "ocMust");
-                                    }}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={onRequiredAttrsToggle}
+                                    onSelect={onRequiredAttrsSelect}
+                                    onClear={onRequiredAttrsClear}
                                     selections={ocMust}
-                                    isOpen={ocAddRequiredAttrsSelectExpanded}
+                                    isOpen={isRequiredAttrsOpen}
+                                    aria-labelledby="typeAhead-required-attrs"
                                     placeholderText="Type an attribute name..."
                                     noResultsFoundText="There are no matching entries"
                                     isCreatable
-                                    onCreateOption={(values) => {
-                                        handleTypeaheadChange("ocMust", values);
-                                    }}
+                                    onCreateOption={onRequiredAttrsCreateOption}
                                     >
                                     {attributes.map((attr, index) => (
                                         <SelectOption
@@ -245,23 +241,17 @@ class ObjectClassModal extends React.Component {
                             <Col sm={8}>
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
-                                    onToggle={(isExpanded) => {
-                                        onSelectToggle(isExpanded, "ocAddAllowedAttrsSelectExpanded");
-                                    }}
-                                    onSelect={(e, values) => {
-                                        handleTypeaheadChange("ocMay", values);
-                                    }}
-                                    onClear={e => {
-                                        onSelectClear("ocAddAllowedAttrsSelectExpanded", "ocMay");
-                                    }}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={onAllowedAttrsToggle}
+                                    onSelect={onAllowedAttrsSelect}
+                                    onClear={onAllowedAttrsClear}
                                     selections={ocMay}
-                                    isOpen={ocAddAllowedAttrsSelectExpanded}
+                                    isOpen={isAllowedAttrsOpen}
+                                    aria-labelledby="typeAhead-allowed-attrs"
                                     placeholderText="Type an attribute name..."
                                     noResultsFoundText="There are no matching entries"
                                     isCreatable
-                                    onCreateOption={(values) => {
-                                        handleTypeaheadChange("ocMay", values);
-                                    }}
+                                    onCreateOption={onAllowedAttrsCreateOption}
                                     >
                                     {attributes.map((attr, index) => (
                                         <SelectOption
@@ -341,21 +331,38 @@ class AttributeTypeModal extends React.Component {
             newAtEntry,
             addHandler,
             editHandler,
-            handleTypeaheadChange,
-            onSelectToggle,
-            onSelectClear,
             handleFieldChange,
             attributes,
             syntaxes,
             matchingrules,
             closeModal,
             loading,
-            atAddParentAttrSelectExpanded,
-            atAddSyntaxNameSelectExpanded,
-            atAddAliasNameSelectExpanded,
-            atAddEqualityMrsSelectExpanded,
-            atAddOrderMrsSelectExpanded,
-            atAddSubstringMrsSelectExpanded
+            isParentAttrOpen,
+            isSyntaxNameOpen,
+            isAliasNameOpen,
+            isEqualityMROpen,
+            isOrderMROpen,
+            isSubstringMROpen,
+            onParentAttrToggle,
+            onParentAttrClear,
+            onParentAttrSelect,
+            onParentAttrCreateOption,
+            onSyntaxNameToggle,
+            onSyntaxNameClear,
+            onSyntaxNameSelect,
+            onAliasNameToggle,
+            onAliasNameClear,
+            onAliasNameSelect,
+            onAliasNameCreateOption,
+            onEqualityMRToggle,
+            onEqualityMRClear,
+            onEqualityMRSelect,
+            onOrderMRToggle,
+            onOrderMRClear,
+            onOrderMRSelect,
+            onSubstringMRToggle,
+            onSubstringMRClear,
+            onSubstringMRSelect,
         } = this.props;
         let modalTitle =
             atModalViewOnly ? (
@@ -460,23 +467,17 @@ class AttributeTypeModal extends React.Component {
                             <Col sm={8}>
                                 <Select
                                     variant={SelectVariant.typeahead}
-                                    onToggle={(isExpanded) => {
-                                        onSelectToggle(isExpanded, "atAddParentAttrSelectExpanded");
-                                    }}
-                                    onSelect={(e, values) => {
-                                        handleTypeaheadChange("atParent", values);
-                                    }}
-                                    onClear={e => {
-                                        onSelectClear("atAddParentAttrSelectExpanded", "atParent");
-                                    }}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={onParentAttrToggle}
+                                    onSelect={onParentAttrSelect}
+                                    onClear={onParentAttrClear}
                                     selections={atParent}
-                                    isOpen={atAddParentAttrSelectExpanded}
+                                    isOpen={isParentAttrOpen}
+                                    aria-labelledby="typeAhead-parent-attr"
                                     placeholderText="Type an attribute name..."
                                     noResultsFoundText="There are no matching entries"
                                     isCreatable
-                                    onCreateOption={(values) => {
-                                        handleTypeaheadChange("atParent", values);
-                                    }}
+                                    onCreateOption={onParentAttrCreateOption}
                                     >
                                     {attributes.map((attr, index) => (
                                         <SelectOption
@@ -496,17 +497,13 @@ class AttributeTypeModal extends React.Component {
                             <Col sm={8}>
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
-                                    onToggle={(isExpanded) => {
-                                        onSelectToggle(isExpanded, "atAddSyntaxNameSelectExpanded");
-                                    }}
-                                    onSelect={(e, values) => {
-                                        handleTypeaheadChange("atSyntax", values);
-                                    }}
-                                    onClear={e => {
-                                        onSelectClear("atAddSyntaxNameSelectExpanded", "atSyntax");
-                                    }}
+                                    typeAheadAriaLabel="Type an syntax name"
+                                    onToggle={onSyntaxNameToggle}
+                                    onSelect={onSyntaxNameSelect}
+                                    onClear={onSyntaxNameClear}
                                     selections={atSyntax}
-                                    isOpen={atAddSyntaxNameSelectExpanded}
+                                    isOpen={isSyntaxNameOpen}
+                                    aria-labelledby="typeAhead-syntax-name"
                                     placeholderText="Type a syntax name..."
                                     noResultsFoundText="There are no matching entries"
                                     >
@@ -585,23 +582,17 @@ class AttributeTypeModal extends React.Component {
                             <Col sm={8}>
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
-                                    onToggle={(isExpanded) => {
-                                        onSelectToggle(isExpanded, "atAddAliasNameSelectExpanded");
-                                    }}
-                                    onSelect={(e, values) => {
-                                        handleTypeaheadChange("atAlias", values);
-                                    }}
-                                    onClear={e => {
-                                        onSelectClear("atAddAliasNameSelectExpanded", "atAlias");
-                                    }}
+                                    typeAheadAriaLabel="Type an alias name"
+                                    onToggle={onAliasNameToggle}
+                                    onSelect={onAliasNameSelect}
+                                    onClear={onAliasNameClear}
                                     selections={atAlias}
-                                    isOpen={atAddAliasNameSelectExpanded}
+                                    isOpen={isAliasNameOpen}
+                                    aria-labelledby="typeAhead-alias-name"
                                     placeholderText="Type an alias name..."
                                     noResultsFoundText="There are no matching entries"
                                     isCreatable
-                                    onCreateOption={(values) => {
-                                        handleTypeaheadChange("atAlias", values);
-                                    }}
+                                    onCreateOption={onAliasNameCreateOption}
                                     >
                                     {[].map((alias, index) => (
                                         <SelectOption
@@ -621,18 +612,14 @@ class AttributeTypeModal extends React.Component {
                             <Col sm={8}>
                                 <Select
                                     variant={SelectVariant.typeahead}
-                                    onToggle={(isExpanded) => {
-                                        onSelectToggle(isExpanded, "atAddEqualityMrsSelectExpanded");
-                                    }}
-                                    onSelect={(e, values) => {
-                                        handleTypeaheadChange("atEqMr", values);
-                                    }}
-                                    onClear={e => {
-                                        onSelectClear("atAddEqualityMrsSelectExpanded", "atEqMr");
-                                    }}
+                                    typeAheadAriaLabel="Type a matching rule"
+                                    onToggle={onEqualityMRToggle}
+                                    onSelect={onEqualityMRSelect}
+                                    onClear={onEqualityMRClear}
                                     selections={atEqMr}
-                                    isOpen={atAddEqualityMrsSelectExpanded}
-                                    placeholderText="Type an matching rule..."
+                                    isOpen={isEqualityMROpen}
+                                    aria-labelledby="typeAhead-equality-mr"
+                                    placeholderText="Type a matching rule..."
                                     noResultsFoundText="There are no matching entries"
                                     >
                                     {matchingrules.map((mr, index) => (
@@ -653,17 +640,13 @@ class AttributeTypeModal extends React.Component {
                             <Col sm={8}>
                                 <Select
                                     variant={SelectVariant.typeahead}
-                                    onToggle={(isExpanded) => {
-                                        onSelectToggle(isExpanded, "atAddOrderMrsSelectExpanded");
-                                    }}
-                                    onSelect={(e, values) => {
-                                        handleTypeaheadChange("atOrder", values);
-                                    }}
-                                    onClear={e => {
-                                        onSelectClear("atAddOrderMrsSelectExpanded", "atOrder");
-                                    }}
+                                    typeAheadAriaLabel="Type a matching rule"
+                                    onToggle={onOrderMRToggle}
+                                    onSelect={onOrderMRSelect}
+                                    onClear={onOrderMRClear}
                                     selections={atOrder}
-                                    isOpen={atAddOrderMrsSelectExpanded}
+                                    isOpen={isOrderMROpen}
+                                    aria-labelledby="typeAhead-order-mr"
                                     placeholderText="Type an matching rule.."
                                     noResultsFoundText="There are no matching entries"
                                     >
@@ -685,17 +668,12 @@ class AttributeTypeModal extends React.Component {
                             <Col sm={8}>
                                 <Select
                                     variant={SelectVariant.typeahead}
-                                    onToggle={(isExpanded) => {
-                                        onSelectToggle(isExpanded, "atAddSubstringMrsSelectExpanded");
-                                    }}
-                                    onSelect={(e, values) => {
-                                        handleTypeaheadChange("atSubMr", values);
-                                    }}
-                                    onClear={e => {
-                                        onSelectClear("atAddSubstringMrsSelectExpanded", "atSubMr");
-                                    }}
+                                    typeAheadAriaLabel="Type a matching rule"
+                                    onToggle={onSubstringMRToggle}
+                                    onSelect={onSubstringMRSelect}
+                                    onClear={onSubstringMRClear}
                                     selections={atSubMr}
-                                    isOpen={atAddSubstringMrsSelectExpanded}
+                                    isOpen={isSubstringMROpen}
                                     placeholderText="Type an matching rule..."
                                     noResultsFoundText="There are no matching entries"
                                     >

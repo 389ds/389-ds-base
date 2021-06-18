@@ -72,8 +72,34 @@ export class Security extends React.Component {
             _nssslpersonalityssl: '',
             _nssslpersonalityssllist: "",
             _nstlsallowclientrenegotiation: true,
-            // Select Typeahead
-            serverCertSelectExpanded: false,
+
+            isServerCertOpen: false,
+        };
+
+        // Server Cert
+        this.onServerCertSelect = (event, selection) => {
+            if (this.state.nssslpersonalityssl.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        nssslpersonalityssl: prevState.nssslpersonalityssl.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ nssslpersonalityssl: [...prevState.nssslpersonalityssl, selection] }),
+                );
+            }
+        };
+        this.onServerCertToggle = isServerCertOpen => {
+            this.setState({
+                isServerCertOpen
+            });
+        };
+        this.onServerCertClear = () => {
+            this.setState({
+                nssslpersonalityssl: [],
+                isServerCertOpen: false
+            });
         };
 
         this.handleChange = this.handleChange.bind(this);
@@ -666,17 +692,13 @@ export class Security extends React.Component {
                             <Col sm={8}>
                                 <Select
                                     variant={SelectVariant.typeahead}
-                                    onToggle={(isExpanded) => {
-                                        this.onSelectToggle(isExpanded, "serverCertSelectExpanded");
-                                    }}
-                                    onSelect={(e, values) => {
-                                        this.handleTypeaheadChange(values, "nssslpersonalityssl");
-                                    }}
-                                    onClear={e => {
-                                        this.onSelectClear("serverCertSelectExpanded", "nssslpersonalityssl");
-                                    }}
+                                    typeAheadAriaLabel="Type a server certificate nickname"
+                                    onToggle={this.onServerCertToggle}
+                                    onSelect={this.onServerCertSelect}
+                                    onClear={this.onServerCertClear}
                                     selections={serverCert}
-                                    isOpen={this.state.serverCertSelectExpanded}
+                                    isOpen={this.state.isServerCertOpen}
+                                    aria-labelledby="typeAhead-server-cert"
                                     placeholderText="Type a sever certificate nickname..."
                                     noResultsFoundText="There are no matching entries"
                                 >

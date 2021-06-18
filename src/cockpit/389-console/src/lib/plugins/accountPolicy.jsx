@@ -65,12 +65,181 @@ class AccountPolicy extends React.Component {
             configEntryModalShow: false,
             fixupModalShow: false,
             newEntry: false,
-            // Select typeahead
-            alwaysRecordLoginAttrSelectExpanded: false,
-            specAttrNameSelectExpanded: false,
-            stateAttrNameSelectExpanded: false,
-            altStateAttrNameSelectExpanded: false,
-            limiteAttrNameSelectExpanded: false,
+
+            isRecordLoginOpen: false,
+            isSpecificAttrOpen: false,
+            isStateAttrOpen: false,
+            isAltStateAttrOpen: false,
+            isLimitAttrOpen: false,
+        };
+
+        // Always Record Login Attribute
+        this.onRecordLoginSelect = (event, selection) => {
+            if (this.state.alwaysRecordLoginAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        alwaysRecordLoginAttr: prevState.alwaysRecordLoginAttr.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ alwaysRecordLoginAttr: [...prevState.alwaysRecordLoginAttr, selection] }),
+                );
+            }
+        };
+        this.onRecordLoginToggle = isRecordLoginOpen => {
+            this.setState({
+                isRecordLoginOpen
+            });
+        };
+        this.onRecordLoginClear = () => {
+            this.setState({
+                alwaysRecordLoginAttr: [],
+                isRecordLoginOpen: false
+            });
+        };
+        this.onRecordLoginCreateOption = newValue => {
+            if (!this.state.alwaysRecordLoginAttr.includes(newValue)) {
+                this.setState({
+                    alwaysRecordLoginAttr: [...this.state.alwaysRecordLoginAttr, newValue],
+                    isRecordLoginOpen: false
+                });
+            }
+        };
+
+        // Specific Attribute
+        this.onSpecificAttrSelect = (event, selection) => {
+            if (this.state.specAttrName.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        specAttrName: prevState.specAttrName.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ specAttrName: [...prevState.specAttrName, selection] }),
+                );
+            }
+        };
+        this.onSpecificAttrToggle = isSpecificAttrOpen => {
+            this.setState({
+                isSpecificAttrOpen
+            });
+        };
+        this.onSpecificAttrClear = () => {
+            this.setState({
+                specAttrName: [],
+                isSpecificAttrOpen: false
+            });
+        };
+        this.onSpecificAttrCreateOption = newValue => {
+            if (!this.state.specAttrName.includes(newValue)) {
+                this.setState({
+                    specAttrName: [...this.state.specAttrName, newValue],
+                    isSpecificAttrOpen: false
+                });
+            }
+        };
+
+        // State Attribute
+        this.onStateAttrSelect = (event, selection) => {
+            if (this.state.stateAttrName.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        stateAttrName: prevState.stateAttrName.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ stateAttrName: [...prevState.stateAttrName, selection] }),
+                );
+            }
+        };
+        this.onStateAttrToggle = isStateAttrOpen => {
+            this.setState({
+                isStateAttrOpen
+            });
+        };
+        this.onStateAttrClear = () => {
+            this.setState({
+                stateAttrName: [],
+                isStateAttrOpen: false
+            });
+        };
+        this.onStateAttrCreateOption = newValue => {
+            if (!this.state.stateAttrName.includes(newValue)) {
+                this.setState({
+                    stateAttrName: [...this.state.stateAttrName, newValue],
+                    isStateAttrOpen: false
+                });
+            }
+        };
+
+        // Alternative State Attribute
+        this.onAlternativeStateSelect = (event, selection) => {
+            if (this.state.altStateAttrName.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        altStateAttrName: prevState.altStateAttrName.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ altStateAttrName: [...prevState.altStateAttrName, selection] }),
+                );
+            }
+        };
+        this.onAlternativeStateToggle = isAltStateAttrOpen => {
+            this.setState({
+                isAltStateAttrOpen
+            });
+        };
+        this.onAlternativeStateClear = () => {
+            this.setState({
+                altStateAttrName: [],
+                isAltStateAttrOpen: false
+            });
+        };
+        this.onAlternativeStateCreateOption = newValue => {
+            if (!this.state.stateAttrName.includes(newValue)) {
+                this.setState({
+                    altStateAttrName: [...this.state.stateAttrName, newValue],
+                    isAltStateAttrOpen: false
+                });
+            }
+        };
+        // Limit Attribute
+        this.onLimitAttrSelect = (event, selection) => {
+            if (this.state.limitAttrName.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        limitAttrName: prevState.limitAttrName.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ limitAttrName: [...prevState.limitAttrName, selection] }),
+                );
+            }
+        };
+        this.onLimitAttrToggle = isLimitAttrOpen => {
+            this.setState({
+                isLimitAttrOpen
+            });
+        };
+        this.onLimitAttrClear = () => {
+            this.setState({
+                limitAttrName: [],
+                isLimitAttrOpen: false
+            });
+        };
+        this.onLimitAttrCreateOption = newValue => {
+            if (!this.state.stateAttrName.includes(newValue)) {
+                this.setState({
+                    limitAttrName: [...this.state.limitAttrName, newValue],
+                    isLimitAttrOpen: false
+                });
+            }
         };
     }
 
@@ -461,33 +630,17 @@ class AccountPolicy extends React.Component {
                                     <Col sm={5}>
                                         <Select
                                             variant={SelectVariant.typeahead}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    alwaysRecordLoginAttrSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                if (!this.state.alwaysRecordLoginAttr.includes(values)) {
-                                                    this.setState({
-                                                        alwaysRecordLoginAttr: values
-                                                    });
-                                                }
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    alwaysRecordLoginAttrSelectExpanded: false,
-                                                    alwaysRecordLoginAttr: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type an attribute name"
+                                            onToggle={this.onRecordLoginToggle}
+                                            onSelect={this.onRecordLoginSelect}
+                                            onClear={this.onRecordLoginClear}
                                             selections={alwaysRecordLoginAttr}
-                                            isOpen={this.state.alwaysRecordLoginAttrSelectExpanded}
-                                            placeholderText="Type an attribute..."
+                                            isOpen={this.state.isRecordLoginOpen}
+                                            aria-labelledby="typeAhead-record-login"
+                                            placeholderText="Type an attribute name..."
+                                            noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                this.setState({
-                                                    alwaysRecordLoginAttr: values
-                                                });
-                                            }}
+                                            onCreateOption={this.onRecordLoginCreateOption}
                                             >
                                             {attributes.map((attr, index) => (
                                                 <SelectOption
@@ -528,34 +681,17 @@ class AccountPolicy extends React.Component {
                                     <Col sm={8}>
                                         <Select
                                             variant={SelectVariant.typeahead}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    specAttrNameSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                if (!this.state.alwaysRecordLoginAttr.includes(values)) {
-                                                    this.setState({
-                                                        specAttrName: values
-                                                    });
-                                                }
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    specAttrNameSelectExpanded: false,
-                                                    specAttrName: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type an attribute name"
+                                            onToggle={this.onSpecificAttrToggle}
+                                            onSelect={this.onSpecificAttrSelect}
+                                            onClear={this.onSpecificAttrClear}
                                             selections={specAttrName}
-                                            isOpen={this.state.specAttrNameSelectExpanded}
+                                            isOpen={this.state.isSpecificAttrOpen}
+                                            aria-labelledby="typeAhead-specific-attr"
                                             placeholderText="Type an attribute..."
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                this.setState({
-                                                    specAttrName: values
-                                                });
-                                            }}
+                                            onCreateOption={this.onSpecificAttrCreateOption}
                                             >
                                             {attributes.map((attr) => (
                                                 <SelectOption
@@ -577,32 +713,17 @@ class AccountPolicy extends React.Component {
                                     <Col sm={8}>
                                         <Select
                                             variant={SelectVariant.typeahead}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    stateAttrNameSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                this.setState({
-                                                    stateAttrName: values
-                                                });
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    stateAttrNameSelectExpanded: false,
-                                                    stateAttrName: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type an attribute name"
+                                            onToggle={this.onStateAttrToggle}
+                                            onSelect={this.onStateAttrSelect}
+                                            onClear={this.onStateAttrClear}
                                             selections={stateAttrName}
-                                            isOpen={this.state.stateAttrNameSelectExpanded}
-                                            placeholderText="Type an attribute..."
+                                            isOpen={this.state.isStateAttrOpen}
+                                            aria-labelledby="typeAhead-state-attr"
+                                            placeholderText="Type an attribute name..."
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                this.setState({
-                                                    stateAttrName: values
-                                                });
-                                            }}
+                                            onCreateOption={this.onStateAttrCreateOption}
                                             >
                                             {attributes.map((attr, index) => (
                                                 <SelectOption
@@ -634,32 +755,17 @@ class AccountPolicy extends React.Component {
                                     <Col sm={8}>
                                         <Select
                                             variant={SelectVariant.typeahead}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    altStateAttrNameSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                this.setState({
-                                                    altStateAttrName: values
-                                                });
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    altStateAttrNameSelectExpanded: false,
-                                                    altStateAttrName: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type an attribute name"
+                                            onToggle={this.onAlternativeStateToggle}
+                                            onSelect={this.onAlternativeStateSelect}
+                                            onClear={this.onAlternativeStateClear}
                                             selections={altStateAttrName}
-                                            isOpen={this.state.altStateAttrNameSelectExpanded}
+                                            isOpen={this.state.isAltStateAttrOpen}
+                                            aria-labelledby="typeAhead-alt-state-attr"
                                             placeholderText="Type an attribute..."
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                this.setState({
-                                                    altStateAttrName: values
-                                                });
-                                            }}
+                                            onCreateOption={this.onAlternativeStateCreateOption}
                                             >
                                             {attributes.map((attr, index) => (
                                                 <SelectOption
@@ -681,32 +787,17 @@ class AccountPolicy extends React.Component {
                                     <Col sm={8}>
                                         <Select
                                             variant={SelectVariant.typeahead}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    limitAttrNameSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                this.setState({
-                                                    limitAttrName: values
-                                                });
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    limitAttrNameSelectExpanded: false,
-                                                    limitAttrName: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type an attribute name"
+                                            onToggle={this.onLimitAttrToggle}
+                                            onSelect={this.onLimitAttrSelect}
+                                            onClear={this.onLimitAttrClear}
                                             selections={limitAttrName}
-                                            isOpen={this.state.limitAttrNameSelectExpanded}
+                                            isOpen={this.state.isLimitAttrOpen}
+                                            aria-labelledby="typeAhead-limit-attr"
                                             placeholderText="Type an attribute..."
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                this.setState({
-                                                    limitAttrName: values
-                                                });
-                                            }}
+                                            onCreateOption={this.onLimitAttrCreateOption}
                                             >
                                             {attributes.map((attr, index) => (
                                                 <SelectOption

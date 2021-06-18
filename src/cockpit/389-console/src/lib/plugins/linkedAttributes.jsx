@@ -53,9 +53,77 @@ class LinkedAttributes extends React.Component {
             showConfirmDelete: false,
             modalChecked: false,
             modalSpinning: false,
-            // Select Typeahead
-            linkedTypeSelectExpanded: false,
-            managedTypeSelectExpanded: false,
+
+            isLinkTypeOpen: false,
+            isManagedTypeOpen: false,
+        };
+
+        // Link Type
+        this.onLinkTypeSelect = (event, selection) => {
+            if (this.state.linkType.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        linkType: prevState.linkType.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ linkType: [...prevState.linkType, selection] }),
+                );
+            }
+        };
+        this.onLinkTypeToggle = isLinkTypeOpen => {
+            this.setState({
+                isLinkTypeOpen
+            });
+        };
+        this.onLinkTypeClear = () => {
+            this.setState({
+                linkType: [],
+                isLinkTypeOpen: false
+            });
+        };
+        this.onLinkTypeCreateOption = newValue => {
+            if (!this.state.linkType.includes(newValue)) {
+                this.setState({
+                    linkType: [...this.state.linkType, newValue],
+                    isLinkTypeOpen: false
+                });
+            }
+        };
+
+        // Managed Type
+        this.onManagedTypeSelect = (event, selection) => {
+            if (this.state.managedType.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        managedType: prevState.managedType.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ managedType: [...prevState.managedType, selection] }),
+                );
+            }
+        };
+        this.onManagedTypeToggle = isManagedTypeOpen => {
+            this.setState({
+                isManagedTypeOpen
+            });
+        };
+        this.onManagedTypeClear = () => {
+            this.setState({
+                managedType: [],
+                isManagedTypeOpen: false
+            });
+        };
+        this.onManagedTypeCreateOption = newValue => {
+            if (!this.state.managedType.includes(newValue)) {
+                this.setState({
+                    managedType: [...this.state.managedType, newValue],
+                    isManagedTypeOpen: false
+                });
+            }
         };
 
         this.getAttributes = this.getAttributes.bind(this);
@@ -407,32 +475,17 @@ class LinkedAttributes extends React.Component {
                                     <Col sm={9}>
                                         <Select
                                             variant={SelectVariant.typeahead}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    linkedTypeSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                    this.setState({
-                                                        linkType: values
-                                                    });
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    linkedTypeSelectExpanded: false,
-                                                    linkType: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type an attribute name"
+                                            onToggle={this.onLinkTypeToggle}
+                                            onSelect={this.onLinkTypeSelect}
+                                            onClear={this.onLinkTypeClear}
                                             selections={linkType}
-                                            isOpen={this.state.linkedTypeSelectExpanded}
+                                            isOpen={this.state.isLinkTypeOpen}
+                                            aria-labelledby="typeAhead-link-type"
                                             placeholderText="Type an attribute..."
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                this.setState({
-                                                    linkType: values
-                                                });
-                                            }}
+                                            onCreateOption={this.onLinkTypeCreateOption}
                                             >
                                             {attributes.map((attr, index) => (
                                                 <SelectOption
@@ -450,34 +503,17 @@ class LinkedAttributes extends React.Component {
                                     <Col sm={9}>
                                         <Select
                                             variant={SelectVariant.typeahead}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    managedTypeSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                if (!this.state.linkType.includes(values)) {
-                                                    this.setState({
-                                                        managedType: values
-                                                    });
-                                                }
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    managedTypeSelectExpanded: false,
-                                                    managedType: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type an attribute name"
+                                            onToggle={this.onManagedTypeToggle}
+                                            onSelect={this.onManagedTypeSelect}
+                                            onClear={this.onManagedTypeClear}
                                             selections={managedType}
-                                            isOpen={this.state.managedTypeSelectExpanded}
+                                            isOpen={this.state.isManagedTypeOpen}
                                             placeholderText="Type an attribute..."
+                                            aria-labelledby="typeAhead-managed-type"
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                this.setState({
-                                                    managedType: values
-                                                });
-                                            }}
+                                            onCreateOption={this.onManagedTypeCreateOption}
                                             >
                                             {attributes.map((attr, index) => (
                                                 <SelectOption

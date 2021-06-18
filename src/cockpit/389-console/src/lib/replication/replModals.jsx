@@ -51,7 +51,6 @@ export class WinsyncAgmtModal extends React.Component {
             handleFracChange,
             onSelectToggle,
             onSelectClear,
-            getToggleId,
             spinning,
             agmtName,
             agmtHost,
@@ -82,6 +81,7 @@ export class WinsyncAgmtModal extends React.Component {
             error,
             errorMsg,
             errorScheduleMsg,
+            isExcludeAttrOpen,
         } = this.props;
         let spinner = "";
         let saveDisabled = !this.props.saveOK;
@@ -483,17 +483,13 @@ export class WinsyncAgmtModal extends React.Component {
                                 <Col sm={8}>
                                     <Select
                                         variant={SelectVariant.typeaheadMulti}
-                                        onToggle={(isExpanded) => {
-                                            onSelectToggle(isExpanded, (getToggleId(title).fracAttrsName));
-                                        }}
-                                        onSelect={(e, values) => {
-                                            handleFracChange(values);
-                                        }}
-                                        onClear={e => {
-                                            onSelectClear("agmtFracAttrsSelectExpanded", "agmtFracAttrs");
-                                        }}
+                                        typeAheadAriaLabel="Type an attribute"
+                                        onToggle={onSelectToggle}
+                                        onSelect={(e, selection) => { handleFracChange(selection) }}
+                                        onClear={onSelectClear}
                                         selections={agmtFracAttrs}
-                                        isOpen={(getToggleId(title).fracAttrsBool)}
+                                        isOpen={isExcludeAttrOpen}
+                                        aria-labelledby="typeAhead-exclude-attrs"
                                         placeholderText="Start typing an attribute..."
                                         noResultsFoundText="There are no matching entries"
                                         >
@@ -583,9 +579,15 @@ export class ReplAgmtModal extends React.Component {
             handleStripChange,
             handleFracChange,
             handleFracInitChange,
-            onSelectToggle,
-            onSelectClear,
-            getToggleId,
+            onExcludeAttrsToggle,
+            onExcludeAttrsClear,
+            onExcludeAttrsInitToggle,
+            onExcludeAttrsInitClear,
+            onStripAttrsToggle,
+            onStripAttrsClear,
+            isExcludeAttrsOpen,
+            isExcludeInitAttrsOpen,
+            isStripAttrsOpen,
             spinning,
             agmtName,
             agmtHost,
@@ -1066,17 +1068,12 @@ export class ReplAgmtModal extends React.Component {
                                     <Select
                                         variant={SelectVariant.typeaheadMulti}
                                         typeAheadAriaLabel="Type an attribute"
-                                        onToggle={(isExpanded) => {
-                                            onSelectToggle(isExpanded, (getToggleId(title).fracAttrsName));
-                                        }}
-                                        onSelect={(e, values) => {
-                                            handleFracChange(values);
-                                        }}
-                                        onClear={e => {
-                                            onSelectClear("agmtFracAttrsSelectExpanded", "agmtFracAttrs");
-                                        }}
+                                        onToggle={onExcludeAttrsToggle}
+                                        onSelect={(e, selection) => { handleFracChange(selection) }}
+                                        onClear={onExcludeAttrsClear}
                                         selections={agmtFracAttrs}
-                                        isOpen={(getToggleId(title).fracAttrsBool)}
+                                        isOpen={isExcludeAttrsOpen}
+                                        aria-labelledby="typeAhead-exclude-attrs"
                                         placeholderText="Start typing an attribute..."
                                         >
                                         {availAttrs.map((attr, index) => (
@@ -1093,30 +1090,15 @@ export class ReplAgmtModal extends React.Component {
                                     Exclude Init Attributes
                                 </Col>
                                 <Col sm={8}>
-                                    {/* <Typeahead
-                                        multiple
-                                        onChange={handleFracInitChange}
-                                        selected={agmtFracInitAttrs}
-                                        options={availAttrs}
-                                        name={name}
-                                        newSelectionPrefix="Add a attribute: "
-                                        placeholder="Start typing an attribute..."
-                                        id="agmtFracInitAttrs"
-                                    /> */}
                                     <Select
                                         variant={SelectVariant.typeaheadMulti}
                                         typeAheadAriaLabel="Type an attribute"
-                                        onToggle={(isExpanded) => {
-                                            onSelectToggle(isExpanded, (getToggleId(title).fracInitAttrsName));
-                                        }}
-                                        onSelect={(e, values) => {
-                                            handleFracInitChange(values);
-                                        }}
-                                        onClear={e => {
-                                            onSelectClear("agmtFracInitAttrsSelectExpanded", "agmtFracInitAttrs");
-                                        }}
+                                        onToggle={onExcludeAttrsInitToggle}
+                                        onSelect={(e, selection) => { handleFracInitChange(selection) }}
+                                        onClear={onExcludeAttrsInitClear}
                                         selections={agmtFracInitAttrs}
-                                        isOpen={(getToggleId(title).fracInitAttrsBool)}
+                                        isOpen={isExcludeInitAttrsOpen}
+                                        aria-labelledby="typeAhead-exclude-init-attrs"
                                         placeholderText="Start typing an attribute..."
                                         noResultsFoundText="There are no matching entries"
                                         >
@@ -1129,24 +1111,20 @@ export class ReplAgmtModal extends React.Component {
                                     </Select>
                                 </Col>
                             </Row>
-                            <Row className="ds-margin-top" title="Attributes to strip from a replication update">
+                            <Row className="ds-margin-top" title="Attributes to strip from a replicatio<Selectn update">
                                 <Col componentClass={ControlLabel} sm={4}>
                                     Strip Attributes
                                 </Col>
                                 <Col sm={8}>
                                     <Select
                                         variant={SelectVariant.typeaheadMulti}
-                                        onToggle={(isExpanded) => {
-                                            onSelectToggle(isExpanded, (getToggleId(title).stripAttrsName));
-                                        }}
-                                        onSelect={(e, values) => {
-                                            handleStripChange(values);
-                                        }}
-                                        onClear={e => {
-                                            onSelectClear("agmtStripAttrsSelectExpanded", "agmtStripAttrs");
-                                        }}
+                                        typeAheadAriaLabel="Type an attribute"
+                                        onToggle={onStripAttrsToggle}
+                                        onSelect={(e, selection) => { handleStripChange(selection) }}
+                                        onClear={onStripAttrsClear}
                                         selections={agmtStripAttrs}
-                                        isOpen={(getToggleId(title).stripAttrsBool)}
+                                        isOpen={isStripAttrsOpen}
+                                        aria-labelledby="typeAhead-strip-attrs"
                                         placeholderText="Start typing an attribute..."
                                         noResultsFoundText="There are no matching entries"
                                         >

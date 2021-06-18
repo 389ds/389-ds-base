@@ -64,9 +64,77 @@ class ReferentialIntegrity extends React.Component {
             newEntry: true,
 
             attributes: [],
-            // Select Typeahead
-            configMembershipAttrSelectExpanded: false,
-            membershipAttrSelectExpanded: false
+
+            isConfigMembershipAttrOpen: false,
+            isMembershipAttrOpen: false
+        };
+
+        // Config Membership Attribute
+        this.onConfigMembershipAttrSelect = (event, selection) => {
+            if (this.state.configMembershipAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        configMembershipAttr: prevState.configMembershipAttr.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ configMembershipAttr: [...prevState.configMembershipAttr, selection] }),
+                );
+            }
+        };
+        this.onConfigMembershipAttrToggle = isConfigMembershipAttrOpen => {
+            this.setState({
+                isConfigMembershipAttrOpen
+            });
+        };
+        this.onConfigMembershipAttrClear = () => {
+            this.setState({
+                configMembershipAttr: [],
+                isConfigMembershipAttrOpen: false
+            });
+        };
+        this.onConfigMembershipAttrCreateOption = newValue => {
+            if (!this.state.configMembershipAttr.includes(newValue)) {
+                this.setState({
+                    configMembershipAttr: [...this.state.configMembershipAttr, newValue],
+                    isConfigMembershipAttrOpen: false
+                });
+            }
+        };
+
+        // Membership Attribute
+        this.onMembershipAttrSelect = (event, selection) => {
+            if (this.state.membershipAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        membershipAttr: prevState.membershipAttr.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ membershipAttr: [...prevState.membershipAttr, selection] }),
+                );
+            }
+        };
+        this.onMembershipAttrToggle = isMembershipAttrOpen => {
+            this.setState({
+                isMembershipAttrOpen
+            });
+        };
+        this.onMembershipAttrClear = () => {
+            this.setState({
+                membershipAttr: [],
+                isMembershipAttrOpen: false
+            });
+        };
+        this.onMembershipAttrCreateOption = newValue => {
+            if (!this.state.membershipAttr.includes(newValue)) {
+                this.setState({
+                    membershipAttr: [...this.state.membershipAttr, newValue],
+                    isMembershipAttrOpen: false
+                });
+            }
         };
 
         this.updateFields = this.updateFields.bind(this);
@@ -507,36 +575,17 @@ class ReferentialIntegrity extends React.Component {
                                     <Col sm={9}>
                                         <Select
                                             variant={SelectVariant.typeaheadMulti}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    configMembershipAttrSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                if (!this.state.configMembershipAttr.includes(values)) {
-                                                    this.setState({
-                                                        configMembershipAttr: [...this.state.configMembershipAttr, values]
-                                                    });
-                                                }
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    configMembershipAttrSelectExpanded: false,
-                                                    configMembershipAttr: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type an attribute"
+                                            onToggle={this.onConfigMembershipAttrToggle}
+                                            onSelect={this.onConfigMembershipAttrSelect}
+                                            onClear={this.onConfigMembershipAttrClear}
                                             selections={configMembershipAttr}
-                                            isOpen={this.state.configMembershipAttrSelectExpanded}
+                                            isOpen={this.state.isConfigMembershipAttrOpen}
+                                            aria-labelledby="typeAhead-config-membership-attr"
                                             placeholderText="Type an attribute..."
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                if (!this.state.configMembershipAttr.includes(values)) {
-                                                    this.setState({
-                                                        configMembershipAttr: [...this.state.configMembershipAttr, values]
-                                                    });
-                                                }
-                                            }}
+                                            onCreateOption={this.onConfigMembershipAttrCreateOption}
                                             >
                                             {attributes.map((attr, index) => (
                                                 <SelectOption
@@ -669,36 +718,17 @@ class ReferentialIntegrity extends React.Component {
                                     <Col sm={6}>
                                         <Select
                                             variant={SelectVariant.typeaheadMulti}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    membershipAttrSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                if (!this.state.membershipAttr.includes(values)) {
-                                                    this.setState({
-                                                        membershipAttr: [...this.state.membershipAttr, values]
-                                                    });
-                                                }
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    membershipAttrSelectExpanded: false,
-                                                    membershipAttr: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type an attribute"
+                                            onToggle={this.onMembershipAttrToggle}
+                                            onSelect={this.onMembershipAttrSelect}
+                                            onClear={this.onMembershipAttrClear}
                                             selections={membershipAttr}
-                                            isOpen={this.state.membershipAttrSelectExpanded}
-                                            placeholderText="Type a suffix DN..."
+                                            isOpen={this.state.isMembershipAttrOpen}
+                                            aria-labelledby="typeAhead-membership-attr"
+                                            placeholderText="Type an attribute..."
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                if (!this.state.membershipAttr.includes(values)) {
-                                                    this.setState({
-                                                        membershipAttr: [...this.state.membershipAttr, values]
-                                                    });
-                                                }
-                                            }}
+                                            onCreateOption={this.onMembershipAttrCreateOption}
                                             >
                                             {attributes.map((attr, index) => (
                                                 <SelectOption

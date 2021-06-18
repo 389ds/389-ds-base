@@ -46,8 +46,34 @@ class RetroChangelog extends React.Component {
             maxAge: "",
             excludeSuffix: "",
             attributes: [],
-            // Select Typeahead
-            isRetroClAddAttrSelectOpen: false
+
+            isAttributeOpen: false
+        };
+
+        // Attribute
+        this.onAttributeSelect = (event, selection) => {
+            if (this.state.attribute.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        attribute: prevState.attribute.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ attribute: [...prevState.attribute, selection] }),
+                );
+            }
+        };
+        this.onAttributeToggle = isAttributeOpen => {
+            this.setState({
+                isAttributeOpen
+            });
+        };
+        this.onAttributeClear = () => {
+            this.setState({
+                attribute: [],
+                isAttributeOpen: false
+            });
         };
 
         this.updateFields = this.updateFields.bind(this);
@@ -197,17 +223,13 @@ class RetroChangelog extends React.Component {
                                     <Col sm={7}>
                                         <Select
                                             variant={SelectVariant.typeahead}
-                                            onToggle={(isExpanded) => {
-                                                this.onSelectToggle(isExpanded, "isRetroClAddAttrSelectOpen");
-                                            }}
-                                            onClear={this.onSelectClear("addRetroClAttribute")}
-                                            onSelect={(event, values) => {
-                                                this.setState({
-                                                    attribute: [values]
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type an attribute"
+                                            onToggle={this.onAttributeToggle}
+                                            onSelect={this.onAttributeSelect}
+                                            onClear={this.onAttributeClear}
                                             selections={attribute}
-                                            isOpen={this.state.isRetroClAddAttrSelectOpen}
+                                            isOpen={this.state.isAttributeOpen}
+                                            aria-labelledby="typeAhead-attribute"
                                             placeholderText="Type an attribute..."
                                             noResultsFoundText="There are no matching entries"
                                             >

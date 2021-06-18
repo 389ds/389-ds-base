@@ -69,10 +69,37 @@ export class WinsyncAgmts extends React.Component {
             // Init agmt
             agmtInitCounter: 0,
             agmtInitIntervals: [],
-            // Select Typeahead
-            agmtFracAttrsSelectExpanded: false,
-            agmtFracAttrsEditSelectExpanded: false,
+
+            isExcludeAttrCreateOpen: false,
+            isExcludeAttrEditOpen: false,
         };
+
+        // Create - Exclude Attributes
+        this.onExcludeAttrCreateToggle = isExcludeAttrCreateOpen => {
+            this.setState({
+                isExcludeAttrCreateOpen
+            });
+        };
+        this.onExcludeAttrCreateClear = () => {
+            this.setState({
+                agmtFracAttrs: [],
+                isExcludeAttrCreateOpen: false
+            });
+        };
+
+        // Edit - Exclude Attributes
+        this.onExcludeAttrEditToggle = isExcludeAttrEditOpen => {
+            this.setState({
+                isExcludeAttrEditOpen
+            });
+        };
+        this.onExcludeAttrEditClear = () => {
+            this.setState({
+                agmtFracAttrs: [],
+                isExcludeAttrEditOpen: false
+            });
+        };
+
         this.showCreateAgmtModal = this.showCreateAgmtModal.bind(this);
         this.closeCreateAgmtModal = this.closeCreateAgmtModal.bind(this);
         this.closeEditAgmtModal = this.closeEditAgmtModal.bind(this);
@@ -99,10 +126,6 @@ export class WinsyncAgmts extends React.Component {
         // Table sort and search
         this.onSort = this.onSort.bind(this);
         this.onSearchChange = this.onSearchChange.bind(this);
-        // Select Typeahead
-        this.onSelectToggle = this.onSelectToggle.bind(this);
-        this.onSelectClear = this.onSelectClear.bind(this);
-        this.getToggleId = this.getToggleId.bind(this);
     }
 
     componentDidMount () {
@@ -370,14 +393,40 @@ export class WinsyncAgmts extends React.Component {
             }
             // End of agmt modal live validation
         }
-        this.setState({
-            // We handle strings and arrays here, need to find a better way to differentiate.
-            [e.target.id]: e.target.id.endsWith('Attrs') ? [...this.state[e.target.id], value] : value,
-            errObj: errObj,
-            agmtSaveOK: all_good,
-            modalMsg: modal_msg,
-            modalScheduleMsg: modal_schedule_msg,
-        });
+        // We handle strings and arrays here, need to find a better way to differentiate.
+        if (e.target.id.endsWith('Attrs')) {
+            if (this.state[e.target.id].includes(e.target.value)) {
+                this.setState(
+                    (prevState) => ({
+                        [e.target.id]: prevState[e.target.id].filter((item) => item !== e.target.value)
+                    }),
+                );
+                this.setState({
+                    errObj: errObj,
+                    agmtSaveOK: all_good,
+                    modalMsg: modal_msg,
+                    modalScheduleMsg: modal_schedule_msg,
+                });
+            } else {
+                this.setState(
+                    (prevState) => ({ [e.target.id]: [...prevState[e.target.id], e.target.value] }),
+                );
+                this.setState({
+                    errObj: errObj,
+                    agmtSaveOK: all_good,
+                    modalMsg: modal_msg,
+                    modalScheduleMsg: modal_schedule_msg,
+                });
+            }
+        } else {
+            this.setState({
+                [e.target.id]: value,
+                errObj: errObj,
+                agmtSaveOK: all_good,
+                modalMsg: modal_msg,
+                modalScheduleMsg: modal_schedule_msg,
+            });
+        }
     }
 
     handleTAFracAttrChangeEdit (values) {
@@ -687,43 +736,6 @@ export class WinsyncAgmts extends React.Component {
                         `Failed to get agreement information for: "${agmtName}" - ${errMsg.desc}`
                     );
                 });
-    }
-
-    onSelectToggle = (isExpanded, toggleId) => {
-        this.setState({
-            [toggleId]: isExpanded
-        });
-    }
-
-    onSelectClear = (toggleId, collection) => {
-        this.setState({
-            [toggleId]: false,
-            [collection]: []
-        });
-    }
-
-    getToggleId = (modalTitle) => {
-        let modalSelect = {
-            stripAttrsName: "",
-            fracAttrsName: "",
-            fracInitAttrsName: "",
-            stripAttrsBool: false,
-            fracAttrsBool: false,
-            fracInitAttrsBoo: false,
-        };
-
-        switch (modalTitle) {
-        case "Create Winsync Agreement":
-            modalSelect.fracAttrsName = "agmtFracAttrsSelectExpanded";
-            modalSelect.fracAttrsBool = this.state.agmtFracAttrsSelectExpanded;
-            return modalSelect;
-        case "Edit Winsync Agreement":
-            modalSelect.fracAttrsName = "agmtFracAttrsEditSelectExpanded";
-            modalSelect.fracAttrsBool = this.state.agmtFracAttrsEditSelectExpanded;
-            return modalSelect;
-        default:
-            break;
-        }
     }
 
     saveAgmt () {
@@ -1173,9 +1185,10 @@ export class WinsyncAgmts extends React.Component {
                     closeHandler={this.closeCreateAgmtModal}
                     handleChange={this.handleChange}
                     handleFracChange={this.handleTAFracAttrChange}
+                    onSelectToggle={this.onExcludeAttrCreateToggle}
+                    onSelectClear={this.onExcludeAttrCreateClear}
+                    isExcludeAttrOpen={this.state.isExcludeAttrCreateOpen}
                     saveHandler={this.createAgmt}
-                    onSelectToggle={this.onSelectToggle}
-                    onSelectClear={this.onSelectClear}
                     getToggleId={this.getToggleId}
                     spinning={this.state.savingAgmt}
                     agmtName={this.state.agmtName}
@@ -1214,8 +1227,9 @@ export class WinsyncAgmts extends React.Component {
                     closeHandler={this.closeEditAgmtModal}
                     handleChange={this.handleChange}
                     handleFracChange={this.handleTAFracAttrChangeEdit}
-                    onSelectToggle={this.onSelectToggle}
-                    onSelectClear={this.onSelectClear}
+                    onSelectToggle={this.onExcludeAttrEditToggle}
+                    onSelectClear={this.onExcludeAttrEditClear}
+                    isExcludeAttrOpen={this.state.isExcludeAttrEditOpen}
                     getToggleId={this.getToggleId}
                     saveHandler={this.saveAgmt}
                     spinning={this.state.savingAgmt}

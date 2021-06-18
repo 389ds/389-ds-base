@@ -87,14 +87,218 @@ class MemberOf extends React.Component {
 
             fixupDN: "",
             fixupFilter: "",
-            // Select Typeahead
-            memberOfManageAttrSelectExpanded: false,
-            memberOfManageGroupAttrSelectExpanded: false,
-            memberOfManageObjectclassSelectExpanded: false,
-            memberOfAttrSelectExpanded: false,
-            memberOfGroupAttrSelectExpanded: false,
-            memberObjectclassSelectExpanded: false,
 
+            isConfigAttrOpen: false,
+            isConfigGroupAttrOpen: false,
+            isConfigAutoAddOCOpen: false,
+            isMemberOfAttrOpen: false,
+            isMemberOfGroupAttrOpen: false,
+            isMemberOfAutoAddOCOpen: false,
+
+        };
+
+        // Config Attribute
+        this.onConfigAttrSelect = (event, selection) => {
+            if (this.state.configAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        configAttr: prevState.configAttr.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ configAttr: [...prevState.configAttr, selection] }),
+                );
+            }
+        };
+        this.onConfigAttrToggle = isConfigAttrOpen => {
+            this.setState({
+                isConfigAttrOpen
+            });
+        };
+        this.onConfigAttrClear = () => {
+            this.setState({
+                configAttr: [],
+                isConfigAttrOpen: false
+            });
+        };
+        this.onConfigAttrCreateOption = newValue => {
+            if (!this.state.configAttr.includes(newValue)) {
+                this.setState({
+                    configAttr: [...this.state.configAttr, newValue],
+                    isConfigAttrOpen: false
+                });
+            }
+        };
+
+        // Config Group Attribute
+        this.onConfigGroupAttrSelect = (event, selection) => {
+            if (this.state.configGroupAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        configGroupAttr: prevState.configGroupAttr.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ configGroupAttr: [...prevState.configGroupAttr, selection] }),
+                );
+            }
+        };
+        this.onConfigGroupAttrToggle = isConfigGroupAttrOpen => {
+            this.setState({
+                isConfigGroupAttrOpen
+            });
+        };
+        this.onConfigGroupAttrClear = () => {
+            this.setState({
+                configGroupAttr: [],
+                isConfigGroupAttrOpen: false
+            });
+        };
+        this.onConfigGroupAttrCreateOption = newValue => {
+            if (!this.state.configGroupAttr.includes(newValue)) {
+                this.setState({
+                    configGroupAttr: [...this.state.configGroupAttr, newValue],
+                    isConfigGroupAttrOpen: false
+                });
+            }
+        };
+
+        // Config Auto Add OC
+        this.onConfigAutoAddOCSelect = (event, selection) => {
+            if (this.state.configAutoAddOC.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        configAutoAddOC: prevState.configAutoAddOC.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ configAutoAddOC: [...prevState.configAutoAddOC, selection] }),
+                );
+            }
+        };
+        this.onConfigAutoAddOCToggle = isConfigAutoAddOCOpen => {
+            this.setState({
+                isConfigAutoAddOCOpen
+            });
+        };
+        this.onConfigAutoAddOCClear = () => {
+            this.setState({
+                configAutoAddOC: [],
+                isConfigAutoAddOCOpen: false
+            });
+        };
+        this.onConfigAutoAddOCCreateOption = newValue => {
+            if (!this.state.configAutoAddOC.includes(newValue)) {
+                this.setState({
+                    configAutoAddOC: [...this.state.configAutoAddOC, newValue],
+                    isConfigAutoAddOCOpen: false
+                });
+            }
+        };
+
+        // MemberOr Attribute
+        this.onMemberOfAttrSelect = (event, selection) => {
+            if (this.state.memberOfAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        memberOfAttr: prevState.memberOfAttr.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ memberOfAttr: [...prevState.memberOfAttr, selection] }),
+                );
+            }
+        };
+        this.onMemberOfAttrToggle = isMemberOfAttrOpen => {
+            this.setState({
+                isMemberOfAttrOpen
+            });
+        };
+        this.onMemberOfAttrClear = () => {
+            this.setState({
+                memberOfAttr: [],
+                isMemberOfAttrOpen: false
+            });
+        };
+        this.onMemberOfAttrCreateOption = newValue => {
+            if (!this.state.memberOfAttr.includes(newValue)) {
+                this.setState({
+                    memberOfAttr: [...this.state.memberOfAttr, newValue],
+                    isMemberOfAttrOpen: false
+                });
+            }
+        };
+
+        // MemberOr Group Attribute
+        this.onMemberOfGroupAttrSelect = (event, selection) => {
+            if (this.state.memberOfGroupAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        memberOfGroupAttr: prevState.memberOfGroupAttr.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ memberOfGroupAttr: [...prevState.memberOfGroupAttr, selection] }),
+                );
+            }
+        };
+        this.onMemberOfGroupAttrToggle = isMemberOfGroupAttrOpen => {
+            this.setState({
+                isMemberOfGroupAttrOpen
+            });
+        };
+        this.onMemberOfGroupAttrClear = () => {
+            this.setState({
+                memberOfGroupAttr: [],
+                isMemberOfGroupAttrOpen: false
+            });
+        };
+        this.onMemberOfGroupAttrCreateOption = newValue => {
+            if (!this.state.memberOfGroupAttr.includes(newValue)) {
+                this.setState({
+                    memberOfGroupAttr: [...this.state.memberOfGroupAttr, newValue],
+                    isMemberOfGroupAttrOpen: false
+                });
+            }
+        };
+
+        // MemberOr Auto Add OC
+        this.onMemberOfAutoAddOCSelect = (event, selection) => {
+            if (this.state.memberOfAutoAddOC.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        memberOfAutoAddOC: prevState.memberOfAutoAddOC.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ memberOfAutoAddOC: [...prevState.memberOfAutoAddOC, selection] }),
+                );
+            }
+        };
+        this.onMemberOfAutoAddOCToggle = isMemberOfAutoAddOCOpen => {
+            this.setState({
+                isMemberOfAutoAddOCOpen
+            });
+        };
+        this.onMemberOfAutoAddOCClear = () => {
+            this.setState({
+                memberOfAutoAddOC: [],
+                isMemberOfAutoAddOCOpen: false
+            });
+        };
+        this.onMemberOfAutoAddOCCreateOption = newValue => {
+            if (!this.state.memberOfAutoAddOC.includes(newValue)) {
+                this.setState({
+                    memberOfAutoAddOC: [...this.state.memberOfAutoAddOC, newValue],
+                    isMemberOfAutoAddOCOpen: false
+                });
+            }
         };
     }
 
@@ -708,34 +912,17 @@ class MemberOf extends React.Component {
                                     <Col sm={9}>
                                         <Select
                                             variant={SelectVariant.typeaheadMulti}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    memberOfAttrSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                if (!this.state.configAttr.includes(values)) {
-                                                    this.setState({
-                                                        configAttr: [...this.state.configAttr, values]
-                                                    });
-                                                }
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    memberOfAttrSelectExpanded: false,
-                                                    configAttr: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type a member attribute"
+                                            onToggle={this.onConfigAttrToggle}
+                                            onSelect={this.onConfigAttrSelect}
+                                            onClear={this.onConfigAttrClear}
                                             selections={configAttr}
-                                            isOpen={this.state.memberOfAttrSelectExpanded}
+                                            isOpen={this.state.isConfigAttrOpen}
+                                            aria-labelledby="typeAhead-config-attr"
                                             placeholderText="Type a member attribute..."
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                this.setState({
-                                                    configAttr: [...this.state.configAttr, values]
-                                                });
-                                            }}
+                                            onCreateOption={this.isConfigAttrOpen}
                                             >
                                             {["memberOf"].map((attr, index) => (
                                                 <SelectOption
@@ -761,34 +948,17 @@ class MemberOf extends React.Component {
                                     <Col sm={9}>
                                         <Select
                                             variant={SelectVariant.typeaheadMulti}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    memberOfManageGroupAttrSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                if (!this.state.configGroupAttr.includes(values)) {
-                                                    this.setState({
-                                                        configGroupAttr: [...this.state.configGroupAttr, values]
-                                                    });
-                                                }
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    memberOfManageGroupAttrSelectExpanded: false,
-                                                    configGroupAttr: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type a member group attribute"
+                                            onToggle={this.onConfigGroupAttrToggle}
+                                            onSelect={this.onConfigGroupAttrSelect}
+                                            onClear={this.onConfigGroupAttrClear}
                                             selections={configGroupAttr}
-                                            isOpen={this.state.memberOfManageGroupAttrSelectExpanded}
-                                            placeholderText="Type a hostname (wild cards are allowed)..."
+                                            isOpen={this.state.isConfigGroupAttrOpen}
+                                            aria-labelledby="typeAhead-config-group-attr"
+                                            placeholderText="Type a member group attribute..."
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                this.setState({
-                                                    configGroupAttr: [...this.state.configGroupAttr, values]
-                                                });
-                                            }}
+                                            onCreateOption={this.onConfigGroupAttrCreateOption}
                                             >
                                             {attributeTypes.map((attr, index) => (
                                                 <SelectOption
@@ -876,32 +1046,17 @@ class MemberOf extends React.Component {
                                     <Col sm={9}>
                                         <Select
                                             variant={SelectVariant.typeahead}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    memberOfManageObjectclassSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                this.setState({
-                                                    configAutoAddOC: values
-                                                });
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    memberOfManageObjectclassSelectExpanded: false,
-                                                    configAutoAddOC: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type an objectClass"
+                                            onToggle={this.onConfigAutoAddOCToggle}
+                                            onSelect={this.onConfigAutoAddOCSelect}
+                                            onClear={this.onConfigAutoAddOCClear}
                                             selections={configAutoAddOC}
-                                            isOpen={this.state.memberOfManageObjectclassSelectExpanded}
+                                            isOpen={this.state.isConfigAutoAddOCOpen}
+                                            aria-labelledby="typeAhead-config-auto-addoc"
                                             placeholderText="Type an objectClass..."
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                this.setState({
-                                                    configAutoAddOC: values
-                                                });
-                                            }}
+                                            onCreateOption={this.onConfigAutoAddOCCreateOption}
                                             >
                                             {objectClasses.map((attr, index) => (
                                                 <SelectOption
@@ -947,34 +1102,17 @@ class MemberOf extends React.Component {
                                     <Col sm={8}>
                                         <Select
                                             variant={SelectVariant.typeaheadMulti}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    memberOfAttrSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                if (!this.state.memberOfAttr.includes(values)) {
-                                                    this.setState({
-                                                        memberOfAttr: [...this.state.memberOfAttr, values]
-                                                    });
-                                                }
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    memberOfAttrSelectExpanded: false,
-                                                    memberOfAttr: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type a member attribute"
+                                            onToggle={this.onMemberOfAttrToggle}
+                                            onSelect={this.onMemberOfAttrSelect}
+                                            onClear={this.onMemberOfAttrClear}
                                             selections={memberOfAttr}
-                                            isOpen={this.state.memberOfAttrSelectExpanded}
+                                            isOpen={this.state.isMemberOfAttrOpen}
+                                            aria-labelledby="typeAhead-memberof-attr"
                                             placeholderText="Type a member attribute..."
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                this.setState({
-                                                    memberOfAttr: [...this.state.memberOfAttr, values]
-                                                });
-                                            }}
+                                            onCreateOption={this.onMemberOfAttrCreateOption}
                                             >
                                             {["member", "memberCertificate", "uniqueMember"].map((attr) => (
                                                 <SelectOption
@@ -1001,34 +1139,16 @@ class MemberOf extends React.Component {
                                         <Select
                                             variant={SelectVariant.typeaheadMulti}
                                             typeAheadAriaLabel="Type a member group attribute"
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    memberOfGroupAttrSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                if (!this.state.memberOfGroupAttr.includes(values)) {
-                                                    this.setState({
-                                                        memberOfGroupAttr: [...this.state.memberOfGroupAttr, values]
-                                                    });
-                                                }
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    memberOfGroupAttrSelectExpanded: false,
-                                                    memberOfGroupAttr: []
-                                                });
-                                            }}
+                                            onToggle={this.onMemberOfGroupAttrToggle}
+                                            onSelect={this.onMemberOfGroupAttrSelect}
+                                            onClear={this.onMemberOfGroupAttrClear}
                                             selections={memberOfGroupAttr}
-                                            isOpen={this.state.memberOfGroupAttrSelectExpanded}
+                                            isOpen={this.state.isMemberOfGroupAttrOpen}
+                                            aria-labelledby="typeAhead-memberof-group-attr"
                                             placeholderText="Type a member group attribute..."
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                this.setState({
-                                                    memberOfGroupAttr: [...this.state.memberOfGroupAttr, values]
-                                                });
-                                            }}
+                                            onCreateOption={this.onMemberOfGroupAttrCreateOption}
                                             >
                                             {attributeTypes.map((attr, index) => (
                                                 <SelectOption
@@ -1150,32 +1270,17 @@ class MemberOf extends React.Component {
                                     <Col sm={8}>
                                         <Select
                                             variant={SelectVariant.typeahead}
-                                            onToggle={(isExpanded) => {
-                                                this.setState({
-                                                    memberObjectclassSelectExpanded: isExpanded
-                                                });
-                                            }}
-                                            onSelect={(e, values) => {
-                                                this.setState({
-                                                    memberOfAutoAddOC: values
-                                                });
-                                            }}
-                                            onClear={e => {
-                                                this.setState({
-                                                    memberObjectclassSelectExpanded: false,
-                                                    memberOfAutoAddOC: []
-                                                });
-                                            }}
+                                            typeAheadAriaLabel="Type an objectClass"
+                                            onToggle={this.onMemberOfAutoAddOCToggle}
+                                            onSelect={this.onMemberOfAutoAddOCSelect}
+                                            onClear={this.onMemberOfAutoAddOCClear}
                                             selections={memberOfAutoAddOC}
-                                            isOpen={this.state.memberObjectclassSelectExpanded}
+                                            isOpen={this.state.isMemberOfAutoAddOCOpen}
+                                            aria-labelledby="typeAhead-memberof-auto-addoc"
                                             placeholderText="Type an objectClass..."
                                             noResultsFoundText="There are no matching entries"
                                             isCreatable
-                                            onCreateOption={(values) => {
-                                                this.setState({
-                                                    memberOfAutoAddOC: [...this.state.memberOfAutoAddOC, values]
-                                                });
-                                            }}
+                                            onCreateOption={this.onMemberOfAutoAddOCCreateOption}
                                             >
                                             {objectClasses.map((attr, index) => (
                                                 <SelectOption

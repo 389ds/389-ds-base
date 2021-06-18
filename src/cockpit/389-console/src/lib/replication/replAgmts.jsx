@@ -70,14 +70,93 @@ export class ReplAgmts extends React.Component {
             // Init agmt
             agmtInitCounter: 0,
             agmtInitIntervals: [],
-            // Select Typeahead
-            agmtStripAttrsSelectExpanded: false,
-            agmtFracAttrsSelectExpanded: false,
-            agmtFracInitAttrsSelectExpanded: false,
-            agmtStripAttrsEditSelectExpanded: "",
-            agmtFracAttrsEditSelectExpanded: false,
-            agmtFracInitAttrsEditSelectExpanded: false,
+
+            isExcludeAttrsCreateOpen: false,
+            isExcludeInitAttrsCreateOpen: false,
+            isStripAttrsCreateOpen: false,
+            isExcludeAttrsEditOpen: false,
+            isExcludeInitAttrsEditOpen: false,
+            isStripAttrsEditOpen: false,
         };
+
+        // Create - Exclude Attributes
+        this.onExcludeAttrsCreateToggle = isExcludeAttrsCreateOpen => {
+            this.setState({
+                isExcludeAttrsCreateOpen
+            });
+        };
+        this.onExcludeAttrsCreateClear = () => {
+            this.setState({
+                agmtFracAttrs: [],
+                isExcludeAttrsCreateOpen: false
+            });
+        };
+
+        // Create - Exclude Init Attributes
+        this.onExcludeAttrsInitCreateToggle = isExcludeInitAttrsCreateOpen => {
+            this.setState({
+                isExcludeInitAttrsCreateOpen
+            });
+        };
+        this.onExcludeAttrsInitCreateClear = () => {
+            this.setState({
+                agmtFracInitAttrs: [],
+                isExcludeInitAttrsCreateOpen: false
+            });
+        };
+
+        // Create - Skip Attributes
+        this.onStripAttrsCreateToggle = isStripAttrsCreateOpen => {
+            this.setState({
+                isStripAttrsCreateOpen
+            });
+        };
+        this.onStripAttrsCreateClear = () => {
+            this.setState({
+                agmtStripAttrs: [],
+                isStripAttrsCreateOpen: false
+            });
+        };
+
+        // Edit - Exclude Attributes
+        this.onExcludeAttrsEditToggle = isExcludeAttrsEditOpen => {
+            this.setState({
+                isExcludeAttrsEditOpen
+            });
+        };
+        this.onExcludeAttrsEditClear = () => {
+            this.setState({
+                agmtFracAttrs: [],
+                isExcludeAttrsEditOpen: false
+            });
+        };
+
+        // Edit - Exclude Init Attributes
+        this.onExcludeAttrsInitEditToggle = isExcludeInitAttrsEditOpen => {
+            this.setState({
+                isExcludeInitAttrsEditOpen
+            });
+        };
+        this.onExcludeAttrsInitEditClear = () => {
+            this.setState({
+                agmtFracInitAttrs: [],
+                isExcludeInitAttrsEditOpen: false
+            });
+        };
+
+        // Edit - Skip Attributes
+        this.onStripAttrsEditToggle = isStripAttrsEditOpen => {
+            this.setState({
+                isStripAttrsEditOpen
+            });
+        };
+        this.onStripAttrsEditClear = () => {
+            this.setState({
+                agmtStripAttrs: [],
+                isStripAttrsEditOpen: false
+            });
+        };
+
         this.showCreateAgmtModal = this.showCreateAgmtModal.bind(this);
         this.closeCreateAgmtModal = this.closeCreateAgmtModal.bind(this);
         this.closeEditAgmtModal = this.closeEditAgmtModal.bind(this);
@@ -108,10 +187,6 @@ export class ReplAgmts extends React.Component {
         // Table sort and search
         this.onSort = this.onSort.bind(this);
         this.onSearchChange = this.onSearchChange.bind(this);
-        // Select Typeahead
-        this.onSelectToggle = this.onSelectToggle.bind(this);
-        this.onSelectClear = this.onSelectClear.bind(this);
-        this.getToggleId = this.getToggleId.bind(this);
     }
 
     componentDidMount () {
@@ -525,14 +600,40 @@ export class ReplAgmts extends React.Component {
             }
             // End of agmt modal live validation
         }
-        this.setState({
-            // We handle strings and arrays here, need to find a better way to differentiate.
-            [attr]: e.target.id.endsWith('Attrs') ? [...this.state[attr], value] : value,
-            errObj: errObj,
-            agmtSaveOK: all_good,
-            modalMsg: modal_msg,
-            modalScheduleMsg: modal_schedule_msg,
-        });
+        // We handle strings and arrays here, need to find a better way to differentiate.
+        if (e.target.id.endsWith('Attrs')) {
+            if (this.state[attr].includes(e.target.value)) {
+                this.setState(
+                    (prevState) => ({
+                        [attr]: prevState[attr].filter((item) => item !== e.target.value)
+                    }),
+                );
+                this.setState({
+                    errObj: errObj,
+                    agmtSaveOK: all_good,
+                    modalMsg: modal_msg,
+                    modalScheduleMsg: modal_schedule_msg,
+                });
+            } else {
+                this.setState(
+                    (prevState) => ({ [attr]: [...prevState[attr], e.target.value] }),
+                );
+                this.setState({
+                    errObj: errObj,
+                    agmtSaveOK: all_good,
+                    modalMsg: modal_msg,
+                    modalScheduleMsg: modal_schedule_msg,
+                });
+            }
+        } else {
+            this.setState({
+                [attr]: value,
+                errObj: errObj,
+                agmtSaveOK: all_good,
+                modalMsg: modal_msg,
+                modalScheduleMsg: modal_schedule_msg,
+            });
+        }
     }
 
     handleTAStripAttrChangeEdit (values) {
@@ -624,38 +725,6 @@ export class ReplAgmts extends React.Component {
             [toggleId]: false,
             [collection]: []
         });
-    }
-
-    getToggleId = (modalTitle) => {
-        let modalSelect = {
-            stripAttrsName: "",
-            fracAttrsName: "",
-            fracInitAttrsName: "",
-            stripAttrsBool: false,
-            fracAttrsBool: false,
-            fracInitAttrsBoo: false,
-        };
-
-        switch (modalTitle) {
-        case "Create Replication Agreement":
-            modalSelect.stripAttrsName = "agmtStripAttrsSelectExpanded";
-            modalSelect.fracAttrsName = "agmtFracAttrsSelectExpanded";
-            modalSelect.fracInitAttrsName = "agmtFracInitAttrsSelectExpanded";
-            modalSelect.stripAttrsBool = this.state.agmtStripAttrsSelectExpanded;
-            modalSelect.fracAttrsBool = this.state.agmtFracAttrsSelectExpanded;
-            modalSelect.fracInitAttrsBool = this.state.agmtFracInitAttrsSelectExpanded;
-            return modalSelect;
-        case "Edit Replication Agreement":
-            modalSelect.stripAttrsName = "agmtStripAttrsEditSelectExpanded";
-            modalSelect.fracAttrsName = "agmtFracAttrsEditSelectExpanded";
-            modalSelect.fracInitAttrsName = "agmtFracInitAttrsEditSelectExpanded";
-            modalSelect.stripAttrsBool = this.state.agmtStripAttrsEditSelectExpanded;
-            modalSelect.fracAttrsBool = this.state.agmtFracAttrsEditSelectExpanded;
-            modalSelect.fracInitAttrsBool = this.state.agmtFracInitAttrsEditSelectExpanded;
-            return modalSelect;
-        default:
-            break;
-        }
     }
 
     showConfirmDeleteAgmt (agmtName) {
@@ -1401,9 +1470,15 @@ export class ReplAgmts extends React.Component {
                     handleStripChange={this.handleTAStripAttrChange}
                     handleFracChange={this.handleTAFracAttrChange}
                     handleFracInitChange={this.handleTAFracInitAttrChange}
-                    onSelectToggle={this.onSelectToggle}
-                    onSelectClear={this.onSelectClear}
-                    getToggleId={this.getToggleId}
+                    onExcludeAttrsToggle={this.onExcludeAttrsCreateToggle}
+                    onExcludeAttrsClear={this.onExcludeAttrsCreateClear}
+                    onExcludeAttrsInitToggle={this.onExcludeAttrsInitCreateToggle}
+                    onExcludeAttrsInitClear={this.onExcludeAttrsInitCreateClear}
+                    onStripAttrsToggle={this.onStripAttrsCreateToggle}
+                    onStripAttrsClear={this.onStripAttrsCreateClear}
+                    isExcludeAttrsOpen={this.state.isExcludeAttrsCreateOpen}
+                    isExcludeInitAttrsOpen={this.state.isExcludeInitAttrsCreateOpen}
+                    isStripAttrsOpen={this.state.isStripAttrsCreateOpen}
                     saveHandler={this.createAgmt}
                     spinning={this.state.savingAgmt}
                     agmtName={this.state.agmtName}
@@ -1446,9 +1521,15 @@ export class ReplAgmts extends React.Component {
                     handleStripChange={this.handleTAStripAttrChangeEdit}
                     handleFracChange={this.handleTAFracAttrChangeEdit}
                     handleFracInitChange={this.handleTAFracInitAttrChangeEdit}
-                    onSelectToggle={this.onSelectToggle}
-                    onSelectClear={this.onSelectClear}
-                    getToggleId={this.getToggleId}
+                    onExcludeAttrsToggle={this.onExcludeAttrsEditToggle}
+                    onExcludeAttrsClear={this.onExcludeAttrsEditClear}
+                    onExcludeAttrsInitToggle={this.onExcludeAttrsInitEditToggle}
+                    onExcludeAttrsInitClear={this.onExcludeAttrsInitEditClear}
+                    onStripAttrsToggle={this.onStripAttrsEditToggle}
+                    onStripAttrsClear={this.onStripAttrsEditClear}
+                    isExcludeAttrsOpen={this.state.isExcludeAttrsEditOpen}
+                    isExcludeInitAttrsOpen={this.state.isExcludeInitAttrsEditOpen}
+                    isStripAttrsOpen={this.state.isStripAttrsEditOpen}
                     saveHandler={this.saveAgmt}
                     spinning={this.state.savingAgmt}
                     agmtName={this.state.agmtName}
