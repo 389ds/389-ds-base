@@ -271,7 +271,7 @@ export class GlobalDatabaseConfig extends React.Component {
                     <FormGroup
                         label="DB Locks Threshold Percentage"
                         fieldId="monitoringthreshold"
-                        title="Sets the DB lock exhaustion threshold in percentage (valid range is 70-95). When the threshold is reached, all searches are aborted until the number of active locks decreases below the configured threshold and/or the directory server administrator increases the number of Database Locks (nsslapd-db-locks). It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold)"
+                        title="Sets the DB lock exhaustion threshold in percentage (valid range is 70-95). When the threshold is reached, all searches are aborted until the number of active locks decreases below the configured threshold and/or the directory server administrator increases the number of Database Locks (nsslapd-db-locks). It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold) ('90' by default)"
                     >
                         <TextInput
                             id="dblocksMonitoringThreshold"
@@ -286,7 +286,7 @@ export class GlobalDatabaseConfig extends React.Component {
                     <FormGroup
                         label="DB Locks Pause Milliseconds"
                         fieldId="monitoringpause"
-                        title="Sets the amount of time (milliseconds) that the DB lock monitoring thread spends waiting between checks. (nsslapd-db-locks-monitoring-pause)"
+                        title="Sets the amount of time (milliseconds) that the DB lock monitoring thread spends waiting between checks. (nsslapd-db-locks-monitoring-pause) ('500' by default)"
                     >
                         <TextInput
                             id="dblocksMonitoringPause"
