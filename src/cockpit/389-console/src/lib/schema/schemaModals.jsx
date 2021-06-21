@@ -589,12 +589,12 @@ class AttributeTypeModal extends React.Component {
                                     selections={atAlias}
                                     isOpen={isAliasNameOpen}
                                     aria-labelledby="typeAhead-alias-name"
-                                    placeholderText="Type an alias name..."
+                                    placeholderText="jc0 Type an alias name..."
                                     noResultsFoundText="There are no matching entries"
                                     isCreatable
                                     onCreateOption={onAliasNameCreateOption}
                                     >
-                                    {[].map((alias, index) => (
+                                    {atAlias.map((alias, index) => (
                                         <SelectOption
                                             key={index}
                                             value={alias}

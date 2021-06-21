@@ -78,12 +78,16 @@ export class SuffixIndexes extends React.Component {
             if (this.state.addIndexName.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        addIndexName: prevState.addIndexName.filter((item) => item !== selection)
+                        addIndexName: prevState.addIndexName.filter((item) => item !== selection),
+                        isAttributeOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ addIndexName: [...prevState.addIndexName, selection] }),
+                    (prevState) => ({
+                        addIndexName: [...prevState.addIndexName, selection],
+                        isAttributeOpen: false
+                    }),
                 );
             }
         };
@@ -104,12 +108,16 @@ export class SuffixIndexes extends React.Component {
             if (this.state.mrs.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        mrs: prevState.mrs.filter((item) => item !== selection)
+                        mrs: prevState.mrs.filter((item) => item !== selection),
+                        isMatchingruleAddOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ mrs: [...prevState.mrs, selection] }),
+                    (prevState) => ({
+                        mrs: [...prevState.mrs, selection],
+                        isMatchingruleAddOpen: false
+                    }),
                 );
             }
         };
@@ -130,12 +138,16 @@ export class SuffixIndexes extends React.Component {
             if (this.state.mrs.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        mrs: prevState.mrs.filter((item) => item !== selection)
+                        mrs: prevState.mrs.filter((item) => item !== selection),
+                        isMatchingruleEditOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ mrs: [...prevState.mrs, selection] })
+                    (prevState) => ({
+                        mrs: [...prevState.mrs, selection],
+                        isMatchingruleEditOpen: false
+                    })
                 );
             }
         };

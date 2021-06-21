@@ -83,9 +83,9 @@ class PassthroughAuthentication extends React.Component {
             urlEntryModalShow: false
         };
 
-        this.onExcludeToggle = isExcludedOpen => {
+        this.onExcludeToggle = isExcludeOpen => {
             this.setState({
-                isExcludedOpen
+                isExcludeOpen
             });
         };
         this.clearExcludeSelection = () => {
@@ -95,8 +95,7 @@ class PassthroughAuthentication extends React.Component {
             });
         };
         this.onExcludeSelect = (event, selection) => {
-            const { pamExcludeSuffix } = this.state;
-            if (pamExcludeSuffix.includes(selection)) {
+            if (this.state.pamExcludeSuffix.includes(selection)) {
                 this.setState(
                     prevState => ({
                         pamExcludeSuffix: prevState.pamExcludeSuffix.filter(item => item !== selection),
@@ -121,9 +120,9 @@ class PassthroughAuthentication extends React.Component {
             }
         };
 
-        this.onIncludeToggle = isIncludedOpen => {
+        this.onIncludeToggle = isIncludeOpen => {
             this.setState({
-                isIncludedOpen
+                isIncludeOpen
             });
         };
         this.clearIncludeSelection = () => {
@@ -133,8 +132,7 @@ class PassthroughAuthentication extends React.Component {
             });
         };
         this.onIncludeSelect = (event, selection) => {
-            const { pamIncludeSuffix } = this.state;
-            if (pamIncludeSuffix.includes(selection)) {
+            if (this.state.pamIncludeSuffix.includes(selection)) {
                 this.setState(
                     prevState => ({
                         pamIncludeSuffix: prevState.pamIncludeSuffix.filter(item => item !== selection),
@@ -171,8 +169,7 @@ class PassthroughAuthentication extends React.Component {
             });
         };
         this.onAttrSelect = (event, selection) => {
-            const { pamIDAttr } = this.state;
-            if (!pamIDAttr.includes(selection)) {
+            if (this.state.pamIDAttr.includes(selection)) {
                 this.setState(
                     prevState => ({
                         pamIDAttr: prevState.pamIDAttr.filter(item => item !== selection),
@@ -973,9 +970,9 @@ class PassthroughAuthentication extends React.Component {
                                             aria-labelledby="Add a suffix"
                                             placeholderText="Type a suffix DN ..."
                                         >
-                                            {this.state.excludeOptions.map((suffix) => (
+                                            {this.state.excludeOptions.map((suffix, index) => (
                                                 <SelectOption
-                                                    key={suffix}
+                                                    key={index}
                                                     value={suffix}
                                                 />
                                             ))}
@@ -1008,9 +1005,9 @@ class PassthroughAuthentication extends React.Component {
                                             aria-labelledby="Add an include suffix"
                                             placeholderText="Type a suffix DN ..."
                                         >
-                                            {this.state.includeOptions.map((suffix) => (
+                                            {this.state.includeOptions.map((suffix, index) => (
                                                 <SelectOption
-                                                    key={suffix}
+                                                    key={index}
                                                     value={suffix}
                                                 />
                                             ))}
@@ -1039,9 +1036,9 @@ class PassthroughAuthentication extends React.Component {
                                             aria-labelledby="Add an attribute: "
                                             placeholderText="Type an attribute ..."
                                         >
-                                            {attributes.map((suffix) => (
+                                            {attributes.map((suffix, index) => (
                                                 <SelectOption
-                                                    key={suffix}
+                                                    key={index}
                                                     value={suffix}
                                                 />
                                             ))}

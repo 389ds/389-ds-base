@@ -401,9 +401,6 @@ export class GlobalPwPolicy extends React.Component {
         }
         let disableSaveBtn = true;
 
-        // If the array already contains selection, do nothing
-        if (this.state.passworduserattributes.includes(selection)) return;
-
         // Check if a setting was changed, if so enable the save button
         for (let syntax_attr of syntax_attrs) {
             if (syntax_attr == 'passworduserattributes' && attr == 'passworduserattributes') {
@@ -435,10 +432,31 @@ export class GlobalPwPolicy extends React.Component {
                 break;
             }
         }
-        this.setState({
-            [attr]: value === e.target.checked ? e.target.checked : [...this.state.passworduserattributes, selection],
-            saveSyntaxDisabled: disableSaveBtn,
-        });
+        if (selection) {
+            if (this.state[attr].includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        [attr]: prevState[attr].filter((item) => item !== selection),
+                        isSelectOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        [attr]: [...prevState[attr], selection],
+                        saveSyntaxDisabled: disableSaveBtn,
+                        isSelectOpen: false
+
+                    }),
+                );
+            }
+        } else {
+            this.setState({
+                [attr]: value,
+                saveSyntaxDisabled: disableSaveBtn,
+                isSelectOpen: false
+            });
+        }
     }
 
     saveSyntax() {

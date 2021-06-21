@@ -148,9 +148,12 @@ class AutoMembership extends React.Component {
             }
         };
         this.onCreateRegexIncludeOption = newValue => {
-            this.setState({
-                includeOptions: [...this.state.includeOptions, newValue]
-            });
+            if (!this.state.includeOptions.includes(newValue)) {
+                this.setState({
+                    includeOptions: [...this.state.includeOptions, newValue],
+                    isRegexExcludeOpen: false
+                });
+            }
         };
         this.onRegexIncludeToggle = isRegexIncludeOpen => {
             this.setState({
@@ -945,12 +948,6 @@ class AutoMembership extends React.Component {
                                             aria-labelledby="typeAhead-group-attrs"
                                             placeholderText="Type an attribute..."
                                             noResultsFoundText="There are no matching entries"
-                                            isCreatable
-                                            onCreateOption={(newValue) => {
-                                                this.setState({
-                                                    groupingAttrMember: [...this.state.groupingAttrMember, { newValue }]
-                                                  });
-                                            }}
                                             >
                                             {attributes.map((attr, index) => (
                                                 <SelectOption
@@ -1047,11 +1044,7 @@ class AutoMembership extends React.Component {
                                             aria-labelledby="typeAhead-excl-regex"
                                             placeholderText="Type a regex..."
                                             isCreatable
-                                            onCreateOption={(newValue) => {
-                                                this.setState({
-                                                    regexExclusive: [...this.state.regexExclusive, { newValue }]
-                                                  });
-                                            }}
+                                            onCreateOption={this.onCreateRegexExcludeOption}
                                             >
                                             {[].map((attr, index) => (
                                                 <SelectOption

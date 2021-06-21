@@ -47,6 +47,7 @@ class ReferentialIntegrity extends React.Component {
             firstLoad: true,
             updateDelay: "",
             membershipAttr: [],
+            membershipAttrOptions: [],
             entryScope: "",
             excludeEntryScope: "",
             containerScope: "",
@@ -57,6 +58,7 @@ class ReferentialIntegrity extends React.Component {
             configDN: "",
             configUpdateDelay: "",
             configMembershipAttr: [],
+            configMembershipAttrOptions: [],
             configEntryScope: "",
             configExcludeEntryScope: "",
             configContainerScope: "",
@@ -74,12 +76,16 @@ class ReferentialIntegrity extends React.Component {
             if (this.state.configMembershipAttr.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        configMembershipAttr: prevState.configMembershipAttr.filter((item) => item !== selection)
+                        configMembershipAttr: prevState.configMembershipAttr.filter((item) => item !== selection),
+                        isConfigMembershipAttrOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ configMembershipAttr: [...prevState.configMembershipAttr, selection] }),
+                    (prevState) => ({
+                        configMembershipAttr: [...prevState.configMembershipAttr, selection],
+                        isConfigMembershipAttrOpen: false
+                    }),
                 );
             }
         };
@@ -95,9 +101,9 @@ class ReferentialIntegrity extends React.Component {
             });
         };
         this.onConfigMembershipAttrCreateOption = newValue => {
-            if (!this.state.configMembershipAttr.includes(newValue)) {
+            if (!this.state.configMembershipAttrOptions.includes(newValue)) {
                 this.setState({
-                    configMembershipAttr: [...this.state.configMembershipAttr, newValue],
+                    configMembershipAttrOptions: [...this.state.configMembershipAttrOptions, newValue],
                     isConfigMembershipAttrOpen: false
                 });
             }
@@ -129,9 +135,9 @@ class ReferentialIntegrity extends React.Component {
             });
         };
         this.onMembershipAttrCreateOption = newValue => {
-            if (!this.state.membershipAttr.includes(newValue)) {
+            if (!this.state.membershipAttrOptions.includes(newValue)) {
                 this.setState({
-                    membershipAttr: [...this.state.membershipAttr, newValue],
+                    membershipAttrOptions: [...this.state.membershipAttrOptions, newValue],
                     isMembershipAttrOpen: false
                 });
             }

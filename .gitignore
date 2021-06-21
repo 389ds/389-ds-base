@@ -235,3 +235,4 @@ vendor
 vendor.tar.gz
 .history
 .vscode/launch.json
+.cargo/config

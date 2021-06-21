@@ -57,11 +57,16 @@ class AccountPolicy extends React.Component {
             configArea: "",
             configDN: "",
             altStateAttrName: [],
+            altStateAttrNameOptions: [],
             alwaysRecordLogin: false,
             alwaysRecordLoginAttr: [],
+            alwaysRecordLoginAttrOptions: [],
             limitAttrName: [],
+            limitAttrNameOptions: [],
             specAttrName: [],
+            specAttrNameOptions: [],
             stateAttrName: [],
+            stateAttrNameOptions: [],
             configEntryModalShow: false,
             fixupModalShow: false,
             newEntry: false,
@@ -78,12 +83,16 @@ class AccountPolicy extends React.Component {
             if (this.state.alwaysRecordLoginAttr.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        alwaysRecordLoginAttr: prevState.alwaysRecordLoginAttr.filter((item) => item !== selection)
+                        alwaysRecordLoginAttr: prevState.alwaysRecordLoginAttr.filter((item) => item !== selection),
+                        isRecordLoginOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ alwaysRecordLoginAttr: [...prevState.alwaysRecordLoginAttr, selection] }),
+                    (prevState) => ({
+                        alwaysRecordLoginAttr: [...prevState.alwaysRecordLoginAttr, selection],
+                        isRecordLoginOpen: false
+                    }),
                 );
             }
         };
@@ -99,9 +108,9 @@ class AccountPolicy extends React.Component {
             });
         };
         this.onRecordLoginCreateOption = newValue => {
-            if (!this.state.alwaysRecordLoginAttr.includes(newValue)) {
+            if (!this.state.alwaysRecordLoginAttrOptions.includes(newValue)) {
                 this.setState({
-                    alwaysRecordLoginAttr: [...this.state.alwaysRecordLoginAttr, newValue],
+                    alwaysRecordLoginAttrOptions: [...this.state.alwaysRecordLoginAttrOptions, newValue],
                     isRecordLoginOpen: false
                 });
             }
@@ -112,12 +121,16 @@ class AccountPolicy extends React.Component {
             if (this.state.specAttrName.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        specAttrName: prevState.specAttrName.filter((item) => item !== selection)
+                        specAttrName: prevState.specAttrName.filter((item) => item !== selection),
+                        isSpecificAttrOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ specAttrName: [...prevState.specAttrName, selection] }),
+                    (prevState) => ({
+                        specAttrName: [...prevState.specAttrName, selection],
+                        isSpecificAttrOpen: false
+                    }),
                 );
             }
         };
@@ -133,9 +146,9 @@ class AccountPolicy extends React.Component {
             });
         };
         this.onSpecificAttrCreateOption = newValue => {
-            if (!this.state.specAttrName.includes(newValue)) {
+            if (!this.state.specAttrNameOptions.includes(newValue)) {
                 this.setState({
-                    specAttrName: [...this.state.specAttrName, newValue],
+                    specAttrNameOptions: [...this.state.specAttrNameOptions, newValue],
                     isSpecificAttrOpen: false
                 });
             }
@@ -146,12 +159,16 @@ class AccountPolicy extends React.Component {
             if (this.state.stateAttrName.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        stateAttrName: prevState.stateAttrName.filter((item) => item !== selection)
+                        stateAttrName: prevState.stateAttrName.filter((item) => item !== selection),
+                        isStateAttrOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ stateAttrName: [...prevState.stateAttrName, selection] }),
+                    (prevState) => ({
+                        stateAttrName: [...prevState.stateAttrName, selection],
+                        isStateAttrOpen: false
+                    }),
                 );
             }
         };
@@ -167,7 +184,7 @@ class AccountPolicy extends React.Component {
             });
         };
         this.onStateAttrCreateOption = newValue => {
-            if (!this.state.stateAttrName.includes(newValue)) {
+            if (!this.state.stateAttrNameOptions.includes(newValue)) {
                 this.setState({
                     stateAttrName: [...this.state.stateAttrName, newValue],
                     isStateAttrOpen: false
@@ -180,12 +197,16 @@ class AccountPolicy extends React.Component {
             if (this.state.altStateAttrName.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        altStateAttrName: prevState.altStateAttrName.filter((item) => item !== selection)
+                        altStateAttrName: prevState.altStateAttrName.filter((item) => item !== selection),
+                        isAltStateAttrOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ altStateAttrName: [...prevState.altStateAttrName, selection] }),
+                    (prevState) => ({
+                        altStateAttrName: [...prevState.altStateAttrName, selection],
+                        isAltStateAttrOpen: false
+                    }),
                 );
             }
         };
@@ -201,9 +222,9 @@ class AccountPolicy extends React.Component {
             });
         };
         this.onAlternativeStateCreateOption = newValue => {
-            if (!this.state.stateAttrName.includes(newValue)) {
+            if (!this.state.altStateAttrNameOptions.includes(newValue)) {
                 this.setState({
-                    altStateAttrName: [...this.state.stateAttrName, newValue],
+                    altStateAttrNameOptions: [...this.state.altStateAttrNameOptions, newValue],
                     isAltStateAttrOpen: false
                 });
             }
@@ -213,12 +234,16 @@ class AccountPolicy extends React.Component {
             if (this.state.limitAttrName.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        limitAttrName: prevState.limitAttrName.filter((item) => item !== selection)
+                        limitAttrName: prevState.limitAttrName.filter((item) => item !== selection),
+                        isLimitAttrOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ limitAttrName: [...prevState.limitAttrName, selection] }),
+                    (prevState) => ({
+                        limitAttrName: [...prevState.limitAttrName, selection],
+                        isLimitAttrOpen: false
+                    }),
                 );
             }
         };
@@ -234,9 +259,9 @@ class AccountPolicy extends React.Component {
             });
         };
         this.onLimitAttrCreateOption = newValue => {
-            if (!this.state.stateAttrName.includes(newValue)) {
+            if (!this.state.onLimitAttrCreateOption.includes(newValue)) {
                 this.setState({
-                    limitAttrName: [...this.state.limitAttrName, newValue],
+                    onLimitAttrCreateOption: [...this.state.onLimitAttrCreateOption, newValue],
                     isLimitAttrOpen: false
                 });
             }

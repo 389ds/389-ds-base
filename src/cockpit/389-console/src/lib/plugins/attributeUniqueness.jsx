@@ -51,10 +51,14 @@ class AttributeUniqueness extends React.Component {
             configName: "",
             configEnabled: false,
             attrNames: [],
+            attrNamesOptions: [],
             subtrees: [],
+            subtreesOptions: [],
             acrossAllSubtrees: false,
             topEntryOc: [],
+            topEntryOcOptions: [],
             subtreeEnriesOc: [],
+            subtreeEnriesOcOptions: [],
 
             newEntry: false,
             showConfigModal: false,
@@ -89,12 +93,16 @@ class AttributeUniqueness extends React.Component {
             if (this.state.attrNames.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        attrNames: prevState.attrNames.filter((item) => item !== selection)
+                        attrNames: prevState.attrNames.filter((item) => item !== selection),
+                        isAttributeNameOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ attrNames: [...prevState.attrNames, selection] }),
+                    (prevState) => ({
+                        attrNames: [...prevState.attrNames, selection],
+                        isAttributeNameOpen: false
+                    }),
                 );
             }
         };
@@ -110,9 +118,9 @@ class AttributeUniqueness extends React.Component {
             });
         };
         this.onAttributeNameCreateOption = newValue => {
-            if (!this.state.attributes.includes(newValue)) {
+            if (!this.state.attrNamesOptions.includes(newValue)) {
                 this.setState({
-                    attributes: [...this.state.attributes, newValue],
+                    attrNamesOptions: [...this.state.attrNamesOptions, newValue],
                     isAttributeNameOpen: false
                 });
             }
@@ -123,12 +131,16 @@ class AttributeUniqueness extends React.Component {
             if (this.state.subtrees.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        subtrees: prevState.subtrees.filter((item) => item !== selection)
+                        subtrees: prevState.subtrees.filter((item) => item !== selection),
+                        isAttributeNameOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ subtrees: [...prevState.subtrees, selection] }),
+                    (prevState) => ({
+                        subtrees: [...prevState.subtrees, selection],
+                        isAttributeNameOpen: false
+                    }),
                 );
             }
         };
@@ -144,9 +156,9 @@ class AttributeUniqueness extends React.Component {
             });
         };
         this.onSubtreesCreateOption = newValue => {
-            if (!this.state.subtrees.includes(newValue)) {
+            if (!this.state.subtreesOptions.includes(newValue)) {
                 this.setState({
-                    subtrees: [...this.state.subtrees, newValue],
+                    subtreesOptions: [...this.state.subtreesOptions, newValue],
                     isSubtreesOpen: false
                 });
             }
@@ -157,12 +169,16 @@ class AttributeUniqueness extends React.Component {
             if (this.state.topEntryOc.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        topEntryOc: prevState.topEntryOc.filter((item) => item !== selection)
+                        topEntryOc: prevState.topEntryOc.filter((item) => item !== selection),
+                        isTopEntryOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ topEntryOc: [...prevState.topEntryOc, selection] }),
+                    (prevState) => ({
+                        topEntryOc: [...prevState.topEntryOc, selection],
+                        isTopEntryOpen: false
+                    }),
                 );
             }
         };
@@ -178,9 +194,9 @@ class AttributeUniqueness extends React.Component {
             });
         };
         this.onTopEntryCreateOption = newValue => {
-            if (!this.state.objectClasses.includes(newValue)) {
+            if (!this.state.topEntryOcOptions.includes(newValue)) {
                 this.setState({
-                    objectClasses: [...this.state.objectClasses, newValue],
+                    topEntryOcOptions: [...this.state.topEntryOcOptions, newValue],
                     isTopEntryOpen: false
                 });
             }
@@ -191,12 +207,16 @@ class AttributeUniqueness extends React.Component {
             if (this.state.subtreeEnriesOc.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        subtreeEnriesOc: prevState.subtreeEnriesOc.filter((item) => item !== selection)
+                        subtreeEnriesOc: prevState.subtreeEnriesOc.filter((item) => item !== selection),
+                        isSubtreeEntriesOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ subtreeEnriesOc: [...prevState.subtreeEnriesOc, selection] }),
+                    (prevState) => ({
+                        subtreeEnriesOc: [...prevState.subtreeEnriesOc, selection],
+                        isSubtreeEntriesOpen: false
+                    }),
                 );
             }
         };
@@ -212,9 +232,9 @@ class AttributeUniqueness extends React.Component {
             });
         };
         this.onSubtreeEntriesCreateOption = newValue => {
-            if (!this.state.objectClasses.includes(newValue)) {
+            if (!this.state.subtreeEnriesOcOptions.includes(newValue)) {
                 this.setState({
-                    objectClasses: [...this.state.objectClasses, newValue],
+                    subtreeEnriesOcOptions: [...this.state.subtreeEnriesOcOptions, newValue],
                     isSubtreeEntriesOpen: false
                 });
             }
@@ -833,7 +853,7 @@ class AttributeUniqueness extends React.Component {
                                             id="acrossAllSubtrees"
                                             isChecked={acrossAllSubtrees}
                                             title="If enabled (on), the plug-in checks that the attribute is unique across all subtrees set. If you set the attribute to off, uniqueness is only enforced within the subtree of the updated entry (uniqueness-across-all-subtrees)"
-                                            onChange={this.handleCheckboxChange}
+                                            onChange={(checked, e) => { this.handleCheckboxChange(e, checked) }}
                                             label="Across All Subtrees"
                                         />
                                     </Col>

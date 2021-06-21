@@ -20,9 +20,13 @@ class RootDNAccessControl extends React.Component {
 
         this.state = {
             allowHost: [],
+            allowHostOptions: [],
             denyHost: [],
+            denyHostOptions: [],
             allowIP: [],
+            allowIPOptions: [],
             denyIP: [],
+            denyIPOptions: [],
             openTime: "",
             closeTime: "",
             daysAllowed: "",
@@ -38,12 +42,16 @@ class RootDNAccessControl extends React.Component {
             if (this.state.allowHost.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        allowHost: prevState.allowHost.filter((item) => item !== selection)
+                        allowHost: prevState.allowHost.filter((item) => item !== selection),
+                        isAllowHostOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ allowHost: [...prevState.allowHost, selection] }),
+                    (prevState) => ({
+                        allowHost: [...prevState.allowHost, selection],
+                        isAllowHostOpen: false
+                    }),
                 );
             }
         };
@@ -59,9 +67,9 @@ class RootDNAccessControl extends React.Component {
             });
         };
         this.onAllowHostCreateOption = newValue => {
-            if (!this.state.allowHost.includes(newValue)) {
+            if (!this.state.allowHostOptions.includes(newValue)) {
                 this.setState({
-                    allowHost: [...this.state.allowHost, newValue],
+                    allowHostOptions: [...this.state.allowHostOptions, newValue],
                     isAllowHostOpen: false
                 });
             }
@@ -72,12 +80,16 @@ class RootDNAccessControl extends React.Component {
             if (this.state.denyHost.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        denyHost: prevState.denyHost.filter((item) => item !== selection)
+                        denyHost: prevState.denyHost.filter((item) => item !== selection),
+                        isDenyHostOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ denyHost: [...prevState.denyHost, selection] }),
+                    (prevState) => ({
+                        denyHost: [...prevState.denyHost, selection],
+                        isDenyHostOpen: false
+                    }),
                 );
             }
         };
@@ -93,9 +105,9 @@ class RootDNAccessControl extends React.Component {
             });
         };
         this.onDenyHostCreateOption = newValue => {
-            if (!this.state.denyHost.includes(newValue)) {
+            if (!this.state.denyHostOptions.includes(newValue)) {
                 this.setState({
-                    denyHost: [...this.state.denyHost, newValue],
+                    denyHostOptions: [...this.state.denyHostOptions, newValue],
                     isDenyHostOpen: false
                 });
             }
@@ -106,12 +118,15 @@ class RootDNAccessControl extends React.Component {
             if (this.state.allowIP.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        allowIP: prevState.allowIP.filter((item) => item !== selection)
+                        allowIP: prevState.allowIP.filter((item) => item !== selection),
+                        isAllowIPOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ allowIP: [...prevState.allowIP, selection] }),
+                    (prevState) => ({
+                        allowIP: [...prevState.allowIP, selection],
+                        isAllowIPOpen: false}),
                 );
             }
         };
@@ -127,9 +142,9 @@ class RootDNAccessControl extends React.Component {
             });
         };
         this.onAllowIPCreateOption = newValue => {
-            if (!this.state.allowIP.includes(newValue)) {
+            if (!this.state.allowIPOptions.includes(newValue)) {
                 this.setState({
-                    allowIP: [...this.state.allowIP, newValue],
+                    allowIPOptions: [...this.state.allowIPOptions, newValue],
                     isAllowIPOpen: false
                 });
             }
@@ -140,12 +155,16 @@ class RootDNAccessControl extends React.Component {
             if (this.state.denyIP.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        denyIP: prevState.denyIP.filter((item) => item !== selection)
+                        denyIP: prevState.denyIP.filter((item) => item !== selection),
+                        isDenyIPOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ denyIP: [...prevState.denyIP, selection] }),
+                    (prevState) => ({
+                        denyIP: [...prevState.denyIP, selection],
+                        isDenyIPOpen: false
+                    }),
                 );
             }
         };
@@ -161,9 +180,9 @@ class RootDNAccessControl extends React.Component {
             });
         };
         this.onDenyIPCreateOption = newValue => {
-            if (!this.state.denyIP.includes(newValue)) {
+            if (!this.state.denyIPOptions.includes(newValue)) {
                 this.setState({
-                    denyIP: [...this.state.denyIP, newValue],
+                    denyIPOptions: [...this.state.denyIPOptions, newValue],
                     isDenyIPOpen: false
                 });
             }
@@ -337,7 +356,7 @@ class RootDNAccessControl extends React.Component {
                                             isCreatable
                                             onCreateOption={this.onAllowHostCreateOption}
                                             >
-                                            {[].map((host, index) => (
+                                            {this.state.allowHostOptions.map((host, index) => (
                                                 <SelectOption
                                                     key={index}
                                                     value={host}
@@ -369,7 +388,7 @@ class RootDNAccessControl extends React.Component {
                                             isCreatable
                                             onCreateOption={this.onDenyHostCreateOption}
                                             >
-                                            {[].map((host, index) => (
+                                            {this.state.denyHostOptions.map((host, index) => (
                                                 <SelectOption
                                                     key={index}
                                                     value={host}
@@ -401,7 +420,7 @@ class RootDNAccessControl extends React.Component {
                                             isCreatable
                                             onCreateOption={this.onAllowIPCreateOption}
                                             >
-                                            {[].map((ip, index) => (
+                                            {this.state.allowIPOptions.map((ip, index) => (
                                                 <SelectOption
                                                     key={index}
                                                     value={ip}
@@ -433,7 +452,7 @@ class RootDNAccessControl extends React.Component {
                                             isCreatable
                                             onCreateOption={this.onDenyIPCreateOption}
                                             >
-                                            {[].map((ip, index) => (
+                                            {this.state.denyIPOptions.map((ip, index) => (
                                                 <SelectOption
                                                     key={index}
                                                     value={ip}

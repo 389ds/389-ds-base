@@ -45,7 +45,9 @@ class LinkedAttributes extends React.Component {
 
             configName: "",
             linkType: [],
+            linkTypeOptions: [],
             managedType: [],
+            managedTypeOptions: [],
             linkScope: "",
 
             newEntry: false,
@@ -63,12 +65,16 @@ class LinkedAttributes extends React.Component {
             if (this.state.linkType.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        linkType: prevState.linkType.filter((item) => item !== selection)
+                        linkType: prevState.linkType.filter((item) => item !== selection),
+                        isLinkTypeOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ linkType: [...prevState.linkType, selection] }),
+                    (prevState) => ({
+                        linkType: [...prevState.linkType, selection],
+                        isLinkTypeOpen: false
+                    }),
                 );
             }
         };
@@ -84,9 +90,9 @@ class LinkedAttributes extends React.Component {
             });
         };
         this.onLinkTypeCreateOption = newValue => {
-            if (!this.state.linkType.includes(newValue)) {
+            if (!this.state.linkTypeOptions.includes(newValue)) {
                 this.setState({
-                    linkType: [...this.state.linkType, newValue],
+                    linkTypeOptions: [...this.state.linkTypeOptions, newValue],
                     isLinkTypeOpen: false
                 });
             }
@@ -97,12 +103,16 @@ class LinkedAttributes extends React.Component {
             if (this.state.managedType.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        managedType: prevState.managedType.filter((item) => item !== selection)
+                        managedType: prevState.managedType.filter((item) => item !== selection),
+                        isManagedTypeOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ managedType: [...prevState.managedType, selection] }),
+                    (prevState) => ({
+                        managedType: [...prevState.managedType, selection],
+                        isManagedTypeOpen: false
+                    }),
                 );
             }
         };
@@ -118,9 +128,9 @@ class LinkedAttributes extends React.Component {
             });
         };
         this.onManagedTypeCreateOption = newValue => {
-            if (!this.state.managedType.includes(newValue)) {
+            if (!this.state.managedTypeOptions.includes(newValue)) {
                 this.setState({
-                    managedType: [...this.state.managedType, newValue],
+                    managedTypeOptions: [...this.state.managedTypeOptions, newValue],
                     isManagedTypeOpen: false
                 });
             }

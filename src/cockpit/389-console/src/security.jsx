@@ -81,12 +81,16 @@ export class Security extends React.Component {
             if (this.state.nssslpersonalityssl.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        nssslpersonalityssl: prevState.nssslpersonalityssl.filter((item) => item !== selection)
+                        nssslpersonalityssl: prevState.nssslpersonalityssl.filter((item) => item !== selection),
+                        isServerCertOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ nssslpersonalityssl: [...prevState.nssslpersonalityssl, selection] }),
+                    (prevState) => ({
+                        nssslpersonalityssl: [...prevState.nssslpersonalityssl, selection],
+                        isServerCertOpen: false
+                    }),
                 );
             }
         };

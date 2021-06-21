@@ -46,6 +46,7 @@ class RetroChangelog extends React.Component {
             maxAge: "",
             excludeSuffix: "",
             attributes: [],
+            attributesOptions: [],
 
             isAttributeOpen: false
         };
@@ -55,12 +56,16 @@ class RetroChangelog extends React.Component {
             if (this.state.attribute.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        attribute: prevState.attribute.filter((item) => item !== selection)
+                        attribute: prevState.attribute.filter((item) => item !== selection),
+                        isAttributeOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ attribute: [...prevState.attribute, selection] }),
+                    (prevState) => ({
+                        attribute: [...prevState.attribute, selection],
+                        isAttributeOpen: false
+                    }),
                 );
             }
         };
@@ -74,6 +79,14 @@ class RetroChangelog extends React.Component {
                 attribute: [],
                 isAttributeOpen: false
             });
+        };
+        this.onAttributeCreateOption = newValue => {
+            if (!this.state.attributeOptions.includes(newValue)) {
+                this.setState({
+                    attributeOptions: [...this.state.attributeOptions, newValue],
+                    isManagedTypeOpen: false
+                });
+            }
         };
 
         this.updateFields = this.updateFields.bind(this);
@@ -232,6 +245,8 @@ class RetroChangelog extends React.Component {
                                             aria-labelledby="typeAhead-attribute"
                                             placeholderText="Type an attribute..."
                                             noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onAttributeCreateOption}
                                             >
                                             {attributes.map((attr, index) => (
                                                 <SelectOption

@@ -393,30 +393,29 @@ export class WinsyncAgmts extends React.Component {
             }
             // End of agmt modal live validation
         }
-        // We handle strings and arrays here, need to find a better way to differentiate.
         if (e.target.id.endsWith('Attrs')) {
             if (this.state[e.target.id].includes(e.target.value)) {
                 this.setState(
                     (prevState) => ({
-                        [e.target.id]: prevState[e.target.id].filter((item) => item !== e.target.value)
+                        [e.target.id]: prevState[e.target.id].filter((item) => item !== e.target.value),
+                        errObj: errObj,
+                        agmtSaveOK: all_good,
+                        modalMsg: modal_msg,
+                        modalScheduleMsg: modal_schedule_msg,
+                        [e.target.toggle]: false
                     }),
                 );
-                this.setState({
-                    errObj: errObj,
-                    agmtSaveOK: all_good,
-                    modalMsg: modal_msg,
-                    modalScheduleMsg: modal_schedule_msg,
-                });
             } else {
                 this.setState(
-                    (prevState) => ({ [e.target.id]: [...prevState[e.target.id], e.target.value] }),
+                    (prevState) => ({
+                        [e.target.id]: [...prevState[e.target.id], e.target.value],
+                        errObj: errObj,
+                        agmtSaveOK: all_good,
+                        modalMsg: modal_msg,
+                        modalScheduleMsg: modal_schedule_msg,
+                        [e.target.toggle]: false
+                    }),
                 );
-                this.setState({
-                    errObj: errObj,
-                    agmtSaveOK: all_good,
-                    modalMsg: modal_msg,
-                    modalScheduleMsg: modal_schedule_msg,
-                });
             }
         } else {
             this.setState({
@@ -425,6 +424,7 @@ export class WinsyncAgmts extends React.Component {
                 agmtSaveOK: all_good,
                 modalMsg: modal_msg,
                 modalScheduleMsg: modal_schedule_msg,
+                [e.target.toggle]: false
             });
         }
     }
@@ -437,6 +437,7 @@ export class WinsyncAgmts extends React.Component {
                 id: 'agmtFracAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isExcludeAttrEditOpen',
             }
         };
         this.handleChange(e);
@@ -450,6 +451,7 @@ export class WinsyncAgmts extends React.Component {
                 id: 'agmtFracAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isExcludeAttrCreateOpen',
             }
         };
         this.handleChange(e);

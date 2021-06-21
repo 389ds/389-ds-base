@@ -605,25 +605,25 @@ export class ReplAgmts extends React.Component {
             if (this.state[attr].includes(e.target.value)) {
                 this.setState(
                     (prevState) => ({
-                        [attr]: prevState[attr].filter((item) => item !== e.target.value)
+                        [attr]: prevState[attr].filter((item) => item !== e.target.value),
+                        errObj: errObj,
+                        agmtSaveOK: all_good,
+                        modalMsg: modal_msg,
+                        modalScheduleMsg: modal_schedule_msg,
+                        [e.target.toggle]: false
                     }),
                 );
-                this.setState({
-                    errObj: errObj,
-                    agmtSaveOK: all_good,
-                    modalMsg: modal_msg,
-                    modalScheduleMsg: modal_schedule_msg,
-                });
             } else {
                 this.setState(
-                    (prevState) => ({ [attr]: [...prevState[attr], e.target.value] }),
+                    (prevState) => ({
+                        [attr]: [...prevState[attr], e.target.value],
+                        errObj: errObj,
+                        agmtSaveOK: all_good,
+                        modalMsg: modal_msg,
+                        modalScheduleMsg: modal_schedule_msg,
+                        [e.target.toggle]: false
+                    }),
                 );
-                this.setState({
-                    errObj: errObj,
-                    agmtSaveOK: all_good,
-                    modalMsg: modal_msg,
-                    modalScheduleMsg: modal_schedule_msg,
-                });
             }
         } else {
             this.setState({
@@ -632,6 +632,7 @@ export class ReplAgmts extends React.Component {
                 agmtSaveOK: all_good,
                 modalMsg: modal_msg,
                 modalScheduleMsg: modal_schedule_msg,
+                [e.target.toggle]: false
             });
         }
     }
@@ -644,6 +645,7 @@ export class ReplAgmts extends React.Component {
                 id: 'agmtStripAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isStripAttrsEditOpen',
             }
         };
         this.handleChange(e);
@@ -657,6 +659,7 @@ export class ReplAgmts extends React.Component {
                 id: 'agmtFracAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isExcludeAttrsEditOpen',
             }
         };
         this.handleChange(e);
@@ -670,6 +673,7 @@ export class ReplAgmts extends React.Component {
                 id: 'agmtFracInitAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isExcludeInitAttrsEditOpen',
             }
         };
         this.handleChange(e);
@@ -683,6 +687,7 @@ export class ReplAgmts extends React.Component {
                 id: 'agmtStripAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isStripAttrsCreateOpen',
             }
         };
         this.handleChange(e);
@@ -696,6 +701,7 @@ export class ReplAgmts extends React.Component {
                 id: 'agmtFracAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isExcludeAttrsCreateOpen',
             }
         };
         this.handleChange(e);
@@ -709,6 +715,7 @@ export class ReplAgmts extends React.Component {
                 id: 'agmtFracInitAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isExcludeInitAttrsCreateOpen',
             }
         };
         this.handleChange(e);

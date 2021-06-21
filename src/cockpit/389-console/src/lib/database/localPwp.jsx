@@ -22,8 +22,8 @@ import {
     ExpandableSection,
     Spinner,
     Select,
+    SelectOption,
     SelectVariant,
-    SelectOption
     // Form,
     // FormGroup,
     // Tab,
@@ -1073,21 +1073,21 @@ export class LocalPwPolicy extends React.Component {
             if (this.state[attr].includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        [attr]: prevState[attr].filter((item) => item !== selection)
+                        [attr]: prevState[attr].filter((item) => item !== selection),
+                        createDisabled: disableSaveBtn,
+                        invalid_dn: invalid_dn,
+                        isUserAttrsCreateOpen: false
                     }),
                 );
-                this.setState({
-                    createDisabled: disableSaveBtn,
-                    invalid_dn: invalid_dn
-                });
             } else {
                 this.setState(
-                    (prevState) => ({ [attr]: [...prevState[attr], selection] }),
+                    (prevState) => ({
+                        [attr]: [...prevState[attr], selection],
+                        createDisabled: disableSaveBtn,
+                        invalid_dn: invalid_dn,
+                        isUserAttrsCreateOpen: false
+                    }),
                 );
-                this.setState({
-                    createDisabled: disableSaveBtn,
-                    invalid_dn: invalid_dn
-                });
             }
         } else { // Checkbox
             this.setState({
@@ -1436,19 +1436,19 @@ export class LocalPwPolicy extends React.Component {
         if (this.state[attr].includes(selection)) {
             this.setState(
                 (prevState) => ({
-                    [attr]: prevState[attr].filter((item) => item !== selection)
+                    [attr]: prevState[attr].filter((item) => item !== selection),
+                    saveSyntaxDisabled: disableSaveBtn,
+                    isUserAttrsEditOpen: false
                 }),
             );
-            this.setState({
-                saveSyntaxDisabled: disableSaveBtn,
-            });
         } else {
             this.setState(
-                (prevState) => ({ [attr]: [...prevState[attr], selection] }),
+                (prevState) => ({
+                    [attr]: [...prevState[attr], selection],
+                    saveSyntaxDisabled: disableSaveBtn,
+                    isUserAttrsEditOpen: false
+                }),
             );
-            this.setState({
-                saveSyntaxDisabled: disableSaveBtn,
-            });
         }
     }
 

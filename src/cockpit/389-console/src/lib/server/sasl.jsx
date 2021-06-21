@@ -13,11 +13,13 @@ import {
 } from "patternfly-react";
 import {
     Button,
-    Checkbox
+    Checkbox,
+    Select,
+    SelectVariant,
+    SelectOption
 } from "@patternfly/react-core";
 import { SASLTable } from "./serverTables.jsx";
 import { SASLMappingModal } from "./serverModals.jsx";
-import { Typeahead } from "react-bootstrap-typeahead";
 
 export class ServerSASL extends React.Component {
     constructor(props) {
@@ -51,6 +53,20 @@ export class ServerSASL extends React.Component {
             saslErrObj: {},
             showConfirmDelete: false,
             modalChecked: false,
+
+            isAllowedMechOpen: false,
+        };
+        // Allowed SASL Mechanisms
+        this.onAllowedMechToggle = isAllowedMechOpen => {
+            this.setState({
+                isAllowedMechOpen,
+            });
+        };
+        this.onAllowedMechClear = () => {
+            this.setState({
+                allowedMechs: [],
+                isAllowedMechOpen: false
+            });
         };
 
         this.handleChange = this.handleChange.bind(this);
@@ -98,7 +114,7 @@ export class ServerSASL extends React.Component {
         }
     }
 
-    handleChange(e) {
+    handleChange(e, selection) {
         let attr = "";
         let value = "";
         let isArray = false;
@@ -107,11 +123,11 @@ export class ServerSASL extends React.Component {
         let valueErr = false;
         let errObj = this.state.errObj;
 
-        // Could be a typeahead change, check if "e" is an Array
-        if (Array.isArray(e)) {
+        // Could be a typeahead change, check selection
+        if (selection) {
             isArray = true;
             attr = "allowedMechs";
-            value = e;
+            value = selection;
         } else {
             value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
             attr = e.target.id;
@@ -126,7 +142,7 @@ export class ServerSASL extends React.Component {
             disableSaveBtn = false;
         } else if (attr == 'maxBufSize' && this.state._maxBufSize != value) {
             disableSaveBtn = false;
-        } else if (attr == 'allowedMechs' && this.state._allowedMechs.join(' ') != value.join(' ')) {
+        } else if (attr == 'allowedMechs' && !this.state._allowedMechs.includes(value)) {
             if (this.state._allowedMechs.length > value.length) {
                 // The way allow mechanisms work if that once you set it initially
                 // you can't edit it without removing all the current mecahisms.  So
@@ -154,11 +170,34 @@ export class ServerSASL extends React.Component {
         }
 
         errObj[attr] = valueErr;
-        this.setState({
-            [attr]: value,
-            saveDisabled: disableSaveBtn,
-            errObj: errObj,
-        });
+        if (isArray) {
+            if (this.state[attr].includes(value)) {
+                this.setState(
+                    (prevState) => ({
+                        [attr]: prevState[attr].filter((item) => item !== value),
+                        saveDisabled: disableSaveBtn,
+                        errObj: errObj,
+                        isAllowedMechOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        [attr]: [...prevState[attr], value],
+                        saveDisabled: disableSaveBtn,
+                        errObj: errObj,
+                        isAllowedMechOpen: false
+                    }),
+                );
+            }
+        } else {
+            this.setState({
+                [attr]: value,
+                saveDisabled: disableSaveBtn,
+                errObj: errObj,
+                isAllowedMechOpen: false
+            });
+        }
     }
 
     handleModalAddChange(e) {
@@ -664,17 +703,25 @@ export class ServerSASL extends React.Component {
                                 Allowed SASL Mechanisms
                             </Col>
                             <Col sm={4}>
-                                <Typeahead
-                                    id="allowedMechs"
-                                    onChange={value => {
-                                        this.handleChange(value);
-                                    }}
-                                    multiple
-                                    options={this.state.supportedMechs}
-                                    selected={this.state.allowedMechs}
-                                    placeholder="Type SASL mechanism to allow"
-                                    ref={(typeahead) => { this.typeahead = typeahead }}
-                                />
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    typeAheadAriaLabel="Type SASL mechanism to allow"
+                                    onToggle={this.onAllowedMechToggle}
+                                    onSelect={(e, selection) => { this.handleChange(e, selection) }}
+                                    onClear={this.onAllowedMechClear}
+                                    selections={this.state.allowedMechs}
+                                    isOpen={this.state.isAllowedMechOpen}
+                                    aria-labelledby="typeAhead-sasl-mechs"
+                                    placeholderText="Type SASL mechanism to allow..."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                    {this.state.supportedMechs.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                            ))}
+                                </Select>
                             </Col>
                         </Row>
                         <Row

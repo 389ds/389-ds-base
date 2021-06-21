@@ -65,10 +65,13 @@ class MemberOf extends React.Component {
             attributeTypes: [],
 
             memberOfAttr: [],
+            memberOfAttrOptions: [],
             memberOfGroupAttr: [],
+            memberOfGroupAttrOptions: [],
             memberOfEntryScope: "",
             memberOfEntryScopeExcludeSubtree: "",
             memberOfAutoAddOC: [],
+            memberOfAutoAddOCOptions: [],
             memberOfAllBackends: false,
             memberOfSkipNested: false,
             memberOfConfigEntry: "",
@@ -77,10 +80,13 @@ class MemberOf extends React.Component {
 
             configDN: "",
             configAttr: [],
+            configAttrOptions: [],
             configGroupAttr: [],
+            configGroupAttrOptions: [],
             configEntryScope: "",
             configEntryScopeExcludeSubtree: "",
             configAutoAddOC: [],
+            configAutoAddOCOptions: [],
             configAllBackends: false,
             configSkipNested: false,
             newEntry: true,
@@ -102,12 +108,16 @@ class MemberOf extends React.Component {
             if (this.state.configAttr.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        configAttr: prevState.configAttr.filter((item) => item !== selection)
+                        configAttr: prevState.configAttr.filter((item) => item !== selection),
+                        isConfigAttrOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ configAttr: [...prevState.configAttr, selection] }),
+                    (prevState) => ({
+                        configAttr: [...prevState.configAttr, selection],
+                        isConfigAttrOpen: false
+                    }),
                 );
             }
         };
@@ -123,9 +133,9 @@ class MemberOf extends React.Component {
             });
         };
         this.onConfigAttrCreateOption = newValue => {
-            if (!this.state.configAttr.includes(newValue)) {
+            if (!this.state.configAttrOptions.includes(newValue)) {
                 this.setState({
-                    configAttr: [...this.state.configAttr, newValue],
+                    configAttrOptions: [...this.state.configAttrOptions, newValue],
                     isConfigAttrOpen: false
                 });
             }
@@ -136,12 +146,16 @@ class MemberOf extends React.Component {
             if (this.state.configGroupAttr.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        configGroupAttr: prevState.configGroupAttr.filter((item) => item !== selection)
+                        configGroupAttr: prevState.configGroupAttr.filter((item) => item !== selection),
+                        isConfigGroupAttrOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ configGroupAttr: [...prevState.configGroupAttr, selection] }),
+                    (prevState) => ({
+                        configGroupAttr: [...prevState.configGroupAttr, selection],
+                        isConfigGroupAttrOpen: false
+                    }),
                 );
             }
         };
@@ -157,9 +171,9 @@ class MemberOf extends React.Component {
             });
         };
         this.onConfigGroupAttrCreateOption = newValue => {
-            if (!this.state.configGroupAttr.includes(newValue)) {
+            if (!this.state.configGroupAttrOptions.includes(newValue)) {
                 this.setState({
-                    configGroupAttr: [...this.state.configGroupAttr, newValue],
+                    configGroupAttrOptions: [...this.state.configGroupAttrOptions, newValue],
                     isConfigGroupAttrOpen: false
                 });
             }
@@ -170,12 +184,16 @@ class MemberOf extends React.Component {
             if (this.state.configAutoAddOC.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        configAutoAddOC: prevState.configAutoAddOC.filter((item) => item !== selection)
+                        configAutoAddOC: prevState.configAutoAddOC.filter((item) => item !== selection),
+                        isConfigAutoAddOCOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ configAutoAddOC: [...prevState.configAutoAddOC, selection] }),
+                    (prevState) => ({
+                        configAutoAddOC: [...prevState.configAutoAddOC, selection],
+                        isConfigAutoAddOCOpen: false
+                    }),
                 );
             }
         };
@@ -191,9 +209,9 @@ class MemberOf extends React.Component {
             });
         };
         this.onConfigAutoAddOCCreateOption = newValue => {
-            if (!this.state.configAutoAddOC.includes(newValue)) {
+            if (!this.state.configAutoAddOCOptions.includes(newValue)) {
                 this.setState({
-                    configAutoAddOC: [...this.state.configAutoAddOC, newValue],
+                    configAutoAddOCOptions: [...this.state.configAutoAddOCOptions, newValue],
                     isConfigAutoAddOCOpen: false
                 });
             }
@@ -204,12 +222,16 @@ class MemberOf extends React.Component {
             if (this.state.memberOfAttr.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        memberOfAttr: prevState.memberOfAttr.filter((item) => item !== selection)
+                        memberOfAttr: prevState.memberOfAttr.filter((item) => item !== selection),
+                        isMemberOfAttrOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ memberOfAttr: [...prevState.memberOfAttr, selection] }),
+                    (prevState) => ({
+                        memberOfAttr: [...prevState.memberOfAttr, selection],
+                        isMemberOfAttrOpen: false
+                    }),
                 );
             }
         };
@@ -225,9 +247,9 @@ class MemberOf extends React.Component {
             });
         };
         this.onMemberOfAttrCreateOption = newValue => {
-            if (!this.state.memberOfAttr.includes(newValue)) {
+            if (!this.state.memberOfAttrOptions.includes(newValue)) {
                 this.setState({
-                    memberOfAttr: [...this.state.memberOfAttr, newValue],
+                    memberOfAttrOptions: [...this.state.memberOfAttrOptions, newValue],
                     isMemberOfAttrOpen: false
                 });
             }
@@ -238,12 +260,16 @@ class MemberOf extends React.Component {
             if (this.state.memberOfGroupAttr.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        memberOfGroupAttr: prevState.memberOfGroupAttr.filter((item) => item !== selection)
+                        memberOfGroupAttr: prevState.memberOfGroupAttr.filter((item) => item !== selection),
+                        isMemberOfGroupAttrOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ memberOfGroupAttr: [...prevState.memberOfGroupAttr, selection] }),
+                    (prevState) => ({
+                        memberOfGroupAttr: [...prevState.memberOfGroupAttr, selection],
+                        isMemberOfGroupAttrOpen: false
+                    }),
                 );
             }
         };
@@ -259,9 +285,9 @@ class MemberOf extends React.Component {
             });
         };
         this.onMemberOfGroupAttrCreateOption = newValue => {
-            if (!this.state.memberOfGroupAttr.includes(newValue)) {
+            if (!this.state.memberOfGroupAttrOptions.includes(newValue)) {
                 this.setState({
-                    memberOfGroupAttr: [...this.state.memberOfGroupAttr, newValue],
+                    memberOfGroumemberOfGroupAttrOptionspAttr: [...this.state.memberOfGroupAttrOptions, newValue],
                     isMemberOfGroupAttrOpen: false
                 });
             }
@@ -272,12 +298,16 @@ class MemberOf extends React.Component {
             if (this.state.memberOfAutoAddOC.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        memberOfAutoAddOC: prevState.memberOfAutoAddOC.filter((item) => item !== selection)
+                        memberOfAutoAddOC: prevState.memberOfAutoAddOC.filter((item) => item !== selection),
+                        isMemberOfAutoAddOCOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ memberOfAutoAddOC: [...prevState.memberOfAutoAddOC, selection] }),
+                    (prevState) => ({
+                        memberOfAutoAddOC: [...prevState.memberOfAutoAddOC, selection],
+                        isMemberOfAutoAddOCOpen: false
+                    }),
                 );
             }
         };
@@ -293,9 +323,9 @@ class MemberOf extends React.Component {
             });
         };
         this.onMemberOfAutoAddOCCreateOption = newValue => {
-            if (!this.state.memberOfAutoAddOC.includes(newValue)) {
+            if (!this.state.memberOfAutoAddOCOptions.includes(newValue)) {
                 this.setState({
-                    memberOfAutoAddOC: [...this.state.memberOfAutoAddOC, newValue],
+                    memberOfAutoAddOCOptions: [...this.state.memberOfAutoAddOCOptions, newValue],
                     isMemberOfAutoAddOCOpen: false
                 });
             }

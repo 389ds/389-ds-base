@@ -698,12 +698,16 @@ class AddVLVModal extends React.Component {
         if (this.state.sortValue.includes(selection)) {
             this.setState(
                 (prevState) => ({
-                    sortValue: prevState.sortValue.filter((item) => item !== selection)
+                    sortValue: prevState.sortValue.filter((item) => item !== selection),
+                    isVLVSortOpen: false
                 }),
             );
         } else {
             this.setState(
-                (prevState) => ({ sortValue: [...prevState.sortValue, selection] }),
+                (prevState) => ({
+                    sortValue: [...prevState.sortValue, selection],
+                    isVLVSortOpen: false
+                }),
             );
         }
     }

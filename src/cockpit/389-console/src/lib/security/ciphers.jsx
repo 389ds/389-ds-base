@@ -206,12 +206,16 @@ export class Ciphers extends React.Component {
         if (this.state.allowCiphers.includes(selection)) {
             this.setState(
                 (prevState) => ({
-                    allowCiphers: prevState.allowCiphers.filter((item) => item !== selection)
+                    allowCiphers: prevState.allowCiphers.filter((item) => item !== selection),
+                    isAllowCipherOpen: false
                 }),
             );
         } else {
             this.setState(
-                (prevState) => ({ allowCiphers: [...prevState.allowCiphers, selection] }),
+                (prevState) => ({
+                    allowCiphers: [...prevState.allowCiphers, selection],
+                    isAllowCipherOpen: false
+                }),
             );
         }
     }
@@ -220,12 +224,16 @@ export class Ciphers extends React.Component {
         if (this.state.denyCiphers.includes(selection)) {
             this.setState(
                 (prevState) => ({
-                    denyCiphers: prevState.denyCiphers.filter((item) => item !== selection)
+                    denyCiphers: prevState.denyCiphers.filter((item) => item !== selection),
+                    isDenyCipherOpen: false
                 }),
             );
         } else {
             this.setState(
-                (prevState) => ({ denyCiphers: [...prevState.denyCiphers, selection] }),
+                (prevState) => ({
+                    denyCiphers: [...prevState.denyCiphers, selection],
+                    isDenyCipherOpen: false
+                }),
             );
         }
     }

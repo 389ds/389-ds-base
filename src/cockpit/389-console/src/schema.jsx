@@ -61,9 +61,12 @@ export class Schema extends React.Component {
             ocDesc: "",
             ocOID: "",
             ocParent: [],
+            ocParentOptions: [],
             ocKind: "",
             ocMust: [],
+            ocMustOptions: [],
             ocMay: [],
+            ocMayOptions: [],
             ocUserDefined: false,
             objectclassModalShow: false,
             newOcEntry: true,
@@ -74,11 +77,13 @@ export class Schema extends React.Component {
             atDesc: "",
             atOID: "",
             atParent: [],
+            atParentOptions: [],
             atSyntax: [],
             atUsage: "userApplications",
             atMultivalued: false,
             atNoUserMod: false,
             atAlias: [],
+            atAliasOptions: [],
             atEqMr: [],
             atOrder: [],
             atSubMr: [],
@@ -116,13 +121,18 @@ export class Schema extends React.Component {
         this.onSubstringMRSelect = (event, selection) => {
             if (this.state.atSubMr.includes(selection)) {
                 this.setState(
-                    (prevState) => ({
-                        atSubMr: prevState.atSubMr.filter((item) => item !== selection)
+                    prevState => ({
+                        atSubMr: prevState.atSubMr.filter((item) => item !== selection),
+                        isSubstringMROpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ atSubMr: [...prevState.atSubMr, selection] }),
+                    prevState => ({
+                        atSubMr: [...prevState.atSubMr, selection],
+                        isSubstringMROpen: false
+
+                    }),
                 );
             }
         };
@@ -142,13 +152,18 @@ export class Schema extends React.Component {
         this.onOrderMRSelect = (event, selection) => {
             if (this.state.atOrder.includes(selection)) {
                 this.setState(
-                    (prevState) => ({
-                        atOrder: prevState.atOrder.filter((item) => item !== selection)
+                    prevState => ({
+                        atOrder: prevState.atOrder.filter((item) => item !== selection),
+                        isOrderMROpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ atOrder: [...prevState.atOrder, selection] }),
+                    prevState => ({
+                        atOrder: [...prevState.atOrder, selection],
+                        isOrderMROpen: false
+
+                    }),
                 );
             }
         };
@@ -169,12 +184,16 @@ export class Schema extends React.Component {
             if (this.state.atEqMr.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        atEqMr: prevState.atEqMr.filter((item) => item !== selection)
+                        atEqMr: prevState.atEqMr.filter((item) => item !== selection),
+                        isEqualityMROpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ atEqMr: [...prevState.atEqMr, selection] }),
+                    prevState => ({
+                        atEqMr: [...prevState.atEqMr, selection],
+                        isEqualityMROpen: false
+                    }),
                 );
             }
         };
@@ -194,20 +213,26 @@ export class Schema extends React.Component {
         this.onAliasNameSelect = (event, selection) => {
             if (this.state.atAlias.includes(selection)) {
                 this.setState(
-                    (prevState) => ({
-                        atAlias: prevState.atAlias.filter((item) => item !== selection)
-                    }),
+                    prevState => ({
+                        atAlias: prevState.atAlias.filter((item) => item !== selection),
+                        isAliasNameOpen: false
+                    })
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ atAlias: [...prevState.atAlias, selection] }),
+                    prevState => ({
+                        atAlias: [...prevState.atAlias, selection],
+                        isAliasNameOpen: false
+                    }),
                 );
             }
         };
         this.onAliasNameCreateOption = newValue => {
-            this.setState({
-                atAlias: [...this.state.atAlias, { value: newValue }]
-            });
+            if (!this.state.atAliasOptions.includes(newValue)) {
+                this.setState({
+                    atAliasOptions: [...this.state.atAliasOptions, { value: newValue }]
+                });
+            }
         };
 
         // Syntax Name
@@ -226,12 +251,16 @@ export class Schema extends React.Component {
             if (this.state.atSyntax.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        atSyntax: prevState.atSyntax.filter((item) => item !== selection)
+                        atSyntax: prevState.atSyntax.filter((item) => item !== selection),
+                        isSyntaxNameOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ atSyntax: [...prevState.atSyntax, selection] }),
+                    prevState => ({
+                        atSyntax: [...prevState.atSyntax, selection],
+                        isSyntaxNameOpen: false
+                    }),
                 );
             }
         };
@@ -252,19 +281,25 @@ export class Schema extends React.Component {
             if (this.state.atParent.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        atParent: prevState.atParent.filter((item) => item !== selection)
+                        atParent: prevState.atParent.filter((item) => item !== selection),
+                        isParentAttrOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ atParent: [...prevState.atParent, selection] }),
+                    prevState => ({
+                        atParent: [...prevState.atParent, selection],
+                        isParentAttrOpen: false
+                    }),
                 );
             }
         };
         this.onParentAttrCreateOption = newValue => {
-            this.setState({
-                atParent: [...this.state.atParent, { value: newValue }]
-            });
+            if (!this.state.atParentOptions.includes(newValue)) {
+                this.setState({
+                    atParentOptions: [...this.state.atParentOptions, { value: newValue }]
+                });
+            }
         };
 
         // Parent Objectclass
@@ -283,19 +318,25 @@ export class Schema extends React.Component {
             if (this.state.ocParent.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        ocParent: prevState.ocParent.filter((item) => item !== selection)
+                        ocParent: prevState.ocParent.filter((item) => item !== selection),
+                        isParentObjOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ ocParent: [...prevState.ocParent, selection] }),
+                    prevState => ({
+                        ocParent: [...prevState.ocParent, selection],
+                        isParentObjOpen: false
+                    }),
                 );
             }
         };
         this.onParentObjCreateOption = newValue => {
-            this.setState({
-                ocParent: [...this.state.ocParent, { value: newValue }]
-            });
+            if (!this.state.ocParentOptions.includes(newValue)) {
+                this.setState({
+                    ocParentOptions: [...this.state.ocParentOptions, { value: newValue }]
+                });
+            }
         };
 
         // Required Attributes
@@ -314,19 +355,25 @@ export class Schema extends React.Component {
             if (this.state.ocMust.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        ocMust: prevState.ocMust.filter((item) => item !== selection)
+                        ocMust: prevState.ocMust.filter((item) => item !== selection),
+                        isRequiredAttrsOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ ocMust: [...prevState.ocMust, selection] }),
+                    prevState => ({
+                        ocMust: [...prevState.ocMust, selection],
+                        isRequiredAttrsOpen: false
+                    }),
                 );
             }
         };
         this.onRequiredAttrsCreateOption = newValue => {
-            this.setState({
-                ocMust: [...this.state.ocMust, { value: newValue }]
-            });
+            if (!this.state.ocMustOptions.includes(newValue)) {
+                this.setState({
+                    ocMustOptions: [...this.state.ocParentocMustOptionsOptions, { value: newValue }]
+                });
+            }
         };
 
         // Allowed Attributes
@@ -344,20 +391,26 @@ export class Schema extends React.Component {
         this.onAllowedAttrsSelect = (event, selection) => {
             if (this.state.ocMay.includes(selection)) {
                 this.setState(
-                    (prevState) => ({
-                        ocMay: prevState.ocMay.filter((item) => item !== selection)
+                    prevState => ({
+                        ocMay: prevState.ocMay.filter((item) => item !== selection),
+                        isAllowedAttrsOpen: false
                     }),
                 );
             } else {
                 this.setState(
-                    (prevState) => ({ ocMay: [...prevState.ocMay, selection] }),
+                    prevState => ({
+                        ocMay: [...prevState.ocMay, selection],
+                        isAllowedAttrsOpen: false
+                    }),
                 );
             }
         };
         this.onAllowedAttrsCreateOption = newValue => {
-            this.setState({
-                ocMay: [...this.state.ocMay, { value: newValue }]
-            });
+            if (!this.state.ocMayOptions.includes(newValue)) {
+                this.setState({
+                    ocMayOptions: [...this.state.ocMayOptions, { value: newValue }]
+                });
+            }
         };
 
         this.handleFieldChange = this.handleFieldChange.bind(this);
@@ -1048,6 +1101,7 @@ export class Schema extends React.Component {
 
             this.toggleLoading("atModal");
             this.toggleLoading("atTable");
+            console.error("cmd", cmd);
             log_cmd("cmdOperationAttribute", `Do the ${action} operation on Attribute`, cmd);
             cockpit
                     .spawn(cmd, {
