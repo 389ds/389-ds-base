@@ -189,8 +189,8 @@ dbmdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     slapi_ch_free((void **)&mpfstat);
 
     *returncode = LDAP_SUCCESS;
-    return SLAPI_DSE_CALLBACK_OK;
 #endif /* TODO */
+    return SLAPI_DSE_CALLBACK_OK;
 }
 
 
@@ -198,13 +198,10 @@ dbmdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
 int
 dbmdb_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
 {
-#ifdef TODO
     struct ldbminfo *li = (struct ldbminfo *)arg;
     struct berval val;
     struct berval *vals[2];
     char buf[BUFSIZ];
-    DB_MPOOL_STAT *mpstat = NULL;
-    DB_MPOOL_FSTAT **mpfstat = NULL;
     uint64_t cache_tries;
     uint64_t count;
     uint64_t hits;
@@ -221,34 +218,6 @@ dbmdb_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, 
     /* database name */
     PR_snprintf(buf, sizeof(buf), "%s", li->li_plugin->plg_name);
     MSET("database");
-
-    /* we have to ask for file stats in order to get correct global stats */
-    if (dbmdb_memp_stat(li, &mpstat, &mpfstat) != 0) {
-        *returncode = LDAP_OPERATIONS_ERROR;
-        return SLAPI_DSE_CALLBACK_ERROR;
-    }
-
-    /* cache hits*/
-    sprintf(buf, "%lu", (unsigned long)mpstat->st_cache_hit);
-    MSET("dbCacheHits");
-
-    /* cache tries*/
-    cache_tries = (mpstat->st_cache_miss + mpstat->st_cache_hit);
-    sprintf(buf, "%" PRIu64, cache_tries);
-    MSET("dbCacheTries");
-
-    /* cache hit ratio*/
-    sprintf(buf, "%lu", (unsigned long)(100.0 * (double)mpstat->st_cache_hit / (double)(cache_tries > 0 ? cache_tries : 1)));
-    MSET("dbCacheHitRatio");
-
-    sprintf(buf, "%lu", (unsigned long)mpstat->st_page_in);
-    MSET("dbCachePageIn");
-    sprintf(buf, "%lu", (unsigned long)mpstat->st_page_out);
-    MSET("dbCachePageOut");
-    sprintf(buf, "%lu", (unsigned long)mpstat->st_ro_evict);
-    MSET("dbCacheROEvict");
-    sprintf(buf, "%lu", (unsigned long)mpstat->st_rw_evict);
-    MSET("dbCacheRWEvict");
 
     /* normalized dn cache stats */
     if (ndn_cache_started()) {
@@ -279,14 +248,8 @@ dbmdb_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, 
         MSET("currentNormalizedDnCacheCount");
     }
 
-    slapi_ch_free((void **)&mpstat);
-
-    if (mpfstat)
-        slapi_ch_free((void **)&mpfstat);
-
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;
-#endif /* TODO */
 }
 
 
@@ -299,7 +262,6 @@ dbmdb_dbmonitor_search(Slapi_PBlock *pb __attribute__((unused)),
                            char *returntext __attribute__((unused)),
                            void *arg)
 {
-#ifdef TODO
     dblayer_private *dbpriv = NULL;
     struct ldbminfo *li = NULL;
 
@@ -308,9 +270,8 @@ dbmdb_dbmonitor_search(Slapi_PBlock *pb __attribute__((unused)),
     dbpriv = (dblayer_private *)li->li_dblayer_private;
     PR_ASSERT(NULL != dbpriv);
 
-    dbmdb_perfctrs_as_entry(e, BDB_CONFIG(li)->perf_private, ((dbmdb_db_env *)dbpriv->dblayer_env)->dbmdb_MDB_env);
+    dbmdb_perfctrs_as_entry(e, MDB_CONFIG(li));
 
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;
-#endif /* TODO */
 }

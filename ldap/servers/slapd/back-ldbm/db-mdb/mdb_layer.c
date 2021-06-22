@@ -1038,7 +1038,6 @@ dbmdb_restore_file(struct ldbminfo *li, Slapi_Task *task, const char *src_dir, c
     return 0;
 }
 
-
 int
 dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
 {
@@ -1094,6 +1093,19 @@ dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         slapi_ch_free_string(&pathname);
     }
 
+    /* Check that current backend instance are compatible with backup. */
+    /* And reset index configuration to the backup one */
+    tmp_rval = dbmdb_dse_conf_verify(li, src_dir);
+    if (tmp_rval != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_restore", "Backup directory %s is not compatible "
+                                                      "with current configuration.\n", src_dir);
+        if (task) {
+            slapi_task_log_notice(task, "Restore: backup directory %s is not compatible "
+                                        "with current configuration.", src_dir);
+        }
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
     /* We delete the existing database */
     dbmdb_ctx_close(li->li_dblayer_config);
     dbmdb_delete_db(li);
@@ -1119,8 +1131,6 @@ dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         goto error_out;
     }
 
-    /* check the DSE_* files, if any */
-    tmp_rval = dbmdb_dse_conf_verify(li, src_dir);
     if (0 != tmp_rval)
         slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_restore", "Unable to verify the index configuration\n");
 

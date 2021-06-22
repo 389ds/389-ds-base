@@ -866,11 +866,11 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
         if (fd < 0) {
             slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
             slapi_task_log_notice(task,
-                    "Backend %s: can't open %s: %d (%s) while startcfg as user \"%s\"",
-                    inst->inst_name, fname, errno, dblayer_strerror(errno), slapdFrontendConfig->localuserinfo->pw_name);
+                    "Backend %s: can't open %s: error %d (%s) while startcfg as user \"%s\"",
+                    inst->inst_name, fname, errno, slapi_system_strerror(errno), slapdFrontendConfig->localuserinfo->pw_name);
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_db2ldif",
-                    "db2ldif: %s: can't open %s: %d (%s) while startcfg as user \"%s\"\n",
-                    inst->inst_name, fname, errno, dblayer_strerror(errno), slapdFrontendConfig->localuserinfo->pw_name);
+                    "db2ldif: %s: can't open %s: error %d (%s) while startcfg as user \"%s\"\n",
+                    inst->inst_name, fname, errno, slapi_system_strerror(errno), slapdFrontendConfig->localuserinfo->pw_name);
             we_start_the_backends = 0;
             return_value = -1;
             goto bye;

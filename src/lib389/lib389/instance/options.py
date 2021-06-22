@@ -10,6 +10,7 @@ import socket
 import sys
 from lib389.paths import Paths
 from lib389._constants import INSTALL_LATEST_CONFIG
+from lib389.utils import get_default_db_lib
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
@@ -32,6 +33,7 @@ format_keys = [
     'backup_dir',
     'db_dir',
     'db_home_dir',
+    'db_lib',
     'ldif_dir',
     'lock_dir',
     'log_dir',
@@ -267,6 +269,11 @@ class Slapd2Base(Options2):
         self._type['db_home_dir'] = str
         self._helptext['db_home_dir'] = "Sets the memory-mapped database files location of the instance."
         self._advanced['db_home_dir'] = True
+
+        self._options['db_lib'] = get_default_db_lib()
+        self._type['db_lib'] = str
+        self._helptext['db_lib'] = "Select the database implementation library (bdb or mdb)."
+        self._advanced['db_lib'] = True
 
         self._options['ldif_dir'] = ds_paths.ldif_dir
         self._type['ldif_dir'] = str
