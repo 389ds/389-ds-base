@@ -120,7 +120,7 @@ DEFAULT_INST_HEAD = 'slapd-'
 DEFAULT_ENV_HEAD = 'dirsrv-'
 DEFAULT_CHANGELOG_NAME = "changelog5"
 DEFAULT_CHANGELOG_DB = 'changelogdb'
-DEFAULT_DB_LIB = 'bdb'
+DEFAULT_DB_LIB = 'mdb'
 
 # CONF_DIR = 'etc/dirsrv'
 # ENV_SYSCONFIG_DIR = '/etc/sysconfig'
