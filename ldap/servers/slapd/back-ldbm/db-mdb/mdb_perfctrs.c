@@ -268,7 +268,7 @@ static SlapiLDBMPerfctrATMap dbmdb_perfctr_at_map[] = {
  * information (from `priv').
  */
 void
-dbmdb_perfctrs_as_entry(Slapi_Entry *e, perfctrs_private *priv, MDB_env *db_env)
+dbmdb_perfctrs_as_entry(Slapi_Entry *e, dbmdb_ctx_t *ctx)
 {
 #ifdef TODO
     performance_counters *perf;

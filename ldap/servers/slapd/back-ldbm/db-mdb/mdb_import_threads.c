@@ -3673,113 +3673,128 @@ dbmdb_dse_conf_backup(struct ldbminfo *li, char *dest_dir)
 
 /*
  * read the backed up index configuration
+ * this function is called from dblayer_restore (archive2ldbm)
+ * these functions are placed here to borrow import_get_entry
+ * [547427] index config must not change between backup and restore
+ */
+Slapi_Entry **
+dbmdb_read_ldif_entries(struct ldbminfo *li, char *src_dir, char *file_name)
+{
+    int fd = -1;
+    int curr_lineno = 0;
+    Slapi_Entry **backup_entries = NULL;
+    char *filename = NULL;
+    char *estr = NULL;
+    int max_entries = 0;
+    int nb_entries = 0;
+    ldif_context c;
+
+    dbmdb_import_init_ldif(&c);
+    filename = slapi_ch_smprintf("%s/%s", src_dir, file_name);
+    if (PR_SUCCESS != PR_Access(filename, PR_ACCESS_READ_OK)) {
+        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_read_ldif_entries",
+                      "Config backup file %s not found in backup\n",
+                      file_name);
+        goto out;
+    }
+    fd = dbmdb_open_huge_file(filename, O_RDONLY, 0);
+    if (fd < 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_read_ldif_entries",
+                      "Can't open config backup file: %s\n", filename);
+        goto out;
+    }
+
+    while ((estr = dbmdb_import_get_entry(&c, fd, &curr_lineno))) {
+        Slapi_Entry *e = slapi_str2entry(estr, 0);
+        slapi_ch_free_string(&estr);
+        if (!e) {
+            slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_read_ldif_entries",
+                          "Skipping bad LDIF entry ending line %d of file \"%s\"",
+                          curr_lineno, filename);
+            continue;
+        }
+        if (nb_entries+1 >= max_entries) { /* Reserve enough space to add the final NULL element */
+			max_entries = max_entries ? 2 * max_entries : 256;
+            backup_entries = (Slapi_Entry **)slapi_ch_realloc((char *)backup_entries, max_entries * sizeof(Slapi_Entry *));
+        }
+        backup_entries[nb_entries++] = e;
+    }
+    if (!backup_entries) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_read_ldif_entries",
+                      "No entry found in backup config file \"%s\"",
+                      filename);
+        goto out;
+    }
+    backup_entries[nb_entries] = NULL;
+out:
+    slapi_ch_free_string(&filename);
+    if (fd >= 0) {
+        close(fd);
+    }
+    dbmdb_import_free_ldif(&c);
+
+    return backup_entries;
+}
+
+/*
+ * read the backed up index configuration
  * adjust them if the current configuration is different from it.
  * this function is called from dblayer_restore (archive2ldbm)
  * these functions are placed here to borrow import_get_entry
  * [547427] index config must not change between backup and restore
  */
 int
-dbmdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *filter, char *log_str)
+dbmdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *filter, int force_update, char *log_str)
 {
-    char *filename = NULL;
-    int rval = 0;
-    ldif_context c;
-    int fd = -1;
-    int curr_lineno = 0;
-    int finished = 0;
-    int backup_entry_len = 256;
-    char *search_scope = NULL;
-    Slapi_Entry **backup_entries = NULL;
-    Slapi_Entry **bep = NULL;
+	Slapi_Entry **backup_entries = dbmdb_read_ldif_entries(li, src_dir, file_name);
     Slapi_Entry **curr_entries = NULL;
+    Slapi_Entry **bep = NULL;
+    int rval = 0;
 
-    filename = slapi_ch_smprintf("%s/%s", src_dir, file_name);
-
-    if (PR_SUCCESS != PR_Access(filename, PR_ACCESS_READ_OK)) {
-        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_dse_conf_verify_core",
-                      "Config backup file %s not found in backup\n",
-                      file_name);
-        rval = 0;
-        goto out;
+    if (!backup_entries) {
+        /* Error is already logged */
+        return -1;
     }
 
-    fd = dbmdb_open_huge_file(filename, O_RDONLY, 0);
-    if (fd < 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dse_conf_verify_core",
-                      "Can't open config backup file: %s\n", filename);
-        rval = -1;
-        goto out;
-    }
-
-    dbmdb_import_init_ldif(&c);
-    bep = backup_entries = (Slapi_Entry **)slapi_ch_calloc(1,
-                                                           backup_entry_len * sizeof(Slapi_Entry *));
-
-    while (!finished) {
-        char *estr = NULL;
-        Slapi_Entry *e = NULL;
-        estr = dbmdb_import_get_entry(&c, fd, &curr_lineno);
-
-        if (!estr)
-            break;
-
-        e = slapi_str2entry(estr, 0);
-        slapi_ch_free_string(&estr);
-        if (!e) {
-            slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_dse_conf_verify_core",
-                          "Skipping bad LDIF entry ending line %d of file \"%s\"",
-                          curr_lineno, filename);
-            continue;
-        }
-        if (bep - backup_entries >= backup_entry_len) {
-            backup_entries = (Slapi_Entry **)slapi_ch_realloc((char *)backup_entries,
-                                                              2 * backup_entry_len * sizeof(Slapi_Entry *));
-            bep = backup_entries + backup_entry_len;
-            backup_entry_len *= 2;
-        }
-        *bep = e;
-        bep++;
-    }
-    /* 623986: terminate the list if we reallocated backup_entries */
-    if (backup_entry_len > 256) {
-        *bep = NULL;
-    }
-
-    search_scope = slapi_ch_strdup(li->li_plugin->plg_dn);
-
+    char * search_scope = slapi_ch_strdup(li->li_plugin->plg_dn);
     Slapi_PBlock *srch_pb = slapi_pblock_new();
 
     slapi_search_internal_set_pb(srch_pb, search_scope,
                                  LDAP_SCOPE_SUBTREE, filter, NULL, 0, NULL, NULL, li->li_identity, 0);
     slapi_search_internal_pb(srch_pb);
     slapi_pblock_get(srch_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &curr_entries);
-
-
+    if (!curr_entries) {
+		slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dse_conf_verify_core",
+                      "Failed to get current configuration.\n");
+		rval = -1;
+        goto out;
+    }
+		
     if (0 != slapi_entries_diff(backup_entries, curr_entries, 1 /* test_all */,
-                                log_str, 1 /* force_update */, li->li_identity)) {
-        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_dse_conf_verify_core",
-                      "Current %s is different from backed up configuration; "
-                      "The backup is restored.\n",
-                      log_str);
+                                log_str, force_update, li->li_identity)) {
+        if (force_update) {
+            slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_dse_conf_verify_core",
+                          "Current %s is different from backed up configuration; "
+                          "The backup is restored.\n",
+                          log_str);
+		} else {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dse_conf_verify_core",
+                          "Current %s is different from backed up configuration; "
+                          "The backup is not restored.\n",
+                          log_str);
+            rval = -1;
+		}
     }
 
     slapi_free_search_results_internal(srch_pb);
     slapi_pblock_destroy(srch_pb);
-    dbmdb_import_free_ldif(&c);
 out:
     for (bep = backup_entries; bep && *bep; bep++) {
         slapi_entry_free(*bep);
     }
     slapi_ch_free((void **)&backup_entries);
 
-    slapi_ch_free_string(&filename);
-
     slapi_ch_free_string(&search_scope);
-
-
-    if (fd >= 0) {
-        close(fd);
-    }
 
     return rval;
 }
@@ -3792,10 +3807,11 @@ dbmdb_dse_conf_verify(struct ldbminfo *li, char *src_dir)
 
     instance_entry_filter = slapi_ch_strdup(DSE_INSTANCE_FILTER);
 
+    /* instance should not be changed between bakup and restore */
     rval = dbmdb_dse_conf_verify_core(li, src_dir, DSE_INSTANCE, instance_entry_filter,
-                                "Instance Config");
+                                      0 /* force update */, "Instance Config");
     rval += dbmdb_dse_conf_verify_core(li, src_dir, DSE_INDEX, DSE_INDEX_FILTER,
-                                 "Index Config");
+                                       1 /* force update */, "Index Config");
 
     slapi_ch_free_string(&instance_entry_filter);
 

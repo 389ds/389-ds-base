@@ -54,6 +54,7 @@ static const char *requires_restart[] = {
     "cn=config,cn=ldbm:nsslapd-dbncache",
     "cn=config,cn=ldbm:nsslapd-cachesize",
     "cn=config,cn=ldbm:nsslapd-plugin",
+    "cn=config,cn=ldbm:nsslapd-backend-implement",
     "cn=encryption,cn=config:nssslsessiontimeout",
     "cn=encryption,cn=config:nssslclientauth",
     "cn=encryption,cn=config:nsssl2",

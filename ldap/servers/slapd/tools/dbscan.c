@@ -602,10 +602,9 @@ display_index_item(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data, unsign
     if (file_type & VLVINDEXTYPE) {         /* vlv index file */
         if (1 > min_display) {              /* recno is always 1 */
             if (display_mode & SHOWCOUNT) { /* key  size=1 */
-                printf("(%ld) %-40s         1\n",
-                       key->size, format(key->data, key->size, buf, buflen));
+                printf("%-40s         1\n", format(key->data, key->size, buf, buflen));
             } else {
-                printf("(%ld) %-40s\n", key->size, format(key->data, key->size, buf, buflen));
+                printf("%-40s\n", format(key->data, key->size, buf, buflen));
             }
             if (display_mode & SHOWDATA) {
                 dblayer_cursor_op(cursor, DBI_OP_GET_RECNO, key, data);
@@ -643,18 +642,18 @@ display_index_item(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data, unsign
         if (allids_cnt == 0 && (display_mode & SHOWSUMMARY)) {
             printf("The following index keys reached allids:\n");
         }
-        printf("(%ld) %-40s(allids)\n", key->size, format(key->data, key->size, buf, buflen));
+        printf("%-40s(allids)\n", format(key->data, key->size, buf, buflen));
         allids_cnt++;
     } else {
         if (idl->used < min_display) {
             goto index_done;                   /* less than minimum display count */
         } else if (display_mode & SHOWCOUNT) { /* key  size */
-            printf("(%ld) %-40s%d\n", key->size,
+            printf("%-40s%d\n",
                    format(key->data, key->size, buf, buflen), idl->used);
         } else if (!(display_mode & SHOWSUMMARY) || (display_mode & SHOWDATA)) {
             /* show keys only if show summary is not set or
                          * even if it's set, but with show data */
-            printf("(%ld) %-40s\n", key->size, format(key->data, key->size, buf, buflen));
+            printf("%-40s\n", format(key->data, key->size, buf, buflen));
         }
         if (display_mode & SHOWDATA) {
             char *formatted_idl = NULL;

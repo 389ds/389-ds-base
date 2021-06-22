@@ -332,7 +332,7 @@ void dbmdb_instance_unregister_monitor(ldbm_instance *inst);
 void dbmdb_perfctrs_wait(size_t milliseconds, perfctrs_private *priv, MDB_env *db_env);
 void dbmdb_perfctrs_init(struct ldbminfo *li, perfctrs_private **priv);
 void dbmdb_perfctrs_terminate(perfctrs_private **priv, MDB_env *db_env);
-void dbmdb_perfctrs_as_entry(Slapi_Entry *e, perfctrs_private *priv, MDB_env *db_env);
+void dbmdb_perfctrs_as_entry(Slapi_Entry *e, dbmdb_ctx_t *ctx);
 
 /* mdb_import.c */
 int dbmdb_import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize);

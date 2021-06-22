@@ -55,7 +55,7 @@ from lib389.paths import Paths
 from lib389.dseldif import DSEldif
 from lib389._constants import (
         DEFAULT_USER, VALGRIND_WRAPPER, DN_CONFIG, CFGSUFFIX, LOCALHOST,
-        ReplicaRole, CONSUMER_REPLICAID, SENSITIVE_ATTRS
+        ReplicaRole, CONSUMER_REPLICAID, SENSITIVE_ATTRS, DEFAULT_DB_LIB
     )
 from lib389.properties import (
         SER_HOST, SER_USER_ID, SER_GROUP_ID, SER_STRICT_HOSTNAME_CHECKING, SER_PORT,
@@ -1431,3 +1431,6 @@ def is_valid_hostname(hostname):
         hostname = hostname[:-1] # strip exactly one dot from the right, if present
     allowed = re.compile("(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split("."))
+
+def get_default_db_lib():
+    return os.getenv('NSSLAPD_DB_LIB', default=DEFAULT_DB_LIB)
