@@ -15,12 +15,14 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     Spinner,
     // TextInput,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
-import { Typeahead } from "react-bootstrap-typeahead";
 
 export class WinsyncAgmtModal extends React.Component {
     constructor(props) {
@@ -47,6 +49,8 @@ export class WinsyncAgmtModal extends React.Component {
             saveHandler,
             handleChange,
             handleFracChange,
+            onSelectToggle,
+            onSelectClear,
             spinning,
             agmtName,
             agmtHost,
@@ -77,6 +81,7 @@ export class WinsyncAgmtModal extends React.Component {
             error,
             errorMsg,
             errorScheduleMsg,
+            isExcludeAttrOpen,
         } = this.props;
         let spinner = "";
         let saveDisabled = !this.props.saveOK;
@@ -476,16 +481,25 @@ export class WinsyncAgmtModal extends React.Component {
                                     Exclude Attributes
                                 </Col>
                                 <Col sm={8}>
-                                    <Typeahead
-                                        multiple
-                                        onChange={handleFracChange}
-                                        selected={agmtFracAttrs}
-                                        options={availAttrs}
-                                        name={name}
-                                        newSelectionPrefix="Add a attribute: "
-                                        placeholder="Start typing an attribute..."
-                                        id="agmtFracAttrs"
-                                    />
+                                    <Select
+                                        variant={SelectVariant.typeaheadMulti}
+                                        typeAheadAriaLabel="Type an attribute"
+                                        onToggle={onSelectToggle}
+                                        onSelect={(e, selection) => { handleFracChange(selection) }}
+                                        onClear={onSelectClear}
+                                        selections={agmtFracAttrs}
+                                        isOpen={isExcludeAttrOpen}
+                                        aria-labelledby="typeAhead-exclude-attrs"
+                                        placeholderText="Start typing an attribute..."
+                                        noResultsFoundText="There are no matching entries"
+                                        >
+                                        {availAttrs.map((attr, index) => (
+                                            <SelectOption
+                                                key={index}
+                                                value={attr}
+                                            />
+                                            ))}
+                                    </Select>
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top-med">
@@ -565,6 +579,15 @@ export class ReplAgmtModal extends React.Component {
             handleStripChange,
             handleFracChange,
             handleFracInitChange,
+            onExcludeAttrsToggle,
+            onExcludeAttrsClear,
+            onExcludeAttrsInitToggle,
+            onExcludeAttrsInitClear,
+            onStripAttrsToggle,
+            onStripAttrsClear,
+            isExcludeAttrsOpen,
+            isExcludeInitAttrsOpen,
+            isStripAttrsOpen,
             spinning,
             agmtName,
             agmtHost,
@@ -1042,16 +1065,24 @@ export class ReplAgmtModal extends React.Component {
                                     Exclude Attributes
                                 </Col>
                                 <Col sm={8}>
-                                    <Typeahead
-                                        multiple
-                                        onChange={handleFracChange}
-                                        selected={agmtFracAttrs}
-                                        options={availAttrs}
-                                        name={name}
-                                        newSelectionPrefix="Add a attribute: "
-                                        placeholder="Start typing an attribute..."
-                                        id="agmtFracAttrs"
-                                    />
+                                    <Select
+                                        variant={SelectVariant.typeaheadMulti}
+                                        typeAheadAriaLabel="Type an attribute"
+                                        onToggle={onExcludeAttrsToggle}
+                                        onSelect={(e, selection) => { handleFracChange(selection) }}
+                                        onClear={onExcludeAttrsClear}
+                                        selections={agmtFracAttrs}
+                                        isOpen={isExcludeAttrsOpen}
+                                        aria-labelledby="typeAhead-exclude-attrs"
+                                        placeholderText="Start typing an attribute..."
+                                        >
+                                        {availAttrs.map((attr, index) => (
+                                            <SelectOption
+                                                key={index}
+                                                value={attr}
+                                            />
+                                            ))}
+                                    </Select>
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top" title="Attribute to exclude from replica Initializations">
@@ -1059,33 +1090,51 @@ export class ReplAgmtModal extends React.Component {
                                     Exclude Init Attributes
                                 </Col>
                                 <Col sm={8}>
-                                    <Typeahead
-                                        multiple
-                                        onChange={handleFracInitChange}
-                                        selected={agmtFracInitAttrs}
-                                        options={availAttrs}
-                                        name={name}
-                                        newSelectionPrefix="Add a attribute: "
-                                        placeholder="Start typing an attribute..."
-                                        id="agmtFracInitAttrs"
-                                    />
+                                    <Select
+                                        variant={SelectVariant.typeaheadMulti}
+                                        typeAheadAriaLabel="Type an attribute"
+                                        onToggle={onExcludeAttrsInitToggle}
+                                        onSelect={(e, selection) => { handleFracInitChange(selection) }}
+                                        onClear={onExcludeAttrsInitClear}
+                                        selections={agmtFracInitAttrs}
+                                        isOpen={isExcludeInitAttrsOpen}
+                                        aria-labelledby="typeAhead-exclude-init-attrs"
+                                        placeholderText="Start typing an attribute..."
+                                        noResultsFoundText="There are no matching entries"
+                                        >
+                                        {availAttrs.map((attr, index) => (
+                                            <SelectOption
+                                                key={index}
+                                                value={attr}
+                                            />
+                                            ))}
+                                    </Select>
                                 </Col>
                             </Row>
-                            <Row className="ds-margin-top" title="Attributes to strip from a replication update">
+                            <Row className="ds-margin-top" title="Attributes to strip from a replicatio<Selectn update">
                                 <Col componentClass={ControlLabel} sm={4}>
                                     Strip Attributes
                                 </Col>
                                 <Col sm={8}>
-                                    <Typeahead
-                                        multiple
-                                        onChange={handleStripChange}
-                                        selected={agmtStripAttrs}
-                                        options={availAttrs}
-                                        name={name}
-                                        newSelectionPrefix="Add a attribute: "
-                                        placeholder="Start typing an attribute..."
-                                        id="agmtStripAttrs"
-                                    />
+                                    <Select
+                                        variant={SelectVariant.typeaheadMulti}
+                                        typeAheadAriaLabel="Type an attribute"
+                                        onToggle={onStripAttrsToggle}
+                                        onSelect={(e, selection) => { handleStripChange(selection) }}
+                                        onClear={onStripAttrsClear}
+                                        selections={agmtStripAttrs}
+                                        isOpen={isStripAttrsOpen}
+                                        aria-labelledby="typeAhead-strip-attrs"
+                                        placeholderText="Start typing an attribute..."
+                                        noResultsFoundText="There are no matching entries"
+                                        >
+                                        {availAttrs.map((attr, index) => (
+                                            <SelectOption
+                                                key={index}
+                                                value={attr}
+                                            />
+                                            ))}
+                                    </Select>
                                 </Col>
                             </Row>
                             <hr />

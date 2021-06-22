@@ -20,6 +20,9 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     // TextInput,
     noop
 } from "@patternfly/react-core";
@@ -33,7 +36,6 @@ import {
 } from '@patternfly/react-table';
 import TrashAltIcon from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
 import PropTypes from "prop-types";
-import { Typeahead } from "react-bootstrap-typeahead";
 
 export class VLVIndexes extends React.Component {
     constructor (props) {
@@ -44,6 +46,7 @@ export class VLVIndexes extends React.Component {
             showVLVEditModal: false,
             showDeleteConfirm: false,
             showReindexConfirm: false,
+            isVlvSortIndexSelectOpen: false,
             errObj: {},
             vlvName: "",
             vlvBase: "",
@@ -73,6 +76,9 @@ export class VLVIndexes extends React.Component {
         this.closeDeleteConfirm = this.closeDeleteConfirm.bind(this);
         this.showReindexConfirm = this.showReindexConfirm.bind(this);
         this.closeReindexConfirm = this.closeReindexConfirm.bind(this);
+        // Select typeahead
+        this.onSelectToggle = this.onSelectToggle.bind(this);
+        this.onSelectClear = this.onSelectClear.bind(this);
     }
 
     //
@@ -96,7 +102,7 @@ export class VLVIndexes extends React.Component {
         });
     }
 
-    handleVLVChange(e) {
+    handleVLVChange(e, selection) {
         let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
         let errObj = this.state.errObj;
@@ -118,7 +124,7 @@ export class VLVIndexes extends React.Component {
             sortList.push(sort.sortName);
         }
         this.setState({
-            vlvSortList: sortList
+            vlvSortList: [...this.state.vlvSortList, sorts]
         });
     }
 
@@ -513,6 +519,19 @@ export class VLVIndexes extends React.Component {
                 });
     }
 
+    onSelectToggle = (isExpanded, toggleId) => {
+        this.setState({
+            [toggleId]: isExpanded
+        });
+    }
+
+    onSelectClear = item => event => {
+        this.setState({
+            sortValue: [],
+            isVlvSortIndexSelectOpen: false
+        });
+    }
+
     render() {
         const vlvIndexes = this.props.vlvItems.map((vlvItem) =>
             <ListViewItem
@@ -556,6 +575,10 @@ export class VLVIndexes extends React.Component {
                     handleChange={this.handleVLVChange}
                     handleSortChange={this.handleVLVSortChange}
                     saveHandler={this.saveVLV}
+                    onSelectToggle={this.onSelectToggle}
+                    onSelectClear={this.onSelectClear}
+                    handleTypeaheadChange={this.handleTypeaheadChange}
+                    isVlvSortIndexSelectOpen={this.isVlvSortIndexSelectOpen}
                     error={this.state.errObj}
                     attrs={this.props.attrs}
                     reindexVLV={this.state.reindexVLV}
@@ -566,6 +589,10 @@ export class VLVIndexes extends React.Component {
                     handleChange={this.handleVLVChange}
                     handleSortChange={this.handleVLVSortChange}
                     saveHandler={this.saveEditVLV}
+                    onSelectToggle={this.onSelectToggle}
+                    onSelectClear={this.onSelectClear}
+                    handleTypeaheadChange={this.handleTypeaheadChange}
+                    isVlvSortIndexSelectOpen={this.isVlvSortIndexSelectOpen}
                     edit
                     error={this.state.errObj}
                     attrs={this.props.attrs}
@@ -607,7 +634,7 @@ class AddVLVModal extends React.Component {
         }
         this.state = {
             sortRows: sortRows,
-            sortValue: "",
+            sortValue: [],
             sortBy: {},
             rows: [],
             columns: [
@@ -615,6 +642,20 @@ class AddVLVModal extends React.Component {
                 { title: '' },
             ],
             edit: false,
+            isVLVSortOpen: false,
+        };
+
+        // VLV Sort indexes
+        this.onVLVSortToggle = isVLVSortOpen => {
+            this.setState({
+                isVLVSortOpen
+            });
+        };
+        this.onVLVSortClear = () => {
+            this.setState({
+                sortValue: [],
+                isVLVSortOpen: false
+            });
         };
 
         this.updateSorts = this.updateSorts.bind(this);
@@ -623,6 +664,7 @@ class AddVLVModal extends React.Component {
         this.save = this.save.bind(this);
         this.onSort = this.onSort.bind(this);
         this.getDeleteButton = this.getDeleteButton.bind(this);
+        this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
     }
 
     getDeleteButton(name) {
@@ -652,21 +694,31 @@ class AddVLVModal extends React.Component {
         }
     }
 
-    handleTypeaheadChange(values) {
-        const value = values.join(' ');
-        this.setState({
-            sortValue: value
-        });
+    handleTypeaheadChange(e, selection) {
+        if (this.state.sortValue.includes(selection)) {
+            this.setState(
+                (prevState) => ({
+                    sortValue: prevState.sortValue.filter((item) => item !== selection),
+                    isVLVSortOpen: false
+                }),
+            );
+        } else {
+            this.setState(
+                (prevState) => ({
+                    sortValue: [...prevState.sortValue, selection],
+                    isVLVSortOpen: false
+                }),
+            );
+        }
     }
 
     updateSorts() {
         let rows = this.state.sortRows;
-        if (this.state.sortValue != "") {
+        if (this.state.sortValue.length > 0) {
             rows.push(this.state.sortValue);
-            this.typeahead.getInstance().clear();
             this.setState({
                 sortRows: rows,
-                sortValue: ""
+                sortValue: []
             });
             this.props.handleSortChange(rows);
         }
@@ -705,7 +757,7 @@ class AddVLVModal extends React.Component {
             showModal,
             handleChange,
             error,
-            attrs
+            attrs,
         } = this.props;
         let title;
         let nameInput;
@@ -714,7 +766,6 @@ class AddVLVModal extends React.Component {
         let filter = "";
         let rows = [];
         let columns = this.state.columns;
-
         if (this.props.edit) {
             title = "Edit VLV Index";
             nameInput = <input className="ds-input-auto" type="text" value={this.props.vlvName} readOnly />;
@@ -749,7 +800,7 @@ class AddVLVModal extends React.Component {
         } else {
             // let sortRows = JSON.parse(JSON.stringify(this.state.sortRows));
             for (let row of this.state.sortRows) {
-                rows.push({ cells: [row, { props: { textCenter: true }, title: this.getDeleteButton(row) }] });
+                rows.push({ cells: [row.join(' '), { props: { textCenter: true }, title: this.getDeleteButton(row) }] });
             }
         }
 
@@ -812,18 +863,26 @@ class AddVLVModal extends React.Component {
                                 <TableHeader />
                                 <TableBody />
                             </Table>
-                            <Typeahead
-                                multiple
-                                className="ds-margin-top"
-                                id="vlvsortindex"
-                                onChange={values => {
-                                    this.handleTypeaheadChange(values);
-                                }}
-                                maxResults={1000}
-                                options={attrs}
-                                placeholder="Start typing attribute names to create a sort index"
-                                ref={(typeahead) => { this.typeahead = typeahead }}
-                            />
+                            <Select
+                                variant={SelectVariant.typeaheadMulti}
+                                typeAheadAriaLabel="Type an attribute names to create a sort index"
+                                onToggle={this.onVLVSortToggle}
+                                onClear={this.onVLVSortClear}
+                                onSelect={this.handleTypeaheadChange}
+                                maxHeight={1000}
+                                selections={this.state.sortValue}
+                                isOpen={this.state.isVLVSortOpen}
+                                aria-labelledby="typeAhead-vlv-sort-index"
+                                placeholderText="Type an attribute names to create a sort index..."
+                                noResultsFoundText="There are no matching entries"
+                                >
+                                {attrs.map((attr, index) => (
+                                    <SelectOption
+                                        key={index}
+                                        value={attr}
+                                    />
+                                    ))}
+                            </Select>
                             <button className="ds-margin-top" type="button" onClick={this.updateSorts}>Add Sort Index</button>
                         </div>
                     </div>

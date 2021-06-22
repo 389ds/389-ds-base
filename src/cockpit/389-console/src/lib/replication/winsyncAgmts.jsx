@@ -69,7 +69,37 @@ export class WinsyncAgmts extends React.Component {
             // Init agmt
             agmtInitCounter: 0,
             agmtInitIntervals: [],
+
+            isExcludeAttrCreateOpen: false,
+            isExcludeAttrEditOpen: false,
         };
+
+        // Create - Exclude Attributes
+        this.onExcludeAttrCreateToggle = isExcludeAttrCreateOpen => {
+            this.setState({
+                isExcludeAttrCreateOpen
+            });
+        };
+        this.onExcludeAttrCreateClear = () => {
+            this.setState({
+                agmtFracAttrs: [],
+                isExcludeAttrCreateOpen: false
+            });
+        };
+
+        // Edit - Exclude Attributes
+        this.onExcludeAttrEditToggle = isExcludeAttrEditOpen => {
+            this.setState({
+                isExcludeAttrEditOpen
+            });
+        };
+        this.onExcludeAttrEditClear = () => {
+            this.setState({
+                agmtFracAttrs: [],
+                isExcludeAttrEditOpen: false
+            });
+        };
+
         this.showCreateAgmtModal = this.showCreateAgmtModal.bind(this);
         this.closeCreateAgmtModal = this.closeCreateAgmtModal.bind(this);
         this.closeEditAgmtModal = this.closeEditAgmtModal.bind(this);
@@ -363,13 +393,40 @@ export class WinsyncAgmts extends React.Component {
             }
             // End of agmt modal live validation
         }
-        this.setState({
-            [e.target.id]: value,
-            errObj: errObj,
-            agmtSaveOK: all_good,
-            modalMsg: modal_msg,
-            modalScheduleMsg: modal_schedule_msg,
-        });
+        if (e.target.id.endsWith('Attrs')) {
+            if (this.state[e.target.id].includes(e.target.value)) {
+                this.setState(
+                    (prevState) => ({
+                        [e.target.id]: prevState[e.target.id].filter((item) => item !== e.target.value),
+                        errObj: errObj,
+                        agmtSaveOK: all_good,
+                        modalMsg: modal_msg,
+                        modalScheduleMsg: modal_schedule_msg,
+                        [e.target.toggle]: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        [e.target.id]: [...prevState[e.target.id], e.target.value],
+                        errObj: errObj,
+                        agmtSaveOK: all_good,
+                        modalMsg: modal_msg,
+                        modalScheduleMsg: modal_schedule_msg,
+                        [e.target.toggle]: false
+                    }),
+                );
+            }
+        } else {
+            this.setState({
+                [e.target.id]: value,
+                errObj: errObj,
+                agmtSaveOK: all_good,
+                modalMsg: modal_msg,
+                modalScheduleMsg: modal_schedule_msg,
+                [e.target.toggle]: false
+            });
+        }
     }
 
     handleTAFracAttrChangeEdit (values) {
@@ -380,6 +437,7 @@ export class WinsyncAgmts extends React.Component {
                 id: 'agmtFracAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isExcludeAttrEditOpen',
             }
         };
         this.handleChange(e);
@@ -393,6 +451,7 @@ export class WinsyncAgmts extends React.Component {
                 id: 'agmtFracAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isExcludeAttrCreateOpen',
             }
         };
         this.handleChange(e);
@@ -1128,7 +1187,11 @@ export class WinsyncAgmts extends React.Component {
                     closeHandler={this.closeCreateAgmtModal}
                     handleChange={this.handleChange}
                     handleFracChange={this.handleTAFracAttrChange}
+                    onSelectToggle={this.onExcludeAttrCreateToggle}
+                    onSelectClear={this.onExcludeAttrCreateClear}
+                    isExcludeAttrOpen={this.state.isExcludeAttrCreateOpen}
                     saveHandler={this.createAgmt}
+                    getToggleId={this.getToggleId}
                     spinning={this.state.savingAgmt}
                     agmtName={this.state.agmtName}
                     agmtHost={this.state.agmtHost}
@@ -1166,6 +1229,10 @@ export class WinsyncAgmts extends React.Component {
                     closeHandler={this.closeEditAgmtModal}
                     handleChange={this.handleChange}
                     handleFracChange={this.handleTAFracAttrChangeEdit}
+                    onSelectToggle={this.onExcludeAttrEditToggle}
+                    onSelectClear={this.onExcludeAttrEditClear}
+                    isExcludeAttrOpen={this.state.isExcludeAttrEditOpen}
+                    getToggleId={this.getToggleId}
                     saveHandler={this.saveAgmt}
                     spinning={this.state.savingAgmt}
                     agmtName={this.state.agmtName}

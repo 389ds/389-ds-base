@@ -15,10 +15,12 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     // TextInput,
     noop
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd } from "../tools.jsx";
@@ -55,14 +57,214 @@ class AccountPolicy extends React.Component {
             configArea: "",
             configDN: "",
             altStateAttrName: [],
+            altStateAttrNameOptions: [],
             alwaysRecordLogin: false,
             alwaysRecordLoginAttr: [],
+            alwaysRecordLoginAttrOptions: [],
             limitAttrName: [],
+            limitAttrNameOptions: [],
             specAttrName: [],
+            specAttrNameOptions: [],
             stateAttrName: [],
+            stateAttrNameOptions: [],
             configEntryModalShow: false,
             fixupModalShow: false,
-            newEntry: false
+            newEntry: false,
+
+            isRecordLoginOpen: false,
+            isSpecificAttrOpen: false,
+            isStateAttrOpen: false,
+            isAltStateAttrOpen: false,
+            isLimitAttrOpen: false,
+        };
+
+        // Always Record Login Attribute
+        this.onRecordLoginSelect = (event, selection) => {
+            if (this.state.alwaysRecordLoginAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        alwaysRecordLoginAttr: prevState.alwaysRecordLoginAttr.filter((item) => item !== selection),
+                        isRecordLoginOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        alwaysRecordLoginAttr: [...prevState.alwaysRecordLoginAttr, selection],
+                        isRecordLoginOpen: false
+                    }),
+                );
+            }
+        };
+        this.onRecordLoginToggle = isRecordLoginOpen => {
+            this.setState({
+                isRecordLoginOpen
+            });
+        };
+        this.onRecordLoginClear = () => {
+            this.setState({
+                alwaysRecordLoginAttr: [],
+                isRecordLoginOpen: false
+            });
+        };
+        this.onRecordLoginCreateOption = newValue => {
+            if (!this.state.alwaysRecordLoginAttrOptions.includes(newValue)) {
+                this.setState({
+                    alwaysRecordLoginAttrOptions: [...this.state.alwaysRecordLoginAttrOptions, newValue],
+                    isRecordLoginOpen: false
+                });
+            }
+        };
+
+        // Specific Attribute
+        this.onSpecificAttrSelect = (event, selection) => {
+            if (this.state.specAttrName.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        specAttrName: prevState.specAttrName.filter((item) => item !== selection),
+                        isSpecificAttrOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        specAttrName: [...prevState.specAttrName, selection],
+                        isSpecificAttrOpen: false
+                    }),
+                );
+            }
+        };
+        this.onSpecificAttrToggle = isSpecificAttrOpen => {
+            this.setState({
+                isSpecificAttrOpen
+            });
+        };
+        this.onSpecificAttrClear = () => {
+            this.setState({
+                specAttrName: [],
+                isSpecificAttrOpen: false
+            });
+        };
+        this.onSpecificAttrCreateOption = newValue => {
+            if (!this.state.specAttrNameOptions.includes(newValue)) {
+                this.setState({
+                    specAttrNameOptions: [...this.state.specAttrNameOptions, newValue],
+                    isSpecificAttrOpen: false
+                });
+            }
+        };
+
+        // State Attribute
+        this.onStateAttrSelect = (event, selection) => {
+            if (this.state.stateAttrName.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        stateAttrName: prevState.stateAttrName.filter((item) => item !== selection),
+                        isStateAttrOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        stateAttrName: [...prevState.stateAttrName, selection],
+                        isStateAttrOpen: false
+                    }),
+                );
+            }
+        };
+        this.onStateAttrToggle = isStateAttrOpen => {
+            this.setState({
+                isStateAttrOpen
+            });
+        };
+        this.onStateAttrClear = () => {
+            this.setState({
+                stateAttrName: [],
+                isStateAttrOpen: false
+            });
+        };
+        this.onStateAttrCreateOption = newValue => {
+            if (!this.state.stateAttrNameOptions.includes(newValue)) {
+                this.setState({
+                    stateAttrName: [...this.state.stateAttrName, newValue],
+                    isStateAttrOpen: false
+                });
+            }
+        };
+
+        // Alternative State Attribute
+        this.onAlternativeStateSelect = (event, selection) => {
+            if (this.state.altStateAttrName.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        altStateAttrName: prevState.altStateAttrName.filter((item) => item !== selection),
+                        isAltStateAttrOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        altStateAttrName: [...prevState.altStateAttrName, selection],
+                        isAltStateAttrOpen: false
+                    }),
+                );
+            }
+        };
+        this.onAlternativeStateToggle = isAltStateAttrOpen => {
+            this.setState({
+                isAltStateAttrOpen
+            });
+        };
+        this.onAlternativeStateClear = () => {
+            this.setState({
+                altStateAttrName: [],
+                isAltStateAttrOpen: false
+            });
+        };
+        this.onAlternativeStateCreateOption = newValue => {
+            if (!this.state.altStateAttrNameOptions.includes(newValue)) {
+                this.setState({
+                    altStateAttrNameOptions: [...this.state.altStateAttrNameOptions, newValue],
+                    isAltStateAttrOpen: false
+                });
+            }
+        };
+        // Limit Attribute
+        this.onLimitAttrSelect = (event, selection) => {
+            if (this.state.limitAttrName.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        limitAttrName: prevState.limitAttrName.filter((item) => item !== selection),
+                        isLimitAttrOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        limitAttrName: [...prevState.limitAttrName, selection],
+                        isLimitAttrOpen: false
+                    }),
+                );
+            }
+        };
+        this.onLimitAttrToggle = isLimitAttrOpen => {
+            this.setState({
+                isLimitAttrOpen
+            });
+        };
+        this.onLimitAttrClear = () => {
+            this.setState({
+                limitAttrName: [],
+                isLimitAttrOpen: false
+            });
+        };
+        this.onLimitAttrCreateOption = newValue => {
+            if (!this.state.onLimitAttrCreateOption.includes(newValue)) {
+                this.setState({
+                    onLimitAttrCreateOption: [...this.state.onLimitAttrCreateOption, newValue],
+                    isLimitAttrOpen: false
+                });
+            }
         };
     }
 
@@ -451,18 +653,27 @@ class AccountPolicy extends React.Component {
                                         Always Record Login Attribute
                                     </Col>
                                     <Col sm={5}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
-                                                this.setState({
-                                                    alwaysRecordLoginAttr: value
-                                                });
-                                            }}
-                                            selected={alwaysRecordLoginAttr}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a managed attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            typeAheadAriaLabel="Type an attribute name"
+                                            onToggle={this.onRecordLoginToggle}
+                                            onSelect={this.onRecordLoginSelect}
+                                            onClear={this.onRecordLoginClear}
+                                            selections={alwaysRecordLoginAttr}
+                                            isOpen={this.state.isRecordLoginOpen}
+                                            aria-labelledby="typeAhead-record-login"
+                                            placeholderText="Type an attribute name..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onRecordLoginCreateOption}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                     <Col sm={3}>
                                         <Checkbox
@@ -493,18 +704,27 @@ class AccountPolicy extends React.Component {
                                         Specific Attribute
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
-                                                this.setState({
-                                                    specAttrName: value
-                                                });
-                                            }}
-                                            selected={specAttrName}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a managed attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            typeAheadAriaLabel="Type an attribute name"
+                                            onToggle={this.onSpecificAttrToggle}
+                                            onSelect={this.onSpecificAttrSelect}
+                                            onClear={this.onSpecificAttrClear}
+                                            selections={specAttrName}
+                                            isOpen={this.state.isSpecificAttrOpen}
+                                            aria-labelledby="typeAhead-specific-attr"
+                                            placeholderText="Type an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onSpecificAttrCreateOption}
+                                            >
+                                            {attributes.map((attr) => (
+                                                <SelectOption
+                                                    key={attr}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -516,18 +736,27 @@ class AccountPolicy extends React.Component {
                                         State Attribute
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
-                                                this.setState({
-                                                    stateAttrName: value
-                                                });
-                                            }}
-                                            selected={stateAttrName}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a managed attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            typeAheadAriaLabel="Type an attribute name"
+                                            onToggle={this.onStateAttrToggle}
+                                            onSelect={this.onStateAttrSelect}
+                                            onClear={this.onStateAttrClear}
+                                            selections={stateAttrName}
+                                            isOpen={this.state.isStateAttrOpen}
+                                            aria-labelledby="typeAhead-state-attr"
+                                            placeholderText="Type an attribute name..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onStateAttrCreateOption}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>
@@ -549,18 +778,27 @@ class AccountPolicy extends React.Component {
                                         Alternative State Attribute
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
-                                                this.setState({
-                                                    altStateAttrName: value
-                                                });
-                                            }}
-                                            selected={altStateAttrName}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a managed attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            typeAheadAriaLabel="Type an attribute name"
+                                            onToggle={this.onAlternativeStateToggle}
+                                            onSelect={this.onAlternativeStateSelect}
+                                            onClear={this.onAlternativeStateClear}
+                                            selections={altStateAttrName}
+                                            isOpen={this.state.isAltStateAttrOpen}
+                                            aria-labelledby="typeAhead-alt-state-attr"
+                                            placeholderText="Type an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onAlternativeStateCreateOption}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup controlId="limitAttrName" disabled={false}>
@@ -572,18 +810,27 @@ class AccountPolicy extends React.Component {
                                         Limit Attribute
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
-                                                this.setState({
-                                                    limitAttrName: value
-                                                });
-                                            }}
-                                            selected={limitAttrName}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a managed attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            typeAheadAriaLabel="Type an attribute name"
+                                            onToggle={this.onLimitAttrToggle}
+                                            onSelect={this.onLimitAttrSelect}
+                                            onClear={this.onLimitAttrClear}
+                                            selections={limitAttrName}
+                                            isOpen={this.state.isLimitAttrOpen}
+                                            aria-labelledby="typeAhead-limit-attr"
+                                            placeholderText="Type an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onLimitAttrCreateOption}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>

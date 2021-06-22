@@ -8,11 +8,13 @@ import {
     noop,
 } from "patternfly-react";
 import {
-    Button
+    Button,
+    Select,
+    SelectVariant,
+    SelectOption,
 } from "@patternfly/react-core";
 import { log_cmd } from "../../lib/tools.jsx";
 import PropTypes from "prop-types";
-import { Typeahead } from "react-bootstrap-typeahead";
 
 export class Ciphers extends React.Component {
     constructor(props) {
@@ -24,11 +26,67 @@ export class Ciphers extends React.Component {
             prefs: this.props.cipherPref,
             saving: false,
             availableCiphers: this.props.supportedCiphers,
+            // Select Typeahead
+            isAllowCipherOpen: false,
+            isDenyCipherOpen: false,
+        };
+
+        // Allow Ciphers
+        this.onAllowCipherSelect = (event, selection) => {
+            if (this.state.allowCiphers.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        allowCiphers: prevState.allowCiphers.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ allowCiphers: [...prevState.allowCiphers, selection] }),
+                );
+            }
+        };
+        this.onAllowCipherToggle = isAllowCipherOpen => {
+            this.setState({
+                isAllowCipherOpen
+            });
+        };
+        this.onAllowCipherClear = () => {
+            this.setState({
+                allowCiphers: [],
+                isAllowCipherOpen: false
+            });
+        };
+
+        // Deny Ciphers
+        this.onDenyCipherSelect = (event, selection) => {
+            if (this.state.denyCiphers.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        denyCiphers: prevState.denyCiphers.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ denyCiphers: [...prevState.denyCiphers, selection] }),
+                );
+            }
+        };
+        this.onDenyCipherToggle = isDenyCipherOpen => {
+            this.setState({
+                isDenyCipherOpen
+            });
+        };
+        this.onDenyCipherClear = () => {
+            this.setState({
+                denyCiphers: [],
+                isDenyCipherOpen: false
+            });
         };
 
         this.handlePrefChange = this.handlePrefChange.bind(this);
         this.saveCipherPref = this.saveCipherPref.bind(this);
-        this.handleCipherChange = this.handleCipherChange.bind(this);
+        this.handleAllowCipherChange = this.handleAllowCipherChange.bind(this);
+        this.handleDenyCipherChange = this.handleDenyCipherChange.bind(this);
     }
 
     componentDidMount () {
@@ -144,27 +202,39 @@ export class Ciphers extends React.Component {
         });
     }
 
-    handleCipherChange (type, values) {
-        let availableCiphers = this.state.availableCiphers.slice(0); // Copy array
-        for (let i = 0; i < availableCiphers.length; i++) {
-            for (let ci = 0; ci < values.length; ci++) {
-                if (availableCiphers[i] === values[ci]) {
-                    availableCiphers.splice(i, 1);
-                    i--;
-                    break;
-                }
-            }
-        }
-        if (type == "allow") {
-            this.setState({
-                allowCiphers: values,
-                availableCiphers: availableCiphers
-            });
+    handleAllowCipherChange(e, selection) {
+        if (this.state.allowCiphers.includes(selection)) {
+            this.setState(
+                (prevState) => ({
+                    allowCiphers: prevState.allowCiphers.filter((item) => item !== selection),
+                    isAllowCipherOpen: false
+                }),
+            );
         } else {
-            this.setState({
-                denyCiphers: values,
-                availableCiphers: availableCiphers
-            });
+            this.setState(
+                (prevState) => ({
+                    allowCiphers: [...prevState.allowCiphers, selection],
+                    isAllowCipherOpen: false
+                }),
+            );
+        }
+    }
+
+    handleDenyCipherChange(e, selection) {
+        if (this.state.denyCiphers.includes(selection)) {
+            this.setState(
+                (prevState) => ({
+                    denyCiphers: prevState.denyCiphers.filter((item) => item !== selection),
+                    isDenyCipherOpen: false
+                }),
+            );
+        } else {
+            this.setState(
+                (prevState) => ({
+                    denyCiphers: [...prevState.denyCiphers, selection],
+                    isDenyCipherOpen: false
+                }),
+            );
         }
     }
 
@@ -248,17 +318,25 @@ export class Ciphers extends React.Component {
                             Allow Specific Ciphers
                         </Col>
                         <Col sm={9}>
-                            <Typeahead
-                                multiple
-                                onChange={value => {
-                                    this.handleCipherChange("allow", value);
-                                }}
-                                selected={this.state.allowCiphers}
-                                options={this.state.availableCiphers}
-                                newSelectionPrefix="Add a cipher: "
-                                placeholder="Type a cipher..."
-                                id="allowCipher"
-                            />
+                            <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    typeAheadAriaLabel="Type a cipher"
+                                    onToggle={this.onAllowCipherToggle}
+                                    onSelect={this.handleAllowCipherChange}
+                                    onClear={this.onAllowCipherClear}
+                                    selections={this.state.allowCiphers}
+                                    isOpen={this.state.isAllowCipherOpen}
+                                    aria-labelledby="typeAhead-allow-cipher"
+                                    placeholderText="Type a cipher..."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                {this.state.availableCiphers.map((cipher, index) => (
+                                    <SelectOption
+                                        key={index}
+                                        value={cipher}
+                                    />
+                                ))}
+                            </Select>
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
@@ -266,17 +344,25 @@ export class Ciphers extends React.Component {
                             Deny Specific Ciphers
                         </Col>
                         <Col sm={9}>
-                            <Typeahead
-                                multiple
-                                onChange={value => {
-                                    this.handleCipherChange("deny", value);
-                                }}
-                                selected={this.state.denyCiphers}
-                                options={this.state.availableCiphers}
-                                newSelectionPrefix="Add a cipher: "
-                                placeholder="Type a cipher..."
-                                id="denyCipher"
-                            />
+                            <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    typeAheadAriaLabel="Type a cipher"
+                                    onToggle={this.onDenyCipherToggle}
+                                    onSelect={this.handleDenyCipherChange}
+                                    onClear={this.onDenyCipherClear}
+                                    selections={this.state.denyCiphers}
+                                    isOpen={this.state.isDenyCipherOpen}
+                                    aria-labelledby="typeAhead-allow-deny"
+                                    placeholderText="Type a cipher..."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                {this.state.availableCiphers.map((cipher, index) => (
+                                    <SelectOption
+                                        key={index}
+                                        value={cipher}
+                                    />
+                                ))}
+                            </Select>
                         </Col>
                     </Row>
                     <Button

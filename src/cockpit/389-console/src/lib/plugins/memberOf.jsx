@@ -15,10 +15,12 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     // TextInput,
     noop
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd } from "../tools.jsx";
@@ -63,10 +65,13 @@ class MemberOf extends React.Component {
             attributeTypes: [],
 
             memberOfAttr: [],
+            memberOfAttrOptions: [],
             memberOfGroupAttr: [],
+            memberOfGroupAttrOptions: [],
             memberOfEntryScope: "",
             memberOfEntryScopeExcludeSubtree: "",
             memberOfAutoAddOC: [],
+            memberOfAutoAddOCOptions: [],
             memberOfAllBackends: false,
             memberOfSkipNested: false,
             memberOfConfigEntry: "",
@@ -75,16 +80,255 @@ class MemberOf extends React.Component {
 
             configDN: "",
             configAttr: [],
+            configAttrOptions: [],
             configGroupAttr: [],
+            configGroupAttrOptions: [],
             configEntryScope: "",
             configEntryScopeExcludeSubtree: "",
             configAutoAddOC: [],
+            configAutoAddOCOptions: [],
             configAllBackends: false,
             configSkipNested: false,
             newEntry: true,
 
             fixupDN: "",
-            fixupFilter: ""
+            fixupFilter: "",
+
+            isConfigAttrOpen: false,
+            isConfigGroupAttrOpen: false,
+            isConfigAutoAddOCOpen: false,
+            isMemberOfAttrOpen: false,
+            isMemberOfGroupAttrOpen: false,
+            isMemberOfAutoAddOCOpen: false,
+
+        };
+
+        // Config Attribute
+        this.onConfigAttrSelect = (event, selection) => {
+            if (this.state.configAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        configAttr: prevState.configAttr.filter((item) => item !== selection),
+                        isConfigAttrOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        configAttr: [...prevState.configAttr, selection],
+                        isConfigAttrOpen: false
+                    }),
+                );
+            }
+        };
+        this.onConfigAttrToggle = isConfigAttrOpen => {
+            this.setState({
+                isConfigAttrOpen
+            });
+        };
+        this.onConfigAttrClear = () => {
+            this.setState({
+                configAttr: [],
+                isConfigAttrOpen: false
+            });
+        };
+        this.onConfigAttrCreateOption = newValue => {
+            if (!this.state.configAttrOptions.includes(newValue)) {
+                this.setState({
+                    configAttrOptions: [...this.state.configAttrOptions, newValue],
+                    isConfigAttrOpen: false
+                });
+            }
+        };
+
+        // Config Group Attribute
+        this.onConfigGroupAttrSelect = (event, selection) => {
+            if (this.state.configGroupAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        configGroupAttr: prevState.configGroupAttr.filter((item) => item !== selection),
+                        isConfigGroupAttrOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        configGroupAttr: [...prevState.configGroupAttr, selection],
+                        isConfigGroupAttrOpen: false
+                    }),
+                );
+            }
+        };
+        this.onConfigGroupAttrToggle = isConfigGroupAttrOpen => {
+            this.setState({
+                isConfigGroupAttrOpen
+            });
+        };
+        this.onConfigGroupAttrClear = () => {
+            this.setState({
+                configGroupAttr: [],
+                isConfigGroupAttrOpen: false
+            });
+        };
+        this.onConfigGroupAttrCreateOption = newValue => {
+            if (!this.state.configGroupAttrOptions.includes(newValue)) {
+                this.setState({
+                    configGroupAttrOptions: [...this.state.configGroupAttrOptions, newValue],
+                    isConfigGroupAttrOpen: false
+                });
+            }
+        };
+
+        // Config Auto Add OC
+        this.onConfigAutoAddOCSelect = (event, selection) => {
+            if (this.state.configAutoAddOC.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        configAutoAddOC: prevState.configAutoAddOC.filter((item) => item !== selection),
+                        isConfigAutoAddOCOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        configAutoAddOC: [...prevState.configAutoAddOC, selection],
+                        isConfigAutoAddOCOpen: false
+                    }),
+                );
+            }
+        };
+        this.onConfigAutoAddOCToggle = isConfigAutoAddOCOpen => {
+            this.setState({
+                isConfigAutoAddOCOpen
+            });
+        };
+        this.onConfigAutoAddOCClear = () => {
+            this.setState({
+                configAutoAddOC: [],
+                isConfigAutoAddOCOpen: false
+            });
+        };
+        this.onConfigAutoAddOCCreateOption = newValue => {
+            if (!this.state.configAutoAddOCOptions.includes(newValue)) {
+                this.setState({
+                    configAutoAddOCOptions: [...this.state.configAutoAddOCOptions, newValue],
+                    isConfigAutoAddOCOpen: false
+                });
+            }
+        };
+
+        // MemberOr Attribute
+        this.onMemberOfAttrSelect = (event, selection) => {
+            if (this.state.memberOfAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        memberOfAttr: prevState.memberOfAttr.filter((item) => item !== selection),
+                        isMemberOfAttrOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        memberOfAttr: [...prevState.memberOfAttr, selection],
+                        isMemberOfAttrOpen: false
+                    }),
+                );
+            }
+        };
+        this.onMemberOfAttrToggle = isMemberOfAttrOpen => {
+            this.setState({
+                isMemberOfAttrOpen
+            });
+        };
+        this.onMemberOfAttrClear = () => {
+            this.setState({
+                memberOfAttr: [],
+                isMemberOfAttrOpen: false
+            });
+        };
+        this.onMemberOfAttrCreateOption = newValue => {
+            if (!this.state.memberOfAttrOptions.includes(newValue)) {
+                this.setState({
+                    memberOfAttrOptions: [...this.state.memberOfAttrOptions, newValue],
+                    isMemberOfAttrOpen: false
+                });
+            }
+        };
+
+        // MemberOr Group Attribute
+        this.onMemberOfGroupAttrSelect = (event, selection) => {
+            if (this.state.memberOfGroupAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        memberOfGroupAttr: prevState.memberOfGroupAttr.filter((item) => item !== selection),
+                        isMemberOfGroupAttrOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        memberOfGroupAttr: [...prevState.memberOfGroupAttr, selection],
+                        isMemberOfGroupAttrOpen: false
+                    }),
+                );
+            }
+        };
+        this.onMemberOfGroupAttrToggle = isMemberOfGroupAttrOpen => {
+            this.setState({
+                isMemberOfGroupAttrOpen
+            });
+        };
+        this.onMemberOfGroupAttrClear = () => {
+            this.setState({
+                memberOfGroupAttr: [],
+                isMemberOfGroupAttrOpen: false
+            });
+        };
+        this.onMemberOfGroupAttrCreateOption = newValue => {
+            if (!this.state.memberOfGroupAttrOptions.includes(newValue)) {
+                this.setState({
+                    memberOfGroumemberOfGroupAttrOptionspAttr: [...this.state.memberOfGroupAttrOptions, newValue],
+                    isMemberOfGroupAttrOpen: false
+                });
+            }
+        };
+
+        // MemberOr Auto Add OC
+        this.onMemberOfAutoAddOCSelect = (event, selection) => {
+            if (this.state.memberOfAutoAddOC.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        memberOfAutoAddOC: prevState.memberOfAutoAddOC.filter((item) => item !== selection),
+                        isMemberOfAutoAddOCOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        memberOfAutoAddOC: [...prevState.memberOfAutoAddOC, selection],
+                        isMemberOfAutoAddOCOpen: false
+                    }),
+                );
+            }
+        };
+        this.onMemberOfAutoAddOCToggle = isMemberOfAutoAddOCOpen => {
+            this.setState({
+                isMemberOfAutoAddOCOpen
+            });
+        };
+        this.onMemberOfAutoAddOCClear = () => {
+            this.setState({
+                memberOfAutoAddOC: [],
+                isMemberOfAutoAddOCOpen: false
+            });
+        };
+        this.onMemberOfAutoAddOCCreateOption = newValue => {
+            if (!this.state.memberOfAutoAddOCOptions.includes(newValue)) {
+                this.setState({
+                    memberOfAutoAddOCOptions: [...this.state.memberOfAutoAddOCOptions, newValue],
+                    isMemberOfAutoAddOCOpen: false
+                });
+            }
         };
     }
 
@@ -545,7 +789,8 @@ class MemberOf extends React.Component {
             newEntry,
             fixupModalShow,
             fixupDN,
-            fixupFilter
+            fixupFilter,
+
         } = this.state;
 
         let specificPluginCMD = [
@@ -695,19 +940,27 @@ class MemberOf extends React.Component {
                                         Attribute
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
-                                                this.setState({
-                                                    configAttr: values
-                                                });
-                                            }}
-                                            selected={configAttr}
-                                            newSelectionPrefix="Add a member: "
-                                            options={["memberOf"]}
-                                            placeholder="Type a member attribute..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type a member attribute"
+                                            onToggle={this.onConfigAttrToggle}
+                                            onSelect={this.onConfigAttrSelect}
+                                            onClear={this.onConfigAttrClear}
+                                            selections={configAttr}
+                                            isOpen={this.state.isConfigAttrOpen}
+                                            aria-labelledby="typeAhead-config-attr"
+                                            placeholderText="Type a member attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.isConfigAttrOpen}
+                                            >
+                                            {["memberOf"].map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -723,19 +976,27 @@ class MemberOf extends React.Component {
                                         Group Attribute
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
-                                                this.setState({
-                                                    configGroupAttr: values
-                                                });
-                                            }}
-                                            selected={configGroupAttr}
-                                            newSelectionPrefix="Add a group member attribute: "
-                                            options={attributeTypes}
-                                            placeholder="Type a member group attribute..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type a member group attribute"
+                                            onToggle={this.onConfigGroupAttrToggle}
+                                            onSelect={this.onConfigGroupAttrSelect}
+                                            onClear={this.onConfigGroupAttrClear}
+                                            selections={configGroupAttr}
+                                            isOpen={this.state.isConfigGroupAttrOpen}
+                                            aria-labelledby="typeAhead-config-group-attr"
+                                            placeholderText="Type a member group attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onConfigGroupAttrCreateOption}
+                                            >
+                                            {attributeTypes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>
@@ -813,18 +1074,27 @@ class MemberOf extends React.Component {
                                         Auto Add OC
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
-                                                this.setState({
-                                                    configAutoAddOC: value
-                                                });
-                                            }}
-                                            selected={configAutoAddOC}
-                                            options={objectClasses}
-                                            newSelectionPrefix="Add a memberOf objectClass: "
-                                            placeholder="Type an objectClass..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            typeAheadAriaLabel="Type an objectClass"
+                                            onToggle={this.onConfigAutoAddOCToggle}
+                                            onSelect={this.onConfigAutoAddOCSelect}
+                                            onClear={this.onConfigAutoAddOCClear}
+                                            selections={configAutoAddOC}
+                                            isOpen={this.state.isConfigAutoAddOCOpen}
+                                            aria-labelledby="typeAhead-config-auto-addoc"
+                                            placeholderText="Type an objectClass..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onConfigAutoAddOCCreateOption}
+                                            >
+                                            {objectClasses.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>
@@ -860,23 +1130,27 @@ class MemberOf extends React.Component {
                                         Attribute
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
-                                                this.setState({
-                                                    memberOfAttr: values
-                                                });
-                                            }}
-                                            selected={memberOfAttr}
-                                            newSelectionPrefix="Add a member attrbiute: "
-                                            options={[
-                                                "member",
-                                                "memberCertificate",
-                                                "uniqueMember"
-                                            ]}
-                                            placeholder="Type a member attribute..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type a member attribute"
+                                            onToggle={this.onMemberOfAttrToggle}
+                                            onSelect={this.onMemberOfAttrSelect}
+                                            onClear={this.onMemberOfAttrClear}
+                                            selections={memberOfAttr}
+                                            isOpen={this.state.isMemberOfAttrOpen}
+                                            aria-labelledby="typeAhead-memberof-attr"
+                                            placeholderText="Type a member attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onMemberOfAttrCreateOption}
+                                            >
+                                            {["member", "memberCertificate", "uniqueMember"].map((attr) => (
+                                                <SelectOption
+                                                    key={attr}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -892,19 +1166,27 @@ class MemberOf extends React.Component {
                                         Group Attribute
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
-                                                this.setState({
-                                                    memberOfGroupAttr: values
-                                                });
-                                            }}
-                                            selected={memberOfGroupAttr}
-                                            newSelectionPrefix="Add a group member attribute: "
-                                            options={attributeTypes}
-                                            placeholder="Type a member group attribute..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type a member group attribute"
+                                            onToggle={this.onMemberOfGroupAttrToggle}
+                                            onSelect={this.onMemberOfGroupAttrSelect}
+                                            onClear={this.onMemberOfGroupAttrClear}
+                                            selections={memberOfGroupAttr}
+                                            isOpen={this.state.isMemberOfGroupAttrOpen}
+                                            aria-labelledby="typeAhead-memberof-group-attr"
+                                            placeholderText="Type a member group attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onMemberOfGroupAttrCreateOption}
+                                            >
+                                            {attributeTypes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>
@@ -1016,18 +1298,27 @@ class MemberOf extends React.Component {
                                         Auto Add OC
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
-                                                this.setState({
-                                                    memberOfAutoAddOC: value
-                                                });
-                                            }}
-                                            selected={memberOfAutoAddOC}
-                                            options={objectClasses}
-                                            newSelectionPrefix="Add a memberOf objectClass: "
-                                            placeholder="Type an objectClass..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            typeAheadAriaLabel="Type an objectClass"
+                                            onToggle={this.onMemberOfAutoAddOCToggle}
+                                            onSelect={this.onMemberOfAutoAddOCSelect}
+                                            onClear={this.onMemberOfAutoAddOCClear}
+                                            selections={memberOfAutoAddOC}
+                                            isOpen={this.state.isMemberOfAutoAddOCOpen}
+                                            aria-labelledby="typeAhead-memberof-auto-addoc"
+                                            placeholderText="Type an objectClass..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onMemberOfAutoAddOCCreateOption}
+                                            >
+                                            {objectClasses.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>

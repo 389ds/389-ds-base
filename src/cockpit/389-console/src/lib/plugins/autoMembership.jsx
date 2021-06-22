@@ -148,9 +148,12 @@ class AutoMembership extends React.Component {
             }
         };
         this.onCreateRegexIncludeOption = newValue => {
-            this.setState({
-                includeOptions: [...this.state.includeOptions, newValue]
-            });
+            if (!this.state.includeOptions.includes(newValue)) {
+                this.setState({
+                    includeOptions: [...this.state.includeOptions, newValue],
+                    isRegexExcludeOpen: false
+                });
+            }
         };
         this.onRegexIncludeToggle = isRegexIncludeOpen => {
             this.setState({
@@ -931,7 +934,7 @@ class AutoMembership extends React.Component {
                                     controlId="groupingAttrEntry"
                                 >
                                     <Col componentClass={ControlLabel} sm={3} title="Specifies the name of the member attribute in the group entry and the attribute in the object entry that supplies the member attribute value, in the format group_member_attr:entry_attr (autoMemberGroupingAttr)">
-                                        Grouping Attributes
+                                        Grouping Attribute
                                     </Col>
                                     <Col sm={4}>
                                         <Select
@@ -942,15 +945,16 @@ class AutoMembership extends React.Component {
                                             onClear={this.clearGroupAttrSelection}
                                             selections={groupingAttrMember}
                                             isOpen={this.state.isGroupAttrOpen}
-                                            aria-labelledby="typeAhead-rdn"
+                                            aria-labelledby="typeAhead-group-attrs"
                                             placeholderText="Type an attribute..."
-                                        >
-                                            {attributes.map((attr) => (
+                                            noResultsFoundText="There are no matching entries"
+                                            >
+                                            {attributes.map((attr, index) => (
                                                 <SelectOption
-                                                    key={attr}
+                                                    key={index}
                                                     value={attr}
                                                 />
-                                            ))}
+                                                ))}
                                         </Select>
                                     </Col>
                                     <Col sm={1}>:</Col>
@@ -1030,24 +1034,24 @@ class AutoMembership extends React.Component {
                                     </Col>
                                     <Col sm={9}>
                                         <Select
-                                            isCreatable
-                                            onCreateOption={this.onCreateRegexExcludeOption}
                                             variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type a regular expression"
+                                            typeAheadAriaLabel="Type a regex"
                                             onToggle={this.onRegexExcludeToggle}
                                             onSelect={this.onRegexExcludeSelect}
                                             onClear={this.clearRegexExcludeSelection}
                                             selections={regexExclusive}
                                             isOpen={this.state.isRegexExcludeOpen}
-                                            aria-labelledby="typeAhead-rdn"
-                                            placeholderText="Type a regex ..."
-                                        >
-                                            {this.state.excludeOptions.map((regex, index) => (
+                                            aria-labelledby="typeAhead-excl-regex"
+                                            placeholderText="Type a regex..."
+                                            isCreatable
+                                            onCreateOption={this.onCreateRegexExcludeOption}
+                                            >
+                                            {[].map((attr, index) => (
                                                 <SelectOption
                                                     key={index}
-                                                    value={regex}
+                                                    value={attr}
                                                 />
-                                            ))}
+                                                ))}
                                         </Select>
                                     </Col>
                                 </FormGroup>
@@ -1057,22 +1061,26 @@ class AutoMembership extends React.Component {
                                     </Col>
                                     <Col sm={9}>
                                         <Select
-                                            isCreatable
-                                            onCreateOption={this.onCreateRegexIncludeOption}
                                             variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type a regular expression"
+                                            typeAheadAriaLabel="Type a regex"
                                             onToggle={this.onRegexIncludeToggle}
                                             onSelect={this.onRegexIncludeSelect}
                                             onClear={this.clearRegexIncludeSelection}
                                             selections={regexInclusive}
-                                            isOpen={this.state.isRegexIncludeOpen}
-                                            aria-labelledby="typeAhead-include"
-                                            placeholderText="Type a regex ..."
-                                        >
-                                            {this.state.includeOptions.map((regex) => (
+                                            isOpen={this.state.regexInclusiveSelectExpanded}
+                                            aria-labelledby="typeAhead-incl-regex"
+                                            placeholderText="Type a regex..."
+                                            isCreatable
+                                            onCreateOption={(newValue) => {
+                                                this.setState({
+                                                    [regexInclusive]: [...this.state.regexInclusive, { newValue }]
+                                                  });
+                                            }}
+                                            >
+                                            {[].map((attr, index) => (
                                                 <SelectOption
-                                                    key={regex}
-                                                    value={regex}
+                                                    key={index}
+                                                    value={attr}
                                                 />
                                             ))}
                                         </Select>

@@ -1,6 +1,6 @@
 import React from "react";
 import { noop, FormGroup, FormControl, Row, Col, Form, ControlLabel } from "patternfly-react";
-import { Typeahead } from "react-bootstrap-typeahead";
+import { Select, SelectVariant, SelectOption } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 
@@ -20,12 +20,172 @@ class RootDNAccessControl extends React.Component {
 
         this.state = {
             allowHost: [],
+            allowHostOptions: [],
             denyHost: [],
+            denyHostOptions: [],
             allowIP: [],
+            allowIPOptions: [],
             denyIP: [],
+            denyIPOptions: [],
             openTime: "",
             closeTime: "",
-            daysAllowed: ""
+            daysAllowed: "",
+
+            isAllowHostOpen: false,
+            isDenyHostOpen: false,
+            isAllowIPOpen: false,
+            isDenyIPOpen: false
+        };
+
+        // Allow Host
+        this.onAllowHostSelect = (event, selection) => {
+            if (this.state.allowHost.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        allowHost: prevState.allowHost.filter((item) => item !== selection),
+                        isAllowHostOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        allowHost: [...prevState.allowHost, selection],
+                        isAllowHostOpen: false
+                    }),
+                );
+            }
+        };
+        this.onAllowHostToggle = isAllowHostOpen => {
+            this.setState({
+                isAllowHostOpen
+            });
+        };
+        this.onAllowHostClear = () => {
+            this.setState({
+                allowHost: [],
+                isAllowHostOpen: false
+            });
+        };
+        this.onAllowHostCreateOption = newValue => {
+            if (!this.state.allowHostOptions.includes(newValue)) {
+                this.setState({
+                    allowHostOptions: [...this.state.allowHostOptions, newValue],
+                    isAllowHostOpen: false
+                });
+            }
+        };
+
+        // Deny Host
+        this.onDenyHostSelect = (event, selection) => {
+            if (this.state.denyHost.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        denyHost: prevState.denyHost.filter((item) => item !== selection),
+                        isDenyHostOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        denyHost: [...prevState.denyHost, selection],
+                        isDenyHostOpen: false
+                    }),
+                );
+            }
+        };
+        this.onDenyHostToggle = isDenyHostOpen => {
+            this.setState({
+                isDenyHostOpen
+            });
+        };
+        this.onDenyHostClear = () => {
+            this.setState({
+                denyHost: [],
+                isDenyHostOpen: false
+            });
+        };
+        this.onDenyHostCreateOption = newValue => {
+            if (!this.state.denyHostOptions.includes(newValue)) {
+                this.setState({
+                    denyHostOptions: [...this.state.denyHostOptions, newValue],
+                    isDenyHostOpen: false
+                });
+            }
+        };
+
+        // Allow IP Adddress
+        this.onAllowIPSelect = (event, selection) => {
+            if (this.state.allowIP.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        allowIP: prevState.allowIP.filter((item) => item !== selection),
+                        isAllowIPOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        allowIP: [...prevState.allowIP, selection],
+                        isAllowIPOpen: false}),
+                );
+            }
+        };
+        this.onAllowIPToggle = isAllowIPOpen => {
+            this.setState({
+                isAllowIPOpen
+            });
+        };
+        this.onAllowIPClear = () => {
+            this.setState({
+                allowIP: [],
+                isAllowIPOpen: false
+            });
+        };
+        this.onAllowIPCreateOption = newValue => {
+            if (!this.state.allowIPOptions.includes(newValue)) {
+                this.setState({
+                    allowIPOptions: [...this.state.allowIPOptions, newValue],
+                    isAllowIPOpen: false
+                });
+            }
+        };
+
+        // Deny IP Adddress
+        this.onDenyIPSelect = (event, selection) => {
+            if (this.state.denyIP.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        denyIP: prevState.denyIP.filter((item) => item !== selection),
+                        isDenyIPOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        denyIP: [...prevState.denyIP, selection],
+                        isDenyIPOpen: false
+                    }),
+                );
+            }
+        };
+        this.onDenyIPToggle = isDenyIPOpen => {
+            this.setState({
+                isDenyIPOpen
+            });
+        };
+        this.onDenyIPClear = () => {
+            this.setState({
+                denyIP: [],
+                isDenyIPOpen: false
+            });
+        };
+        this.onDenyIPCreateOption = newValue => {
+            if (!this.state.denyIPOptions.includes(newValue)) {
+                this.setState({
+                    denyIPOptions: [...this.state.denyIPOptions, newValue],
+                    isDenyIPOpen: false
+                });
+            }
         };
 
         this.updateFields = this.updateFields.bind(this);
@@ -182,19 +342,27 @@ class RootDNAccessControl extends React.Component {
                                         Allow Host
                                     </Col>
                                     <Col sm={6}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
-                                                this.setState({
-                                                    allowHost: value
-                                                });
-                                            }}
-                                            selected={allowHost}
-                                            options={[]}
-                                            newSelectionPrefix="Add a host to allow: "
-                                            placeholder="Type a hostname (wild cards are allowed)..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type a hostname "
+                                            onToggle={this.onAllowHostToggle}
+                                            onSelect={this.onAllowHostSelect}
+                                            onClear={this.onAllowHostClear}
+                                            selections={allowHost}
+                                            isOpen={this.state.isAllowHostOpen}
+                                            aria-labelledby="typeAhead-allow-host"
+                                            placeholderText="Type a hostname (wild cards are allowed)..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onAllowHostCreateOption}
+                                            >
+                                            {this.state.allowHostOptions.map((host, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={host}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup key="denyHost" controlId="denyHost">
@@ -206,19 +374,27 @@ class RootDNAccessControl extends React.Component {
                                         Deny Host
                                     </Col>
                                     <Col sm={6}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
-                                                this.setState({
-                                                    denyHost: value
-                                                });
-                                            }}
-                                            selected={denyHost}
-                                            options={[]}
-                                            newSelectionPrefix="Add a host to deny: "
-                                            placeholder="Type a hostname (wild cards are allowed)..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type a hostname "
+                                            onToggle={this.onDenyHostToggle}
+                                            onSelect={this.onDenyHostSelect}
+                                            onClear={this.onDenyHostClear}
+                                            selections={denyHost}
+                                            isOpen={this.state.isDenyHostOpen}
+                                            aria-labelledby="typeAhead-deny-host"
+                                            placeholderText="Type a hostname (wild cards are allowed)..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onDenyHostCreateOption}
+                                            >
+                                            {this.state.denyHostOptions.map((host, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={host}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup key="allowIP" controlId="allowIP">
@@ -230,19 +406,27 @@ class RootDNAccessControl extends React.Component {
                                         Allow IP address
                                     </Col>
                                     <Col sm={6}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
-                                                this.setState({
-                                                    allowIP: value
-                                                });
-                                            }}
-                                            selected={allowIP}
-                                            options={[]}
-                                            newSelectionPrefix="Add an IP address to allow: "
-                                            placeholder="Type an IP address (wild cards are allowed)..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type an IP address"
+                                            onToggle={this.onAllowIPToggle}
+                                            onSelect={this.onAllowIPSelect}
+                                            onClear={this.onAllowIPClear}
+                                            selections={allowIP}
+                                            isOpen={this.state.isAllowIPOpen}
+                                            aria-labelledby="typeAhead-allow-ip"
+                                            placeholderText="Type an IP address (wild cards are allowed)..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onAllowIPCreateOption}
+                                            >
+                                            {this.state.allowIPOptions.map((ip, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={ip}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup key="denyIP" controlId="denyIP">
@@ -254,19 +438,27 @@ class RootDNAccessControl extends React.Component {
                                         Deny IP address
                                     </Col>
                                     <Col sm={6}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
-                                                this.setState({
-                                                    denyIP: value
-                                                });
-                                            }}
-                                            selected={denyIP}
-                                            options={[]}
-                                            newSelectionPrefix="Add an IP address to deny: "
-                                            placeholder="Type an IP address (wild cards are allowed)..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type an IP address"
+                                            onToggle={this.onDenyIPToggle}
+                                            onSelect={this.onDenyIPSelect}
+                                            onClear={this.onDenyIPClear}
+                                            selections={denyIP}
+                                            isOpen={this.state.isDenyIPOpen}
+                                            aria-labelledby="typeAhead-deny-ip"
+                                            placeholderText="Type an IP (wild cards are allowed)..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onDenyIPCreateOption}
+                                            >
+                                            {this.state.denyIPOptions.map((ip, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={ip}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup key="openTime" controlId="openTime">

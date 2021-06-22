@@ -16,10 +16,12 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     // TextInput,
     noop
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import { AttrUniqConfigTable } from "./pluginTables.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -49,14 +51,23 @@ class AttributeUniqueness extends React.Component {
             configName: "",
             configEnabled: false,
             attrNames: [],
+            attrNamesOptions: [],
             subtrees: [],
+            subtreesOptions: [],
             acrossAllSubtrees: false,
             topEntryOc: [],
+            topEntryOcOptions: [],
             subtreeEnriesOc: [],
+            subtreeEnriesOcOptions: [],
 
             newEntry: false,
             showConfigModal: false,
-            showConfirmDelete: false
+            showConfirmDelete: false,
+
+            isAttributeNameOpen: false,
+            isSubtreesOpen: false,
+            isTopEntryOpen: false,
+            isSubtreeEntriesOpen: false
         };
 
         this.handleSwitchChange = this.handleSwitchChange.bind(this);
@@ -76,6 +87,158 @@ class AttributeUniqueness extends React.Component {
         this.deleteConfig = this.deleteConfig.bind(this);
         this.addConfig = this.addConfig.bind(this);
         this.editConfig = this.editConfig.bind(this);
+
+        // Attribute Name
+        this.onAttributeNameSelect = (event, selection) => {
+            if (this.state.attrNames.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        attrNames: prevState.attrNames.filter((item) => item !== selection),
+                        isAttributeNameOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        attrNames: [...prevState.attrNames, selection],
+                        isAttributeNameOpen: false
+                    }),
+                );
+            }
+        };
+        this.onAttributeNameToggle = isAttributeNameOpen => {
+            this.setState({
+                isAttributeNameOpen
+            });
+        };
+        this.onAttributeNameClear = () => {
+            this.setState({
+                attrNames: [],
+                isAttributeNameOpen: false
+            });
+        };
+        this.onAttributeNameCreateOption = newValue => {
+            if (!this.state.attrNamesOptions.includes(newValue)) {
+                this.setState({
+                    attrNamesOptions: [...this.state.attrNamesOptions, newValue],
+                    isAttributeNameOpen: false
+                });
+            }
+        };
+
+        // Subtrees
+        this.onSubtreesSelect = (event, selection) => {
+            if (this.state.subtrees.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        subtrees: prevState.subtrees.filter((item) => item !== selection),
+                        isAttributeNameOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        subtrees: [...prevState.subtrees, selection],
+                        isAttributeNameOpen: false
+                    }),
+                );
+            }
+        };
+        this.onSubtreesToggle = isSubtreesOpen => {
+            this.setState({
+                isSubtreesOpen
+            });
+        };
+        this.onSubtreesClear = () => {
+            this.setState({
+                subtrees: [],
+                isSubtreesOpen: false
+            });
+        };
+        this.onSubtreesCreateOption = newValue => {
+            if (!this.state.subtreesOptions.includes(newValue)) {
+                this.setState({
+                    subtreesOptions: [...this.state.subtreesOptions, newValue],
+                    isSubtreesOpen: false
+                });
+            }
+        };
+
+        // Top Entry OC
+        this.onTopEntrySelect = (event, selection) => {
+            if (this.state.topEntryOc.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        topEntryOc: prevState.topEntryOc.filter((item) => item !== selection),
+                        isTopEntryOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        topEntryOc: [...prevState.topEntryOc, selection],
+                        isTopEntryOpen: false
+                    }),
+                );
+            }
+        };
+        this.onTopEntryToggle = isTopEntryOpen => {
+            this.setState({
+                isTopEntryOpen
+            });
+        };
+        this.onTopEntryClear = () => {
+            this.setState({
+                topEntryOc: [],
+                isTopEntryOpen: false
+            });
+        };
+        this.onTopEntryCreateOption = newValue => {
+            if (!this.state.topEntryOcOptions.includes(newValue)) {
+                this.setState({
+                    topEntryOcOptions: [...this.state.topEntryOcOptions, newValue],
+                    isTopEntryOpen: false
+                });
+            }
+        };
+
+        // Subtree Entries OC
+        this.onSubtreeEntriesSelect = (event, selection) => {
+            if (this.state.subtreeEnriesOc.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        subtreeEnriesOc: prevState.subtreeEnriesOc.filter((item) => item !== selection),
+                        isSubtreeEntriesOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        subtreeEnriesOc: [...prevState.subtreeEnriesOc, selection],
+                        isSubtreeEntriesOpen: false
+                    }),
+                );
+            }
+        };
+        this.onSubtreeEntriesToggle = isSubtreeEntriesOpen => {
+            this.setState({
+                isSubtreeEntriesOpen
+            });
+        };
+        this.onSubtreeEntriesClear = () => {
+            this.setState({
+                subtreeEnriesOc: [],
+                isSubtreeEntriesOpen: false
+            });
+        };
+        this.onSubtreeEntriesCreateOption = newValue => {
+            if (!this.state.subtreeEnriesOcOptions.includes(newValue)) {
+                this.setState({
+                    subtreeEnriesOcOptions: [...this.state.subtreeEnriesOcOptions, newValue],
+                    isSubtreeEntriesOpen: false
+                });
+            }
+        };
     }
 
     handleSwitchChange(value) {
@@ -84,7 +247,7 @@ class AttributeUniqueness extends React.Component {
         });
     }
 
-    handleCheckboxChange(checked, e) {
+    handleCheckboxChange(e, checked) {
         this.setState({
             [e.target.id]: checked
         });
@@ -309,7 +472,7 @@ class AttributeUniqueness extends React.Component {
 
         cmd = [...cmd, "--top-entry-oc"];
         if (topEntryOc.length != 0) {
-            cmd = [...cmd, topEntryOc[0]];
+            cmd = [...cmd, topEntryOc];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -318,7 +481,7 @@ class AttributeUniqueness extends React.Component {
 
         cmd = [...cmd, "--subtree-entries-oc"];
         if (subtreeEnriesOc.length != 0) {
-            cmd = [...cmd, subtreeEnriesOc[0]];
+            cmd = [...cmd, subtreeEnriesOc];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -549,19 +712,27 @@ class AttributeUniqueness extends React.Component {
                                         Attribute Names
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
-                                                this.setState({
-                                                    attrNames: values
-                                                });
-                                            }}
-                                            selected={attrNames}
-                                            newSelectionPrefix="Add an attribute: "
-                                            options={attributes}
-                                            placeholder="Type an attribute name..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type an attribute"
+                                            onToggle={this.onAttributeNameToggle}
+                                            onSelect={this.onAttributeNameSelect}
+                                            onClear={this.onAttributeNameClear}
+                                            selections={attrNames}
+                                            isOpen={this.state.isAttributeNameOpen}
+                                            aria-labelledby="typeAhead-attr-name"
+                                            placeholderText="Type an attribute name..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onAttributeNameCreateOption}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -577,17 +748,27 @@ class AttributeUniqueness extends React.Component {
                                         Subtrees
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={values => {
-                                                this.handleTypeaheadChange(values);
-                                            }}
-                                            selected={subtrees}
-                                            options={[""]}
-                                            newSelectionPrefix="Add a subtree: "
-                                            placeholder="Type a subtree DN..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type a subtree DN"
+                                            onToggle={this.onSubtreesToggle}
+                                            onSelect={this.onSubtreesSelect}
+                                            onClear={this.onSubtreesClear}
+                                            selections={subtrees}
+                                            isOpen={this.state.isSubtreesOpen}
+                                            aria-labelledby="typeAhead-subtrees"
+                                            placeholderText="Type a subtree DN..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onSubtreesCreateOption}
+                                            >
+                                            {[""].map((dn, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={dn}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                             </Form>
@@ -609,18 +790,27 @@ class AttributeUniqueness extends React.Component {
                                         Top Entry OC
                                     </Col>
                                     <Col sm={8}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
-                                                this.setState({
-                                                    topEntryOc: value
-                                                });
-                                            }}
-                                            selected={topEntryOc}
-                                            options={objectClasses}
-                                            newSelectionPrefix="Add a top entry objectClass: "
-                                            placeholder="Type an objectClass..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            typeAheadAriaLabel="Type an objectClass"
+                                            onToggle={this.onTopEntryToggle}
+                                            onSelect={this.onTopEntrySelect}
+                                            onClear={this.onTopEntryClear}
+                                            selections={topEntryOc}
+                                            isOpen={this.state.isTopEntryOpen}
+                                            aria-labelledby="typeAhead-topentry"
+                                            placeholderText="Type an objectClass..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onTopEntryCreateOption}
+                                            >
+                                            {objectClasses.map((obj, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={obj}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -636,25 +826,34 @@ class AttributeUniqueness extends React.Component {
                                         Subtree Entries OC
                                     </Col>
                                     <Col sm={5}>
-                                        <Typeahead
-                                            allowNew
-                                            onChange={value => {
-                                                this.setState({
-                                                    subtreeEnriesOc: value
-                                                });
-                                            }}
-                                            selected={subtreeEnriesOc}
-                                            options={objectClasses}
-                                            newSelectionPrefix="Add a subtree entries objectClass: "
-                                            placeholder="Type an objectClass..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeahead}
+                                            typeAheadAriaLabel="Type an objectClass"
+                                            onToggle={this.onSubtreeEntriesToggle}
+                                            onSelect={this.onSubtreeEntriesSelect}
+                                            onClear={this.onSubtreeEntriesClear}
+                                            selections={subtreeEnriesOc}
+                                            isOpen={this.state.isSubtreeEntriesOpen}
+                                            aria-labelledby="typeAhead-subtree-entries"
+                                            placeholderText="Type an objectClass..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onSubtreeEntriesCreateOption}
+                                            >
+                                            {objectClasses.map((attr, index) => (
+                                                <SelectOption
+                                                    key={attr}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                     <Col sm={3}>
                                         <Checkbox
                                             id="acrossAllSubtrees"
                                             isChecked={acrossAllSubtrees}
                                             title="If enabled (on), the plug-in checks that the attribute is unique across all subtrees set. If you set the attribute to off, uniqueness is only enforced within the subtree of the updated entry (uniqueness-across-all-subtrees)"
-                                            onChange={this.handleCheckboxChange}
+                                            onChange={(checked, e) => { this.handleCheckboxChange(e, checked) }}
                                             label="Across All Subtrees"
                                         />
                                     </Col>

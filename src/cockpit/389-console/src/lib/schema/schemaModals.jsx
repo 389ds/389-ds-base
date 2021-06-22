@@ -13,10 +13,12 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     // TextInput,
     noop
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 
 class ObjectClassModal extends React.Component {
@@ -26,7 +28,6 @@ class ObjectClassModal extends React.Component {
             ocModalViewOnly,
             addHandler,
             editHandler,
-            handleTypeaheadChange,
             handleFieldChange,
             objectclasses,
             attributes,
@@ -39,7 +40,22 @@ class ObjectClassModal extends React.Component {
             ocMay,
             objectclassModalShow,
             closeModal,
-            loading
+            loading,
+            isParentObjOpen,
+            isRequiredAttrsOpen,
+            isAllowedAttrsOpen,
+            onParentObjToggle,
+            onParentObjClear,
+            onParentObjSelect,
+            onParentObjCreateOption,
+            onRequiredAttrsToggle,
+            onRequiredAttrsClear,
+            onRequiredAttrsSelect,
+            onRequiredAttrsCreateOption,
+            onAllowedAttrsToggle,
+            onAllowedAttrsClear,
+            onAllowedAttrsSelect,
+            onAllowedAttrsCreateOption,
         } = this.props;
 
         let modalTitle =
@@ -143,17 +159,27 @@ class ObjectClassModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    allowNew
-                                    onChange={values => {
-                                        handleTypeaheadChange("ocParent", values);
-                                    }}
-                                    selected={ocParent}
-                                    newSelectionPrefix="Add a parent: "
-                                    options={objectclasses}
-                                    placeholder="Type a parent objectClass..."
-                                    disabled={ocModalViewOnly}
-                                />
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel="Type a parent objectClass"
+                                    onToggle={onParentObjToggle}
+                                    onSelect={onParentObjSelect}
+                                    onClear={onParentObjClear}
+                                    selections={ocParent}
+                                    isOpen={isParentObjOpen}
+                                    aria-labelledby="typeAhead-parent-obj"
+                                    placeholderText="Type a parent objectClass..."
+                                    noResultsFoundText="There are no matching entries"
+                                    isCreatable
+                                    onCreateOption={onParentObjCreateOption}
+                                    >
+                                    {objectclasses.map((obj, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={obj}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="ocKind" controlId="ocKind" disabled={false}>
@@ -183,18 +209,27 @@ class ObjectClassModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    allowNew
-                                    multiple
-                                    onChange={values => {
-                                        handleTypeaheadChange("ocMust", values);
-                                    }}
-                                    selected={ocMust}
-                                    newSelectionPrefix="Add a required attribute: "
-                                    options={attributes}
-                                    placeholder="Type an attribute name..."
-                                    disabled={ocModalViewOnly}
-                                />
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={onRequiredAttrsToggle}
+                                    onSelect={onRequiredAttrsSelect}
+                                    onClear={onRequiredAttrsClear}
+                                    selections={ocMust}
+                                    isOpen={isRequiredAttrsOpen}
+                                    aria-labelledby="typeAhead-required-attrs"
+                                    placeholderText="Type an attribute name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    isCreatable
+                                    onCreateOption={onRequiredAttrsCreateOption}
+                                    >
+                                    {attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="ocMay" controlId="ocMay" disabled={false}>
@@ -204,18 +239,27 @@ class ObjectClassModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    allowNew
-                                    multiple
-                                    onChange={values => {
-                                        handleTypeaheadChange("ocMay", values);
-                                    }}
-                                    selected={ocMay}
-                                    newSelectionPrefix="Add an allowed attribute: "
-                                    options={attributes}
-                                    placeholder="Type an attribute name..."
-                                    disabled={ocModalViewOnly}
-                                />
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={onAllowedAttrsToggle}
+                                    onSelect={onAllowedAttrsSelect}
+                                    onClear={onAllowedAttrsClear}
+                                    selections={ocMay}
+                                    isOpen={isAllowedAttrsOpen}
+                                    aria-labelledby="typeAhead-allowed-attrs"
+                                    placeholderText="Type an attribute name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    isCreatable
+                                    onCreateOption={onAllowedAttrsCreateOption}
+                                    >
+                                    {attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                     </Form>
@@ -287,13 +331,38 @@ class AttributeTypeModal extends React.Component {
             newAtEntry,
             addHandler,
             editHandler,
-            handleTypeaheadChange,
             handleFieldChange,
             attributes,
             syntaxes,
             matchingrules,
             closeModal,
-            loading
+            loading,
+            isParentAttrOpen,
+            isSyntaxNameOpen,
+            isAliasNameOpen,
+            isEqualityMROpen,
+            isOrderMROpen,
+            isSubstringMROpen,
+            onParentAttrToggle,
+            onParentAttrClear,
+            onParentAttrSelect,
+            onParentAttrCreateOption,
+            onSyntaxNameToggle,
+            onSyntaxNameClear,
+            onSyntaxNameSelect,
+            onAliasNameToggle,
+            onAliasNameClear,
+            onAliasNameSelect,
+            onAliasNameCreateOption,
+            onEqualityMRToggle,
+            onEqualityMRClear,
+            onEqualityMRSelect,
+            onOrderMRToggle,
+            onOrderMRClear,
+            onOrderMRSelect,
+            onSubstringMRToggle,
+            onSubstringMRClear,
+            onSubstringMRSelect,
         } = this.props;
         let modalTitle =
             atModalViewOnly ? (
@@ -396,17 +465,27 @@ class AttributeTypeModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    allowNew
-                                    onChange={values => {
-                                        handleTypeaheadChange("atParent", values);
-                                    }}
-                                    selected={atParent}
-                                    newSelectionPrefix="Add a parent: "
-                                    options={attributes}
-                                    placeholder="Type a parent attribute..."
-                                    disabled={atModalViewOnly}
-                                />
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={onParentAttrToggle}
+                                    onSelect={onParentAttrSelect}
+                                    onClear={onParentAttrClear}
+                                    selections={atParent}
+                                    isOpen={isParentAttrOpen}
+                                    aria-labelledby="typeAhead-parent-attr"
+                                    placeholderText="Type an attribute name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    isCreatable
+                                    onCreateOption={onParentAttrCreateOption}
+                                    >
+                                    {attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="atSyntax" controlId="atSyntax" disabled={false}>
@@ -416,16 +495,25 @@ class AttributeTypeModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    onChange={values => {
-                                        handleTypeaheadChange("atSyntax", values);
-                                    }}
-                                    selected={atSyntax}
-                                    newSelectionPrefix="Add a syntax: "
-                                    options={syntaxes}
-                                    placeholder="Type a syntax name..."
-                                    disabled={atModalViewOnly}
-                                />
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    typeAheadAriaLabel="Type an syntax name"
+                                    onToggle={onSyntaxNameToggle}
+                                    onSelect={onSyntaxNameSelect}
+                                    onClear={onSyntaxNameClear}
+                                    selections={atSyntax}
+                                    isOpen={isSyntaxNameOpen}
+                                    aria-labelledby="typeAhead-syntax-name"
+                                    placeholderText="Type a syntax name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                    {syntaxes.map((syntax, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={syntax.label}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="atUsage" controlId="atUsage" disabled={false}>
@@ -492,18 +580,27 @@ class AttributeTypeModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    allowNew
-                                    multiple
-                                    onChange={values => {
-                                        handleTypeaheadChange("atAlias", values);
-                                    }}
-                                    selected={atAlias}
-                                    options={[]}
-                                    newSelectionPrefix="Add an alias: "
-                                    placeholder="Type an alias name..."
-                                    disabled={atModalViewOnly}
-                                />
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    typeAheadAriaLabel="Type an alias name"
+                                    onToggle={onAliasNameToggle}
+                                    onSelect={onAliasNameSelect}
+                                    onClear={onAliasNameClear}
+                                    selections={atAlias}
+                                    isOpen={isAliasNameOpen}
+                                    aria-labelledby="typeAhead-alias-name"
+                                    placeholderText="jc0 Type an alias name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    isCreatable
+                                    onCreateOption={onAliasNameCreateOption}
+                                    >
+                                    {atAlias.map((alias, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={alias}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="atEqMr" controlId="atEqMr" disabled={false}>
@@ -513,16 +610,25 @@ class AttributeTypeModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    onChange={values => {
-                                        handleTypeaheadChange("atEqMr", values);
-                                    }}
-                                    selected={atEqMr}
-                                    newSelectionPrefix="Add an matching rule: "
-                                    options={matchingrules}
-                                    placeholder="Type an matching rule..."
-                                    disabled={atModalViewOnly}
-                                />
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel="Type a matching rule"
+                                    onToggle={onEqualityMRToggle}
+                                    onSelect={onEqualityMRSelect}
+                                    onClear={onEqualityMRClear}
+                                    selections={atEqMr}
+                                    isOpen={isEqualityMROpen}
+                                    aria-labelledby="typeAhead-equality-mr"
+                                    placeholderText="Type a matching rule..."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                    {matchingrules.map((mr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={mr}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="atOrder" controlId="atOrder" disabled={false}>
@@ -532,16 +638,25 @@ class AttributeTypeModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    onChange={values => {
-                                        handleTypeaheadChange("atOrder", values);
-                                    }}
-                                    selected={atOrder}
-                                    newSelectionPrefix="Add an matching rule: "
-                                    options={matchingrules}
-                                    placeholder="Type an matching rule..."
-                                    disabled={atModalViewOnly}
-                                />
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel="Type a matching rule"
+                                    onToggle={onOrderMRToggle}
+                                    onSelect={onOrderMRSelect}
+                                    onClear={onOrderMRClear}
+                                    selections={atOrder}
+                                    isOpen={isOrderMROpen}
+                                    aria-labelledby="typeAhead-order-mr"
+                                    placeholderText="Type an matching rule.."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                    {matchingrules.map((mr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={mr}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                         <FormGroup key="atSubMr" controlId="atSubMr" disabled={false}>
@@ -551,16 +666,24 @@ class AttributeTypeModal extends React.Component {
                                 </ControlLabel>
                             </Col>
                             <Col sm={8}>
-                                <Typeahead
-                                    onChange={values => {
-                                        handleTypeaheadChange("atSubMr", values);
-                                    }}
-                                    selected={atSubMr}
-                                    newSelectionPrefix="Add an matching rule: "
-                                    options={matchingrules}
-                                    placeholder="Type an matching rule..."
-                                    disabled={atModalViewOnly}
-                                />
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel="Type a matching rule"
+                                    onToggle={onSubstringMRToggle}
+                                    onSelect={onSubstringMRSelect}
+                                    onClear={onSubstringMRClear}
+                                    selections={atSubMr}
+                                    isOpen={isSubstringMROpen}
+                                    placeholderText="Type an matching rule..."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                    {matchingrules.map((mr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={mr}
+                                        />
+                                        ))}
+                                </Select>
                             </Col>
                         </FormGroup>
                     </Form>

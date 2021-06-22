@@ -17,6 +17,9 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     Tab,
     Tabs,
     TabTitleText,
@@ -24,7 +27,6 @@ import {
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
-import { Typeahead } from "react-bootstrap-typeahead";
 
 export class SuffixIndexes extends React.Component {
     constructor (props) {
@@ -37,7 +39,7 @@ export class SuffixIndexes extends React.Component {
             activeTabKey: 0,
             reindexMsg: "",
             editIndexName: "",
-            types: [],
+            types: "",
             attributes: [],
             matchingRules: [],
             mrs: [],
@@ -53,9 +55,15 @@ export class SuffixIndexes extends React.Component {
             addIndexTypeSub: false,
             addIndexTypeApprox: false,
             reindexOnAdd: false,
+
             // Edit indexes
             errObj: {},
-            _isMounted: true
+            _isMounted: true,
+
+            // Select Typeahead
+            isAttributeOpen: false,
+            isMatchingruleAddOpen: false,
+            isMatchingruleEditOpen: false
         };
 
         // Toggle currently active tab
@@ -65,11 +73,103 @@ export class SuffixIndexes extends React.Component {
             });
         };
 
+        // Select Attribute
+        this.onAttributeSelect = (event, selection) => {
+            if (this.state.addIndexName.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        addIndexName: prevState.addIndexName.filter((item) => item !== selection),
+                        isAttributeOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        addIndexName: [...prevState.addIndexName, selection],
+                        isAttributeOpen: false
+                    }),
+                );
+            }
+        };
+        this.onAttributeToggle = isAttributeOpen => {
+            this.setState({
+                isAttributeOpen
+            });
+        };
+        this.onAttributeClear = () => {
+            this.setState({
+                addIndexName: [],
+                isAttributeOpen: false
+            });
+        };
+
+        // Add Matching Rule
+        this.onMatchingruleAddSelect = (event, selection) => {
+            if (this.state.mrs.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        mrs: prevState.mrs.filter((item) => item !== selection),
+                        isMatchingruleAddOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        mrs: [...prevState.mrs, selection],
+                        isMatchingruleAddOpen: false
+                    }),
+                );
+            }
+        };
+        this.onMatchingruleAddToggle = isMatchingruleAddOpen => {
+            this.setState({
+                isMatchingruleAddOpen
+            });
+        };
+        this.onMatchingruleAddClear = () => {
+            this.setState({
+                mrs: [],
+                isMatchingruleAddOpen: false
+            });
+        };
+
+        // Edit Matching Rules
+        this.onMatchingruleEditSelect = (event, selection) => {
+            if (this.state.mrs.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        mrs: prevState.mrs.filter((item) => item !== selection),
+                        isMatchingruleEditOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        mrs: [...prevState.mrs, selection],
+                        isMatchingruleEditOpen: false
+                    })
+                );
+            }
+        };
+        this.onMatchingruleEditToggle = isMatchingruleEditOpen => {
+            this.setState({
+                isMatchingruleEditOpen
+            });
+        };
+        this.onMatchingruleEditClear = () => {
+            this.setState({
+                mrs: [],
+                isMatchingruleEditOpen: false
+            });
+        };
+
         this.loadIndexes = this.loadIndexes.bind(this);
         this.showIndexModal = this.showIndexModal.bind(this);
         this.closeIndexModal = this.closeIndexModal.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
+        this.onSelectToggle = this.onSelectToggle.bind(this);
+        this.onSelectClear = this.onSelectClear.bind(this);
         this.saveIndex = this.saveIndex.bind(this);
         this.saveEditIndex = this.saveEditIndex.bind(this);
         this.reindexIndex = this.reindexIndex.bind(this);
@@ -304,15 +404,21 @@ export class SuffixIndexes extends React.Component {
         });
     }
 
-    handleTypeaheadChange(values, item) {
-        if (item == "matchingRules") {
+    handleTypeaheadChange = item => (event, values) => {
+        switch (item) {
+        case "addIndexAttributes":
             this.setState({
-                mrs: values
+                addIndexName: [...this.state.addIndexName, values]
             });
-        } else if (item == "indexName") {
+            break;
+        case "addMatchingRules":
+        case "matchingRulesEdit":
             this.setState({
-                addIndexName: values
+                mrs: [...this.state.mrs, values]
             });
+            break;
+        default:
+            break;
         }
     }
 
@@ -510,6 +616,37 @@ export class SuffixIndexes extends React.Component {
                 });
     }
 
+    onSelectToggle = (isExpanded, toggleId) => {
+        this.setState({
+            [toggleId]: isExpanded
+        });
+    }
+
+    onSelectClear = item => event => {
+        switch (item) {
+        case "addIndexAttributes":
+            this.setState({
+                addIndexName: [],
+                isAddIndexSelectOpen: false
+            });
+            break;
+        case "addMatchingRules":
+            this.setState({
+                mrs: [],
+                isAddMrsSelectOpen: false
+            });
+            break;
+        case "matchingRulesEdit":
+            this.setState({
+                mrs: [],
+                isEditIndexSelectOpen: false
+            });
+            break;
+        default:
+            break;
+        }
+    }
+
     render() {
         const reindex_attr = <b>{this.state.reindexAttrName}</b>;
         const delete_attr = <b>{this.state.deleteAttrName}</b>;
@@ -548,12 +685,19 @@ export class SuffixIndexes extends React.Component {
                     attributes={this.state.attributes}
                     mrs={this.state.mrs}
                     attributeName={this.state.addIndexName}
-                    handleTypeaheadChange={this.handleTypeaheadChange}
                     addIndexTypeEq={this.state.addIndexTypeEq}
                     addIndexTypePres={this.state.addIndexTypePres}
                     addIndexTypeSub={this.state.addIndexTypeSub}
                     addIndexTypeApprox={this.state.addIndexTypeApprox}
                     reindexOnAdd={this.state.reindexOnAdd}
+                    onAttributeSelect={this.onAttributeSelect}
+                    onAttributeToggle={this.onAttributeToggle}
+                    onAttributeClear={this.onAttributeClear}
+                    isAttributeOpen={this.state.isAttributeOpen}
+                    onMatchingruleAddSelect={this.onMatchingruleAddSelect}
+                    onMatchingruleAddToggle={this.onMatchingruleAddToggle}
+                    onMatchingruleAddClear={this.onMatchingruleAddClear}
+                    isMatchingruleAddOpen={this.state.isMatchingruleAddOpen}
                 />
                 <EditIndexModal
                     showModal={this.state.showEditIndexModal}
@@ -570,6 +714,10 @@ export class SuffixIndexes extends React.Component {
                     editIndexTypeSub={this.state.editIndexTypeSub}
                     editIndexTypeApprox={this.state.editIndexTypeApprox}
                     reindexOnAdd={this.state.reindexOnAdd}
+                    onMatchingruleEditSelect={this.onMatchingruleEditSelect}
+                    onMatchingruleEditToggle={this.onMatchingruleEditToggle}
+                    onMatchingruleEditClear={this.onMatchingruleEditClear}
+                    isMatchingruleEditOpen={this.state.isMatchingruleEditOpen}
                 />
                 <ConfirmPopup
                     showModal={this.state.showConfirmReindex}
@@ -607,8 +755,15 @@ class AddIndexModal extends React.Component {
             matchingRules,
             attributes,
             mrs,
-            handleTypeaheadChange,
-            attributeName
+            attributeName,
+            onAttributeToggle,
+            onAttributeClear,
+            onAttributeSelect,
+            isAttributeOpen,
+            onMatchingruleAddToggle,
+            onMatchingruleAddClear,
+            onMatchingruleAddSelect,
+            isMatchingruleAddOpen,
         } = this.props;
 
         let availMR = [];
@@ -638,16 +793,25 @@ class AddIndexModal extends React.Component {
             >
                 <Form horizontal autoComplete="off">
                     <label className="ds-config-label" htmlFor="indexAttributeName" title="Select an attribute to index">Select An Attribute</label>
-                    <Typeahead
-                        id="indexAttributeName"
-                        onChange={values => {
-                            handleTypeaheadChange(values, "indexName");
-                        }}
-                        selected={attributeName}
-                        maxResults={1000}
-                        options={availAttrs}
-                        placeholder="Type a attribute name to index..."
-                    />
+                    <Select
+                        variant={SelectVariant.typeahead}
+                        typeAheadAriaLabel="Type a attribute name to index"
+                        onToggle={onAttributeToggle}
+                        onClear={onAttributeClear}
+                        onSelect={onAttributeSelect}
+                        selections={attributeName}
+                        isOpen={isAttributeOpen}
+                        aria-labelledby="typeAhead-attr-add"
+                        placeholderText="Type a attribute name to index.."
+                        noResultsFoundText="There are no matching entries"
+                        >
+                        {availAttrs.map((attr, index) => (
+                            <SelectOption
+                                key={index}
+                                value={attr}
+                            />
+                        ))}
+                    </Select>
                     <p className="ds-margin-top"><b>Index Types</b></p>
                     <div className="ds-indent ds-margin-top">
                         <Row>
@@ -702,17 +866,26 @@ class AddIndexModal extends React.Component {
                         <Col sm={12} title="List of matching rules separated by a 'space'">
                             <p><b>Matching Rules</b></p>
                             <div className="ds-indent ds-margin-top">
-                                <Typeahead
-                                    multiple
-                                    id="matchingRules"
-                                    onChange={values => {
-                                        handleTypeaheadChange(values, "matchingRules");
-                                    }}
-                                    maxResults={1000}
-                                    selected={mrs}
-                                    options={availMR}
-                                    placeholder="Type a matching rule name..."
-                                />
+                                <Select
+                                    id="addMatchingRules"
+                                    variant={SelectVariant.typeaheadMulti}
+                                    typeAheadAriaLabel="Type a matching rule name"
+                                    onToggle={onMatchingruleAddToggle}
+                                    onSelect={onMatchingruleAddSelect}
+                                    onClear={onMatchingruleAddClear}
+                                    selections={mrs}
+                                    isOpen={isMatchingruleAddOpen}
+                                    aria-labelledby="typeAhead-mr-add"
+                                    placeholderText="Type a matching rule name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                    {availMR.map((mrs, index) => (
+                                        <SelectOption
+                                           key={index}
+                                           value={mrs}
+                                       />
+                                   ))}
+                                </Select>
                             </div>
                         </Col>
                     </Row>
@@ -754,7 +927,10 @@ class EditIndexModal extends React.Component {
             types,
             mrs,
             matchingRules,
-            handleTypeaheadChange,
+            onMatchingruleEditToggle,
+            onMatchingruleEditClear,
+            onMatchingruleEditSelect,
+            isMatchingruleEditOpen,
         } = this.props;
 
         let attrTypes = "";
@@ -904,16 +1080,25 @@ class EditIndexModal extends React.Component {
                         <Col sm={12}>
                             <p><b>Matching Rules</b></p>
                             <div className="ds-indent ds-margin-top">
-                                <Typeahead
-                                    multiple
-                                    id="matchingRulesEdit"
-                                    onChange={values => {
-                                        handleTypeaheadChange(values, "matchingRules");
-                                    }}
-                                    selected={currentMrs}
-                                    options={availMR}
-                                    placeholder="Type a matching rule name..."
-                                />
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    typeAheadAriaLabel="Type a matching rule name"
+                                    onToggle={onMatchingruleEditToggle}
+                                    onSelect={onMatchingruleEditSelect}
+                                    onClear={onMatchingruleEditClear}
+                                    selections={currentMrs}
+                                    isOpen={isMatchingruleEditOpen}
+                                    aria-labelledby="typeAhead-mr-edit"
+                                    placeholderText="Type a matching rule name..."
+                                    noResultsFoundText="There are no matching entries"
+                                    >
+                                    {availMR.map((mr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={mr}
+                                        />
+                                    ))}
+                                </Select>
                             </div>
                         </Col>
                     </Row>
@@ -965,7 +1150,6 @@ AddIndexModal.propTypes = {
     matchingRules: PropTypes.array,
     attributes: PropTypes.array,
     mrs: PropTypes.array,
-    handleTypeaheadChange: PropTypes.func,
     attributeName: PropTypes.array,
     addIndexTypeEq:  PropTypes.bool,
     addIndexTypePres:  PropTypes.bool,
@@ -997,10 +1181,9 @@ EditIndexModal.propTypes = {
     handleChange: PropTypes.func,
     saveHandler: PropTypes.func,
     matchingRules: PropTypes.array,
-    types: PropTypes.array,
+    types: PropTypes.string,
     mrs: PropTypes.array,
     indexName: PropTypes.string,
-    handleTypeaheadChange: PropTypes.func,
     editIndexTypeEq:  PropTypes.bool,
     editIndexTypePres:  PropTypes.bool,
     editIndexTypeSub:  PropTypes.bool,
@@ -1014,7 +1197,7 @@ EditIndexModal.defaultProps = {
     handleChange: noop,
     saveHandler: noop,
     matchingRules: [],
-    types: [],
+    types: "",
     mrs: [],
     indexName: "",
     handleTypeaheadChange: noop,

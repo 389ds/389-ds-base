@@ -14,10 +14,12 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
     // TextInput,
     noop
 } from "@patternfly/react-core";
-import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd } from "../tools.jsx";
@@ -45,6 +47,7 @@ class ReferentialIntegrity extends React.Component {
             firstLoad: true,
             updateDelay: "",
             membershipAttr: [],
+            membershipAttrOptions: [],
             entryScope: "",
             excludeEntryScope: "",
             containerScope: "",
@@ -55,13 +58,89 @@ class ReferentialIntegrity extends React.Component {
             configDN: "",
             configUpdateDelay: "",
             configMembershipAttr: [],
+            configMembershipAttrOptions: [],
             configEntryScope: "",
             configExcludeEntryScope: "",
             configContainerScope: "",
             configLogFile: "",
             newEntry: true,
 
-            attributes: []
+            attributes: [],
+
+            isConfigMembershipAttrOpen: false,
+            isMembershipAttrOpen: false
+        };
+
+        // Config Membership Attribute
+        this.onConfigMembershipAttrSelect = (event, selection) => {
+            if (this.state.configMembershipAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        configMembershipAttr: prevState.configMembershipAttr.filter((item) => item !== selection),
+                        isConfigMembershipAttrOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        configMembershipAttr: [...prevState.configMembershipAttr, selection],
+                        isConfigMembershipAttrOpen: false
+                    }),
+                );
+            }
+        };
+        this.onConfigMembershipAttrToggle = isConfigMembershipAttrOpen => {
+            this.setState({
+                isConfigMembershipAttrOpen
+            });
+        };
+        this.onConfigMembershipAttrClear = () => {
+            this.setState({
+                configMembershipAttr: [],
+                isConfigMembershipAttrOpen: false
+            });
+        };
+        this.onConfigMembershipAttrCreateOption = newValue => {
+            if (!this.state.configMembershipAttrOptions.includes(newValue)) {
+                this.setState({
+                    configMembershipAttrOptions: [...this.state.configMembershipAttrOptions, newValue],
+                    isConfigMembershipAttrOpen: false
+                });
+            }
+        };
+
+        // Membership Attribute
+        this.onMembershipAttrSelect = (event, selection) => {
+            if (this.state.membershipAttr.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        membershipAttr: prevState.membershipAttr.filter((item) => item !== selection)
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({ membershipAttr: [...prevState.membershipAttr, selection] }),
+                );
+            }
+        };
+        this.onMembershipAttrToggle = isMembershipAttrOpen => {
+            this.setState({
+                isMembershipAttrOpen
+            });
+        };
+        this.onMembershipAttrClear = () => {
+            this.setState({
+                membershipAttr: [],
+                isMembershipAttrOpen: false
+            });
+        };
+        this.onMembershipAttrCreateOption = newValue => {
+            if (!this.state.membershipAttrOptions.includes(newValue)) {
+                this.setState({
+                    membershipAttrOptions: [...this.state.membershipAttrOptions, newValue],
+                    isMembershipAttrOpen: false
+                });
+            }
         };
 
         this.updateFields = this.updateFields.bind(this);
@@ -500,19 +579,27 @@ class ReferentialIntegrity extends React.Component {
                                         Membership Attribute
                                     </Col>
                                     <Col sm={9}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
-                                                this.setState({
-                                                    configMembershipAttr: value
-                                                });
-                                            }}
-                                            selected={configMembershipAttr}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a membership attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type an attribute"
+                                            onToggle={this.onConfigMembershipAttrToggle}
+                                            onSelect={this.onConfigMembershipAttrSelect}
+                                            onClear={this.onConfigMembershipAttrClear}
+                                            selections={configMembershipAttr}
+                                            isOpen={this.state.isConfigMembershipAttrOpen}
+                                            aria-labelledby="typeAhead-config-membership-attr"
+                                            placeholderText="Type an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onConfigMembershipAttrCreateOption}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup
@@ -635,19 +722,27 @@ class ReferentialIntegrity extends React.Component {
                                         Membership Attribute
                                     </Col>
                                     <Col sm={6}>
-                                        <Typeahead
-                                            allowNew
-                                            multiple
-                                            onChange={value => {
-                                                this.setState({
-                                                    membershipAttr: value
-                                                });
-                                            }}
-                                            selected={membershipAttr}
-                                            options={attributes}
-                                            newSelectionPrefix="Add a membership attribute: "
-                                            placeholder="Type an attribute..."
-                                        />
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type an attribute"
+                                            onToggle={this.onMembershipAttrToggle}
+                                            onSelect={this.onMembershipAttrSelect}
+                                            onClear={this.onMembershipAttrClear}
+                                            selections={membershipAttr}
+                                            isOpen={this.state.isMembershipAttrOpen}
+                                            aria-labelledby="typeAhead-membership-attr"
+                                            placeholderText="Type an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                            isCreatable
+                                            onCreateOption={this.onMembershipAttrCreateOption}
+                                            >
+                                            {attributes.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                                ))}
+                                        </Select>
                                     </Col>
                                 </FormGroup>
                                 <FormGroup key="entryScope" controlId="entryScope">
