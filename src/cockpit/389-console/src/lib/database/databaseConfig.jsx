@@ -254,7 +254,7 @@ export class GlobalDatabaseConfig extends React.Component {
 
         if (this.state.dblocksMonitoring) {
             dblocksMonitor = <div className="ds-margin-top">
-                <Row className="ds-margin-top" title="Sets the DB lock exhaustion value in percentage (valid range is 70-95). If too many locks are acquired, the server will abort the searches while the number of locks are not decreased. It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold)">
+                <Row className="ds-margin-top" title="Sets the DB lock exhaustion threshold in percentage (valid range is 70-95). When the threshold is reached, all searches are aborted until the number of active locks decreases below the configured threshold and/or the directory server administrator increases the number of Database Locks (nsslapd-db-locks). It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold) ('90' by default)">
                     <Col componentClass={ControlLabel} sm={4}>
                         DB Locks Threshold Percentage
                     </Col>
@@ -262,7 +262,7 @@ export class GlobalDatabaseConfig extends React.Component {
                         <input className="ds-input" type="number" id="dblocksMonitoringThreshold" size="10" onChange={this.handleChange} value={this.state.dblocksMonitoringThreshold} />
                     </Col>
                 </Row>
-                <Row className="ds-margin-top" title="Sets the amount of time (milliseconds) that the monitoring thread spends waiting between checks. (nsslapd-db-locks-monitoring-pause)">
+                <Row className="ds-margin-top" title="Sets the amount of time (milliseconds) that the DB lock monitoring thread spends waiting between checks. (nsslapd-db-locks-monitoring-pause) ('500' by default)">
                     <Col componentClass={ControlLabel} sm={4}>
                         DB Locks Pause Milliseconds
                     </Col>
