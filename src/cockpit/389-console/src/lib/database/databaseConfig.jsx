@@ -253,7 +253,7 @@ export class GlobalDatabaseConfig extends React.Component {
 
         if (this.state.dblocksMonitoring) {
             dblocksMonitor = <div className="ds-margin-top">
-                <Row className="ds-margin-top" title="Sets the DB lock exhaustion threshold in percentage (valid range is 70-95). When the threshold is reached, all searches are aborted until the number of active locks decreases below the configured threshold and/or the directory server administrator increases the number of Database Locks (nsslapd-db-locks). It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold) ('90' by default)">
+                <Row className="ds-margin-top" title="Sets the DB lock exhaustion threshold in percentage (valid range is 70-95). When the threshold is reached, all searches are aborted until the number of active locks decreases below the configured threshold and/or the directory server administrator increases the number of Database Locks (nsslapd-db-locks). This threshold is a safeguard against DB corruption which might be caused by locks exhaustion. (nsslapd-db-locks-monitoring-threshold) ('90' by default)">
                     <Col componentClass={ControlLabel} sm={4}>
                         DB Locks Threshold Percentage
                     </Col>
