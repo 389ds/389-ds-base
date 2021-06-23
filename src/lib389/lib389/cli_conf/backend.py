@@ -1022,7 +1022,8 @@ def create_parser(subparsers):
                                                                            'When the threshold is reached, all searches are aborted until the number of active '
                                                                            'locks decreases below the configured threshold and/or the directory server '
                                                                            'administrator increases the number of Database Locks (nsslapd-db-locks). '
-                                                                           'It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold) ("90" by default)')
+                                                                           'This threshold is a safeguard against DB corruption which might be caused '
+                                                                           'by locks exhaustion. (nsslapd-db-locks-monitoring-threshold) ("90" by default)')
     set_db_config_parser.add_argument('--locks-monitoring-pause', help='Sets the DB lock monitoring value in milliseconds for the amount of time '
                                                                        'that the monitoring thread spends waiting between checks. (nsslapd-db-locks-monitoring-pause) ("500" by default)')
     set_db_config_parser.add_argument('--import-cache-autosize', help='Set to "on" or "off" to automatically set the size of the import '
