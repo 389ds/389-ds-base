@@ -34,12 +34,12 @@ sysconf_dir = @sysconfdir@
 initconfig_dir = @initconfigdir@
 config_dir = @instconfigdir@/slapd-{instance_name}
 local_state_dir = @localstatedir@
-run_dir = @localstatedir@/run/dirsrv
+run_dir = @localrundir@
 # This is the expected location of ldapi.
-ldapi = @localstatedir@/run/slapd-{instance_name}.socket
+ldapi = @localrundir@/slapd-{instance_name}.socket
+pid_file = @localrundir@/slapd-{instance_name}.pid
 ldapi_listen = on
 ldapi_autobind = on
-pid_file = @localstatedir@/run/dirsrv/slapd-{instance_name}.pid
 inst_dir = @serverdir@/slapd-{instance_name}
 plugin_dir = @serverplugindir@
 system_schema_dir = @systemschemadir@
@@ -53,7 +53,7 @@ root_dn = cn=Directory Manager
 schema_dir = @instconfigdir@/slapd-{instance_name}/schema
 cert_dir = @instconfigdir@/slapd-{instance_name}
 
-lock_dir = @localstatedir@/lock/dirsrv/slapd-{instance_name}
+lock_dir = @localrundir@/lock/dirsrv/slapd-{instance_name}
 log_dir = @localstatedir@/log/dirsrv/slapd-{instance_name}
 access_log = @localstatedir@/log/dirsrv/slapd-{instance_name}/access
 audit_log = @localstatedir@/log/dirsrv/slapd-{instance_name}/audit
