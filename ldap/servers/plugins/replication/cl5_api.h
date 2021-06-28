@@ -227,6 +227,14 @@ int cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica **replicas);
 
 int cl5GetState(void);
 
+/* Name:        cl5ConfigSetCompaction
+ * Description: sets the database compaction parameters
+ * Parameters:  compactInterval - Interval for compaction default is 30days
+ *              compactTime - Compact time default is 23:59
+ * Return:      void
+ */
+void cl5ConfigSetCompaction(int compactInterval, char *compactTime);
+
 /* Name:        cl5ConfigTrimming
    Description:    sets changelog trimming parameters
    Parameters:  maxEntries - maximum number of entries in the log;
@@ -236,7 +244,7 @@ int cl5GetState(void);
    Return:        CL5_SUCCESS if successful;
                 CL5_BAD_STATE if changelog has not been open
  */
-int cl5ConfigTrimming(int maxEntries, const char *maxAge, int compactInterval, char *compactTime, int trimInterval);
+int cl5ConfigTrimming(int maxEntries, const char *maxAge, int trimInterval);
 
 void cl5DestroyIterator(void *iterator);
 

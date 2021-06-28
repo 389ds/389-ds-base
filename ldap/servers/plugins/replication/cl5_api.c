@@ -1016,6 +1016,20 @@ cl5GetState()
     return s_cl5Desc.dbState;
 }
 
+void
+cl5ConfigSetCompaction(int compactInterval, char *compactTime)
+{
+
+    if (compactInterval != CL5_NUM_IGNORE) {
+        s_cl5Desc.dbTrim.compactInterval = compactInterval;
+    }
+
+    if (strcmp(compactTime, CL5_STR_IGNORE) != 0) {
+        s_cl5Desc.dbTrim.compactTime = slapi_ch_strdup(compactTime);
+    }
+
+}
+
 /* Name:        cl5ConfigTrimming
    Description:    sets changelog trimming parameters; changelog must be open.
    Parameters:  maxEntries - maximum number of entries in the chnagelog (in all files);
@@ -1026,7 +1040,7 @@ cl5GetState()
                 CL5_BAD_STATE if changelog is not open
  */
 int
-cl5ConfigTrimming(int maxEntries, const char *maxAge, int compactInterval, char *compactTime, int trimInterval)
+cl5ConfigTrimming(int maxEntries, const char *maxAge, int trimInterval)
 {
     if (s_cl5Desc.dbState == CL5_STATE_NONE) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
@@ -1056,14 +1070,6 @@ cl5ConfigTrimming(int maxEntries, const char *maxAge, int compactInterval, char 
 
     if (maxEntries != CL5_NUM_IGNORE) {
         s_cl5Desc.dbTrim.maxEntries = maxEntries;
-    }
-
-    if (compactInterval != CL5_NUM_IGNORE) {
-        s_cl5Desc.dbTrim.compactInterval = compactInterval;
-    }
-
-    if (strcmp(compactTime, CL5_STR_IGNORE) != 0) {
-        s_cl5Desc.dbTrim.compactTime = slapi_ch_strdup(compactTime);
     }
 
     if (trimInterval != CL5_NUM_IGNORE) {
