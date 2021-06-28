@@ -26,7 +26,7 @@
 
 #define CHANGELOGDB_TRIM_INTERVAL 300        /* 5 minutes */
 #define CHANGELOGDB_COMPACT_INTERVAL 2592000 /* 30 days */
-#define CHANGELOGDB_COMPACT_TIME "23:55" /* 30 days */
+#define CHANGELOGDB_COMPACT_TIME "23:59"     /* around midnight */
 
 #define CONFIG_CHANGELOG_DIR_ATTRIBUTE "nsslapd-changelogdir"
 #define CONFIG_CHANGELOG_MAXENTRIES_ATTRIBUTE "nsslapd-changelogmaxentries"

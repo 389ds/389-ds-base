@@ -197,6 +197,8 @@ changelog5_config_add(Slapi_PBlock *pb __attribute__((unused)),
 
         goto done;
     }
+    /* Set compaction parameters */
+    cl5ConfigSetCompaction(config.compactInterval, config.compactTime);
 
     /* start the changelog */
     rc = cl5Open(config.dir, &config.dbconfig);
@@ -212,7 +214,7 @@ changelog5_config_add(Slapi_PBlock *pb __attribute__((unused)),
     }
 
     /* set trimming parameters */
-    rc = cl5ConfigTrimming(config.maxEntries, config.maxAge, config.compactInterval, config.compactTime, config.trimInterval);
+    rc = cl5ConfigTrimming(config.maxEntries, config.maxAge, config.trimInterval);
     if (rc != CL5_SUCCESS) {
         *returncode = 1;
         if (returntext) {
@@ -548,6 +550,8 @@ changelog5_config_modify(Slapi_PBlock *pb,
                 slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                               "changelog5_config_modify - Deleted the changelog at %s\n", currentDir);
             }
+            /* Set compaction parameters */
+            cl5ConfigSetCompaction(config.compactInterval, config.compactTime);
 
             rc = cl5Open(config.dir, &config.dbconfig);
             if (rc != CL5_SUCCESS) {
@@ -575,7 +579,7 @@ changelog5_config_modify(Slapi_PBlock *pb,
     if (config.maxEntries != CL5_NUM_IGNORE ||
         config.trimInterval != CL5_NUM_IGNORE ||
         strcmp(config.maxAge, CL5_STR_IGNORE) != 0) {
-        rc = cl5ConfigTrimming(config.maxEntries, config.maxAge, config.compactInterval, config.compactTime, config.trimInterval);
+        rc = cl5ConfigTrimming(config.maxEntries, config.maxAge, config.trimInterval);
         if (rc != CL5_SUCCESS) {
             *returncode = 1;
             if (returntext) {
