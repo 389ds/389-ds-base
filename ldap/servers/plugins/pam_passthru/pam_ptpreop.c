@@ -635,7 +635,7 @@ pam_passthru_postop(Slapi_PBlock *pb)
     Slapi_DN *sdn = NULL;
     Slapi_DN *new_sdn = NULL;
     Slapi_Entry *e = NULL;
-    int optype = SLAPI_OPERATION_NONE;
+    unsigned long optype = SLAPI_OPERATION_NONE;
     int oprc = -1;
 
     slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,

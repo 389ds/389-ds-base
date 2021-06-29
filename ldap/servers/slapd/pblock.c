@@ -617,7 +617,7 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
                           "slapi_pblock_get", "Operation is NULL and hence cannot access SLAPI_OPERATION_TYPE \n");
             return (-1);
         }
-        (*(int *)value) = pblock->pb_op->o_params.operation_type;
+        (*(unsigned long *)value) = pblock->pb_op->o_params.operation_type;
         break;
     case SLAPI_OPINITIATED_TIME:
         if (pblock->pb_op == NULL) {

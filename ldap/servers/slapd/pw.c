@@ -1992,7 +1992,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
     int type_name_disposition = 0;
     int attr_free_flags = 0;
     int rc = 0;
-    int optype = -1;
+    unsigned long optype = SLAPI_OPERATION_NONE;
     int free_e = 1; /* reset if e is taken from pb */
     if (pb) {
         slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &optype);

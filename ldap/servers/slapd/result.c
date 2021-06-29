@@ -2134,7 +2134,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                 slapi_ch_free_string(&ext_str);
             }
         } else {
-            int optype;
+            unsigned long optype = SLAPI_OPERATION_NONE;
 #define LOG_MSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s\n"
             slapi_log_access(LDAP_DEBUG_ARGS,
                              connid == 0 ? LOG_CONN_OP_FMT_INT_INT LOG_MSG_FMT :

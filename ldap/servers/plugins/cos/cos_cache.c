@@ -3170,7 +3170,7 @@ cos_cache_change_notify(Slapi_PBlock *pb)
     struct slapi_entry *e;
     Slapi_Backend *be = NULL;
     int rc = 0;
-    int optype = -1;
+    unsigned long optype = SLAPI_OPERATION_NONE;
 
     slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_change_notify\n");
 

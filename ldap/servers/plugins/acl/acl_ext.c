@@ -737,7 +737,7 @@ acl_init_aclpb(Slapi_PBlock *pb, Acl_PBlock *aclpb, const char *ndn, int copy_fr
     struct acl_cblock *aclcb = NULL;
     char *authType;
     void *conn;
-    int op_type;
+    unsigned long op_type = SLAPI_OPERATION_NONE;
     intptr_t ssf = 0;
 
 
