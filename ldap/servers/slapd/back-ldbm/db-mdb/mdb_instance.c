@@ -197,7 +197,7 @@ static void *dbmdb_mdb_open_dbname(void *arg)
         return NULL;
     }
     if (octx->dbi->dbi == 0) {
-        octx->rc = mdb_dbi_open(TXN(txn), octx->dbname, open_flags, &octx->dbi->dbi);
+        octx->rc = MDB_DBI_OPEN(TXN(txn), octx->dbname, open_flags, &octx->dbi->dbi);
     }
     if (octx->rc) {
         if (octx->rc != MDB_NOTFOUND) {
@@ -230,7 +230,7 @@ static void *dbmdb_mdb_open_dbname(void *arg)
         if (octx->rc) {
             return NULL;
         }
-        octx->rc = mdb_drop(txn, octx->dbi->dbi, 0);
+        octx->rc = MDB_DROP(txn, octx->dbi->dbi, 0);
         if (octx->rc) {
             slapi_log_err(SLAPI_LOG_ERR,
                       "dbmdb_get_db", "Failed to truncate the database instance %s. err=%d %s\n",
@@ -406,7 +406,7 @@ int dbmdb_open_cursor(dbmdb_cursor_t *dbicur, dbmdb_ctx_t *ctx, dbmdb_dbi_t *dbi
     if (rc) {
         return rc;
     }
-    rc = mdb_cursor_open(TXN(dbicur->txn), dbicur->dbi.dbi, &dbicur->cur);
+    rc = MDB_CURSOR_OPEN(TXN(dbicur->txn), dbicur->dbi.dbi, &dbicur->cur);
     if (rc) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_cursor",
                 "Failed to open a cursor err=%d: %s\n", rc, mdb_strerror(rc));
@@ -418,7 +418,7 @@ int dbmdb_open_cursor(dbmdb_cursor_t *dbicur, dbmdb_ctx_t *ctx, dbmdb_dbi_t *dbi
 int dbmdb_close_cursor(dbmdb_cursor_t *dbicur, int rc)
 {
     if (dbicur->cur) {
-        mdb_cursor_close(dbicur->cur);
+        MDB_CURSOR_CLOSE(dbicur->cur);
     }
     rc = END_TXN(&dbicur->txn, rc);
     return rc;
@@ -714,6 +714,7 @@ void dbmdb_ctx_close(dbmdb_ctx_t *ctx)
     ctx->nbdbis = 0;
     slapi_ch_free((void**)&ctx->dbis);
     pthread_mutex_destroy(&ctx->dbis_lock);
+    pthread_mutex_destroy(&ctx->rcmutex);
     pthread_rwlock_destroy(&ctx->dbmdb_env_lock);
 }
 
@@ -753,7 +754,7 @@ int dbmdb_dbi_remove_from_idx(dbmdb_ctx_t *conf, dbi_txn_t *txn, int idx)
     key.mv_size = strlen(ldb->dbname)+1;
     if (0 == ldb->dbi) {
         /* dbi is not open ==> should open it. */
-        rc = mdb_dbi_open(TXN(txn), ldb->dbname, ldb->state.flags & MDB_DBIOPEN_MASK, &ldb->dbi);
+        rc = MDB_DBI_OPEN(TXN(txn), ldb->dbname, ldb->state.flags & MDB_DBIOPEN_MASK, &ldb->dbi);
         if (rc == MDB_NOTFOUND) {
             rc = 0;
         }
@@ -761,7 +762,7 @@ int dbmdb_dbi_remove_from_idx(dbmdb_ctx_t *conf, dbi_txn_t *txn, int idx)
 
     if (rc == 0 && ldb->dbi>0) {
         /* Remove db instance from database */
-        rc = mdb_drop(TXN(txn), ldb->dbi, 1);
+        rc = MDB_DROP(TXN(txn), ldb->dbi, 1);
     }
     if (rc == 0) {
         /* Remove db instance from DBNAMES */
@@ -822,6 +823,10 @@ int dbmdb_dbi_rmdir(dbmdb_ctx_t *conf, const char *dirname)
         if (strncmp(dirname, conf->dbis[idx].dbname, len) == 0 &&
             conf->dbis[idx].dbname[len] == '/') {
             rc = dbmdb_dbi_remove_from_idx(conf, txn, idx);
+            if (rc == 0) {
+                /* slot has been removed so next slot to process is still idx */
+                idx--;
+            }
         }
     }
     rc = END_TXN(&txn, rc);
@@ -893,3 +898,83 @@ int dbmdb_clear_dirty_flags(dbmdb_ctx_t *conf, const char *dirname)
     return dbmdb_map_error(__FUNCTION__, rc);
 }
 
+int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx)
+{
+    struct ldbminfo *li = (struct ldbminfo *)rcctx->cursor->be->be_database->plg_private;
+    int curdbi = mdb_cursor_dbi(rcctx->cursor->cur);
+    MDB_txn *txn = mdb_cursor_txn(rcctx->cursor->cur);
+    dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+    char *rcdbname = NULL;
+    dbmdb_dbi_t *dbi;
+    int idx = 0;
+    int rc = 0;
+
+    rcctx->mode = RCMODE_UNKNOWN;
+    rcctx->cursortxn = txn;
+
+    pthread_mutex_lock(&ctx->dbis_lock);
+    /* first lets look up in the table */
+    for (idx=0; rc==0 && idx<ctx->nbdbis; idx++) {
+        dbi = &ctx->dbis[idx];
+        if (curdbi == dbi->dbi) {
+            rcdbname = slapi_ch_smprintf("~recno-cache/%s", dbi->dbname);
+            rcctx->dbi = *dbi;
+            break;
+        }
+    }
+    if (!rcdbname) {
+        /* Really weird: an open dbi should be in dbis table */
+        return MDB_NOTFOUND;
+    }
+    /* Now lets search for the associated recno cache dbi */
+    for (idx=0; rc==0 && idx<ctx->nbdbis; idx++) {
+        dbi = &ctx->dbis[idx];
+        if (strcmp(rcdbname, dbi->dbname) == 0 && dbi->dbi > 0) {
+            rcctx->rcdbi = *dbi;
+            rcctx->mode = RCMODE_USE_CURSOR_TXN;
+            break;
+        }
+    }
+
+    pthread_mutex_unlock(&ctx->dbis_lock);
+    if (rcctx->mode == RCMODE_USE_CURSOR_TXN) {
+        /* DBI cache was found,  Let check that it is usuable */
+        slapi_ch_free_string(&rcdbname);
+        rcctx->key.mv_data = "OK";
+        rcctx->key.mv_size = 2;
+        rc = mdb_get(txn, rcctx->rcdbi.dbi, &rcctx->key, &rcctx->data);
+        if (rc) {
+            rcctx->mode = RCMODE_UNKNOWN;
+        }
+        if (rc != MDB_NOTFOUND) {
+            return rc;
+        }
+    }
+    /* if rcdbname is set then cache is not open
+     * if rcdbname is NULL then cache must be rebuild
+     * ==> In both case A write TXN is needed
+     *  (either as subtxn or in new thread)
+     */
+    rcctx->rcdbname = rcdbname;
+    rcctx->env = ctx->env;
+    rc = TXN_BEGIN(ctx->env, rcctx->cursortxn, 0, &txn);
+    if (rc == 0) {
+        TXN_ABORT(txn);
+        txn = NULL;
+        rcctx->mode = RCMODE_USE_SUBTXN;
+    } else if (rcctx->rc == EINVAL) {
+        rcctx->mode = RCMODE_USE_NEW_THREAD;
+        rcctx->rc = 0;
+    }
+    return rc;
+}
+
+int dbmdb_open_recno_cache_dbi(dbmdb_recno_cache_ctx_t *rcctx)
+{
+    int rc = 0;
+    if (rcctx->rcdbname) {
+        rc = dbmdb_open_dbi_from_filename(&rcctx->rcdbi, rcctx->cursor->be, rcctx->rcdbname, NULL, 0);
+        slapi_ch_free_string(&rcctx->rcdbname);
+    }
+    return rc;
+}

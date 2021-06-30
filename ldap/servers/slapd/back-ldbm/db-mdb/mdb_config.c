@@ -110,6 +110,7 @@ int mdb_init(struct ldbminfo *li, config_info *config_array)
     li->li_dblayer_config = conf;
     strncpy(conf->home, li->li_directory, MAXPATHLEN);
     pthread_mutex_init(&conf->dbis_lock, NULL);
+    pthread_mutex_init(&conf->rcmutex, NULL);
     pthread_rwlock_init(&conf->dbmdb_env_lock, NULL);
 
     dbmdb_ctx_t_setup_default(li);

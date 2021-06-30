@@ -3714,7 +3714,7 @@ dbmdb_read_ldif_entries(struct ldbminfo *li, char *src_dir, char *file_name)
             continue;
         }
         if (nb_entries+1 >= max_entries) { /* Reserve enough space to add the final NULL element */
-			max_entries = max_entries ? 2 * max_entries : 256;
+            max_entries = max_entries ? 2 * max_entries : 256;
             backup_entries = (Slapi_Entry **)slapi_ch_realloc((char *)backup_entries, max_entries * sizeof(Slapi_Entry *));
         }
         backup_entries[nb_entries++] = e;
@@ -3746,7 +3746,7 @@ out:
 int
 dbmdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *filter, int force_update, char *log_str)
 {
-	Slapi_Entry **backup_entries = dbmdb_read_ldif_entries(li, src_dir, file_name);
+    Slapi_Entry **backup_entries = dbmdb_read_ldif_entries(li, src_dir, file_name);
     Slapi_Entry **curr_entries = NULL;
     Slapi_Entry **bep = NULL;
     int rval = 0;
@@ -3764,12 +3764,12 @@ dbmdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, 
     slapi_search_internal_pb(srch_pb);
     slapi_pblock_get(srch_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &curr_entries);
     if (!curr_entries) {
-		slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dse_conf_verify_core",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dse_conf_verify_core",
                       "Failed to get current configuration.\n");
-		rval = -1;
+        rval = -1;
         goto out;
     }
-		
+
     if (0 != slapi_entries_diff(backup_entries, curr_entries, 1 /* test_all */,
                                 log_str, force_update, li->li_identity)) {
         if (force_update) {
@@ -3777,13 +3777,13 @@ dbmdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, 
                           "Current %s is different from backed up configuration; "
                           "The backup is restored.\n",
                           log_str);
-		} else {
+        } else {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dse_conf_verify_core",
                           "Current %s is different from backed up configuration; "
                           "The backup is not restored.\n",
                           log_str);
             rval = -1;
-		}
+        }
     }
 
     slapi_free_search_results_internal(srch_pb);
@@ -4488,10 +4488,9 @@ dbmdb_import_writer_create_dbi(ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id, 
     return dbmdb_import_sync_write(info->job, slot, IMPORT_WRITE_ACTION_OPEN, &vzero, &vzero);
 }
 
-
 /* Perform a synchronous write operation */
 int
-dbmdb_import_sync_write(ImportJob*job, long wqslot, dbmdb_waction_t action, MDB_val*key, MDB_val*data)
+dbmdb_import_sync_write(ImportJob*job, long wqslot, dbmdb_waction_t action, MDB_val *key, MDB_val *data)
 {
     pthread_mutex_t response_mutex = PTHREAD_MUTEX_INITIALIZER;
     pthread_cond_t response_cv = PTHREAD_COND_INITIALIZER;

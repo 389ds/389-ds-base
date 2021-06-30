@@ -170,7 +170,7 @@ struct _import_worker_info
     ImportJob *job;
     ImportWorkerInfo *next;
     size_t index_buffer_size; /* Size of index buffering for this index */
-    char name[WORKER_NAME_LEN];	/* For debug */
+    char name[WORKER_NAME_LEN]; /* For debug */
     void *writer_ctx;        /* Context used to push data in worker thread */
     dbi_txn_t *txn;        /* Thread txn */
 };

@@ -37,7 +37,7 @@ cleanup_mdbtxn_stack(void *arg)
     dbmdb_txn_t *txn2;
 
     *anchor = NULL;
-    slapi_ch_free((void**)anchor);
+    slapi_ch_free((void**)&anchor);
     PR_SetThreadPrivate(thread_private_mdb_txn_stack, NULL);
     while (txn) {
         txn2 = txn->parent;

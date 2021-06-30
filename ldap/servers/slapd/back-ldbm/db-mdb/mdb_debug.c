@@ -24,11 +24,12 @@
 
 
 
-/* This file contains some utility to format some strings 
+/* This file contains some utility to format some strings
  * and conditionnal code used to debug dbmdb plugin
  */
 
 int dbgmdb_level = DBGMDB_LEVEL_MDBAPI;
+
 
 /* helper to pretty print flags values */
 typedef struct {
@@ -138,7 +139,7 @@ void dbmdb_format_dbslist_info(char *info, dbmdb_dbi_t *dbi)
     int len = 0;
     dbmdb_get_entries_count(dbi, &nbentries);
     len = append_flags(info, PATH_MAX, len, "flags", dbi->state.flags, mdb_dbi_flags_desc);
-    len = append_flags(info, PATH_MAX, len, "state", dbi->state.state, mdb_state_desc);
+    len = append_flags(info, PATH_MAX, len, " state", dbi->state.state, mdb_state_desc);
     PR_snprintf(info+len, PATH_MAX-len, " dataversion: %d nb_entries=%d", dbi->state.dataversion, nbentries);
 }
 
@@ -197,32 +198,38 @@ static void
 dbgval2str(char *buff, size_t bufsiz, char *data, size_t data_size)
 {
     char *dataend = &data[data_size];
-	char *buffend = &buff[bufsiz-4];   /* Reserve space for "...\0" */
+    char *buffend = &buff[bufsiz-4];   /* Reserve space for "...\0" */
 
-	while (data && data < dataend && buff < buffend ) {
-		if (*data < 0x20 || *data > 0x7E) {
-			sprintf(buff, "\\%02x", (unsigned char)*data);
-			buff += 3;
-		} else if (*data == '\\') {
-			strcpy(buff, "\\");
-			buff += 2;
-		} else {
-			*buff++ = *data;
-		}
-		data++;
-	}
-	*buff = 0;
+    while (data && data < dataend && buff < buffend ) {
+        if (*data < 0x20 || *data > 0x7E) {
+            sprintf(buff, "\\%02x", (unsigned char)*data);
+            buff += 3;
+        } else if (*data == '\\') {
+            strcpy(buff, "\\");
+            buff += 2;
+        } else {
+            *buff++ = *data;
+        }
+        data++;
+    }
+    *buff = 0;
     if (buff >= buffend) {
         strcpy(buffend, "...");
-	}
+    }
+}
+
+static void
+dbgcursor2str(char *buff, size_t bufsiz, MDB_cursor *cursor)
+{
+    snprintf(buff, bufsiz, "%p[%d]", cursor, mdb_cursor_dbi(cursor));
 }
 
 void
 dbg_log(const char *file, int lineno, const char *funcname, int loglevel, char *fmt, ...)
 {
-	char flagsstr[DBGVAL2STRMAXSIZE];
+    char flagsstr[DBGVAL2STRMAXSIZE];
     char *p = NULL;
-	va_list ap;
+    va_list ap;
 
     va_start(ap, fmt);
     p = PR_vsmprintf(fmt, ap);
@@ -235,26 +242,48 @@ dbg_log(const char *file, int lineno, const char *funcname, int loglevel, char *
     slapi_ch_free_string(&p);
 }
 
+
+int
+dbg_mdb_cursor_open(const char *file, int lineno, const char *funcname, MDB_txn *txn, MDB_dbi dbi, MDB_cursor **cursor)
+{
+    int rc = mdb_cursor_open(txn, dbi, cursor);
+    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_open(txn: %p, dbi: %d cursor: %p)=%d\n", txn, dbi, *cursor, rc);
+    }
+    return rc;
+}
+
+void
+dbg_mdb_cursor_close(const char *file, int lineno, const char *funcname, MDB_cursor *cursor)
+{
+    mdb_cursor_close(cursor);
+    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_close(cursor: %p)\n", cursor);
+    }
+}
+
 int
 dbg_mdb_cursor_get(const char *file, int lineno, const char *funcname, MDB_cursor *cursor, MDB_val *key, MDB_val *data, MDB_cursor_op op)
 {
     char keystr[DBGVAL2STRMAXSIZE];
     char datastr[DBGVAL2STRMAXSIZE];
     char flagsstr[DBGVAL2STRMAXSIZE];
+    char cursorstr[DBGVAL2STRMAXSIZE];
     if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
         dbgval2str(keystr, sizeof keystr, key->mv_data, key->mv_size);
         dbgval2str(datastr, sizeof datastr, data->mv_data, data->mv_size);
+        dbgcursor2str(cursorstr, sizeof cursorstr, cursor);
         append_enum(flagsstr, sizeof flagsstr, 0, "op", op, mdb_cursor_op_desc);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "CALLING mdb_cursor_get(cursor: %p,key: %s,data: %s,%s)\n", cursor, keystr, datastr, flagsstr);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "CALLING mdb_cursor_get(cursor: %s,key: %s,data: %s,%s)\n", cursorstr, keystr, datastr, flagsstr);
     }
     int rc = mdb_cursor_get(cursor, key, data, op);
     if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
         dbgval2str(keystr, sizeof keystr, key->mv_data, key->mv_size);
         dbgval2str(datastr, sizeof datastr, data->mv_data, data->mv_size);
         append_enum(flagsstr, sizeof flagsstr, 0, "op", op, mdb_cursor_op_desc);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_get(cursor: %p,key: %s,data: %s,%s)=%d\n", cursor, keystr, datastr, flagsstr, rc);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_get(cursor: %s,key: %s,data: %s,%s)=%d\n", cursorstr, keystr, datastr, flagsstr, rc);
     }
-	return rc;
+    return rc;
 }
 
 int
@@ -262,16 +291,57 @@ dbg_mdb_put(const char *file, int lineno, const char *funcname, MDB_txn *txn, MD
 {
     int rc = mdb_put(txn, dbi, key, data, flags);
     if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
-	    char keystr[DBGVAL2STRMAXSIZE];
-	    char datastr[DBGVAL2STRMAXSIZE];
-	    char flagsstr[DBGVAL2STRMAXSIZE];
+        char keystr[DBGVAL2STRMAXSIZE];
+        char datastr[DBGVAL2STRMAXSIZE];
+        char flagsstr[DBGVAL2STRMAXSIZE];
 
         dbgval2str(keystr, sizeof keystr, key->mv_data, key->mv_size);
         dbgval2str(datastr, sizeof datastr, data->mv_data, data->mv_size);
         append_flags(flagsstr, sizeof flagsstr, 0, "flags", flags, mdb_op_flags_desc);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_put(txn: %p,dbi: %d,key: %s,data: %s,%s)=%d\n", txn, dbi, keystr, datastr, flagsstr, rc);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_put(txn: %p,dbi: %d ,key: %s,data: %s,%s)=%d\n", txn, dbi, keystr, datastr, flagsstr, rc);
     }
-	return rc;
+    return rc;
+}
+
+int
+dbg_mdb_cursor_put(const char *file, int lineno, const char *funcname, MDB_cursor *cursor, MDB_val *key, MDB_val *data, unsigned int flags)
+{
+    int rc = mdb_cursor_put(cursor, key, data, flags);
+    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+        char keystr[DBGVAL2STRMAXSIZE];
+        char datastr[DBGVAL2STRMAXSIZE];
+        char flagsstr[DBGVAL2STRMAXSIZE];
+        char cursorstr[DBGVAL2STRMAXSIZE];
+
+        dbgval2str(keystr, sizeof keystr, key->mv_data, key->mv_size);
+        dbgval2str(datastr, sizeof datastr, data->mv_data, data->mv_size);
+        dbgcursor2str(cursorstr, sizeof cursorstr, cursor);
+        append_flags(flagsstr, sizeof flagsstr, 0, "flags", flags, mdb_op_flags_desc);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_put(cursor: %s,key: %s,data: %s,%s)=%d\n", cursorstr, keystr, datastr, flagsstr, rc);
+    }
+    return rc;
+}
+
+int
+dbg_mdb_dbi_open(const char *file, int lineno, const char *funcname, MDB_txn *txn, const char *dbname, unsigned int flags, MDB_dbi *dbi)
+{
+    int rc = mdb_dbi_open(txn, dbname, flags, dbi);
+    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+        char flagsstr[DBGVAL2STRMAXSIZE];
+        append_flags(flagsstr, sizeof flagsstr, 0, "flags", flags, mdb_dbi_flags_desc);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_dbi_open(txn: %p, dbname: %s, %s, *dbi: %d)=%d\n", txn, dbname, flagsstr, *dbi, rc);
+    }
+    return rc;
+}
+
+int
+dbg_mdb_drop(const char *file, int lineno, const char *funcname, MDB_txn *txn, MDB_dbi dbi, int del)
+{
+    int rc = mdb_drop(txn, dbi, del);
+    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_drop(txn: %p, dbi: %d, del: %d)=%d\n", txn, dbi, del, rc);
+    }
+    return rc;
 }
 
 static void get_stack(char *buff, size_t buflen)
@@ -326,7 +396,7 @@ int dbg_txn_end(const char *file, int lineno, const char *funcname, MDB_txn *txn
             return mdb_txn_commit(txn);
         } else {
             mdb_txn_abort(txn);
-			return 0;
+            return 0;
         }
     }
     int rc = 0;
@@ -347,8 +417,8 @@ dbg_import_elmt(const char *file, int lineno, const char *funcname, const char *
 {
 #define S(v) ((v)?(v):"")
     wqelem_t *elmt2 = elmt;
-	char keystr[DBGVAL2STRMAXSIZE];
-	char datastr[DBGVAL2STRMAXSIZE];
+    char keystr[DBGVAL2STRMAXSIZE];
+    char datastr[DBGVAL2STRMAXSIZE];
     char *actions[]={
         "NONE",
         "IMPORT_WRITE_ACTION_RMDIR",
