@@ -57,8 +57,8 @@
 #define MDB_TRUNCATE_DBI             0x40000000     /* create/open a dbi and insure it is empty */
 
 /* Files and database names */
-#define DSE_INSTANCE        "dse_instance.ldif"		/* dse file in backup */
-#define DSE_INDEX           "dse_index.ldif"		/* dse file in backup */
+#define DSE_INSTANCE        "dse_instance.ldif"     /* dse file in backup */
+#define DSE_INDEX           "dse_index.ldif"        /* dse file in backup */
 #define DBMAPFILE           "data.mdb"
 #define INFOFILE            "INFO.mdb"
 #define DBNAMES             "__DBNAMES"
@@ -130,6 +130,7 @@ typedef struct dbmdb_ctx_t
     dbmdb_info_t info;             /* Other information */
     char home[MAXPATHLEN];         /* Home directory */
     pthread_mutex_t dbis_lock;     /* protects dbis access */
+    pthread_mutex_t rcmutex;       /* recnum cache mutex */
     dbmdb_dbi_t *dbis;             /* sorted by name instances array with startcfg.dbmdb_max_dbs slots */
     int nbdbis;                    /* number of used slots in dbilist */
     MDB_dbi dbinames_dbi;          /* __DBNAMES database handler */
@@ -149,6 +150,39 @@ typedef struct dbmdb_cursor_t
     dbi_txn_t *txn;
     MDB_cursor *cur;
 } dbmdb_cursor_t;
+
+/* recno cache data */
+typedef struct {
+    MDB_val data;
+    MDB_val key;
+    int len;
+    dbi_recno_t recno;
+    /* followed by key value then data value */
+} dbmdb_recno_cache_elmt_t;
+
+/* Determine how txn is handled while deaing with recno cache */
+typedef enum {
+    RCMODE_UNKNOWN,
+    RCMODE_USE_CURSOR_TXN,
+    RCMODE_USE_SUBTXN,
+    RCMODE_USE_NEW_THREAD
+} dbmdb_recno_txn_mode_t;
+
+typedef struct {
+    dbmdb_recno_cache_elmt_t *rce;
+    dbmdb_recno_txn_mode_t mode;
+    dbi_cursor_t *cursor;       /* Initial cursor on vlv index */
+    MDB_txn *cursortxn;
+    MDB_val cache_key;
+    dbmdb_dbi_t rcdbi;          /* recno cache dbi */
+    dbmdb_dbi_t dbi;            /* vlv index dbi */
+    char *rcdbname;
+    MDB_env *env;
+    MDB_val data;
+    MDB_val key;
+    int rc;
+} dbmdb_recno_cache_ctx_t;
+
 
 /* Writer thread dbi slot ID */
 typedef struct dbmdb_wid_t
@@ -378,6 +412,9 @@ void dbmdb_envflags2str(int flags, char *str, int maxlen);
 int dbmdb_dbi_remove(dbmdb_ctx_t *conf, dbi_db_t **db);
 int dbmdb_dbi_rmdir(dbmdb_ctx_t *conf, const char *dirname);
 int dbmdb_clear_dirty_flags(dbmdb_ctx_t *conf, const char *dirname);
+int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx);
+int dbmdb_open_recno_cache_dbi(dbmdb_recno_cache_ctx_t *rcctx);
+
 
 /* mdb_txn.c */
 int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_txn_t **txn);

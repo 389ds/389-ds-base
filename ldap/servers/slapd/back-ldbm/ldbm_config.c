@@ -284,9 +284,9 @@ ldbm_config_backend_implement_set(void *arg, void *value, char *errorbuf __attri
     int retval = LDAP_SUCCESS;
 
     if (strcasecmp(value, BDB_IMPL) && strcasecmp(value, LMDB_IMPL)) {
-		slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_backend_implement_set", "Invalid db implementation value. It should be %s or %s.\n", BDB_IMPL, LMDB_IMPL);
-		return LDAP_UNWILLING_TO_PERFORM;
-	}
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_backend_implement_set", "Invalid db implementation value. It should be %s or %s.\n", BDB_IMPL, LMDB_IMPL);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
 
     if (apply) {
         slapi_ch_free((void **)&(li->li_backend_implement));

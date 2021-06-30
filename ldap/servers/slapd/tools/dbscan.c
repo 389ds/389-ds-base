@@ -794,6 +794,17 @@ _entryrdn_dump_rdn_elem(char *key, rdn_elem *elem, int indent)
     free(indentp);
 }
 
+static int
+move_to_key(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data)
+{
+    int rc = dblayer_cursor_op(cursor, DBI_OP_MOVE_TO_KEY,  key, data);
+    if (rc == DBI_RC_NOTFOUND) {
+        key->size++;
+        rc = dblayer_cursor_op(cursor, DBI_OP_MOVE_TO_KEY,  key, data);
+    }
+    return rc;
+}
+
 static void
 display_entryrdn_self(dbi_db_t *db, ID id, const char *nrdn __attribute__((unused)), int indent)
 {
@@ -812,7 +823,7 @@ display_entryrdn_self(dbi_db_t *db, ID id, const char *nrdn __attribute__((unuse
     dblayer_value_strdup(be, &key, buffer);
 
     /* Position cursor at the matching key */
-    rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY,  &key, &data);
+    rc = move_to_key(&cursor, &key, &data);
     if (rc) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
                         "(%d)\n",
@@ -850,7 +861,7 @@ display_entryrdn_parent(dbi_db_t *db, ID id, const char *nrdn __attribute__((unu
     dblayer_value_strdup(be, &key, buffer);
 
     /* Position cursor at the matching key */
-    rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY,  &key, &data);
+    rc = move_to_key(&cursor, &key, &data);
     if (rc) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
                         "(%d)\n",
@@ -885,8 +896,10 @@ display_entryrdn_children(dbi_db_t *db, ID id, const char *nrdn __attribute__((u
     dblayer_value_strdup(be, &key, buffer);
 
     /* Position cursor at the matching key */
-    rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY,  &key, &data);
-
+    rc = move_to_key(&cursor, &key, &data);
+    if (rc == DBI_RC_NOTFOUND) {
+        goto bail;
+    }
     if (rc) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
                         "(%d)\n",
@@ -909,7 +922,7 @@ display_entryrdn_children(dbi_db_t *db, ID id, const char *nrdn __attribute__((u
             break;
         }
     }
-    if (rc) {
+    if (rc && rc != DBI_RC_NOTFOUND) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
                      "(%d)\n", (char *)key.data, dblayer_strerror(rc), rc);
     }
@@ -1082,52 +1095,52 @@ usage(char *argv0)
 
 void dump_ascii_val(const char *str, dbi_val_t *val)
 {
-	unsigned char *v = val->data;
-	unsigned char *last = &v[val->size];
+    unsigned char *v = val->data;
+    unsigned char *last = &v[val->size];
 
-	printf("%s: ",str);
-	while (v<last) {
-		switch (*v) {
-			case ' ':
-				printf("\\s"); 
-				break;
-			case '\\':
-				printf("\\\\"); 
-				break;
-			case '\t':
-				printf("\\t"); 
-				break;
-			case '\r':
-				printf("\\r"); 
-				break;
-			case '\n':
-				printf("\\n"); 
-				break;
-			default:
-				if (*v > 0x20 && *v < 0x7f) {
-					printf("%c", *v);
-				} else {
-					printf("\\%02x", *v);
-				}
-				break;
-		}
-		v++;
-	}
+    printf("%s: ",str);
+    while (v<last) {
+        switch (*v) {
+            case ' ':
+                printf("\\s");
+                break;
+            case '\\':
+                printf("\\\\");
+                break;
+            case '\t':
+                printf("\\t");
+                break;
+            case '\r':
+                printf("\\r");
+                break;
+            case '\n':
+                printf("\\n");
+                break;
+            default:
+                if (*v > 0x20 && *v < 0x7f) {
+                    printf("%c", *v);
+                } else {
+                    printf("\\%02x", *v);
+                }
+                break;
+        }
+        v++;
+    }
 }
 
 int dump_ascii(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data)
 {
     int rc;
-	do {
-		dump_ascii_val("KEY", key);
-		dump_ascii_val("\tDATA", data);
-		putchar('\n');
-		rc = dblayer_cursor_op(cursor, DBI_OP_NEXT,  key, data);
-	} while (rc==0);
+    do {
+        dump_ascii_val("KEY", key);
+        dump_ascii_val("\tDATA", data);
+        putchar('\n');
+        rc = dblayer_cursor_op(cursor, DBI_OP_NEXT,  key, data);
+    } while (rc==0);
     if (rc == DBI_RC_NOTFOUND) {
-		rc = 0;
-	}
-	return rc;
+        rc = 0;
+    }
+    return rc;
 }
 
 int
@@ -1263,7 +1276,7 @@ main(int argc, char **argv)
     }
 
     if (display_mode & ASCIIDATA) {
-		ret = dump_ascii(&cursor, &key, &data);
+        ret = dump_ascii(&cursor, &key, &data);
         goto done;
     }
 

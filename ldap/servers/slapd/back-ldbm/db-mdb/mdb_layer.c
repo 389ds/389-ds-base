@@ -18,10 +18,11 @@
 #include <sys/statvfs.h>
 #include <glob.h>
 
-
 Slapi_ComponentId *dbmdb_componentid;
 
 #define BULKOP_MAX_RECORDS  100 /* Max records handled by a single bulk operations */
+
+#define RECNO_CACHE_INTERVAL 1000  /* 1 key added in cache for every RECNO_CACHE_INTERVAL vlv keys */
 
 /* bulkdata->v.data contents */
 typedef struct {
@@ -35,6 +36,16 @@ typedef struct {
     MDB_val key;             /* key */
     size_t data_size;        /* Size of a single item in data */
 } dbmdb_bulkdata_t;
+
+typedef struct {
+    long nbrecords;
+    char *startdata;
+    struct {
+        MDB_val key;
+        MDB_val data;
+    } record[1];
+
+} dbmdb_bulkrecords_t;
 
 
 /* Use these macros to incr/decrement the thread count for the
@@ -1384,7 +1395,7 @@ dbmdb_get_info(Slapi_Backend *be, int cmd, void **info)
             rc = 0;
         } else {
             dbmdb_dbi_t *db;
-            rc = dblayer_get_changelog(be, (dbi_db_t **)&db, MDB_CREATE);
+            rc = dblayer_get_changelog(be, (dbi_db_t **)&db, DBOPEN_CREATE);
         }
         if (rc == 0) {
             *(dbmdb_dbi_t **)info = inst->inst_changelog;
@@ -1665,16 +1676,16 @@ int dbmdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
     PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_DATA);
     if (dbmdb_data->use_multiple) {
         PR_ASSERT(dbmdb_data->data_size);
-		if (dbmdb_data->data0.mv_data) {
+        if (dbmdb_data->data0.mv_data) {
             dblayer_value_set_buffer(bulkdata->be, data, dbmdb_data->data0.mv_data, dbmdb_data->data_size);
-			dbmdb_data->data0.mv_data = NULL;
-		} else {
+            dbmdb_data->data0.mv_data = NULL;
+        } else {
             if (*idx >= dbmdb_data->data.mv_size / dbmdb_data->data_size) {
                 return DBI_RC_NOTFOUND;
             }
             v += dbmdb_data->data_size * (*idx)++;
             dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data_size);
-		}
+        }
     } else {
         if (!dbmdb_data->op || (*idx)++ >= dbmdb_data->maxrecords) {
             return DBI_RC_NOTFOUND;
@@ -1688,21 +1699,21 @@ int dbmdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
 
 int dbmdb_public_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *data)
 {
-    dbmdb_bulkdata_t *dbmdb_data = bulkdata->v.data;
+    MDB_val *vals = bulkdata->v.data;
+    MDB_val *endvals = &vals[bulkdata->v.size];
+    MDB_val *val = NULL;
     int *idx = (int*) (&bulkdata->it);
-    char *v = dbmdb_data->data.mv_data;
-    int rc = 0;
 
     PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
-    PR_ASSERT(!dbmdb_data->use_multiple);
-    if (!dbmdb_data->op || *idx++ >= dbmdb_data->maxrecords) {
+    if (&vals[*idx+1] >= endvals) {
         return DBI_RC_NOTFOUND;
     }
-    dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data.mv_size);
-    dblayer_value_set_buffer(bulkdata->be, key, dbmdb_data->key.mv_data, dbmdb_data->key.mv_size);
-    rc = MDB_CURSOR_GET(dbmdb_data->cursor, &dbmdb_data->key, &dbmdb_data->data, dbmdb_data->op);
-    rc = dbmdb_map_error(__FUNCTION__, rc);
-    return rc;
+    val = &vals[*idx];
+    dblayer_value_set_buffer(bulkdata->be, key, val->mv_data, val->mv_size);
+    val = &vals[*idx+1];
+    dblayer_value_set_buffer(bulkdata->be, data, val->mv_data, val->mv_size);
+    (*idx)++;
+    return 0;
 }
 
 int dbmdb_public_bulk_init(dbi_bulk_t *bulkdata)
@@ -1717,6 +1728,82 @@ int dbmdb_public_bulk_start(dbi_bulk_t *bulkdata)
     return DBI_RC_SUCCESS;
 }
 
+int dbmdb_fill_bulkop_records(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata)
+{
+#define BRVAL(dpl)  &((MDB_val *)(bulkdata->v.data))[dpl]
+    MDB_cursor *mcursor = (MDB_cursor*)cursor->cur;
+    char *startdata = &((char*)(bulkdata->v.data))[bulkdata->v.ulen];
+    MDB_val *mkey, *mdata;
+    int mop = 0;
+    int rc = 0;
+
+    bulkdata->v.size = 0;
+    switch (op)
+    {
+        case DBI_OP_MOVE_TO_FIRST:
+            mop = MDB_FIRST;
+            break;
+        case DBI_OP_MOVE_TO_KEY:
+            mop = MDB_SET;
+            break;
+        case DBI_OP_NEXT_KEY:
+            mop = MDB_NEXT_NODUP;
+            break;
+        case DBI_OP_NEXT:
+            mop = MDB_NEXT;
+            break;
+        case DBI_OP_NEXT_DATA:
+            mop = MDB_NEXT_DUP;
+            break;
+        default:
+            /* Unknown bulk operation */
+            PR_ASSERT(op != op);
+            break;
+    }
+    if (!mop) {
+        return DBI_RC_UNSUPPORTED;
+    }
+    while (!rc) {
+        if ((char*)BRVAL(bulkdata->v.size+2) >= startdata) {
+            break;
+        }
+        mkey = BRVAL(bulkdata->v.size);
+        mdata = BRVAL(bulkdata->v.size+1);
+        mkey->mv_data = mdata->mv_data = NULL;
+        mkey->mv_size = mdata->mv_size = 0;
+        if (bulkdata->v.size == 0) {
+            dbmdb_dbival2dbt(key, BRVAL(0), PR_FALSE);
+        }
+        rc = MDB_CURSOR_GET(mcursor, mkey, mdata, mop);
+        if (rc) {
+            if ((rc == MDB_NOTFOUND) && bulkdata->v.size) {
+                rc = 0;
+            }
+            rc = dbmdb_map_error(__FUNCTION__, rc);
+            break;
+        }
+        if ((char*)BRVAL(bulkdata->v.size+2) > startdata-mkey->mv_size-mdata->mv_size) {
+            /* Buffer is too small to store this value */
+            if (bulkdata->v.size) {
+                break;
+            }
+            /* Buffer is too small */
+            bulkdata->v.size = 2 * (sizeof (MDB_val)) + mkey->mv_size + mdata->mv_size;
+            return DBI_RC_BUFFER_SMALL;
+        }
+        mop = MDB_NEXT;
+        bulkdata->v.size += 2;
+        startdata -= mdata->mv_size;
+        memcpy(startdata, mdata->mv_data, mdata->mv_size);
+        startdata -= mkey->mv_size;
+        memcpy(startdata, mkey->mv_data, mkey->mv_size);
+    }
+    /* Copy last key back to key */
+    mkey = bulkdata->v.size ? BRVAL(bulkdata->v.size-2) : BRVAL(0);
+    rc = dbmdb_dbt2dbival(mkey, key, PR_TRUE, rc);
+    return rc;
+}
+
 int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata)
 {
     dbmdb_bulkdata_t *dbmdb_data = bulkdata->v.data;
@@ -1726,12 +1813,15 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
 
     if (!(cursor && cursor->cur))
         return DBI_RC_INVALID;
+    if (bulkdata->v.flags & DBI_VF_BULK_RECORD) {
+        return dbmdb_fill_bulkop_records(cursor, op, key, bulkdata);
+    }
 
     bulkdata->v.size = sizeof *dbmdb_data;
     dbmdb_data->cursor = (MDB_cursor*)cursor->cur;
     dbmdb_dbival2dbt(key, &dbmdb_data->key, PR_FALSE);
     mdb_dbi_flags(mdb_cursor_txn(dbmdb_cur), mdb_cursor_dbi(dbmdb_cur), &dbmdb_data->dbi_flags);
-    dbmdb_data->use_multiple = (bulkdata->v.flags & DBI_VF_BULK_RECORD) || (dbmdb_data->dbi_flags & MDB_DUPFIXED);
+    dbmdb_data->use_multiple = (dbmdb_data->dbi_flags & MDB_DUPFIXED);
     PR_ASSERT(dbmdb_data->dbi_flags & MDB_DUPSORT);
     dbmdb_data->maxrecords = BULKOP_MAX_RECORDS;
     dbmdb_data->data.mv_data = NULL;
@@ -1753,7 +1843,7 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
                 /* Returns dups of first entries */
             rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_FIRST);
             if (rc == 0) {
-                dbmdb_data->op =  (bulkdata->v.flags & DBI_VF_BULK_RECORD) ? MDB_NEXT : MDB_NEXT_DUP;
+                dbmdb_data->op = MDB_NEXT_DUP;
                 if (dbmdb_data->use_multiple) {
                     dbmdb_data->data0 = *mval;
                     dbmdb_data->data_size = mval->mv_size;
@@ -1783,18 +1873,14 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
             } else {
                 rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_NEXT_NODUP);
                 if (rc == 0) {
-                    dbmdb_data->op =  (bulkdata->v.flags & DBI_VF_BULK_RECORD) ? MDB_NEXT : MDB_NEXT_DUP;
+                    dbmdb_data->op = MDB_NEXT_DUP;
                 }
             }
             break;
         case DBI_OP_NEXT:
                 /* Move cursor to next position and returns dups and/or nodups */
             PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
-            PR_ASSERT(!dbmdb_data->use_multiple);
-            rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_NEXT);
-            if (rc == 0) {
-                dbmdb_data->op = MDB_NEXT;
-            }
+            rc = DBI_RC_UNSUPPORTED;
             break;
         case DBI_OP_NEXT_DATA:
                 /* Return next blocks of dups */
@@ -1820,6 +1906,312 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
     rc = dbmdb_dbt2dbival(&dbmdb_data->key, key, PR_TRUE, rc);
     return rc;
 }
+
+void dbmdb_generate_recno_cache_key_by_data(MDB_val *cache_key, MDB_val *key, MDB_val *data)
+{
+    char *ptdata;
+    cache_key->mv_size = 1+key->mv_size+data->mv_size + sizeof (key->mv_size);
+    ptdata = cache_key->mv_data = slapi_ch_malloc(cache_key->mv_size);
+    ptdata[0] = 'D';
+    memcpy(&ptdata[1], key->mv_data, key->mv_size);
+    memcpy(&ptdata[1+key->mv_size], data->mv_data, data->mv_size);
+    memcpy(&ptdata[1+key->mv_size+data->mv_size], &key->mv_size, key->mv_size);
+}
+
+void dbmdb_generate_recno_cache_key_by_recno(MDB_val *cache_key, dbi_recno_t recno)
+{
+    char *data;
+    cache_key->mv_size = 1+ sizeof recno;
+    data = cache_key->mv_data = slapi_ch_malloc(cache_key->mv_size);
+    data[0] = 'R';
+    memcpy(&data[1], &recno, sizeof recno);
+}
+
+int dbmdb_begin_recno_cache_txn(dbmdb_recno_cache_ctx_t *rcctx, MDB_txn **txn, MDB_cursor **cursor, MDB_dbi dbi)
+{
+    int rc = 0;
+    switch (rcctx->mode) {
+        default:
+            return EINVAL;
+        case RCMODE_USE_CURSOR_TXN:
+            *txn = rcctx->cursortxn;
+            break;
+        case RCMODE_USE_SUBTXN:
+            rc = TXN_BEGIN(rcctx->env, rcctx->cursortxn, 0, txn);
+            break;
+        case RCMODE_USE_NEW_THREAD:
+            rc = TXN_BEGIN(rcctx->env, NULL, 0, txn);
+            break;
+    }
+    if (cursor) {
+        *cursor = NULL;
+        if (rc == 0) {
+            rc = MDB_CURSOR_OPEN(*txn, dbi, cursor);
+        }
+    }
+    return rc;
+}
+
+int dbmdb_end_recno_cache_txn(dbmdb_recno_cache_ctx_t *rcctx, MDB_txn **txn, MDB_cursor **cursor, int abort)
+{
+    int rc = 0;
+    if (cursor) {
+        MDB_CURSOR_CLOSE(*cursor);
+        *cursor = NULL;
+    }
+    if (*txn != rcctx->cursortxn) {
+        if (abort) {
+            TXN_ABORT(*txn);
+        } else {
+            rc = TXN_COMMIT(*txn);
+        }
+    }
+    return rc;
+}
+
+
+/* Search nearest key from cache_key in a valid cache */
+int dbmdb_recno_cache_search(dbmdb_recno_cache_ctx_t *rcctx)
+{
+    MDB_cursor *cursor = NULL;
+    MDB_txn *txn = NULL;
+    int rc = 0;
+
+    rcctx->key = rcctx->cache_key;
+    rc = dbmdb_begin_recno_cache_txn(rcctx, &txn, &cursor, rcctx->rcdbi.dbi);
+    if (!rc) {
+        rc = mdb_cursor_get(cursor, &rcctx->key, &rcctx->data, MDB_SET_RANGE);
+    }
+    if (!rc) {
+        dbmdb_recno_cache_elmt_t *rce = rcctx->data.mv_data;
+        dbmdb_recno_cache_elmt_t *rce2 = (dbmdb_recno_cache_elmt_t*) slapi_ch_malloc(rce->len);
+        memcpy(rce2, rce, rce->len);
+        rce2->data.mv_data = ((char*)&rce2[1]) + rce2->key.mv_size;
+        rce2->key.mv_data = &rce2[1];
+        rcctx->rce = rce2;
+    }
+    if (rc) {
+        dbmdb_end_recno_cache_txn(rcctx, &txn, &cursor, 1);
+    } else {
+        rc = dbmdb_end_recno_cache_txn(rcctx, &txn, &cursor, 1);
+    }
+    return rc;
+}
+
+/* create or recreate the recno cache */
+void *dbmdb_recno_cache_build(void *arg)
+{
+    dbmdb_recno_cache_ctx_t *rcctx = arg;
+    dbmdb_recno_cache_elmt_t *rce = NULL;
+    MDB_cursor *cursor = NULL;
+    MDB_txn *txn = NULL;
+    MDB_val key = {0};
+    MDB_val data = {0};
+    MDB_val rckey = {0};
+    MDB_val rcdata = {0};
+    dbi_recno_t recno = 1;
+    int len = 0;
+    int rc = 0;
+
+    /* Open/creat cache dbi */
+    rc = dbmdb_open_recno_cache_dbi(rcctx);
+    /* Clear the cache */
+    if (rc == 0) {
+        rc = dbmdb_begin_recno_cache_txn(rcctx, &txn, NULL, 0);
+    }
+    if (rc == 0) {
+        rc = MDB_DROP(txn, rcctx->rcdbi.dbi, 0);
+        rc |= dbmdb_end_recno_cache_txn(rcctx, &txn, NULL, rc);
+    }
+    while (rc == 0) {
+        if (recno % RECNO_CACHE_INTERVAL != 1) {
+            recno++;
+            rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT);
+            continue;
+        }
+        /* close the txn from time to time to avoid locking all dbi page */
+        rc = dbmdb_end_recno_cache_txn(rcctx, &txn, &cursor, 0);
+        rc |= dbmdb_begin_recno_cache_txn(rcctx, &txn, &cursor, rcctx->dbi.dbi);
+        if (rc) {
+            break;
+        }
+        /* Reset to new cursor to the old position */
+        if (recno == 1) {
+            rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST);
+        } else {
+            rc = mdb_cursor_get(cursor, &key, &data, MDB_SET);
+            if (rc == MDB_NOTFOUND) {
+                rc = mdb_cursor_get(cursor, &key, &data, MDB_SET_RANGE);
+            }
+        }
+        if (rc) {
+            break;
+        }
+        /* Prepare the cache data */
+        len = sizeof(rce) + data.mv_size + key.mv_size;
+        rce = (dbmdb_recno_cache_elmt_t*)slapi_ch_malloc(len);
+        rce->len = len;
+        rce->recno = recno;
+        rce->key.mv_size = key.mv_size;
+        rce->key.mv_data = &rce[1];
+        rce->data.mv_size = data.mv_size;
+        rce->data.mv_data = ((char*)&rce[1])+rce->key.mv_size;
+        memcpy(rce->key.mv_data, key.mv_data, key.mv_size);
+        memcpy(rce->data.mv_data, data.mv_data, data.mv_size);
+        rcdata.mv_data = rce;
+        rcdata.mv_size = len;
+        dbmdb_generate_recno_cache_key_by_recno(&rckey, recno);
+        rc = MDB_PUT(txn, rcctx->rcdbi.dbi, &rckey, &rcdata, 0);
+        slapi_ch_free(&rckey.mv_data);
+        if (rc == 0) {
+            dbmdb_generate_recno_cache_key_by_data(&rckey, &key, &data);
+            rc = MDB_PUT(txn, rcctx->rcdbi.dbi, &rckey, &rcdata, 0);
+            slapi_ch_free(&rckey.mv_data);
+        }
+        slapi_ch_free(&rcdata.mv_data);
+    }
+    if (rc == MDB_NOTFOUND) {
+        /* Mark the cache as valid */
+        rckey.mv_data = "OK";
+        rckey.mv_size = 2;
+        rc = MDB_PUT(txn, rcctx->rcdbi.dbi, &rckey, &rckey, 0);
+    }
+    rc |= dbmdb_end_recno_cache_txn(rcctx, &txn, &cursor, 0);
+    if (rc == 0) {
+        rc = dbmdb_recno_cache_search(rcctx);
+    }
+    rcctx->rc = rc;
+    return NULL;
+}
+
+/* Find nearest recno cache record from the key */
+int dbmdb_recno_cache_lookup(dbi_cursor_t *cursor, MDB_val *cache_key, dbmdb_recno_cache_elmt_t **rce)
+{
+    dbmdb_recno_cache_ctx_t rcctx = {0};
+    struct ldbminfo *li = (struct ldbminfo *)cursor->be->be_database->plg_private;
+    dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+    int rc = 0;
+
+    rcctx.cursor = cursor;
+    rcctx.cache_key = *cache_key;
+
+    rc = dbmdb_recno_cache_get_mode(&rcctx);
+    if (rc) {
+        return rc;
+    }
+    if (rcctx.mode == RCMODE_USE_CURSOR_TXN) {
+        rc = dbmdb_recno_cache_search(&rcctx);
+    } else if (rcctx.mode != RCMODE_UNKNOWN) {
+        pthread_mutex_lock(&ctx->rcmutex);
+        slapi_ch_free_string(&rcctx.rcdbname);
+        rc = dbmdb_recno_cache_get_mode(&rcctx);    /* Try again while the lock is held */
+        if (rcctx.mode == RCMODE_USE_CURSOR_TXN) {
+            rc = dbmdb_recno_cache_search(&rcctx);
+        } else if (rcctx.mode == RCMODE_USE_SUBTXN) {
+            dbmdb_recno_cache_build(&rcctx);
+            rc = rcctx.rc;
+        } else if (rcctx.mode == RCMODE_USE_NEW_THREAD) {
+            pthread_t tid;
+            rc = pthread_create(&tid, NULL, dbmdb_recno_cache_build, &rcctx);
+            if (rc ==0) {
+                rc = pthread_join(tid, NULL);
+            }
+            if (rc ==0) {
+                rc = rcctx.rc;
+            }
+        }
+        pthread_mutex_unlock(&ctx->rcmutex);
+    }
+    *rce = rcctx.rce;
+    slapi_ch_free_string(&rcctx.rcdbname);
+    return rc;
+}
+
+int dbmdb_cmp_vals(MDB_val *v1, MDB_val *v2)
+{
+    int l = v1->mv_size;
+    int rc;
+    if (l > v2->mv_size) {
+        l = v2->mv_size;
+    }
+    rc = memcmp(v1->mv_data, v2->mv_data, l);
+    if (rc == 0) {
+        rc = v1->mv_size - v2->mv_size;
+    }
+    return rc;
+}
+
+int dbmdb_cmp_dbi_record(MDB_dbi dbi, MDB_val *key1, MDB_val *data1, MDB_val *key2, MDB_val *data2)
+{
+    int rc = dbmdb_cmp_vals(key1, key2);
+    if (rc == 0) {
+        rc = dbmdb_cmp_vals(data1, data2);
+    }
+    return rc;
+}
+
+
+/* Get current cursor recno - i.e: data is set to current recno */
+int dbmdb_cursor_get_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *dbmdb_data)
+{
+    dbmdb_recno_cache_elmt_t *rce = NULL;
+    MDB_val curpos_key = {0};
+    MDB_val curpos_data = {0};
+    MDB_val cache_key = {0};
+    int rc = 0;
+    int cmpres = 0;
+
+    rc = MDB_CURSOR_GET(cursor->cur, &curpos_key, &curpos_data, MDB_GET_CURRENT);
+    if (rc != 0) {
+        return rc;
+    }
+    dbmdb_generate_recno_cache_key_by_data(&cache_key, &curpos_key, &curpos_data);
+    rc = dbmdb_recno_cache_lookup(cursor, &cache_key, &rce);
+    while (rc == 0) {
+        cmpres = dbmdb_cmp_dbi_record(mdb_cursor_dbi(cursor->cur), &curpos_key, &curpos_data, &rce->key, &rce->data);
+        if (cmpres >= 0) {
+            break;
+        }
+        rce->recno++;
+        rc = MDB_CURSOR_GET(cursor->cur, &rce->key, &rce->data, MDB_NEXT);
+    }
+    if (cmpres > 0) {
+        rc = MDB_NOTFOUND;
+    }
+    if (rc == 0) {
+        if (dbmdb_data->mv_data == NULL || dbmdb_data->mv_size != sizeof (dbi_recno_t)) {
+            dbmdb_data->mv_size = sizeof (dbi_recno_t);
+            dbmdb_data->mv_data = slapi_ch_calloc(1, dbmdb_data->mv_size);
+        }
+        memcpy(dbmdb_data->mv_data, &rce->recno, dbmdb_data->mv_size);
+    }
+    slapi_ch_free((void**)&rce);
+    return rc;
+}
+
+/* Move cursor to recno */
+int dbmdb_cursor_set_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *dbmdb_data)
+{
+    dbmdb_recno_cache_elmt_t *rce = NULL;
+    MDB_val cache_key = {0};
+    dbi_recno_t recno;
+    int rc;
+
+    memcpy(&recno, dbmdb_data->mv_data, sizeof (dbi_recno_t));
+    dbmdb_generate_recno_cache_key_by_recno(&cache_key, recno);
+    rc = dbmdb_recno_cache_lookup(cursor, &cache_key, &rce);
+    while (rc == 0 && recno > rce->recno) {
+        rce->recno++;
+        rc = MDB_CURSOR_GET(cursor->cur, &rce->key, &rce->data, MDB_NEXT);
+    }
+    if (rc == 0) {
+        *dbmdb_key = rce->key;
+        *dbmdb_data = rce->data;
+    }
+    slapi_ch_free((void**)&rce);
+    return rc;
+}
+
 
 int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_val_t *data)
 {
@@ -1849,8 +2241,7 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
             rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_GET_BOTH_RANGE);
             break;
         case DBI_OP_MOVE_TO_RECNO:
-/* TODO */ PR_ASSERT(0);
-/*            rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_SET_RECNO); */
+            rc = dbmdb_cursor_set_recno(cursor, &dbmdb_key, &dbmdb_data);
             break;
         case DBI_OP_MOVE_TO_FIRST:
             rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_FIRST);
@@ -1864,8 +2255,7 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
             rc = DBI_RC_UNSUPPORTED;
             break;
         case DBI_OP_GET_RECNO:
-/* TODO */ PR_ASSERT(0);
-/*            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_GET_RECNO); */
+            rc = dbmdb_cursor_get_recno(cursor, &dbmdb_key, &dbmdb_data);
             break;
         case DBI_OP_NEXT:
             rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NEXT);
@@ -1885,16 +2275,16 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
             rc = DBI_RC_UNSUPPORTED;
             break;
         case DBI_OP_REPLACE:
-            rc = mdb_cursor_put(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_CURRENT);
+            rc = MDB_CURSOR_PUT(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_CURRENT);
             break;
         case DBI_OP_ADD:
-            rc = mdb_cursor_put(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NODUPDATA);
+            rc = MDB_CURSOR_PUT(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NODUPDATA);
             break;
         case DBI_OP_DEL:
             rc = mdb_cursor_del(dbmdb_cur, 0);
             break;
         case DBI_OP_CLOSE:
-            mdb_cursor_close(dbmdb_cur);
+            MDB_CURSOR_CLOSE(dbmdb_cur);
             if (cursor->islocaltxn) {
                 /* local txn is read only and should be aborted when closing the cursor */
                 END_TXN(&cursor->txn, 1);
@@ -1986,7 +2376,7 @@ int dbmdb_public_new_cursor(dbi_db_t *db,  dbi_cursor_t *cursor)
         }
         cursor->islocaltxn = PR_TRUE;
     }
-    rc = mdb_cursor_open(TXN(cursor->txn), dbi->dbi, (MDB_cursor**)&cursor->cur);
+    rc = MDB_CURSOR_OPEN(TXN(cursor->txn), dbi->dbi, (MDB_cursor**)&cursor->cur);
     if (rc && cursor->islocaltxn)
         END_TXN(&cursor->txn, rc);
     return dbmdb_map_error(__FUNCTION__, rc);

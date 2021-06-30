@@ -4240,7 +4240,7 @@ replica_unlock_replica(Replica *r)
 void *
 replica_get_cl_info(Replica *r)
 {
-    return r->cldb;
+    return r ? r->cldb : NULL;
 }
 
 int
