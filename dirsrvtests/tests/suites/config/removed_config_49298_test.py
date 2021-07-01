@@ -79,7 +79,8 @@ def test_removed_config(topo):
     # We actually can't check the log output, because it can't read dse.ldif,
     # don't know where to write it yet! All we want is the server fail to
     # start here, rather than infinite run + segfault.
-    with pytest.raises(subprocess.CalledProcessError):
+    #with pytest.raises(subprocess.CalledProcessError):
+    with pytest.raises(ValueError):
         topo.standalone.start()
 
     # Restore the files so that setup-ds.l can work

@@ -122,6 +122,7 @@ def test_threads_back_from_manual_value(topo):
     assert topo.standalone.config.get_attr_val_utf8("nsslapd-threadnumber") == autotuned_value
 
 
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 @pytest.mark.parametrize("autosize,autosize_split", (('', ''), ('', '0'), ('10', '40'), ('', '40'),
                                                      ('10', ''), ('10', '40'), ('10', '0')))
 def test_cache_autosize_non_zero(topo, autosize, autosize_split):
@@ -224,6 +225,7 @@ def test_cache_autosize_non_zero(topo, autosize, autosize_split):
     assert int(dncachenensize_val) >= 512000
 
 
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 @pytest.mark.parametrize("autosize_split", ('0', '', '40'))
 def test_cache_autosize_basic_sane(topo, autosize_split):
     """Check that autotuning cachesizes works properly with different values
@@ -315,6 +317,7 @@ def test_cache_autosize_basic_sane(topo, autosize_split):
         assert int(dncachenensize_val) >= 512000
 
 
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 @pytest.mark.parametrize("invalid_value", ('-2', '102', 'invalid'))
 def test_cache_autosize_invalid_values(topo, invalid_value):
     """Check that we can't set invalid values to autosize attributes
