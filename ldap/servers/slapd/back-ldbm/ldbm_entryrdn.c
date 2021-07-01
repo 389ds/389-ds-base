@@ -1022,7 +1022,6 @@ entryrdn_lookup_dn(backend *be,
         return rc;
     }
 
-    dblayer_value_init(be, &data);
     /* Make a cursor */
     for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
         rc = dblayer_new_cursor(be, db, db_txn, &cursor);
@@ -1056,6 +1055,7 @@ entryrdn_lookup_dn(backend *be,
     }
 
     /* Setting the bulk fetch buffer */
+    dblayer_value_free(be, &data);
     dblayer_value_init(be, &data);
 
     do {
@@ -1120,7 +1120,6 @@ entryrdn_lookup_dn(backend *be,
         }
         /* found a parent (there should be just one parent :) */
         elem = (rdn_elem *)data.data;
-        dblayer_value_init(be, &data);
         _ENTRYRDN_DUMP_RDN_ELEM(elem);
         slapi_ch_free_string(&nrdn);
         nrdn = slapi_ch_strdup(elem->rdn_elem_nrdn_rdn);
@@ -1128,6 +1127,7 @@ entryrdn_lookup_dn(backend *be,
         /* 1 is byref, and the dup'ed rdn is freed with srdn */
         slapi_rdn_add_rdn_to_all_rdns(srdn, slapi_ch_strdup(RDN_ADDR(elem)), 1);
         dblayer_value_free(be, &data);
+        dblayer_value_init(be, &data);
     } while (workid);
 
     if (0 == workid) {

@@ -2935,7 +2935,7 @@ dbmdb_import_worker(void *param)
 
                 PR_ASSERT(NULL != vlv_index);
                 slapi_pblock_set(pb, SLAPI_BACKEND, be);
-                vlv_update_index(vlv_index, NULL, inst->inst_li, pb, NULL, ep);
+                vlv_update_index(vlv_index, dbmdb_get_wctx(job, info, WCTX_GENERIC), inst->inst_li, pb, NULL, ep);
                 slapi_pblock_destroy(pb);
             } else {
                 /* No, process regular index */
@@ -4219,6 +4219,22 @@ wqueue_process_item(ImportWorkerInfo *info, wqelem_t *elmt, dbi_txn_t *txn)
             dblayer_value_set_buffer(inst->inst_be, &dkey, key.mv_data, key.mv_size);
             rc = idl_delete_key(inst->inst_be, &slot->dbi, &dkey, iupd.id, &btxn, iupd.a);
             break;
+        case IMPORT_WRITE_ACTION_ADD_VLV:
+            rc = MDB_PUT(TXN(txn), slot->dbi.dbi, &key, &data, 0);
+            if (rc) {
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_writer",
+                    "Failed to add item in %s mdb database. error %d(%s).\n",
+                    elmt->slot->dbi.dbname, rc, mdb_strerror(rc));
+            }
+            break;
+        case IMPORT_WRITE_ACTION_DEL_VLV:
+            rc = MDB_DEL(TXN(txn), slot->dbi.dbi, &key, &data);
+            if (rc) {
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_writer",
+                    "Failed to add item in %s mdb database. error %d(%s).\n",
+                    elmt->slot->dbi.dbname, rc, mdb_strerror(rc));
+            }
+            break;
         case IMPORT_WRITE_ACTION_ADD_ENTRYRDN:
             rc = handle_entryrdn_key(inst->inst_be, slot, entryrdn_insert_key, key.mv_data, data.mv_data, &btxn);
             break;
@@ -4618,6 +4634,10 @@ dbmdb_back_special_handling(backend *be, back_txn_action action, dbi_db_t *db, d
             return dbmdb_import_write_push(btxn->job, btxn->wqslot, IMPORT_WRITE_ACTION_ADD_INDEX, &mkey, &mdata);
         case BTXNACT_INDEX_DEL:
             return dbmdb_import_write_push(btxn->job, btxn->wqslot, IMPORT_WRITE_ACTION_DEL_INDEX, &mkey, &mdata);
+        case BTXNACT_VLV_ADD:
+            return dbmdb_import_write_push(btxn->job, btxn->wqslot, IMPORT_WRITE_ACTION_ADD_VLV, &mkey, &mdata);
+        case BTXNACT_VLV_DEL:
+            return dbmdb_import_write_push(btxn->job, btxn->wqslot, IMPORT_WRITE_ACTION_DEL_VLV, &mkey, &mdata);
         case BTXNACT_ENTRYRDN_ADD:
             return dbmdb_import_sync_write(btxn->job, btxn->wqslot, IMPORT_WRITE_ACTION_ADD_ENTRYRDN, &mkey, &mdata);
         case BTXNACT_ENTRYRDN_DEL:

@@ -95,7 +95,9 @@ int dblayer_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *dat
 {
     dblayer_private *priv = dblayer_get_priv(bulkdata->be);
     PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
-    return priv->dblayer_bulk_nextrecord_fn(bulkdata, key, data);
+    int rc = priv->dblayer_bulk_nextrecord_fn(bulkdata, key, data);
+slapi_log_error(SLAPI_LOG_INFO,(char*)__FUNCTION__, "%s[%d]: rc=%d\n", __FILE__, __LINE__, rc);  
+    return rc;
 }
 
 /* initialze bulk operation */
@@ -140,6 +142,7 @@ int dblayer_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, db
         default:
             PR_ASSERT(0);
     }
+slapi_log_error(SLAPI_LOG_INFO,(char*)__FUNCTION__, "%s[%d]: rc=%d\n", __FILE__, __LINE__, rc);  
     return rc;
 }
 

@@ -425,25 +425,11 @@ out:
     return return_value;
 }
 
-int
-dbmdb_close_file(dbmdb_dbi_t **db)
-{
-    /* There is no need to close the mdb db instance handles because there is no associated file descriptor
-     * and otherresources get freed when closing the global MDB_env .
-     * But we still must free the dbmdb_dbi_t struct.
-     */
-    slapi_ch_free((void**)db);
-    return 1;
-}
-
 
 /*
   dbmdb_db_remove assumptions:
-
   No environment has the given database open.
-
 */
-
 
 #define DBLAYER_CACHE_DELAY PR_MillisecondsToInterval(5)
 int
@@ -530,6 +516,7 @@ dbmdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_
         } else {
             /* no handle to close */
         }
+        dbmdb_close_dbi(&db);
         PR_Unlock(inst->inst_handle_list_mutex);
     }
 
@@ -1915,7 +1902,7 @@ void dbmdb_generate_recno_cache_key_by_data(MDB_val *cache_key, MDB_val *key, MD
     ptdata[0] = 'D';
     memcpy(&ptdata[1], key->mv_data, key->mv_size);
     memcpy(&ptdata[1+key->mv_size], data->mv_data, data->mv_size);
-    memcpy(&ptdata[1+key->mv_size+data->mv_size], &key->mv_size, key->mv_size);
+    memcpy(&ptdata[1+key->mv_size+data->mv_size], &key->mv_size, sizeof (key->mv_size));
 }
 
 void dbmdb_generate_recno_cache_key_by_recno(MDB_val *cache_key, dbi_recno_t recno)
@@ -2321,7 +2308,7 @@ int dbmdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *ke
     switch (op)
     {
         case DBI_OP_GET:
-            rc = mdb_get(mdb_txn, dbi, &dbmdb_key, &dbmdb_data);
+            rc = MDB_GET(mdb_txn, dbi, &dbmdb_key, &dbmdb_data);
             break;
         case DBI_OP_PUT:
             rc = MDB_PUT(mdb_txn, dbi, &dbmdb_key, &dbmdb_data, 0);
@@ -2330,7 +2317,7 @@ int dbmdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *ke
             rc = MDB_PUT(mdb_txn, dbi, &dbmdb_key, &dbmdb_data, MDB_NODUPDATA);
             break;
         case DBI_OP_DEL:
-            rc = mdb_del(mdb_txn, dbi, &dbmdb_key, &dbmdb_data);
+            rc = MDB_DEL(mdb_txn, dbi, &dbmdb_key, dbmdb_data.mv_data ? &dbmdb_data : NULL);
             break;
         case DBI_OP_CLOSE:
             /* No need to close db instances with lmdb */
@@ -2555,3 +2542,12 @@ dbmdb_public_in_import(ldbm_instance *inst)
     }
     return rval;
 }
+
+const char *
+dbmdb_public_get_db_suffix(void)
+{
+    return LDBM_FILENAME_SUFFIX;
+}
+
+
+

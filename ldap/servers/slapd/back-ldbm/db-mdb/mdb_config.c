@@ -182,6 +182,7 @@ int mdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_import_file_check_fn = &dbmdb_import_file_check;
     priv->dblayer_list_dbs_fn = &dbmdb_list_dbs;
     priv->dblayer_in_import_fn = &dbmdb_public_in_import;
+    priv->dblayer_get_db_suffix_fn = &dbmdb_public_get_db_suffix;
 
     dbmdb_fake_priv = *priv; /* Copy the callbaks for dbmdb_be() */
     return 0;
