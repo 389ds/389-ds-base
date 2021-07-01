@@ -16,7 +16,7 @@ void dbmdb_format_dbslist_info(char *info, dbmdb_dbi_t *dbi);
 extern int dbgmdb_level; /* defined in mdb_debug.c */
 void dbg_log(const char *file, int lineno, const char *funcname, int loglevel, char *fmt, ...);
 
-#define DBMDB_DEBUG 1
+/* #define DBMDB_DEBUG 1 */
 
 /* Define the wrapper associated with each log level */
 #ifdef DBMDB_DEBUG
