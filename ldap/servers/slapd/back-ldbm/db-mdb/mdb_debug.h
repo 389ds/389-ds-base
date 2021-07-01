@@ -61,7 +61,7 @@ int dbg_txn_end(const char *file, int lineno, const char *funcname, MDB_txn *txn
 #define MDB_CURSOR_GET(cursor,key,data,op) mdb_cursor_get(cursor,key,data,op)
 #define MDB_PUT(txn,dbi,key,data,flags) mdb_put(txn,dbi,key,data,flags)
 #define MDB_GET(txn,dbi,key,data) mdb_get(txn,dbi,key,data)
-#define MDB_DEL(txn,dbi,key,data) mdb_del(txn,dbi,key)
+#define MDB_DEL(txn,dbi,key,data) mdb_del(txn,dbi,key,data)
 #define MDB_CURSOR_PUT(cursor,key,data,flags) mdb_cursor_put(cursor,key,data,flags)
 #define MDB_DBI_OPEN(txn,dbname,flags,dbi) mdb_dbi_open(txn,dbname,flags,dbi)
 #define MDB_DROP(txn, dbi, del) mdb_drop(txn,dbi,del)
