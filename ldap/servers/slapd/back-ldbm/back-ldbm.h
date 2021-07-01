@@ -653,6 +653,8 @@ struct ldbminfo
 typedef enum {
     BTXNACT_INDEX_ADD,            /* data is a index_update_t */
     BTXNACT_INDEX_DEL,            /* data is a index_update_t */
+    BTXNACT_VLV_ADD,              /* data is an entry ID */
+    BTXNACT_VLV_DEL,              /* data is an entry ID */
     BTXNACT_ID2ENTRY_ADD,         /* data is the entry */
     BTXNACT_ENTRYRDN_ADD,         /* key is a srdn, data is an id */
     BTXNACT_ENTRYRDN_DEL          /* key is a srdn, data is an id */

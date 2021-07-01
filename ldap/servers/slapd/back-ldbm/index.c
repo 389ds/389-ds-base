@@ -1552,6 +1552,7 @@ index_range_read_ext(
     dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL);
 
     /* step through the indexed db to retrive IDs within the search range */
+    dblayer_value_free(be, &data);
     dblayer_value_init(be, &data);
     cur_key = lowerkey;
     dblayer_value_init(be, &lowerkey);   /* Clear lowerkey to avoid double free */

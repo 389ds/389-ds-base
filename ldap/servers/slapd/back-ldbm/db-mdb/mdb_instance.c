@@ -387,6 +387,15 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t *dbi, backend *be, const char *file
     return rc;
 }
 
+void dbmdb_close_dbi(dbi_db_t **db)
+{
+	dbmdb_dbi_t *dbi = *db;
+	if (dbi) {
+	    slapi_ch_free_string((char**)&dbi->dbname);
+        slapi_ch_free(db);
+    }
+}
+
 int dbmdb_open_cursor(dbmdb_cursor_t *dbicur, dbmdb_ctx_t *ctx, dbmdb_dbi_t *dbi, int flags)
 {
     int rc = 0;
@@ -707,9 +716,14 @@ void dbmdb_mdbdbi2dbi_db(const dbmdb_dbi_t *dbi, dbi_db_t **ppDB)
 /* close the database env and release the context resource */
 void dbmdb_ctx_close(dbmdb_ctx_t *ctx)
 {
+    int i;
     if (ctx->env) {
         mdb_env_close(ctx->env);
         ctx->env = NULL;
+    }
+    for (i=1; i<ctx->nbdbis; i++) {
+        /* ctx->dbis[0].dbname is "__DBNAMES" which is a static string ==> so let start at i=1 */
+        slapi_ch_free_string((char**)&ctx->dbis[i].dbname);
     }
     ctx->nbdbis = 0;
     slapi_ch_free((void**)&ctx->dbis);
@@ -766,7 +780,7 @@ int dbmdb_dbi_remove_from_idx(dbmdb_ctx_t *conf, dbi_txn_t *txn, int idx)
     }
     if (rc == 0) {
         /* Remove db instance from DBNAMES */
-        rc = mdb_del(TXN(txn), conf->dbinames_dbi, &key, &key);
+        rc = MDB_DEL(TXN(txn), conf->dbinames_dbi, &key, &key);
         if (rc == MDB_NOTFOUND) {
             rc = 0;
         }

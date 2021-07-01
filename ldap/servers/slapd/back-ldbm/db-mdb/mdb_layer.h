@@ -196,6 +196,8 @@ typedef enum {
     IMPORT_WRITE_ACTION_OPEN,           /* create the db instance or reset it in dirty mode */
     IMPORT_WRITE_ACTION_ADD_INDEX,
     IMPORT_WRITE_ACTION_DEL_INDEX,
+    IMPORT_WRITE_ACTION_ADD_VLV,
+    IMPORT_WRITE_ACTION_DEL_VLV,
     IMPORT_WRITE_ACTION_ADD_ENTRYRDN,
     IMPORT_WRITE_ACTION_DEL_ENTRYRDN,
     IMPORT_WRITE_ACTION_ADD,
@@ -335,6 +337,7 @@ int dbmdb_import_file_check_fn_t(ldbm_instance *inst);
 dbi_error_t dbmdb_map_error(const char *funcname, int err);
 dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome);
 int dbmdb_public_in_import(ldbm_instance *inst);
+const char *dbmdb_public_get_db_suffix(void);
 
 
 /* dbimpl helpers */
@@ -404,6 +407,7 @@ int dbmdb_open_cursor(dbmdb_cursor_t *dbicur, dbmdb_ctx_t *ctx, dbmdb_dbi_t *dbi
 int dbmdb_close_cursor(dbmdb_cursor_t *dbicur, int rc);
 int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode);
 void dbmdb_ctx_close(dbmdb_ctx_t *ctx);
+void dbmdb_close_dbi(dbi_db_t **db);
 int dbmdb_dbitxn_begin(dbmdb_cursor_t *dbicur, const char *funcname, MDB_txn *parent, int readonly);
 int dbmdb_dbitxn_end(dbmdb_cursor_t *dbicur, const char *funcname, int return_code);
 void dbmdb_mdbdbi2dbi_db(const dbmdb_dbi_t *dbi, dbi_db_t **ppDB);

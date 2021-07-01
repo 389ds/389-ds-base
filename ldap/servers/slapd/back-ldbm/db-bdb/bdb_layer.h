@@ -172,7 +172,6 @@ int bdb_remove_env(struct ldbminfo *li);
 int bdb_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2);
 int bdb_open_huge_file(const char *path, int oflag, int mode);
 int bdb_check_and_set_import_cache(struct ldbminfo *li);
-int bdb_close_file(DB **db);
 int bdb_post_close(struct ldbminfo *li, int dbmode);
 int bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod, int mod_op);
 void bdb_config_get(void *arg, config_info *config, char *buf);

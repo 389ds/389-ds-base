@@ -767,6 +767,7 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), 
     dbi_db_t *db = NULL;
     dbi_txn_t *db_txn = NULL;
     struct vlv_key *key = NULL;
+    dbi_val_t data = {0};
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
 
@@ -784,17 +785,25 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), 
     } else {
         /* Very bad idea to do this outside of a transaction */
     }
+    data.size = sizeof(entry->ep_id);
+    data.data = &entry->ep_id;
 
     if (insert) {
-        dbi_val_t data = {0};
-        data.size = sizeof(entry->ep_id);
-        data.data = &entry->ep_id;
-        rc = dblayer_db_op(be, db, db_txn, DBI_OP_PUT, &key->key, &data);
+        if (txn && txn->back_special_handling_fn) {
+            rc = txn->back_special_handling_fn(be, BTXNACT_VLV_ADD, db, &key->key, &data, txn);
+        } else {
+            rc = dblayer_db_op(be, db, db_txn, DBI_OP_PUT, &key->key, &data);
+        }
         if (rc == 0) {
             slapi_log_err(SLAPI_LOG_TRACE,
                           "vlv_update_index", "%s Insert %s ID=%lu\n",
                           pIndex->vlv_name, (char *)key->key.data, (u_long)entry->ep_id);
-            vlvIndex_increment_indexlength(be, pIndex, db, txn);
+            if (txn && txn->back_special_handling_fn) {
+                /* In import only one thread works on a given vlv index */
+                pIndex->vlv_indexlength++;
+            } else {
+                vlvIndex_increment_indexlength(be, pIndex, db, txn);
+            }
         } else if (rc == DBI_RC_RUNRECOVERY) {
             ldbm_nasty("do_vlv_update_index", pIndex->vlv_name, 77, rc);
         } else if (rc != DBI_RC_RETRY) {
@@ -808,9 +817,18 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), 
         slapi_log_err(SLAPI_LOG_TRACE,
                       "vlv_update_index", "%s Delete %s\n",
                       pIndex->vlv_name, (char *)key->key.data);
-        rc = dblayer_db_op(be, db, db_txn, DBI_OP_DEL, &key->key, NULL);
+        if (txn && txn->back_special_handling_fn) {
+            rc = txn->back_special_handling_fn(be, BTXNACT_VLV_DEL, db, &key->key, &data, txn);
+        } else {
+            rc = dblayer_db_op(be, db, db_txn, DBI_OP_DEL, &key->key, NULL);
+        }
         if (rc == 0) {
-            vlvIndex_decrement_indexlength(be, pIndex, db, txn);
+            if (txn && txn->back_special_handling_fn) {
+                /* In import only one thread works on a given vlv index */
+                pIndex->vlv_indexlength--;
+            } else {
+                vlvIndex_decrement_indexlength(be, pIndex, db, txn);
+            }
         } else if (rc == DBI_RC_RUNRECOVERY) {
             ldbm_nasty("do_vlv_update_index", pIndex->vlv_name, 78, rc);
         } else if (rc != DBI_RC_RETRY) {
