@@ -15,6 +15,7 @@ from lib389.topologies import topology_st
 from lib389._mapped_object import DSLdapObjects
 
 pytestmark = pytest.mark.tier2
+disk_monitoring_ack = pytest.mark.skipif(not os.environ.get('DISK_MONITORING_ACK', False), reason="Disk monitoring tests may damage system configuration.")
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -52,6 +53,7 @@ def change_config(topology_st):
 @pytest.mark.ds4414
 @pytest.mark.bz1890118
 @pytest.mark.skipif(ds_is_older("1.4.3.16"), reason="Might fail because of bz1890118")
+@disk_monitoring_ack
 def test_produce_division_by_zero(topology_st, create_dummy_mount, change_config):
     """Test dirsrv will not crash when division by zero occurs
 
