@@ -11,6 +11,7 @@ import copy
 import os
 import base64
 import time
+import fnmatch
 from struct import pack, unpack
 from datetime import timedelta
 from stat import ST_MODE
@@ -54,10 +55,7 @@ class DSEldif(DSLint):
                     if processed_line:
                         self._contents.append(processed_line)
 
-                    if line.startswith('dn:'):
-                        processed_line = line.lower()
-                    else:
-                        processed_line = line
+                    processed_line = line
                 else:
                     processed_line = processed_line[:-1] + line[1:]
 
@@ -101,7 +99,7 @@ class DSEldif(DSLint):
         relative attribute indexes and the attribute value
         """
 
-        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn.lower()))
+        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn))
         attr_data = {}
 
         # Find where the entry ends
@@ -145,6 +143,20 @@ class DSEldif(DSLint):
             return vals[0] if len(vals) > 0 else None
         return vals
 
+    def get_indexes(self, backend):
+        """Return a list of backend indexes
+
+        :param backend: a backend to get the indexes of
+        """
+        indexes = []
+        for entry in self._contents:
+            if fnmatch.fnmatch(entry, "*,cn=index,cn={}*".format(backend)):
+                start = entry.find("cn=")
+                end = entry.find(",")
+                indexes.append(entry[start+len('cn='):end])
+
+        return indexes
+
     def add(self, entry_dn, attr, value):
         """Add an attribute under a given entry
 
@@ -156,7 +168,7 @@ class DSEldif(DSLint):
         :type value: str
         """
 
-        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn.lower()))
+        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn))
         self._contents.insert(entry_dn_i+1, "{}: {}\n".format(attr, value))
         self._update()
 
@@ -185,7 +197,7 @@ class DSEldif(DSLint):
         self.add(entry_dn, new_rdn_attr, new_rdn_val)
 
         # Rename the entry
-        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn.lower()))
+        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn))
         self._contents[entry_dn_i] = f"dn: {new_dn}\n"
         self._update()
 

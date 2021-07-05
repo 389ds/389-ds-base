@@ -1559,7 +1559,7 @@ bdb_db2index(Slapi_PBlock *pb)
                                   "bdb_db2index", "%s: Indexing attribute: %s\n",
                                   inst->inst_name, attrs[i] + 1);
                 }
-                dblayer_erase_index_file(be, ai, PR_TRUE, i /* chkpt; 1st time only */);
+                dblayer_erase_index_file(be, ai, PR_TRUE, i);
                 break;
             case 'T': /* VLV Search to index */
                 vlvip = vlv_find_searchname((attrs[i]) + 1, be);
