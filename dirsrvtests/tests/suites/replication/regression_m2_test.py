@@ -1011,6 +1011,47 @@ def test_online_init_should_create_keepalive_entries(topo_m2):
     repl.wait_for_ruv(m2,m1)
     verify_keepalive_entries(topo_m2, True);
 
+@pytest.mark.ds49915
+@pytest.mark.bz1626375
+def test_online_reinit_may_hang(topo_with_sigkill):
+    """Online reinitialization may hang when the first
+       entry of the DB is RUV entry instead of the suffix
+
+    :id: cded6afa-66c0-4c65-9651-993ba3f7a49c
+    :setup: 2 Supplier Instances
+    :steps:
+        1. Export the database
+        2. Move RUV entry to the top in the ldif file
+        3. Import the ldif file
+        4. Online replica initializaton
+    :expectedresults:
+        1. Ldif file should be created successfully
+        2. RUV entry should be on top in the ldif file
+        3. Import should be successful
+        4. Server should not hang and consume 100% CPU
+    """
+    M1 = topo_with_sigkill.ms["supplier1"]
+    M2 = topo_with_sigkill.ms["supplier2"]
+    M1.stop()
+    ldif_file = '%s/supplier1.ldif' % M1.get_ldif_dir()
+    M1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX],
+               excludeSuffixes=None, repl_data=True,
+               outputfile=ldif_file, encrypt=False)
+    _move_ruv(ldif_file)
+    M1.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
+    M1.start()
+    # After this server may hang
+    agmt = Agreements(M1).list()[0]
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    assert done is True
+    assert error is False
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.test_replication_topology(topo_with_sigkill)
+
+    if DEBUGGING:
+        # Add debugging steps(if any)...
+        pass
 
 if __name__ == '__main__':
     # Run isolated
