@@ -840,7 +840,7 @@ def test_online_reinit_may_hang(topo_with_sigkill):
        entry of the DB is RUV entry instead of the suffix
 
     :id: cded6afa-66c0-4c65-9651-993ba3f7a49c
-    :setup: 2 Master Instances
+    :setup: 2 Supplier Instances
     :steps:
         1. Export the database
         2. Move RUV entry to the top in the ldif file
@@ -852,10 +852,10 @@ def test_online_reinit_may_hang(topo_with_sigkill):
         3. Import should be successful
         4. Server should not hang and consume 100% CPU
     """
-    M1 = topo_with_sigkill.ms["master1"]
-    M2 = topo_with_sigkill.ms["master2"]
+    M1 = topo_with_sigkill.ms["supplier1"]
+    M2 = topo_with_sigkill.ms["supplier2"]
     M1.stop()
-    ldif_file = '%s/master1.ldif' % M1.get_ldif_dir()
+    ldif_file = '%s/supplier1.ldif' % M1.get_ldif_dir()
     M1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX],
                excludeSuffixes=None, repl_data=True,
                outputfile=ldif_file, encrypt=False)
