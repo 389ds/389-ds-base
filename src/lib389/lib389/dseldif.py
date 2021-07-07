@@ -54,8 +54,10 @@ class DSEldif(DSLint):
                 if not line.startswith(' '):
                     if processed_line:
                         self._contents.append(processed_line)
-
-                    processed_line = line
+                        if line.startswith('dn:'):
+                            processed_line = line.lower()
+                        else:
+                            processed_line = line
                 else:
                     processed_line = processed_line[:-1] + line[1:]
 
@@ -99,7 +101,7 @@ class DSEldif(DSLint):
         relative attribute indexes and the attribute value
         """
 
-        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn))
+        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn.lower()))
         attr_data = {}
 
         # Find where the entry ends
@@ -150,7 +152,7 @@ class DSEldif(DSLint):
         """
         indexes = []
         for entry in self._contents:
-            if fnmatch.fnmatch(entry, "*,cn=index,cn={}*".format(backend)):
+            if fnmatch.fnmatch(entry, "*,cn=index,cn={}*".format(backend.lower())):
                 start = entry.find("cn=")
                 end = entry.find(",")
                 indexes.append(entry[start+len('cn='):end])
@@ -168,7 +170,7 @@ class DSEldif(DSLint):
         :type value: str
         """
 
-        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn))
+        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn.lower()))
         self._contents.insert(entry_dn_i+1, "{}: {}\n".format(attr, value))
         self._update()
 
@@ -197,7 +199,7 @@ class DSEldif(DSLint):
         self.add(entry_dn, new_rdn_attr, new_rdn_val)
 
         # Rename the entry
-        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn))
+        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn.lower()))
         self._contents[entry_dn_i] = f"dn: {new_dn}\n"
         self._update()
 

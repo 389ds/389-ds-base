@@ -459,7 +459,7 @@ def test_basic_db2index(topology_st):
     log.info('Stop the server and reindex with all backend indexes')
     topology_st.standalone.stop()
     topology_st.standalone.db2index(bename=DEFAULT_BENAME, attrs=indexes)
-    log.info('Checking the server logs for %d backend indexes' % numIndexes)
+    log.info('Checking the server logs for %d backend indexes INFO' % numIndexes)
     for indexNum, index in enumerate(indexes):
         if index in "entryrdn":
             assert topology_st.standalone.searchErrorsLog(
@@ -467,7 +467,7 @@ def test_basic_db2index(topology_st):
         else:
             assert topology_st.standalone.searchErrorsLog(
                 'INFO - bdb_db2index - ' + DEFAULT_BENAME + ':' + ' Indexing attribute: ' + index)
-    
+
     assert indexNum+1 == numIndexes
 
 
