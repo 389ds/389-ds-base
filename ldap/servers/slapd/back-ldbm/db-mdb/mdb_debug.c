@@ -28,7 +28,7 @@
  * and conditionnal code used to debug dbmdb plugin
  */
 
-int dbgmdb_level = DBGMDB_LEVEL_MDBAPI;
+int dbgmdb_level = DBGMDB_LEVEL_DEFAULT;
 
 
 /* helper to pretty print flags values */
@@ -194,7 +194,7 @@ static flagsdesc_t mdb_cursor_op_desc[] = {
 static void get_stack(char *buff, size_t buflen);
 
 /* Convert raw data in printable string */
-static void
+void
 dbgval2str(char *buff, size_t bufsiz, MDB_val *val)
 {
     char *data = val ? val->mv_data : NULL;
@@ -528,6 +528,12 @@ dbg_import_elmt(const char *file, int lineno, const char *funcname, const char *
 }
 
 #else /* DBMDB_DEBUG */
+
+void
+dbgval2str(char *buff, size_t bufsiz, MDB_val *val)
+{
+    *buff = 0;
+}
 
 void
 dbg_log(const char *file, int lineno, const char *funcname, int loglevel, char *fmt, ...)

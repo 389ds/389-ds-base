@@ -1370,3 +1370,16 @@ dblayer_get_db_suffix(Slapi_Backend *be)
 
     return  prv ? prv->dblayer_get_db_suffix_fn() : NULL;
 }
+
+int
+ldbm_back_compact(Slapi_Backend *be, PRBool just_changelog)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    int rc = -1;
+    if (!li) {
+        return rc;
+    }
+    dblayer_private *prv = (dblayer_private *)li->li_dblayer_private;
+
+    return  prv->dblayer_compact_fn(be, just_changelog);
+}

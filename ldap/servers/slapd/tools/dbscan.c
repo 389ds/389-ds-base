@@ -1221,9 +1221,10 @@ main(int argc, char **argv)
     if (display_mode & LISTDBS) {
         dbi_dbslist_t *dbs = dblayer_list_dbs(dbimpl_name, filename);
         if (dbs) {
-            while (dbs->filename[0]) {
-                printf(" %s %s\n", dbs->filename, dbs->info);
-                dbs++;
+            dbi_dbslist_t *ptdbs = dbs;
+            while (ptdbs->filename[0]) {
+                printf(" %s %s\n", ptdbs->filename, ptdbs->info);
+                ptdbs++;
             }
         }
         slapi_ch_free((void**)&dbs);

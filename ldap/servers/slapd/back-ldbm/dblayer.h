@@ -89,6 +89,7 @@ typedef int instance_cleanup_fn_t(struct ldbm_instance *inst);
 typedef int instance_create_fn_t(struct ldbm_instance *inst);
 typedef int instance_search_callback_fn_t(Slapi_Entry *e, int *returncode, char *returntext, ldbm_instance *inst);
 typedef int dblayer_auto_tune_fn_t(struct ldbminfo *li);
+typedef int dblayer_compact_fn_t(Slapi_Backend *be, PRBool just_changelog);
 
 typedef char *dblayer_get_db_filename_fn_t(dbi_db_t *db);
 typedef int dblayer_bulk_free_fn_t(dbi_bulk_t *bulkdata);
@@ -118,6 +119,7 @@ typedef int dblayer_import_file_check_fn_t(ldbm_instance *inst);
 typedef dbi_dbslist_t *dblayer_list_dbs_fn_t(const char *dbhome);
 typedef int dblayer_in_import_fn_t(ldbm_instance *inst);
 typedef const char *dblayer_get_db_suffix_fn_t(void);
+typedef int dblayer_clear_vlv_cache_fn_t(backend *be, dbi_txn_t *txn, dbi_db_t *db);
 
 struct dblayer_private
 {
@@ -196,6 +198,8 @@ struct dblayer_private
     dblayer_list_dbs_fn_t *dblayer_list_dbs_fn;
     dblayer_in_import_fn_t *dblayer_in_import_fn;
     dblayer_get_db_suffix_fn_t *dblayer_get_db_suffix_fn;
+    dblayer_compact_fn_t *dblayer_compact_fn;
+    dblayer_clear_vlv_cache_fn_t *dblayer_clear_vlv_cache_fn;
 };
 
 #define DBLAYER_PRIV_SET_DATA_DIR 0x1

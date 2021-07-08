@@ -7024,11 +7024,11 @@ bdb_public_get_db_suffix(void)
     return LDBM_FILENAME_SUFFIX;
 }
 
-int32_t
-ldbm_back_compact(Slapi_Backend *be, PRBool just_changelog)
+int
+bdb_public_dblayer_compact(Slapi_Backend *be, PRBool just_changelog)
 {
     struct ldbminfo *li = NULL;
-    int32_t rc = -1;
+    int rc = -1;
 
     li = (struct ldbminfo *)be->be_database->plg_private;
     bdb_force_checkpoint(li);
@@ -7037,7 +7037,7 @@ ldbm_back_compact(Slapi_Backend *be, PRBool just_changelog)
     return rc;
 }
 
-int32_t
+int
 bdb_compact(struct ldbminfo *li, PRBool just_changelog)
 {
     Object *inst_obj;

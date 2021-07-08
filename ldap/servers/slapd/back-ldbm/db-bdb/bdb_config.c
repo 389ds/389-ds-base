@@ -134,6 +134,7 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_list_dbs_fn = &bdb_list_dbs;
     priv->dblayer_in_import_fn = &bdb_public_in_import;
     priv->dblayer_get_db_suffix_fn = &bdb_public_get_db_suffix;
+    priv->dblayer_compact_fn = &bdb_public_dblayer_compact;
 
     bdb_fake_priv = *priv; /* Copy the callbaks for bdb_be() */
     return 0;

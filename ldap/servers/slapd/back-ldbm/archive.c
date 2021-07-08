@@ -17,6 +17,132 @@
 #include "dblayer.h"
 
 int
+ldbm_temporary_close_all_instances(Slapi_PBlock *pb)
+{
+    Object *inst_obj, *inst_obj2;
+    int32_t return_value = -1;
+    ldbm_instance *inst = NULL;
+    struct ldbminfo *li;
+    Slapi_Task *task;
+
+    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
+    slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
+
+    /* server is up -- mark all backends busy */
+    for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
+         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+        inst = (ldbm_instance *)object_get_data(inst_obj);
+
+        /* check if an import/restore is already ongoing... */
+        if (instance_set_busy(inst) != 0) {
+            slapi_log_err(SLAPI_LOG_WARNING,
+                          "ldbm_temporary_close_all_instances", "'%s' is already in the middle of "
+                                                    "another task and cannot be disturbed.\n",
+                          inst->inst_name);
+            if (task) {
+                slapi_task_log_notice(task,
+                                      "Backend '%s' is already in the middle of "
+                                      "another task and cannot be disturbed.",
+                                      inst->inst_name);
+            }
+
+            /* painfully, we have to clear the BUSY flags on the
+             * backends we'd already marked...
+             */
+            for (inst_obj2 = objset_first_obj(li->li_instance_set);
+                 inst_obj2 && (inst_obj2 != inst_obj);
+                 inst_obj2 = objset_next_obj(li->li_instance_set,
+                                             inst_obj2)) {
+                inst = (ldbm_instance *)object_get_data(inst_obj2);
+                instance_set_not_busy(inst);
+            }
+            if (inst_obj2 && inst_obj2 != inst_obj)
+                object_release(inst_obj2);
+            object_release(inst_obj);
+            goto out;
+        }
+    }
+
+    /* now take down ALL BACKENDS and changelog */
+    for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
+         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+        inst = (ldbm_instance *)object_get_data(inst_obj);
+        slapi_log_err(SLAPI_LOG_INFO, "ldbm_temporary_close_all_instances", "Bringing %s offline...\n",
+                      inst->inst_name);
+        if (task) {
+            slapi_task_log_notice(task, "Bringing %s offline...",
+                                  inst->inst_name);
+        }
+        slapi_mtn_be_disable(inst->inst_be);
+        cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
+        if (entryrdn_get_switch()) {
+            cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
+        }
+    }
+    plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN);
+    /* now we know nobody's using any of the backend instances, so we
+     * can shutdown the dblayer -- this closes all instances too.
+     * Use DBLAYER_RESTORE_MODE to prevent loss of perfctr memory.
+     */
+    dblayer_close(li, DBLAYER_RESTORE_MODE);
+    return_value = 0;
+out:
+    return return_value;
+}
+
+int
+ldbm_restart_temporary_closed_instances(Slapi_PBlock *pb)
+{
+    Object *inst_obj;
+    int32_t ret;
+    int32_t return_value = -1;
+    ldbm_instance *inst = NULL;
+    struct ldbminfo *li;
+    Slapi_Task *task;
+
+    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
+    slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
+
+    if (0 != return_value) {
+        /*
+         * error case (607331)
+         * just to go back to the previous state if possible (preserve
+         * original error for now)
+         */
+        if ((ret = dblayer_start(li, DBLAYER_NORMAL_MODE))) {
+            slapi_log_err(SLAPI_LOG_ERR,
+                          "ldbm_restart_temporary_closed_instances", "Unable to to start database in [%s]\n",
+                          li->li_directory);
+            if (task) {
+                slapi_task_log_notice(task, "Failed to start the database in %s",
+                                      li->li_directory);
+            }
+        }
+    }
+
+    /* bring all backends and changelog back online */
+    plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_OPEN_FN);
+    for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
+         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+        inst = (ldbm_instance *)object_get_data(inst_obj);
+        ret = dblayer_instance_start(inst->inst_be, DBLAYER_NORMAL_MODE);
+        if (ret != 0) {
+            slapi_log_err(SLAPI_LOG_ERR,
+                          "ldbm_restart_temporary_closed_instances", "Unable to restart '%s'\n",
+                          inst->inst_name);
+            if (task) {
+                slapi_task_log_notice(task, "Unable to restart '%s'", inst->inst_name);
+            }
+        } else {
+            slapi_mtn_be_enable(inst->inst_be);
+            instance_set_not_busy(inst);
+        }
+    }
+    return_value = 0;
+    return return_value;
+}
+
+int
 ldbm_back_archive2ldbm(Slapi_PBlock *pb)
 {
     struct ldbminfo *li;
@@ -82,8 +208,6 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
         }
     }
     if (!run_from_cmdline) {
-        Object *inst_obj, *inst_obj2;
-
         /* task does not support restore old idl onto new idl server */
         if (is_old_to_new) {
             slapi_log_err(SLAPI_LOG_ERR,
@@ -98,63 +222,10 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
             }
             goto out;
         }
-        /* server is up -- mark all backends busy */
-        for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
-             inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
-            inst = (ldbm_instance *)object_get_data(inst_obj);
-
-            /* check if an import/restore is already ongoing... */
-            if (instance_set_busy(inst) != 0) {
-                slapi_log_err(SLAPI_LOG_WARNING,
-                              "ldbm_back_archive2ldbm", "'%s' is already in the middle of "
-                                                        "another task and cannot be disturbed.\n",
-                              inst->inst_name);
-                if (task) {
-                    slapi_task_log_notice(task,
-                                          "Backend '%s' is already in the middle of "
-                                          "another task and cannot be disturbed.",
-                                          inst->inst_name);
-                }
-
-                /* painfully, we have to clear the BUSY flags on the
-                 * backends we'd already marked...
-                 */
-                for (inst_obj2 = objset_first_obj(li->li_instance_set);
-                     inst_obj2 && (inst_obj2 != inst_obj);
-                     inst_obj2 = objset_next_obj(li->li_instance_set,
-                                                 inst_obj2)) {
-                    inst = (ldbm_instance *)object_get_data(inst_obj2);
-                    instance_set_not_busy(inst);
-                }
-                if (inst_obj2 && inst_obj2 != inst_obj)
-                    object_release(inst_obj2);
-                object_release(inst_obj);
-                goto out;
-            }
+        return_value = ldbm_temporary_close_all_instances(pb);
+        if (0 != return_value) {
+            goto out;
         }
-
-        /* now take down ALL BACKENDS and changelog */
-        for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
-             inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
-            inst = (ldbm_instance *)object_get_data(inst_obj);
-            slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_archive2ldbm", "Bringing %s offline...\n",
-                          inst->inst_name);
-            if (task) {
-                slapi_task_log_notice(task, "Bringing %s offline...",
-                                      inst->inst_name);
-            }
-            slapi_mtn_be_disable(inst->inst_be);
-            cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
-            if (entryrdn_get_switch()) {
-                cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
-            }
-        }
-        plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN);
-        /* now we know nobody's using any of the backend instances, so we
-         * can shutdown the dblayer -- this closes all instances too.
-         * Use DBLAYER_RESTORE_MODE to prevent loss of perfctr memory.
-         */
-        dblayer_close(li, DBLAYER_RESTORE_MODE);
     }
 
     /* tell the database to restore */
