@@ -499,6 +499,13 @@ void vlv_acquire_lock(backend *be);
 void vlv_release_lock(backend *be);
 int vlv_isvlv(char *filename);
 
+
+/*
+ * archive.c
+ */
+int ldbm_temporary_close_all_instances(Slapi_PBlock *pb);
+int ldbm_restart_temporary_closed_instances(Slapi_PBlock *pb);
+
 /*
  * archive.c
  */

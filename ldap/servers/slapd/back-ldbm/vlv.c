@@ -25,6 +25,7 @@
 
 
 #include "back-ldbm.h"
+#include "dblayer.h"
 #include "vlv_srch.h"
 #include "vlv_key.h"
 
@@ -760,7 +761,7 @@ error:
  */
 
 static int
-do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), Slapi_PBlock *pb, struct vlvIndex *pIndex, struct backentry *entry, int insert)
+do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct vlvIndex *pIndex, struct backentry *entry, int insert)
 {
     backend *be;
     int rc = 0;
@@ -768,8 +769,10 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), 
     dbi_txn_t *db_txn = NULL;
     struct vlv_key *key = NULL;
     dbi_val_t data = {0};
+    dblayer_private *priv = NULL;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+    priv = (dblayer_private *)li->li_dblayer_private;
 
     rc = dblayer_get_index_file(be, pIndex->vlv_attrinfo, &db, DBOPEN_CREATE);
     if (rc != 0) {
@@ -784,6 +787,9 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), 
         db_txn = txn->back_txn_txn;
     } else {
         /* Very bad idea to do this outside of a transaction */
+    }
+    if (priv->dblayer_clear_vlv_cache_fn) {
+        priv->dblayer_clear_vlv_cache_fn(be, db_txn, db);
     }
     data.size = sizeof(entry->ep_id);
     data.data = &entry->ep_id;

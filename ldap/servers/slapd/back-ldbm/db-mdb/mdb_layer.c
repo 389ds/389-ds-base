@@ -1624,8 +1624,13 @@ int dbmdb_dbt2dbival(MDB_val *dbt, dbi_val_t *dbi, PRBool isresponse, int rc)
         return rc;
     }
     if (dbt->mv_size > dbi->ulen) {
-        if (dbi->flags & (DBI_VF_PROTECTED|DBI_VF_DONTGROW)) {
+        if (dbi->flags & DBI_VF_DONTGROW) {
             return DBI_RC_BUFFER_SMALL;
+        }
+        if (dbi->flags & DBI_VF_PROTECTED) {
+            /* make sure not to free the old buffer */
+            dbi->data = NULL;
+            dbi->flags &= ~DBI_VF_PROTECTED;
         }
         /* Lets realloc the buffer */
         dbi->ulen = dbi->size = dbt->mv_size;
@@ -1907,81 +1912,126 @@ void dbmdb_generate_recno_cache_key_by_data(MDB_val *cache_key, MDB_val *key, MD
 
 void dbmdb_generate_recno_cache_key_by_recno(MDB_val *cache_key, dbi_recno_t recno)
 {
-    char *data;
-    cache_key->mv_size = 1+ sizeof recno;
-    data = cache_key->mv_data = slapi_ch_malloc(cache_key->mv_size);
-    data[0] = 'R';
-    memcpy(&data[1], &recno, sizeof recno);
+#define RECNO_KEY_SIZE 12
+    cache_key->mv_size = RECNO_KEY_SIZE - 1;
+    cache_key->mv_data = slapi_ch_malloc(RECNO_KEY_SIZE);
+    snprintf(cache_key->mv_data, RECNO_KEY_SIZE, "R%010u", recno);
 }
 
-int dbmdb_begin_recno_cache_txn(dbmdb_recno_cache_ctx_t *rcctx, MDB_txn **txn, MDB_cursor **cursor, MDB_dbi dbi)
+int dbmdb_begin_recno_cache_txn(dbmdb_recno_cache_ctx_t *rcctx, dbmdb_txn_ctx_t *txn_ctx, MDB_dbi dbi)
 {
     int rc = 0;
+    txn_ctx->env = rcctx->env;
+    txn_ctx->cursor = NULL;
+    txn_ctx->flags = 0;
     switch (rcctx->mode) {
         default:
             return EINVAL;
         case RCMODE_USE_CURSOR_TXN:
-            *txn = rcctx->cursortxn;
+            txn_ctx->txn = rcctx->cursortxn;
+            txn_ctx->flags |= DBMDB_TXNCTX_KEEP_TXN;
             break;
         case RCMODE_USE_SUBTXN:
-            rc = TXN_BEGIN(rcctx->env, rcctx->cursortxn, 0, txn);
+            rc = TXN_BEGIN(rcctx->env, rcctx->cursortxn, 0, &txn_ctx->txn);
             break;
         case RCMODE_USE_NEW_THREAD:
-            rc = TXN_BEGIN(rcctx->env, NULL, 0, txn);
+            rc = TXN_BEGIN(rcctx->env, NULL, 0, &txn_ctx->txn);
             break;
     }
-    if (cursor) {
-        *cursor = NULL;
+    if (dbi>0) {
         if (rc == 0) {
-            rc = MDB_CURSOR_OPEN(*txn, dbi, cursor);
+            rc = MDB_CURSOR_OPEN(txn_ctx->txn, dbi, &txn_ctx->cursor);
         }
     }
     return rc;
 }
 
-int dbmdb_end_recno_cache_txn(dbmdb_recno_cache_ctx_t *rcctx, MDB_txn **txn, MDB_cursor **cursor, int abort)
+int dbmdb_end_recno_cache_txn(dbmdb_txn_ctx_t *txn_ctx, int abort)
 {
     int rc = 0;
-    if (cursor) {
-        MDB_CURSOR_CLOSE(*cursor);
-        *cursor = NULL;
+    if (txn_ctx->cursor) {
+        MDB_CURSOR_CLOSE(txn_ctx->cursor);
+        txn_ctx->cursor = NULL;
     }
-    if (*txn != rcctx->cursortxn) {
-        if (abort) {
-            TXN_ABORT(*txn);
+    if (txn_ctx->txn && !(txn_ctx->flags & DBMDB_TXNCTX_KEEP_TXN)) {
+        if (abort || !(txn_ctx->flags & DBMDB_TXNCTX_NEED_COMMIT)) {
+            TXN_ABORT(txn_ctx->txn);
+            rc = abort;
         } else {
-            rc = TXN_COMMIT(*txn);
+            rc = TXN_COMMIT(txn_ctx->txn);
         }
+        txn_ctx->txn = NULL;
     }
     return rc;
 }
 
+static dbmdb_recno_cache_elmt_t *
+new_rce(int recno, MDB_val *key, MDB_val *data)
+{
+    int len = sizeof(dbmdb_recno_cache_elmt_t) + data->mv_size + key->mv_size;
+    dbmdb_recno_cache_elmt_t *rce = (dbmdb_recno_cache_elmt_t*) slapi_ch_malloc(len);
+#ifdef DBMDB_DEBUG
+    char datastr[50];
+    char keystr[50];
+#endif
+    rce->recno = recno;
+    rce->len = len;
+    rce->data.mv_size = data->mv_size;
+    rce->key.mv_size = key->mv_size;
+    rce->key.mv_data = &rce[1];
+    rce->data.mv_data = ((char*)&rce[1]) + rce->key.mv_size;
+    memcpy(rce->data.mv_data, data->mv_data, data->mv_size);
+    memcpy(rce->key.mv_data, key->mv_data, key->mv_size);
+#ifdef DBMDB_DEBUG
+    dbgval2str(keystr, sizeof keystr, &rce->key);
+    dbgval2str(datastr, sizeof datastr, &rce->data);
+    dbg_log(__FILE__,__LINE__,__FUNCTION__, -1, "Found recno=%d key: %s data: %s", recno, keystr, datastr);
+#endif
+    return rce;
+}
 
-/* Search nearest key from cache_key in a valid cache */
+dbmdb_recno_cache_elmt_t *
+dup_rce(dbmdb_recno_cache_elmt_t *rce)
+{
+    MDB_val key, data;
+    key.mv_size = rce->key.mv_size;
+    key.mv_data = &rce[1];
+    data.mv_size = rce->data.mv_size;
+    data.mv_data = ((char*)&rce[1]) + key.mv_size;
+    return new_rce(rce->recno, &key, &data);
+}
+
+/* Search in the cache the greatest entry smaller or equal to the searched key */
 int dbmdb_recno_cache_search(dbmdb_recno_cache_ctx_t *rcctx)
 {
-    MDB_cursor *cursor = NULL;
-    MDB_txn *txn = NULL;
+    dbmdb_txn_ctx_t txn_ctx = {0};
     int rc = 0;
+#define VD(val)  ((char*)((val).mv_data))
 
+    /* Search for GREATER OR EQUAL record */
     rcctx->key = rcctx->cache_key;
-    rc = dbmdb_begin_recno_cache_txn(rcctx, &txn, &cursor, rcctx->rcdbi.dbi);
+    rcctx->rce = NULL;
+    rc = dbmdb_begin_recno_cache_txn(rcctx, &txn_ctx, rcctx->rcdbi.dbi);
     if (!rc) {
-        rc = mdb_cursor_get(cursor, &rcctx->key, &rcctx->data, MDB_SET_RANGE);
+        rc = MDB_CURSOR_GET(txn_ctx.cursor, &rcctx->key, &rcctx->data, MDB_SET_RANGE);
     }
-    if (!rc) {
-        dbmdb_recno_cache_elmt_t *rce = rcctx->data.mv_data;
-        dbmdb_recno_cache_elmt_t *rce2 = (dbmdb_recno_cache_elmt_t*) slapi_ch_malloc(rce->len);
-        memcpy(rce2, rce, rce->len);
-        rce2->data.mv_data = ((char*)&rce2[1]) + rce2->key.mv_size;
-        rce2->key.mv_data = &rce2[1];
-        rcctx->rce = rce2;
-    }
-    if (rc) {
-        dbmdb_end_recno_cache_txn(rcctx, &txn, &cursor, 1);
+    rcctx->rce = NULL;
+    if (rc == 0 && VD(rcctx->cache_key)[0] == VD(rcctx->key)[0] &&
+        dbmdb_cmp_vals(&rcctx->cache_key, &rcctx->key) == 0) {
+        /* Found directly searched entry */
+        rcctx->rce = dup_rce(rcctx->data.mv_data);
     } else {
-        rc = dbmdb_end_recno_cache_txn(rcctx, &txn, &cursor, 1);
+        if (rc == MDB_NOTFOUND) {
+            rc = MDB_CURSOR_GET(txn_ctx.cursor, &rcctx->key, &rcctx->data, MDB_LAST);
+        } else if (rc == 0) {
+            rc = MDB_CURSOR_GET(txn_ctx.cursor, &rcctx->key, &rcctx->data, MDB_PREV);
+        }
+        if (rc == 0 && VD(rcctx->cache_key)[0] == VD(rcctx->key)[0]) {
+            rcctx->rce = dup_rce(rcctx->data.mv_data);
+        }
     }
+
+    rc = dbmdb_end_recno_cache_txn(&txn_ctx, rc);
     return rc;
 }
 
@@ -1990,52 +2040,66 @@ void *dbmdb_recno_cache_build(void *arg)
 {
     dbmdb_recno_cache_ctx_t *rcctx = arg;
     dbmdb_recno_cache_elmt_t *rce = NULL;
-    MDB_cursor *cursor = NULL;
-    MDB_txn *txn = NULL;
-    MDB_val key = {0};
-    MDB_val data = {0};
-    MDB_val rckey = {0};
-    MDB_val rcdata = {0};
+    dbmdb_txn_ctx_t txn_ctx = {0};
     dbi_recno_t recno = 1;
+    MDB_val rcdata = {0};
+    MDB_val rckey = {0};
+    MDB_stat stat = {0};
+    MDB_val data = {0};
+    MDB_val key = {0};
     int len = 0;
     int rc = 0;
 
     /* Open/creat cache dbi */
-    rc = dbmdb_open_recno_cache_dbi(rcctx);
-    /* Clear the cache */
+    rc = dbmdb_open_dbi_from_filename(&rcctx->rcdbi, rcctx->cursor->be, rcctx->rcdbname, NULL, MDB_CREATE);
+    slapi_ch_free_string(&rcctx->rcdbname);
+
+    /* Clear the cache if it is not already empty */
     if (rc == 0) {
-        rc = dbmdb_begin_recno_cache_txn(rcctx, &txn, NULL, 0);
+        rc = dbmdb_begin_recno_cache_txn(rcctx, &txn_ctx, rcctx->dbi.dbi);
     }
     if (rc == 0) {
-        rc = MDB_DROP(txn, rcctx->rcdbi.dbi, 0);
-        rc |= dbmdb_end_recno_cache_txn(rcctx, &txn, NULL, rc);
+        key.mv_data = "OK";
+        key.mv_size = 2;
+        rc = MDB_GET(txn_ctx.txn, rcctx->rcdbi.dbi, &key, &data);
+        if (rc == 0) {
+            /* Cache is already uptodate ==> nothing to build. */
+            goto cache_built;
+        }
+        /* Lets clear the cache if it is not already empty */
+        rc = mdb_stat(txn_ctx.txn, rcctx->rcdbi.dbi, &stat);
+        if (stat.ms_entries > 0) {
+            rc = MDB_DROP(txn_ctx.txn, rcctx->rcdbi.dbi, 0);
+            txn_ctx.flags |= DBMDB_TXNCTX_NEED_COMMIT;
+        }
     }
     while (rc == 0) {
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_recno_cache_build", "recno=%d\n", recno);
         if (recno % RECNO_CACHE_INTERVAL != 1) {
             recno++;
-            rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT);
+            rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_NEXT);
             continue;
         }
         /* close the txn from time to time to avoid locking all dbi page */
-        rc = dbmdb_end_recno_cache_txn(rcctx, &txn, &cursor, 0);
-        rc |= dbmdb_begin_recno_cache_txn(rcctx, &txn, &cursor, rcctx->dbi.dbi);
+        rc = dbmdb_end_recno_cache_txn(&txn_ctx, 0);
+        rc |= dbmdb_begin_recno_cache_txn(rcctx, &txn_ctx, rcctx->dbi.dbi);
         if (rc) {
             break;
         }
         /* Reset to new cursor to the old position */
         if (recno == 1) {
-            rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST);
+            rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_FIRST);
         } else {
-            rc = mdb_cursor_get(cursor, &key, &data, MDB_SET);
+            rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_SET);
             if (rc == MDB_NOTFOUND) {
-                rc = mdb_cursor_get(cursor, &key, &data, MDB_SET_RANGE);
+                rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_SET_RANGE);
             }
         }
         if (rc) {
             break;
         }
         /* Prepare the cache data */
-        len = sizeof(rce) + data.mv_size + key.mv_size;
+        len = sizeof(*rce) + data.mv_size + key.mv_size;
         rce = (dbmdb_recno_cache_elmt_t*)slapi_ch_malloc(len);
         rce->len = len;
         rce->recno = recno;
@@ -2048,22 +2112,27 @@ void *dbmdb_recno_cache_build(void *arg)
         rcdata.mv_data = rce;
         rcdata.mv_size = len;
         dbmdb_generate_recno_cache_key_by_recno(&rckey, recno);
-        rc = MDB_PUT(txn, rcctx->rcdbi.dbi, &rckey, &rcdata, 0);
+        rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi.dbi, &rckey, &rcdata, 0);
         slapi_ch_free(&rckey.mv_data);
         if (rc == 0) {
             dbmdb_generate_recno_cache_key_by_data(&rckey, &key, &data);
-            rc = MDB_PUT(txn, rcctx->rcdbi.dbi, &rckey, &rcdata, 0);
+            rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi.dbi, &rckey, &rcdata, 0);
             slapi_ch_free(&rckey.mv_data);
+            txn_ctx.flags |= DBMDB_TXNCTX_NEED_COMMIT;
         }
         slapi_ch_free(&rcdata.mv_data);
+        rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_NEXT);
+        recno++;
     }
     if (rc == MDB_NOTFOUND) {
         /* Mark the cache as valid */
         rckey.mv_data = "OK";
         rckey.mv_size = 2;
-        rc = MDB_PUT(txn, rcctx->rcdbi.dbi, &rckey, &rckey, 0);
+        rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi.dbi, &rckey, &rckey, 0);
+        txn_ctx.flags |= DBMDB_TXNCTX_NEED_COMMIT;
     }
-    rc |= dbmdb_end_recno_cache_txn(rcctx, &txn, &cursor, 0);
+cache_built:
+    rc = dbmdb_end_recno_cache_txn(&txn_ctx, rc);
     if (rc == 0) {
         rc = dbmdb_recno_cache_search(rcctx);
     }
@@ -2110,6 +2179,9 @@ int dbmdb_recno_cache_lookup(dbi_cursor_t *cursor, MDB_val *cache_key, dbmdb_rec
         pthread_mutex_unlock(&ctx->rcmutex);
     }
     *rce = rcctx.rce;
+    if (!rcctx.rce) {
+        rc = MDB_NOTFOUND;
+    }
     slapi_ch_free_string(&rcctx.rcdbname);
     return rc;
 }
@@ -2130,7 +2202,19 @@ int dbmdb_cmp_vals(MDB_val *v1, MDB_val *v2)
 
 int dbmdb_cmp_dbi_record(MDB_dbi dbi, MDB_val *key1, MDB_val *data1, MDB_val *key2, MDB_val *data2)
 {
-    int rc = dbmdb_cmp_vals(key1, key2);
+    int rc = 0;
+    int n1 = key1 && key1->mv_data && key1->mv_size;
+    int n2 = key2 && key2->mv_data && key2->mv_size;
+
+    rc = n1 - n2 ;
+    if (rc == 0) {
+        rc = dbmdb_cmp_vals(key1, key2);
+    }
+    if (rc == 0) {
+        n1 = data1 && data1->mv_data && data1->mv_size;
+        n2 = data2 && data2->mv_data && data2->mv_size;
+        rc = n1 - n2 ;
+    }
     if (rc == 0) {
         rc = dbmdb_cmp_vals(data1, data2);
     }
@@ -2145,22 +2229,30 @@ int dbmdb_cursor_get_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
     MDB_val curpos_key = {0};
     MDB_val curpos_data = {0};
     MDB_val cache_key = {0};
-    int rc = 0;
+    MDB_cursor *newcur = NULL;
     int cmpres = 0;
+    int rc = 0;
 
     rc = MDB_CURSOR_GET(cursor->cur, &curpos_key, &curpos_data, MDB_GET_CURRENT);
     if (rc != 0) {
         return rc;
     }
     dbmdb_generate_recno_cache_key_by_data(&cache_key, &curpos_key, &curpos_data);
+
     rc = dbmdb_recno_cache_lookup(cursor, &cache_key, &rce);
+    if (rc == 0) {
+        rc = MDB_CURSOR_OPEN(mdb_cursor_txn(cursor->cur), mdb_cursor_dbi(cursor->cur), &newcur);
+    }
+    if (rc == 0) {
+        rc = MDB_CURSOR_GET(newcur, &rce->key, &rce-> data, MDB_SET);
+    }
     while (rc == 0) {
         cmpres = dbmdb_cmp_dbi_record(mdb_cursor_dbi(cursor->cur), &curpos_key, &curpos_data, &rce->key, &rce->data);
         if (cmpres >= 0) {
             break;
         }
         rce->recno++;
-        rc = MDB_CURSOR_GET(cursor->cur, &rce->key, &rce->data, MDB_NEXT);
+        rc = MDB_CURSOR_GET(newcur, &rce->key, &rce->data, MDB_NEXT);
     }
     if (cmpres > 0) {
         rc = MDB_NOTFOUND;
@@ -2187,18 +2279,21 @@ int dbmdb_cursor_set_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
     memcpy(&recno, dbmdb_data->mv_data, sizeof (dbi_recno_t));
     dbmdb_generate_recno_cache_key_by_recno(&cache_key, recno);
     rc = dbmdb_recno_cache_lookup(cursor, &cache_key, &rce);
+    if (rc ==0) {
+        rc = MDB_CURSOR_GET(cursor->cur, &rce->key, &rce->data, MDB_SET_RANGE);
+    }
     while (rc == 0 && recno > rce->recno) {
         rce->recno++;
         rc = MDB_CURSOR_GET(cursor->cur, &rce->key, &rce->data, MDB_NEXT);
     }
-    if (rc == 0) {
-        *dbmdb_key = rce->key;
-        *dbmdb_data = rce->data;
+    if (dbmdb_data->mv_size == rce->data.mv_size) {
+        /* Should always be the case */
+        memcpy(dbmdb_data->mv_data , rce->data.mv_data, dbmdb_data->mv_size);
     }
+
     slapi_ch_free((void**)&rce);
     return rc;
 }
-
 
 int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_val_t *data)
 {
@@ -2512,7 +2607,8 @@ dbmdb_public_private_close(dbi_env_t **env, dbi_db_t **db)
     return 0;
 }
 
-static int dbmdb_force_checkpoint(struct ldbminfo *li)
+static int
+dbmdb_force_checkpoint(struct ldbminfo *li)
 {
     dbmdb_ctx_t *ctx = MDB_CONFIG(li);
     int rc = mdb_env_sync(ctx->env, 1);
@@ -2549,5 +2645,105 @@ dbmdb_public_get_db_suffix(void)
     return LDBM_FILENAME_SUFFIX;
 }
 
+int
+dbmdb_public_dblayer_compact(Slapi_Backend *be, PRBool just_changelog)
+{
+    struct ldbminfo *li = NULL;
+    Slapi_Backend *be1 = NULL;
+    dbmdb_ctx_t *ctx = NULL;
+    char *newdb_name = NULL;
+    char *db_name = NULL;
+    char *cookie = NULL;
+    int newdb_fd = -1;
+    Slapi_PBlock *pb;
+    int32_t rc = -1;
 
+    /* dbmdb_public_dblayer_compact is called in loop (walking all non private backends)
+     *  but as mdb database is common for all backends we should only compact once
+     *  so let's do it only for first backend.
+     */
+    be1 = slapi_get_first_backend(&cookie);
+    while (be1 && be1->be_private) {
+        be1 = (backend *)slapi_get_next_backend(cookie);
+    }
+    slapi_ch_free_string(&cookie);
+    if (be != be1) {
+        return 0;
+    }
 
+    pb = slapi_pblock_new();
+    slapi_pblock_set(pb, SLAPI_PLUGIN, (be->be_database));
+    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
+    ctx = MDB_CONFIG(li);
+    db_name = slapi_ch_smprintf("%s/%s", ctx->home, DBMAPFILE);
+    newdb_name = slapi_ch_smprintf("%s/%s.bak", ctx->home, DBMAPFILE);
+    newdb_fd = open(newdb_name, O_CREAT|O_WRONLY|O_TRUNC, li->li_mode | 0600);
+    if (newdb_fd < 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_dblayer_compact",
+                      "Failed to create database copy. Error is %d, File is %s\n",
+                      errno, newdb_name);
+        slapi_ch_free_string(&newdb_name);
+        return -1;
+    }
+
+    rc = ldbm_temporary_close_all_instances(pb);
+    if (!rc) {
+        goto out;
+    }
+    rc = mdb_env_copyfd2(ctx->env, newdb_fd, MDB_CP_COMPACT);
+    if (!rc) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_dblayer_compact",
+                      "Failed to compact the database. Error is %d (%s), File is %s\n",
+                      rc, mdb_strerror(rc), newdb_name);
+        goto out;
+    }
+    rc = close(newdb_fd);
+    if (!rc) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_dblayer_compact",
+                      "Failed to close the database copy. Error is %d, File is %s\n",
+                      errno, newdb_name);
+        goto out;
+    }
+    /* Close the mdb env and release the plugin resources */
+    dbmdb_ctx_close(ctx);
+    rc = rename (newdb_name, db_name);
+    if (!rc) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_dblayer_compact",
+                      "Failed to rename the database copy from %s to %s. Error is %d\n",
+                      newdb_name, db_name, errno);
+    }
+    /* reopen the mdb env and initialize the plugin resources */
+    mdb_init(li, NULL);
+
+out:
+    rc = ldbm_restart_temporary_closed_instances(pb);
+    slapi_pblock_destroy(pb);
+    if (newdb_fd>=0) {
+        close(newdb_fd);
+    }
+    if (newdb_name) {
+        unlink(newdb_name);
+        slapi_ch_free_string(&newdb_name);
+    }
+    slapi_ch_free_string(&db_name);
+    return rc;
+}
+
+int
+dbmdb_public_clear_vlv_cache(Slapi_Backend *be, dbi_txn_t *txn, dbi_db_t *db)
+{
+    char *rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, ((dbmdb_dbi_t*)db)->dbname);
+    dbmdb_dbi_t rcdbi = {0};
+    MDB_val ok = { 0 };
+    int rc = 0;
+
+    ok.mv_data = "OK";
+    ok.mv_size = 2;
+    rc = dbmdb_open_dbi_from_filename(&rcdbi, be, rcdbname, NULL, 0);
+    if (rc == 0) {
+        rc = MDB_DEL(TXN(txn), rcdbi.dbi, &ok, &ok);
+    }
+    slapi_ch_free_string(&rcdbname);
+    slapi_ch_free_string((char**)&rcdbi.dbname);
+    return rc;
+}

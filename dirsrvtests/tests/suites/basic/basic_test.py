@@ -370,6 +370,7 @@ def test_basic_backup(topology_st, import_example_ldif):
     log.info('Running test_basic_backup...')
 
     backup_dir = topology_st.standalone.get_bak_dir() + '/backup_test'
+    log.info(f'Backup directory is {backup_dir}')
 
     # Test online backup
     try:
@@ -400,6 +401,7 @@ def test_basic_backup(topology_st, import_example_ldif):
     topology_st.standalone.start()
 
     log.info('test_basic_backup: PASSED')
+    assert False
 
 def test_basic_db2index(topology_st):
     """Assert db2index can operate correctly.

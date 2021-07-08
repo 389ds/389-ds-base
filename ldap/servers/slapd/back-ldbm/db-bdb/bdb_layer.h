@@ -129,6 +129,7 @@ int bdb_public_config_set(struct ldbminfo *li, char *attrname, int apply_mod, in
 int bdb_public_dblayer_compact(Slapi_Backend *be, PRBool just_changelog);
 int bdb_close_file(DB **db);
 
+
 /* dbimpl callbacks */
 dblayer_get_db_filename_fn_t bdb_public_get_db_filename;
 dblayer_bulk_free_fn_t bdb_public_bulk_free;

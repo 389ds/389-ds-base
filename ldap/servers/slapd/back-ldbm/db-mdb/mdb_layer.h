@@ -63,6 +63,7 @@
 #define INFOFILE            "INFO.mdb"
 #define DBNAMES             "__DBNAMES"
 #define CHANGELOG_PATTERN   "changelog"   /* pattern in changelog dbi name */
+#define RECNOCACHE_PREFIX   "~recno-cache/"
 
 
 /* config parameters */
@@ -212,6 +213,16 @@ typedef enum {
     WCTX_GENERIC    /* Must be last one */
 } dbmdb_wctx_id_t;  /* Allow to identify predefined writer context for some well known index */
 
+#define DBMDB_TXNCTX_KEEP_TXN       1
+#define DBMDB_TXNCTX_NEED_COMMIT    2
+
+typedef struct {
+    MDB_env *env;
+    MDB_txn *txn;
+    MDB_cursor *cursor;
+    int flags;
+} dbmdb_txn_ctx_t;
+
 #include "mdb_debug.h"
 
 extern Slapi_ComponentId *dbmdb_componentid;
@@ -268,6 +279,8 @@ dblayer_get_entries_count_fn_t dbmdb_get_entries_count;
 dblayer_cursor_get_count_fn_t dbmdb_public_cursor_get_count;
 dblayer_private_open_fn_t dbmdb_public_private_open;
 dblayer_private_close_fn_t dbmdb_public_private_close;
+dblayer_compact_fn_t dbmdb_public_dblayer_compact;
+dblayer_clear_vlv_cache_fn_t dbmdb_public_clear_vlv_cache;
 
 /* instance functions */
 int dbmdb_instance_cleanup(struct ldbm_instance *inst);
@@ -418,6 +431,7 @@ int dbmdb_dbi_rmdir(dbmdb_ctx_t *conf, const char *dirname);
 int dbmdb_clear_dirty_flags(dbmdb_ctx_t *conf, const char *dirname);
 int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx);
 int dbmdb_open_recno_cache_dbi(dbmdb_recno_cache_ctx_t *rcctx);
+int dbmdb_cmp_vals(MDB_val *v1, MDB_val *v2);
 
 
 /* mdb_txn.c */

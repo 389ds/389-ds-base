@@ -389,9 +389,9 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t *dbi, backend *be, const char *file
 
 void dbmdb_close_dbi(dbi_db_t **db)
 {
-	dbmdb_dbi_t *dbi = *db;
-	if (dbi) {
-	    slapi_ch_free_string((char**)&dbi->dbname);
+    dbmdb_dbi_t *dbi = *db;
+    if (dbi) {
+        slapi_ch_free_string((char**)&dbi->dbname);
         slapi_ch_free(db);
     }
 }
@@ -931,7 +931,7 @@ int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx)
     for (idx=0; rc==0 && idx<ctx->nbdbis; idx++) {
         dbi = &ctx->dbis[idx];
         if (curdbi == dbi->dbi) {
-            rcdbname = slapi_ch_smprintf("~recno-cache/%s", dbi->dbname);
+            rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, dbi->dbname);
             rcctx->dbi = *dbi;
             break;
         }
@@ -956,7 +956,7 @@ int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx)
         slapi_ch_free_string(&rcdbname);
         rcctx->key.mv_data = "OK";
         rcctx->key.mv_size = 2;
-        rc = mdb_get(txn, rcctx->rcdbi.dbi, &rcctx->key, &rcctx->data);
+        rc = MDB_GET(txn, rcctx->rcdbi.dbi, &rcctx->key, &rcctx->data);
         if (rc) {
             rcctx->mode = RCMODE_UNKNOWN;
         }
@@ -976,19 +976,9 @@ int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx)
         TXN_ABORT(txn);
         txn = NULL;
         rcctx->mode = RCMODE_USE_SUBTXN;
-    } else if (rcctx->rc == EINVAL) {
+    } else if (rc == EINVAL) {
         rcctx->mode = RCMODE_USE_NEW_THREAD;
-        rcctx->rc = 0;
-    }
-    return rc;
-}
-
-int dbmdb_open_recno_cache_dbi(dbmdb_recno_cache_ctx_t *rcctx)
-{
-    int rc = 0;
-    if (rcctx->rcdbname) {
-        rc = dbmdb_open_dbi_from_filename(&rcctx->rcdbi, rcctx->cursor->be, rcctx->rcdbname, NULL, 0);
-        slapi_ch_free_string(&rcctx->rcdbname);
+        rc = 0;
     }
     return rc;
 }
