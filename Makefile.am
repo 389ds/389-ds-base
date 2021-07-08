@@ -37,6 +37,16 @@ MSAN_CFLAGS = @msan_cflags@
 TSAN_CFLAGS = @tsan_cflags@
 UBSAN_CFLAGS = @ubsan_cflags@
 
+if CFI_ENABLE
+# https://clang.llvm.org/docs/ControlFlowIntegrity.html#available-schemes
+# vcall is "forward edge" cfi which is what gives a lot of benefit security wise.
+CFI_CFLAGS = -flto=thin -fsanitize=cfi-cast-strict,cfi-vcall -fvisibility=hidden
+# Settings we could use in the future
+# -fsanitize=cfi-icall,cfi-nvcall,cfi-derived-cast,cfi-unrelated-cast,cfi-mfcall
+else
+CFI_CFLAGS =
+endif
+
 SYSTEMD_DEFINES = @systemd_defs@
 
 CMOCKA_INCLUDES = $(CMOCKA_CFLAGS)
@@ -52,7 +62,7 @@ RUST_ON = 1
 CARGO_FLAGS = @cargo_defs@
 
 if CLANG_ENABLE
-RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@ 
+RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
 RUSTC_LINK_FLAGS = -C link-arg=-fuse-ld=lld
 else
 RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
@@ -1868,7 +1878,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/tempnam.c  \
 	ldap/servers/slapd/unbind.c
 
-ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(SVRCORE_INCLUDES)
+ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(SVRCORE_INCLUDES) $(CFI_CFLAGS)
 # We need our libraries to come first, then our externals libraries second.
 ns_slapd_LDADD = libslapd.la libldaputil.la libsvrcore.la
 if RUST_ENABLE

@@ -225,6 +225,11 @@ AC_ARG_ENABLE(clang, AS_HELP_STRING([--enable-clang], [Enable clang (default: no
 AC_MSG_RESULT($enable_clang)
 AM_CONDITIONAL(CLANG_ENABLE,test "$enable_clang" = "yes")
 
+AC_MSG_CHECKING(for --enable-cfi)
+AC_ARG_ENABLE(cfi, AS_HELP_STRING([--enable-cfi], [Enable control flow integrity - requires --enable-clang (default: no)]),
+              [], [ enable_cfi=no ])
+AC_MSG_RESULT($enable_cfi)
+AM_CONDITIONAL(CFI_ENABLE,test "$enable_cfi" = "yes" -a "$enable_clang" = "yes")
 
 AM_CONDITIONAL([RPM_HARDEND_CC], [test -f /usr/lib/rpm/redhat/redhat-hardened-cc1])
 AC_MSG_CHECKING(for --enable-gcc-security)
