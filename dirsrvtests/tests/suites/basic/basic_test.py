@@ -22,10 +22,7 @@ from lib389.idm.directorymanager import DirectoryManager
 from lib389.config import LDBMConfig
 from lib389.dseldif import DSEldif
 from lib389.rootdse import RootDSE
-try:
-    from export.conftest import get_rpm_version
-except ImportError:
-    from ....conftest import get_rpm_version
+from ....conftest import get_rpm_version
 from lib389._mapped_object import DSLdapObjects
 
 
