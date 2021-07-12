@@ -2587,6 +2587,10 @@ bdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_ch
         return rc;
     }
 
+    if (0 == no_force_checkpoint) {
+	bdb_force_checkpoint(li);
+    }
+
     if (0 == dblayer_get_index_file(be, a, (dbi_db_t**)&db, 0 /* Don't create an index file
                                                    if it does not exist. */)) {
         if (use_lock)

@@ -1408,7 +1408,7 @@ bdb_db2index(Slapi_PBlock *pb)
      */
     if (run_from_cmdline) {
         /* Turn off transactions */
-        ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
+        bdb_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
 
         if (0 != dblayer_start(li, DBLAYER_INDEX_MODE)) {
             slapi_task_log_notice(task, "Failed to init database: %s", instance_name);
