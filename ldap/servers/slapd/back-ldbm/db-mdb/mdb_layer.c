@@ -291,9 +291,7 @@ dbmdb_post_close(struct ldbminfo *li, int dbmode)
         return return_value;
     /* Shutdown the performance counter stuff */
     if (DBLAYER_NORMAL_MODE & dbmode) {
-        if (conf->perf_private) {
-            dbmdb_perfctrs_terminate(&conf->perf_private, conf->env);
-        }
+        dbmdb_perfctrs_terminate(conf);
     }
 
     /* Now release the db environment */

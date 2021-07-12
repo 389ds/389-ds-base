@@ -2178,12 +2178,12 @@ dbmdb_public_dbmdb_import_main(void *arg)
         }
     }
 
-    ret=START_TXN(&txn,NULL,0);/*Startarwtxntoupdatesomeindexes*/
-                             if(ret){
-                                 import_log_notice(job,SLAPI_LOG_ERR,"dbmdb_public_dbmdb_import_main",
-                                         "Failedtobeginatransaction");
-                                 goto error;
-                             }
+    ret = START_TXN(&txn,NULL,0);  /* Start a rw txn to update some indexes */
+    if(ret){
+        import_log_notice(job,SLAPI_LOG_ERR,"dbmdb_public_dbmdb_import_main",
+                          "Failedtobeginatransaction");
+        goto error;
+    }
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_public_dbmdb_import_main", "Indexing complete.  Post-processing...");
     /* Now do the numsubordinates attribute */
     /* [610066] reindexed db cannot be used in the following backup/restore */
@@ -2222,7 +2222,7 @@ dbmdb_public_dbmdb_import_main(void *arg)
 error:
     /* If we fail, the database is now in a mess, so we delete it
        except dry run mode */
-    ret=END_TXN(&txn, ret);
+    ret = END_TXN(&txn, ret);
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_public_dbmdb_import_main", "Closing files...");
     cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
     if (entryrdn_get_switch()) {

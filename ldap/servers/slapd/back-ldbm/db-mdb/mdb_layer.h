@@ -120,7 +120,38 @@ typedef struct
     MDB_dbi dbi;                  /* The handle */
 } dbmdb_dbi_t;
 
+/* dbmdb_dbi_stat_t flags */
+#define DBI_STAT_FLAGS_OPEN         1        /* Instance is open */
+#define DBI_STAT_FLAGS_DIRTY        2        /* Instance is flagged as dirty */
+#define DBI_STAT_FLAGS_SUPPORTDUP   4        /* Instance supports duplicate keys */
 
+/* Per dbi statistics */
+typedef struct {
+    char *dbname;
+    int flags;
+    MDB_stat stat;
+} dbmdb_dbis_stat_t;
+
+typedef struct {
+    MDB_stat envstat;
+    MDB_envinfo envinfo;
+    int nbdbis;
+    dbmdb_dbis_stat_t dbis[1];
+} dbmdb_stats_t;
+
+typedef struct {
+    uint64_t nbsamples;
+    uint64_t ns;
+} cumuled_time_t;
+
+typedef struct {
+    uint64_t nbwaiting;
+    uint64_t nbactive;
+    uint64_t nbabort;
+    uint64_t nbcommit;
+    cumuled_time_t granttime;
+    cumuled_time_t lifetime;
+} dbmdb_perfctrs_txn_t;
 
 /* structure which holds our stuff */
 typedef struct dbmdb_ctx_t
@@ -132,13 +163,16 @@ typedef struct dbmdb_ctx_t
     char home[MAXPATHLEN];         /* Home directory */
     pthread_mutex_t dbis_lock;     /* protects dbis access */
     pthread_mutex_t rcmutex;       /* recnum cache mutex */
+    pthread_mutex_t perf_lock;     /* txn perf mutex */
     dbmdb_dbi_t *dbis;             /* sorted by name instances array with startcfg.dbmdb_max_dbs slots */
     int nbdbis;                    /* number of used slots in dbilist */
     MDB_dbi dbinames_dbi;          /* __DBNAMES database handler */
     MDB_env *env;
     int readonly;                  /* Tells that env is open in readonly mode */
     pthread_rwlock_t dbmdb_env_lock; /* txn global lock */
-    perfctrs_private *perf_private;  /* Performance counter data */
+    perfctrs_private *perf_private;  /* Performance counter data (shared memory) */
+    dbmdb_perfctrs_txn_t perf_rotxn; /* Read Only Txn Performance counter */
+    dbmdb_perfctrs_txn_t perf_rwtxn; /* Read Write Txn Performance counter */
 } dbmdb_ctx_t;
 
 /*
@@ -381,7 +415,7 @@ void dbmdb_instance_unregister_monitor(ldbm_instance *inst);
  */
 void dbmdb_perfctrs_wait(size_t milliseconds, perfctrs_private *priv, MDB_env *db_env);
 void dbmdb_perfctrs_init(struct ldbminfo *li, perfctrs_private **priv);
-void dbmdb_perfctrs_terminate(perfctrs_private **priv, MDB_env *db_env);
+void dbmdb_perfctrs_terminate(dbmdb_ctx_t *ctx);
 void dbmdb_perfctrs_as_entry(Slapi_Entry *e, dbmdb_ctx_t *ctx);
 
 /* mdb_import.c */
@@ -430,9 +464,9 @@ int dbmdb_dbi_remove(dbmdb_ctx_t *conf, dbi_db_t **db);
 int dbmdb_dbi_rmdir(dbmdb_ctx_t *conf, const char *dirname);
 int dbmdb_clear_dirty_flags(dbmdb_ctx_t *conf, const char *dirname);
 int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx);
-int dbmdb_open_recno_cache_dbi(dbmdb_recno_cache_ctx_t *rcctx);
 int dbmdb_cmp_vals(MDB_val *v1, MDB_val *v2);
-
+dbmdb_stats_t *dbdmd_gather_stats(dbmdb_ctx_t *conf, const char *instance_name);
+void dbmdb_free_stats(dbmdb_stats_t **stats);
 
 /* mdb_txn.c */
 int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_txn_t **txn);

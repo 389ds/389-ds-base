@@ -25,70 +25,38 @@
     (env)->lock_stat((env), (statp), (flags))
 #define GET_N_LOCK_WAITS(lockstat) lockstat->st_lock_wait
 
-static void dbmdb_perfctrs_update(perfctrs_private *priv, MDB_env *db_env);
+static void dbmdb_perfctrs_update(dbmdb_ctx_t *ctx);
 static void dbmdb_perfctr_add_to_entry(Slapi_Entry *e, char *type, uint64_t countervalue);
 
 /* Init perf ctrs */
 void
 dbmdb_perfctrs_init(struct ldbminfo *li __attribute__((unused)), perfctrs_private **ret_priv)
 {
-#ifdef TODO
-    perfctrs_private *priv = NULL;
-
-    *ret_priv = NULL;
-
-    /*
-     * We need the perfctrs_private area on all platforms.
-     */
-    priv = (perfctrs_private *)slapi_ch_calloc(1, sizeof(perfctrs_private));
-    priv->memory = slapi_ch_calloc(1, sizeof(performance_counters));
-
-    *ret_priv = priv;
-    return;
-#endif /* TODO */
+    MDB_CONFIG(li)->perf_private = (perfctrs_private*)slapi_ch_calloc(1, sizeof(performance_counters));
 }
 
 /* Terminate perf ctrs */
 void
-dbmdb_perfctrs_terminate(perfctrs_private **priv, MDB_env *db_env)
+dbmdb_perfctrs_terminate(dbmdb_ctx_t *ctx)
 {
-#ifdef TODO
-    DB_MPOOL_STAT *mpstat = NULL;
-    DB_TXN_STAT *txnstat = NULL;
-    DB_LOG_STAT *logstat = NULL;
-    DB_LOCK_STAT *lockstat = NULL;
-
-    MEMP_STAT(db_env, &mpstat, NULL, DB_STAT_CLEAR, (void *)slapi_ch_malloc);
-    slapi_ch_free((void **)&mpstat);
-    TXN_STAT(db_env, &txnstat, DB_STAT_CLEAR, (void *)slapi_ch_malloc);
-    slapi_ch_free((void **)&txnstat);
-    LOG_STAT(db_env, &logstat, DB_STAT_CLEAR, (void *)slapi_ch_malloc);
-    slapi_ch_free((void **)&logstat);
-    LOCK_STAT(db_env, &lockstat, DB_STAT_CLEAR, (void *)slapi_ch_malloc);
-    slapi_ch_free((void **)&lockstat);
-    if (NULL != (*priv)->memory) {
-        slapi_ch_free(&(*priv)->memory);
-    }
-
-    slapi_ch_free((void **)priv);
-#endif /* TODO */
+    slapi_ch_free((void **)&ctx->perf_private);
 }
 
+#if 0
 /* Wait while checking for perfctr update requests */
 void
 dbmdb_perfctrs_wait(size_t milliseconds, perfctrs_private *priv __attribute__((unused)), MDB_env *db_env __attribute__((unused)))
 {
-#ifdef TODO
     /* Just sleep */
     PRIntervalTime interval; /*NSPR timeout stuffy*/
     interval = PR_MillisecondsToInterval(milliseconds);
     DS_Sleep(interval);
-#endif /* TODO */
 }
+#endif
 
 /* Update perfctrs */
 static void
-dbmdb_perfctrs_update(perfctrs_private *priv, MDB_env *db_env)
+dbmdb_perfctrs_update(dbmdb_ctx_t *ctx)
 {
 #ifdef TODO
     int ret = 0;
@@ -99,7 +67,7 @@ dbmdb_perfctrs_update(perfctrs_private *priv, MDB_env *db_env)
     if (NULL == db_env) {
         return;
     }
-    perf = (performance_counters *)priv->memory;
+    perf = ctx->perf_private;
     if (NULL == perf) {
         return;
     }
@@ -187,7 +155,6 @@ typedef struct slapi_ldbm_perfctr_at_map
     size_t pam_offset; /* offset into performance_counters struct */
 } SlapiLDBMPerfctrATMap;
 
-#ifdef TODO
 static SlapiLDBMPerfctrATMap dbmdb_perfctr_at_map[] = {
     {SLAPI_LDBM_PERFCTR_AT_PREFIX "abort-rate",
      offsetof(performance_counters, abort_rate)},
@@ -258,7 +225,6 @@ static SlapiLDBMPerfctrATMap dbmdb_perfctr_at_map[] = {
     {SLAPI_LDBM_PERFCTR_AT_PREFIX "txn-region-wait-rate",
      offsetof(performance_counters, txn_region_wait_rate)},
 };
-#endif /* TODO */
 #define SLAPI_LDBM_PERFCTR_AT_MAP_COUNT \
     (sizeof(dbmdb_perfctr_at_map) / sizeof(SlapiLDBMPerfctrATMap))
 
@@ -270,19 +236,20 @@ static SlapiLDBMPerfctrATMap dbmdb_perfctr_at_map[] = {
 void
 dbmdb_perfctrs_as_entry(Slapi_Entry *e, dbmdb_ctx_t *ctx)
 {
-#ifdef TODO
     performance_counters *perf;
     size_t i;
 
-    if (priv == NULL)
+    if (ctx == NULL)
         return;
 
-    perf = (performance_counters *)priv->memory;
+    perf = (performance_counters *)ctx->perf_private;
+    if (perf == NULL)
+        return;
 
     /*
      * First, update the values so they are current.
      */
-    dbmdb_perfctrs_update(priv, db_env);
+    dbmdb_perfctrs_update(ctx);
 
     /*
      * Then convert all the counters to attribute values.
@@ -291,14 +258,11 @@ dbmdb_perfctrs_as_entry(Slapi_Entry *e, dbmdb_ctx_t *ctx)
         dbmdb_perfctr_add_to_entry(e, dbmdb_perfctr_at_map[i].pam_type,
                              *((uint64_t *)((char *)perf + dbmdb_perfctr_at_map[i].pam_offset)));
     }
-#endif /* TODO */
 }
 
 
 static void
 dbmdb_perfctr_add_to_entry(Slapi_Entry *e, char *type, uint64_t countervalue)
 {
-#ifdef TODO
     slapi_entry_attr_set_ulong(e, type, countervalue);
-#endif /* TODO */
 }

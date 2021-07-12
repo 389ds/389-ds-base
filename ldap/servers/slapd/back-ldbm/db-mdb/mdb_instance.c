@@ -441,8 +441,8 @@ static int dbmdb_init_dbilist(dbmdb_ctx_t *ctx)
     MDB_val key = {0};
     int rc = 0;
 
+    ctx->dbis = (dbmdb_dbi_t*)slapi_ch_calloc(ctx->startcfg.max_dbs, sizeof (dbmdb_dbi_t));
 
-    ctx->dbis = calloc(ctx->startcfg.max_dbs, sizeof (dbmdb_dbi_t));
     /* open or create the DBNAMES database */
     rc = dbmdb_open_cursor(&dbicur, ctx, NULL, MDB_CREATE);
     if (rc) {
@@ -848,6 +848,9 @@ int dbmdb_dbi_rmdir(dbmdb_ctx_t *conf, const char *dirname)
     return dbmdb_map_error(__FUNCTION__, rc);
 }
 
+/*
+ * Set DIRTY condition to a dbi
+ */
 int dbmdb_dbi_set_dirty(dbmdb_ctx_t *conf, dbmdb_dbi_t *dbi, int dirty_flags)
 {
     dbi_txn_t *txn = NULL;
@@ -882,6 +885,10 @@ int dbmdb_dbi_set_dirty(dbmdb_ctx_t *conf, dbmdb_dbi_t *dbi, int dirty_flags)
     return dbmdb_map_error(__FUNCTION__, rc);
 }
 
+
+/*
+ * Remove DIRTY condition from a dbi
+ */
 int dbmdb_clear_dirty_flags(dbmdb_ctx_t *conf, const char *dirname)
 {
     dbi_txn_t *txn = NULL;
@@ -912,6 +919,15 @@ int dbmdb_clear_dirty_flags(dbmdb_ctx_t *conf, const char *dirname)
     return dbmdb_map_error(__FUNCTION__, rc);
 }
 
+/*
+ * Determine how to build the recno cache:
+ *  RCMODE_USE_CURSOR_TXN - cache does need to be rebuild and
+ *   current txn could be used to read from the cache
+ *  RCMODE_USE_SUBTXN - cache must be rebuilt and we should open a sub txn
+ *   from current r/w txn to rebuild the cache
+ *  RCMODE_USE_NEW_THREAD - cache must be rebuilt - and a new thread
+ *   must be spawned to rebuilt the cache
+ */
 int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx)
 {
     struct ldbminfo *li = (struct ldbminfo *)rcctx->cursor->be->be_database->plg_private;
@@ -982,3 +998,76 @@ int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx)
     }
     return rc;
 }
+
+/* Gather environment and dbi stats */
+dbmdb_stats_t *
+dbdmd_gather_stats(dbmdb_ctx_t *conf, const char *instance_name)
+{
+    int len, idx, rc;
+    dbi_txn_t *txn = NULL;
+    dbmdb_dbi_t *dbi = NULL;
+    dbmdb_stats_t *stats = NULL;
+    dbmdb_dbis_stat_t *dbistats = NULL;
+    int inlen = instance_name ? strlen(instance_name) : 0;
+    const char *pt;
+
+    rc = START_TXN(&txn, NULL, TXNFL_RDONLY);
+    if (rc) {
+        return NULL;
+    }
+    pthread_mutex_lock(&conf->dbis_lock);
+    len = sizeof (dbmdb_stats_t) + conf->nbdbis * sizeof (dbmdb_dbis_stat_t);
+    stats = (dbmdb_stats_t*)slapi_ch_calloc(1, len);
+    stats->nbdbis = conf->nbdbis;
+    for (idx=0; rc==0 && idx<conf->nbdbis; idx++) {
+        dbi = &conf->dbis[idx];
+        dbistats = &stats->dbis[idx];
+        /* Filter if instance_name is provided */
+        pt = dbi->dbname;
+        /* Skip ~recno-cache/ part */
+        if (*pt == '~') {
+            pt = strchr(pt, '/');
+            pt = pt ? pt+1 : dbi->dbname;
+        }
+        if (!inlen || strncmp(pt, instance_name, inlen) || pt[inlen] != '/') {
+            continue;
+        }
+        /* dbname may vanish after freeing the dbis_lock ==> duplicate it */
+        dbistats->dbname = slapi_ch_strdup(dbi->dbname);
+        if (dbi->state.state & DBIST_DIRTY) {
+            dbistats->flags |= DBI_STAT_FLAGS_DIRTY;
+        }
+        if (dbi->state.flags & MDB_DUPSORT) {
+            dbistats->flags |= DBI_STAT_FLAGS_SUPPORTDUP;
+        }
+        if (dbi->dbi >0) {
+            dbistats->flags |= DBI_STAT_FLAGS_OPEN;
+            rc = mdb_stat(TXN(txn), dbi->dbi, &dbistats->stat);
+        }
+    }
+    pthread_mutex_unlock(&conf->dbis_lock);
+    rc = END_TXN(&txn, rc);
+    if (!instance_name) {
+        /* Gather env statistics */
+        rc = mdb_env_stat(conf->env, & stats->envstat);
+        rc = mdb_env_info(conf->env, & stats->envinfo);
+    }
+    return stats;
+}
+
+void
+dbmdb_free_stats(dbmdb_stats_t **stats)
+{
+    dbmdb_stats_t *st = *stats;
+    int idx;
+
+    if (st) {
+        for (idx=0; idx < st->nbdbis; idx++) {
+            slapi_ch_free_string(&st->dbis[idx].dbname);
+        }
+    }
+    slapi_ch_free((void**)stats);
+}
+
+
+
