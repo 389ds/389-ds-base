@@ -18,7 +18,6 @@
 
 struct _performance_counters
 {
-#ifdef TODO
     uint64_t sequence_number;
     uint64_t lock_region_wait_rate;
     uint64_t deadlock_rate;
@@ -54,7 +53,6 @@ struct _performance_counters
     uint64_t commit_rate;
     uint64_t abort_rate;
     uint64_t txn_region_wait_rate;
-#endif /* TODO */
 };
 typedef struct _performance_counters performance_counters;
 

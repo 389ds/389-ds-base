@@ -98,7 +98,7 @@ def test_monitor_ldbm(topo):
     if db_lib == 'bdb':
         assert 'dbcachehits' in monitor
         assert 'nsslapd-db-configured-locks' in monitor
-    elif db_lib == 'lmdb':
+    elif db_lib == 'mdb':
         pass
     else:
         # Unknown - the server would probably fail to start but check it anyway
@@ -133,12 +133,13 @@ def test_monitor_backend(topo):
 
     # Check for expected attributes
     assert 'entrycachehits' in monitor
-    assert 'dncachehits' in monitor
 
     # Check for library specific attributes
     if db_lib == 'bdb':
+        assert 'dncachehits' in monitor
         assert 'dbfilename-0' in monitor
-    elif db_lib == 'lmdb':
+    elif db_lib == 'mdb':
+        assert 'dbiname-1' in monitor
         pass
     else:
         # Unknown - the server would probably fail to start but check it anyway

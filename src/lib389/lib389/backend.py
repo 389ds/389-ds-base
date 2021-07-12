@@ -23,8 +23,6 @@ from lib389.replica import Replicas, Changelog
 from lib389.cos import (CosTemplates, CosIndirectDefinitions,
                         CosPointerDefinitions, CosClassicDefinitions)
 
-# We need to be a factor to the backend monitor
-from lib389.monitor import MonitorBackend
 from lib389.index import Index, Indexes, VLVSearches, VLVSearch
 from lib389.tasks import ImportTask, ExportTask, Tasks
 from lib389.encrypted_attributes import EncryptedAttr, EncryptedAttrs
@@ -694,6 +692,8 @@ class Backend(DSLdapObject):
 
     def get_monitor(self):
         """Get a MonitorBackend(DSLdapObject) for the backend"""
+        # We need to be a factor to the backend monitor
+        from lib389.monitor import MonitorBackend
 
         monitor = MonitorBackend(instance=self._instance, dn="cn=monitor,%s" % self._dn)
         return monitor

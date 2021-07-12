@@ -15,6 +15,9 @@
 #define TXN_MAGIC0                              0x7A78A89A9AAABBBL
 #define TXN_MAGIC1                              0xdeadbeefdeadbeefL
 
+#define GET_HRTIME(hrtime) clock_gettime(CLOCK_THREAD_CPUTIME_ID, hrtime);
+#define PERF_LOCK()      pthread_mutex_lock(&g_ctx->perf_lock);
+#define PERF_UNLOCK()    pthread_mutex_unlock(&g_ctx->perf_lock);
 
 /* transaction context (on which dbi_txn_t is mapped) */
 typedef struct dbmdb_txn_t {
@@ -23,6 +26,7 @@ typedef struct dbmdb_txn_t {
     int refcnt;                   /* Number of users */
     int flags;
     struct dbmdb_txn_t *parent;
+    struct timespec hr_time_start;
 } dbmdb_txn_t;
 
 
@@ -87,8 +91,18 @@ int dbmdb_is_read_only_txn_thread(void)
     return ltxn ? (ltxn->flags & TXNFL_RDONLY) : 0;
 }
 
+void cumul_time(const struct timespec *sample, cumuled_time_t *sum)
+{
+    sum->nbsamples++;
+    sum->ns += sample->tv_nsec + 1000000000 * sample->tv_sec;
+}
+
 int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_txn_t **txn)
 {
+    struct timespec hr_time_start;
+    struct timespec hr_time_now;
+    struct timespec hr_elapsed;
+    dbmdb_perfctrs_txn_t *perf;
     dbmdb_txn_t *ltxn = NULL;
     MDB_txn *mtxn = NULL;
     int rc = 0;
@@ -127,7 +141,21 @@ int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_
     }
 
     /* Here we need to open a new txn */
+    perf = (flags & TXNFL_RDONLY) ? &g_ctx->perf_rotxn : &g_ctx->perf_rwtxn;
+    PERF_LOCK();
+    perf->nbwaiting++;
+    PERF_UNLOCK();
+
+    GET_HRTIME(&hr_time_start);
     rc = TXN_BEGIN(g_ctx->env, TXN(parent_txn), ((flags & TXNFL_RDONLY)? MDB_RDONLY: 0), &mtxn);
+    GET_HRTIME(&hr_time_now);
+    slapi_timespec_diff(&hr_time_now, &hr_time_start, &hr_elapsed);
+    PERF_LOCK();
+    perf->nbwaiting--;
+    perf->nbactive++;
+    cumul_time(&hr_elapsed, &perf->granttime);
+    PERF_UNLOCK();
+
     if (rc == 0) {
         ltxn = calloc(1, sizeof *ltxn);
         ltxn->magic[0] = TXN_MAGIC0;
@@ -136,6 +164,7 @@ int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_
         ltxn->txn = mtxn;
         ltxn->flags = flags;
         ltxn->parent = parent_txn;
+        ltxn->hr_time_start = hr_time_now;
         push_mdbtxn(ltxn);
         *txn = (dbi_txn_t*)ltxn;
         dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_TXN, "dbi_txn_t=%p mdb_txn=%p\n", ltxn, mtxn);
@@ -150,10 +179,14 @@ int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_
 int dbmdb_end_txn(const char *funcname, int rc, dbi_txn_t **txn)
 {
     dbmdb_txn_t *ltxn = (dbmdb_txn_t*)*txn;
+    struct timespec hr_time_now;
+    struct timespec hr_elapsed;
+    dbmdb_perfctrs_txn_t *perf;
 
     if (!ltxn)
         return rc;
     ltxn->refcnt--;
+    perf = (ltxn->flags & TXNFL_RDONLY) ? &g_ctx->perf_rotxn : &g_ctx->perf_rwtxn;
     TXN_LOG("release txn 0X%lx\n", ltxn->txn);
     if (ltxn->refcnt == 0) {
         if (rc || (ltxn->flags & (TXNFL_DBI|TXNFL_RDONLY)) == TXNFL_RDONLY) {
@@ -161,6 +194,18 @@ int dbmdb_end_txn(const char *funcname, int rc, dbi_txn_t **txn)
         } else {
             rc = TXN_COMMIT(ltxn->txn);
         }
+        GET_HRTIME(&hr_time_now);
+        slapi_timespec_diff(&hr_time_now, &ltxn->hr_time_start, &hr_elapsed);
+        PERF_LOCK();
+        perf->nbactive--;
+        if (rc || (ltxn->flags & (TXNFL_DBI|TXNFL_RDONLY)) == TXNFL_RDONLY) {
+            perf->nbabort++;
+        } else {
+            perf->nbcommit++;
+        }
+        cumul_time(&hr_elapsed, &perf->lifetime);
+        PERF_UNLOCK();
+
         ltxn->txn = NULL;
         pop_mdbtxn();
         slapi_ch_free((void**)txn);
