@@ -723,7 +723,7 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb, int 
                 rc = 1; /* assume we will succeed */
                 while ((entrystr = dse_read_next_entry(buf, &lastp)) != NULL) {
                     char *p, *q;
-                    char errbuf[256];
+                    char errbuf[1024];
                     size_t estrlen = strlen(entrystr);
                     size_t cpylen =
                         (estrlen < sizeof(errbuf)) ? estrlen : sizeof(errbuf) - 1;

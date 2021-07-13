@@ -180,6 +180,7 @@ dbimpl_setup(struct ldbminfo *li, const char *plgname)
     ldbm_config_setup_default(li);
 
     if (!plgname) {
+        ldbm_config_load_dse_info_phase0(li);
         plgname = li->li_backend_implement;
     }
 
@@ -195,7 +196,7 @@ dbimpl_setup(struct ldbminfo *li, const char *plgname)
     }
 
     if (plgname == li->li_backend_implement) {
-        ldbm_config_load_dse_info(li);
+        ldbm_config_load_dse_info_phase1(li);
         priv = (dblayer_private *)li->li_dblayer_private;
         rc = priv->dblayer_load_dse_fn(li);
     }
@@ -650,8 +651,10 @@ dblayer_txn_init(struct ldbminfo *li __attribute__((unused)), back_txn *txn)
 
     if (cur_txn && txn) {
         txn->back_txn_txn = cur_txn->back_txn_txn;
+        txn->back_special_handling_fn = NULL;
     } else if (txn) {
         txn->back_txn_txn = NULL;
+        txn->back_special_handling_fn = NULL;
     }
     return 0;
 }
@@ -943,6 +946,10 @@ db_strtoul(const char *str, int *err)
     }
 
     switch (*p) {
+    case 't':
+    case 'T':
+        multiplier *= 1024 * 1024 * 1024;
+        break;
     case 'g':
     case 'G':
         multiplier *= 1024 * 1024 * 1024;
@@ -1009,6 +1016,10 @@ db_strtoull(const char *str, int *err)
     }
 
     switch (*p) {
+    case 't':
+    case 'T':
+        multiplier *= 1024LL * 1024LL * 1024LL * 1024LL;
+        break;
     case 'g':
     case 'G':
         multiplier *= 1024 * 1024 * 1024;
@@ -1162,7 +1173,6 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
     PR_ASSERT(NULL != priv);
 
     return priv->dblayer_restore_fn(li, src_dir, task);
-
 }
 
 void
@@ -1223,44 +1233,14 @@ dblayer_get_instance_data_dir(backend *be)
     return ret;
 }
 
-/* [605974] check a db region file's existence to know whether import is executed by other process or not */
+/* check whether import is executed by other process or not */
 int
 dblayer_in_import(ldbm_instance *inst)
 {
-    PRDir *dirhandle = NULL;
-    PRDirEntry *direntry = NULL;
-    char inst_dir[MAXPATHLEN];
-    char *inst_dirp = NULL;
-    int rval = 0;
-
-    inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
-                                          inst_dir, MAXPATHLEN);
-    if (!inst_dirp || !*inst_dirp) {
-        rval = -1;
-        goto done;
-    }
-    dirhandle = PR_OpenDir(inst_dirp);
-
-    if (NULL == dirhandle)
-        goto done;
-
-    while (NULL != (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
-        if (NULL == direntry->name) {
-            break;
-        }
-        if (0 == strncmp(direntry->name, DB_REGION_PREFIX, 5)) {
-            rval = 1;
-            break;
-        }
-    }
-    PR_CloseDir(dirhandle);
-done:
-    if (inst_dirp != inst_dir) {
-        slapi_ch_free_string(&inst_dirp);
-    }
-    return rval;
+    struct ldbminfo *li = (struct ldbminfo *)inst->inst_li;
+    dblayer_private *prv = (dblayer_private *)li->li_dblayer_private;
+    return  prv->dblayer_in_import_fn(inst);
 }
-
 
 int
 ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info)
@@ -1389,4 +1369,17 @@ dblayer_get_db_suffix(Slapi_Backend *be)
     dblayer_private *prv = li ? (dblayer_private *)li->li_dblayer_private : NULL;
 
     return  prv ? prv->dblayer_get_db_suffix_fn() : NULL;
+}
+
+int
+ldbm_back_compact(Slapi_Backend *be, PRBool just_changelog)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    int rc = -1;
+    if (!li) {
+        return rc;
+    }
+    dblayer_private *prv = (dblayer_private *)li->li_dblayer_private;
+
+    return  prv->dblayer_compact_fn(be, just_changelog);
 }

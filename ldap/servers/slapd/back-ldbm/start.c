@@ -96,7 +96,7 @@ ldbm_back_start(Slapi_PBlock *pb)
         ldbm_config_internal_set(li, CONFIG_DIRECTORY, "get default");
     }
 
-    /* We are autotuning the caches. was: 
+    /* We are autotuning the caches. was:
      * retval = ldbm_back_start_autotune(li);
      * This involves caches specific to instances managed in the ldbm layer
      * and to caches specific to the db implementation.
@@ -105,7 +105,7 @@ ldbm_back_start(Slapi_PBlock *pb)
      * Therfor this functionality is moved to the db_xxx layer.
      * The latest autotune function was implemented only with BDB in mind
      * so it should be safe to move it to db_bdb.
-     */ 
+     */
     priv = (dblayer_private *)li->li_dblayer_private;
     retval = priv->dblayer_auto_tune_fn(li);
     if (retval != 0) {
@@ -113,7 +113,7 @@ ldbm_back_start(Slapi_PBlock *pb)
         return SLAPI_FAIL_GENERAL;
     }
 
-    /* TBD do we want to go on with auto upgrades of old db versions and config 
+    /* TBD do we want to go on with auto upgrades of old db versions and config
      * or take the opportunity to stop this ??
     retval = check_db_version(li, &action);
     if (0 != retval) {

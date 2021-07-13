@@ -143,6 +143,7 @@ def test_config_listen_backport_size(topology_m2):
     topology_m2.ms["supplier1"].config.replace('nsslapd-listen-backlog-size', default_val)
 
 
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_config_deadlock_policy(topology_m2):
     """Check that nsslapd-db-deadlock-policy acted as expected
 

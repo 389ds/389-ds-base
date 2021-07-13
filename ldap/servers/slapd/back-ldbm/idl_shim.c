@@ -118,22 +118,46 @@ idl_fetch(backend *be, dbi_db_t *db, dbi_val_t *key, dbi_txn_t *txn, struct attr
 }
 
 int
-idl_insert_key(backend *be, dbi_db_t *db, dbi_val_t *key, ID id, dbi_txn_t *txn, struct attrinfo *a, int *disposition)
+idl_insert_key(backend *be, dbi_db_t *db, dbi_val_t *key, ID id, back_txn *txn, struct attrinfo *a, int *disposition)
 {
+    dbi_txn_t *db_txn = (txn != NULL) ? txn->back_txn_txn : NULL;
+
+    if (txn && txn->back_special_handling_fn) {
+        index_update_t update;
+        dbi_val_t data = {0};
+        update.id = id;
+        update.a = a;
+        update.disposition = disposition;
+        dblayer_value_set_buffer(be, &data, &update, sizeof update);
+        return txn->back_special_handling_fn(be, BTXNACT_INDEX_ADD, db, key, &data, txn);
+    }
+
     if (idl_new) {
-        return idl_new_insert_key(be, db, key, id, txn, a, disposition);
+        return idl_new_insert_key(be, db, key, id, db_txn, a, disposition);
     } else {
-        return idl_old_insert_key(be, db, key, id, txn, a, disposition);
+        return idl_old_insert_key(be, db, key, id, db_txn, a, disposition);
     }
 }
 
 int
-idl_delete_key(backend *be, dbi_db_t *db, dbi_val_t *key, ID id, dbi_txn_t *txn, struct attrinfo *a)
+idl_delete_key(backend *be, dbi_db_t *db, dbi_val_t *key, ID id, back_txn *txn, struct attrinfo *a)
 {
+    dbi_txn_t *db_txn = (txn != NULL) ? txn->back_txn_txn : NULL;
+
+    if (txn && txn->back_special_handling_fn) {
+        index_update_t update;
+        dbi_val_t data = {0};
+        update.id = id;
+        update.a = a;
+        update.disposition = NULL;
+        dblayer_value_set_buffer(be, &data, &update, sizeof update);
+        return txn->back_special_handling_fn(be, BTXNACT_INDEX_DEL, db, key, &data, txn);
+    }
+
     if (idl_new) {
-        return idl_new_delete_key(be, db, key, id, txn, a);
+        return idl_new_delete_key(be, db, key, id, db_txn, a);
     } else {
-        return idl_old_delete_key(be, db, key, id, txn, a);
+        return idl_old_delete_key(be, db, key, id, db_txn, a);
     }
 }
 

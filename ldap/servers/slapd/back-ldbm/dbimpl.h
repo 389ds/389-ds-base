@@ -10,6 +10,7 @@
 #define _DBIMPL_H
 
 #include "../slapi-plugin.h"
+#include <limits.h>
 
 #define MEM_FOR_DB_PLUGINS      (8*(sizeof (long)))
 
@@ -91,6 +92,7 @@ typedef uint32_t dbi_recno_t;   /* A record position */
 typedef struct {
     struct backend  *be;
     dbi_txn_t       *txn;
+    int             islocaltxn;
     void            *cur;
 } dbi_cursor_t;                 /* A db cursor */
 
@@ -107,12 +109,18 @@ typedef struct {
     void            *it;       /* implementation plugin iterator */
 } dbi_bulk_t;
 
+/* For dblayer_list_dbs */
+typedef struct {
+    char filename[PATH_MAX];
+    char info[PATH_MAX];
+} dbi_dbslist_t;
+
 struct attrinfo;
 
 /*
- * dbimpl.c Function prototypes are stored here instead of in 
+ * dbimpl.c Function prototypes are stored here instead of in
  * proto-back-ldbm.h because this API is used by replication
- * and dbscan tools (and including proto-back-ldbm.h is painful 
+ * and dbscan tools (and including proto-back-ldbm.h is painful
  * because of the complex dependency chain between slapd and backend)
  */
 char *dblayer_get_filename_id(Slapi_Backend *be, dbi_env_t *env);
@@ -135,7 +143,7 @@ void dblayer_value_concat(Slapi_Backend *be, dbi_val_t *data,
     void *buf, size_t buflen, const char *str1, size_t len1,
     const char *str2, size_t len2, const char *str3, size_t len3);
 int dblayer_set_dup_cmp_fn(Slapi_Backend *be, struct attrinfo *a, dbi_dup_cmp_t idx);
-/* 
+/*
  * Note: dblayer_txn_* functions uses back_txn struct and manage backend lock.
  * while dblayer_dbi_txn_* function use dbi_txn_t opaque struct and interface
  * directly the underlying db.
@@ -152,5 +160,7 @@ int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count);
 
 int dblayer_private_open(const char *plgname, const char *dbfilename, Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db);
 int dblayer_private_close(Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db);
+dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome);
+
 
 #endif /* _DBIMPL_H */

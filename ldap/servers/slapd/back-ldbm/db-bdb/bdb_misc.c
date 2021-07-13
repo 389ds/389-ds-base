@@ -20,7 +20,7 @@ bdb_db_size(Slapi_PBlock *pb)
     int rc;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
-    rc = dblayer_database_size(li, &size);     /* TODO: make this a 64-bit return value */
+    rc = bdb_database_size(li, &size);     /* TODO: make this a 64-bit return value */
     slapi_pblock_set(pb, SLAPI_DBSIZE, &size); /* TODO: make this a 64-bit return value */
 
     return rc;

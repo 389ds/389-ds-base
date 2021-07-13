@@ -282,10 +282,12 @@ ldbm_instance_stop_cache(backend *be)
 static void
 ldbm_instance_set_flags(ldbm_instance *inst)
 {
+    dblayer_private *priv = (dblayer_private *)inst->inst_li->li_dblayer_private;
+
     if (dblayer_is_restored()) {
         slapi_be_set_flag(inst->inst_be, SLAPI_BE_FLAG_POST_RESTORE);
     }
-    if (dblayer_import_file_check(inst)) {
+    if (priv->dblayer_import_file_check_fn(inst)) {
         slapi_be_set_flag(inst->inst_be, SLAPI_BE_FLAG_POST_IMPORT);
     }
 }
@@ -305,6 +307,7 @@ ldbm_instance_startall(struct ldbminfo *li)
         ldbm_instance_set_flags(inst);
         rc1 = ldbm_instance_start(inst->inst_be);
         if (rc1 != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_startall", "failed to start instance %s. err=%d\n", inst->inst_name, rc1);
             rc = rc1;
         } else {
             ldbm_instance_register_modify_callback(inst);

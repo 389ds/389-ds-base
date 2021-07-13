@@ -572,40 +572,22 @@ vlvIndex_init(struct vlvIndex *p, backend *be, struct vlvSearch *pSearch, const 
 PRUint32
 vlvIndex_get_indexlength(backend *be, struct vlvIndex *p, dbi_db_t *db, back_txn *txn)
 {
-    dbi_val_t key = {0};
-    dbi_val_t data = {0};
+    int nbentries = 0;
+    int err = 0;
 
     if (NULL == p)
         return 0;
 
     if (!p->vlv_indexlength_cached) {
-        dbi_cursor_t dbc = {0};
-        dbi_txn_t *db_txn = NULL;
-        int err = 0;
-        if (NULL != txn) {
-            db_txn = txn->back_txn_txn;
-        }
-        err = dblayer_new_cursor(be, db, db_txn, &dbc);
+        PR_Lock(p->vlv_indexlength_lock);
+        err = dblayer_get_entries_count(be, db, &nbentries);
         if (err == 0) {
-            dblayer_value_init(be, &key);
-            dblayer_value_init(be, &data);
-            err = dblayer_cursor_op(&dbc, DBI_OP_MOVE_TO_LAST, &key, &data);
-            if (err == 0) {
-                err = dblayer_cursor_op(&dbc, DBI_OP_GET_RECNO, &key, &data);
-                if (err == 0) {
-                    PR_Lock(p->vlv_indexlength_lock);
-                    p->vlv_indexlength_cached = 1;
-                    p->vlv_indexlength = *((dbi_recno_t *)data.data);
-                    PR_Unlock(p->vlv_indexlength_lock);
-                }
-            }
-            dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL);
-        } else {
-            /* couldn't get cursor??? */
+            p->vlv_indexlength_cached = 1;
+            p->vlv_indexlength = nbentries;
         }
-        dblayer_value_free(be, &key);
-        dblayer_value_free(be, &data);
+        PR_Unlock(p->vlv_indexlength_lock);
     }
+
     return p->vlv_indexlength;
 }
 

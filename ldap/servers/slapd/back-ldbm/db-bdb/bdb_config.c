@@ -15,8 +15,8 @@
 #include "bdb_layer.h"
 
 /* Forward declarations */
-static int parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array);
-static void split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry *bdb_conf_e, config_info *config_array, Slapi_Mods *smods);
+static int bdb_parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array);
+static void bdb_split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry *bdb_conf_e, config_info *config_array, Slapi_Mods *smods);
 
 /* Forward callback declarations */
 int bdb_config_search_entry_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
@@ -72,28 +72,28 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
 
     dblayer_private *priv = li->li_dblayer_private;
     priv->dblayer_start_fn = &bdb_start;
-    priv->dblayer_close_fn = &bdb_close; 
+    priv->dblayer_close_fn = &bdb_close;
     priv->dblayer_instance_start_fn = &bdb_instance_start;
-    priv->dblayer_backup_fn = &bdb_backup; 
-    priv->dblayer_verify_fn = &bdb_verify; 
-    priv->dblayer_db_size_fn = &bdb_db_size; 
-    priv->dblayer_ldif2db_fn = &bdb_ldif2db; 
-    priv->dblayer_db2ldif_fn = &bdb_db2ldif; 
-    priv->dblayer_db2index_fn = &bdb_db2index; 
-    priv->dblayer_cleanup_fn = &bdb_cleanup; 
-    priv->dblayer_upgradedn_fn = &bdb_upgradednformat; 
-    priv->dblayer_upgradedb_fn = &bdb_upgradedb; 
+    priv->dblayer_backup_fn = &bdb_backup;
+    priv->dblayer_verify_fn = &bdb_verify;
+    priv->dblayer_db_size_fn = &bdb_db_size;
+    priv->dblayer_ldif2db_fn = &bdb_ldif2db;
+    priv->dblayer_db2ldif_fn = &bdb_db2ldif;
+    priv->dblayer_db2index_fn = &bdb_db2index;
+    priv->dblayer_cleanup_fn = &bdb_cleanup;
+    priv->dblayer_upgradedn_fn = &bdb_upgradednformat;
+    priv->dblayer_upgradedb_fn = &bdb_upgradedb;
     priv->dblayer_restore_fn = &bdb_restore;
-    priv->dblayer_txn_begin_fn = &bdb_txn_begin; 
-    priv->dblayer_txn_commit_fn = &bdb_txn_commit; 
-    priv->dblayer_txn_abort_fn = &bdb_txn_abort; 
+    priv->dblayer_txn_begin_fn = &bdb_txn_begin;
+    priv->dblayer_txn_commit_fn = &bdb_txn_commit;
+    priv->dblayer_txn_abort_fn = &bdb_txn_abort;
     priv->dblayer_get_info_fn = &bdb_get_info;
     priv->dblayer_set_info_fn = &bdb_set_info;
-    priv->dblayer_back_ctrl_fn = &bdb_back_ctrl; 
-    priv->dblayer_get_db_fn = &bdb_get_db; 
+    priv->dblayer_back_ctrl_fn = &bdb_back_ctrl;
+    priv->dblayer_get_db_fn = &bdb_get_db;
     priv->dblayer_rm_db_file_fn = &bdb_rm_db_file;
     priv->dblayer_delete_db_fn = &bdb_delete_db;
-    priv->dblayer_import_fn = &bdb_import_main;
+    priv->dblayer_import_fn = &bdb_public_bdb_import_main;
     priv->dblayer_load_dse_fn = &bdb_config_load_dse_info;
     priv->dblayer_config_get_fn = &bdb_public_config_get;
     priv->dblayer_config_set_fn = &bdb_public_config_set;
@@ -127,7 +127,14 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_cursor_get_count_fn = &bdb_public_cursor_get_count;
     priv->dblayer_private_open_fn = &bdb_public_private_open;
     priv->dblayer_private_close_fn = &bdb_public_private_close;
+    priv->ldbm_back_wire_import_fn = &bdb_ldbm_back_wire_import;
+    priv->dblayer_restore_file_init_fn = &bdb_restore_file_init;
+    priv->dblayer_restore_file_update_fn = &bdb_restore_file_update;
+    priv->dblayer_import_file_check_fn = &bdb_import_file_check;
+    priv->dblayer_list_dbs_fn = &bdb_list_dbs;
+    priv->dblayer_in_import_fn = &bdb_public_in_import;
     priv->dblayer_get_db_suffix_fn = &bdb_public_get_db_suffix;
+    priv->dblayer_compact_fn = &bdb_public_dblayer_compact;
 
     bdb_fake_priv = *priv; /* Copy the callbaks for bdb_be() */
     return 0;
@@ -1394,7 +1401,7 @@ bdb_config_import_cachesize_set(void *arg,
 static void *
 bdb_config_index_buffer_size_get(void *arg __attribute__((unused)))
 {
-    return (void *)import_get_index_buffer_size();
+    return (void *)bdb_import_get_index_buffer_size();
 }
 
 static int
@@ -1405,7 +1412,7 @@ bdb_config_index_buffer_size_set(void *arg __attribute__((unused)),
                                   int apply)
 {
     if (apply) {
-        import_configure_index_buffer_size((size_t)value);
+        bdb_import_configure_index_buffer_size((size_t)value);
     }
     return LDAP_SUCCESS;
 }
@@ -1708,7 +1715,7 @@ bdb_config_upgrade_dse_info(struct ldbminfo *li)
     slapi_entry_add_string(bdb_config, SLAPI_ATTR_OBJECTCLASS, "extensibleobject");
 
     slapi_mods_init(&smods, 1);
-    split_bdb_config_entry(li, entries[0], bdb_config, bdb_config_param, &smods);
+    bdb_split_bdb_config_entry(li, entries[0], bdb_config, bdb_config_param, &smods);
     add_pb = slapi_pblock_new();
     slapi_pblock_init(add_pb);
 
@@ -1801,7 +1808,7 @@ retry:
             rval = 1;
             goto bail;
         }
-        if (0 != parse_bdb_config_entry(li, entries[0], bdb_config_param)) {
+        if (0 != bdb_parse_bdb_config_entry(li, entries[0], bdb_config_param)) {
             slapi_log_err(SLAPI_LOG_ERR, "bdb_config_load_dse_info", "Error parsing the bdb config DSE entry\n");
             rval = 1;
             goto bail;
@@ -1856,7 +1863,7 @@ retry:
     }
 
     /* NOTE (LK): still needs to investigate and clarify the monitoring split between db layers.
-     * Now still using ldbm functions 
+     * Now still using ldbm functions
      */
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
                                    LDAP_SCOPE_BASE, "(objectclass=*)", bdb_monitor_search,
@@ -1897,7 +1904,8 @@ bdb_deny_config(Slapi_PBlock *pb __attribute__((unused)),
 }
 
 int
-bdb_instance_register_monitor(ldbm_instance *inst) {
+bdb_instance_register_monitor(ldbm_instance *inst)
+{
     struct ldbminfo *li = inst->inst_li;
     char *dn = NULL;
 
@@ -1927,7 +1935,8 @@ bdb_instance_register_monitor(ldbm_instance *inst) {
 }
 
 void
-bdb_instance_unregister_monitor(ldbm_instance *inst) {
+bdb_instance_unregister_monitor(ldbm_instance *inst)
+{
     struct ldbminfo *li = inst->inst_li;
     char *dn = NULL;
 
@@ -2270,7 +2279,7 @@ bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct ber
 }
 
 static void
-split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry *bdb_conf_e, config_info *config_array, Slapi_Mods *smods)
+bdb_split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry *bdb_conf_e, config_info *config_array, Slapi_Mods *smods)
 {
     Slapi_Attr *attr = NULL;
 
@@ -2295,7 +2304,7 @@ split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry
 }
 
 static int
-parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array)
+bdb_parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array)
 {
     Slapi_Attr *attr = NULL;
 
@@ -2315,7 +2324,7 @@ parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_
         bval = (struct berval *)slapi_value_get_berval(sval);
 
         if (bdb_config_set(li, attr_name, config_array, bval, err_buf, CONFIG_PHASE_STARTUP, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
-            slapi_log_err(SLAPI_LOG_ERR, "parse_bdb_config_entry", "Error with config attribute %s : %s\n", attr_name, err_buf);
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_parse_bdb_config_entry", "Error with config attribute %s : %s\n", attr_name, err_buf);
             return 1;
         }
     }
@@ -2324,7 +2333,7 @@ parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_
 
 /* helper for deleting mods (we do not want to be applied) from the mods array */
 static void
-mod_free(LDAPMod *mod)
+bdb_mod_free(LDAPMod *mod)
 {
     ber_bvecfree(mod->mod_bvalues);
     slapi_ch_free((void **)&(mod->mod_type));
@@ -2399,7 +2408,7 @@ bdb_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Sla
                                  ((li->li_flags & LI_FORCE_MOD_CONFIG) ? CONFIG_PHASE_INTERNAL : CONFIG_PHASE_RUNNING),
                                  apply_mod, mods[i]->mod_op);
             if (apply_mod) {
-                mod_free(mods[i]);
+                bdb_mod_free(mods[i]);
                 mods[i] = NULL;
             }
         }

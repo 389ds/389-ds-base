@@ -56,7 +56,7 @@ def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path(topo):
         1. Operation successful
         2. Operation properly fails, without crashing
         3. An error code different from 139 (segmentation fault) should be reported
-        4. 'ERR - bdb_db2ldif - db2ldif: userRoot: can't open file' should be reported
+        4. 'ERR - .*db_db2ldif - db2ldif: userRoot: can't open file' should be reported
     """
     export_ldif = '/tmp/nonexistent/export.ldif'
 
@@ -69,7 +69,7 @@ def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path(topo):
 
     log.info("parsing the errors log to search for the error reported")
     if ds_is_newer("1.3.10"):
-    	search_str = str(topo.standalone.ds_error_log.match(r".*ERR - bdb_db2ldif - db2ldif: userRoot: can't open*"))[1:-1]
+        search_str = str(topo.standalone.ds_error_log.match(r".*ERR - .*db_db2ldif - db2ldif: userRoot: can't open*"))[1:-1]
     else:
     	search_str = str(topo.standalone.ds_error_log.match(r".*ERR - ldbm_back_ldbm2ldif - db2ldif: can't open*"))[1:-1]
 
@@ -96,7 +96,7 @@ def test_db2ldif_cli_with_non_accessible_ldif_file_path(topo):
         1. Operation successful
         2. Operation properly fails, without crashing
         3. An error code different from 139 (segmentation fault) should be reported
-        4. 'ERR - bdb_db2ldif - db2ldif: userRoot: can't open file' should be reported
+        4. 'ERR -.*db_db2ldif - db2ldif: userRoot: can't open file' should be reported
     """
     export_ldif = '/tmp/nonexistent/export.ldif'
     db2ldif_cmd = os.path.join(topo.standalone.ds_paths.sbin_dir, 'dsctl')
@@ -116,7 +116,7 @@ def test_db2ldif_cli_with_non_accessible_ldif_file_path(topo):
             assert True
 
     log.info("parsing the errors log to search for the error reported")
-    search_str = str(topo.standalone.ds_error_log.match(r".*ERR - bdb_db2ldif - db2ldif: userRoot: can't open*"))[1:-1]
+    search_str = str(topo.standalone.ds_error_log.match(r".*ERR - .*_db2ldif - db2ldif: userRoot: can't open*"))[1:-1]
     assert len(search_str) > 0
     log.info("error string : %s" % search_str)
 

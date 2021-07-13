@@ -183,10 +183,11 @@ str2entry_state_information_from_type(struct berval *atype,
 
 /* rawdn is not consumed.  Caller needs to free it. */
 static Slapi_Entry *
-str2entry_fast(const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, int read_stateinfo)
+str2entry_fast(const char *rawdn, const Slapi_RDN *srdn, const char *s, int flags, int read_stateinfo)
 {
     Slapi_Entry *e;
-    char *next, *ptype = NULL;
+    const char *next;
+    char *ptype = NULL;
     int nvals = 0;
     int del_nvals = 0;
     unsigned long attr_val_cnt = 0;
@@ -195,6 +196,7 @@ str2entry_fast(const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, int
     CSN *maxcsn = NULL;
     char *normdn = NULL;
     Slapi_Attr **a = NULL;
+    struct berval bval = {0};
 
 #ifdef OBSOLETE_DN_SYNTAX_CHECK
     int strict = 0;
@@ -238,7 +240,7 @@ str2entry_fast(const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, int
       * no longer needed since attr syntax is not initialized
       */
 
-    while ((s = ldif_getline(&next)) != NULL &&
+    while ((s = ldif_getline_ro(&next)) != NULL &&
            attr_val_cnt < ENTRY_MAX_ATTRIBUTE_VALUE_COUNT) {
         struct berval type = {0, NULL};
         struct berval value = {0, NULL};
@@ -246,11 +248,11 @@ str2entry_fast(const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, int
         int value_state = VALUE_NOTFOUND;
         int attr_state = ATTRIBUTE_NOTFOUND;
 
-        if (*s == '\n' || *s == '\0') {
+        dup_ldif_line(&bval, s, next);
+        if (*bval.bv_val == '\n' || *bval.bv_val == '\0') {
             break;
         }
-
-        if (slapi_ldif_parse_line(s, &type, &value, &freeval) < 0) {
+        if (slapi_ldif_parse_line(bval.bv_val, &type, &value, &freeval) < 0) {
             slapi_log_err(SLAPI_LOG_TRACE, "str2entry_fast", "<== NULL (parse_line)\n");
             continue;
         }
@@ -534,6 +536,7 @@ str2entry_fast(const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, int
         csnset_free(&valuecsnset);
         attr_val_cnt++;
     }
+    slapi_ch_free_string(&bval.bv_val);
     slapi_ch_free_string(&ptype);
     if (attr_val_cnt >= ENTRY_MAX_ATTRIBUTE_VALUE_COUNT) {
         slapi_log_err(SLAPI_LOG_ERR,
@@ -744,7 +747,7 @@ entry_attrs_find(entry_attrs *ea, char *type)
 
 /* dn is not consumed.  Caller needs to free it. */
 static Slapi_Entry *
-str2entry_dupcheck(const char *rawdn, char *s, int flags, int read_stateinfo)
+str2entry_dupcheck(const char *rawdn, const char *s, int flags, int read_stateinfo)
 {
     Slapi_Entry *e;
     str2entry_attr stack_attrs[STR2ENTRY_SMALL_BUFFER_SIZE];
@@ -757,7 +760,7 @@ str2entry_dupcheck(const char *rawdn, char *s, int flags, int read_stateinfo)
     struct berval bvtype;
     str2entry_attr *sa;
     int i;
-    char *next = NULL;
+    const char *next = NULL;
     char *valuecharptr = NULL;
     struct berval bvvalue;
     int rc;
@@ -771,6 +774,7 @@ str2entry_dupcheck(const char *rawdn, char *s, int flags, int read_stateinfo)
     CSN *maxcsn = NULL;
     char *normdn = NULL;
     int strict = 0;
+    struct berval bval = {0};
 
     /* Check if we should be performing strict validation. */
     strict = config_get_dn_validate_strict();
@@ -785,7 +789,7 @@ str2entry_dupcheck(const char *rawdn, char *s, int flags, int read_stateinfo)
     if (flags & SLAPI_STR2ENTRY_BIGENTRY) {
         big_entry_attr_presence_check = 1;
     }
-    while ((s = ldif_getline(&next)) != NULL) {
+    while ((s = ldif_getline_ro(&next)) != NULL) {
         int value_state = VALUE_NOTFOUND;
         int attr_state = VALUE_NOTFOUND;
         int freeval = 0;
@@ -793,14 +797,15 @@ str2entry_dupcheck(const char *rawdn, char *s, int flags, int read_stateinfo)
 
         csn_free(&attributedeletioncsn);
 
-        if (*s == '\n' || *s == '\0') {
+        bvtype = bv_null;
+        bvvalue = bv_null;
+        dup_ldif_line(&bval, s, next);
+        if (*bval.bv_val == '\n' || *bval.bv_val == '\0') {
             break;
         }
 
-        bvtype = bv_null;
-        bvvalue = bv_null;
-        if (slapi_ldif_parse_line(s, &bvtype, &bvvalue, &freeval) < 0) {
-            slapi_log_err(SLAPI_LOG_WARNING, "str2entry_dupcheck"
+        if (slapi_ldif_parse_line(bval.bv_val, &bvtype, &bvvalue, &freeval) < 0) {
+            slapi_log_err(SLAPI_LOG_WARNING, "str2entry_dupcheck",
                                              "Entry (%s), ignoring invalid line \"%s\"...\n",
                           rawdn ? (char *)rawdn : "", s);
             continue;
@@ -839,7 +844,7 @@ str2entry_dupcheck(const char *rawdn, char *s, int flags, int read_stateinfo)
                     normdn = slapi_create_dn_string("%s", rawdn);
                     if (NULL == normdn) {
                         slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck",
-                                      "nvalid DN: %s\n", (char *)rawdn);
+                                      "Invalid DN: %s\n", (char *)rawdn);
                         slapi_entry_free(e);
                         if (freeval)
                             slapi_ch_free_string(&bvvalue.bv_val);
@@ -1112,6 +1117,7 @@ str2entry_dupcheck(const char *rawdn, char *s, int flags, int read_stateinfo)
 
         slapi_value_free(&value); /* if rc is error, value was not consumed - free it */
     }
+    slapi_ch_free_string(&bval.bv_val);
 
     /* All done with parsing.  Now create the entry. */
     /* check to make sure there was a dn: line */

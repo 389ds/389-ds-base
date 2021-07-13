@@ -89,6 +89,7 @@ typedef int instance_cleanup_fn_t(struct ldbm_instance *inst);
 typedef int instance_create_fn_t(struct ldbm_instance *inst);
 typedef int instance_search_callback_fn_t(Slapi_Entry *e, int *returncode, char *returntext, ldbm_instance *inst);
 typedef int dblayer_auto_tune_fn_t(struct ldbminfo *li);
+typedef int dblayer_compact_fn_t(Slapi_Backend *be, PRBool just_changelog);
 
 typedef char *dblayer_get_db_filename_fn_t(dbi_db_t *db);
 typedef int dblayer_bulk_free_fn_t(dbi_bulk_t *bulkdata);
@@ -109,9 +110,16 @@ typedef int dblayer_dbi_txn_commit_fn_t(dbi_txn_t *txn);
 typedef int dblayer_dbi_txn_abort_fn_t(dbi_txn_t *txn);
 typedef int dblayer_get_entries_count_fn_t(dbi_db_t *db, int *count);
 typedef int dblayer_cursor_get_count_fn_t(dbi_cursor_t *cursor, dbi_recno_t *count);
-typedef int dblayer_private_open_fn_t(const char *db_filename, dbi_env_t **env, dbi_db_t **db);
+typedef int dblayer_private_open_fn_t(backend *be, const char *db_filename, dbi_env_t **env, dbi_db_t **db);
 typedef int dblayer_private_close_fn_t(dbi_env_t **env, dbi_db_t **db);
+typedef int ldbm_back_wire_import_fn_t(Slapi_PBlock *pb);
+typedef int dblayer_restore_file_init_fn_t(struct ldbminfo *li);
+typedef void dblayer_restore_file_update_fn_t(struct ldbminfo *li, const char *directory);
+typedef int dblayer_import_file_check_fn_t(ldbm_instance *inst);
+typedef dbi_dbslist_t *dblayer_list_dbs_fn_t(const char *dbhome);
+typedef int dblayer_in_import_fn_t(ldbm_instance *inst);
 typedef const char *dblayer_get_db_suffix_fn_t(void);
+typedef int dblayer_clear_vlv_cache_fn_t(backend *be, dbi_txn_t *txn, dbi_db_t *db);
 
 struct dblayer_private
 {
@@ -183,7 +191,15 @@ struct dblayer_private
     dblayer_cursor_get_count_fn_t *dblayer_cursor_get_count_fn;
     dblayer_private_open_fn_t *dblayer_private_open_fn;
     dblayer_private_close_fn_t *dblayer_private_close_fn;
+    ldbm_back_wire_import_fn_t *ldbm_back_wire_import_fn;
+    dblayer_restore_file_init_fn_t *dblayer_restore_file_init_fn;
+    dblayer_restore_file_update_fn_t *dblayer_restore_file_update_fn;
+    dblayer_import_file_check_fn_t *dblayer_import_file_check_fn;
+    dblayer_list_dbs_fn_t *dblayer_list_dbs_fn;
+    dblayer_in_import_fn_t *dblayer_in_import_fn;
     dblayer_get_db_suffix_fn_t *dblayer_get_db_suffix_fn;
+    dblayer_compact_fn_t *dblayer_compact_fn;
+    dblayer_clear_vlv_cache_fn_t *dblayer_clear_vlv_cache_fn;
 };
 
 #define DBLAYER_PRIV_SET_DATA_DIR 0x1
@@ -192,11 +208,8 @@ void dblayer_init_pvt_txn(void);
 void dblayer_push_pvt_txn(back_txn *txn);
 back_txn *dblayer_get_pvt_txn(void);
 void dblayer_pop_pvt_txn(void);
-
-int dblayer_delete_indices(ldbm_instance *inst);
 int dbimpl_setup(struct ldbminfo *li, const char *plgname);
 const char *dblayer_get_db_suffix(Slapi_Backend *be);
-
 
 /* Return the last four characters of a string; used for comparing extensions. */
 char *last_four_chars(const char *s);

@@ -39,7 +39,7 @@ static int idl_tune = DEFAULT_IDL_TUNE; /* tuning parameters for IDL code */
 #define IDL_TUNE_BSEARCH 1              /* do a binary search when inserting into an IDL */
 #define IDL_TUNE_NOPAD 2                /* Don't pad IDLs with space at the end */
 
-/* if still needed, need to find a solution 
+/* if still needed, need to find a solution
  * just moved here to clenaup dblayer
  */
 
@@ -425,7 +425,7 @@ idl_store(
                 operation_out_of_disk_space();
             }
             slapi_log_err(((DBI_RC_RETRY == rc) ? SLAPI_LOG_TRACE : SLAPI_LOG_ERR),
-                          "idl_store - (%s) Returns %d %s\n",
+                          "idl_store", "(%s) Returns %d %s\n",
                           ((char *)key->dptr)[key->dsize - 1] ? "" : (char *)key->dptr,
                           rc, (msg = dblayer_strerror(rc)) ? msg : "");
             if (rc == DBI_RC_RUNRECOVERY) {

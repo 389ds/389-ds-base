@@ -621,8 +621,10 @@ multisupplier_mmr_postop (Slapi_PBlock *pb, int flags)
 		rc = multisupplier_be_betxnpostop_modrdn(pb);
 		break;
 	}
-	slapi_log_err(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
+    if (rc) {
+	    slapi_log_err(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
                      "multisupplier_mmr_postop - error %d for operation %d.\n", rc, flags);
+	}
 	return rc;
 }
 
