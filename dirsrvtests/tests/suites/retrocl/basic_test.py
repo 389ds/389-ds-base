@@ -8,7 +8,6 @@
 
 import logging
 import ldap
-import time
 import pytest
 from lib389.topologies import topology_st
 from lib389.plugins import RetroChangelogPlugin
@@ -18,7 +17,8 @@ from lib389.tasks import *
 from lib389.cli_base import FakeArgs, connect_instance, disconnect_instance
 from lib389.cli_base.dsrc import dsrc_arg_concat
 from lib389.cli_conf.plugins.retrochangelog import retrochangelog_add
-from lib389.idm.user import UserAccount, UserAccounts, nsUserAccounts
+from lib389.idm.user import UserAccount, UserAccounts
+from lib389._mapped_object import DSLdapObjects
 
 pytestmark = pytest.mark.tier1
 
@@ -77,7 +77,7 @@ def test_retrocl_exclude_attr_add(topology_st):
 
     log.info('Adding user1')
     try:
-        user1 = users.create(properties={
+        users.create(properties={
             'sn': '1',
             'cn': 'user 1',
             'uid': 'user1',
@@ -92,17 +92,18 @@ def test_retrocl_exclude_attr_add(topology_st):
     except ldap.ALREADY_EXISTS:
         pass
     except ldap.LDAPError as e:
-        log.error("Failed to add user1")
+        log.error("Failed to add user1: " + str(e))
 
     log.info('Verify homePhone and carLicense attrs are in the changelog changestring')
     try:
-        cllist = st.search_s(RETROCL_SUFFIX, ldap.SCOPE_SUBTREE, '(targetDn=%s)' % USER1_DN)
+        retro_changelog_suffix = DSLdapObjects(st, basedn=RETROCL_SUFFIX)
+        cllist = retro_changelog_suffix.filter(f'(targetDn={USER1_DN})')
     except ldap.LDAPError as e:
-        log.fatal("Changelog search failed, error: " +str(e))
+        log.fatal("Changelog search failed, error: " + str(e))
         assert False
     assert len(cllist) > 0
-    if  cllist[0].hasAttr('changes'):
-        clstr = (cllist[0].getValue('changes')).decode()
+    if  cllist[0].present('changes'):
+        clstr = str(cllist[0].get_attr_vals_utf8('changes'))
         assert ATTR_HOMEPHONE in clstr
         assert ATTR_CARLICENSE in clstr
 
@@ -133,7 +134,7 @@ def test_retrocl_exclude_attr_add(topology_st):
 
     log.info('Adding user2')
     try:
-        user2 = users.create(properties={
+        users.create(properties={
             'sn': '2',
             'cn': 'user 2',
             'uid': 'user2',
@@ -148,18 +149,18 @@ def test_retrocl_exclude_attr_add(topology_st):
     except ldap.ALREADY_EXISTS:
         pass
     except ldap.LDAPError as e:
-        log.error("Failed to add user2")
+        log.error("Failed to add user2: " + str(e))
 
     log.info('Verify homePhone attr is not in the changelog changestring')
     try:
-        cllist = st.search_s(RETROCL_SUFFIX, ldap.SCOPE_SUBTREE, '(targetDn=%s)' % USER2_DN)
+        cllist = retro_changelog_suffix.filter(f'(targetDn={USER2_DN})')
         assert len(cllist) > 0
-        if  cllist[0].hasAttr('changes'):
-            clstr = (cllist[0].getValue('changes')).decode()
+        if  cllist[0].present('changes'):
+            clstr = str(cllist[0].get_attr_vals_utf8('changes'))
             assert ATTR_HOMEPHONE not in clstr
             assert ATTR_CARLICENSE in clstr
     except ldap.LDAPError as e:
-        log.fatal("Changelog search failed, error: " +str(e))
+        log.fatal("Changelog search failed, error: " + str(e))
         assert False
 
 #unstable or unstatus tests, skipped for now
@@ -222,19 +223,20 @@ def test_retrocl_exclude_attr_mod(topology_st):
             'homeDirectory': '/home/user1',
             'userpassword': USER_PW})
     except ldap.ALREADY_EXISTS:
-        pass
+        user1 = UserAccount(st, dn=USER1_DN)
     except ldap.LDAPError as e:
-        log.error("Failed to add user1")
+        log.error("Failed to add user1: " + str(e))
 
     log.info('Verify homePhone and carLicense attrs are in the changelog changestring')
     try:
-        cllist = st.search_s(RETROCL_SUFFIX, ldap.SCOPE_SUBTREE, '(targetDn=%s)' % USER1_DN)
+        retro_changelog_suffix = DSLdapObjects(st, basedn=RETROCL_SUFFIX)
+        cllist = retro_changelog_suffix.filter(f'(targetDn={USER1_DN})')
     except ldap.LDAPError as e:
-        log.fatal("Changelog search failed, error: " +str(e))
+        log.fatal("Changelog search failed, error: " + str(e))
         assert False
     assert len(cllist) > 0
-    if  cllist[0].hasAttr('changes'):
-        clstr = (cllist[0].getValue('changes')).decode()
+    if  cllist[0].present('changes'):
+        clstr = str(cllist[0].get_attr_vals_utf8('changes'))
         assert ATTR_HOMEPHONE in clstr
         assert ATTR_CARLICENSE in clstr
 
@@ -265,23 +267,24 @@ def test_retrocl_exclude_attr_mod(topology_st):
 
     log.info('Modify user1 carLicense attribute')
     try:
-        st.modify_s(USER1_DN, [(ldap.MOD_REPLACE, ATTR_CARLICENSE, b"123WX321")])
+        user1.replace(ATTR_CARLICENSE, "123WX321")
     except ldap.LDAPError as e:
         log.fatal('test_retrocl_exclude_attr_mod: Failed to update user1 attribute: error ' + e.message['desc'])
         assert False
 
     log.info('Verify carLicense attr is not in the changelog changestring')
     try:
-        cllist = st.search_s(RETROCL_SUFFIX, ldap.SCOPE_SUBTREE, '(targetDn=%s)' % USER1_DN)
+        cllist = retro_changelog_suffix.filter(f'(targetDn={USER1_DN})')
         assert len(cllist) > 0
         # There will be 2 entries in the changelog for this user, we are only
         #interested in the second one, the modify operation.
-        if  cllist[1].hasAttr('changes'):
-            clstr = (cllist[1].getValue('changes')).decode()
+        if  cllist[1].present('changes'):
+            clstr = str(cllist[1].get_attr_vals_utf8('changes'))
             assert ATTR_CARLICENSE not in clstr
     except ldap.LDAPError as e:
-        log.fatal("Changelog search failed, error: " +str(e))
+        log.fatal("Changelog search failed, error: " + str(e))
         assert False
+
 
 if __name__ == '__main__':
     # Run isolated
