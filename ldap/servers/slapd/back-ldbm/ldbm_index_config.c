@@ -25,7 +25,7 @@ int ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry *en
 #define INDEXTYPE_NONE 1
 
 static int
-ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e, const char *trace_string, char **index_name, char *err_buf)
+ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e, const char *trace_string, char **index_name, PRBool *is_system_index, char *err_buf)
 {
     Slapi_Attr *attr;
     const struct berval *attrValue;
@@ -78,6 +78,15 @@ ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e, const char *trace_st
         }
     }
 
+    *is_system_index = PR_FALSE;
+    if (0 == slapi_entry_attr_find(e, "nsSystemIndex", &attr)) {
+        slapi_attr_first_value(attr, &sval);
+        attrValue = slapi_value_get_berval(sval);
+        if (strcasecmp(attrValue->bv_val, "true") == 0) {
+            *is_system_index = PR_TRUE;
+        }
+    }
+
     /* ok the entry is good to process, pass it to attr_index_config */
     if (attr_index_config(inst->inst_be, (char *)trace_string, 0, e, 0, 0, err_buf)) {
         slapi_ch_free_string(index_name);
@@ -101,9 +110,10 @@ ldbm_index_init_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
                                void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
+    PRBool is_system_index = PR_FALSE;
 
     returntext[0] = '\0';
-    *returncode = ldbm_index_parse_entry(inst, e, "from ldbm instance init", NULL, NULL);
+    *returncode = ldbm_index_parse_entry(inst, e, "from ldbm instance init", NULL, &is_system_index /* not used */, NULL);
     if (*returncode == LDAP_SUCCESS) {
         return SLAPI_DSE_CALLBACK_OK;
     } else {
@@ -126,17 +136,21 @@ ldbm_instance_index_config_add_callback(Slapi_PBlock *pb __attribute__((unused))
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     char *index_name = NULL;
+    PRBool is_system_index = PR_FALSE;
 
     returntext[0] = '\0';
-    *returncode = ldbm_index_parse_entry(inst, e, "from DSE add", &index_name, returntext);
+    *returncode = ldbm_index_parse_entry(inst, e, "from DSE add", &index_name, &is_system_index, returntext);
     if (*returncode == LDAP_SUCCESS) {
         struct attrinfo *ai = NULL;
         /* if the index is a "system" index, we assume it's being added by
          * by the server, and it's okay for the index to go online immediately.
          * if not, we set the index "offline" so it won't actually be used
          * until someone runs db2index on it.
+         * If caller wants to add an index that they want to be online
+         * immediately they can also set "nsSystemIndex" to "true" in the
+         * index config entry (e.g. is_system_index).
          */
-        if (!ldbm_attribute_always_indexed(index_name)) {
+        if (!is_system_index && !ldbm_attribute_always_indexed(index_name)) {
             ainfo_get(inst->inst_be, index_name, &ai);
             PR_ASSERT(ai != NULL);
             ai->ai_indexmask |= INDEX_OFFLINE;
@@ -386,13 +400,14 @@ ldbm_instance_index_config_enable_index(ldbm_instance *inst, Slapi_Entry *e)
     char *index_name = NULL;
     int rc = LDAP_SUCCESS;
     struct attrinfo *ai = NULL;
+    PRBool is_system_index = PR_FALSE;
 
     index_name = slapi_entry_attr_get_charptr(e, "cn");
     if (index_name) {
         ainfo_get(inst->inst_be, index_name, &ai);
     }
     if (!ai) {
-        rc = ldbm_index_parse_entry(inst, e, "from DSE add", &index_name, NULL);
+        rc = ldbm_index_parse_entry(inst, e, "from DSE add", &index_name, &is_system_index /* not used */, NULL);
     }
     if (rc == LDAP_SUCCESS) {
         /* Assume the caller knows if it is OK to go online immediately */

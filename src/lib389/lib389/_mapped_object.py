@@ -148,6 +148,19 @@ class DSLdapObject(DSLogging, DSLint):
 
         return True
 
+    def search(self, scope="subtree", filter='objectclass=*'):
+        search_scope = ldap.SCOPE_SUBTREE
+        if scope == 'base':
+            search_scope = ldap.SCOPE_BASE
+        elif scope == 'one':
+            search_scope = ldap.SCOPE_ONE
+        elif scope == 'subtree':
+            search_scope = ldap.SCOPE_SUBTREE
+        return self._instance.search_ext_s(self._dn, search_scope, filter,
+                                           serverctrls=self._server_controls,
+                                           clientctrls=self._client_controls,
+                                           escapehatch='i am sure')
+
     def display(self, attrlist=['*']):
         """Get an entry but represent it as a string LDIF
 
