@@ -161,7 +161,6 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
     li->li_flags = run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
-    priv = (dblayer_private *)li->li_dblayer_private;
 
     if (!rawdirectory || !*rawdirectory) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_archive2ldbm", "No archive name\n");
@@ -200,6 +199,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
             slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_archive2ldbm", "dblayer_setup failed\n");
             return -1;
         }
+        priv = (dblayer_private *)li->li_dblayer_private;
 
         /* initialize a restore file to be able to detect a startup after restore */
         if (priv->dblayer_restore_file_init_fn(li)) {
@@ -318,7 +318,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
     }
 
 out:
-    if (run_from_cmdline && (0 == return_value)) {
+    if (priv && run_from_cmdline && (0 == return_value)) {
         priv->dblayer_restore_file_update_fn(li, directory);
     }
     slapi_ch_free_string(&directory);
