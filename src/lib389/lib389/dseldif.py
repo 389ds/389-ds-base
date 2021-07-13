@@ -54,10 +54,10 @@ class DSEldif(DSLint):
                 if not line.startswith(' '):
                     if processed_line:
                         self._contents.append(processed_line)
-                        if line.startswith('dn:'):
-                            processed_line = line.lower()
-                        else:
-                            processed_line = line
+                    if line.startswith('dn:'):
+                        processed_line = line.lower()
+                    else:
+                        processed_line = line
                 else:
                     processed_line = processed_line[:-1] + line[1:]
 
