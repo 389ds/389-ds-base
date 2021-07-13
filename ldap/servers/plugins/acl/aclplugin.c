@@ -98,7 +98,7 @@ aclplugin_preop_search(Slapi_PBlock *pb)
     int scope;
     const char *base = NULL;
     Slapi_DN *sdn = NULL;
-    int optype;
+    unsigned long optype = SLAPI_OPERATION_NONE;
     int isRoot;
     int isProxy = 0;
     int rc = 0;

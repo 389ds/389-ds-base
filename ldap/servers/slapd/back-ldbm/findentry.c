@@ -92,7 +92,7 @@ find_entry_internal_dn(
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     size_t tries = 0;
     int isroot = 0;
-    int op_type;
+    unsigned long op_type = SLAPI_OPERATION_NONE;
 
     /* get the managedsait ldap message control */
     slapi_pblock_get(pb, SLAPI_MANAGEDSAIT, &managedsait);

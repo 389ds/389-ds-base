@@ -472,7 +472,7 @@ struct acl_pblock
 
     Slapi_Entry *aclpb_client_entry; /* A copy of client's entry */
     Slapi_PBlock *aclpb_pblock;      /* back to LDAP PBlock */
-    int aclpb_optype;                /* current optype from pb */
+    unsigned long aclpb_optype;                /* current optype from pb */
 
     /* Current entry/dn/attr evaluation info */
     Slapi_Entry *aclpb_curr_entry; /* current Entry being processed */

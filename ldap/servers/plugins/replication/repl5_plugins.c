@@ -536,7 +536,7 @@ purge_entry_state_information(Slapi_PBlock *pb)
     }
     if (NULL != purge_csn) {
         Slapi_Entry *e;
-        int optype;
+        unsigned long optype = SLAPI_OPERATION_NONE;
 
         slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &optype);
         switch (optype) {

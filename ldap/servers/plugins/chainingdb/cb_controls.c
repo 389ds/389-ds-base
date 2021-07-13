@@ -127,7 +127,7 @@ cb_update_controls(Slapi_PBlock *pb,
     int useloop = 0;
     int addauth = (ctrl_flags & CB_UPDATE_CONTROLS_ADDAUTH);
     int isabandon = (ctrl_flags & CB_UPDATE_CONTROLS_ISABANDON);
-    int op_type = 0;
+    unsigned long op_type = SLAPI_OPERATION_NONE;
     size_t i;
 
     *controls = NULL;
