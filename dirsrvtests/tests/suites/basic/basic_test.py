@@ -470,6 +470,8 @@ def test_basic_db2index(topology_st):
 
     assert indexNum+1 == numIndexes
 
+    topology_st.standalone.start()
+
 
 def test_basic_acl(topology_st, import_example_ldif):
     """Run some basic access control (ACL) tests
