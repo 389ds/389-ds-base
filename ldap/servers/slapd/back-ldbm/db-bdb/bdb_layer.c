@@ -2577,7 +2577,7 @@ bdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_ch
     /* Added for bug 600401. Somehow the checkpoint thread deadlocked on
      index file with this function, index file couldn't be removed on win2k.
      Force a checkpoint here to break deadlock.
-  */
+    */
     if (0 == no_force_checkpoint) {
         bdb_force_checkpoint(li);
     }

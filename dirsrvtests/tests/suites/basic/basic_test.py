@@ -381,8 +381,7 @@ def test_basic_backup(topology_st, import_example_ldif):
 
     log.info('test_basic_backup: PASSED')
 
-
-def test_basic_db2index(topology_st, import_example_ldif):
+def test_basic_db2index(topology_st):
     """Assert db2index can operate correctly.
 
     :id: 191fc0fd-9722-46b5-a7c3-e8760effe119
@@ -390,15 +389,67 @@ def test_basic_db2index(topology_st, import_example_ldif):
     :setup: Standalone instance
 
     :steps:
-        1: call db2index
+        1: Call db2index with a single index attribute
+        2: Call db2index with multiple index attributes
+        3: Call db2index with no index attributes
 
     :expectedresults:
-        1: Index succeeds.
+        1: Index succeeds for single index attribute
+        2: Index succeeds for multiple index attributes
+        3: Index succeeds for all backend indexes which have been obtained from dseldif
 
     """
+
+    indexes = []
+
+    # Error log message to confirm a reindex
+    info_message = 'INFO - bdb_db2index - ' + DEFAULT_BENAME + ':' + ' Indexing attribute: '
+
+    log.info('Start the server')
+    topology_st.standalone.start()
+
+    log.info('Offline reindex, stopping the server')
     topology_st.standalone.stop()
-    topology_st.standalone.db2index()
-    topology_st.standalone.db2index(suffixes=[DEFAULT_SUFFIX], attrs=['uid'])
+
+    log.info('Reindex with a single index attribute')
+    topology_st.standalone.db2index(bename=DEFAULT_BENAME, attrs=['uid'])
+    assert topology_st.standalone.searchErrorsLog(info_message + 'uid')
+
+    log.info('Restart the server to clear the logs')
+    topology_st.standalone.start()
+    topology_st.standalone.stop()
+
+    log.info('Reindex with multiple attributes')
+    topology_st.standalone.db2index(bename=DEFAULT_BENAME, attrs=['cn','aci','givenname'])
+    assert topology_st.standalone.searchErrorsLog(info_message + 'cn')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'aci')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'givenname')
+
+    log.info('Restart the server to clear the logs')
+    topology_st.standalone.start()
+    topology_st.standalone.stop()
+
+    log.info('Start the server and get all indexes for specified backend')
+    topology_st.standalone.start()
+    dse_ldif = DSEldif(topology_st.standalone)
+    indexes = dse_ldif.get_indexes(DEFAULT_BENAME)
+    numIndexes = len(indexes)
+    assert numIndexes > 0
+
+    log.info('Stop the server and reindex with all backend indexes')
+    topology_st.standalone.stop()
+    topology_st.standalone.db2index(bename=DEFAULT_BENAME, attrs=indexes)
+    log.info('Checking the server logs for %d backend indexes INFO' % numIndexes)
+    for indexNum, index in enumerate(indexes):
+        if index in "entryrdn":
+            assert topology_st.standalone.searchErrorsLog(
+                'INFO - bdb_db2index - ' + DEFAULT_BENAME + ':' + ' Indexing ' + index)
+        else:
+            assert topology_st.standalone.searchErrorsLog(
+                'INFO - bdb_db2index - ' + DEFAULT_BENAME + ':' + ' Indexing attribute: ' + index)
+
+    assert indexNum+1 == numIndexes
+
     topology_st.standalone.start()
 
 
