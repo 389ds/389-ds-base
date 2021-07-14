@@ -11,6 +11,7 @@ import copy
 import os
 import base64
 import time
+import fnmatch
 from struct import pack, unpack
 from datetime import timedelta
 from stat import ST_MODE
@@ -53,7 +54,6 @@ class DSEldif(DSLint):
                 if not line.startswith(' '):
                     if processed_line:
                         self._contents.append(processed_line)
-
                     if line.startswith('dn:'):
                         processed_line = line.lower()
                     else:
@@ -144,6 +144,20 @@ class DSEldif(DSLint):
         if single:
             return vals[0] if len(vals) > 0 else None
         return vals
+
+    def get_indexes(self, backend):
+        """Return a list of backend indexes
+
+        :param backend: a backend to get the indexes of
+        """
+        indexes = []
+        for entry in self._contents:
+            if fnmatch.fnmatch(entry, "*,cn=index,cn={}*".format(backend.lower())):
+                start = entry.find("cn=")
+                end = entry.find(",")
+                indexes.append(entry[start+len('cn='):end])
+
+        return indexes
 
     def add(self, entry_dn, attr, value):
         """Add an attribute under a given entry

@@ -2900,9 +2900,9 @@ class DirSrv(SimpleLDAPObject, object):
     def db2index(self, bename=None, suffixes=None, attrs=None, vlvTag=None):
         """
         @param bename - The backend name to reindex
-        @param suffixes - List/tuple of suffixes to reindex
+        @param suffixes - List/tuple of suffixes to reindex, currently unused
         @param attrs - List/tuple of the attributes to index
-        @param vlvTag - The VLV index name to index
+        @param vlvTag - The VLV index name to index, currently unused
         @return - True if reindexing succeeded
         """
         prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
@@ -2910,17 +2910,25 @@ class DirSrv(SimpleLDAPObject, object):
         if self.status():
             self.log.error("db2index: Can not operate while directory server is running")
             return False
-
-        if (not bename and not suffixes) and (attrs or vlvTag):
-            self.log.error("db2index: missing required backend name or suffix")
-            return False
-
         cmd = [prog, ]
-        if attrs or vlvTag:
+        # No backend specified, do an upgrade on all backends
+        # Backend and no attrs specified, reindex with all backend indexes
+        # Backend and attr/s specified, reindex backend with attr/s
+        if bename:
             cmd.append('db2index')
-            if bename:
-                cmd.append('-n')
-                cmd.append(bename)
+            cmd.append('-n')
+            cmd.append(bename)
+            if attrs:
+                 for attr in attrs:
+                        cmd.append('-t')
+                        cmd.append(attr)
+            else:
+                dse_ldif = DSEldif(self)
+                indexes = dse_ldif.get_indexes(bename)
+                if indexes:
+                    for idx in indexes:
+                        cmd.append('-t')
+                        cmd.append(idx)
         else:
             cmd.append('upgradedb')
             cmd.append('-a')
@@ -2930,21 +2938,6 @@ class DirSrv(SimpleLDAPObject, object):
 
         cmd.append('-D')
         cmd.append(self.get_config_dir())
-
-        # Can only use suffiix in attr only mode.
-        if suffixes and (attrs or vlvTag):
-            for suffix in suffixes:
-                cmd.append('-s')
-                cmd.append(suffix)
-
-        if attrs:
-            for attr in attrs:
-                cmd.append('-t')
-                cmd.append(attr)
-
-        if vlvTag:
-            cmd.append('-T')
-            cmd.append(vlvTag)
 
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')

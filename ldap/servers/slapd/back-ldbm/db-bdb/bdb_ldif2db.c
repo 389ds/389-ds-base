@@ -1401,7 +1401,7 @@ bdb_db2index(Slapi_PBlock *pb)
      */
     if (run_from_cmdline) {
         /* Turn off transactions */
-        ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
+        bdb_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
 
         if (0 != dblayer_start(li, DBLAYER_INDEX_MODE)) {
             slapi_task_log_notice(task, "Failed to init database: %s", instance_name);
@@ -1555,7 +1555,7 @@ bdb_db2index(Slapi_PBlock *pb)
                                   "bdb_db2index", "%s: Indexing attribute: %s\n",
                                   inst->inst_name, attrs[i] + 1);
                 }
-                dblayer_erase_index_file(be, ai, PR_TRUE, i /* chkpt; 1st time only */);
+                dblayer_erase_index_file(be, ai, PR_TRUE, i);
                 break;
             case 'T': /* VLV Search to index */
                 vlvip = vlv_find_searchname((attrs[i]) + 1, be);

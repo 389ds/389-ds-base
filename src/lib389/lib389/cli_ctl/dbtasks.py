@@ -10,11 +10,29 @@
 from lib389._constants import TaskWarning
 
 def dbtasks_db2index(inst, log, args):
-    if not inst.db2index(bename=args.backend):
-        log.fatal("db2index failed")
-        return False
+    rtn = False
+    if not args.backend:
+        if not inst.db2index():
+            rtn = False
+        else:
+            rtn = True
+    elif args.backend and not args.attr:
+        if not inst.db2index(bename=args.backend):
+            rtn = False
+        else:
+            rtn = True
     else:
+        if not inst.db2index(bename=args.backend, attrs=args.attr):
+            rtn = False
+        else:
+            rtn = True
+    if rtn:
         log.info("db2index successful")
+        return rtn
+    else:
+        log.fatal("db2index failed")
+        return rtn
+
 
 
 def dbtasks_db2bak(inst, log, args):
@@ -95,7 +113,8 @@ def dbtasks_verify(inst, log, args):
 def create_parser(subcommands):
     db2index_parser = subcommands.add_parser('db2index', help="Initialise a reindex of the server database. The server must be stopped for this to proceed.")
     # db2index_parser.add_argument('suffix', help="The suffix to reindex. IE dc=example,dc=com.")
-    db2index_parser.add_argument('backend', help="The backend to reindex. IE userRoot")
+    db2index_parser.add_argument('backend', nargs="?", help="The backend to reindex. IE userRoot", default=False)
+    db2index_parser.add_argument('--attr', nargs="*", help="The attribute's to reindex. IE --attr aci cn givenname", default=False)
     db2index_parser.set_defaults(func=dbtasks_db2index)
 
     db2bak_parser = subcommands.add_parser('db2bak', help="Initialise a BDB backup of the database. The server must be stopped for this to proceed.")
