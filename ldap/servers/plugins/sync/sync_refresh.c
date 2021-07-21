@@ -213,7 +213,7 @@ sync_srch_refresh_pre_entry(Slapi_PBlock *pb)
         Slapi_Entry *e;
         slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &e);
         LDAPControl **ctrl = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl *));
-        sync_create_state_control(e, &ctrl[0], LDAP_SYNC_ADD, NULL);
+        rc = sync_create_state_control(e, &ctrl[0], LDAP_SYNC_ADD, NULL);
         slapi_pblock_set(pb, SLAPI_SEARCH_CTRLS, ctrl);
     }
     return (rc);
