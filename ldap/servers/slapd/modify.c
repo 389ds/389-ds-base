@@ -612,6 +612,7 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
     char *proxydn = NULL;
     int proxy_err = LDAP_SUCCESS;
     char *errtext = NULL;
+    int ext_op_passwd_oid = 0;
 
     slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET, &dn);
     slapi_pblock_get(pb, SLAPI_MODIFY_TARGET_SDN, &sdn);
@@ -1020,6 +1021,14 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
         set_db_default_result_handlers(pb);
         if (be->be_modify != NULL) {
             if ((rc = (*be->be_modify)(pb)) == 0) {
+                /* Is this an extended password op */
+                if(pb_conn) {
+                    if (slapi_op_get_type(pb_conn->c_ops) == SLAPI_OPERATION_EXTENDED) {
+                        if (strcmp(pb_conn->c_ops->o_params.p.p_extended.exop_oid, EXTOP_PASSWD_OID)== 0) {
+                            ext_op_passwd_oid = 1;
+                        }
+                    }
+                }
                 /* acl is not used for internal operations */
                 /* don't update aci store for remote acis  */
                 if ((!internal_op) &&
@@ -1030,8 +1039,9 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
                 if (operation_is_flag_set(operation, OP_FLAG_ACTION_LOG_AUDIT))
                     write_audit_log_entry(pb); /* Record the operation in the audit log */
 
-                if (pw_change && (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA))) {
-                    /* update the password info */
+                /* Only allow an external or extended modify operation update pw info */
+                if (pw_change && (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) &&
+                    (!internal_op || ext_op_passwd_oid)) {
                     update_pw_info(pb, old_pw);
                 }
                 slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
@@ -1434,7 +1444,7 @@ optimize_mods(Slapi_Mods *smods)
             (SLAPI_IS_MOD_ADD(prev_mod->mod_op) || SLAPI_IS_MOD_DELETE(prev_mod->mod_op)) &&
             (prev_mod->mod_op == mod->mod_op) &&
             (!strcasecmp(prev_mod->mod_type, mod->mod_type)))
-        {
+            {
             /* Get the current number of mod values from the previous mod.  Do it once per attr */
             if (mod_count == 0) {
                 for (; prev_mod->mod_bvalues != NULL && prev_mod->mod_bvalues[mod_count] != NULL; mod_count++)
