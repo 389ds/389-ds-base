@@ -531,13 +531,12 @@ class DirSrv(SimpleLDAPObject, object):
         if SER_SERVERID_PROP not in args:
             self.log.debug('SER_SERVERID_PROP not provided, assuming non-local instance')
             # The lack of this value basically rules it out in most cases
+            self.isLocal = False
             self.ds_paths = Paths(instance=self, local=self.isLocal)
         else:
             self.ds_paths = Paths(serverid=args[SER_SERVERID_PROP], instance=self, local=self.isLocal)
             # Settings from args of server attributes
             self.serverid = args.get(SER_SERVERID_PROP, None)
-            # Probably local?
-            self.isLocal = True
 
         # Do we have ldapi settings?
         # Do we really need .strip() on this?
@@ -938,27 +937,30 @@ class DirSrv(SimpleLDAPObject, object):
             self.log.debug("Using dirsrv ca certificate %s", certdir)
 
         if certdir is not None:
-            """
-            We have a certificate directory, so lets start up TLS negotiations
-            """
+            if not os.access(ensure_str(certdir), os.R_OK):
+                self.log.debug("External ca certificate %s path is not accessible", certdir)
+                certdir = None
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
-            self.set_option(ldap.OPT_X_TLS_CACERTDIR, ensure_str(certdir))
             self.log.debug("Using external ca certificate %s", certdir)
+            self.set_option(ldap.OPT_X_TLS_CACERTDIR, ensure_str(certdir))
 
         if userkey is not None:
+            if not os.access(ensure_str(userkey), os.R_OK):
+                self.log.debug("User private key %s path is not accessible", userkey)
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
             self.log.debug("Using user private key %s", userkey)
             self.set_option(ldap.OPT_X_TLS_KEYFILE, ensure_str(userkey))
 
         if usercert is not None:
+            if not os.access(ensure_str(usercert), os.R_OK):
+                self.log.debug("User private key %s path is not accessible", usercert)
+            # Note this sets LDAP.OPT not SELF. Because once self has opened
+            # it can NOT change opts AT ALL.
             self.log.debug("Using user certificate %s", usercert)
             self.set_option(ldap.OPT_X_TLS_CERTFILE, ensure_str(usercert))
 
-        if certdir is not None:
-            self.log.debug("Using external ca certificate %s", certdir)
-            self.set_option(ldap.OPT_X_TLS_CACERTDIR, ensure_str(certdir))
 
         if certdir or starttls or uri.startswith('ldaps://'):
             try:
