@@ -1029,7 +1029,7 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
 
                 if (operation_is_flag_set(operation, OP_FLAG_ACTION_LOG_AUDIT))
                     write_audit_log_entry(pb); /* Record the operation in the audit log */
-                
+
                 if (pw_change && (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA))) {
                     /* update the password info */
                     update_pw_info(pb, old_pw);
@@ -1435,7 +1435,7 @@ optimize_mods(Slapi_Mods *smods)
             (SLAPI_IS_MOD_ADD(prev_mod->mod_op) || SLAPI_IS_MOD_DELETE(prev_mod->mod_op)) &&
             (prev_mod->mod_op == mod->mod_op) &&
             (!strcasecmp(prev_mod->mod_type, mod->mod_type)))
-            {
+        {
             /* Get the current number of mod values from the previous mod.  Do it once per attr */
             if (mod_count == 0) {
                 for (; prev_mod->mod_bvalues != NULL && prev_mod->mod_bvalues[mod_count] != NULL; mod_count++)
