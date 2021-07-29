@@ -3568,7 +3568,7 @@ int32_t update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn,
                                      NULL,                         /* Controls */
                                      NULL,                         /* UniqueID */
                                      pw_get_componentID(),         /* PluginID */
-                                     OP_FLAG_SKIP_MODIFIED_ATTRS &
+                                     OP_FLAG_SKIP_MODIFIED_ATTRS |
                                      OP_FLAG_ACTION_SKIP_PWDPOLICY);          /* Flags */
     slapi_modify_internal_pb(pb);
 
