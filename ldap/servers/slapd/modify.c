@@ -1034,6 +1034,7 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
                     /* update the password info */
                     update_pw_info(pb, old_pw);
                 }
+
                 slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
                 do_ps_service(pse, NULL, LDAP_CHANGETYPE_MODIFY, 0);
             } else {
