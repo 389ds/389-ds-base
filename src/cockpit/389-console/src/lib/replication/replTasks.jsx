@@ -381,6 +381,29 @@ export class ReplRUV extends React.Component {
                     />
                 </div>
                 <hr />
+<<<<<<< HEAD
+=======
+                <h4 className="ds-margin-top-xlg">Create Replica Initialization LDIF File</h4>
+                <Form className="ds-margin-top-lg ds-left-indent-md" isHorizontal>
+                    <Grid className="ds-margin-top-lg">
+                        <GridItem span={3}>
+                            <Button
+                                variant="primary"
+                                onClick={this.showConfirmExport}
+                                title="See Database Tab -> Backups & LDIFs to manage the new LDIF"
+                            >
+                                Export Replica
+                            </Button>
+                        </GridItem>
+                        <GridItem span={9}>
+                            <p className="ds-margin-top">
+                                Export this suffix with the replication metadata to an LDIF file for initializing another replica.
+                            </p>
+                        </GridItem>
+                    </Grid>
+                </Form>
+                <hr />
+>>>>>>> b83eb5a75 (Issue 4169 - Migrate Replication & Schema tabs to PF4)
                 <h4 className="ds-margin-top-xlg">Replication Change Log Tasks</h4>
                 <Form className="ds-margin-top-lg ds-left-indent-md" isHorizontal>
                     <Grid className="ds-margin-top-lg">
@@ -447,6 +470,19 @@ export class ReplRUV extends React.Component {
                     mSpinningMsg="Initialzing Replication Change Log ..."
                     mBtnName="Import Changelog LDIF"
                 />
+<<<<<<< HEAD
+=======
+                <ExportModal
+                    showModal={this.state.showConfirmExport}
+                    closeHandler={this.closeConfirmExport}
+                    handleChange={this.handleLDIFChange}
+                    saveHandler={this.doExport}
+                    spinning={this.state.exportSpinner}
+                    ldifLocation={this.state.ldifLocation}
+                    ldifRows={this.props.ldifRows}
+                    saveOK={this.state.saveOK}
+                />
+>>>>>>> b83eb5a75 (Issue 4169 - Migrate Replication & Schema tabs to PF4)
                 <ExportCLModal
                     showModal={this.state.showCLExport}
                     closeHandler={this.closeCLExport}
@@ -474,6 +510,7 @@ ReplRUV.propTypes = {
     addNotification: PropTypes.func,
     localRID: PropTypes.string,
     reload: PropTypes.func,
+    reloadLDIF: PropTypes.func,
 };
 
 ReplRUV.defaultProps = {
@@ -483,4 +520,5 @@ ReplRUV.defaultProps = {
     addNotification: noop,
     localRID: "",
     reload: noop,
+    reloadLDIF: noop,
 };
