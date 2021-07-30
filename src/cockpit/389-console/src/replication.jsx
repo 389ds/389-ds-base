@@ -69,6 +69,7 @@ export class Replication extends React.Component {
         this.loadReplSuffix = this.loadReplSuffix.bind(this);
         this.reloadChangelog = this.reloadChangelog.bind(this);
         this.loadSuffixTree = this.loadSuffixTree.bind(this);
+        this.loadLDIFs = this.loadLDIFs.bind(this);
     }
 
     componentDidUpdate(prevProps) {
@@ -298,6 +299,7 @@ export class Replication extends React.Component {
                     el.setAttribute('title', el.innerText);
                 }
             }
+            this.loadLDIFs();
         });
     }
 
@@ -525,7 +527,7 @@ export class Replication extends React.Component {
                         suffixSpinning: false,
                         disabled: false,
                         suffixKey: new Date(),
-                    });
+                    }, this.loadLDIFs);
                 })
                 .fail(() => {
                     this.setState({
@@ -581,6 +583,27 @@ export class Replication extends React.Component {
                     this.setState({
                         suffixSpinning: false,
                         disabled: false
+                    });
+                });
+    }
+
+    loadLDIFs() {
+        const cmd = [
+            "dsctl", "-j", this.props.serverId, "ldifs"
+        ];
+        log_cmd("loadLDIFs", "Load replication LDIF Files", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const config = JSON.parse(content);
+                    let rows = [];
+                    for (let row of config.items) {
+                        if (row[3].toLowerCase() == this.state.node_name.toLowerCase()) {
+                            rows.push([row[0], row[1], row[2]]);
+                        }
+                    }
+                    this.setState({
+                        ldifRows: rows,
                     });
                 });
     }
@@ -647,7 +670,7 @@ export class Replication extends React.Component {
                             clTrimInt: "",
                             clEncrypt: false,
                         }
-                    });
+                    }, this.loadLDIFs);
 
                     cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
                         'replication', 'get-changelog', '--suffix', suffix];
@@ -976,6 +999,7 @@ export class Replication extends React.Component {
                                     reloadWinsyncAgmts={this.reloadWinsyncAgmts}
                                     reloadRUV={this.reloadRUV}
                                     reloadConfig={this.reloadConfig}
+                                    reloadLDIF={this.loadLDIFs}
                                     reload={this.loadSuffixTree}
                                     attrs={this.state.attributes}
                                     replicated={this.state.node_replicated}
@@ -1000,6 +1024,7 @@ export class Replication extends React.Component {
                                 reloadAgmts={this.reloadAgmts}
                                 reloadWinsyncAgmts={this.reloadWinsyncAgmts}
                                 reloadRUV={this.reloadRUV}
+                                reloadLDIF={this.loadLDIFs}
                                 reloadConfig={this.reloadConfig}
                                 reload={this.loadSuffixTree}
                                 attrs={this.state.attributes}

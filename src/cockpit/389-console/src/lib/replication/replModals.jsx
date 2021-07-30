@@ -25,6 +25,7 @@ import {
     ValidatedOptions,
     noop
 } from "@patternfly/react-core";
+import { ReplicaLDIFTable } from "./replTables.jsx";
 import PropTypes from "prop-types";
 import ExclamationTriangleIcon from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
 

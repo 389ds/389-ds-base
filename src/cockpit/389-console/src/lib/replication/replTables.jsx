@@ -338,6 +338,104 @@ class RUVTable extends React.Component {
     }
 }
 
+class ReplicaLDIFTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            value: '',
+            sortBy: {},
+            rows: [],
+            columns: [
+                { title: 'LDIF File', transforms: [sortable] },
+                { title: 'Creation Date', transforms: [sortable] },
+                { title: 'File Size', transforms: [sortable] },
+            ],
+        };
+
+        this.onSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.onPerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage: perPage
+            });
+        };
+
+        this.onSort = this.onSort.bind(this);
+    }
+
+    componentDidMount() {
+        let rows = [];
+        let columns = this.state.columns;
+        for (let ldifRow of this.props.rows) {
+            rows.push({
+                cells: [
+                    ldifRow[0], ldifRow[1], ldifRow[2]
+                ]
+            });
+        }
+        if (rows.length == 0) {
+            rows = [{cells: ['No LDIF files']}];
+            columns = [{title: 'LDIF File'}];
+        }
+        this.setState({
+            rows: rows,
+            columns: columns
+        });
+    }
+
+    onSort(_event, index, direction) {
+        let rows = [];
+        let sortedLDIF = [...this.props.rows];
+
+        // Sort the referrals and build the new rows
+        sortedLDIF.sort();
+        if (direction !== SortByDirection.asc) {
+            sortedLDIF.reverse();
+        }
+        for (let ldifRow of sortedLDIF) {
+            rows.push({ cells:
+                [
+                    ldifRow[0], ldifRow[1], ldifRow[2]
+                ]
+            });
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: rows,
+            page: 1,
+        });
+    }
+
+    render() {
+        const { columns, rows, sortBy } = this.state;
+
+        return (
+            <Table
+                aria-label="ldif table"
+                cells={columns}
+                rows={rows}
+                variant={TableVariant.compact}
+                sortBy={sortBy}
+                onSort={this.onSort}
+                dropdownPosition="right"
+                dropdownDirection="bottom"
+            >
+                <TableHeader />
+                <TableBody />
+            </Table>
+        );
+    }
+}
+
 ReplAgmtTable.propTypes = {
     rows: PropTypes.array,
     edit: PropTypes.func,
@@ -376,8 +474,17 @@ RUVTable.defaultProps = {
     confirmDelete: noop
 };
 
+ReplicaLDIFTable.propTypes = {
+    rows: PropTypes.array,
+};
+
+ReplicaLDIFTable.defaultProps = {
+    rows: [],
+};
+
 export {
     ReplAgmtTable,
     ManagerTable,
     RUVTable,
+    ReplicaLDIFTable,
 };

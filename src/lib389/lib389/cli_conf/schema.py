@@ -310,14 +310,14 @@ def _add_parser_args(parser, type):
         parser.add_argument('--user-mod', action='store_true',
                             help='True if the attribute is modifiable by a client application (default)'
                                  'Only one of the flags this or --no-user-mode should be specified')
-        parser.add_argument('--equality',
-                            help='NAME or OID of the matching rule used for checking'
+        parser.add_argument('--equality', nargs='+',
+                            help='NAME or OID of the matching rules used for checking'
                                  'whether attribute values are equal')
-        parser.add_argument('--substr',
-                            help='NAME or OID of the matching rule used for checking'
+        parser.add_argument('--substr', nargs='+',
+                            help='NAME or OID of the matching rules used for checking'
                                  'whether an attribute value contains another value')
-        parser.add_argument('--ordering',
-                            help='NAME or OID of the matching rule used for checking'
+        parser.add_argument('--ordering', nargs='+',
+                            help='NAME or OID of the matching rules used for checking'
                                  'whether attribute values are lesser - equal than')
         parser.add_argument('--usage',
                             help='The flag indicates how the attribute type is to be used. Choose from the list: '
