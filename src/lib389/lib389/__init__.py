@@ -17,6 +17,7 @@
 
 import sys
 import os
+from urllib.parse import urlparse
 import stat
 import pwd
 import grp
@@ -527,17 +528,6 @@ class DirSrv(SimpleLDAPObject, object):
             raise ValueError("invalid state for calling allocate: %s" %
                              self.state)
 
-        self.isLocal = True
-        if SER_SERVERID_PROP not in args:
-            self.log.debug('SER_SERVERID_PROP not provided, assuming non-local instance')
-            # The lack of this value basically rules it out in most cases
-            self.isLocal = False
-            self.ds_paths = Paths(instance=self, local=self.isLocal)
-        else:
-            self.ds_paths = Paths(serverid=args[SER_SERVERID_PROP], instance=self, local=self.isLocal)
-            # Settings from args of server attributes
-            self.serverid = args.get(SER_SERVERID_PROP, None)
-
         # Do we have ldapi settings?
         # Do we really need .strip() on this?
         self.ldapi_enabled = args.get(SER_LDAPI_ENABLED, 'off')
@@ -545,12 +535,21 @@ class DirSrv(SimpleLDAPObject, object):
         self.ldapuri = args.get(SER_LDAP_URL, None)
         self.log.debug("Allocate %s with %s", self.__class__, self.ldapuri)
         # Still needed in setup, even if ldapuri over writes.
-        self.host = args.get(SER_HOST, socket.gethostname())
-        self.port = args.get(SER_PORT, DEFAULT_PORT)
+        if self.ldapuri is not None:
+            ldapuri_parsed = urlparse(self.ldapuri)
+            self.host = ldapuri_parsed.hostname
+            try:
+                self.port = ldapuri_parsed.port
+            except ValueError as e:
+                self.port = DEFAULT_PORT
+        else:
+            self.host = args.get(SER_HOST, socket.gethostname())
+            self.port = args.get(SER_PORT, DEFAULT_PORT)
         self.sslport = args.get(SER_SECURE_PORT)
 
         self.inst_scripts = args.get(SER_INST_SCRIPTS_ENABLED, None)
 
+        self.isLocal = False
         # Or do we have tcp / ip settings?
         if self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
             self.ldapi_autobind = args.get(SER_LDAPI_AUTOBIND, 'off')
@@ -564,9 +563,17 @@ class DirSrv(SimpleLDAPObject, object):
             else:
                 # Make sure our name is in hosts
                 DirSrvTools.searchHostsFile(self.host, None)
+        # Check if we are local only if we haven't found that yet
+        if not self.isLocal:
             self.isLocal = isLocalHost(self.host)
 
         self.log.debug("Allocate %s with %s:%s", self.__class__, self.host, (self.sslport or self.port))
+
+        if SER_SERVERID_PROP in args:
+            self.ds_paths = Paths(serverid=args[SER_SERVERID_PROP], instance=self, local=self.isLocal)
+            self.serverid = args.get(SER_SERVERID_PROP, None)
+        else:
+            self.ds_paths = Paths(instance=self, local=self.isLocal)
 
         self.binddn = args.get(SER_ROOT_DN, DN_DM)
         self.bindpw = args.get(SER_ROOT_PW, PW_DM)
@@ -583,6 +590,7 @@ class DirSrv(SimpleLDAPObject, object):
 
             self.groupid = args.get(SER_GROUP_ID, self.userid)
             self.backupdir = args.get(SER_BACKUP_INST_DIR, DEFAULT_BACKUPDIR)
+
         # This will be externally populated in topologies.
         self.realm = None
 
@@ -937,25 +945,18 @@ class DirSrv(SimpleLDAPObject, object):
             self.log.debug("Using dirsrv ca certificate %s", certdir)
 
         if certdir is not None:
-            if not os.access(ensure_str(certdir), os.R_OK):
-                self.log.debug("External ca certificate %s path is not accessible", certdir)
-                certdir = None
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
             self.log.debug("Using external ca certificate %s", certdir)
             self.set_option(ldap.OPT_X_TLS_CACERTDIR, ensure_str(certdir))
 
         if userkey is not None:
-            if not os.access(ensure_str(userkey), os.R_OK):
-                self.log.debug("User private key %s path is not accessible", userkey)
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
             self.log.debug("Using user private key %s", userkey)
             self.set_option(ldap.OPT_X_TLS_KEYFILE, ensure_str(userkey))
 
         if usercert is not None:
-            if not os.access(ensure_str(usercert), os.R_OK):
-                self.log.debug("User private key %s path is not accessible", usercert)
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
             self.log.debug("Using user certificate %s", usercert)
