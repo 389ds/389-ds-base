@@ -234,9 +234,15 @@ class Schema(DSLdapObject):
         attr_name = self._get_attr_name_by_model(object_model)
         schema_object = self._get_schema_object(name, object_model)
         schema_object_str_old = str(schema_object)
-
+        superior_is_set = False
         if len(parameters) == 0:
             raise ValueError('Parameters should be specified')
+
+        if schema_object is None:
+            raise ValueError(f'Schema ({name}) not found')
+
+        if len(schema_object.sup) > 0:
+            superior_is_set = True
 
         for oc_param, value in parameters.items():
             if oc_param.lower() not in OBJECT_MODEL_PARAMS[object_model].keys():
@@ -257,9 +263,16 @@ class Schema(DSLdapObject):
                         # Expects numberic
                         setattr(schema_object, oc_param, 0)
 
+        if len(schema_object.sup) == 0 and superior_is_set:
+            # removing a superior mean we need to remove
+            # matching rules since they were inherited from sup
+            setattr(schema_object, 'equality', None)
+            setattr(schema_object, 'ordering', None)
+            setattr(schema_object, 'substr', None)
+
         schema_object_str = str(schema_object)
         if schema_object_str == schema_object_str_old:
-            raise ValueError('ObjectClass is already in the required state. Nothing to change')
+            raise ValueError('Schema is already in the required state. Nothing to change')
 
         self.remove(attr_name, schema_object_str_old)
         return self.add(attr_name, schema_object_str)

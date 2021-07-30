@@ -82,12 +82,6 @@ td {
     border-color: red !important;
 }
 
-.ds-input-auto-bad {
-    width: 100%;
-    border-color: red !important;
-    padding-left: 5px;
-}
-
 .ds-error-msg {
     margin-top: 5px;
     color: red;
@@ -374,10 +368,6 @@ textarea {
     margin-left: 80px;
 }
 
-.ds-h4 {
-    font-size: 18px !important;
-}
-
 @media screen and (max-width: 1300px) {
     .ds-plugin-spinner {
         margin-left: 0px;
@@ -424,10 +414,6 @@ textarea {
 
 .list-group {
     margin-bottom: 1px !important;
-}
-
-.ds-tab-table {
-    margin-top: 25px !important;
 }
 
 .ds-nav-med {
@@ -510,11 +496,29 @@ input[type="radio"], input[type="checkbox"] {
     fill: orange;
 }
 
-/* typeAhead Select in modals don't work well, need to make modal taller */
+/* typeAhead Select in modals doesn't fit well, need to make the modal taller */
 .ds-modal-select {
     min-height: 350px !important;
 }
 
 .ds-modal-select-tall {
     min-height: 600px !important;
+}
+
+/* This keeps a modal with Tabs the same size throughout all the tabs */
+.ds-modal-repl-agmt {
+    min-height: 755px !important;
+}
+
+.ds-modal-winsync-agmt {
+    min-height: 625px !important;
+}
+
+.ds-modal-changelog-export {
+    min-height: 525px !important;
+}
+
+.ds-modal-table-sm {
+    max-height: 350px !important;
+    overflow-y: auto;
 }

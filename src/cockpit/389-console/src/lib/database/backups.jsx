@@ -541,7 +541,7 @@ export class Backups extends React.Component {
             <div>
                 <h3 className="ds-config-header">Database Backups & LDIFs</h3>
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText><b>Backups</b></TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText><b>Backups</b> <font size="2">({this.props.backups.length})</font></TabTitleText>}>
                         <div className="ds-indent">
                             <div className="ds-margin-top-lg">
                                 <BackupTable
@@ -560,7 +560,7 @@ export class Backups extends React.Component {
                                     Create Backup
                                 </Button>
                                 <Button
-                                    variant="default"
+                                    variant="secondary"
                                     onClick={() => {
                                         this.props.reload(1);
                                     }}
@@ -574,7 +574,7 @@ export class Backups extends React.Component {
                             </div>
                         </div>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText><b>LDIFs</b></TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText><b>LDIFs</b> <font size="2">({this.props.ldifs.length})</font></TabTitleText>}>
                         <div className="ds-indent">
                             <div className="ds-margin-top-lg">
                                 <LDIFManageTable
@@ -593,7 +593,7 @@ export class Backups extends React.Component {
                                     Create LDIF
                                 </Button>
                                 <Button
-                                    variant="default"
+                                    variant="secondary"
                                     onClick={this.props.reload}
                                     className="ds-left-margin ds-margin-top"
                                     isLoading={this.props.refreshing}
@@ -771,7 +771,7 @@ class ExportModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <Grid>
+                    <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
                             Select Suffix
                         </GridItem>

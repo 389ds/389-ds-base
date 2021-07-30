@@ -409,7 +409,6 @@ export class VLVIndexes extends React.Component {
     render() {
         return (
             <div className="ds-tab-table">
-                <h5 className="ds-center ds-margin-top-xlg">Virtual List View Indexes</h5>
                 <VLVTable
                     rows={this.props.vlvItems}
                     key={this.props.vlvItems}

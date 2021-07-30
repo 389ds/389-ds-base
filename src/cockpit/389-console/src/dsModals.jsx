@@ -786,7 +786,7 @@ export class SchemaReloadModal extends React.Component {
             loadingSchemaTask: true
         });
 
-        let cmd = ["dsconf", "-j", serverId, "schema", "reload", "--wait"];
+        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + serverId + ".socket", "schema", "reload", "--wait"];
         if (reloadSchemaDir !== "") {
             cmd = [...cmd, "--schemadir", reloadSchemaDir];
         }

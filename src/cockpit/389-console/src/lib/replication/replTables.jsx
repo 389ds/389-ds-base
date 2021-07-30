@@ -104,7 +104,9 @@ class ReplAgmtTable extends React.Component {
                 </div>
             );
         } else {
-            return msg;
+            return (
+                <i>{msg}</i>
+            );
         }
     }
 
@@ -175,7 +177,7 @@ class ManagerTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Replication Manager', transforms: [sortable] },
+                { title: 'Replication Managers', transforms: [sortable] },
                 { props: { textCenter: true }, title: 'Delete' },
             ],
         };
@@ -239,20 +241,17 @@ class ManagerTable extends React.Component {
 
     render() {
         return (
-            <div className="ds-margin-top-lg">
-                <Table
-                    className="ds-margin-top"
-                    aria-label="manager table"
-                    cells={this.state.columns}
-                    rows={this.state.rows}
-                    variant={TableVariant.compact}
-                    sortBy={this.state.sortBy}
-                    onSort={this.onSort}
-                >
-                    <TableHeader />
-                    <TableBody />
-                </Table>
-            </div>
+            <Table
+                aria-label="manager table"
+                cells={this.state.columns}
+                rows={this.state.rows}
+                variant={TableVariant.compact}
+                sortBy={this.state.sortBy}
+                onSort={this.onSort}
+            >
+                <TableHeader />
+                <TableBody />
+            </Table>
         );
     }
 }

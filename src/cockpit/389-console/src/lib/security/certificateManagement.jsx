@@ -510,8 +510,8 @@ export class CertificateManagement extends React.Component {
                 </div>;
         } else {
             certificatePage =
-                <Tabs className="ds-margin-top-lg ds-left-indent" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText><b>Trusted Certificate Authorites </b><font size="2">({this.state.CACerts.length})</font></TabTitleText>}>
+                <Tabs isBox isSecondary className="ds-margin-top-xlg ds-left-indent" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>Trusted Certificate Authorites <font size="2">({this.state.CACerts.length})</font></TabTitleText>}>
                         <div className="ds-margin-top-lg ds-left-indent">
                             <CertTable
                                 certs={this.state.CACerts}
@@ -530,8 +530,8 @@ export class CertificateManagement extends React.Component {
                             </Button>
                         </div>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText><b>TLS Certificates </b><font size="2">({this.state.ServerCerts.length})</font></TabTitleText>}>
-                        <div className="ds-margin-top-lg  ds-left-indent">
+                    <Tab eventKey={1} title={<TabTitleText>TLS Certificates <font size="2">({this.state.ServerCerts.length})</font></TabTitleText>}>
+                        <div className="ds-margin-top-lg ds-left-indent">
                             <CertTable
                                 certs={this.state.ServerCerts}
                                 key={this.state.tableKey}

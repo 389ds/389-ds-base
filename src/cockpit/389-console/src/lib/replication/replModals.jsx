@@ -1,45 +1,83 @@
 import React from "react";
 import {
-    Row,
-    Col,
-    ControlLabel,
-    Form,
-    FormControl,
-    Radio,
-} from "patternfly-react";
-import {
     Button,
     Checkbox,
-    ExpandableSection,
-    // Form,
-    // FormGroup,
+    Form,
+    FormHelperText,
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
     Modal,
     ModalVariant,
+    NumberInput,
+    Radio,
     Select,
     SelectVariant,
     SelectOption,
     Spinner,
-    // TextInput,
+    Tab,
+    Tabs,
+    TabTitleIcon,
+    TabTitleText,
+    TextInput,
+    TimePicker,
+    ValidatedOptions,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
+import ExclamationTriangleIcon from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
 
 export class WinsyncAgmtModal extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            isExpanded: false,
+            activeTabKey: 0,
         };
 
-        this.onToggle = (isExpanded) => {
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            event.preventDefault();
             this.setState({
-                isExpanded
+                activeTabKey: tabIndex
             });
         };
     }
 
-    handleNavSelect(key) {
-        this.setState({ activeKey: key });
+    hasMainErrors(errors) {
+        const attrs = [
+            'agmtName', 'agmtHost', 'agmtPort', 'agmtBindDN', 'agmtBindPW', 'agmtBindPWConfirm'
+        ];
+        for (let attr of attrs) {
+            if (attr in errors && errors[attr]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    hasDomainErrors(errors) {
+        const attrs = [
+            'agmtWinDomain', 'agmtWinSubtree', 'agmtDSSubtree',
+        ];
+        for (let attr of attrs) {
+            if (attr in errors && errors[attr]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    hasScheduleErrors(errors) {
+        const attrs = [
+            'agmtStartTime', 'agmtEndTime',
+        ];
+        for (let attr of attrs) {
+            if (attr in errors && errors[attr]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     render() {
@@ -48,6 +86,7 @@ export class WinsyncAgmtModal extends React.Component {
             closeHandler,
             saveHandler,
             handleChange,
+            handleTimeChange,
             handleFracChange,
             onSelectToggle,
             onSelectClear,
@@ -77,191 +116,209 @@ export class WinsyncAgmtModal extends React.Component {
             agmtDSSubtree,
             agmtOneWaySync, // "both", "toWindows", "fromWindows"
             agmtSyncInterval,
+            agmtInit,
             availAttrs,
             error,
-            errorMsg,
-            errorScheduleMsg,
             isExcludeAttrOpen,
         } = this.props;
-        let spinner = "";
         let saveDisabled = !this.props.saveOK;
         let title = "Create";
         let initRow = "";
-        let errMsgClass = "ds-center ds-modal-error";
-        let errMsg = errorMsg;
         let name = "agmt-modal";
+        let startHour = agmtStartTime.substring(0, 2);
+        let startMin = agmtStartTime.substring(2, 4);
+        let startTime = startHour + ":" + startMin;
+        let endHour = agmtEndTime.substring(0, 2);
+        let endMin = agmtEndTime.substring(2, 4);
+        let endTime = endHour + ":" + endMin;
+        let saveBtnName = "Save Agreement";
+        let extraPrimaryProps = {};
+        if (spinning) {
+            saveBtnName = "Saving Agreement ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
+        let mainSettingsError = "";
+        let scheduleError = "";
+        let domainError = "";
+        if (this.hasMainErrors(error)) {
+            mainSettingsError = <TabTitleIcon className="ds-warning-icon"><ExclamationTriangleIcon /></TabTitleIcon>;
+        }
+        if (this.hasDomainErrors(error)) {
+            domainError = <TabTitleIcon className="ds-warning-icon"><ExclamationTriangleIcon /></TabTitleIcon>;
+        }
+        if (this.hasScheduleErrors(error)) {
+            scheduleError = <TabTitleIcon className="ds-warning-icon"><ExclamationTriangleIcon /></TabTitleIcon>;
+        }
 
         if (this.props.edit) {
             title = "Edit";
             name = "agmt-modal-edit";
         } else {
             initRow =
-                <Row className="ds-margin-top">
-                    <Col componentClass={ControlLabel} sm={4}>
+                <Grid className="ds-margin-top">
+                    <GridItem className="ds-label" span={3}>
                         Consumer Initialization
-                    </Col>
-                    <Col sm={8}>
-                        <select className="btn btn-default dropdown" id="agmtInit" name={name} onChange={handleChange}>
-                            <option value="noinit">Do Not Initialize</option>
-                            <option value="online-init">Do Online Initialization</option>
-                        </select>
-                    </Col>
-                </Row>;
-        }
-
-        if (errMsg == "") {
-            // To keep the modal nice and stable during input validation
-            // We need text that is invisible to keep the modal input from
-            // jumping around
-            errMsgClass = "ds-center ds-clear-text";
-            errMsg = "No errors";
-        }
-
-        if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner size="md" />Creating winsync agreement ...
-                    </div>
-                </Row>;
+                    </GridItem>
+                    <GridItem span={9}>
+                        <FormSelect
+                            value={agmtInit}
+                            id="agmtInit"
+                            onChange={(str, e) => {
+                                handleChange(e);
+                            }}
+                            aria-label="FormSelect Input"
+                        >
+                            <FormSelectOption key={0} value="noinit" label="Do Not Initialize" />
+                            <FormSelectOption key={1} value="online-init" label="Do Online Initialization" />
+                        </FormSelect>
+                    </GridItem>
+                </Grid>;
         }
 
         let scheduleRow =
             <div className="ds-left-indent-md">
-                <Row className="ds-margin-top-lg">
-                    <Col sm={12}>
-                        <i>Custom Synchronization Schedule</i>
-                    </Col>
-                </Row>
-                <hr />
-                <div className="ds-indent">
-                    <Row>
-                        <Col sm={3}>
+                <Grid className="ds-margin-top-lg">
+                    <GridItem className="ds-label" span={12}>
+                        Days To Send Synchronization Updates
+                    </GridItem>
+                </Grid>
+                <div className="ds-indent ds-margin-top">
+                    <Grid>
+                        <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncMon"
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
                                 name={name}
-                                title="Monday"
                                 isChecked={agmtSyncMon}
-                                label="Mon"
+                                label="Monday"
+                                isValid={!error.agmtSyncMon}
                             />
-                        </Col>
-                        <Col sm={3}>
-                            <Checkbox
-                                id="agmtSyncWed"
-                                onChange={(checked, e) => {
-                                    handleChange(e);
-                                }}
-                                title="Wednesday"
-                                name={name}
-                                isChecked={agmtSyncWed}
-                                label="Wed"
-                            />
-                        </Col>
-                        <Col sm={3}>
+                        </GridItem>
+                        <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncFri"
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                title="Friday"
                                 name={name}
                                 isChecked={agmtSyncFri}
-                                label="Fri"
+                                label="Friday"
+                                isValid={!error.agmtSyncFri}
                             />
-                        </Col>
-                        <Col sm={3}>
-                            <Checkbox
-                                id="agmtSyncSun"
-                                onChange={(checked, e) => {
-                                    handleChange(e);
-                                }}
-                                title="Sunday"
-                                name={name}
-                                isChecked={agmtSyncSun}
-                                label="Sun"
-                            />
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col sm={3}>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncTue"
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                title="Tuesday"
                                 name={name}
                                 isChecked={agmtSyncTue}
-                                label="Tue"
+                                isValid={!error.agmtSyncTue}
+                                label="Tuesday"
                             />
-                        </Col>
-                        <Col sm={3}>
-                            <Checkbox
-                                id="agmtSyncThu"
-                                onChange={(checked, e) => {
-                                    handleChange(e);
-                                }}
-                                title="Thursday"
-                                name={name}
-                                isChecked={agmtSyncThu}
-                                label="Thu"
-                            />
-                        </Col>
-                        <Col sm={3}>
+                        </GridItem>
+                        <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncSat"
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                title="Saturday"
                                 name={name}
                                 isChecked={agmtSyncSat}
-                                label="Sat"
+                                isValid={!error.agmtSyncSat}
+                                label="Saturday"
                             />
-                        </Col>
-                    </Row>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <Checkbox
+                                id="agmtSyncWed"
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
+                                name={name}
+                                isChecked={agmtSyncWed}
+                                label="Wednesday"
+                                isValid={!error.agmtSyncWed}
+                            />
+                        </GridItem>
+                        <GridItem span={3}>
+                            <Checkbox
+                                id="agmtSyncSun"
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
+                                name={name}
+                                isChecked={agmtSyncSun}
+                                isValid={!error.agmtSyncSun}
+                                label="Sunday"
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <Checkbox
+                                id="agmtSyncThu"
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
+                                name={name}
+                                isChecked={agmtSyncThu}
+                                isValid={!error.agmtSyncThu}
+                                label="Thursday"
+                            />
+                        </GridItem>
+                    </Grid>
                 </div>
-                <Row className="ds-margin-top">
-                    <Col sm={10}>
-                        <p className="ds-modal-error">{errorScheduleMsg}</p>
-                    </Col>
-                </Row>
-                <Row className="ds-margin-top" title="Time to start initiating replication sessions">
-                    <Col componentClass={ControlLabel} sm={4}>
+                <Grid className="ds-margin-top-lg" title="Time to start initiating replication sessions">
+                    <GridItem className="ds-label" span={3}>
                         Replication Start Time
-                    </Col>
-                    <Col sm={8}>
-                        <FormControl
+                    </GridItem>
+                    <GridItem span={9}>
+                        <TimePicker
+                            time={startTime}
                             id="agmtStartTime"
-                            type="time"
-                            name={name}
-                            className={error.agmtStartTime ? "ds-input-bad" : ""}
-                            onChange={handleChange}
-                            defaultValue={agmtStartTime}
+                            onChange={(val) => {
+                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtStartTime", val);
+                            }}
+                            stepMinutes={5}
+                            direction="up"
+                            is24Hour
                         />
-                    </Col>
-                </Row>
-                <Row className="ds-margin-top" title="Time to initiating replication sessions">
-                    <Col componentClass={ControlLabel} sm={4}>
+                        <FormHelperText isError isHidden={!error.agmtStartTime}>
+                            Start time must be before the End time
+                        </FormHelperText>
+                    </GridItem>
+                </Grid>
+                <Grid title="Time to initiating replication sessions">
+                    <GridItem className="ds-label" span={3}>
                         Replication End Time
-                    </Col>
-                    <Col sm={8}>
-                        <FormControl
+                    </GridItem>
+                    <GridItem span={9}>
+                        <TimePicker
+                            time={endTime}
                             id="agmtEndTime"
-                            type="time"
-                            name={name}
-                            className={error.agmtEndTime ? "ds-input-bad" : ""}
-                            onChange={handleChange}
-                            defaultValue={agmtEndTime}
+                            onChange={(val) => {
+                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtEndTime", val);
+                            }}
+                            stepMinutes={5}
+                            direction="up"
+                            is24Hour
                         />
-                    </Col>
-                </Row>
+                        <FormHelperText isError isHidden={!error.agmtEndTime}>
+                            End time must be after the Start time
+                        </FormHelperText>
+                    </GridItem>
+                </Grid>
             </div>;
 
-        if (agmtSync) {
+        if (!agmtSync) {
             scheduleRow = "";
         }
 
@@ -270,217 +327,276 @@ export class WinsyncAgmtModal extends React.Component {
         return (
             <Modal
                 variant={ModalVariant.medium}
+                className="ds-modal-winsync-agmt"
                 aria-labelledby="ds-modal"
                 title={title}
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" isDisabled={saveDisabled} onClick={saveHandler}>
-                        Save Agreement
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        isDisabled={saveDisabled}
+                        onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                    >
+                        {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
-                    <Row className="ds-margin-top">
-                        <Col sm={10}>
-                            <p className={errMsgClass}>{errMsg}</p>
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Agreement Name
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                id="agmtName"
-                                type="text"
-                                name={name}
-                                className={error.agmtName ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                defaultValue={agmtName}
-                                disabled={this.props.edit}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Windows AD Host
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                id="agmtHost"
-                                type="text"
-                                name={name}
-                                className={error.agmtHost ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                defaultValue={agmtHost}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Windows AD Port
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                id="agmtPort"
-                                type="text"
-                                name={name}
-                                className={error.agmtPort ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                defaultValue={agmtPort}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Bind DN
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                id="agmtBindDN"
-                                type="text"
-                                name={name}
-                                className={error.agmtBindDN ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                autoComplete="false"
-                                defaultValue={agmtBindDN}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Bind Password
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                id="agmtBindPW"
-                                type="password"
-                                name={name}
-                                className={error.agmtBindPW ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                autoComplete="new-password"
-                                defaultValue={agmtBindPW}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Confirm Password
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                id="agmtBindPWConfirm"
-                                type="password"
-                                name={name}
-                                className={error.agmtBindPWConfirm ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                autoComplete="new-password"
-                                defaultValue={agmtBindPWConfirm}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Windows Domain Name
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                type="text"
-                                id="agmtWinDomain"
-                                name={name}
-                                className={error.agmtWinDomain ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                defaultValue={agmtWinDomain}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="The Active Directory subtree to synchronize">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Windows Subtree
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                type="text"
-                                id="agmtWinSubtree"
-                                name={name}
-                                className={error.agmtWinSubtree ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                defaultValue={agmtWinSubtree}
-                                placeholder="e.g. cn=Users,dc=domain,dc=com"
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="Directory Server subtree to synchronize">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            DS Subtree
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                type="text"
-                                id="agmtDSSubtree"
-                                name={name}
-                                className={error.agmtDSSubtree ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                defaultValue={agmtDSSubtree}
-                                placeholder="e.g. ou=People,dc=domain,dc=com"
-                            />
-                        </Col>
-                    </Row>
-                    {initRow}
-                    <ExpandableSection
-                        className="ds-margin-top-xlg"
-                        toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
-                        onToggle={this.onToggle}
-                        isExpanded={this.state.isExpanded}
-                    >
-                        <div className="ds-margin-left">
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Connection Protocol
-                                </Col>
-                                <Col sm={8}>
-                                    <select className="btn btn-default dropdown" id="agmtProtocol" defaultValue={agmtProtocol} name={name} onChange={handleChange}>
-                                        <option>LDAPS</option>
-                                        <option title="Currently not recommended">StartTLS</option>
-                                    </select>
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Synchronization Direction
-                                </Col>
-                                <Col sm={8}>
-                                    <select className="btn btn-default dropdown" defaultValue={agmtOneWaySync} id="agmtOneWaySync" name={name} onChange={handleChange}>
-                                        <option title="Synchronization in both directions (default behavior).">both</option>
-                                        <option title="Only synchronize Directory Server updates to Windows.">toWindows</option>
-                                        <option title="Only synchronize Windows updates to Directory Server.">fromWindows</option>
-                                    </select>
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="The interval to check for updates on Windows.  Default is 300 seconds">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Synchronization Interval
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
+                <Form isHorizontal autoComplete="off">
+                    <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                        <Tab eventKey={0} title={<>{mainSettingsError}<TabTitleText>Main Settings</TabTitleText></>}>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={3}>
+                                    Agreement Name
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtName}
                                         type="text"
-                                        id="agmtSyncInterval"
-                                        name={name}
-                                        className={error.agmtSyncInterval ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                        defaultValue={agmtSyncInterval}
+                                        id="agmtName"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtName"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        isDisabled={this.props.edit}
+                                        validated={error.agmtName ? ValidatedOptions.error : ValidatedOptions.default}
                                     />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="Attribute to exclude from replication">
-                                <Col componentClass={ControlLabel} sm={4}>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top-lg">
+                                <GridItem className="ds-label" span={3}>
+                                    Windows AD Host
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtHost}
+                                        type="text"
+                                        id="agmtHost"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtHost"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.agmtHost ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top-lg">
+                                <GridItem className="ds-label" span={3}>
+                                    Windows AD Port
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtPort}
+                                        type="number"
+                                        id="agmtPort"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtPort"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top-lg">
+                                <GridItem className="ds-label" span={3}>
+                                    Bind DN
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtBindDN}
+                                        type="text"
+                                        id="agmtBindDN"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtBindDN"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.agmtBindDN ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                    <FormHelperText isError isHidden={!error.agmtBindDN || agmtBindDN == ""}>
+                                        Value must be a valid DN
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={3}>
+                                    Bind Password
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtBindPW}
+                                        type="password"
+                                        id="agmtBindPW"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtBindPW"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.agmtBindPW ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                    <FormHelperText isError isHidden={!error.agmtBindPW || agmtBindPW == "" || agmtBindPWConfirm == ""}>
+                                        Passwords must match
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={3}>
+                                    Confirm Password
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtBindPWConfirm}
+                                        type="password"
+                                        id="agmtBindPWConfirm"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtBindPWConfirm"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.agmtBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                    <FormHelperText isError isHidden={!error.agmtBindPWConfirm || agmtBindPWConfirm == ""}>
+                                        Passwords must match
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                            {initRow}
+                        </Tab>
+                        <Tab eventKey={1} title={<>{domainError}<TabTitleText>Domain & Content</TabTitleText></>}>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={3}>
+                                    Windows Domain Name
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtWinDomain}
+                                        type="text"
+                                        id="agmtWinDomain"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtWinDomain"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.agmtWinDomain ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top-lg" title="The Active Directory subtree to synchronize">
+                                <GridItem className="ds-label" span={3}>
+                                    Windows Subtree
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtWinSubtree}
+                                        type="text"
+                                        id="agmtWinSubtree"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtWinSubtree"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        placeholder="e.g. cn=Users,dc=domain,dc=com"
+                                        validated={error.agmtWinSubtree ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                    <FormHelperText isError isHidden={!error.agmtWinSubtree || agmtWinSubtree == ""}>
+                                        Value must be a valid DN
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top" title="Directory Server subtree to synchronize">
+                                <GridItem className="ds-label" span={3}>
+                                    DS Subtree
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtDSSubtree}
+                                        type="text"
+                                        id="agmtDSSubtree"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtDSSubtree"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        placeholder="e.g. ou=People,dc=domain,dc=com"
+                                        validated={error.agmtDSSubtree ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                    <FormHelperText isError isHidden={!error.agmtDSSubtree || agmtDSSubtree == ""}>
+                                        Value must be a valid DN
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                        </Tab>
+                        <Tab eventKey={2} title={<TabTitleText>Advanced Settings</TabTitleText>}>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={3}>
+                                    Connection Protocol
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <FormSelect
+                                        value={agmtProtocol}
+                                        id="agmtProtocol"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        aria-label="FormSelect Input"
+                                    >
+                                        <FormSelectOption key={0} value="LDAPS" label="LDAPS" />
+                                        <FormSelectOption key={1} value="StartTLS" label="StartTLS" />
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={3}>
+                                    Synchronization Direction
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <FormSelect
+                                        value={agmtOneWaySync}
+                                        id="agmtOneWaySync"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        aria-label="FormSelect Input"
+                                    >
+                                        <FormSelectOption title="Synchronization in both directions (default behavior)." key={0} value="both" label="both" />
+                                        <FormSelectOption title="Only synchronize Directory Server updates to Windows." key={1} value="toWindows" label="toWindows" />
+                                        <FormSelectOption title="Only synchronize Windows updates to Directory Server." key={2} value="fromWindows" label="fromWindows" />
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top" title="The interval to check for updates on Windows.  Default is 300 seconds">
+                                <GridItem className="ds-label" span={3}>
+                                    Synchronization Interval
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtSyncInterval}
+                                        type="number"
+                                        id="agmtSyncInterval"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtSyncInterval"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.agmtSyncInterval ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top" title="Attribute to exclude from replication">
+                                <GridItem className="ds-label" span={3}>
                                     Exclude Attributes
-                                </Col>
-                                <Col sm={8}>
+                                </GridItem>
+                                <GridItem span={9}>
                                     <Select
                                         variant={SelectVariant.typeaheadMulti}
                                         typeAheadAriaLabel="Type an attribute"
@@ -500,10 +616,10 @@ export class WinsyncAgmtModal extends React.Component {
                                             />
                                             ))}
                                     </Select>
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top-med">
-                                <Col>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top-med">
+                                <GridItem>
                                     <Checkbox
                                         id="agmtSyncGroups"
                                         onChange={(checked, e) => {
@@ -513,10 +629,10 @@ export class WinsyncAgmtModal extends React.Component {
                                         isChecked={agmtSyncGroups}
                                         label="Synchronize New Windows Groups"
                                     />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top">
+                                <GridItem>
                                     <Checkbox
                                         id="agmtSyncUsers"
                                         onChange={(checked, e) => {
@@ -526,10 +642,20 @@ export class WinsyncAgmtModal extends React.Component {
                                         isChecked={agmtSyncUsers}
                                         label="Synchronize New Windows Users"
                                     />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col>
+                                </GridItem>
+                            </Grid>
+
+                        </Tab>
+                        <Tab eventKey={3} title={<>{scheduleError}<TabTitleText>Scheduling</TabTitleText></>}>
+                            <Grid className="ds-margin-top">
+                                <GridItem span={12}>
+                                    <h5>
+                                        By default replication updates are sent to the replica as soon as possible, but
+                                        if there is a need for replication updates to only be sent on certains days and within certain
+                                        windows of time then you can setup a custom replication schedule.
+                                    </h5>
+                                </GridItem>
+                                <GridItem className="ds-margin-top-lg" span={12}>
                                     <Checkbox
                                         id="agmtSync"
                                         isChecked={agmtSync}
@@ -537,15 +663,13 @@ export class WinsyncAgmtModal extends React.Component {
                                             handleChange(e);
                                         }}
                                         name={name}
-                                        title="Always keep replication in synchronization, or use a specific schedule by unchecking the box."
-                                        label="Keep Replication In Constant Synchronization"
+                                        label="Use A Custom Schedule"
                                     />
-                                </Col>
-                            </Row>
+                                </GridItem>
+                            </Grid>
                             {scheduleRow}
-                        </div>
-                    </ExpandableSection>
-                    {spinner}
+                        </Tab>
+                    </Tabs>
                 </Form>
             </Modal>
         );
@@ -556,18 +680,52 @@ export class ReplAgmtModal extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            isExpanded: false,
+            activeTabKey: 0,
         };
 
-        this.onToggle = (isExpanded) => {
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            event.preventDefault();
             this.setState({
-                isExpanded
+                activeTabKey: tabIndex
             });
         };
     }
 
-    handleNavSelect(key) {
-        this.setState({ activeKey: key });
+    hasMainErrors(errors) {
+        const attrs = [
+            'agmtName', 'agmtHost', 'agmtPort', 'agmtBindDN', 'agmtBindPW', 'agmtBindPWConfirm'
+        ];
+        for (let attr of attrs) {
+            if (attr in errors && errors[attr]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    hasBootErrors(errors) {
+        const attrs = [
+            'agmtBootstrapBindDN', 'agmtBootstrapBindPW', 'agmtBootstrapBindPWConfirm'
+        ];
+        for (let attr of attrs) {
+            if (attr in errors && errors[attr]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    hasScheduleErrors(errors) {
+        const attrs = [
+            'agmtStartTime', 'agmtEndTime'
+        ];
+        for (let attr of attrs) {
+            if (attr in errors && errors[attr]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     render() {
@@ -576,6 +734,7 @@ export class ReplAgmtModal extends React.Component {
             closeHandler,
             saveHandler,
             handleChange,
+            handleTimeChange,
             handleStripChange,
             handleFracChange,
             handleFracInitChange,
@@ -594,6 +753,7 @@ export class ReplAgmtModal extends React.Component {
             agmtPort,
             agmtProtocol,
             agmtBindMethod,
+            agmtBindMethodOptions,
             agmtBindDN,
             agmtBindPW,
             agmtBindPWConfirm,
@@ -603,6 +763,7 @@ export class ReplAgmtModal extends React.Component {
             agmtBootstrapBindPWConfirm,
             agmtBootstrapProtocol,
             agmtBootstrapBindMethod,
+            agmtBootstrapBindMethodOptions,
             agmtStripAttrs,
             agmtFracAttrs,
             agmtFracInitAttrs,
@@ -616,279 +777,318 @@ export class ReplAgmtModal extends React.Component {
             agmtSyncSun,
             agmtStartTime,
             agmtEndTime,
+            agmtInit,
             availAttrs,
             error,
-            errorMsg,
-            errorScheduleMsg,
         } = this.props;
-        let spinner = "";
         let saveDisabled = !this.props.saveOK;
         let title = "Create";
         let initRow = "";
-        let errMsgClass = "ds-center ds-modal-error";
-        let errMsg = errorMsg;
         let name = "agmt-modal";
         let bootstrapTitle = "If you are using Bind Group's on the consumer " +
             "replica you can configure bootstrap credentials that can be used " +
             "to do online initializations, or bootstrap a session if the bind " +
             "groups get out of synchronization";
+        let startHour = agmtStartTime.substring(0, 2);
+        let startMin = agmtStartTime.substring(2, 4);
+        let startTime = startHour + ":" + startMin;
+        let endHour = agmtEndTime.substring(0, 2);
+        let endMin = agmtEndTime.substring(2, 4);
+        let endTime = endHour + ":" + endMin;
+        let saveBtnName = "Save Agreement";
+        let extraPrimaryProps = {};
+        if (spinning) {
+            saveBtnName = "Saving Agreement ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
+
+        let mainSettingsError = "";
+        let bootSettingsError = "";
+        let scheduleSettingsError = "";
+        if (this.hasMainErrors(error)) {
+            mainSettingsError = <TabTitleIcon className="ds-warning-icon"><ExclamationTriangleIcon /></TabTitleIcon>;
+        }
+        if (this.hasBootErrors(error)) {
+            bootSettingsError = <TabTitleIcon className="ds-warning-icon"><ExclamationTriangleIcon /></TabTitleIcon>;
+        }
+        if (this.hasScheduleErrors(error)) {
+            scheduleSettingsError = <TabTitleIcon className="ds-warning-icon"><ExclamationTriangleIcon /></TabTitleIcon>;
+        }
 
         if (this.props.edit) {
             title = "Edit";
             name = "agmt-modal-edit";
         } else {
             initRow =
-                <Row className="ds-margin-top">
-                    <Col componentClass={ControlLabel} sm={4}>
+                <Grid className="ds-margin-top-lg">
+                    <GridItem className="ds-label" span={3}>
                         Consumer Initialization
-                    </Col>
-                    <Col sm={8}>
-                        <select className="btn btn-default dropdown" id="agmtInit" name={name} onChange={handleChange}>
-                            <option value="noinit">Do Not Initialize</option>
-                            <option value="online-init">Do Online Initialization</option>
-                        </select>
-                    </Col>
-                </Row>;
-        }
-
-        if (errMsg == "") {
-            // To keep the modal nice and stable during input validation
-            // We need text that is invisible to keep the modal input from
-            // jumping around
-            errMsgClass = "ds-center ds-clear-text";
-            errMsg = "No errors";
-        }
-
-        if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner size="md" />Creating replication agreement ...
-                    </div>
-                </Row>;
+                    </GridItem>
+                    <GridItem span={9}>
+                        <FormSelect
+                            value={agmtInit}
+                            id="agmtInit"
+                            onChange={(str, e) => {
+                                handleChange(e);
+                            }}
+                            aria-label="FormSelect Input"
+                        >
+                            <FormSelectOption key={0} value="noinit" label="Do Not Initialize" />
+                            <FormSelectOption key={1} value="online-init" label="Do Online Initialization" />
+                        </FormSelect>
+                    </GridItem>
+                </Grid>;
         }
 
         let bootstrapRow =
             <div className="ds-left-indent-md">
-                <Row className="ds-margin-top-lg" title="The Bind DN the agreement can use to bootstrap initialization">
-                    <Col componentClass={ControlLabel} sm={4}>
+                <Grid className="ds-margin-top-lg" title="The Bind DN the agreement can use to bootstrap initialization">
+                    <GridItem className="ds-label" span={3}>
                         Bind DN
-                    </Col>
-                    <Col sm={8}>
-                        <FormControl
-                            id="agmtBootstrapBindDN"
+                    </GridItem>
+                    <GridItem span={9}>
+                        <TextInput
+                            value={agmtBootstrapBindDN}
                             type="text"
-                            name={name}
-                            className={error.agmtBootstrapBindDN ? "ds-input-bad" : ""}
-                            onChange={handleChange}
-                            autoComplete="false"
-                            defaultValue={agmtBootstrapBindDN}
+                            id="agmtBootstrapBindDN"
+                            aria-describedby="horizontal-form-name-helper"
+                            name="agmtBootstrapBindDN"
+                            onChange={(str, e) => {
+                                handleChange(e);
+                            }}
+                            validated={error.agmtBootstrapBindDN ? ValidatedOptions.error : ValidatedOptions.default}
                         />
-                    </Col>
-                </Row>
-                <Row className="ds-margin-top">
-                    <Col componentClass={ControlLabel} sm={4} title="The Bind DN password for bootstrap initialization">
+                        <FormHelperText isError isHidden={!error.agmtBootstrapBindDN || agmtBootstrapBindDN == ""}>
+                            Value must be a valid DN
+                        </FormHelperText>
+                    </GridItem>
+                </Grid>
+                <Grid className="ds-margin-top">
+                    <GridItem className="ds-label" span={3} title="The Bind DN password for bootstrap initialization">
                         Password
-                    </Col>
-                    <Col sm={8}>
-                        <FormControl
+                    </GridItem>
+                    <GridItem span={9}>
+                        <TextInput
+                            value={agmtBootstrapBindPW}
+                            type="password"
                             id="agmtBootstrapBindPW"
-                            type="password"
-                            name={name}
-                            className={error.agmtBootstrapBindPW ? "ds-input-bad" : ""}
-                            onChange={handleChange}
-                            autoComplete="new-password"
-                            defaultValue={agmtBootstrapBindPW}
+                            aria-describedby="horizontal-form-name-helper"
+                            name="agmtBootstrapBindPW"
+                            onChange={(str, e) => {
+                                handleChange(e);
+                            }}
+                            validated={error.agmtBootstrapBindPW ? ValidatedOptions.error : ValidatedOptions.default}
                         />
-                    </Col>
-                </Row>
-                <Row className="ds-margin-top">
-                    <Col componentClass={ControlLabel} sm={4} title="Confirm the Bind DN password for bootstrap initialization">
+                        <FormHelperText isError isHidden={!error.agmtBootstrapBindPW || agmtBootstrapBindPW == "" || error.agmtBootstrapBindPWConfirm == ""}>
+                            Password must match
+                        </FormHelperText>
+                    </GridItem>
+                </Grid>
+                <Grid className="ds-margin-top">
+                    <GridItem className="ds-label" span={3} title="Confirm the Bind DN password for bootstrap initialization">
                         Confirm Password
-                    </Col>
-                    <Col sm={8}>
-                        <FormControl
-                            id="agmtBootstrapBindPWConfirm"
+                    </GridItem>
+                    <GridItem span={9}>
+                        <TextInput
+                            value={agmtBootstrapBindPWConfirm}
                             type="password"
-                            name={name}
-                            className={error.agmtBootstrapBindPWConfirm ? "ds-input-bad" : ""}
-                            onChange={handleChange}
-                            autoComplete="new-password"
-                            defaultValue={agmtBootstrapBindPWConfirm}
+                            id="agmtBootstrapBindPWConfirm"
+                            aria-describedby="horizontal-form-name-helper"
+                            name="agmtBootstrapBindPWConfirm"
+                            onChange={(str, e) => {
+                                handleChange(e);
+                            }}
+                            validated={error.agmtBootstrapBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                         />
-                    </Col>
-                </Row>
-                <Row className="ds-margin-top">
-                    <Col componentClass={ControlLabel} sm={4} title="The connection protocol for bootstrap initialization">
+                        <FormHelperText isError isHidden={!error.agmtBootstrapBindPWConfirm || agmtBootstrapBindPWConfirm == ""}>
+                            Passwords must match
+                        </FormHelperText>
+                    </GridItem>
+                </Grid>
+                <Grid className="ds-margin-top">
+                    <GridItem className="ds-label" span={3} title="The connection protocol for bootstrap initialization">
                         Connection Protocol
-                    </Col>
-                    <Col sm={8}>
-                        <select className={error.agmtBootstrapProtocol ? "btn btn-default dropdown ds-input-bad" : "btn btn-default dropdown"}
+                    </GridItem>
+                    <GridItem span={9}>
+                        <FormSelect
+                            value={agmtBootstrapProtocol}
                             id="agmtBootstrapProtocol"
-                            defaultValue={agmtBootstrapProtocol}
-                            name={name}
-                            onChange={handleChange}
+                            onChange={(str, e) => {
+                                handleChange(e);
+                            }}
+                            aria-label="FormSelect Input"
+                            validated={error.agmtBootstrapProtocol ? ValidatedOptions.error : ValidatedOptions.default}
                         >
-                            <option>LDAP</option>
-                            <option>LDAPS</option>
-                            <option title="Currently not recommended">StartTLS</option>
-                        </select>
-                    </Col>
-                </Row>
-                <Row className="ds-margin-top">
-                    <Col componentClass={ControlLabel} sm={4} title="The authentication method for bootstrap initialization">
+                            <FormSelectOption key={0} value="LDAP" label="LDAP" />
+                            <FormSelectOption key={1} value="LDAPS" label="LDAPS" />
+                            <FormSelectOption key={2} value="STARTTLS" label="STARTTLS" />
+                        </FormSelect>
+                    </GridItem>
+                </Grid>
+                <Grid className="ds-margin-top-lg">
+                    <GridItem className="ds-label" span={3} title="The authentication method for bootstrap initialization">
                         Authentication Method
-                    </Col>
-                    <Col sm={8}>
-                        <select className={error.agmtBootstrapBindMethod ? "btn btn-default dropdown ds-input-bad" : "btn btn-default dropdown"}
-                            defaultValue={agmtBootstrapBindMethod}
+                    </GridItem>
+                    <GridItem span={9}>
+                        <FormSelect
+                            value={agmtBootstrapBindMethod}
                             id="agmtBootstrapBindMethod"
-                            name={name}
-                            onChange={handleChange}
+                            onChange={(str, e) => {
+                                handleChange(e);
+                            }}
+                            aria-label="FormSelect Input"
+                            validated={error.agmtBootstrapBindMethod ? ValidatedOptions.error : ValidatedOptions.default}
                         >
-                            <option title="Use a bind DN and password">SIMPLE</option>
-                            <option title="Use a SSL/TLS Client Certificate">SSLCLIENTAUTH</option>
-                        </select>
-                    </Col>
-                </Row>
+                            {agmtBootstrapBindMethodOptions.map((option, index) => (
+                                <FormSelectOption key={index} value={option} label={option} />
+                            ))}
+                        </FormSelect>
+                    </GridItem>
+                </Grid>
             </div>;
 
         let scheduleRow =
             <div className="ds-left-indent-md">
-                <Row className="ds-margin-top-lg">
-                    <Col sm={12}>
-                        <i>Custom Synchronization Schedule</i>
-                    </Col>
-                </Row>
-                <hr />
-                <div className="ds-indent">
-                    <Row>
-                        <Col sm={3}>
+                <Grid className="ds-margin-top-lg">
+                    <GridItem className="ds-label" span={12}>
+                        Days To Send Replication Updates
+                    </GridItem>
+                </Grid>
+                <div className="ds-indent ds-margin-top">
+                    <Grid>
+                        <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncMon"
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
                                 name={name}
-                                title="Monday"
                                 isChecked={agmtSyncMon}
-                                label="Mon"
+                                label="Monday"
+                                isValid={!error.agmtSyncMon}
                             />
-                        </Col>
-                        <Col sm={3}>
-                            <Checkbox
-                                id="agmtSyncWed"
-                                onChange={(checked, e) => {
-                                    handleChange(e);
-                                }}
-                                title="Wednesday"
-                                name={name}
-                                isChecked={agmtSyncWed}
-                                label="Wed"
-                            />
-                        </Col>
-                        <Col sm={3}>
+                        </GridItem>
+                        <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncFri"
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                title="Friday"
                                 name={name}
                                 isChecked={agmtSyncFri}
-                                label="Fri"
+                                label="Friday"
+                                isValid={!error.agmtSyncFri}
                             />
-                        </Col>
-                        <Col sm={3}>
-                            <Checkbox
-                                id="agmtSyncSun"
-                                onChange={(checked, e) => {
-                                    handleChange(e);
-                                }}
-                                title="Sunday"
-                                name={name}
-                                isChecked={agmtSyncSun}
-                                label="Sun"
-                            />
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col sm={3}>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncTue"
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                title="Tuesday"
                                 name={name}
                                 isChecked={agmtSyncTue}
-                                label="Tue"
+                                isValid={!error.agmtSyncTue}
+                                label="Tuesday"
                             />
-                        </Col>
-                        <Col sm={3}>
-                            <Checkbox
-                                id="agmtSyncThu"
-                                onChange={(checked, e) => {
-                                    handleChange(e);
-                                }}
-                                title="Thursday"
-                                name={name}
-                                isChecked={agmtSyncThu}
-                                label="Thu"
-                            />
-                        </Col>
-                        <Col sm={3}>
+                        </GridItem>
+                        <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncSat"
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                title="Saturday"
                                 name={name}
                                 isChecked={agmtSyncSat}
-                                label="Sat"
+                                isValid={!error.agmtSyncSat}
+                                label="Saturday"
                             />
-                        </Col>
-                    </Row>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <Checkbox
+                                id="agmtSyncWed"
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
+                                name={name}
+                                isChecked={agmtSyncWed}
+                                label="Wednesday"
+                                isValid={!error.agmtSyncWed}
+                            />
+                        </GridItem>
+                        <GridItem span={3}>
+                            <Checkbox
+                                id="agmtSyncSun"
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
+                                name={name}
+                                isChecked={agmtSyncSun}
+                                isValid={!error.agmtSyncSun}
+                                label="Sunday"
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <Checkbox
+                                id="agmtSyncThu"
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
+                                name={name}
+                                isChecked={agmtSyncThu}
+                                isValid={!error.agmtSyncThu}
+                                label="Thursday"
+                            />
+                        </GridItem>
+                    </Grid>
                 </div>
-                <Row className="ds-margin-top">
-                    <Col sm={10}>
-                        <p className="ds-modal-error">{errorScheduleMsg}</p>
-                    </Col>
-                </Row>
-                <Row className="ds-margin-top" title="Time to start initiating replication sessions">
-                    <Col componentClass={ControlLabel} sm={4}>
+                <Grid className="ds-margin-top-lg" title="Time to start initiating replication sessions">
+                    <GridItem className="ds-label" span={3}>
                         Replication Start Time
-                    </Col>
-                    <Col sm={8}>
-                        <FormControl
+                    </GridItem>
+                    <GridItem span={9}>
+                        <TimePicker
+                            time={startTime}
                             id="agmtStartTime"
-                            type="time"
-                            name={name}
-                            className={error.agmtStartTime ? "ds-input-bad" : ""}
-                            onChange={handleChange}
-                            defaultValue={agmtStartTime}
+                            onChange={(val) => {
+                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtStartTime", val);
+                            }}
+                            stepMinutes={5}
+                            is24Hour
                         />
-                    </Col>
-                </Row>
-                <Row className="ds-margin-top" title="Time to initiating replication sessions">
-                    <Col componentClass={ControlLabel} sm={4}>
+                        <FormHelperText isError isHidden={!error.agmtStartTime}>
+                            Start time must be before the End time
+                        </FormHelperText>
+                    </GridItem>
+                </Grid>
+                <Grid title="Time to initiating replication sessions">
+                    <GridItem className="ds-label" span={3}>
                         Replication End Time
-                    </Col>
-                    <Col sm={8}>
-                        <FormControl
+                    </GridItem>
+                    <GridItem span={9}>
+                        <TimePicker
+                            time={endTime}
                             id="agmtEndTime"
-                            type="time"
-                            name={name}
-                            className={error.agmtEndTime ? "ds-input-bad" : ""}
-                            onChange={handleChange}
-                            defaultValue={agmtEndTime}
+                            onChange={(val) => {
+                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtEndTime", val);
+                            }}
+                            stepMinutes={5}
+                            is24Hour
                         />
-                    </Col>
-                </Row>
+                        <FormHelperText isError isHidden={!error.agmtEndTime}>
+                            End time must be after the Start time
+                        </FormHelperText>
+                    </GridItem>
+                </Grid>
             </div>;
 
-        if (agmtSync) {
+        if (!agmtSync) {
             scheduleRow = "";
         }
         if (!agmtBootstrap) {
@@ -900,6 +1100,7 @@ export class ReplAgmtModal extends React.Component {
             <Modal
                 variant={ModalVariant.medium}
                 title={title}
+                className="ds-modal-repl-agmt"
                 aria-labelledby="ds-modal"
                 isOpen={showModal}
                 onClose={closeHandler}
@@ -909,162 +1110,195 @@ export class ReplAgmtModal extends React.Component {
                         variant="primary"
                         isDisabled={saveDisabled}
                         onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
                     >
-                        Save Agreement
+                        {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
-                    <Row className="ds-margin-top">
-                        <Col sm={10}>
-                            <p className={errMsgClass}>{errMsg}</p>
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Agreement Name
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                id="agmtName"
-                                type="text"
-                                name={name}
-                                className={error.agmtName ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                defaultValue={agmtName}
-                                disabled={this.props.edit}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Consumer Host
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                id="agmtHost"
-                                type="text"
-                                name={name}
-                                className={error.agmtHost ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                defaultValue={agmtHost}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Consumer Port
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                id="agmtPort"
-                                type="text"
-                                name={name}
-                                className={error.agmtPort ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                defaultValue={agmtPort}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Bind DN
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                id="agmtBindDN"
-                                type="text"
-                                name={name}
-                                className={error.agmtBindDN ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                autoComplete="false"
-                                defaultValue={agmtBindDN}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Bind Password
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                id="agmtBindPW"
-                                type="password"
-                                name={name}
-                                className={error.agmtBindPW ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                autoComplete="new-password"
-                                defaultValue={agmtBindPW}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Confirm Password
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                id="agmtBindPWConfirm"
-                                type="password"
-                                name={name}
-                                className={error.agmtBindPWConfirm ? "ds-input-bad" : ""}
-                                onChange={handleChange}
-                                autoComplete="new-password"
-                                defaultValue={agmtBindPWConfirm}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Connection Protocol
-                        </Col>
-                        <Col sm={8}>
-                            <select className={error.agmtProtocol ? "btn btn-default dropdown ds-input-bad" : "btn btn-default dropdown"}
-                                id="agmtProtocol"
-                                defaultValue={agmtProtocol}
-                                name={name}
-                                onChange={handleChange}
-                            >
-                                <option>LDAP</option>
-                                <option>LDAPS</option>
-                                <option title="Currently not recommended">StartTLS</option>
-                            </select>
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Authentication Method
-                        </Col>
-                        <Col sm={8}>
-                            <select className={error.agmtBindMethod ? "btn btn-default dropdown ds-input-bad" : "btn btn-default dropdown"}
-                                defaultValue={agmtBindMethod}
-                                id="agmtBindMethod"
-                                name={name}
-                                onChange={handleChange}
-                            >
-                                <option title="Use bind DN and password">SIMPLE</option>
-                                <option title="Use SSL Client Certificate">SSLCLIENTAUTH</option>
-                                <option title="Use SASL Digest-MD5">SASL/DIGEST-MD5</option>
-                                <option title="Use SASL GSSAPI">SASL/GSSAPI</option>
-                            </select>
-                        </Col>
-                    </Row>
-                    {initRow}
-                    <ExpandableSection
-                        className="ds-margin-top-lg"
-                        toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
-                        onToggle={this.onToggle}
-                        isExpanded={this.state.isExpanded}
-                    >
-                        <div className="ds-margin-left">
-                            <Row className="ds-margin-top-lg" title="Attribute to exclude from replication">
-                                <Col componentClass={ControlLabel} sm={4}>
+                <Form isHorizontal autoComplete="off">
+                    <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                        <Tab eventKey={0} title={<>{mainSettingsError}<TabTitleText>Main Settings</TabTitleText></>}>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={3}>
+                                    Agreement Name
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtName}
+                                        type="text"
+                                        id="agmtName"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtName"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        isDisabled={this.props.edit}
+                                        validated={error.agmtName ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                    <FormHelperText isError isHidden={!error.agmtName || agmtName == ""}>
+                                        Required field
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={3}>
+                                    Consumer Host
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtHost}
+                                        type="text"
+                                        id="agmtHost"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtHost"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.agmtHost ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                    <FormHelperText isError isHidden={!error.agmtHost || agmtHost == ""}>
+                                        Required field
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={3}>
+                                    Consumer Port
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtPort}
+                                        type="number"
+                                        id="agmtPort"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtPort"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                    <FormHelperText isError isHidden={!error.agmtPort}>
+                                        Port must be between 1 and 65535
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={3}>
+                                    Bind DN
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtBindDN}
+                                        type="text"
+                                        id="agmtBindDN"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtBindDN"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.agmtBindDN ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                    <FormHelperText isError isHidden={!error.agmtBindDN}>
+                                        Value must be a valid DN
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={3}>
+                                    Bind Password
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtBindPW}
+                                        type="password"
+                                        id="agmtBindPW"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtBindPW"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.agmtBindPW ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                    <FormHelperText isError isHidden={!error.agmtBindPW || error.agmtBindPW == "" || error.agmtBindPWConfirm == ""}>
+                                        Passwords must match
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={3}>
+                                    Confirm Password
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={agmtBindPWConfirm}
+                                        type="password"
+                                        id="agmtBindPWConfirm"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="agmtBindPWConfirm"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        validated={error.agmtBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                    <FormHelperText isError isHidden={!error.agmtBindPWConfirm || agmtBindPWConfirm == ""}>
+                                        Passwords must match
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top">
+                                <GridItem className="ds-label" span={3}>
+                                    Connection Protocol
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <FormSelect
+                                        value={agmtProtocol}
+                                        id="agmtProtocol"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        aria-label="FormSelect Input"
+                                        validated={error.agmtProtocol ? ValidatedOptions.error : ValidatedOptions.default}
+                                    >
+                                        <FormSelectOption key={0} value="LDAP" label="LDAP" />
+                                        <FormSelectOption key={1} value="LDAPS" label="LDAPS" />
+                                        <FormSelectOption key={2} value="STARTTLS" label="STARTTLS" />
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top-lg">
+                                <GridItem className="ds-label" span={3}>
+                                    Authentication Method
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <FormSelect
+                                        value={agmtBindMethod}
+                                        id="agmtBindMethod"
+                                        onChange={(str, e) => {
+                                            handleChange(e);
+                                        }}
+                                        aria-label="FormSelect Input"
+                                        validated={error.agmtBindMethod ? ValidatedOptions.error : ValidatedOptions.default}
+                                    >
+                                        {agmtBindMethodOptions.map((option, index) => (
+                                            <FormSelectOption key={index} value={option} label={option} />
+                                        ))}
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
+                            {initRow}
+                        </Tab>
+                        <Tab eventKey={1} title={<TabTitleText>Fractional Settings</TabTitleText>}>
+                            <Grid className="ds-margin-top-lg" title="Attribute to exclude from replication">
+                                <GridItem className="ds-label" span={3}>
                                     Exclude Attributes
-                                </Col>
-                                <Col sm={8}>
+                                </GridItem>
+                                <GridItem span={9}>
                                     <Select
                                         variant={SelectVariant.typeaheadMulti}
                                         typeAheadAriaLabel="Type an attribute"
@@ -1083,13 +1317,13 @@ export class ReplAgmtModal extends React.Component {
                                             />
                                             ))}
                                     </Select>
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="Attribute to exclude from replica Initializations">
-                                <Col componentClass={ControlLabel} sm={4}>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top" title="Attribute to exclude from replica Initializations">
+                                <GridItem className="ds-label" span={3}>
                                     Exclude Init Attributes
-                                </Col>
-                                <Col sm={8}>
+                                </GridItem>
+                                <GridItem span={9}>
                                     <Select
                                         variant={SelectVariant.typeaheadMulti}
                                         typeAheadAriaLabel="Type an attribute"
@@ -1109,13 +1343,13 @@ export class ReplAgmtModal extends React.Component {
                                             />
                                             ))}
                                     </Select>
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="Attributes to strip from a replicatio<Selectn update">
-                                <Col componentClass={ControlLabel} sm={4}>
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top" title="Attributes to strip from a replicatio<Selectn update">
+                                <GridItem className="ds-label" span={3}>
                                     Strip Attributes
-                                </Col>
-                                <Col sm={8}>
+                                </GridItem>
+                                <GridItem span={9}>
                                     <Select
                                         variant={SelectVariant.typeaheadMulti}
                                         typeAheadAriaLabel="Type an attribute"
@@ -1135,11 +1369,12 @@ export class ReplAgmtModal extends React.Component {
                                             />
                                             ))}
                                     </Select>
-                                </Col>
-                            </Row>
-                            <hr />
-                            <Row className="ds-margin-top-med">
-                                <Col sm={8}>
+                                </GridItem>
+                            </Grid>
+                        </Tab>
+                        <Tab eventKey={2} title={<>{bootSettingsError}<TabTitleText>Bootstrap Settings</TabTitleText></>}>
+                            <Grid className="ds-margin-top-med">
+                                <GridItem span={9}>
                                     <Checkbox
                                         id="agmtBootstrap"
                                         isChecked={agmtBootstrap}
@@ -1148,14 +1383,22 @@ export class ReplAgmtModal extends React.Component {
                                         }}
                                         name={name}
                                         title={bootstrapTitle}
-                                        label="Configure Bootstrap Settings"
+                                        label="Enable Bootstrap Settings"
                                     />
-                                </Col>
-                            </Row>
+                                </GridItem>
+                            </Grid>
                             {bootstrapRow}
-                            <hr />
-                            <Row className="ds-margin-top-med">
-                                <Col sm={8}>
+                        </Tab>
+                        <Tab eventKey={3} title={<>{scheduleSettingsError}<TabTitleText>Scheduling</TabTitleText></>}>
+                            <Grid className="ds-margin-top-med">
+                                <GridItem span={12}>
+                                    <h5>
+                                        By default replication updates are sent to the replica as soon as possible, but
+                                        if there is a need for replication updates to only be sent on certains days and within certain
+                                        windows of time then you can setup a custom replication schedule.
+                                    </h5>
+                                </GridItem>
+                                <GridItem className="ds-margin-top-lg" span={12}>
                                     <Checkbox
                                         id="agmtSync"
                                         isChecked={agmtSync}
@@ -1163,15 +1406,13 @@ export class ReplAgmtModal extends React.Component {
                                             handleChange(e);
                                         }}
                                         name={name}
-                                        title="Always keep replication in synchronization, or use a specific schedule by unchecking the box."
-                                        label="Keep Replication In Constant Synchronization"
+                                        label="Use A Custom Schedule"
                                     />
-                                </Col>
-                            </Row>
+                                </GridItem>
+                            </Grid>
                             {scheduleRow}
-                        </div>
-                    </ExpandableSection>
-                    {spinner}
+                        </Tab>
+                    </Tabs>
                 </Form>
             </Modal>
         );
@@ -1196,6 +1437,10 @@ export class ChangeReplRoleModal extends React.Component {
             role,
             spinning,
             checked,
+            onMinus,
+            onNumberChange,
+            onPlus,
+            newRID,
         } = this.props;
         let spinner = "";
         let changeType = "";
@@ -1222,29 +1467,35 @@ export class ChangeReplRoleModal extends React.Component {
         }
         if (newRole == "Supplier") {
             ridRow =
-                <Row className="ds-margin-top-lg" title="Supplier Replica Identifier.  This must be unique across all the Supplier replicas in your environment">
-                    <Col componentClass={ControlLabel} sm={2}>
+                <Grid className="ds-margin-top-lg" title="Supplier Replica Identifier.  This must be unique across all the Supplier replicas in your environment">
+                    <GridItem className="ds-label" span={3}>
                         Replica ID
-                    </Col>
-                    <Col sm={4}>
-                        <input id="newRID" type="number" min="1" max="65534"
-                            onChange={handleChange} defaultValue="1" size="10"
+                    </GridItem>
+                    <GridItem span={2}>
+                        <NumberInput
+                            value={newRID}
+                            min={1}
+                            max={65534}
+                            onMinus={onMinus}
+                            onChange={onNumberChange}
+                            onPlus={onPlus}
+                            inputName="input"
+                            inputAriaLabel="number input"
+                            minusBtnAriaLabel="minus"
+                            plusBtnAriaLabel="plus"
+                            widthChars={8}
                         />
-                    </Col>
-                </Row>;
+                    </GridItem>
+                </Grid>;
         }
-
-        let selectOptions = roleOptions.map((role) =>
-            <option key={role} value={role}>{role}</option>
-        );
 
         if (spinning) {
             spinner =
-                <Row>
+                <Grid>
                     <div className="ds-margin-top ds-modal-spinner">
                         <Spinner size="md" />{changeType} replica ...
                     </div>
-                </Row>;
+                </Grid>;
             saveDisabled = true;
         }
 
@@ -1271,31 +1522,40 @@ export class ChangeReplRoleModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
+                <Form isHorizontal autoComplete="off">
                     <h4>Please choose the new replication role you would like for this suffix</h4>
-                    <Row className="ds-margin-top-lg">
-                        <Col componentClass={ControlLabel} sm={3}>
+                    <Grid className="ds-margin-top-lg">
+                        <GridItem className="ds-label" span={3}>
                             New Role
-                        </Col>
-                        <Col sm={4}>
-                            <select id="newRole" onChange={handleChange}>
-                                {selectOptions}
-                            </select>
-                        </Col>
-                    </Row>
+                        </GridItem>
+                        <GridItem span={3}>
+                            <FormSelect
+                                value={newRole}
+                                id="newRole"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                aria-label="FormSelect Input"
+                            >
+                                {roleOptions.map((option, index) => (
+                                    <FormSelectOption key={index} value={option} label={option} />
+                                ))}
+                            </FormSelect>
+                        </GridItem>
+                    </Grid>
                     {ridRow}
-                    <Row className="ds-margin-top-xlg">
-                        <Col sm={12} className="ds-center">
+                    <Grid className="ds-margin-top-xlg">
+                        <GridItem span={12} className="ds-center">
                             <Checkbox
                                 id="modalChecked"
                                 isChecked={checked}
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                label={<><b>Yes</b>&nbsp;,I am sure.</>}
+                                label={<><b>Yes</b>, I am sure.</>}
                             />
-                        </Col>
-                    </Row>
+                        </GridItem>
+                    </Grid>
                     {spinner}
                 </Form>
             </Modal>
@@ -1311,81 +1571,101 @@ export class AddManagerModal extends React.Component {
             handleChange,
             saveHandler,
             spinning,
+            manager,
+            manager_passwd,
+            manager_passwd_confirm,
             error
         } = this.props;
-        let spinner = "";
+        let saveBtnName = "Add Replication Manager";
+        let extraPrimaryProps = {};
         if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner size="md" />Adding Replication Manager...
-                    </div>
-                </Row>;
+            saveBtnName = "Adding Replication Manager ...";
         }
 
         return (
             <Modal
-                variant={ModalVariant.small}
+                variant={ModalVariant.medium}
                 title="Add Replication Manager"
                 aria-labelledby="ds-modal"
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={saveHandler}>
-                        Add Replication Manager
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={error.manager || error.manager_passwd || error.manager_passwd_confirm}
+                    >
+                        {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
+                <Form isHorizontal autoComplete="off">
                     <h5>
                         Create a Replication Manager entry, and add it to the replication configuration
                         for this suffix.  If the entry already exists it will be overwritten with
                         the new credentials.
                     </h5>
-                    <Row className="ds-margin-top-lg" title="The DN of the replication manager">
-                        <Col componentClass={ControlLabel} sm={4}>
+                    <Grid className="ds-margin-top-lg" title="The DN of the replication manager">
+                        <GridItem className="ds-label" span={3}>
                             Replication Manager DN
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={manager}
                                 type="text"
                                 id="manager"
-                                defaultValue="cn=replication manager,cn=config"
-                                className={error.manager ? "ds-input-auto-bad" : "ds-input-auto"}
-                                onChange={handleChange}
+                                aria-describedby="horizontal-form-name-helper"
+                                name="manager"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.manager ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="Replication Manager password">
-                        <Col componentClass={ControlLabel} sm={4}>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top" title="Replication Manager password">
+                        <GridItem className="ds-label" span={3}>
                             Password
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={manager_passwd}
                                 type="password"
                                 id="manager_passwd"
-                                className={error.manager_passwd ? "ds-input-auto-bad" : "ds-input-auto"}
-                                onChange={handleChange}
+                                aria-describedby="horizontal-form-name-helper"
+                                name="manager_passwd"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.manager_passwd ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="Replication Manager password">
-                        <Col componentClass={ControlLabel} sm={4}>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top" title="Replication Manager password">
+                        <GridItem className="ds-label" span={3}>
                             Confirm Password
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={manager_passwd_confirm}
                                 type="password"
                                 id="manager_passwd_confirm"
-                                className={error.manager_passwd_confirm ? "ds-input-auto-bad" : "ds-input-auto"}
-                                onChange={handleChange}
+                                aria-describedby="horizontal-form-name-helper"
+                                name="manager_passwd_confirm"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.manager_passwd_confirm ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
-                    {spinner}
+                        </GridItem>
+                    </Grid>
                 </Form>
             </Modal>
         );
@@ -1400,32 +1680,46 @@ export class EnableReplModal extends React.Component {
             handleChange,
             saveHandler,
             spinning,
-            role,
-            error
+            enableRole,
+            enableRID,
+            enableBindDN,
+            enableBindPW,
+            enableBindPWConfirm,
+            enableBindGroupDN,
+            error,
+            onMinus,
+            onPlus,
+            onNumberChange
         } = this.props;
-        let spinner = "";
+        let saveBtnName = "Enable Replication";
+        let extraPrimaryProps = {};
         if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner size="md" />Enabling Replication ...
-                    </div>
-                </Row>;
+            saveBtnName = "Enabling Replication ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
-
         let replicaIDRow = "";
-        if (role == "Supplier") {
+        if (enableRole == "Supplier") {
             replicaIDRow =
-                <Row className="ds-margin-top">
-                    <Col sm={3} componentClass={ControlLabel}>
+                <Grid className="ds-margin-top">
+                    <GridItem span={3} className="ds-label">
                         Replica ID
-                    </Col>
-                    <Col sm={9}>
-                        <input id="enableRID" type="number" min="1" max="65534"
-                            onChange={handleChange} defaultValue="1" size="10"
+                    </GridItem>
+                    <GridItem span={2}>
+                        <NumberInput
+                            value={enableRID}
+                            min={1}
+                            max={65534}
+                            onMinus={onMinus}
+                            onChange={onNumberChange}
+                            onPlus={onPlus}
+                            inputName="input"
+                            inputAriaLabel="number input"
+                            minusBtnAriaLabel="minus"
+                            plusBtnAriaLabel="plus"
+                            widthChars={6}
                         />
-                    </Col>
-                </Row>;
+                    </GridItem>
+                </Grid>;
         }
 
         return (
@@ -1441,37 +1735,47 @@ export class EnableReplModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isDisabled={this.props.disabled}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
                     >
-                        Enable Replication
+                        {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
+                <Form isHorizontal autoComplete="off">
                     <h5>
                         Choose the replication role for this suffix.  If it
                         is a Supplier replica then you must pick a unique ID
                         to identify it among the other Supplier replicas in your
                         environment.  The replication changelog will also
-                        automatically be created if it does not exist.
+                        automatically be created for you.
                     </h5>
                     <hr />
-                    <Row className="ds-margin-top-lg">
-                        <Col sm={3} componentClass={ControlLabel}>
+                    <Grid>
+                        <GridItem span={3} className="ds-label">
                             Replication Role
-                        </Col>
-                        <Col sm={9}>
-                            <select className="btn btn-default dropdown" id="enableRole" defaultValue="Supplier" onChange={handleChange}>
-                                <option>Supplier</option>
-                                <option>Hub</option>
-                                <option>Consumer</option>
-                            </select>
-                        </Col>
-                    </Row>
+                        </GridItem>
+                        <GridItem span={2}>
+                            <FormSelect
+                                id="enableRole"
+                                value={enableRole}
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                aria-label="FormSelect Input"
+                            >
+                                <FormSelectOption key={0} value="Supplier" label="Supplier" />
+                                <FormSelectOption key={1} value="Hub" label="Hub" />
+                                <FormSelectOption key={2} value="Consumer" label="Consumer" />
+                            </FormSelect>
+                        </GridItem>
+                    </Grid>
                     {replicaIDRow}
-                    <h5 className="ds-margin-top-xxlg">
+                    <h5 className="ds-margin-top-lg">
                         You can optionally define the authentication information
                         for this replicated suffix.  Either a Manager DN and Password,
                         a Bind Group DN, or both, can be provided.  The Manager DN should
@@ -1482,128 +1786,79 @@ export class EnableReplModal extends React.Component {
                         for a suffix.
                     </h5>
                     <hr />
-                    <Row className="ds-margin-top-lg" title="The DN of the replication manager.  If you supply a password the entry will be created in the server (it will also overwrite the entry is it already exists).">
-                        <Col componentClass={ControlLabel} sm={4}>
+                    <Grid title="The DN of the replication manager.  If you supply a password the entry will be created in the server (it will also overwrite the entry is it already exists).">
+                        <GridItem className="ds-label" span={3}>
                             Replication Manager DN
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={enableBindDN}
                                 type="text"
                                 id="enableBindDN"
-                                defaultValue="cn=replication manager,cn=config"
-                                className={error.enableBindDN ? "ds-input-auto-bad" : "ds-input-auto"}
-                                onChange={handleChange}
+                                aria-describedby="horizontal-form-name-helper"
+                                name="enableBindDN"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.enableBindDN ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="Replication Manager password">
-                        <Col componentClass={ControlLabel} sm={4}>
+                        </GridItem>
+                    </Grid>
+                    <Grid title="Replication Manager password">
+                        <GridItem className="ds-label" span={3}>
                             Password
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={enableBindPW}
                                 type="password"
                                 id="enableBindPW"
-                                className={error.enableBindPW ? "ds-input-auto-bad" : "ds-input-auto"}
-                                onChange={handleChange}
+                                aria-describedby="horizontal-form-name-helper"
+                                name="enableBindPW"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.enableBindPW ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="Confirm the Replication Manager password">
-                        <Col componentClass={ControlLabel} sm={4}>
+                        </GridItem>
+                    </Grid>
+                    <Grid title="Confirm the Replication Manager password">
+                        <GridItem className="ds-label" span={3}>
                             Confirm Password
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={enableBindPWConfirm}
                                 type="password"
                                 id="enableBindPWConfirm"
-                                className={error.enableBindPWConfirm ? "ds-input-auto-bad" : "ds-input-auto"}
-                                onChange={handleChange}
+                                aria-describedby="horizontal-form-name-helper"
+                                name="enableBindPWConfirm"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.enableBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
+                        </GridItem>
+                    </Grid>
                     <hr />
-                    <Row className="ds-margin-top" title="The DN of a group that contains users that can perform replication updates">
-                        <Col componentClass={ControlLabel} sm={4}>
+                    <Grid title="The DN of a group that contains users that can perform replication updates">
+                        <GridItem className="ds-label" span={3}>
                             Bind Group DN
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={enableBindGroupDN}
                                 type="text"
                                 id="enableBindGroupDN"
-                                className={error.enableBindGroupDN ? "ds-input-auto-bad" : "ds-input-auto"}
-                                onChange={handleChange}
+                                aria-describedby="horizontal-form-name-helper"
+                                name="enableBindGroupDN"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.enableBindGroupDN ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
-                    {spinner}
-                </Form>
-            </Modal>
-        );
-    }
-}
-
-export class ExportModal extends React.Component {
-    render() {
-        const {
-            showModal,
-            closeHandler,
-            handleChange,
-            saveHandler,
-            spinning,
-            saveOK
-        } = this.props;
-        let spinner = "";
-        if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner size="lg" />Exporting database... <font size="2">(You can safely close this window)</font>
-                    </div>
-                </Row>;
-        }
-
-        return (
-            <Modal
-                variant={ModalVariant.small}
-                title="Create Replication Initialization LDIF File"
-                isOpen={showModal}
-                aria-labelledby="ds-modal"
-                onClose={closeHandler}
-                actions={[
-                    <Button
-                        key="export"
-                        variant="primary"
-                        onClick={saveHandler}
-                        isDisabled={!saveOK}
-                    >
-                        Export Replica
-                    </Button>,
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
-                    </Button>
-                ]}
-            >
-                <Form horizontal autoComplete="off">
-                    <Row>
-                        <Col sm={11} className="ds-left-indent-md">
-                            <p>Enter the name of the LDIF file, do not use a path as the file will only be written to the server's LDIF directory</p>
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top-lg" title="Name of the exported LDIF file">
-                        <Col componentClass={ControlLabel} sm={3}>
-                            <b>LDIF Name</b>
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                type="text"
-                                id="ldifLocation"
-                                className={saveOK ? "" : "ds-input-bad"}
-                                onChange={handleChange}
-                            />
-                        </Col>
-                    </Row>
-                    {spinner}
+                        </GridItem>
+                    </Grid>
                 </Form>
             </Modal>
         );
@@ -1635,15 +1890,12 @@ export class ExportCLModal extends React.Component {
             ldifFile,
             saveOK
         } = this.props;
-        let spinner = "";
         let page = "";
+        let saveBtnName = "Export Changelog";
+        let extraPrimaryProps = {};
         if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner size="lg" />Exporting Replication Change Log... <font size="2">(You can safely close this window)</font>
-                    </div>
-                </Row>;
+            saveBtnName = "Exporting ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
         if (defaultCL) {
@@ -1655,29 +1907,34 @@ export class ExportCLModal extends React.Component {
                 </h5>;
         } else {
             page =
-                <div className="ds-margin-left">
-                    <Row className="ds-margin-top-lg">
-                        <Col sm={12}>
+                <div>
+                    <Grid>
+                        <GridItem span={12}>
                             <h5>
                                 The LDIF file that is generated should <b>not</b> be used
                                 to initialize the Replication Changelog.  It is only
                                 meant for debugging/investigative purposes.
                             </h5>
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top-xlg">
-                        <Col componentClass={ControlLabel} sm={2}>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top-xlg">
+                        <GridItem className="ds-label" span={2}>
                             LDIF File
-                        </Col>
-                        <Col sm={10}>
-                            <FormControl
-                                id="ldifFile"
+                        </GridItem>
+                        <GridItem span={10}>
+                            <TextInput
                                 value={ldifFile}
-                                onChange={handleLDIFChange}
+                                type="text"
+                                id="ldifFile"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="ldifFile"
+                                onChange={(str, e) => {
+                                    handleLDIFChange(e);
+                                }}
                             />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top-xlg ds-margin-left">
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top-xlg ds-margin-left">
                         <Checkbox
                             id="decodeCL"
                             isChecked={decodeCL}
@@ -1686,8 +1943,8 @@ export class ExportCLModal extends React.Component {
                             }}
                             label="Decode base64 changes"
                         />
-                    </Row>
-                    <Row className="ds-margin-top ds-margin-left">
+                    </Grid>
+                    <Grid className="ds-margin-top ds-margin-left">
                         <Checkbox
                             id="exportCSN"
                             isChecked={exportCSN}
@@ -1696,13 +1953,14 @@ export class ExportCLModal extends React.Component {
                             }}
                             label="Only Export CSN's"
                         />
-                    </Row>
+                    </Grid>
                 </div>;
         }
 
         return (
             <Modal
-                variant={ModalVariant.small}
+                variant={ModalVariant.medium}
+                className="ds-modal-changelog-export"
                 title="Create Replication Change Log LDIF File"
                 isOpen={showModal}
                 aria-labelledby="ds-modal"
@@ -1713,38 +1971,38 @@ export class ExportCLModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isDisabled={!saveOK}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
                     >
-                        Export Changelog
+                        {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
-                    <Row className="ds-indent">
+                <Form isHorizontal autoComplete="off">
+                    <Grid className="ds-indent ds-margin-top">
                         <Radio
+                            isChecked={defaultCL}
                             name="radioGroup"
+                            onChange={handleRadioChange}
+                            label="Export to LDIF For Reinitializing The Changelog"
                             id="defaultCL"
-                            onChange={handleRadioChange}
-                            checked={defaultCL} inline
-                        >
-                            Export to LDIF For Reinitializing The Changelog
-                        </Radio>
-                    </Row>
-                    <Row className="ds-indent">
+                        />
+                    </Grid>
+                    <Grid className="ds-indent">
                         <Radio
+                            isChecked={debugCL}
                             name="radioGroup"
-                            id="debugCL"
                             onChange={handleRadioChange}
-                            checked={debugCL} inline
-                        >
-                            Export to LDIF For Debugging
-                        </Radio>
-                    </Row>
+                            label="Export to LDIF For Debugging"
+                            id="debugCL"
+                        />
+                    </Grid>
                     <hr />
                     {page}
-                    {spinner}
                 </Form>
             </Modal>
         );
@@ -1848,7 +2106,6 @@ ReplAgmtModal.propTypes = {
     agmtEndTime: PropTypes.string,
     saveOK: PropTypes.bool,
     error: PropTypes.object,
-    errorMsg: PropTypes.string,
     edit: PropTypes.bool,
 };
 
@@ -1864,7 +2121,7 @@ ReplAgmtModal.defaultProps = {
     availAttrs: [],
     agmtName: "",
     agmtHost: "",
-    agmtPort: "",
+    agmtPort: "636",
     agmtProtocol: "LDAP",
     agmtBindMethod: "SIMPLE",
     agmtBindDN: "",
@@ -1891,7 +2148,6 @@ ReplAgmtModal.defaultProps = {
     agmtEndTime: "23:59",
     saveOK: false,
     error: {},
-    errorMsg: "",
     edit: false,
 };
 
@@ -1930,7 +2186,6 @@ WinsyncAgmtModal.propTypes = {
     agmtSyncInterval: PropTypes.string,
     saveOK: PropTypes.bool,
     error: PropTypes.object,
-    errorMsg: PropTypes.string,
     edit: PropTypes.bool,
 };
 
@@ -1944,7 +2199,7 @@ WinsyncAgmtModal.defaultProps = {
     availAttrs: [],
     agmtName: "",
     agmtHost: "",
-    agmtPort: "",
+    agmtPort: "636",
     agmtProtocol: "LDAPS",
     agmtBindDN: "",
     agmtBindPW: "",
@@ -1969,24 +2224,5 @@ WinsyncAgmtModal.defaultProps = {
     agmtSyncInterval: "",
     saveOK: false,
     error: {},
-    errorMsg: "",
     edit: false,
-};
-
-ExportModal.propTypes = {
-    showModal: PropTypes.bool,
-    closeHandler: PropTypes.func,
-    handleChange: PropTypes.func,
-    saveHandler: PropTypes.func,
-    saveOK: PropTypes.bool,
-    spinning: PropTypes.bool
-};
-
-ExportModal.defaultProps = {
-    showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
-    saveOK: false,
-    spinning: false
 };

@@ -30,6 +30,7 @@ class ObjectClassesTable extends React.Component {
             value: '',
             sortBy: {},
             rows: [],
+            noRows: true,
             columns: [
                 { title: 'Objectclass Name',
                   transforms: [sortable],
@@ -47,7 +48,8 @@ class ObjectClassesTable extends React.Component {
 
         this.onPerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage: perPage,
+                page: 1
             });
         };
 
@@ -126,6 +128,7 @@ class ObjectClassesTable extends React.Component {
         let rows = [];
         let columns = this.state.columns;
         let count = 0;
+        let noRows = false;
 
         for (let row of this.props.rows) {
             let user_defined = false;
@@ -148,19 +151,21 @@ class ObjectClassesTable extends React.Component {
             count += 2;
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Objectclass']}];
+            noRows = true;
+            rows = [{cells: ['No Objectclasses']}];
             columns = [{title: 'Objectclasses'}];
         }
         this.setState({
             rows: rows,
-            columns: columns
+            columns: columns,
+            noRows: noRows,
         });
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows } = this.state;
-
-        rows[rowKey].isOpen = isOpen;
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
         this.setState({
             rows
         });
@@ -223,7 +228,7 @@ class ObjectClassesTable extends React.Component {
     }
 
     render() {
-        const { perPage, page, sortBy, rows, columns } = this.state;
+        const { perPage, page, sortBy, rows, noRows, columns } = this.state;
         let origRows = [...rows];
         let startIdx = ((perPage * page) - perPage) * 2;
         let tableRows = origRows.splice(startIdx, perPage * 2);
@@ -242,13 +247,16 @@ class ObjectClassesTable extends React.Component {
         if (!this.props.loading) {
             content =
                 <div>
-                    <SearchInput
-                        className="ds-margin-top-xlg"
-                        placeholder='Search Objectclasses'
-                        value={this.state.value}
-                        onChange={this.onSearchChange}
-                        onClear={(evt) => this.onSearchChange('', evt)}
-                    />
+                    <Grid>
+                        <GridItem span={3}>
+                            <SearchInput
+                                placeholder='Search Objectclasses'
+                                value={this.state.value}
+                                onChange={this.onSearchChange}
+                                onClear={(evt) => this.onSearchChange('', evt)}
+                            />
+                        </GridItem>
+                    </Grid>
                     <Table
                         className="ds-margin-top"
                         aria-label="oc table"
@@ -258,7 +266,7 @@ class ObjectClassesTable extends React.Component {
                         sortBy={sortBy}
                         onSort={this.onSort}
                         onCollapse={this.onCollapse}
-                        actions={tableRows.length > 0 ? this.actions() : null}
+                        actions={noRows ? null : this.actions()}
                         dropdownPosition="right"
                         dropdownDirection="bottom"
                     >
@@ -307,6 +315,7 @@ class AttributesTable extends React.Component {
             value: '',
             sortBy: {},
             rows: [],
+            noRows: true,
             columns: [
                 { title: 'Attribute Name',
                   transforms: [sortable],
@@ -325,7 +334,8 @@ class AttributesTable extends React.Component {
 
         this.onPerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage: perPage,
+                page: 1 // reset page back to 1
             });
         };
 
@@ -412,6 +422,7 @@ class AttributesTable extends React.Component {
         let rows = [];
         let columns = this.state.columns;
         let count = 0;
+        let noRows = false;
 
         for (let row of this.props.rows) {
             let user_defined = false;
@@ -434,19 +445,21 @@ class AttributesTable extends React.Component {
             count += 2;
         }
         if (rows.length == 0) {
+            noRows = true;
             rows = [{cells: ['No Attributes']}];
             columns = [{title: 'Attributes'}];
         }
         this.setState({
             rows: rows,
-            columns: columns
+            columns: columns,
+            noRows: noRows,
         });
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows } = this.state;
-
-        rows[rowKey].isOpen = isOpen;
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
         this.setState({
             rows
         });
@@ -509,7 +522,7 @@ class AttributesTable extends React.Component {
     }
 
     render() {
-        const { perPage, page, sortBy, rows, columns } = this.state;
+        const { perPage, page, sortBy, rows, noRows, columns } = this.state;
         let origRows = [...rows];
         let startIdx = ((perPage * page) - perPage) * 2;
         let tableRows = origRows.splice(startIdx, perPage * 2);
@@ -528,13 +541,16 @@ class AttributesTable extends React.Component {
         if (!this.props.loading) {
             content =
                 <div>
-                    <SearchInput
-                        className="ds-margin-top-xlg"
-                        placeholder='Search Attributes'
-                        value={this.state.value}
-                        onChange={this.onSearchChange}
-                        onClear={(evt) => this.onSearchChange('', evt)}
-                    />
+                    <Grid>
+                        <GridItem span={3}>
+                            <SearchInput
+                                placeholder='Search Attributes'
+                                value={this.state.value}
+                                onChange={this.onSearchChange}
+                                onClear={(evt) => this.onSearchChange('', evt)}
+                            />
+                        </GridItem>
+                    </Grid>
                     <Table
                         className="ds-margin-top"
                         aria-label="attr table"
@@ -544,7 +560,7 @@ class AttributesTable extends React.Component {
                         sortBy={sortBy}
                         onSort={this.onSort}
                         onCollapse={this.onCollapse}
-                        actions={tableRows.length > 0 ? this.actions() : null}
+                        actions={noRows ? null : this.actions()}
                         dropdownPosition="right"
                         dropdownDirection="bottom"
                     >
@@ -614,7 +630,8 @@ class MatchingRulesTable extends React.Component {
 
         this.onPerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage: perPage,
+                page: 1 // reset page back to 1
             });
         };
 
@@ -671,9 +688,10 @@ class MatchingRulesTable extends React.Component {
             desc = row.desc[0];
         }
         return (
-            <Grid className="ds-left-indent-lg">
-                <GridItem span={3}>Description:</GridItem>
-                <GridItem span={9}><b>{desc}</b></GridItem>
+            <Grid>
+                <GridItem offset={1} span={10}>
+                    {desc}
+                </GridItem>
             </Grid>
         );
     }
@@ -687,7 +705,7 @@ class MatchingRulesTable extends React.Component {
             rows.push(
                 {
                     isOpen: false,
-                    cells: [row.name[0], row.oid[0], row.syntax[0]],
+                    cells: [{title: row.name[0]}, row.oid[0], row.syntax[0]],
                 },
                 {
                     parent: count,
@@ -708,9 +726,9 @@ class MatchingRulesTable extends React.Component {
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows } = this.state;
-
-        rows[rowKey].isOpen = isOpen;
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
         this.setState({
             rows
         });
@@ -761,14 +779,17 @@ class MatchingRulesTable extends React.Component {
         }
 
         return (
-            <div className="ds-margin-top-lg">
-                <SearchInput
-                    className="ds-margin-top-xlg"
-                    placeholder='Search Matching Rules'
-                    value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
-                />
+            <div>
+                <Grid>
+                    <GridItem span={3}>
+                        <SearchInput
+                            placeholder='Search Matching Rules'
+                            value={this.state.value}
+                            onChange={this.onSearchChange}
+                            onClear={(evt) => this.onSearchChange('', evt)}
+                        />
+                    </GridItem>
+                </Grid>
                 <Table
                     className="ds-margin-top"
                     aria-label="attr table"

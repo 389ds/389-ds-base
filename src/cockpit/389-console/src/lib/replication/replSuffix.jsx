@@ -8,21 +8,23 @@ import { ReplRUV } from "./replTasks.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { EnableReplModal } from "./replModals.jsx";
 import {
-    Col,
-    ControlLabel,
-    Icon,
-    Nav,
-    NavItem,
-    noop,
-    Row,
+    Button,
+    Grid,
+    GridItem,
     Spinner,
-    TabContainer,
-    TabContent,
-    TabPane,
-} from "patternfly-react";
-import {
-    Button
+    Tab,
+    Tabs,
+    TabTitleText,
+    noop
 } from "@patternfly/react-core";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faClone,
+    faLeaf,
+    faTree,
+    faSyncAlt
+} from '@fortawesome/free-solid-svg-icons';
+import '@fortawesome/fontawesome-svg-core/styles.css';
 import PropTypes from "prop-types";
 import { log_cmd, valid_dn } from "../tools.jsx";
 
@@ -31,7 +33,7 @@ export class ReplSuffix extends React.Component {
         super(props);
         this.state = {
             loading: false,
-            activeKey: 1,
+            activeTabKey: 1,
             showDisableConfirm: false,
             replicationEnabled: false,
             errObj: {},
@@ -39,7 +41,7 @@ export class ReplSuffix extends React.Component {
             // Enable replication settings
             showEnableReplModal: false,
             enableRole: "Supplier",
-            enableRID: "1",
+            enableRID: 1,
             enableBindDN: "cn=replication manager,cn=config",
             enableBindPW: "",
             enableBindPWConfirm: "",
@@ -51,6 +53,32 @@ export class ReplSuffix extends React.Component {
             disableSpinning: false,
             modalChecked: false,
             modalSpinning: false,
+        };
+
+        this.onMinus = () => {
+            this.setState({
+                enableRID: Number(this.state.enableRID) - 1
+            });
+        };
+        this.onNumberChange = (event) => {
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            this.setState({
+                enableRID: newValue > 65534 ? 65534 : newValue < 1 ? 1 : newValue
+            });
+        };
+
+        this.onPlus = () => {
+            this.setState({
+                enableRID: Number(this.state.enableRID) + 1
+            });
+        };
+
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            event.preventDefault();
+            this.setState({
+                activeTabKey: tabIndex
+            });
         };
 
         // General bindings
@@ -264,12 +292,12 @@ export class ReplSuffix extends React.Component {
     render () {
         let spinning = "";
         let spintext = "";
-        let suffixIcon = "tree";
+        let suffixIcon = faTree;
         if (this.props.replicated) {
-            suffixIcon = "clone";
+            suffixIcon = faClone;
         } else {
             if (this.props.repl == "subsuffix") {
-                suffixIcon = "leaf";
+                suffixIcon = faLeaf;
             }
         }
         if (this.props.spinning) {
@@ -282,92 +310,70 @@ export class ReplSuffix extends React.Component {
         if (this.props.disabled) {
             suffixClass = "ds-margin-top-xlg ds-disabled";
         }
-        let replAgmtNavTitle = 'Agreements <font size="2">(' + this.props.agmtRows.length + ')</font>';
-        let winsyncNavTitle = 'Winsync Agreements <font size="2">(' + this.props.winsyncRows.length + ')</font>';
 
         let enabledContent =
             <div className={suffixClass}>
-                <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                    <div>
-                        <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                            <NavItem eventKey={1}>
-                                <div dangerouslySetInnerHTML={{__html: 'Configuration'}} />
-                            </NavItem>
-                            <NavItem eventKey={2}>
-                                <div dangerouslySetInnerHTML={{__html: replAgmtNavTitle}} />
-                            </NavItem>
-                            <NavItem eventKey={3}>
-                                <div dangerouslySetInnerHTML={{__html: winsyncNavTitle}} />
-                            </NavItem>
-                            <NavItem eventKey={4}>
-                                <div dangerouslySetInnerHTML={{__html: "Change Log"}} />
-                            </NavItem>
-                            <NavItem eventKey={5}>
-                                <div dangerouslySetInnerHTML={{__html: "RUV's & Tasks"}} />
-                            </NavItem>
-                        </Nav>
-                        <TabContent>
-                            <TabPane eventKey={1}>
-                                <ReplConfig
-                                    suffix={this.props.suffix}
-                                    role={this.props.role}
-                                    data={this.props.data}
-                                    serverId={this.props.serverId}
-                                    addNotification={this.props.addNotification}
-                                    reload={this.props.reload}
-                                    reloadConfig={this.props.reloadConfig}
-                                />
-                            </TabPane>
-                            <TabPane eventKey={2}>
-                                <ReplAgmts
-                                    suffix={this.props.suffix}
-                                    serverId={this.props.serverId}
-                                    rows={this.props.agmtRows}
-                                    addNotification={this.props.addNotification}
-                                    reload={this.props.reloadAgmts}
-                                    attrs={this.props.attrs}
-                                    disableTable={this.props.disableAgmtTable}
-                                    key={this.props.agmtRows}
-                                />
-                            </TabPane>
-                            <TabPane eventKey={3}>
-                                <WinsyncAgmts
-                                    suffix={this.props.suffix}
-                                    serverId={this.props.serverId}
-                                    rows={this.props.winsyncRows}
-                                    addNotification={this.props.addNotification}
-                                    reload={this.props.reloadWinsyncAgmts}
-                                    attrs={this.props.attrs}
-                                    disableTable={this.props.disableWSAgmtTable}
-                                    key={this.props.winsyncRows}
-                                />
-                            </TabPane>
-                            <TabPane eventKey={4}>
-                                <Changelog
-                                    suffix={this.props.suffix}
-                                    serverId={this.props.serverId}
-                                    addNotification={this.props.addNotification}
-                                    clMaxEntries={this.props.data['clMaxEntries']}
-                                    clMaxAge={this.props.data['clMaxAge']}
-                                    clTrimInt={this.props.data['clTrimInt']}
-                                    clEncrypt={this.props.data['clEncrypt']}
-                                    key={this.props.data}
-                                />
-                            </TabPane>
-                            <TabPane eventKey={5}>
-                                <ReplRUV
-                                    suffix={this.props.suffix}
-                                    serverId={this.props.serverId}
-                                    rows={this.props.ruvRows}
-                                    addNotification={this.props.addNotification}
-                                    reload={this.props.reloadRUV}
-                                    localRID={this.props.data.nsds5replicaid}
-                                    key={this.props.ruvRows}
-                                />
-                            </TabPane>
-                        </TabContent>
-                    </div>
-                </TabContainer>
+                <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>Configuration</TabTitleText>}>
+                        <ReplConfig
+                            suffix={this.props.suffix}
+                            role={this.props.role}
+                            data={this.props.data}
+                            serverId={this.props.serverId}
+                            addNotification={this.props.addNotification}
+                            reload={this.props.reload}
+                            reloadConfig={this.props.reloadConfig}
+                        />
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText>Agreements <font size="2">({this.props.agmtRows.length})</font></TabTitleText>}>
+                        <ReplAgmts
+                            suffix={this.props.suffix}
+                            serverId={this.props.serverId}
+                            rows={this.props.agmtRows}
+                            addNotification={this.props.addNotification}
+                            reload={this.props.reloadAgmts}
+                            attrs={this.props.attrs}
+                            disableTable={this.props.disableAgmtTable}
+                            key={this.props.agmtRows}
+                        />
+                    </Tab>
+                    <Tab eventKey={2} title={<TabTitleText>Winsync Agreements <font size="2">({this.props.winsyncRows.length})</font></TabTitleText>}>
+                        <WinsyncAgmts
+                            suffix={this.props.suffix}
+                            serverId={this.props.serverId}
+                            rows={this.props.winsyncRows}
+                            addNotification={this.props.addNotification}
+                            reload={this.props.reloadWinsyncAgmts}
+                            attrs={this.props.attrs}
+                            disableTable={this.props.disableWSAgmtTable}
+                            key={this.props.winsyncRows}
+                        />
+                    </Tab>
+                    <Tab eventKey={3} title={<TabTitleText>Change Log</TabTitleText>}>
+                        <Changelog
+                            suffix={this.props.suffix}
+                            serverId={this.props.serverId}
+                            addNotification={this.props.addNotification}
+                            clMaxEntries={this.props.data['clMaxEntries']}
+                            clMaxAge={this.props.data['clMaxAge']}
+                            clTrimInt={this.props.data['clTrimInt']}
+                            clEncrypt={this.props.data['clEncrypt']}
+                            key={this.props.data}
+                        />
+                    </Tab>
+                    <Tab eventKey={4} title={<TabTitleText>RUV's & Tasks</TabTitleText>}>
+                        <ReplRUV
+                            suffix={this.props.suffix}
+                            serverId={this.props.serverId}
+                            rows={this.props.ruvRows}
+                            addNotification={this.props.addNotification}
+                            reload={this.props.reloadRUV}
+                            localRID={this.props.data.nsds5replicaid}
+                            ldifRows={this.props.ldifRows}
+                            key={this.props.ruvRows}
+                        />
+                    </Tab>
+                </Tabs>
             </div>;
 
         let replActionButton = "";
@@ -398,28 +404,21 @@ export class ReplSuffix extends React.Component {
 
         return (
             <div id="suffix-page">
-                <Row>
-                    <Col sm={8} className="ds-word-wrap">
-                        <ControlLabel className="ds-suffix-header"><Icon type="fa" name={suffixIcon} />
-                            {" " + this.props.suffix}
-                            <Icon className="ds-left-margin ds-refresh"
-                                type="fa" name="refresh" title="Refresh replication settings for this suffix"
-                                onClick={() => {
-                                    this.props.reload(false);
-                                }}
-                            />
-                            {spinning} {spintext}
-                        </ControlLabel>
-                    </Col>
-                    <Col sm={4}>
-                        <Row>
-                            <Col className="ds-no-padding ds-container" componentClass={ControlLabel} sm={12}>
-                                {replActionButton}
-                            </Col>
-                        </Row>
-                    </Col>
-                </Row>
-                <p />
+                <Grid>
+                    <GridItem className="ds-suffix-header" span={8}>
+                        <FontAwesomeIcon size="sm" icon={suffixIcon} /> {this.props.suffix}
+                        <FontAwesomeIcon
+                            className="ds-left-margin ds-refresh"
+                            icon={faSyncAlt}
+                            title="Refresh replication settings for this suffix"
+                            onClick={() => this.props.reload(false)}
+                        />
+                        {spinning} {spintext}
+                    </GridItem>
+                    <GridItem span={4}>
+                        {replActionButton}
+                    </GridItem>
+                </Grid>
                 {enabledContent}
                 <EnableReplModal
                     showModal={this.state.showEnableReplModal}
@@ -427,8 +426,12 @@ export class ReplSuffix extends React.Component {
                     handleChange={this.handleEnableChange}
                     saveHandler={this.enableReplication}
                     spinning={this.state.addManagerSpinning}
-                    role={this.state.enableRole}
+                    enableRole={this.state.enableRole}
+                    enableRID={this.state.enableRID}
                     disabled={this.state.disabled}
+                    onMinus={this.onMinus}
+                    onNumberChange={this.onNumberChange}
+                    onPlus={this.onPlus}
                     error={this.state.errObj}
                 />
                 <DoubleConfirmModal
@@ -455,6 +458,7 @@ ReplSuffix.propTypes = {
     role: PropTypes.string,
     addNotification: PropTypes.func,
     agmtRows: PropTypes.array,
+    ldifRows: PropTypes.array,
     winsyncRows: PropTypes.array,
     ruvRows: PropTypes.array,
     reloadAgmts: PropTypes.func,
@@ -477,6 +481,7 @@ ReplSuffix.defaultProps = {
     agmtRows: [],
     winsyncRows: [],
     ruvRows: [],
+    ldifRows: [],
     reloadAgmts: noop,
     reloadRUV: noop,
     reloadConfig: noop,
