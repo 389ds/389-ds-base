@@ -942,7 +942,13 @@ class DirSrv(SimpleLDAPObject, object):
 
         if certdir is None and self.isLocal:
             certdir = self.get_cert_dir()
-            self.log.debug("Using dirsrv ca certificate %s", certdir)
+            # If we are trying to manage local instance and admin doesn't have access
+            # to the instance certdir we shouldn't use it.
+            # If we don't set it the python-ldap will pick up the policy from /etc/openldap/ldap.conf
+            if not os.access(ensure_str(certdir), os.R_OK):
+                certdir = None
+            else:
+                self.log.debug("Using dirsrv ca certificate %s", certdir)
 
         if certdir is not None:
             # Note this sets LDAP.OPT not SELF. Because once self has opened
