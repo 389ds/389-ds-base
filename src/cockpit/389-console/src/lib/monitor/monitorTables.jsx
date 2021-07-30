@@ -50,7 +50,8 @@ class AbortCleanALLRUVTable extends React.Component {
 
         this.onPerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage: perPage,
+                page: 1
             });
         };
 
@@ -99,8 +100,9 @@ class AbortCleanALLRUVTable extends React.Component {
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows } = this.state;
-        rows[rowKey].isOpen = isOpen;
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
         this.setState({
             rows
         });
@@ -221,7 +223,8 @@ class CleanALLRUVTable extends React.Component {
 
         this.onPerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage: perPage,
+                page: 1
             });
         };
 
@@ -270,8 +273,9 @@ class CleanALLRUVTable extends React.Component {
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows } = this.state;
-        rows[rowKey].isOpen = isOpen;
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
         this.setState({
             rows
         });
@@ -391,7 +395,8 @@ class WinsyncAgmtTable extends React.Component {
 
         this.onPerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage: perPage,
+                page: 1
             });
         };
 
@@ -471,8 +476,9 @@ class WinsyncAgmtTable extends React.Component {
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows } = this.state;
-        rows[rowKey].isOpen = isOpen;
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
         this.setState({
             rows
         });
@@ -597,7 +603,8 @@ class AgmtTable extends React.Component {
 
         this.onPerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage: perPage,
+                page: 1
             });
         };
 
@@ -681,8 +688,9 @@ class AgmtTable extends React.Component {
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows } = this.state;
-        rows[rowKey].isOpen = isOpen;
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
         this.setState({
             rows
         });
@@ -815,7 +823,8 @@ class ConnectionTable extends React.Component {
 
         this.onPerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage: perPage,
+                page: 1
             });
         };
 
@@ -903,9 +912,9 @@ class ConnectionTable extends React.Component {
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows } = this.state;
-
-        rows[rowKey].isOpen = isOpen;
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
         this.setState({
             rows
         });
@@ -1089,7 +1098,8 @@ class GlueTable extends React.Component {
 
         this.onPerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage: perPage,
+                page: 1
             });
         };
 
@@ -1117,9 +1127,9 @@ class GlueTable extends React.Component {
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows } = this.state;
-
-        rows[rowKey].isOpen = isOpen;
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
         this.setState({
             rows
         });
@@ -1667,8 +1677,9 @@ class ReportSingleTable extends React.Component {
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows } = this.state;
-        rows[rowKey].isOpen = isOpen;
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
         this.setState({
             rows
         });
@@ -1880,8 +1891,9 @@ class ReportConsumersTable extends React.Component {
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows } = this.state;
-        rows[rowKey].isOpen = isOpen;
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
         this.setState({
             rows
         });

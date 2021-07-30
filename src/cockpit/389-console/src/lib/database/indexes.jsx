@@ -779,10 +779,10 @@ export class SuffixIndexes extends React.Component {
 
     render() {
         return (
-            <div className="ds-margin-top-lg">
-                <Tabs isSecondary activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Database Indexes</TabTitleText>}>
-                        <div className="ds-indent">
+            <div className="ds-margin-top-xlg ds-left-indent">
+                <Tabs isSecondary isBox activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>Database Indexes <font size="2">({this.props.indexRows.length})</font></TabTitleText>}>
+                        <div className="ds-left-indent">
                             <IndexTable
                                 editable
                                 rows={this.props.indexRows}
@@ -791,11 +791,18 @@ export class SuffixIndexes extends React.Component {
                                 reindexIndex={this.showConfirmReindex}
                                 deleteIndex={this.showConfirmDeleteIndex}
                             />
-                            <button className="btn btn-primary ds-margin-top" type="button" onClick={this.showIndexModal} >Add Index</button>
+                            <Button
+                                className="ds-margin-top"
+                                variant="primary"
+                                type="button"
+                                onClick={this.showIndexModal}
+                            >
+                                Add Index
+                            </Button>
                         </div>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>System Indexes</TabTitleText>}>
-                        <div className="ds-indent">
+                    <Tab eventKey={1} title={<TabTitleText>System Indexes <font size="2">({this.props.systemIndexRows.length})</font></TabTitleText>}>
+                        <div className="ds-left-indent">
                             <IndexTable
                                 rows={this.props.systemIndexRows}
                             />

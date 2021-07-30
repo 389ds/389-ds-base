@@ -3,18 +3,17 @@ import React from "react";
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
 import {
-    Col,
-    ControlLabel,
-    Form,
-    FormControl,
-    noop,
-    Row,
-    Spinner,
-} from "patternfly-react";
-import {
     Button,
     Checkbox,
-    Tooltip
+    Form,
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
+    NumberInput,
+    Spinner,
+    Tooltip,
+    noop
 } from '@patternfly/react-core';
 import OutlinedQuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 
@@ -25,19 +24,41 @@ export class Changelog extends React.Component {
             loading: false,
             errObj: {},
             showConfirmDelete: false,
-            saveOK: false,
+            saveBtnDisabled: true,
             // Changelog settings
-            clMaxEntries: this.props.clMaxEntries,
-            clMaxAge: this.props.clMaxAge.slice(0, -1),
-            clMaxAgeUnit: this.props.clMaxAge.slice(-1).toLowerCase(),
-            clTrimInt: this.props.clTrimInt,
+            clMaxEntries: Number(this.props.clMaxEntries) == 0 ? -1 : Number(this.props.clMaxEntries),
+            clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) == 0 ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
+            clMaxAgeUnit: this.props.clMaxAge != "" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
+            clTrimInt: Number(this.props.clTrimInt) == 0 ? -1 : Number(this.props.clTrimInt),
             clEncrypt: this.props.clEncrypt,
             // Preserve original settings
-            _clMaxEntries: this.props.clMaxEntries,
-            _clMaxAge: this.props.clMaxAge.slice(0, -1),
-            _clMaxAgeUnit: this.props.clMaxAge.slice(-1).toLowerCase(),
-            _clTrimInt: this.props.clTrimInt,
+            _clMaxEntries: Number(this.props.clMaxEntries) == 0 ? -1 : Number(this.props.clMaxEntries),
+            _clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) == 0 ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
+            _clMaxAgeUnit: this.props.clMaxAge != "" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
+            _clTrimInt: Number(this.props.clTrimInt) == 0 ? -1 : Number(this.props.clTrimInt),
             _clEncrypt: this.props.clEncrypt,
+        };
+
+        this.minValue = -1;
+        this.maxValue = 20000000;
+
+        this.onMinus = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validateSaveBtn() });
+        };
+
+        this.onChange = (event, id) => {
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            this.setState({
+                [id]: newValue > this.maxValue ? this.maxValue : newValue < this.minValue ? this.minValue : newValue
+            }, () => { this.validateSaveBtn() });
+        };
+
+        this.onPlus = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validateSaveBtn() });
         };
 
         this.handleChange = this.handleChange.bind(this);
@@ -84,7 +105,7 @@ export class Changelog extends React.Component {
                         );
                         this.setState({
                             saving: false,
-                            saveOK: false,
+                            saveBtnDisabled: true,
                         });
                     })
                     .fail(err => {
@@ -105,46 +126,30 @@ export class Changelog extends React.Component {
         }
     }
 
-    handleChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let valueErr = false;
-        let errObj = this.state.errObj;
-        let all_good = false;
-        let attr = e.target.id;
+    validateSaveBtn() {
+        let saveBtnDisabled = true;
 
-        errObj[e.target.id] = valueErr;
-        if ((attr != 'clMaxEntries' && this.state.clMaxEntries != this.state._clMaxEntries) ||
-            (attr != 'clMaxAge' && this.state.clMaxAge != this.state._clMaxAge) ||
-            (attr != 'clMaxAgeUnit' && this.state.clMaxAgeUnit != this.state._clMaxAgeUnit) ||
-            (attr != 'clTrimInt' && this.state.clTrimInt != this.state._clTrimInt) ||
-            (attr != 'clEncrypt' && this.state.clEncrypt != this.state._clEncrypt)) {
-            all_good = true;
-        }
-        if (attr == 'clMaxEntries' && value != this.state._clMaxEntries) {
-            all_good = true;
-        }
-        if (attr == 'clMaxAge' && value != this.state._clMaxAge) {
-            all_good = true;
-        }
-        if (attr == 'clMaxAgeUnit' && value != this.state._clMaxAgeUnit) {
-            all_good = true;
-        }
-        if (attr == 'clTrimInt' && value != this.state._clTrimInt) {
-            all_good = true;
-        }
-        if (attr == 'clEncrypt' && value != this.state._clEncrypt) {
-            all_good = true;
+        if (this.state.clMaxEntries != this.state._clMaxEntries ||
+            this.state.clMaxAge != this.state._clMaxAge ||
+            this.state.clMaxAgeUnit != this.state._clMaxAgeUnit ||
+            this.state.clTrimInt != this.state._clTrimInt ||
+            this.state.clEncrypt != this.state._clEncrypt) {
+            saveBtnDisabled = false;
         }
 
         this.setState({
-            [e.target.id]: value,
-            errObj: errObj,
-            saveOK: all_good,
+            saveBtnDisabled: saveBtnDisabled,
         });
     }
 
-    clMapMaxAgeUnit(unit) {
-        // Max teh unit tothe
+    handleChange(str, e) {
+        // Update the state, then validate the values/save btn
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        let attr = e.target.id;
+
+        this.setState({
+            [attr]: value,
+        }, () => { this.validateSaveBtn() });
     }
 
     reloadChangelog () {
@@ -160,7 +165,7 @@ export class Changelog extends React.Component {
                     const config = JSON.parse(content);
                     let clMaxEntries = "";
                     let clMaxAge = "";
-                    let clMaxAgeUnit = "";
+                    let clMaxAgeUnit = "s";
                     let clTrimInt = "";
                     let clEncrypt = false;
                     for (let attr in config['attrs']) {
@@ -177,16 +182,18 @@ export class Changelog extends React.Component {
                         }
                     }
                     this.setState({
-                        clMaxEntries: clMaxEntries,
-                        clMaxAge: clMaxAge,
+                        clMaxEntries: Number(clMaxEntries) == 0 ? -1 : Number(clMaxEntries),
+                        clMaxAge: Number(clMaxAge) == 0 ? -1 : Number(clMaxAge),
                         clMaxAgeUnit: clMaxAgeUnit,
-                        clTrimInt: clTrimInt,
+                        clTrimInt: Number(clTrimInt) == 0 ? -1 : Number(clTrimInt),
                         clEncrypt: clEncrypt,
-                        _clMaxEntries: clMaxEntries,
-                        _clMaxAge: clMaxAge,
-                        _clTrimInt: clTrimInt,
+                        // Preserve original settings
+                        _clMaxEntries: Number(clMaxEntries) == 0 ? -1 : Number(clMaxEntries),
+                        _clMaxAge: Number(clMaxAge) == 0 ? -1 : Number(clMaxAge),
+                        _clMaxAgeUnit: clMaxAgeUnit,
+                        _clTrimInt: Number(clTrimInt) == 0 ? -1 : Number(clTrimInt),
                         _clEncrypt: clEncrypt,
-                        saveOK: false,
+                        saveBtnDisabled: true,
                         loading: false,
                     });
                 })
@@ -198,83 +205,115 @@ export class Changelog extends React.Component {
                     );
                     this.setState({
                         loading: false,
+                        saveBtnDisabled: true,
                     });
                 });
     }
 
     render() {
         let clPage;
+        let saveBtnName = "Save Settings";
+        let extraPrimaryProps = {};
+
         if (this.state.saving) {
-            clPage =
-                <div className="ds-margin-top-xlg ds-center">
-                    <h4>Saving changelog configuration ...</h4>
-                    <Spinner className="ds-margin-top-lg" loading size="md" />
-                </div>;
+            saveBtnName = "Saving settings ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         } else if (this.loading) {
             clPage =
                 <div className="ds-margin-top ds-center">
                     <h4>Loading changelog configuration ...</h4>
-                    <Spinner className="ds-margin-top-lg" loading size="md" />
+                    <Spinner className="ds-margin-top-lg" size="md" />
                 </div>;
         } else {
             clPage =
-                <div>
-                    <Form horizontal>
-                        <Row className="ds-margin-top-xlg" title="Changelog trimming parameter.  Set the maximum number of changelog entries allowed in the database (nsslapd-changelogmaxentries).">
-                            <Col componentClass={ControlLabel} sm={4}>
+                <div className="ds-margin-top-lg">
+                    <Form isHorizontal>
+                        <Grid
+                            title="Changelog trimming parameter.  Set the maximum number of changelog entries allowed in the database (nsslapd-changelogmaxentries)."
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Changelog Maximum Entries
-                            </Col>
-                            <Col sm={4}>
-                                <FormControl
-                                    id="clMaxEntries"
-                                    type="number"
+                            </GridItem>
+                            <GridItem span={2}>
+                                <NumberInput
                                     value={this.state.clMaxEntries}
-                                    onChange={this.handleChange}
+                                    min={this.minValue}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinus("clMaxEntries") }}
+                                    onChange={(e) => { this.onChange(e, "clMaxEntries") }}
+                                    onPlus={() => { this.onPlus("clMaxEntries") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="Changelog trimming parameter.  This set the maximum age of a changelog entry (nsslapd-changelogmaxage).">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="Changelog trimming parameter.  This set the maximum age of a changelog entry (nsslapd-changelogmaxage)."
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Changelog Maximum Age
-                            </Col>
-                            <Col sm={2}>
-                                <FormControl
-                                    id="clMaxAge"
-                                    type="number"
+                            </GridItem>
+                            <GridItem span={2}>
+                                <NumberInput
                                     value={this.state.clMaxAge}
-                                    onChange={this.handleChange}
+                                    min={this.minValue}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinus("clMaxAge") }}
+                                    onChange={(e) => { this.onChange(e, "clMaxAge") }}
+                                    onPlus={() => { this.onPlus("clMaxAge") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
                                 />
-                            </Col>
-                            <Col sm={2}>
-                                <select
-                                    className="btn btn-default dropdown"
+                            </GridItem>
+                            <GridItem span={3}>
+                                <FormSelect
+                                    className="ds-margin-left"
                                     id="clMaxAgeUnit"
-                                    onChange={this.handleChange}
                                     value={this.state.clMaxAgeUnit}
-                                >
-                                    <option value="s">Seconds</option>
-                                    <option value="m">Minutes</option>
-                                    <option value="h">Hours</option>
-                                    <option value="d">Days</option>
-                                    <option value="w">Weeks</option>
-                                </select>
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The changelog trimming interval.  Set how often the changelog checks if there are entries that can be purged from the changelog based on the trimming parameters (nsslapd-changelogtrim-interval).">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Changelog Trimming Interval
-                            </Col>
-                            <Col sm={4}>
-                                <FormControl
-                                    id="clTrimInt"
-                                    type="number"
-                                    value={this.state.clTrimInt}
                                     onChange={this.handleChange}
+                                    aria-label="FormSelect Input"
+                                    isDisabled={this.state.clMaxAge < 1}
+                                >
+                                    <FormSelectOption key="s" value="s" label="Seconds" />
+                                    <FormSelectOption key="m" value="m" label="Minutes" />
+                                    <FormSelectOption key="h" value="h" label="Hours" />
+                                    <FormSelectOption key="d" value="d" label="Days" />
+                                    <FormSelectOption key="w" value="w" label="Weeks" />
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The changelog trimming interval.  Set how often the changelog checks if there are entries that can be purged from the changelog based on the trimming parameters (nsslapd-changelogtrim-interval)."
+                        >
+                            <GridItem className="ds-label" span={3}>
+                                Changelog Trimming Interval
+                            </GridItem>
+                            <GridItem span={2}>
+                                <NumberInput
+                                    value={this.state.clTrimInt}
+                                    min={this.minValue}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinus("clTrimInt") }}
+                                    onChange={(e) => { this.onChange(e, "clTrimInt") }}
+                                    onPlus={() => { this.onPlus("clTrimInt") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The changelog trimming interval.  Set how often the changelog checks if there are entries that can be purged from the changelog based on the trimming parameters (nsslapd-changelogtrim-interval)."
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Changelog Encryption
                                 <Tooltip
                                     id='CLtooltip'
@@ -295,34 +334,32 @@ export class Changelog extends React.Component {
                                         className="ds-left-margin"
                                     />
                                 </Tooltip>
-                            </Col>
-                            <Col sm={1}>
+                            </GridItem>
+                            <GridItem span={9}>
                                 <Checkbox
                                     id="clEncrypt"
                                     isChecked={this.state.clEncrypt}
-                                    onChange={(checked, e) => {
-                                        this.handleChange(e);
-                                    }}
+                                    onChange={this.handleChange}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top-lg">
-                            <Col sm={2}>
-                                <Button
-                                    variant="primary"
-                                    onClick={this.saveSettings}
-                                    isDisabled={!this.state.saveOK}
-                                >
-                                    Save
-                                </Button>
-                            </Col>
-                        </Row>
+                            </GridItem>
+                        </Grid>
                     </Form>
+                    <Button
+                        className="ds-margin-top-xlg"
+                        variant="primary"
+                        onClick={this.saveSettings}
+                        isDisabled={this.state.saveBtnDisabled}
+                        isLoading={this.state.saving}
+                        spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                    >
+                        {saveBtnName}
+                    </Button>
                 </div>;
         }
 
         return (
-            <div>
+            <div className={this.state.saving ? "ds-disabled" : ""}>
                 {clPage}
             </div>
         );

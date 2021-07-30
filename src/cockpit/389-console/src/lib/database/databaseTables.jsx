@@ -1020,7 +1020,7 @@ class VLVTable extends React.Component {
                 indexState = <font size="2" color="#4dac26"><b>Uses: </b>{sort.attrs.vlvuses[0]}</font>;
             }
             return (
-                <GridItem key={sort.attrs.vlvsort[0]} className="ds-container ds-margin-topZZ">
+                <GridItem key={sort.attrs.vlvsort[0]} className="ds-container">
                     <div className="ds-lower-field">
                         <ArrowRightIcon /> {sort.attrs.vlvsort[0]} ({indexState})
                     </div>
@@ -1116,9 +1116,9 @@ class VLVTable extends React.Component {
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows } = this.state;
-
-        rows[rowKey].isOpen = isOpen;
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
         this.setState({
             rows
         });

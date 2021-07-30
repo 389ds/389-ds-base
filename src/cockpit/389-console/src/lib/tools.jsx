@@ -205,8 +205,19 @@ export function displayKBytes(kbytes) {
 }
 
 export function listsEqual(list1, list2) {
-    return Array.isArray(list1) &&
-        Array.isArray(list2) &&
-        list1.length === list2.length &&
-        list1.every((val, index) => val === list2[index]);
+    if (Array.isArray(list1) && Array.isArray(list2)) {
+        const list1_sorted = [...list1];
+        const list2_sorted = [...list2];
+        if (list1_sorted.length != list2_sorted.length) {
+            return false;
+        }
+        for (let i = list1_sorted.length; i--;) {
+            if (list1_sorted[i].toLowerCase() != list2_sorted[i].toLowerCase()) {
+                return false;
+            }
+        }
+        return true;
+    } else {
+        return false;
+    }
 }

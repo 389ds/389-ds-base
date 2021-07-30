@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, searchFilter } from "./lib/tools.jsx";
+import { log_cmd, searchFilter, listsEqual } from "./lib/tools.jsx";
 import {
     ObjectClassesTable,
     AttributesTable,
@@ -9,16 +9,12 @@ import {
 import { ObjectClassModal, AttributeTypeModal } from "./lib/schema/schemaModals.jsx";
 import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import {
-    Nav,
-    NavItem,
-    TabContainer,
-    TabContent,
-    TabPane
-} from "patternfly-react";
-import {
     Button,
     Checkbox,
     Spinner,
+    Tab,
+    Tabs,
+    TabTitleText,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
@@ -41,7 +37,7 @@ export class Schema extends React.Component {
         this.state = {
             firstLoad: true,
             loading: false,
-            activeKey: 1,
+            activeTabKey: 0,
 
             objectclassRows: [],
             filteredObjectclassRows: [],
@@ -55,12 +51,14 @@ export class Schema extends React.Component {
             deleteName: "",
             ocTableKey: 0,
             attrTableKey: 0,
+            errObj: {},
+            saveBtnDisabled: true,
 
             ocModalViewOnly: false,
             ocName: "",
             ocDesc: "",
             ocOID: "",
-            ocParent: [],
+            ocParent: "",
             ocParentOptions: [],
             ocKind: "",
             ocMust: [],
@@ -76,17 +74,17 @@ export class Schema extends React.Component {
             atName: "",
             atDesc: "",
             atOID: "",
-            atParent: [],
+            atParent: "",
             atParentOptions: [],
-            atSyntax: [],
+            atSyntax: "",
             atUsage: "userApplications",
             atMultivalued: false,
             atNoUserMod: false,
             atAlias: [],
             atAliasOptions: [],
-            atEqMr: [],
-            atOrder: [],
-            atSubMr: [],
+            atEqMr: "",
+            atOrder: "",
+            atSubMr: "",
             atUserDefined: false,
             atModalViewOnly: false,
             attributeModalShow: false,
@@ -99,7 +97,6 @@ export class Schema extends React.Component {
             isAllowedAttrsOpen: false,
 
             isParentAttrOpen: false,
-            isSyntaxNameOpen: false,
             isAliasNameOpen: false,
             isEqualityMROpen: false,
             isOrderMROpen: false,
@@ -113,27 +110,24 @@ export class Schema extends React.Component {
             });
         };
         this.onSubstringMRClear = () => {
+            let e = {target: {id: 'dummy', value: "", type: 'input'}};
             this.setState({
-                atSubMr: [],
+                atSubMr: "",
                 isSubstringMROpen: false
-            });
+            }, () => { this.handleAttrChange(e) });
         };
         this.onSubstringMRSelect = (event, selection) => {
-            if (this.state.atSubMr.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        atSubMr: prevState.atSubMr.filter((item) => item !== selection),
-                        isSubstringMROpen: false
-                    }),
-                );
+            let e = {target: {id: 'dummy', value: "", type: 'input'}};
+            if (this.state.atSubMr == selection) {
+                this.setState({
+                    atSubMr: selection,
+                    isSubstringMROpen: false
+                }, () => { this.handleAttrChange(e) });
             } else {
-                this.setState(
-                    prevState => ({
-                        atSubMr: [...prevState.atSubMr, selection],
-                        isSubstringMROpen: false
-
-                    }),
-                );
+                this.setState({
+                    atSubMr: selection,
+                    isSubstringMROpen: false
+                }, () => { this.handleAttrChange(e) });
             }
         };
 
@@ -144,27 +138,24 @@ export class Schema extends React.Component {
             });
         };
         this.onOrderMRClear = () => {
+            let e = {target: {id: 'dummy', value: "", type: 'input'}};
             this.setState({
-                atOrder: [],
+                atOrder: "",
                 isOrderMROpen: false
-            });
+            }, () => { this.handleAttrChange(e) });
         };
         this.onOrderMRSelect = (event, selection) => {
-            if (this.state.atOrder.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        atOrder: prevState.atOrder.filter((item) => item !== selection),
-                        isOrderMROpen: false
-                    }),
-                );
+            let e = {target: {id: 'dummy', value: "", type: 'input'}};
+            if (this.state.atOrder == selection) {
+                this.setState({
+                    atOrder: "",
+                    isOrderMROpen: false
+                }, () => { this.handleAttrChange(e) });
             } else {
-                this.setState(
-                    prevState => ({
-                        atOrder: [...prevState.atOrder, selection],
-                        isOrderMROpen: false
-
-                    }),
-                );
+                this.setState({
+                    atOrder: selection,
+                    isOrderMROpen: false
+                }, () => { this.handleAttrChange(e) });
             }
         };
 
@@ -175,26 +166,24 @@ export class Schema extends React.Component {
             });
         };
         this.onEqualityMRClear = () => {
+            let e = {target: {id: 'dummy', value: "", type: 'input'}};
             this.setState({
-                atEqMr: [],
+                atEqMr: "",
                 isEqualityMROpen: false
-            });
+            }, () => { this.handleAttrChange(e) });
         };
         this.onEqualityMRSelect = (event, selection) => {
-            if (this.state.atEqMr.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        atEqMr: prevState.atEqMr.filter((item) => item !== selection),
-                        isEqualityMROpen: false
-                    }),
-                );
+            let e = {target: {id: 'dummy', value: "", type: 'input'}};
+            if (this.state.atEqMr == selection) {
+                this.setState({
+                    atEqMr: "",
+                    isEqualityMROpen: false
+                }, () => { this.handleAttrChange(e) });
             } else {
-                this.setState(
-                    prevState => ({
-                        atEqMr: [...prevState.atEqMr, selection],
-                        isEqualityMROpen: false
-                    }),
-                );
+                this.setState({
+                    atEqMr: selection,
+                    isEqualityMROpen: false
+                }, () => { this.handleAttrChange(e) });
             }
         };
 
@@ -205,25 +194,27 @@ export class Schema extends React.Component {
             });
         };
         this.onAliasNameClear = () => {
+            let e = {target: {id: 'dummy', value: "", type: 'input'}};
             this.setState({
                 atAlias: [],
                 isAliasNameOpen: false
-            });
+            }, () => { this.handleAttrChange(e) });
         };
         this.onAliasNameSelect = (event, selection) => {
+            let e = {target: {id: 'dummy', value: "", type: 'input'}};
             if (this.state.atAlias.includes(selection)) {
                 this.setState(
                     prevState => ({
                         atAlias: prevState.atAlias.filter((item) => item !== selection),
                         isAliasNameOpen: false
-                    })
+                    }), () => { this.handleAttrChange(e) }
                 );
             } else {
                 this.setState(
                     prevState => ({
                         atAlias: [...prevState.atAlias, selection],
                         isAliasNameOpen: false
-                    }),
+                    }), () => { this.handleAttrChange(e) }
                 );
             }
         };
@@ -235,36 +226,6 @@ export class Schema extends React.Component {
             }
         };
 
-        // Syntax Name
-        this.onSyntaxNameToggle = isSyntaxNameOpen => {
-            this.setState({
-                isSyntaxNameOpen
-            });
-        };
-        this.onSyntaxNameClear = () => {
-            this.setState({
-                atSyntax: [],
-                isSyntaxNameOpen: false
-            });
-        };
-        this.onSyntaxNameSelect = (event, selection) => {
-            if (this.state.atSyntax.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        atSyntax: prevState.atSyntax.filter((item) => item !== selection),
-                        isSyntaxNameOpen: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        atSyntax: [...prevState.atSyntax, selection],
-                        isSyntaxNameOpen: false
-                    }),
-                );
-            }
-        };
-
         // Parent Attribute
         this.onParentAttrToggle = isParentAttrOpen => {
             this.setState({
@@ -272,70 +233,26 @@ export class Schema extends React.Component {
             });
         };
         this.onParentAttrClear = () => {
+            let e = {target: {id: 'dummy', value: "", type: 'input'}};
             this.setState({
-                atParent: [],
+                atParent: "",
                 isParentAttrOpen: false
-            });
+            }, () => { this.handleAttrChange(e) });
         };
         this.onParentAttrSelect = (event, selection) => {
-            if (this.state.atParent.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        atParent: prevState.atParent.filter((item) => item !== selection),
-                        isParentAttrOpen: false
-                    }),
-                );
+            let e = {target: {id: 'dummy', value: "", type: 'input'}};
+            if (this.state.atParent == selection) {
+                this.setState({
+                    atParent: "",
+                    isParentAttrOpen: false
+                }, () => { this.handleAttrChange(e) });
             } else {
                 this.setState(
                     prevState => ({
-                        atParent: [...prevState.atParent, selection],
+                        atParent: selection,
                         isParentAttrOpen: false
-                    }),
+                    }), () => { this.handleAttrChange(e) }
                 );
-            }
-        };
-        this.onParentAttrCreateOption = newValue => {
-            if (!this.state.atParentOptions.includes(newValue)) {
-                this.setState({
-                    atParentOptions: [...this.state.atParentOptions, { value: newValue }]
-                });
-            }
-        };
-
-        // Parent Objectclass
-        this.onParentObjToggle = isParentObjOpen => {
-            this.setState({
-                isParentObjOpen
-            });
-        };
-        this.onParentObjClear = () => {
-            this.setState({
-                ocParent: [],
-                isParentObjOpen: false
-            });
-        };
-        this.onParentObjSelect = (event, selection) => {
-            if (this.state.ocParent.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        ocParent: prevState.ocParent.filter((item) => item !== selection),
-                        isParentObjOpen: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        ocParent: [...prevState.ocParent, selection],
-                        isParentObjOpen: false
-                    }),
-                );
-            }
-        };
-        this.onParentObjCreateOption = newValue => {
-            if (!this.state.ocParentOptions.includes(newValue)) {
-                this.setState({
-                    ocParentOptions: [...this.state.ocParentOptions, { value: newValue }]
-                });
             }
         };
 
@@ -352,19 +269,20 @@ export class Schema extends React.Component {
             });
         };
         this.onRequiredAttrsSelect = (event, selection) => {
+            let e = {target: {id: 'dummy', value: "", type: 'input'}};
             if (this.state.ocMust.includes(selection)) {
                 this.setState(
                     (prevState) => ({
                         ocMust: prevState.ocMust.filter((item) => item !== selection),
                         isRequiredAttrsOpen: false
-                    }),
+                    }), () => { this.handleOCChange(e) }
                 );
             } else {
                 this.setState(
                     prevState => ({
                         ocMust: [...prevState.ocMust, selection],
                         isRequiredAttrsOpen: false
-                    }),
+                    }), () => { this.handleOCChange(e) }
                 );
             }
         };
@@ -389,19 +307,20 @@ export class Schema extends React.Component {
             });
         };
         this.onAllowedAttrsSelect = (event, selection) => {
+            let e = {target: {id: 'dummy', value: "", type: 'input'}};
             if (this.state.ocMay.includes(selection)) {
                 this.setState(
                     prevState => ({
                         ocMay: prevState.ocMay.filter((item) => item !== selection),
                         isAllowedAttrsOpen: false
-                    }),
+                    }), () => { this.handleOCChange(e) }
                 );
             } else {
                 this.setState(
                     prevState => ({
                         ocMay: [...prevState.ocMay, selection],
                         isAllowedAttrsOpen: false
-                    }),
+                    }), () => { this.handleOCChange(e) }
                 );
             }
         };
@@ -413,8 +332,18 @@ export class Schema extends React.Component {
             }
         };
 
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            event.preventDefault();
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+
+        this.validateForm = this.validateForm.bind(this);
+        this.handleAttrChange = this.handleAttrChange.bind(this);
+        this.handleOCChange = this.handleOCChange.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
-        this.handleNavSelect = this.handleNavSelect.bind(this);
         this.loadSchemaData = this.loadSchemaData.bind(this);
         this.loadSyntaxesFirst = this.loadSyntaxesFirst.bind(this);
         this.toggleLoading = this.toggleLoading.bind(this);
@@ -437,7 +366,6 @@ export class Schema extends React.Component {
         this.doDeleteAttr = this.doDeleteAttr.bind(this);
         this.addAttribute = this.addAttribute.bind(this);
         this.editAttribute = this.editAttribute.bind(this);
-        this.cmdOperationAttribute = this.cmdOperationAttribute.bind(this);
         this.showConfirmAttrDelete = this.showConfirmAttrDelete.bind(this);
         this.closeConfirmAttrDelete = this.closeConfirmAttrDelete.bind(this);
     }
@@ -524,7 +452,11 @@ export class Schema extends React.Component {
                         ocs.push(content.name[0]);
                     }
                     for (let content of myObject.matchingrules.items) {
-                        mrs.push(content.name[0]);
+                        if (content.name[0] != "") {
+                            mrs.push(content.name[0]);
+                        } else {
+                            content.name[0] = <i>&lt;No Name&gt;</i>;
+                        }
                     }
                     this.setState({
                         objectclassRows: myObject.objectclasses.items,
@@ -592,14 +524,18 @@ export class Schema extends React.Component {
 
     showEditObjectclassModal(name) {
         this.setState({
-            ocModalViewOnly: false
+            ocModalViewOnly: false,
+            saveBtnDisabled: true,
+            errObj: {},
         });
         this.openObjectclassModal(name);
     }
 
     showAddObjectclassModal(rowData) {
         this.setState({
-            ocModalViewOnly: false
+            ocModalViewOnly: false,
+            saveBtnDisabled: true,
+            errObj: {'ocName': true, 'ocDesc': true},
         });
         this.openObjectclassModal();
     }
@@ -610,12 +546,12 @@ export class Schema extends React.Component {
                 ocName: "",
                 ocDesc: "",
                 ocOID: "",
-                ocParent: [],
+                ocParent: "top",
                 ocKind: "",
                 ocMust: [],
                 ocMay: [],
                 objectclassModalShow: true,
-                newOcEntry: true
+                newOcEntry: true,
             });
         } else {
             let cmd = [
@@ -648,28 +584,39 @@ export class Schema extends React.Component {
                             ocOID: item["oid"] === undefined ? "" : item["oid"][0],
                             ocKind: item["kind"] === undefined ? "" : kindOpts[item["kind"]],
                             ocParent:
-                            item["sup"].length == 0
+                            item["sup"] === undefined
                                 ? []
-                                : [item["sup"][0]]
+                                : item["sup"][0],
+                            // Store original values
+                            _ocName: item["name"] === undefined ? "" : item["name"][0],
+                            _ocDesc: item["desc"] === null ? "" : item["desc"][0],
+                            _ocOID: item["oid"] === undefined ? "" : item["oid"][0],
+                            _ocKind: item["kind"] === undefined ? "" : kindOpts[item["kind"]],
+                            _ocParent:
+                            item["sup"] === undefined
+                                ? []
+                                : item["sup"][0]
                         });
                         if (item["must"] === undefined) {
-                            this.setState({ ocMust: [] });
+                            this.setState({ ocMust: [], _ocMust: [] });
                         } else {
                             for (let value of item["must"]) {
                                 ocMustList = [...ocMustList, value];
                             }
                             this.setState({
-                                ocMust: ocMustList
+                                ocMust: ocMustList,
+                                _ocMust: ocMustList
                             });
                         }
                         if (item["may"] === undefined) {
-                            this.setState({ ocMay: [] });
+                            this.setState({ ocMay: [], _ocMay: [] });
                         } else {
                             for (let value of item["may"]) {
                                 ocMayList = [...ocMayList, value];
                             }
                             this.setState({
-                                ocMay: ocMayList
+                                ocMay: ocMayList,
+                                _ocMay: ocMayList
                             });
                         }
                     })
@@ -678,7 +625,7 @@ export class Schema extends React.Component {
                             ocName: "",
                             ocDesc: "",
                             ocOID: "",
-                            ocParent: [],
+                            ocParent: "",
                             ocKind: "",
                             ocMust: [],
                             ocMay: [],
@@ -776,8 +723,8 @@ export class Schema extends React.Component {
             if (ocOID != "") {
                 cmd = [...cmd, "--oid", ocOID];
             }
-            if (ocParent.length != 0) {
-                cmd = [...cmd, "--sup", ocParent[0]];
+            if (ocParent != "") {
+                cmd = [...cmd, "--sup", ocParent];
             }
             if (ocKind != "") {
                 cmd = [...cmd, "--kind", ocKind];
@@ -818,9 +765,14 @@ export class Schema extends React.Component {
                     })
                     .fail(err => {
                         let errMsg = JSON.parse(err);
+                        if ('info' in errMsg) {
+                            errMsg = errMsg.desc + " " + errMsg.info;
+                        } else {
+                            errMsg = errMsg.desc;
+                        }
                         this.props.addNotification(
                             "error",
-                            `Error during the ObjectClass ${action} operation - ${errMsg.desc}`
+                            `Error during the ObjectClass ${action} operation - ${errMsg}`
                         );
                         this.loadSchemaData();
                         this.closeObjectclassModal();
@@ -831,14 +783,18 @@ export class Schema extends React.Component {
 
     showEditAttributeModal(name) {
         this.setState({
-            atModalViewOnly: false
+            atModalViewOnly: false,
+            saveBtnDisabled: true,
+            errObj: {},
         });
         this.openAttributeModal(name);
     }
 
     showAddAttributeModal(rowData) {
         this.setState({
-            atModalViewOnly: false
+            atModalViewOnly: false,
+            saveBtnDisabled: true,
+            errObj: {'atName': true, 'atDesc': true},
         });
         this.openAttributeModal();
     }
@@ -849,15 +805,15 @@ export class Schema extends React.Component {
                 atName: "",
                 atDesc: "",
                 atOID: "",
-                atParent: [],
-                atSyntax: [],
+                atParent: "",
+                atSyntax: "1.3.6.1.4.1.1466.115.121.1.15",
                 atUsage: "userApplications",
                 atMultivalued: false,
                 atNoUserMod: false,
                 atAlias: [],
-                atEqMr: [],
-                atOrder: [],
-                atSubMr: [],
+                atEqMr: "",
+                atOrder: "",
+                atSubMr: "",
                 attributeModalShow: true,
                 newAtEntry: true
             });
@@ -894,40 +850,61 @@ export class Schema extends React.Component {
                             atName: item["name"] === undefined ? "" : item["name"][0],
                             atDesc: item["desc"] === null ? "" : item["desc"][0],
                             atOID: item["oid"] === undefined ? "" : item["oid"][0],
-                            atParent:
-                            item["sup"].length == 0
-                                ? []
-                                : [item["sup"][0]],
+                            atParent: item["sup"].length == 0 ? "" : item["sup"][0],
                             atSyntax:
                             item["syntax"] === undefined
-                                ? []
-                                : [this.state.syntaxes.filter(
-                                    attr => attr.id === item["syntax"][0]
-                                )[0]["label"]],
+                                ? ""
+                                : item["syntax"][0],
                             atUsage: item["usage"] === undefined ? "" : atUsageOpts[item["usage"]],
                             atMultivalued: !item["single_value"],
                             atNoUserMod: item["no_user_mod"],
                             atEqMr:
                             item["equality"] === null
-                                ? []
-                                : [item["equality"][0]],
+                                ? ""
+                                : item["equality"][0],
                             atOrder:
                             item["ordering"] === null
-                                ? []
-                                : [item["ordering"][0]],
+                                ? ""
+                                : item["ordering"][0],
                             atSubMr:
                             item["substr"] === null
-                                ? []
-                                : [item["substr"][0]]
+                                ? ""
+                                : item["substr"][0],
+
+                            // store orig valuses
+                            _atName: item["name"] === undefined ? "" : item["name"][0],
+                            _atDesc: item["desc"] === null ? "" : item["desc"][0],
+                            _atOID: item["oid"] === undefined ? "" : item["oid"][0],
+                            _atParent: item["sup"][0],
+                            _atSyntax:
+                            item["syntax"] === undefined
+                                ? ""
+                                : item["syntax"][0],
+                            _atUsage: item["usage"] === undefined ? "" : atUsageOpts[item["usage"]],
+                            _atMultivalued: !item["single_value"],
+                            _atNoUserMod: item["no_user_mod"],
+                            _atEqMr:
+                            item["equality"] === null
+                                ? ""
+                                : item["equality"][0],
+                            _atOrder:
+                            item["ordering"] === null
+                                ? ""
+                                : item["ordering"][0],
+                            _atSubMr:
+                            item["substr"] === null
+                                ? ""
+                                : item["substr"][0],
                         });
                         if (item["aliases"] === null) {
-                            this.setState({ atAlias: [] });
+                            this.setState({ atAlias: [], _atAlias: [] });
                         } else {
                             for (let value of item["aliases"]) {
                                 atAliasList = [...atAliasList, value];
                             }
                             this.setState({
-                                atAlias: atAliasList
+                                atAlias: atAliasList,
+                                _atAlias: atAliasList,
                             });
                         }
                     })
@@ -936,15 +913,15 @@ export class Schema extends React.Component {
                             atName: "",
                             atDesc: "",
                             atOID: "",
-                            atParent: [],
-                            atSyntax: [],
+                            atParent: "",
+                            atSyntax: "",
                             atUsage: "userApplications",
                             atMultivalued: false,
                             atNoUserMod: false,
                             atAlias: [],
-                            atEqMr: [],
-                            atOrder: [],
-                            atSubMr: [],
+                            atEqMr: "",
+                            atOrder: "",
+                            atSubMr: "",
                             attributeModalShow: true,
                             newAtEntry: true
                         });
@@ -1015,14 +992,6 @@ export class Schema extends React.Component {
     }
 
     addAttribute() {
-        this.cmdOperationAttribute("add");
-    }
-
-    editAttribute() {
-        this.cmdOperationAttribute("replace");
-    }
-
-    cmdOperationAttribute(action) {
         const {
             atName,
             atDesc,
@@ -1038,91 +1007,327 @@ export class Schema extends React.Component {
             atSubMr
         } = this.state;
 
-        if (atName == "" || atSyntax.length == 0) {
-            this.props.addNotification("warning", "Attribute Name and Syntax are required.");
-        } else {
-            let cmd = [
-                "dsconf",
-                "-j",
-                "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-                "schema",
-                "attributetypes",
-                action,
-                atName
-            ];
-            cmd = [...cmd, "--syntax", atSyntax[0]];
-            if (atAlias.length != 0) {
-                cmd = [...cmd, "--aliases"];
-                for (let value of atAlias) {
-                    cmd = [...cmd, value];
-                }
-            }
-            if (atMultivalued) {
-                cmd = [...cmd, "--multi-value"];
-            } else {
-                cmd = [...cmd, "--single-value"];
-            }
-            if (atNoUserMod) {
-                cmd = [...cmd, "--no-user-mod"];
-            } else {
-                cmd = [...cmd, "--user-mod"];
-            }
-            if (atOID != "") {
-                cmd = [...cmd, "--oid", atOID];
-            }
-            if (atUsage != "") {
-                cmd = [...cmd, "--usage", atUsage];
-            }
-            if (atDesc != "") {
-                cmd = [...cmd, "--desc", atDesc];
-            }
-            if (atParent[0] != "") {
-                cmd = [...cmd, "--sup", atParent[0]];
-            }
-            if (atEqMr[0] != "") {
-                cmd = [...cmd, "--equality", atEqMr[0]];
-            }
-            if (atSubMr[0] != "") {
-                cmd = [...cmd, "--substr", atSubMr[0]];
-            }
-            if (atOrder[0] != "") {
-                cmd = [...cmd, "--ordering", atOrder[0]];
-            }
+        let eqMR = atEqMr;
+        let orderMR = atOrder;
+        let subMR = atSubMr;
 
-            this.toggleLoading("atModal");
-            this.toggleLoading("atTable");
-            log_cmd("cmdOperationAttribute", `Do the ${action} operation on Attribute`, cmd);
-            cockpit
-                    .spawn(cmd, {
-                        superuser: true,
-                        err: "message"
-                    })
-                    .done(content => {
-                        console.info("cmdOperationAttribute", "Result", content);
-                        this.props.addNotification(
-                            "success",
-                            `Attribute ${atName} - ${action} operation was successfull`
-                        );
-                        this.loadSchemaData();
-                        this.closeAttributeModal();
-                        this.toggleLoading("atModal");
-                    })
-                    .fail(err => {
-                        let errMsg = JSON.parse(err);
-                        this.props.addNotification(
-                            "error",
-                            `Error during the Attribute ${action} operation - ${errMsg.desc}`
-                        );
-                        this.loadSchemaData();
-                        this.closeAttributeModal();
-                        this.toggleLoading("atModal");
-                    });
+        let cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "schema",
+            "attributetypes",
+            "add",
+            atName
+        ];
+
+        cmd = [...cmd, "--syntax", atSyntax];
+        if (atAlias.length != 0) {
+            cmd = [...cmd, "--aliases"];
+            for (let value of atAlias) {
+                cmd = [...cmd, value];
+            }
         }
+
+        if (atParent != "") {
+            cmd = [...cmd, "--sup", atParent];
+        }
+
+        if (eqMR != "") {
+            cmd = [...cmd, "--equality", eqMR];
+        }
+        if (subMR != "") {
+            cmd = [...cmd, "--substr", subMR];
+        }
+        if (orderMR != "") {
+            cmd = [...cmd, "--ordering", orderMR];
+        }
+        if (atMultivalued) {
+            cmd = [...cmd, "--multi-value"];
+        } else {
+            cmd = [...cmd, "--single-value"];
+        }
+        if (atNoUserMod) {
+            cmd = [...cmd, "--no-user-mod"];
+        } else {
+            cmd = [...cmd, "--user-mod"];
+        }
+        if (atOID != "") {
+            cmd = [...cmd, "--oid", atOID];
+        }
+        if (atUsage != "") {
+            cmd = [...cmd, "--usage", atUsage];
+        }
+        if (atDesc != "") {
+            cmd = [...cmd, "--desc", atDesc];
+        }
+
+        this.toggleLoading("atModal");
+        this.toggleLoading("atTable");
+        log_cmd("cmdOperationAttribute", `Do the add operation on Attribute`, cmd);
+        cockpit
+                .spawn(cmd, {
+                    superuser: true,
+                    err: "message"
+                })
+                .done(content => {
+                    console.info("cmdOperationAttribute", "Result", content);
+                    this.props.addNotification(
+                        "success",
+                        `Attribute ${atName} - add operation was successfull`
+                    );
+                    this.loadSchemaData();
+                    this.closeAttributeModal();
+                    this.toggleLoading("atModal");
+                })
+                .fail(err => {
+                    let errMsg = JSON.parse(err);
+                    if ('info' in errMsg) {
+                        errMsg = errMsg.desc + " " + errMsg.info;
+                    } else {
+                        errMsg = errMsg.desc;
+                    }
+                    this.props.addNotification(
+                        "error",
+                        `Error during the Attribute add operation - ${errMsg}`
+                    );
+                    this.loadSchemaData();
+                    this.closeAttributeModal();
+                    this.toggleLoading("atModal");
+                });
     }
 
-    handleNavSelect(key) {
+    editAttribute(action) {
+        const {
+            atName,
+            atDesc,
+            atOID,
+            atParent,
+            atSyntax,
+            atUsage,
+            atMultivalued,
+            atNoUserMod,
+            atAlias,
+            atEqMr,
+            atOrder,
+            atSubMr
+        } = this.state;
+
+        let eqMR = atEqMr;
+        let orderMR = atOrder;
+        let subMR = atSubMr;
+
+        let cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "schema",
+            "attributetypes",
+            "replace",
+            atName
+        ];
+
+        cmd = [...cmd, "--syntax", atSyntax];
+        if (!listsEqual(atAlias, this.state._atAlias)) {
+            cmd = [...cmd, "--aliases"];
+            for (let value of atAlias) {
+                cmd = [...cmd, value];
+            }
+        }
+
+        if (atParent != "") {
+            cmd = [...cmd, "--sup", atParent];
+        } else if (this.state._atParent != "") {
+            // Removed the parent attribute, so we need to remove the matching rules
+            eqMR = "";
+            orderMR = "";
+            subMR = "";
+        }
+
+        if (eqMR != this.state._atEqMr) {
+            cmd = [...cmd, "--equality", eqMR];
+        }
+        if (subMR != this.state._atSubMr) {
+            cmd = [...cmd, "--substr", subMR];
+        }
+        if (orderMR != this.state._atOrder) {
+            cmd = [...cmd, "--ordering", orderMR];
+        }
+        if (atMultivalued) {
+            cmd = [...cmd, "--multi-value"];
+        } else {
+            cmd = [...cmd, "--single-value"];
+        }
+        if (atNoUserMod) {
+            cmd = [...cmd, "--no-user-mod"];
+        } else {
+            cmd = [...cmd, "--user-mod"];
+        }
+        if (atOID != this.state._atOID) {
+            cmd = [...cmd, "--oid", atOID];
+        }
+        if (atUsage != this.state._atUsage) {
+            cmd = [...cmd, "--usage", atUsage];
+        }
+        if (atDesc != this.state._atDesc) {
+            cmd = [...cmd, "--desc", atDesc];
+        }
+
+        this.toggleLoading("atModal");
+        this.toggleLoading("atTable");
+        log_cmd("cmdOperationAttribute", `Do the replace operation on Attribute`, cmd);
+        cockpit
+                .spawn(cmd, {
+                    superuser: true,
+                    err: "message"
+                })
+                .done(content => {
+                    console.info("cmdOperationAttribute", "Result", content);
+                    this.props.addNotification(
+                        "success",
+                        `Attribute ${atName} - replace operation was successfull`
+                    );
+                    this.loadSchemaData();
+                    this.closeAttributeModal();
+                    this.toggleLoading("atModal");
+                })
+                .fail(err => {
+                    let errMsg = JSON.parse(err);
+                    if ('info' in errMsg) {
+                        errMsg = errMsg.desc + " " + errMsg.info;
+                    } else {
+                        errMsg = errMsg.desc;
+                    }
+                    this.props.addNotification(
+                        "error",
+                        `Error during the Attribute replace operation - ${errMsg}`
+                    );
+                    this.loadSchemaData();
+                    this.closeAttributeModal();
+                    this.toggleLoading("atModal");
+                });
+    }
+
+    validateForm(attr, value, attrs, errObj) {
+        let all_good = true;
+        for (let check_attr of attrs) {
+            errObj[check_attr] = false;
+            if (attr != check_attr) {
+                if (this.state[check_attr] == "") {
+                    errObj[check_attr] = true;
+                    all_good = false;
+                }
+            } else if (value == "") {
+                errObj[check_attr] = true;
+                all_good = false;
+            }
+        }
+
+        return all_good;
+    }
+
+    handleAttrChange (e) {
+        let value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        let attr = e.target.id;
+        let saveBtnDisabled = true;
+        let errObj = this.state.errObj;
+        let all_good;
+
+        const attrs = [
+            'atName', 'atDesc', 'atOID', 'atMultivalued', 'atNoUserMod',
+            'atSyntax', 'atEqMr', 'atOrder', 'atSubMr', 'atParent'
+        ];
+        const attrLists = [
+            'atAlias'
+        ];
+
+        if (this.state.newAtEntry) {
+            // Add Form
+            if (this.validateForm(attr, value, ['atName', 'atDesc', 'atSyntax'], errObj)) {
+                // Form is good to save
+                saveBtnDisabled = false;
+            }
+        } else {
+            // Edit
+            all_good = this.validateForm(attr, value, ['atName', 'atDesc', 'atSyntax'], errObj);
+            if (all_good) {
+                // Check for difference before enabling save btn
+                for (let check_attr of attrs) {
+                    if (attr != check_attr) {
+                        if (this.state[check_attr] != this.state['_' + check_attr]) {
+                            saveBtnDisabled = false;
+                            break;
+                        }
+                    } else if (value != this.state['_' + check_attr]) {
+                        saveBtnDisabled = false;
+                        break;
+                    }
+                }
+                for (let check_attr of attrLists) {
+                    if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
+                        saveBtnDisabled = false;
+                        break;
+                    }
+                }
+            }
+        }
+
         this.setState({
-            activeKey: key
+            [attr]: value,
+            saveBtnDisabled: saveBtnDisabled,
+            errObj: errObj
+        });
+    }
+
+    handleOCChange (e) {
+        let value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        let attr = e.target.id;
+        let saveBtnDisabled = true;
+        let errObj = this.state.errObj;
+        let all_good;
+
+        const attrs = [
+            'ocName', 'ocDesc', 'ocOID', 'ocParent'
+        ];
+        const attrLists = [
+            'ocMust', 'ocMay'
+        ];
+
+        if (this.state.newOcEntry) {
+            // Add OC Form
+            if (this.validateForm(attr, value, ['ocName', 'ocDesc', 'ocParent'], errObj)) {
+                // Form is good to save
+                saveBtnDisabled = false;
+            }
+        } else {
+            // Edit
+            all_good = this.validateForm(attr, value, ['ocName', 'ocDesc', 'ocParent'], errObj);
+            if (all_good) {
+                // Check for difference before enabling save btn
+                for (let check_attr of attrs) {
+                    if (attr != check_attr) {
+                        if (this.state[check_attr] != this.state['_' + check_attr]) {
+                            saveBtnDisabled = false;
+                            break;
+                        }
+                    } else if (value != this.state['_' + check_attr]) {
+                        saveBtnDisabled = false;
+                        break;
+                    }
+                }
+                for (let check_attr of attrLists) {
+                    if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
+                        saveBtnDisabled = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        this.setState({
+            [attr]: value,
+            saveBtnDisabled: saveBtnDisabled,
+            errObj: errObj
         });
     }
 
@@ -1146,8 +1351,7 @@ export class Schema extends React.Component {
                     ocTableKey: ocKey
                 });
             }
-        }
-        if (e.target.id == "atUserDefined") {
+        } else if (e.target.id == "atUserDefined") {
             if (value) {
                 this.setState({
                     filteredAttributesRows: searchFilter(
@@ -1164,6 +1368,7 @@ export class Schema extends React.Component {
                 });
             }
         }
+
         this.setState({
             [e.target.id]: value
         });
@@ -1180,188 +1385,154 @@ export class Schema extends React.Component {
             );
         } else {
             schemaPage = (
-                <div className="container-fluid">
-                    <div className="ds-tab-table">
-                        <TabContainer
-                            id="basic-tabs-pf"
-                            onSelect={this.handleNavSelect}
-                            activeKey={this.state.activeKey}
-                        >
-                            <div>
-                                <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                                    <NavItem eventKey={1}>
-                                        <div
-                                            dangerouslySetInnerHTML={{ __html: "Objectclasses" }}
-                                        />
-                                    </NavItem>
-                                    <NavItem eventKey={2}>
-                                        <div dangerouslySetInnerHTML={{ __html: "Attributes" }} />
-                                    </NavItem>
-                                    <NavItem eventKey={3}>
-                                        <div
-                                            dangerouslySetInnerHTML={{ __html: "Matching Rules" }}
-                                        />
-                                    </NavItem>
-                                </Nav>
-                                <TabContent>
-                                    <TabPane eventKey={1}>
-                                        <div className="ds-margin-top-xlg ds-indent">
-                                            <Checkbox
-                                                id="ocUserDefined"
-                                                isChecked={this.state.ocUserDefined}
-                                                title="Show only the objectclasses that are defined by a user and have the X-ORIGIN set to 'user defined'"
-                                                onChange={(checked, e) => {
-                                                    this.handleFieldChange(e);
-                                                }}
-                                                label="Only Show Non-standard/Custom Schema"
-                                            />
-                                            <ObjectClassesTable
-                                                className="ds-margin-top-lg"
-                                                key={this.state.ocTableKey}
-                                                rows={this.state.filteredObjectclassRows}
-                                                editModalHandler={this.showEditObjectclassModal}
-                                                deleteHandler={this.showConfirmOCDelete}
-                                                loading={this.state.ocTableLoading}
-                                            />
-                                            <Button
-                                                className="ds-margin-top"
-                                                variant="primary"
-                                                onClick={this.showAddObjectclassModal}
-                                            >
-                                                Add ObjectClass
-                                            </Button>
-                                            <ObjectClassModal
-                                                addHandler={this.addObjectclass}
-                                                editHandler={this.editObjectclass}
-                                                newOcEntry={this.state.newOcEntry}
-                                                ocModalViewOnly={this.state.ocModalViewOnly}
-                                                handleFieldChange={this.handleFieldChange}
-                                                objectclasses={this.state.objectclasses}
-                                                attributes={this.state.attributes}
-                                                ocName={this.state.ocName}
-                                                ocDesc={this.state.ocDesc}
-                                                ocOID={this.state.ocOID}
-                                                ocParent={this.state.ocParent}
-                                                ocKind={this.state.ocKind}
-                                                ocMust={this.state.ocMust}
-                                                ocMay={this.state.ocMay}
-                                                objectclassModalShow={
-                                                    this.state.objectclassModalShow
-                                                }
-                                                closeModal={this.closeObjectclassModal}
-                                                loading={this.state.ocModalLoading}
-                                                isParentObjOpen={this.state.isParentObjOpen}
-                                                isRequiredAttrsOpen={this.state.isRequiredAttrsOpen}
-                                                isAllowedAttrsOpen={this.state.isAllowedAttrsOpen}
-                                                onParentObjToggle={this.onParentObjToggle}
-                                                onParentObjClear={this.onParentObjClear}
-                                                onParentObjSelect={this.onParentObjSelect}
-                                                onParentObjCreateOption={this.onParentObjCreateOption}
-                                                onRequiredAttrsToggle={this.onRequiredAttrsToggle}
-                                                onRequiredAttrsClear={this.onRequiredAttrsClear}
-                                                onRequiredAttrsSelect={this.onRequiredAttrsSelect}
-                                                onRequiredAttrsCreateOption={this.onRequiredAttrsCreateOption}
-                                                onAllowedAttrsToggle={this.onAllowedAttrsToggle}
-                                                onAllowedAttrsClear={this.onAllowedAttrsClear}
-                                                onAllowedAttrsSelect={this.onAllowedAttrsSelect}
-                                                onAllowedAttrsCreateOption={this.onAllowedAttrsCreateOption}
-                                            />
-                                        </div>
-                                    </TabPane>
-
-                                    <TabPane eventKey={2}>
-                                        <div className="ds-margin-top-xlg ds-indent">
-                                            <Checkbox
-                                                id="atUserDefined"
-                                                isChecked={this.state.atUserDefined}
-                                                title="Show only the attributes that are defined by a user, and have the X-ORIGIN set to 'user defined'"
-                                                onChange={(checked, e) => {
-                                                    this.handleFieldChange(e);
-                                                }}
-                                                label="Only Show Non-standard/Custom Schema"
-                                            />
-                                            <AttributesTable
-                                                className="ds-margin-top-lg"
-                                                key={this.state.attrTableKey}
-                                                rows={this.state.filteredAttributesRows}
-                                                editModalHandler={this.showEditAttributeModal}
-                                                deleteHandler={this.showConfirmAttrDelete}
-                                                syntaxes={this.state.syntaxes}
-                                                loading={this.state.atTableLoading}
-                                            />
-                                            <Button
-                                                className="ds-margin-top"
-                                                variant="primary"
-                                                onClick={this.showAddAttributeModal}
-                                            >
-                                                Add Attribute
-                                            </Button>
-                                            <AttributeTypeModal
-                                                addHandler={this.addAttribute}
-                                                editHandler={this.editAttribute}
-                                                newAtEntry={this.state.newAtEntry}
-                                                atModalViewOnly={this.state.atModalViewOnly}
-                                                handleFieldChange={this.handleFieldChange}
-                                                objectclasses={this.state.objectclasses}
-                                                attributes={this.state.attributes}
-                                                matchingrules={this.state.matchingrules}
-                                                syntaxes={this.state.syntaxes}
-                                                atName={this.state.atName}
-                                                atDesc={this.state.atDesc}
-                                                atOID={this.state.atOID}
-                                                atParent={this.state.atParent}
-                                                atSyntax={this.state.atSyntax}
-                                                atUsage={this.state.atUsage}
-                                                atMultivalued={this.state.atMultivalued}
-                                                atNoUserMod={this.state.atNoUserMod}
-                                                atAlias={this.state.atAlias}
-                                                atEqMr={this.state.atEqMr}
-                                                atOrder={this.state.atOrder}
-                                                atSubMr={this.state.atSubMr}
-                                                attributeModalShow={this.state.attributeModalShow}
-                                                closeModal={this.closeAttributeModal}
-                                                loading={this.state.atModalLoading}
-                                                isParentAttrOpen={this.state.isParentAttrOpen}
-                                                isSyntaxNameOpen={this.state.isSyntaxNameOpen}
-                                                isAliasNameOpen={this.state.isAliasNameOpen}
-                                                isEqualityMROpen={this.state.isEqualityMROpen}
-                                                isOrderMROpen={this.state.isOrderMROpen}
-                                                isSubstringMROpen={this.state.isSubstringMROpen}
-                                                onParentAttrToggle={this.onParentAttrToggle}
-                                                onParentAttrClear={this.onParentAttrClear}
-                                                onParentAttrSelect={this.onParentAttrSelect}
-                                                onParentAttrCreateOption={this.onParentObjCreateOption}
-                                                onSyntaxNameToggle={this.onSyntaxNameToggle}
-                                                onSyntaxNameClear={this.onSyntaxNameClear}
-                                                onSyntaxNameSelect={this.onSyntaxNameSelect}
-                                                onAliasNameToggle={this.onAliasNameToggle}
-                                                onAliasNameClear={this.onAliasNameClear}
-                                                onAliasNameSelect={this.onAliasNameSelect}
-                                                onAliasNameCreateOption={this.onAliasNameCreateOption}
-                                                onEqualityMRToggle={this.onEqualityMRToggle}
-                                                onEqualityMRClear={this.onEqualityMRClear}
-                                                onEqualityMRSelect={this.onEqualityMRSelect}
-                                                onOrderMRToggle={this.onOrderMRToggle}
-                                                onOrderMRClear={this.onOrderMRClear}
-                                                onOrderMRSelect={this.onOrderMRSelect}
-                                                onSubstringMRToggle={this.onSubstringMRToggle}
-                                                onSubstringMRClear={this.onSubstringMRClear}
-                                                onSubstringMRSelect={this.onSubstringMRSelect}
-                                            />
-                                        </div>
-                                    </TabPane>
-
-                                    <TabPane eventKey={3}>
-                                        <div className="ds-margin-top-xlg ds-indent">
-                                            <MatchingRulesTable
-                                                rows={this.state.matchingrulesRows}
-                                            />
-                                        </div>
-                                    </TabPane>
-                                </TabContent>
+                <div className="ds-indent ds-margin-top-xlg">
+                    <Tabs isBox activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                        <Tab eventKey={0} title={<TabTitleText>Objectclasses</TabTitleText>}>
+                            <div className="ds-margin-top-xlg ds-indent">
+                                <Checkbox
+                                    id="ocUserDefined"
+                                    isChecked={this.state.ocUserDefined}
+                                    title="Show only the objectclasses that are defined by a user and have the X-ORIGIN set to 'user defined'"
+                                    onChange={(checked, e) => {
+                                        this.handleFieldChange(e);
+                                    }}
+                                    label="Only Show Non-standard/Custom Schema"
+                                />
+                                <ObjectClassesTable
+                                    className="ds-margin-top-lg"
+                                    key={this.state.ocTableKey}
+                                    rows={this.state.filteredObjectclassRows}
+                                    editModalHandler={this.showEditObjectclassModal}
+                                    deleteHandler={this.showConfirmOCDelete}
+                                    loading={this.state.ocTableLoading}
+                                />
+                                <Button
+                                    variant="primary"
+                                    onClick={this.showAddObjectclassModal}
+                                >
+                                    Add ObjectClass
+                                </Button>
+                                <ObjectClassModal
+                                    addHandler={this.addObjectclass}
+                                    editHandler={this.editObjectclass}
+                                    newOcEntry={this.state.newOcEntry}
+                                    ocModalViewOnly={this.state.ocModalViewOnly}
+                                    handleFieldChange={this.handleOCChange}
+                                    objectclasses={this.state.objectclasses}
+                                    attributes={this.state.attributes}
+                                    ocName={this.state.ocName}
+                                    ocDesc={this.state.ocDesc}
+                                    ocOID={this.state.ocOID}
+                                    ocParent={this.state.ocParent}
+                                    ocKind={this.state.ocKind}
+                                    ocMust={this.state.ocMust}
+                                    ocMay={this.state.ocMay}
+                                    objectclassModalShow={
+                                        this.state.objectclassModalShow
+                                    }
+                                    closeModal={this.closeObjectclassModal}
+                                    loading={this.state.ocModalLoading}
+                                    isParentObjOpen={this.state.isParentObjOpen}
+                                    isRequiredAttrsOpen={this.state.isRequiredAttrsOpen}
+                                    isAllowedAttrsOpen={this.state.isAllowedAttrsOpen}
+                                    onRequiredAttrsToggle={this.onRequiredAttrsToggle}
+                                    onRequiredAttrsClear={this.onRequiredAttrsClear}
+                                    onRequiredAttrsSelect={this.onRequiredAttrsSelect}
+                                    onRequiredAttrsCreateOption={this.onRequiredAttrsCreateOption}
+                                    onAllowedAttrsToggle={this.onAllowedAttrsToggle}
+                                    onAllowedAttrsClear={this.onAllowedAttrsClear}
+                                    onAllowedAttrsSelect={this.onAllowedAttrsSelect}
+                                    onAllowedAttrsCreateOption={this.onAllowedAttrsCreateOption}
+                                    saveBtnDisabled={this.state.saveBtnDisabled}
+                                    error={this.state.errObj}
+                                />
                             </div>
-                        </TabContainer>
-                    </div>
+                        </Tab>
+                        <Tab eventKey={1} title={<TabTitleText>Attributes</TabTitleText>}>
+                            <div className="ds-margin-top-xlg ds-indent">
+                                <Checkbox
+                                    id="atUserDefined"
+                                    isChecked={this.state.atUserDefined}
+                                    title="Show only the attributes that are defined by a user, and have the X-ORIGIN set to 'user defined'"
+                                    onChange={(checked, e) => {
+                                        this.handleFieldChange(e);
+                                    }}
+                                    label="Only Show Non-standard/Custom Schema"
+                                />
+                                <AttributesTable
+                                    className="ds-margin-top-lg"
+                                    key={this.state.attrTableKey}
+                                    rows={this.state.filteredAttributesRows}
+                                    editModalHandler={this.showEditAttributeModal}
+                                    deleteHandler={this.showConfirmAttrDelete}
+                                    syntaxes={this.state.syntaxes}
+                                    loading={this.state.atTableLoading}
+                                />
+                                <Button
+                                    variant="primary"
+                                    onClick={this.showAddAttributeModal}
+                                >
+                                    Add Attribute
+                                </Button>
+                                <AttributeTypeModal
+                                    addHandler={this.addAttribute}
+                                    editHandler={this.editAttribute}
+                                    newAtEntry={this.state.newAtEntry}
+                                    atModalViewOnly={this.state.atModalViewOnly}
+                                    handleFieldChange={this.handleAttrChange}
+                                    objectclasses={this.state.objectclasses}
+                                    attributes={this.state.attributes}
+                                    matchingrules={this.state.matchingrules}
+                                    syntaxes={this.state.syntaxes}
+                                    atName={this.state.atName}
+                                    atDesc={this.state.atDesc}
+                                    atOID={this.state.atOID}
+                                    atParent={this.state.atParent}
+                                    atSyntax={this.state.atSyntax}
+                                    atUsage={this.state.atUsage}
+                                    atMultivalued={this.state.atMultivalued}
+                                    atNoUserMod={this.state.atNoUserMod}
+                                    atAlias={this.state.atAlias}
+                                    atEqMr={this.state.atEqMr}
+                                    atOrder={this.state.atOrder}
+                                    atSubMr={this.state.atSubMr}
+                                    attributeModalShow={this.state.attributeModalShow}
+                                    closeModal={this.closeAttributeModal}
+                                    loading={this.state.atModalLoading}
+                                    isParentAttrOpen={this.state.isParentAttrOpen}
+                                    isAliasNameOpen={this.state.isAliasNameOpen}
+                                    isEqualityMROpen={this.state.isEqualityMROpen}
+                                    isOrderMROpen={this.state.isOrderMROpen}
+                                    isSubstringMROpen={this.state.isSubstringMROpen}
+                                    onParentAttrToggle={this.onParentAttrToggle}
+                                    onParentAttrClear={this.onParentAttrClear}
+                                    onParentAttrSelect={this.onParentAttrSelect}
+                                    onAliasNameToggle={this.onAliasNameToggle}
+                                    onAliasNameClear={this.onAliasNameClear}
+                                    onAliasNameSelect={this.onAliasNameSelect}
+                                    onAliasNameCreateOption={this.onAliasNameCreateOption}
+                                    onEqualityMRToggle={this.onEqualityMRToggle}
+                                    onEqualityMRClear={this.onEqualityMRClear}
+                                    onEqualityMRSelect={this.onEqualityMRSelect}
+                                    onOrderMRToggle={this.onOrderMRToggle}
+                                    onOrderMRClear={this.onOrderMRClear}
+                                    onOrderMRSelect={this.onOrderMRSelect}
+                                    onSubstringMRToggle={this.onSubstringMRToggle}
+                                    onSubstringMRClear={this.onSubstringMRClear}
+                                    onSubstringMRSelect={this.onSubstringMRSelect}
+                                    saveBtnDisabled={this.state.saveBtnDisabled}
+                                    error={this.state.errObj}
+                                />
+                            </div>
+                        </Tab>
+                        <Tab eventKey={2} title={<TabTitleText>Matching Rules</TabTitleText>}>
+                            <div className="ds-margin-top-xlg ds-indent">
+                                <MatchingRulesTable
+                                    rows={this.state.matchingrulesRows}
+                                />
+                            </div>
+                        </Tab>
+                    </Tabs>
                     <DoubleConfirmModal
                         showModal={this.state.showConfirmDeleteOC}
                         closeHandler={this.closeConfirmOCDelete}

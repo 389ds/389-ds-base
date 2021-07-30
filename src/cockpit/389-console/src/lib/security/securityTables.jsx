@@ -47,7 +47,8 @@ class CertTable extends React.Component {
 
         this.onPerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage: perPage,
+                page: 1
             });
         };
 
@@ -147,9 +148,9 @@ class CertTable extends React.Component {
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows } = this.state;
-
-        rows[rowKey].isOpen = isOpen;
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
         this.setState({
             rows
         });

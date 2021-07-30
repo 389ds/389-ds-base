@@ -49,6 +49,7 @@ export class Replication extends React.Component {
             clTrimInt: "",
             clEncrypt: false,
             suffixKey: 0,
+            ldifRows: [],
 
             showDisableConfirm: false,
             loaded: false,
@@ -970,6 +971,7 @@ export class Replication extends React.Component {
                                     agmtRows={this.state[this.state.node_name].agmtRows}
                                     winsyncRows={this.state[this.state.node_name].winsyncRows}
                                     ruvRows={this.state[this.state.node_name].ruvRows}
+                                    ldifRows={this.state.ldifRows}
                                     reloadAgmts={this.reloadAgmts}
                                     reloadWinsyncAgmts={this.reloadWinsyncAgmts}
                                     reloadRUV={this.reloadRUV}
@@ -1006,6 +1008,7 @@ export class Replication extends React.Component {
                                 disableTree={this.disableTree}
                                 spinning={this.state.suffixSpinning}
                                 disabled={this.state.disabled}
+                                ldifRows={this.state.ldifRows}
                                 key={this.state.node_name}
                             />;
                     }
