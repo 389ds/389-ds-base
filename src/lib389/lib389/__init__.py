@@ -940,6 +940,9 @@ class DirSrv(SimpleLDAPObject, object):
         else:
             super(DirSrv, self).__init__(uri, trace_level=TRACE_LEVEL)
 
+        # Set new TLS context only if we changed some of the options
+        new_tls_context = False
+
         if certdir is None and self.isLocal:
             certdir = self.get_cert_dir()
             # If we are trying to manage local instance and admin doesn't have access
@@ -955,27 +958,30 @@ class DirSrv(SimpleLDAPObject, object):
             # it can NOT change opts AT ALL.
             self.log.debug("Using external ca certificate %s", certdir)
             self.set_option(ldap.OPT_X_TLS_CACERTDIR, ensure_str(certdir))
+            new_tls_context = True
 
         if userkey is not None:
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
             self.log.debug("Using user private key %s", userkey)
             self.set_option(ldap.OPT_X_TLS_KEYFILE, ensure_str(userkey))
+            new_tls_context = True
 
         if usercert is not None:
             # Note this sets LDAP.OPT not SELF. Because once self has opened
             # it can NOT change opts AT ALL.
             self.log.debug("Using user certificate %s", usercert)
             self.set_option(ldap.OPT_X_TLS_CERTFILE, ensure_str(usercert))
-
+            new_tls_context = True
 
         if certdir or starttls or uri.startswith('ldaps://'):
             try:
                 # Note this sets LDAP.OPT not SELF. Because once self has opened
                 # it can NOT change opts on reused (ie restart)
                 if reqcert is not None:
-                    self.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, reqcert)
                     self.log.debug("Using lib389 certificate policy %s", reqcert)
+                    self.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, reqcert)
+                    new_tls_context = True
                 else:
                     self.log.debug("Using /etc/openldap/ldap.conf certificate policy")
                 self.log.debug("ldap.OPT_X_TLS_REQUIRE_CERT = %s", self.get_option(ldap.OPT_X_TLS_REQUIRE_CERT))
@@ -984,7 +990,8 @@ class DirSrv(SimpleLDAPObject, object):
                 raise e
 
         # Tell python ldap to make a new TLS context with this information.
-        self.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
+        if new_tls_context:
+            self.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
 
         if starttls and not uri.startswith('ldaps'):
             self.start_tls_s(escapehatch='i am sure')
