@@ -2293,6 +2293,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_MALLOC_TRIM_THRESHOLD "nsslapd-malloc-trim-threshold"
 #define CONFIG_MALLOC_MMAP_THRESHOLD "nsslapd-malloc-mmap-threshold"
 
+#define DEFAULT_MALLOC_UNSET_STR "-10"
 #define DEFAULT_MALLOC_UNSET (-10)
 
 #define CONFIG_VERIFY_FILTER_SCHEMA  "nsslapd-verify-filter-schema"

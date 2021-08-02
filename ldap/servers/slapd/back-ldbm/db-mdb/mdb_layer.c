@@ -37,16 +37,6 @@ typedef struct {
     size_t data_size;        /* Size of a single item in data */
 } dbmdb_bulkdata_t;
 
-typedef struct {
-    long nbrecords;
-    char *startdata;
-    struct {
-        MDB_val key;
-        MDB_val data;
-    } record[1];
-
-} dbmdb_bulkrecords_t;
-
 
 /* Use these macros to incr/decrement the thread count for the
    database housekeeping threads.  This ensures that the
@@ -1652,6 +1642,10 @@ char *dbmdb_public_get_db_filename(dbi_db_t *db)
 
 int dbmdb_public_bulk_free(dbi_bulk_t *bulkdata)
 {
+    if ((bulkdata->v.flags & DBI_VF_BULK_RECORD) && bulkdata->v.size == 1) {
+        slapi_ch_free(&((MDB_val *)(bulkdata->v.data))->mv_data);
+        bulkdata->v.size = 0;
+    }
     /* No specific action required for mdb handling */
     return DBI_RC_SUCCESS;
 }
@@ -1695,14 +1689,14 @@ int dbmdb_public_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t
     int *idx = (int*) (&bulkdata->it);
 
     PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
-    if (&vals[*idx+1] >= endvals) {
+    if (&vals[*idx] >= endvals) {
         return DBI_RC_NOTFOUND;
     }
     val = &vals[*idx];
     dblayer_value_set_buffer(bulkdata->be, key, val->mv_data, val->mv_size);
     val = &vals[*idx+1];
     dblayer_value_set_buffer(bulkdata->be, data, val->mv_data, val->mv_size);
-    (*idx)++;
+    (*idx) += 2;
     return 0;
 }
 
@@ -1721,12 +1715,20 @@ int dbmdb_public_bulk_start(dbi_bulk_t *bulkdata)
 int dbmdb_fill_bulkop_records(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata)
 {
 #define BRVAL(dpl)  &((MDB_val *)(bulkdata->v.data))[dpl]
+    char *endheap = &((char*)(bulkdata->v.data))[bulkdata->v.ulen];
     MDB_cursor *mcursor = (MDB_cursor*)cursor->cur;
-    char *startdata = &((char*)(bulkdata->v.data))[bulkdata->v.ulen];
-    MDB_val *mkey, *mdata;
+    MDB_val *mdata = NULL;
+    MDB_val *mkey = NULL;
     int mop = 0;
     int rc = 0;
 
+    /*
+     * bulkdata->v  format is:
+     *   ulen : max size of buffer
+     *   size : 2 * number of records
+     *   data :   MDB_val[size] key_data_pairs / Empty / Heap
+     */
+    dbmdb_public_bulk_free(bulkdata);
     bulkdata->v.size = 0;
     switch (op)
     {
@@ -1754,7 +1756,9 @@ int dbmdb_fill_bulkop_records(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key
         return DBI_RC_UNSUPPORTED;
     }
     while (!rc) {
-        if ((char*)BRVAL(bulkdata->v.size+2) >= startdata) {
+        char *keyinheap;
+        char *datainheap;
+        if ((char*)BRVAL(bulkdata->v.size+2) >= endheap) {
             break;
         }
         mkey = BRVAL(bulkdata->v.size);
@@ -1762,7 +1766,7 @@ int dbmdb_fill_bulkop_records(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key
         mkey->mv_data = mdata->mv_data = NULL;
         mkey->mv_size = mdata->mv_size = 0;
         if (bulkdata->v.size == 0) {
-            dbmdb_dbival2dbt(key, BRVAL(0), PR_FALSE);
+            dbmdb_dbival2dbt(key, mkey, PR_FALSE);
         }
         rc = MDB_CURSOR_GET(mcursor, mkey, mdata, mop);
         if (rc) {
@@ -1772,25 +1776,33 @@ int dbmdb_fill_bulkop_records(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key
             rc = dbmdb_map_error(__FUNCTION__, rc);
             break;
         }
-        if ((char*)BRVAL(bulkdata->v.size+2) > startdata-mkey->mv_size-mdata->mv_size) {
+        keyinheap = endheap - mkey->mv_size;
+        datainheap = keyinheap - mdata->mv_size;
+        endheap = datainheap;
+        if ((char*)BRVAL(bulkdata->v.size+2) >= datainheap) {
             /* Buffer is too small to store this value */
             if (bulkdata->v.size) {
+                MDB_CURSOR_GET(mcursor, mkey, mdata, MDB_PREV);
                 break;
             }
-            /* Buffer is too small */
-            bulkdata->v.size = 2 * (sizeof (MDB_val)) + mkey->mv_size + mdata->mv_size;
-            return DBI_RC_BUFFER_SMALL;
+            bulkdata->v.size = -1;
+            keyinheap = slapi_ch_malloc(mkey->mv_size + mdata->mv_size);
+            datainheap = keyinheap + mkey->mv_size;
         }
         mop = MDB_NEXT;
         bulkdata->v.size += 2;
-        startdata -= mdata->mv_size;
-        memcpy(startdata, mdata->mv_data, mdata->mv_size);
-        startdata -= mkey->mv_size;
-        memcpy(startdata, mkey->mv_data, mkey->mv_size);
+        memcpy(keyinheap, mkey->mv_data, mkey->mv_size);
+        memcpy(datainheap, mdata->mv_data, mdata->mv_size);
+        mkey->mv_data = keyinheap;
+        mdata->mv_data = datainheap;
+        if (bulkdata->v.size == 1) {
+            break;
+        }
     }
     /* Copy last key back to key */
-    mkey = bulkdata->v.size ? BRVAL(bulkdata->v.size-2) : BRVAL(0);
-    rc = dbmdb_dbt2dbival(mkey, key, PR_TRUE, rc);
+    if (rc == 0) {
+        rc = dbmdb_dbt2dbival(mkey, key, PR_TRUE, rc);
+    }
     return rc;
 }
 
@@ -1881,6 +1893,8 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
                 /* There are still some data to work on */
                 dbmdb_data->op = MDB_NEXT_DUP;
                 rc = 0;
+            } else if (bulkdata->v.flags & DBI_VF_BULK_RECORD) {
+                rc = dbmdb_fill_bulkop_records(cursor,  DBI_OP_NEXT, key, bulkdata);
             } else {
                 /* When usign multiple there is always a single bloc of dups */
                 rc = MDB_NOTFOUND;
@@ -2668,6 +2682,8 @@ dbmdb_public_dblayer_compact(Slapi_Backend *be, PRBool just_changelog)
     if (be != be1) {
         return 0;
     }
+    slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_public_dblayer_compact",
+                  "Compacting databases ...\n");
 
     pb = slapi_pblock_new();
     slapi_pblock_set(pb, SLAPI_PLUGIN, (be->be_database));
@@ -2724,6 +2740,8 @@ out:
         slapi_ch_free_string(&newdb_name);
     }
     slapi_ch_free_string(&db_name);
+    slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_public_dblayer_compact",
+                  "Compacting databases finished.\n");
     return rc;
 }
 

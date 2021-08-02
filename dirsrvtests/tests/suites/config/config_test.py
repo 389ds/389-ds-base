@@ -109,7 +109,10 @@ def test_maxbersize_repl(topology_m2, big_file):
 
     log.info('Check if a big value was successfully replicated to supplier2')
     photo_m2 = user_m2.get_attr_vals('jpegphoto')
-
+    nbtries = 0;
+    while photo_m2 != photo_m1 and nbtries < 10:
+        nbtries = nbtries + 1
+        photo_m2 = user_m2.get_attr_vals('jpegphoto')
     assert photo_m2 == photo_m1
 
 def test_config_listen_backport_size(topology_m2):
