@@ -196,6 +196,10 @@ only.
         self._generate_noise('%s/noise.txt' % self._certdb)
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         self.log.debug("nss output: %s", result)
         return True
 
@@ -232,7 +236,10 @@ only.
         code. Instead, we parse the output of `openssl version` and try to
         figure out if we have a new enough version to unconditionally run rehash.
         """
-        openssl_version = check_output(['/usr/bin/openssl', 'version']).decode('utf-8').strip()
+        try:
+            openssl_version = check_output(['/usr/bin/openssl', 'version']).decode('utf-8').strip()
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         rehash_available = LegacyVersion(openssl_version.split(' ')[1]) >= LegacyVersion('1.1.0')
 
         if rehash_available:
@@ -240,7 +247,10 @@ only.
         else:
             cmd = ['/usr/bin/c_rehash', certdir]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
     def create_rsa_ca(self, months=VALID):
         """
@@ -292,7 +302,10 @@ only.
             '-a',
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        certdetails = check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            certdetails = check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         with open('%s/ca.crt' % self._certdb, 'w') as f:
             f.write(ensure_str(certdetails))
         self.openssl_rehash(self._certdb)
@@ -312,7 +325,10 @@ only.
             self._certdb,
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        certdetails = check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
+        try:
+            certdetails = check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         end_date_str = certdetails.split("Not After : ")[1].split("\n")[0]
         date_format = '%a %b %d %H:%M:%S %Y'
         end_date = datetime.strptime(end_date_str, date_format)
@@ -351,7 +367,10 @@ only.
             '-o', csr_path,
             ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         # Sign the CSR with our old CA
         cmd = [
@@ -373,7 +392,10 @@ only.
             '%s' % months,
             ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         self.openssl_rehash(self._certdb)
 
@@ -389,7 +411,10 @@ only.
             '-f', '%s/%s' % (self._certdb, PWD_TXT),
             ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         return crt_path
 
@@ -402,7 +427,10 @@ only.
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
-        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         # We can skip the first few lines. They are junk
         # IE ['',
@@ -434,8 +462,10 @@ only.
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
-
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         lines = result.split('\n')[1:-1]
         for line in lines:
             m = re.match('\<(?P<id>.*)\> (?P<type>\w+)\s+(?P<hash>\w+).*:(?P<name>.+)', line)
@@ -540,13 +570,16 @@ only.
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         self.log.debug("nss output: %s", result)
         return True
 
     def create_rsa_key_and_csr(self, alt_names=[], subject=None):
         """Create a new RSA key and the certificate signing request. This
-        request can be submitted to a CA for signing. The returned certifcate
+        request can be submitted to a CA for signing. The returned certificate
         can be added with import_rsa_crt.
         """
         csr_path = os.path.join(self._certdb, '%s.csr' % CERT_NAME)
@@ -590,7 +623,10 @@ only.
             '-o', csr_path,
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         return csr_path
 
@@ -616,7 +652,10 @@ only.
             '-c', CA_NAME,
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         return (ca_path, crt_path)
 
@@ -644,7 +683,10 @@ only.
                 '%s/%s' % (self._certdb, PWD_TXT),
             ]
             self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-            check_output(cmd, stderr=subprocess.STDOUT)
+            try:
+                check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                raise ValueError(e.output.decode('utf-8').rstrip())
 
         if crt is not None:
             cmd = [
@@ -659,7 +701,10 @@ only.
                 '%s/%s' % (self._certdb, PWD_TXT),
             ]
             self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-            check_output(cmd, stderr=subprocess.STDOUT)
+            try:
+                check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                raise ValueError(e.output.decode('utf-8').rstrip())
             cmd = [
                 '/usr/bin/certutil',
                 '-V',
@@ -668,7 +713,10 @@ only.
                 '-u', 'YCV'
             ]
             self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-            check_output(cmd, stderr=subprocess.STDOUT)
+            try:
+                check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                raise ValueError(e.output.decode('utf-8').rstrip())
 
     def create_rsa_user(self, name, months=VALID):
         """
@@ -711,8 +759,11 @@ only.
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
-        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         self.log.debug("nss output: %s", result)
         # Now extract this into PEM files that we can use.
         # pk12util -o user-william.p12 -d . -k pwdfile.txt -n user-william -W ''
@@ -725,7 +776,10 @@ only.
             '-W', '""'
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         # openssl pkcs12 -in user-william.p12 -passin pass:'' -out file.pem -nocerts -nodes
         # Extract the key
         cmd = [
@@ -738,7 +792,10 @@ only.
             '-nodes'
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         # Extract the cert
         cmd = [
             'openssl',
@@ -751,7 +808,10 @@ only.
             '-nodes'
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         # Convert the cert for userCertificate attr
         cmd = [
             'openssl',
@@ -762,7 +822,10 @@ only.
             '-out', '%s/%s%s.der' % (self._certdb, USER_PREFIX, name),
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
         return subject
 
@@ -789,7 +852,10 @@ only.
                 '%s/%s' % (self._certdb, PWD_TXT),
             ]
         self.log.debug("del_cert cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
     def edit_cert_trust(self, nickname,  trust_flags):
         """Edit trust flags
@@ -819,7 +885,10 @@ only.
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
         self.log.debug("edit_cert_trust cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
 
     def display_cert_details(self, nickname):
@@ -832,7 +901,12 @@ only.
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
         self.log.debug("display_cert_details cmd: %s", format_cmd_list(cmd))
-        return check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
+        try:
+            result = check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+
+        return result
 
 
     def get_cert_details(self, nickname):
@@ -935,7 +1009,10 @@ only.
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
         self.log.debug("add_cert cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
     def add_server_key_and_cert(self, input_key, input_cert):
         if not os.path.exists(input_key):
@@ -964,7 +1041,10 @@ only.
             '-aes128'
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
         # Remove the server-cert if it exists, because else the import name fails.
         try:
             self.del_cert(CERT_NAME)
@@ -981,7 +1061,10 @@ only.
                 '-W', "",
             ]
             self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-            check_output(cmd, stderr=subprocess.STDOUT)
+            try:
+                check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                raise ValueError(e.output.decode('utf-8').rstrip())
         finally:
             # Remove the p12
             if os.path.exists(p12_bundle):
