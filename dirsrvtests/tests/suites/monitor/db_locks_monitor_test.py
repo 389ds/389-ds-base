@@ -27,6 +27,7 @@ from lib389.plugins import AttributeUniquenessPlugin
 from lib389.config import BDB_LDBMConfig
 from lib389.monitor import MonitorLDBM
 from lib389.topologies import create_topology, _remove_ssca_db
+from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier2
 db_locks_monitoring_ack = pytest.mark.skipif(not os.environ.get('DB_LOCKS_MONITORING_ACK', False),
@@ -144,6 +145,8 @@ def test_exhaust_db_locks_basic(topology_st_fn, setup_attruniq_index_be_import, 
     and database is not corrupted
 
     :id: 299108cc-04d8-4ddc-b58e-99157fccd643
+    :customerscenario: True
+    :parametrized: yes
     :setup: Standalone instance with Attr Uniq plugin and user indexes disabled
     :steps: 1. Set nsslapd-db-locks to 11000
             2. Check that we stop acquiring new locks when the threshold is reached
@@ -209,6 +212,7 @@ def test_exhaust_db_locks_big_pause(topology_st_fn, setup_attruniq_index_be_impo
     """Test that DB lock pause setting increases the wait interval value for the monitoring thread
 
     :id: 7d5bf838-5d4e-4ad5-8c03-5716afb84ea6
+    :customerscenario: True
     :setup: Standalone instance with Attr Uniq plugin and user indexes disabled
     :steps: 1. Set nsslapd-db-locks to 20000 while using the default threshold value (95%)
             2. Set nsslapd-db-locks-monitoring-pause to 10000 (10 seconds)
@@ -249,3 +253,68 @@ def test_exhaust_db_locks_big_pause(topology_st_fn, setup_attruniq_index_be_impo
                             f"Finished the execution in {time_delta.seconds} seconds")
     # In case something has failed - restart for the clean up
     inst.restart()
+
+
+@pytest.mark.ds4623
+@pytest.mark.bz1812286
+@pytest.mark.skipif(ds_is_older("1.4.3.23"), reason="Not implemented")
+@pytest.mark.parametrize("invalid_value", [("0"), ("1"), ("42"), ("68"), ("69"), ("96"), ("120")])
+def test_invalid_threshold_range(topology_st_fn, invalid_value):
+    """Test that setting nsslapd-db-locks-monitoring-threshold to 60 % is rejected
+
+    :id: e4551de1-8582-4c13-b59d-3d5ec4701457
+    :customerscenario: True
+    :parametrized: yes
+    :setup: Standalone instance
+    :steps: 1. Set nsslapd-db-locks-monitoring-threshold to 60 %
+            2. Check if exception message contains info about invalid value range
+    :expectedresults:
+            1. Exception is raised
+            2. Success
+    """
+
+    inst = topology_st_fn.standalone
+    bdb_config = BDB_LDBMConfig(inst)
+    msg = 'threshold is indicated as a percentage and it must lie in range of 70 and 95'
+
+    try:
+        bdb_config.replace("nsslapd-db-locks-monitoring-threshold", invalid_value)
+    except ldap.OPERATIONS_ERROR as e:
+        log.info('Got expected error: {}'.format(str(e)))
+        assert msg in str(e)
+
+
+@pytest.mark.ds4623
+@pytest.mark.bz1812286
+@pytest.mark.skipif(ds_is_older("1.4.3.23"), reason="Not implemented")
+@pytest.mark.parametrize("locks_invalid", [("0"), ("1"), ("9999"), ("10000")])
+def test_invalid_db_locks_value(topology_st_fn, locks_invalid):
+    """Test that setting nsslapd-db-locks to 0 is rejected
+
+    :id: bbb40279-d622-4f36-a129-c54f963f494a
+    :customerscenario: True
+    :parametrized: yes
+    :setup: Standalone instance
+    :steps: 1. Set nsslapd-db-locks to 0
+            2. Check if exception message contains info about invalid value
+    :expectedresults:
+            1. Exception is raised
+            2. Success
+    """
+
+    inst = topology_st_fn.standalone
+    bdb_config = BDB_LDBMConfig(inst)
+    msg = 'Invalid value for nsslapd-db-locks ({}). Must be greater than 10000'.format(locks_invalid)
+
+    try:
+        bdb_config.replace("nsslapd-db-locks", locks_invalid)
+    except ldap.UNWILLING_TO_PERFORM as e:
+        log.info('Got expected error: {}'.format(str(e)))
+        assert msg in str(e)
+
+
+if __name__ == '__main__':
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main(["-s", CURRENT_FILE])
