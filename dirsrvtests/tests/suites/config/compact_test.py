@@ -5,7 +5,9 @@ import time
 from lib389.tasks import DBCompactTask
 from lib389.backend import DatabaseConfig
 from lib389.topologies import topology_m1 as topo
+from lib389.utils import ldap, ds_is_older
 
+pytestmark = pytest.mark.tier2
 log = logging.getLogger(__name__)
 
 
@@ -13,12 +15,13 @@ def test_compact_db_task(topo):
     """Test creation of dbcompact task is successful
 
     :id: 1b3222ef-a336-4259-be21-6a52f76e1859
+    :customerscenario: True
     :setup: Standalone Instance
     :steps:
         1. Create task
         2. Check task was successful
         3. Check errors log to show task was run
-        4. Create task just for replication
+        4. Create task just for changelog
     :expectedresults:
         1. Success
         2. Success
@@ -53,6 +56,7 @@ def test_compaction_interval_and_time(topo):
     """Test dbcompact is successful when nsslapd-db-compactdb-interval and nsslapd-db-compactdb-time is set
 
     :id: f361bee9-d7e7-4569-9255-d7b60dd9d92e
+    :customerscenario: True
     :setup: Supplier Instance
     :steps:
         1. Configure compact interval and time
@@ -70,6 +74,64 @@ def test_compaction_interval_and_time(topo):
     time.sleep(6)
     assert inst.searchErrorsLog("Compacting databases")
     inst.deleteErrorLogs(restart=False)
+
+
+@pytest.mark.ds4778
+@pytest.mark.bz1748441
+@pytest.mark.skipif(ds_is_older("1.4.3.23"), reason="Not implemented")
+def test_no_compaction(topo):
+    """Test there is no compaction when nsslapd-db-compactdb-interval is set to 0
+
+    :id: 80fdb0e3-a70c-42ad-9841-eebb74287b19
+    :customerscenario: True
+    :setup: Supplier Instance
+    :steps:
+        1. Configure nsslapd-db-compactdb-interval to 0
+        2. Check there is no compaction
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+
+    inst = topo.ms["supplier1"]
+    config = DatabaseConfig(inst)
+    config.set([('nsslapd-db-compactdb-interval', '0'), ('nsslapd-db-compactdb-time', '00:01')])
+    inst.deleteErrorLogs()
+
+    time.sleep(3)
+    assert not inst.searchErrorsLog("Compacting databases")
+    inst.deleteErrorLogs(restart=False)
+
+
+@pytest.mark.ds4778
+@pytest.mark.bz1748441
+@pytest.mark.skipif(ds_is_older("1.4.3.23"), reason="Not implemented")
+def test_compaction_interval_invalid(topo):
+    """Test that invalid value is rejected for nsslapd-db-compactdb-interval
+
+    :id: 408ee3ee-727c-4565-8b08-2e07d0c6f7d7
+    :customerscenario: True
+    :setup: Supplier Instance
+    :steps:
+        1. Set nsslapd-db-compactdb-interval to 2147483650
+        2. Check exception message contains invalid value and no compaction occurred
+    :expectedresults:
+        1. Exception is raised
+        2. Success
+    """
+
+    inst = topo.ms["supplier1"]
+    msg = 'value 2147483650 for attr nsslapd-db-compactdb-interval is greater than the maximum 2147483647'
+    config = DatabaseConfig(inst)
+
+    try:
+        config.set([('nsslapd-db-compactdb-interval', '2147483650'), ('nsslapd-db-compactdb-time', '00:01')])
+    except ldap.UNWILLING_TO_PERFORM as e:
+        log.info('Got expected error: {}'.format(str(e)))
+        assert msg in str(e)
+        time.sleep(3)
+        assert not inst.searchErrorsLog("Compacting databases")
+        inst.deleteErrorLogs(restart=False)
 
 
 if __name__ == '__main__':
