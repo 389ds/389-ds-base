@@ -203,6 +203,25 @@ class DSEldif(DSLint):
         self._contents[entry_dn_i] = f"dn: {new_dn}\n"
         self._update()
 
+    def delete_dn(self, entry_dn):
+        """Delete the whole entry by DN
+
+        :param entry_dn: a DN of an entry we want to delete
+        :type entry_dn: str
+        """
+
+        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn.lower()))
+
+        # Find where the entry ends
+        try:
+            dn_end_i = self._contents[entry_dn_i:].index("\n")
+        except ValueError:
+            # We are in the end of the list
+            dn_end_i = len(self._contents)
+
+        del self._contents[entry_dn_i:entry_dn_i+dn_end_i+1]
+        self._update()
+
     def delete(self, entry_dn, attr, value=None):
         """Delete attributes under a given entry
 
