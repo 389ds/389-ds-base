@@ -41,7 +41,6 @@ import uuid
 import json
 from shutil import copy2
 from contextlib import suppress
-from utils import get_default_db_lib
 
 # Deprecation
 import warnings
@@ -64,6 +63,7 @@ from lib389.utils import (
     ensure_str,
     ensure_list_str,
     format_cmd_list,
+    get_default_db_lib,
     selinux_present,
     selinux_label_port)
 from lib389.paths import Paths
