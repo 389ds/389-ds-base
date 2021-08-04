@@ -40,6 +40,8 @@ import errno
 import uuid
 import json
 from shutil import copy2
+from contextlib import suppress
+from utils import get_default_db_lib
 
 # Deprecation
 import warnings
@@ -899,6 +901,19 @@ class DirSrv(SimpleLDAPObject, object):
                                                           e.output))
 
         self.state = DIRSRV_STATE_ALLOCATED
+
+    def get_db_lib(self):
+        with suppress(AttributeError):
+            return self._db_lib
+        with suppress(Exception):
+            from backend import DatabaseConfig
+            self._db_lib = DatabaseConfig(self).get_db_lib()
+            return self._db_lib
+        with suppress(Exception):
+            dse_ldif = DSEldif(None, self)
+            self._db_lib = dse_ldif.get(DN_CONFIG_LDBM, "nsslapd-backend-implement", single=True)
+            return _self.db_lib
+        return get_default_db_lib()
 
     def delete(self):
         # Time to create the instance and retrieve the effective sroot

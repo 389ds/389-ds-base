@@ -124,8 +124,7 @@ def test_monitor_backend(topo):
     """
 
     # Are we using BDB?
-    db_config = DatabaseConfig(topo.standalone)
-    db_lib = db_config.get_db_lib()
+    db_lib = topo.standalone.get_db_lib()
 
     # Get the backend monitor
     be = Backends(topo.standalone).list()[0]

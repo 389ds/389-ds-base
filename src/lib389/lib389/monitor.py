@@ -191,7 +191,13 @@ class MonitorDatabase(DSLdapObject):
     def __init__(self, instance, dn=None):
         super(MonitorDatabase, self).__init__(instance=instance)
         self._dn = DN_MONITOR_DATABASE
-        db_lib = DatabaseConfig(instance).get_db_lib()
+        self._backend_keys = None
+
+    def __init2(self):
+        # Determine the key when really accessing the object with get_status
+        # because config attrbute and connectio are not yet set in DirSrv
+        # when __init is called
+        db_lib = self._instance.get_db_lib()
         if db_lib == "bdb":
             self._backend_keys = [
                 'nsslapd-db-abort-rate',
@@ -254,6 +260,8 @@ class MonitorDatabase(DSLdapObject):
 
 
     def get_status(self, use_json=False):
+        if not self._backend_keys:
+            self.__init2()
         return self.get_attrs_vals_utf8(self._backend_keys)
 
 
@@ -264,7 +272,13 @@ class MonitorBackend(DSLdapObject):
 
     def __init__(self, instance, dn=None):
         super(MonitorBackend, self).__init__(instance=instance, dn=dn)
-        db_lib = DatabaseConfig(instance).get_db_lib()
+        self._backend_keys = None
+
+    def __init2(self):
+        # Determine the key when really accessing the object with get_status
+        # because config attrbute and connectio are not yet set in DirSrv
+        # when __init is called
+        db_lib = self._instance.get_db_lib()
         if db_lib == "bdb":
             self._backend_keys = [
                 'readonly',
@@ -304,9 +318,11 @@ class MonitorBackend(DSLdapObject):
                 'currententrycachecount',
                 'maxentrycachecount',
             ]
-            
+
 
     def get_status(self, use_json=False):
+        if not self._backend_keys:
+            self.__init2()
         result = {}
         all_attrs = self.get_all_attrs_utf8()
         for attr in self._backend_keys:
@@ -314,6 +330,10 @@ class MonitorBackend(DSLdapObject):
 
         # Now gather all the dbfile* attributes
         for attr, val in all_attrs.items():
+            # For bdb
+            if attr.startswith('dbfile'):
+                result[attr] = val
+            # For lmdb
             if attr.startswith('dbi'):
                 result[attr] = val
 

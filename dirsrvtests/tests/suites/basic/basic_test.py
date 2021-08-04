@@ -401,7 +401,6 @@ def test_basic_backup(topology_st, import_example_ldif):
     topology_st.standalone.start()
 
     log.info('test_basic_backup: PASSED')
-    assert False
 
 def test_basic_db2index(topology_st):
     """Assert db2index can operate correctly.
