@@ -3953,6 +3953,7 @@ bdb_checkpoint_threadmain(void *param)
                  * particular TOD to pass before compacting */
                 continue;
             }
+        }
 
         if (compactdb_interval_update != compactdb_interval ||
             slapi_timespec_expire_check(&compactdb_expire) == TIMER_EXPIRED) {

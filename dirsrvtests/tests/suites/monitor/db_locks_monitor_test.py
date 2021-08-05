@@ -12,7 +12,7 @@ import datetime
 import subprocess
 from multiprocessing import Process, Queue
 from lib389 import pid_from_file
-from lib389.utils import ldap, os
+from lib389.utils import ldap, os, ds_is_older, get_default_db_lib
 from lib389._constants import DEFAULT_SUFFIX, ReplicaRole
 from lib389.cli_base import LogCapture
 from lib389.idm.user import UserAccounts
@@ -27,7 +27,6 @@ from lib389.plugins import AttributeUniquenessPlugin
 from lib389.config import BDB_LDBMConfig
 from lib389.monitor import MonitorLDBM
 from lib389.topologies import create_topology, _remove_ssca_db
-from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier2
 db_locks_monitoring_ack = pytest.mark.skipif(not os.environ.get('DB_LOCKS_MONITORING_ACK', False),
@@ -208,6 +207,7 @@ def test_exhaust_db_locks_basic(topology_st_fn, setup_attruniq_index_be_import, 
 
 
 @db_locks_monitoring_ack
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_exhaust_db_locks_big_pause(topology_st_fn, setup_attruniq_index_be_import):
     """Test that DB lock pause setting increases the wait interval value for the monitoring thread
 
@@ -258,6 +258,7 @@ def test_exhaust_db_locks_big_pause(topology_st_fn, setup_attruniq_index_be_impo
 @pytest.mark.ds4623
 @pytest.mark.bz1812286
 @pytest.mark.skipif(ds_is_older("1.4.3.23"), reason="Not implemented")
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 @pytest.mark.parametrize("invalid_value", [("0"), ("1"), ("42"), ("68"), ("69"), ("96"), ("120")])
 def test_invalid_threshold_range(topology_st_fn, invalid_value):
     """Test that setting nsslapd-db-locks-monitoring-threshold to 60 % is rejected
@@ -287,6 +288,7 @@ def test_invalid_threshold_range(topology_st_fn, invalid_value):
 @pytest.mark.ds4623
 @pytest.mark.bz1812286
 @pytest.mark.skipif(ds_is_older("1.4.3.23"), reason="Not implemented")
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 @pytest.mark.parametrize("locks_invalid", [("0"), ("1"), ("9999"), ("10000")])
 def test_invalid_db_locks_value(topology_st_fn, locks_invalid):
     """Test that setting nsslapd-db-locks to 0 is rejected
