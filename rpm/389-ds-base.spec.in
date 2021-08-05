@@ -638,7 +638,7 @@ fi
 %dir %{_libdir}/%{pkgname}
 %{_libdir}/libsvrcore.so.*
 %{_libdir}/%{pkgname}/libslapd.so.*
-%{_libdir}/%{pkgname}/libns-dshttpd-*.so
+%{_libdir}/%{pkgname}/libns-dshttpd.so.*
 %{_libdir}/%{pkgname}/libldaputil.so.*
 %{_libdir}/%{pkgname}/librewriters.so*
 %if %{bundle_jemalloc}
