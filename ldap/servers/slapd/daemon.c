@@ -862,17 +862,23 @@ slapd_sockets_ports_free(daemon_ports_t *ports_info)
     /* freeing PRFileDescs */
     PRFileDesc **fdesp = NULL;
     for (fdesp = ports_info->n_socket; fdesp && *fdesp; fdesp++) {
-        PR_Close(*fdesp);
+        if (*fdesp) {
+            PR_Close(*fdesp);
+        }
     }
     slapi_ch_free((void **)&ports_info->n_socket);
 
     for (fdesp = ports_info->s_socket; fdesp && *fdesp; fdesp++) {
-        PR_Close(*fdesp);
+        if (*fdesp) {
+            PR_Close(*fdesp);
+        }
     }
     slapi_ch_free((void **)&ports_info->s_socket);
 #if defined(ENABLE_LDAPI)
     for (fdesp = ports_info->i_socket; fdesp && *fdesp; fdesp++) {
-        PR_Close(*fdesp);
+        if (*fdesp) {
+            PR_Close(*fdesp);
+        }
     }
     slapi_ch_free((void **)&ports_info->i_socket);
 #endif /* ENABLE_LDAPI */
