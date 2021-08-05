@@ -52,6 +52,66 @@ TimeoutStopSec=600
 # Preload jemalloc
 Environment=LD_PRELOAD=@libdir@/@package_name@/lib/libjemalloc.so.2
 
-# Uncomment to enable leak checking using jemalloc's heap profiler
-# https://github.com/jemalloc/jemalloc/wiki/Use-Case%3A-Leak-Checking
-#Environment=MALLOC_CONF=prof_leak:true,lg_prof_sample:0,prof_final:true,prof_prefix:/var/run/dirsrv/jeprof
+##################################################
+#         Heap profiling with jemalloc           #
+##################################################
+# Generated files will be named /run/dirsrv/jeprof*.heap
+# Uncomment *one* of the following lines to enable leak checking using jemalloc's heap profiler.
+# See https://github.com/jemalloc/jemalloc/wiki/Use-Case%3A-Leak-Checking for more details.
+#Environment=MALLOC_CONF=prof:true,prof_leak:true,lg_prof_sample:19,prof_final:true,prof_prefix:/run/dirsrv/jeprof
+#
+#
+# Additionally print stats in a human readable form:
+#Environment=MALLOC_CONF=prof:true,prof_leak:true,lg_prof_sample:19,prof_final:true,stats_print:true,prof_prefix:/run/dirsrv/jeprof
+#
+#
+# Or in a machine readable form (JSON)
+#Environment=MALLOC_CONF=prof:true,prof_leak:true,lg_prof_sample:19,prof_final:true,stats_print:true,stats_print_opts:J,prof_prefix:/run/dirsrv/jeprof
+#
+#
+##################################################
+#          Leak detection with Valgrind          #
+##################################################
+# Generated files will be named /run/dirsrv/ns-slapd-INSTANCE_NAME.valgrind.PID
+# Make sure valgrind is installed and debuginfo is present for 389-ds-base and 389-ds-base-libs.
+# E.g. on Fedora/RHEL:
+# # dnf install valgrind -y
+# # debuginfo-install 389-ds-base 389-ds-base-libs -y
+#
+# Uncomment the following lines. Empty keys reset their values so we can override them.
+#TimeoutStartSec=3600
+#TimeoutStopSec=3600
+#Environment=
+#ExecStartPre=
+#ExecStart=
+#ExecStart=/usr/bin/valgrind --tool=memcheck --num-callers=40 --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=/run/dirsrv/ns-slapd-%i.valgrind.%%p /usr/sbin/ns-slapd -D /etc/dirsrv/slapd-%i -i /run/dirsrv/slapd-%i.pid
+#
+#
+##################################################
+#      Leak detection with AddressSanitizer      #
+##################################################
+# Generated files will be named /run/dirsrv/ns-slapd-INSTANCE_NAME.asan.PID
+# Make sure libasan is installed and debuginfo is present for 389-ds-base and 389-ds-base-libs.
+# E.g. on Fedora/RHEL:
+# # dnf install libasan -y
+# # debuginfo-install 389-ds-base 389-ds-base-libs -y
+#
+# To get the exact library name to use with LD_PRELOAD, run 
+# # rpm -ql libasan | grep libasan
+# 
+# On versions of systemd=>246 you also need to ensure that `sysctl fs.suid_dumpable` is set to 1.
+# (add fs.suid_dumpable=1 to /etc/sysctl.d/99-sysctl.conf and run `sysctl -p`)
+#
+# You also might need to temporary disable SELinux:
+# # setenforce 0
+# Don't forget to enable it back after you're done!
+# # setenforce 1
+# or create a custom SELinux policy to allow ptrace() for ns-slapd process.
+#
+# Uncomment the following lines. Empty keys reset their values so we can override them.
+#TimeoutStartSec=3600
+#TimeoutStopSec=3600
+#Environment=
+#ExecStartPre=
+#Environment=LD_PRELOAD=/usr/lib64/libasan.so.6
+#Environment=ASAN_OPTIONS=log_path=/run/dirsrv/ns-slapd-%i.asan:print_stacktrace=1:detect_leaks=1:exit_code=0:fast_unwind_on_malloc=0
