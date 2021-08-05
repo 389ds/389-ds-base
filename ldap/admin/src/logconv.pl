@@ -974,7 +974,7 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 				if ($uniqBindDNs{$key} > 0) {
 					printf "\n  -  Unindexed Bind DNs:  Bind DN:  $key (binds $uniqBindDNs{$key})\n";
 					foreach my $bindkey (sort { $uniqBindFilters{$key}{$a} <=> $uniqBindFilters{$key}{$b} } keys %{$uniqBindFilters{$key}} ) {
-						printf   "                          - Unindexed Filter: $bindkey (occurrances $uniqBindFilters{$key}{$bindkey})\n";
+						printf   "                          - Unindexed Filter: $bindkey (occurrences $uniqBindFilters{$key}{$bindkey})\n";
 					}
 				}
 			}
@@ -1058,7 +1058,7 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 				if ($uniqBindDNs{$key} > 0) {
 					printf "\n  -  Unindexed Bind DNs:  Bind DN:  $key (binds $uniqBindDNs{$key})\n";
 					foreach my $bindkey (sort { $uniqBindFilters{$key}{$a} <=> $uniqBindFilters{$key}{$b} } keys %{$uniqBindFilters{$key}} ) {
-						printf   "                          - Unindexed Filter: $bindkey (occurrances $uniqBindFilters{$key}{$bindkey})\n";
+						printf   "                          - Unindexed Filter: $bindkey (occurrences $uniqBindFilters{$key}{$bindkey})\n";
 					}
 				}
 			}
