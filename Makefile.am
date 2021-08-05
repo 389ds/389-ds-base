@@ -1077,8 +1077,7 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 
 libns_dshttpd_la_CPPFLAGS = -I$(srcdir)/include/base $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) -I$(srcdir)/lib/ldaputil
 libns_dshttpd_la_LIBADD = libslapd.la libldaputil.la $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK)
-# Mark that this is a per version library.
-libns_dshttpd_la_LDFLAGS = -release @PACKAGE_VERSION@
+libns_dshttpd_la_LDFLAGS = $(AM_LDFLAGS)
 
 #------------------------
 # libslapd
