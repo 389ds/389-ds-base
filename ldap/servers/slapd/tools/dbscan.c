@@ -130,7 +130,7 @@ static Slapi_Backend *be = NULL; /* Pseudo backend used to interact with db */
 /** db_printf - functioning same as printf but a place for manipluating output.
 */
 void
-db_printf(char *fmt, ...)
+db_printf(const char *fmt, ...)
 {
     va_list ap;
 
@@ -140,7 +140,7 @@ db_printf(char *fmt, ...)
 }
 
 void
-db_printfln(char *fmt, ...)
+db_printfln(const char *fmt, ...)
 {
     va_list ap;
 
@@ -277,8 +277,10 @@ idl_format(IDL *idl, int isfirsttime, int *done)
 
     if (buf == NULL) {
         buf = (char *)malloc(MAX_BUFFER);
-        if (buf == NULL)
-            return "?";
+        if (buf == NULL) {
+            db_printf("Out of memory: Failed to alloc %d bytes.\n", MAX_BUFFER);
+            exit(1);
+        }
     }
 
     buf[0] = 0;
