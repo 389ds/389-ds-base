@@ -195,7 +195,6 @@ only.
         cmd = ['/usr/bin/certutil', '-N', '-d', self._certdb, '-f', '%s/%s' % (self._certdb, PWD_TXT)]
         self._generate_noise('%s/noise.txt' % self._certdb)
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         try:
             result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         except subprocess.CalledProcessError as e:
