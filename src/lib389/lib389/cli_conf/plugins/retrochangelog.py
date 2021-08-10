@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -19,8 +19,9 @@ arg_to_attr = {
     'attribute': 'nsslapd-attribute',
     'directory': 'nsslapd-changelogdir',
     'max_age': 'nsslapd-changelogmaxage',
+    'trim_interval': 'nsslapd-changelog-trim-interval',
     'exclude_suffix': 'nsslapd-exclude-suffix',
-    'exclude_attrs': 'nsslapd-exclude-attrs'
+    'exclude_attrs': 'nsslapd-exclude-attrs',
 }
 
 def retrochangelog_edit(inst, basedn, log, args):
@@ -74,7 +75,9 @@ def _add_parser_args(parser):
                              'is created the first time the plug-in is run')
     parser.add_argument('--max-age',
                         help='This attribute specifies the maximum age of any entry '
-                             'in the changelog (nsslapd-changelogmaxage)')
+                             'in the changelog.  Used to trim the changelog (nsslapd-changelogmaxage)')
+    parser.add_argument('--trim-interval',
+                        help='. nsslapd-changelog-trim-interval)')
     parser.add_argument('--exclude-suffix',
                         help='This attribute specifies the suffix which will be excluded '
                              'from the scope of the plugin (nsslapd-exclude-suffix)')

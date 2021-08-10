@@ -85,7 +85,7 @@ def do_fixup(inst, basedn, log, args):
 
 
 def _add_parser_args(parser):
-    parser.add_argument('--attr', nargs='+',
+    parser.add_argument('--attr',
                         help='Specifies the attribute in the user entry for the Directory Server '
                              'to manage to reflect group membership (memberOfAttr)')
     parser.add_argument('--groupattr', nargs='+',
@@ -95,11 +95,11 @@ def _add_parser_args(parser):
                         help='Specifies whether to search the local suffix for user entries on '
                              'all available suffixes (memberOfAllBackends)')
     parser.add_argument('--skipnested', choices=['on', 'off'], type=str.lower,
-                        help='Specifies wherher to skip nested groups or not (memberOfSkipNested)')
-    parser.add_argument('--scope', help='Specifies backends or multiple-nested suffixes '
-                                        'for the MemberOf plug-in to work on (memberOfEntryScope)')
-    parser.add_argument('--exclude', help='Specifies backends or multiple-nested suffixes '
-                                          'for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)')
+                        help='Specifies whether to skip nested groups or not (memberOfSkipNested)')
+    parser.add_argument('--scope', nargs='+', help='Specifies backends or multiple-nested suffixes '
+                                                   'for the MemberOf plug-in to work on (memberOfEntryScope)')
+    parser.add_argument('--exclude', nargs='+', help='Specifies backends or multiple-nested suffixes '
+                                                     'for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)')
     parser.add_argument('--autoaddoc', type=str.lower,
                         help='If an entry does not have an object class that allows the memberOf attribute '
                              'then the memberOf plugin will automatically add the object class listed '

@@ -14,6 +14,9 @@ import { Security } from "./security.jsx";
 import {
     Spinner,
     TreeView,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -180,7 +183,11 @@ export class Server extends React.Component {
         const { nodes } = this.state;
         let serverPage = (
             <div className="ds-margin-top-xlg ds-center">
-                <h4>Loading Server Configuration ...</h4>
+                <TextContent>
+                    <Text component={TextVariants.h3}>
+                        Loading Server Configuration ...
+                    </Text>
+                </TextContent>
                 <Spinner className="ds-margin-top-lg" size="xl" />
             </div>
         );
@@ -277,21 +284,21 @@ export class Server extends React.Component {
             serverPage = (
                 <div className="container-fluid">
                     <div className="ds-container">
-                        <div>
-                            <div className="ds-tree">
-                                <div
-                                    className={disabled}
-                                    id="server-tree"
-                                >
-                                    <TreeView
-                                        data={nodes}
-                                        activeItems={this.state.activeItems}
-                                        onSelect={this.onTreeClick}
-                                    />
-                                </div>
+                        <div className="ds-tree">
+                            <div
+                                className={disabled}
+                                id="server-tree"
+                            >
+                                <TreeView
+                                    data={nodes}
+                                    activeItems={this.state.activeItems}
+                                    onSelect={this.onTreeClick}
+                                />
                             </div>
                         </div>
-                        <div className="ds-tree-content">{server_element}</div>
+                        <div className="ds-tree-content">
+                            {server_element}
+                        </div>
                     </div>
                 </div>
             );

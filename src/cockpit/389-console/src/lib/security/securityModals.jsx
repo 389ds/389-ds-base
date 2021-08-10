@@ -9,6 +9,9 @@ import {
     GridItem,
     Modal,
     ModalVariant,
+    Text,
+    TextContent,
+    TextVariants,
     TextInput,
     ValidatedOptions,
     noop
@@ -57,9 +60,11 @@ export class SecurityAddCACertModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <h5>
-                        Add a CA Certificate to the security database.
-                    </h5>
+                    <TextContent>
+                        <Text component={TextVariants.h4}>
+                            Add a CA Certificate to the security database.
+                        </Text>
+                    </TextContent>
                     <hr />
                     <Grid title="Enter full path to and and including certificate file name">
                         <GridItem className="ds-label" span={3}>
@@ -147,9 +152,11 @@ export class SecurityAddCertModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal>
-                    <h5>
-                        Add a certificate to the security database.
-                    </h5>
+                    <TextContent>
+                        <Text component={TextVariants.h4}>
+                            Add A Certificate To The Security Database.
+                        </Text>
+                    </TextContent>
                     <hr />
                     <Grid title="Enter full path to and and including certificate file name">
                         <GridItem className="ds-label" span={3}>
@@ -243,11 +250,13 @@ export class SecurityEnableModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal>
-                    <h5>
-                        You are choosing to enable security for the Directory Server which
-                        allows the server to accept incoming client TLS connections.  Please
-                        select which certificate the server should use.
-                    </h5>
+                    <TextContent>
+                        <Text component={TextVariants.h4}>
+                            You are choosing to enable security for the Directory Server which
+                            allows the server to accept incoming client TLS connections.  Please
+                            select which certificate the server should use.
+                        </Text>
+                    </TextContent>
                     <hr />
                     <Grid className="ds-margin-top" title="The server certificate the Directory Server will use">
                         <GridItem className="ds-label" span={4}>

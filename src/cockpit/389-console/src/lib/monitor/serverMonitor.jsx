@@ -7,18 +7,17 @@ import {
     DiskTable,
 } from "./monitorTables.jsx";
 import {
-    Nav,
-    NavItem,
-    TabContent,
-    TabPane,
-    TabContainer,
-} from "patternfly-react";
-import {
     Button,
     Card,
     CardBody,
     Grid,
     GridItem,
+    Tab,
+    Tabs,
+    TabTitleText,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from '@patternfly/react-core';
 import {
@@ -44,7 +43,7 @@ export class ServerMonitor extends React.Component {
         }
 
         this.state = {
-            activeKey: 1,
+            activeKey: 0,
             count: 10,
             port: 389,
             secure_port: 636,
@@ -60,7 +59,13 @@ export class ServerMonitor extends React.Component {
             memResChart: [...initChart],
             connChart: [...initChart],
         };
-        this.handleNavSelect = this.handleNavSelect.bind(this);
+
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeKey: tabIndex
+            });
+        };
+
         this.startRefresh = this.startRefresh.bind(this);
         this.refreshCharts = this.refreshCharts.bind(this);
         this.stopRefresh = this.stopRefresh.bind(this);
@@ -74,10 +79,6 @@ export class ServerMonitor extends React.Component {
 
     componentWillUnmount() {
         this.stopRefresh();
-    }
-
-    handleNavSelect(key) {
-        this.setState({ activeKey: key });
     }
 
     getPorts() {
@@ -113,7 +114,7 @@ export class ServerMonitor extends React.Component {
     }
 
     refreshCharts() {
-        let cmd = "ps -ef | grep slapd-" + this.props.serverId + " | grep dirsrv";
+        let cmd = "ps -ef | grep -v grep | grep dirsrv/slapd-" + this.props.serverId;
         let cpu = 0;
         let pid = 0;
         let max_mem = 0;
@@ -297,64 +298,125 @@ export class ServerMonitor extends React.Component {
             <div id="monitor-server-page">
                 <Grid>
                     <GridItem span={9}>
-                        <h4>Server Statistics <FontAwesomeIcon
-                            size="lg"
-                            className="ds-left-margin ds-refresh"
-                            icon={faSyncAlt}
-                            title="Refresh suffix monitor"
-                            onClick={this.props.reload}
-                        />
-                        </h4>
+                        <TextContent>
+                            <Text component={TextVariants.h3}>
+                                Server Statistics <FontAwesomeIcon
+                                    size="lg"
+                                    className="ds-left-margin ds-refresh"
+                                    icon={faSyncAlt}
+                                    title="Refresh suffix monitor"
+                                    onClick={this.props.reload}
+                                />
+                            </Text>
+                        </TextContent>
                     </GridItem>
                 </Grid>
-                <TabContainer className="ds-margin-top-xlg" id="server-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                    <div>
-                        <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                            <NavItem eventKey={1}>
-                                <div dangerouslySetInnerHTML={{__html: 'Resource Charts'}} />
-                            </NavItem>
-                            <NavItem eventKey={2}>
-                                <div dangerouslySetInnerHTML={{__html: 'Server Stats'}} />
-                            </NavItem>
-                            <NavItem eventKey={3}>
-                                <div dangerouslySetInnerHTML={{__html: 'Connection Table'}} />
-                            </NavItem>
-                            <NavItem eventKey={4}>
-                                <div dangerouslySetInnerHTML={{__html: 'Disk Space'}} />
-                            </NavItem>
-                            <NavItem eventKey={5}>
-                                <div dangerouslySetInnerHTML={{__html: 'SNMP Counters'}} />
-                            </NavItem>
-                        </Nav>
-                        <TabContent>
-                            <TabPane eventKey={1}>
-                                <Card className="ds-margin-top-lg" isHoverable>
+                <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>Resource Charts</TabTitleText>}>
+                        <Card className="ds-margin-top-lg" isHoverable>
+                            <CardBody>
+                                <Grid>
+                                    <GridItem span="2" className="ds-center" title="Established client connections to the server">
+                                        <TextContent>
+                                            <Text component={TextVariants.h5}>
+                                                Connections
+                                            </Text>
+                                        </TextContent>
+                                        <TextContent>
+                                            <Text component={TextVariants.h2}>
+                                                <b>{current_conns}</b>
+                                            </Text>
+                                        </TextContent>
+                                    </GridItem>
+                                    <GridItem span="10" style={{ height: '175px', width: '600px' }}>
+                                        <Chart
+                                            ariaDesc="connection stats"
+                                            ariaTitle="Live Connection Statistics"
+                                            containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
+                                            height={175}
+                                            minDomain={{y: 0}}
+                                            padding={{
+                                                bottom: 30,
+                                                left: 50,
+                                                top: 10,
+                                                right: 15,
+                                            }}
+                                            width={600}
+                                        >
+                                            <ChartAxis />
+                                            <ChartAxis dependentAxis showGrid tickValues={conn_tick_values} />
+                                            <ChartGroup>
+                                                <ChartArea
+                                                    data={connChart}
+                                                />
+                                            </ChartGroup>
+                                        </Chart>
+                                    </GridItem>
+                                </Grid>
+                            </CardBody>
+                        </Card>
+                        <Grid className="ds-margin-top-lg" hasGutter>
+                            <GridItem span={6}>
+                                <Card isHoverable>
                                     <CardBody>
                                         <Grid>
-                                            <GridItem span="2" className="ds-center" title="Established client connections to the server">
-                                                <h6 className="ds-margin-top">Connections</h6>
-                                                <h3><b>{current_conns}</b></h3>
+                                            <GridItem className="ds-center" span="4">
+                                                <TextContent>
+                                                    <Text component={TextVariants.h5}>
+                                                        Memory Usage
+                                                    </Text>
+                                                </TextContent>
+                                                <TextContent>
+                                                    <Text component={TextVariants.h3}>
+                                                        <b>{mem_ratio}%</b>
+                                                    </Text>
+                                                </TextContent>
+                                                <TextContent>
+                                                    <Text className="ds-margin-top-lg" component={TextVariants.h5}>
+                                                        Virtual Size
+                                                    </Text>
+                                                </TextContent>
+                                                <TextContent>
+                                                    <Text component={TextVariants.h3}>
+                                                        <b>{displayKBytes(mem_virt_size)}</b>
+                                                    </Text>
+                                                </TextContent>
+                                                <TextContent>
+                                                    <Text className="ds-margin-top-lg" component={TextVariants.h5}>
+                                                        Resident Size
+                                                    </Text>
+                                                </TextContent>
+                                                <TextContent>
+                                                    <Text component={TextVariants.h3}>
+                                                        <b>{displayKBytes(mem_res_size)}</b>
+                                                    </Text>
+                                                </TextContent>
                                             </GridItem>
-                                            <GridItem span="10" style={{ height: '175px', width: '600px' }}>
+                                            <GridItem span="8" style={{ height: '225px' }}>
                                                 <Chart
-                                                    ariaDesc="connection stats"
-                                                    ariaTitle="Live Connection Statistics"
+                                                    ariaDesc="Server Memory Utilization"
+                                                    ariaTitle="Live Server Memory Statistics"
                                                     containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
-                                                    height={175}
+                                                    height={225}
                                                     minDomain={{y: 0}}
                                                     padding={{
                                                         bottom: 30,
-                                                        left: 50,
+                                                        left: 40,
                                                         top: 10,
                                                         right: 15,
                                                     }}
-                                                    width={600}
+                                                    themeColor={ChartThemeColor.multiUnordered}
                                                 >
                                                     <ChartAxis />
-                                                    <ChartAxis dependentAxis showGrid tickValues={conn_tick_values} />
+                                                    <ChartAxis dependentAxis showGrid tickValues={mem_tick_values} />
                                                     <ChartGroup>
                                                         <ChartArea
-                                                            data={connChart}
+                                                            data={memVirtChart}
+                                                            interpolation="monotoneX"
+                                                        />
+                                                        <ChartArea
+                                                            data={memResChart}
+                                                            interpolation="monotoneX"
                                                         />
                                                     </ChartGroup>
                                                 </Chart>
@@ -362,352 +424,312 @@ export class ServerMonitor extends React.Component {
                                         </Grid>
                                     </CardBody>
                                 </Card>
-                                <Grid className="ds-margin-top-lg" hasGutter>
-                                    <GridItem span={6}>
-                                        <Card isHoverable>
-                                            <CardBody>
-                                                <Grid>
-                                                    <GridItem className="ds-center" span="4">
-                                                        <h5 className="ds-margin-top">Memory Usage</h5>
-                                                        <b>{mem_ratio}%</b>
-                                                        <h6 className="ds-margin-top-xlg">Virtual Size</h6>
-                                                        <b>{displayKBytes(mem_virt_size)}</b>
-                                                        <h6 className="ds-margin-top-xlg">Resident Size</h6>
-                                                        <b>{displayKBytes(mem_res_size)}</b>
-                                                    </GridItem>
-                                                    <GridItem span="8" style={{ height: '225px' }}>
-                                                        <Chart
-                                                            ariaDesc="Server Memory Utilization"
-                                                            ariaTitle="Live Server Memory Statistics"
-                                                            containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
-                                                            height={225}
-                                                            minDomain={{y: 0}}
-                                                            padding={{
-                                                                bottom: 30,
-                                                                left: 40,
-                                                                top: 10,
-                                                                right: 15,
-                                                            }}
-                                                            themeColor={ChartThemeColor.multiUnordered}
-                                                        >
-                                                            <ChartAxis />
-                                                            <ChartAxis dependentAxis showGrid tickValues={mem_tick_values} />
-                                                            <ChartGroup>
-                                                                <ChartArea
-                                                                    data={memVirtChart}
-                                                                    interpolation="monotoneX"
-                                                                />
-                                                                <ChartArea
-                                                                    data={memResChart}
-                                                                    interpolation="monotoneX"
-                                                                />
-                                                            </ChartGroup>
-                                                        </Chart>
-                                                    </GridItem>
-                                                </Grid>
-                                            </CardBody>
-                                        </Card>
-                                    </GridItem>
-                                    <GridItem span={6}>
-                                        <Card isHoverable>
-                                            <CardBody>
-                                                <Grid>
-                                                    <GridItem span="4" className="ds-center">
-                                                        <h6 className="ds-margin-top-xlg">CPU Usage</h6>
-                                                        <h4><b>{cpu}%</b></h4>
-                                                    </GridItem>
-                                                    <GridItem span="8" style={{ height: '225px' }}>
-                                                        <Chart
-                                                            ariaDesc="cpu"
-                                                            ariaTitle="Server CPU Usage"
-                                                            containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
-                                                            height={225}
-                                                            minDomain={{y: 0}}
-                                                            padding={{
-                                                                bottom: 30,
-                                                                left: 40,
-                                                                top: 10,
-                                                                right: 15,
-                                                            }}
-                                                            themeColor={ChartThemeColor.multiUnordered}
-                                                        >
-                                                            <ChartAxis />
-                                                            <ChartAxis dependentAxis showGrid tickValues={cpu_tick_values} />
-                                                            <ChartGroup>
-                                                                <ChartArea
-                                                                    data={cpuChart}
-                                                                    interpolation="monotoneX"
-                                                                />
-                                                            </ChartGroup>
-                                                        </Chart>
-                                                    </GridItem>
-                                                </Grid>
-                                            </CardBody>
-                                        </Card>
-                                    </GridItem>
-                                </Grid>
-                            </TabPane>
-
-                            <TabPane eventKey={2}>
-                                <Grid hasGutter className="ds-margin-top-xlg">
-                                    <GridItem span={3}>
-                                        Server Instance
-                                    </GridItem>
-                                    <GridItem span={9}>
-                                        <b>{"slapd-" + this.props.serverId}</b>
-                                    </GridItem>
-                                    <GridItem span={3}>
-                                        Version
-                                    </GridItem>
-                                    <GridItem span={9}>
-                                        <b>{this.props.data.version}</b>
-                                    </GridItem>
-                                    <GridItem span={3}>
-                                        Server Started
-                                    </GridItem>
-                                    <GridItem span={9}>
-                                        <b>{startDate}</b>
-                                    </GridItem>
-                                    <GridItem span={3}>
-                                        Server Uptime
-                                    </GridItem>
-                                    <GridItem span={9}>
-                                        <b>{uptime}</b>
-                                    </GridItem>
-                                    <hr />
-                                    <GridItem span={3}>
-                                        Worker Threads
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.data.threads}</b>
-                                    </GridItem>
-                                    <GridItem span={3}>
-                                        Threads Waiting To Read
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.data.readwaiters}</b>
-                                    </GridItem>
-                                    <GridItem span={3}>
-                                        Conns At Max Threads
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.data.currentconnectionsatmaxthreads}</b>
-                                    </GridItem>
-                                    <GridItem span={3}>
-                                        Conns Exceeded Max Threads
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.data.maxthreadsperconnhits}</b>
-                                    </GridItem>
-                                    <GridItem span={3}>
-                                        Total Connections
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.data.totalconnections}</b>
-                                    </GridItem>
-                                    <GridItem span={3}>
-                                        Current Connections
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.data.currentconnections}</b>
-                                    </GridItem>
-                                    <GridItem span={3}>
-                                        Operations Started
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.data.opsinitiated}</b>
-                                    </GridItem>
-                                    <GridItem span={3}>
-                                        Operations Completed
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.data.opscompleted}</b>
-                                    </GridItem>
-                                    <GridItem span={3}>
-                                        Entries Returned To Clients
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.data.entriessent}</b>
-                                    </GridItem>
-                                    <GridItem span={3}>
-                                        Bytes Sent to Clients
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.data.bytessent}</b>
-                                    </GridItem>
-                                </Grid>
-                            </TabPane>
-                            <TabPane eventKey={3}>
-                                <ConnectionTable conns={this.props.data.connection} />
-                            </TabPane>
-                            <TabPane eventKey={4}>
-                                <DiskTable
-                                    rows={this.props.disks}
-                                />
-                                <Button
-                                    className="ds-margin-top"
-                                    onClick={this.props.reloadDisks}
-                                >
-                                    Refresh
-                                </Button>
-                            </TabPane>
-                            <TabPane eventKey={5}>
-                                <Grid className="ds-margin-top-xlg" hasGutter>
-                                    <GridItem span={4}>
-                                        Anonymous Binds
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.anonymousbinds}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Referrals
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.referrals}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Unauthenticated Binds
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.unauthbinds}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Returned Referrals
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.referralsreturned}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Simple Auth Binds
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.simpleauthbinds}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Bind Security Errors
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.bindsecurityerrors}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Strong Auth Binds
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.strongauthbinds}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Security Errors
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.securityerrors}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Initiated Operations
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.inops}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Errors
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.errors}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Compare Operations
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.compareops}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Current Connections
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.connections}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Add Operations
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.addentryops}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Total Connections
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.connectionseq}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Delete Operations
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.removeentryops}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Conns in Max Threads
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.connectionsinmaxthreads}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Modify Operations
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.modifyentryops}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Conns Exceeded Max Threads
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.connectionsmaxthreadscount}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        ModRDN Operations
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.modifyrdnops}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Bytes Received
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.bytesrecv}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Search Operations
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.searchops}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Bytes Sent
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.bytessent}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        One Level Searches
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.onelevelsearchops}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Entries Returned
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.entriesreturned}</b>
-                                    </GridItem>
-                                    <GridItem span={4}>
-                                        Whole Tree Searches
-                                    </GridItem>
-                                    <GridItem span={2}>
-                                        <b>{this.props.snmpData.wholesubtreesearchops}</b>
-                                    </GridItem>
-                                </Grid>
-                            </TabPane>
-                        </TabContent>
-                    </div>
-                </TabContainer>
+                            </GridItem>
+                            <GridItem span={6}>
+                                <Card isHoverable>
+                                    <CardBody>
+                                        <Grid>
+                                            <GridItem span="4" className="ds-center">
+                                                <TextContent>
+                                                    <Text className="ds-margin-top-xlg" component={TextVariants.h5}>
+                                                        CPU Usage
+                                                    </Text>
+                                                </TextContent>
+                                                <TextContent>
+                                                    <Text component={TextVariants.h3}>
+                                                        <b>{cpu}%</b>
+                                                    </Text>
+                                                </TextContent>
+                                            </GridItem>
+                                            <GridItem span="8" style={{ height: '225px' }}>
+                                                <Chart
+                                                    ariaDesc="cpu"
+                                                    ariaTitle="Server CPU Usage"
+                                                    containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
+                                                    height={225}
+                                                    minDomain={{y: 0}}
+                                                    padding={{
+                                                        bottom: 30,
+                                                        left: 40,
+                                                        top: 10,
+                                                        right: 15,
+                                                    }}
+                                                    themeColor={ChartThemeColor.multiUnordered}
+                                                >
+                                                    <ChartAxis />
+                                                    <ChartAxis dependentAxis showGrid tickValues={cpu_tick_values} />
+                                                    <ChartGroup>
+                                                        <ChartArea
+                                                            data={cpuChart}
+                                                            interpolation="monotoneX"
+                                                        />
+                                                    </ChartGroup>
+                                                </Chart>
+                                            </GridItem>
+                                        </Grid>
+                                    </CardBody>
+                                </Card>
+                            </GridItem>
+                        </Grid>
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText>Server Stats</TabTitleText>}>
+                        <Grid hasGutter className="ds-margin-top-xlg">
+                            <GridItem span={3}>
+                                Server Instance
+                            </GridItem>
+                            <GridItem span={9}>
+                                <b>{"slapd-" + this.props.serverId}</b>
+                            </GridItem>
+                            <GridItem span={3}>
+                                Version
+                            </GridItem>
+                            <GridItem span={9}>
+                                <b>{this.props.data.version}</b>
+                            </GridItem>
+                            <GridItem span={3}>
+                                Server Started
+                            </GridItem>
+                            <GridItem span={9}>
+                                <b>{startDate}</b>
+                            </GridItem>
+                            <GridItem span={3}>
+                                Server Uptime
+                            </GridItem>
+                            <GridItem span={9}>
+                                <b>{uptime}</b>
+                            </GridItem>
+                            <hr />
+                            <GridItem span={3}>
+                                Worker Threads
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.data.threads}</b>
+                            </GridItem>
+                            <GridItem span={3}>
+                                Threads Waiting To Read
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.data.readwaiters}</b>
+                            </GridItem>
+                            <GridItem span={3}>
+                                Conns At Max Threads
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.data.currentconnectionsatmaxthreads}</b>
+                            </GridItem>
+                            <GridItem span={3}>
+                                Conns Exceeded Max Threads
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.data.maxthreadsperconnhits}</b>
+                            </GridItem>
+                            <GridItem span={3}>
+                                Total Connections
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.data.totalconnections}</b>
+                            </GridItem>
+                            <GridItem span={3}>
+                                Current Connections
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.data.currentconnections}</b>
+                            </GridItem>
+                            <GridItem span={3}>
+                                Operations Started
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.data.opsinitiated}</b>
+                            </GridItem>
+                            <GridItem span={3}>
+                                Operations Completed
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.data.opscompleted}</b>
+                            </GridItem>
+                            <GridItem span={3}>
+                                Entries Returned To Clients
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.data.entriessent}</b>
+                            </GridItem>
+                            <GridItem span={3}>
+                                Bytes Sent to Clients
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.data.bytessent}</b>
+                            </GridItem>
+                        </Grid>
+                    </Tab>
+                    <Tab eventKey={2} title={<TabTitleText>Connection Table</TabTitleText>}>
+                        <ConnectionTable conns={this.props.data.connection} />
+                    </Tab>
+                    <Tab eventKey={3} title={<TabTitleText>Disk Space</TabTitleText>}>
+                        <DiskTable
+                            rows={this.props.disks}
+                        />
+                        <Button
+                            className="ds-margin-top"
+                            onClick={this.props.reloadDisks}
+                        >
+                            Refresh
+                        </Button>
+                    </Tab>
+                    <Tab eventKey={4} title={<TabTitleText>SNMP Counters</TabTitleText>}>
+                        <Grid className="ds-margin-top-xlg" hasGutter>
+                            <GridItem span={4}>
+                                Anonymous Binds
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.anonymousbinds}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Referrals
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.referrals}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Unauthenticated Binds
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.unauthbinds}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Returned Referrals
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.referralsreturned}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Simple Auth Binds
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.simpleauthbinds}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Bind Security Errors
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.bindsecurityerrors}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Strong Auth Binds
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.strongauthbinds}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Security Errors
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.securityerrors}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Initiated Operations
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.inops}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Errors
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.errors}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Compare Operations
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.compareops}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Current Connections
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.connections}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Add Operations
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.addentryops}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Total Connections
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.connectionseq}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Delete Operations
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.removeentryops}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Conns in Max Threads
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.connectionsinmaxthreads}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Modify Operations
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.modifyentryops}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Conns Exceeded Max Threads
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.connectionsmaxthreadscount}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                ModRDN Operations
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.modifyrdnops}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Bytes Received
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.bytesrecv}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Search Operations
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.searchops}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Bytes Sent
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.bytessent}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                One Level Searches
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.onelevelsearchops}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Entries Returned
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.entriesreturned}</b>
+                            </GridItem>
+                            <GridItem span={4}>
+                                Whole Tree Searches
+                            </GridItem>
+                            <GridItem span={2}>
+                                <b>{this.props.snmpData.wholesubtreesearchops}</b>
+                            </GridItem>
+                        </Grid>
+                    </Tab>
+                </Tabs>
             </div>
         );
     }

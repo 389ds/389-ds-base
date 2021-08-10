@@ -10,6 +10,9 @@ import {
     GridItem,
     Spinner,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     ValidatedOptions,
     noop
 } from "@patternfly/react-core";
@@ -250,8 +253,10 @@ export class ServerTuning extends React.Component {
 
         if (!this.state.loaded) {
             body =
-                <div className="ds-loading-spinner ds-margin-top ds-center">
-                    <h4>Loading tuning configuration ...</h4>
+                <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>Loading Tuning Configuration ...</Text>
+                    </TextContent>
                     <Spinner className="ds-margin-top" size="lg" />
                 </div>;
         } else {
@@ -259,21 +264,24 @@ export class ServerTuning extends React.Component {
                 <div className={this.state.loading ? "ds-disabled" : ""}>
                     <Grid>
                         <GridItem span={3}>
-                            <h4>Tuning & Limits <FontAwesomeIcon
-                                size="lg"
-                                className="ds-left-margin ds-refresh"
-                                icon={faSyncAlt}
-                                title="Refresh tuning settings"
-                                onClick={() => {
-                                    this.loadConfig(1);
-                                }}
-                            />
-                            </h4>
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Tuning & Limits <FontAwesomeIcon
+                                        size="lg"
+                                        className="ds-left-margin ds-refresh"
+                                        icon={faSyncAlt}
+                                        title="Refresh settings"
+                                        onClick={() => {
+                                            this.loadConfig(1);
+                                        }}
+                                    />
+                                </Text>
+                            </TextContent>
                         </GridItem>
                     </Grid>
-                    <hr />
-                    <Form isHorizontal>
+                    <Form className="ds-left-margin" isHorizontal>
                         <Grid
+                            className="ds-margin-top-xlg"
                             title="The number of worker threads that handle database operations (nsslapd-threadnumber)."
                         >
                             <GridItem className="ds-label" span={3}>
@@ -548,7 +556,7 @@ export class ServerTuning extends React.Component {
                                 <Grid
                                     title="Enable the normalized DN cache.  Each thread has its own cache (nsslapd-ndn-cache-enabled)."
                                 >
-                                    <GridItem className="ds-label" span={3}>
+                                    <GridItem className="ds-label" span={4}>
                                         <Checkbox
                                             isChecked={this.state['nsslapd-ndn-cache-enabled']}
                                             id="nsslapd-ndn-cache-enabled"
@@ -595,6 +603,7 @@ export class ServerTuning extends React.Component {
                     >
                         {saveBtnName}
                     </Button>
+                    <hr />
                 </div>;
         }
 

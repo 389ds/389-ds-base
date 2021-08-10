@@ -9,6 +9,9 @@ import {
     GridItem,
     TextInput,
     Spinner,
+    Text,
+    TextContent,
+    TextVariants,
     ValidatedOptions,
     noop
 } from "@patternfly/react-core";
@@ -248,14 +251,10 @@ export class GlobalDatabaseConfig extends React.Component {
                         this.setState({
                             saving: false
                         });
-                        this.props.addNotification(
-                            "success",
-                            msg
-                        );
                         if (requireRestart) {
                             this.props.addNotification(
                                 "warning",
-                                `You must restart the Directory Server for these changes to take effect.`
+                                msg + ". You must restart the Directory Server for these changes to take effect."
                             );
                         }
                     })
@@ -442,8 +441,12 @@ export class GlobalDatabaseConfig extends React.Component {
         let spinner = "";
         if (this.state.loading) {
             spinner =
-                <div className="ds-loading-spinner ds-margin-top ds-center">
-                    <h4>Loading global database configuration ...</h4>
+                <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading global database configuration ...
+                        </Text>
+                    </TextContent>
                     <Spinner className="ds-margin-top" loading size="md" />
                 </div>;
         }
@@ -459,10 +462,14 @@ export class GlobalDatabaseConfig extends React.Component {
             <div className={this.state.saving ? "ds-disabled" : ""} id="db-global-page">
                 {spinner}
                 <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein'}>
-                    <h3 className="ds-config-header">Global Database Configuration</h3>
+                    <TextContent>
+                        <Text className="ds-config-header" component={TextVariants.h2}>
+                            Global Database Configuration
+                        </Text>
+                    </TextContent>
                     <Grid
                         title="The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit)."
-                        className="ds-margin-top"
+                        className="ds-margin-top-lg"
                     >
                         <GridItem className="ds-label" span={3}>
                             Database Look Though Limit
@@ -552,11 +559,19 @@ export class GlobalDatabaseConfig extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top-xlg">
                         <GridItem span={6}>
-                            <h4 className="ds-sub-header">Database Cache Settings</h4>
+                            <TextContent>
+                                <Text className="ds-sub-header" component={TextVariants.h3}>
+                                    Database Cache Settings
+                                </Text>
+                            </TextContent>
                             <hr />
                         </GridItem>
                         <GridItem span={6}>
-                            <h4 className="ds-sub-header">Import Cache Settings</h4>
+                            <TextContent>
+                                <Text className="ds-sub-header" component={TextVariants.h3}>
+                                    Import Cache Settings
+                                </Text>
+                            </TextContent>
                             <hr />
                         </GridItem>
 
@@ -706,7 +721,11 @@ export class GlobalDatabaseConfig extends React.Component {
                             </Grid>
                             <Grid className="ds-margin-top-xlg">
                                 <GridItem span={12}>
-                                    <h5 className="ds-sub-header">DB Locks Monitoring</h5>
+                                    <TextContent>
+                                        <Text className="ds-sub-header" component={TextVariants.h3}>
+                                            DB Locks Monitoring
+                                        </Text>
+                                    </TextContent>
                                     <hr />
                                 </GridItem>
                                 <GridItem span={12}>
@@ -724,8 +743,8 @@ export class GlobalDatabaseConfig extends React.Component {
                             </Grid>
                         </div>
                     </ExpandableSection>
-                    <hr />
                     <Button
+                        className="ds-margin-top-lg"
                         onClick={this.save_db_config}
                         variant="primary"
                         isLoading={this.state.saving}
@@ -735,6 +754,7 @@ export class GlobalDatabaseConfig extends React.Component {
                     >
                         {saveBtnName}
                     </Button>
+                    <hr />
                 </div>
             </div>
         );

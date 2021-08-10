@@ -17,6 +17,9 @@ import {
     Tabs,
     TabTitleText,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     ValidatedOptions,
     noop
 } from "@patternfly/react-core";
@@ -539,7 +542,11 @@ export class Backups extends React.Component {
 
         return (
             <div>
-                <h3 className="ds-config-header">Database Backups & LDIFs</h3>
+                <TextContent>
+                    <Text className="ds-config-header" component={TextVariants.h2}>
+                        Database Backups & LDIFs
+                    </Text>
+                </TextContent>
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText><b>Backups</b> <font size="2">({this.props.backups.length})</font></TabTitleText>}>
                         <div className="ds-indent">
@@ -624,11 +631,6 @@ export class Backups extends React.Component {
                     saveHandler={this.validateBackup}
                     spinning={this.state.backupSpinning}
                     error={this.state.errObj}
-                />
-                <RestoreModal
-                    showModal={this.state.showRestoreSpinningModal}
-                    closeHandler={this.closeRestoreSpinningModal}
-                    msg={this.state.backupName}
                 />
                 <ImportingModal
                     showModal={this.state.showLDIFSpinningModal}
@@ -894,71 +896,7 @@ export class BackupModal extends React.Component {
     }
 }
 
-export class RestoreModal extends React.Component {
-    render() {
-        const {
-            showModal,
-            closeHandler,
-            msg
-        } = this.props;
-
-        return (
-            <Modal
-                variant={ModalVariant.medium}
-                title="Restoring Server From Backup"
-                aria-labelledby="ds-modal"
-                isOpen={showModal}
-                onClose={closeHandler}
-                actions={[
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Close
-                    </Button>
-                ]}
-            >
-                <Form horizontal autoComplete="off">
-                    <div className="ds-modal-spinner">
-                        <Spinner size="md" /> Restoring backup <b>{msg}</b> ...
-                        <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
-                    </div>
-                </Form>
-            </Modal>
-        );
-    }
-}
-
-export class DeleteBackupModal extends React.Component {
-    render() {
-        const {
-            showModal,
-            closeHandler,
-            msg
-        } = this.props;
-
-        return (
-            <Modal
-                variant={ModalVariant.small}
-                title="Delete Backup"
-                isOpen={showModal}
-                aria-labelledby="ds-modal"
-                onClose={closeHandler}
-                actions={[
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Close
-                    </Button>
-                ]}
-            >
-                <Form horizontal autoComplete="off">
-                    <div className="ds-modal-spinner">
-                        <Spinner size="md" /> Deleting backup <b>{msg}</b> ...
-                        <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
-                    </div>
-                </Form>
-            </Modal>
-        );
-    }
-}
-
-class ImportingModal extends React.Component {
+export class ImportingModal extends React.Component {
     render() {
         const {
             showModal,
@@ -1009,18 +947,6 @@ BackupModal.propTypes = {
     saveHandler: PropTypes.func,
     spinning: PropTypes.bool,
     error: PropTypes.object,
-};
-
-RestoreModal.propTypes = {
-    showModal: PropTypes.bool,
-    closeHandler: PropTypes.func,
-    msg: PropTypes.string
-};
-
-DeleteBackupModal.propTypes = {
-    showModal: PropTypes.bool,
-    closeHandler: PropTypes.func,
-    msg: PropTypes.string
 };
 
 ImportingModal.propTypes = {

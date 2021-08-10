@@ -193,7 +193,7 @@ class IndexTable extends React.Component {
             {
                 title: 'Delete Index',
                 onClick: (event, rowId, rowData, extra) =>
-                    this.props.deleteIndex(rowData[0])
+                    this.props.deleteIndex(rowData[0], rowData)
             }
         ];
     }
@@ -775,7 +775,7 @@ class BackupTable extends React.Component {
                     onSort={this.onSort}
                     actions={hasRows ? this.actions() : null}
                     dropdownPosition="right"
-                    dropdownDirection="bottom"
+                    dropdownDirection="up"
                 >
                     <TableHeader />
                     <TableBody />
@@ -1021,7 +1021,7 @@ class VLVTable extends React.Component {
             }
             return (
                 <GridItem key={sort.attrs.vlvsort[0]} className="ds-container">
-                    <div className="ds-lower-field">
+                    <div className="ds-lower-field-md">
                         <ArrowRightIcon /> {sort.attrs.vlvsort[0]} ({indexState})
                     </div>
                     <div>

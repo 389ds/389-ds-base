@@ -15,6 +15,9 @@ import {
     Tab,
     Tabs,
     TabTitleText,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -33,7 +36,7 @@ export class ReplSuffix extends React.Component {
         super(props);
         this.state = {
             loading: false,
-            activeTabKey: 1,
+            activeTabKey: 0,
             showDisableConfirm: false,
             replicationEnabled: false,
             errObj: {},
@@ -46,7 +49,7 @@ export class ReplSuffix extends React.Component {
             enableBindPW: "",
             enableBindPWConfirm: "",
             enableBindGroupDN: "",
-            disabled: false, // Disable repl enable button
+            disabled: true, // Disable repl enable button
             // Disable replication
             showDisableReplModal: false,
             disableChecked: false,
@@ -84,6 +87,7 @@ export class ReplSuffix extends React.Component {
         // General bindings
         this.handleReplChange = this.handleReplChange.bind(this);
         this.handleEnableChange = this.handleEnableChange.bind(this);
+        this.validateEnable = this.validateEnable.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleNavSelect = this.handleNavSelect.bind(this);
         this.disableReplication = this.disableReplication.bind(this);
@@ -130,54 +134,39 @@ export class ReplSuffix extends React.Component {
         });
     }
 
+    validateEnable() {
+        let errObj = {};
+        let all_good = true;
+
+        let dnAttrs = ['enableBindDN', 'enableBindGroupDN'];
+        for (let attr of dnAttrs) {
+            if (this.state[attr] != "" && (!valid_dn(this.state[attr]) || !this.state[attr].includes(','))) {
+                all_good = false;
+                errObj[attr] = true;
+            }
+        }
+
+        if (this.state.enableBindDN) {
+            if (this.state.enableBindPW == "" || this.state.enableBindPW != this.state.enableBindPWConfirm) {
+                errObj.enableBindPW = true;
+                errObj.enableBindPWConfirm = true;
+                all_good = false;
+            }
+        }
+
+        this.setState({
+            errObj: errObj,
+            disabled: !all_good
+        });
+    }
+
     handleEnableChange (e) {
         let value = e.target.value;
         let attr = e.target.id;
-        let valueErr = false;
-        let errObj = this.state.errObj;
-        let disable = false;
 
-        if (attr == "enableBindDN" && value != "" && (!valid_dn(value) || !value.includes(','))) {
-            valueErr = true;
-        }
-        if (attr == "enableBindGroupDN" && value != "" && (!valid_dn(value) || !value.includes(','))) {
-            valueErr = true;
-        }
-        if (attr == "enableBindPW") {
-            if (value != this.state.enableBindPWConfirm) {
-                valueErr = true;
-            } else {
-                errObj.enableBindPW = false;
-                errObj.enableBindPWConfirm = false;
-            }
-        }
-        if (attr == "enableBindPWConfirm") {
-            if (value != this.state.enableBindPW) {
-                valueErr = true;
-            } else {
-                errObj.enableBindPW = false;
-                errObj.enableBindPWConfirm = false;
-            }
-        }
-
-        // Validate form and disable enable button if something is wrong.
-        if (valueErr) {
-            disable = true;
-        } else {
-            if ((attr != "enableBindPW" && attr != "enableBindPWConfirm" && this.state.enableBindPW != this.state.enableBindPWConfirm) ||
-                (this.state.enableBindDN != "" && attr != "enableBindDN" && (!valid_dn(this.state.enableBindDN) ||
-                                                                             !this.state.enableBindDN.includes(','))) ||
-                (this.state.enableBindGroupDN != "" && attr != "enableBindGroupDN" && (!valid_dn(this.state.enableBindGroupDN) ||
-                                                                                    !this.state.enableBindGroupDN.includes(',')))) {
-                disable = true;
-            }
-        }
-        errObj[attr] = valueErr;
         this.setState({
             [attr]: value,
-            errObj: errObj,
-            disabled: disable
-        });
+        }, () => { this.validateEnable() });
     }
 
     closeEnableReplModal () {
@@ -302,13 +291,13 @@ export class ReplSuffix extends React.Component {
         }
         if (this.props.spinning) {
             spinning =
-                <Spinner className="ds-margin-top ds-margin-left ds-inline-spinner" loading inline size="sm" />;
+                <Spinner className="ds-margin-top ds-margin-left ds-inline-spinner" size="sm" />;
             spintext =
                 <font size="2"><i>Refreshing</i></font>;
         }
-        let suffixClass = "ds-margin-top-xlg";
+        let suffixClass = "ds-margin-top-lg";
         if (this.props.disabled) {
-            suffixClass = "ds-margin-top-xlg ds-disabled";
+            suffixClass = "ds-margin-top-lg ds-disabled";
         }
 
         let enabledContent =
@@ -380,6 +369,7 @@ export class ReplSuffix extends React.Component {
         if (this.props.replicated) {
             replActionButton =
                 <Button
+                    className="ds-float-right"
                     variant="danger"
                     onClick={this.handleReplChange}
                     title="Disable replication, and remove all replication agreements."
@@ -389,9 +379,11 @@ export class ReplSuffix extends React.Component {
         } else {
             enabledContent =
                 <div className="ds-center ds-margin-top-xlg">
-                    <h4>
-                        Replication is not enabled for this suffix
-                    </h4>
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Replication is not enabled for this suffix
+                        </Text>
+                    </TextContent>
                     <Button
                         variant="primary"
                         onClick={this.handleReplChange}
@@ -406,7 +398,7 @@ export class ReplSuffix extends React.Component {
             <div id="suffix-page">
                 <Grid>
                     <GridItem className="ds-suffix-header" span={8}>
-                        <FontAwesomeIcon size="sm" icon={suffixIcon} /> {this.props.suffix}
+                        <FontAwesomeIcon size="sm" icon={suffixIcon} />&nbsp;&nbsp;{this.props.suffix}
                         <FontAwesomeIcon
                             className="ds-left-margin ds-refresh"
                             icon={faSyncAlt}
@@ -428,6 +420,7 @@ export class ReplSuffix extends React.Component {
                     spinning={this.state.addManagerSpinning}
                     enableRole={this.state.enableRole}
                     enableRID={this.state.enableRID}
+                    enableBindDN={this.state.enableBindDN}
                     disabled={this.state.disabled}
                     onMinus={this.onMinus}
                     onNumberChange={this.onNumberChange}
@@ -464,7 +457,6 @@ ReplSuffix.propTypes = {
     reloadAgmts: PropTypes.func,
     reloadRUV: PropTypes.func,
     reloadConfig: PropTypes.func,
-    reloadLDIF: PropTypes.func,
     reload: PropTypes.func,
     replicated: PropTypes.bool,
     attrs: PropTypes.array,
@@ -486,7 +478,6 @@ ReplSuffix.defaultProps = {
     reloadAgmts: noop,
     reloadRUV: noop,
     reloadConfig: noop,
-    reloadLDIF: noop,
     reload: noop,
     replicated: false,
     attrs: [],

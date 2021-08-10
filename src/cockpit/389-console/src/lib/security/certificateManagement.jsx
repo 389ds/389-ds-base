@@ -2,10 +2,13 @@ import cockpit from "cockpit";
 import React from "react";
 import {
     Button,
+    Spinner,
     Tab,
     Tabs,
     TabTitleText,
-    Spinner,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import { DoubleConfirmModal } from "../../lib/notifications.jsx";
@@ -504,8 +507,12 @@ export class CertificateManagement extends React.Component {
         let certificatePage = '';
         if (this.state.loading) {
             certificatePage =
-                <div className="ds-loading-spinner ds-center ds-margin-top-lg">
-                    <h4>Loading certificates ...</h4>
+                <div className="ds-loading-spinner ds-center ds-margin-top-xlg">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading Certificates ...
+                        </Text>
+                    </TextContent>
                     <Spinner size="lg" />
                 </div>;
         } else {

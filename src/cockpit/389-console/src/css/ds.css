@@ -56,30 +56,19 @@ td {
     background-color: #f8f8f8;
     border: 1px solid #909090;
     color: black;
-    line-height: 2;
-    width: 325px;
-    min-width: 325px;
+    width: 300px;
+    min-width: 300px;
     min-height: 350px;
     max-height: 550px;
     margin-bottom: 5px;
     overflow: auto;
-    padding-left: 10px;
-    padding-right: 10px;
+    margin-left: 15px;
+    margin-top: 20px;
 }
 
 .ds-disabled {
     pointer-events: none;
     opacity: 0.5;
-}
-
-.ds-input {
-    margin-top: 5px !important;
-    padding-right: 5px !important;
-    padding-left: 5px !important;
-}
-
-.ds-input-bad {
-    border-color: red !important;
 }
 
 .ds-error-msg {
@@ -189,13 +178,12 @@ textarea {
     padding-top: 5px;
     vertical-align: top;
     width: 100% !important;
-    height: 500px;
-    max-height: 600px !important;
+    min-height: 500px !important;
     word-wrap: break-word !important;
     line-height: 1;
     font-family: monospace !important;
     overflow-y: scroll;
-    font-size: 12px;
+    font-size: 12px !important;
 }
 
 .ds-conflict {
@@ -272,8 +260,17 @@ textarea {
     margin-right: 15px !important;
 }
 
+.ds-indent-md {
+    margin-left: 20px !important;
+    margin-right: 20px !important;
+}
+
 .ds-left-indent {
     margin-left: 15px !important;
+}
+
+.ds-left-indent-sm {
+    margin-left: 20px !important;
 }
 
 .ds-left-indent-md {
@@ -284,12 +281,14 @@ textarea {
     margin-left: 50px !important;
 }
 
-.ds-right-indent {
-    margin-right: 15px !important;
+.ds-left-indent-xlg {
+    margin-left: 70px !important;
 }
 
 .ds-tree-content {
     margin-left: 35px;
+    margin-right: 15px;
+    margin-top: 25px;
     width: 100%;
 }
 
@@ -297,16 +296,9 @@ textarea {
     margin-left: 10px !important;
 }
 
-.ds-sm-left-margin {
-    margin-left: 5px !important;
-}
-
-.ds-modal-error {
-    color: red;
-}
-
-.ds-clear-text {
-     opacity: 0;
+.ds-left-margin-md {
+    /* same as ds-tree - used by create suffix button */
+    margin-left: 15px !important;
 }
 
 .ds-margin-left-sm {
@@ -325,6 +317,10 @@ textarea {
     margin-bottom: 10px !important;
 }
 
+.ds-margin-bottom-md {
+    margin-bottom: 20px !important;
+}
+
 .ds-center {
     text-align: center;
 }
@@ -334,12 +330,6 @@ textarea {
     top: 25%;
     left: 50%;
     transform: translate(-25%, -35%);
-}
-
-.ds-input-auto {
-    width: 100%;
-    margin-right: 10px;
-    padding-left: 5px;
 }
 
 .ds-raise-field {
@@ -354,12 +344,12 @@ textarea {
     margin-top: 6px;
 }
 
-.content-view-pf-pagination > div > span:last-child {
-    position: relative;
+.ds-lower-field-lg {
+    margin-top: 10px;
 }
 
-.ds-toolbar {
-    bottom: 10px;
+.content-view-pf-pagination > div > span:last-child {
+    position: relative;
 }
 
 .ds-plugin-spinner {
@@ -416,10 +406,6 @@ textarea {
     margin-bottom: 1px !important;
 }
 
-.ds-nav-med {
-    font-size: 12px !important;
-}
-
 .list-view-pf-view {
     margin-top: 10px;
 }
@@ -450,13 +436,12 @@ textarea {
     padding-right: 0 !important;
 }
 
-.alert {
-    max-width: 750px;
+.ds-instance-select {
+    margin-right: 10px !important;
 }
 
-.ds-confirm {
-    margin-left: 5%;
-    margin-top: 5%;
+.alert {
+    max-width: 750px;
 }
 
 hr {
@@ -492,8 +477,21 @@ input[type="radio"], input[type="checkbox"] {
     color: white !important;
 }
 
+.ds-disabled-icon svg {
+    fill: lightslategray;
+}
+
 .ds-warning-icon svg {
     fill: orange;
+}
+
+.ds-ok-icon svg {
+    fill: green;
+}
+
+.ds-icon-sm {
+    font-size: 0.7em;
+    margin-right: 20px;
 }
 
 /* typeAhead Select in modals doesn't fit well, need to make the modal taller */
@@ -516,9 +514,4 @@ input[type="radio"], input[type="checkbox"] {
 
 .ds-modal-changelog-export {
     min-height: 525px !important;
-}
-
-.ds-modal-table-sm {
-    max-height: 350px !important;
-    overflow-y: auto;
 }

@@ -2,21 +2,24 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Spinner,
     Button,
     Checkbox,
-    Select,
-    SelectVariant,
-    SelectOption,
     Form,
     FormSelect,
     FormSelectOption,
+    Grid,
+    GridItem,
+    Select,
+    SelectVariant,
+    SelectOption,
+    Spinner,
     Tab,
     Tabs,
     TabTitleText,
     TextInput,
-    Grid,
-    GridItem,
+    Text,
+    TextContent,
+    TextVariants,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -1146,7 +1149,7 @@ export class GlobalPwPolicy extends React.Component {
                 </div>;
         } else {
             pwp_element =
-                <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-margin-left'}>
+                <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-left-margin'}>
                     <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab eventKey={0} title={<TabTitleText><b>General Settings</b></TabTitleText>}>
                             <Form className="ds-margin-left-sm" isHorizontal>
@@ -1339,6 +1342,7 @@ export class GlobalPwPolicy extends React.Component {
                             >
                                 {saveBtnName}
                             </Button>
+                            <hr />
                         </Tab>
                         <Tab eventKey={1} title={<TabTitleText><b>Expiration</b></TabTitleText>}>
                             <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
@@ -1432,14 +1436,17 @@ export class GlobalPwPolicy extends React.Component {
             <div className={this.state.saving ? "ds-disabled" : ""}>
                 <Grid>
                     <GridItem span={12}>
-                        <h4>Global Password Policy <FontAwesomeIcon
-                            size="lg"
-                            className="ds-left-margin ds-refresh"
-                            icon={faSyncAlt}
-                            title="Refresh global password policy settings"
-                            onClick={this.loadGlobal}
-                        />
-                        </h4>
+                        <TextContent>
+                            <Text component={TextVariants.h2}>
+                                Global Password Policy <FontAwesomeIcon
+                                    size="lg"
+                                    className="ds-left-margin ds-refresh"
+                                    icon={faSyncAlt}
+                                    title="Refresh global password policy settings"
+                                    onClick={this.loadGlobal}
+                                />
+                            </Text>
+                        </TextContent>
                     </GridItem>
                 </Grid>
                 {pwp_element}

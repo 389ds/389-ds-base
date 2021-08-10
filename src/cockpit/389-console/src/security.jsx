@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { ConfirmPopup } from "./lib/notifications.jsx";
+import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import { log_cmd } from "./lib/tools.jsx";
 import { CertificateManagement } from "./lib/security/certificateManagement.jsx";
 import { SecurityEnableModal } from "./lib/security/securityModals.jsx";
@@ -20,6 +20,9 @@ import {
     Tabs,
     TabTitleText,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
@@ -67,6 +70,8 @@ export class Security extends React.Component {
             isClientAuthOpen: false,
             isValidateCertOpen: false,
             disableSaveBtn: true,
+            modalChecked: false,
+            modalSpinning: false,
             // Ciphers
             supportedCiphers: [],
             enabledCiphers: [],
@@ -225,6 +230,7 @@ export class Security extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
+        this.handleModalChange = this.handleModalChange.bind(this);
         this.handleSwitchChange = this.handleSwitchChange.bind(this);
         this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
         this.loadSecurityConfig = this.loadSecurityConfig.bind(this);
@@ -250,6 +256,13 @@ export class Security extends React.Component {
         } else {
             this.props.enableTree();
         }
+    }
+
+    handleModalChange(e) {
+        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.setState({
+            [e.target.id]: value
+        });
     }
 
     reloadConfig () {
@@ -592,6 +605,9 @@ export class Security extends React.Component {
     }
 
     disableSecurity () {
+        this.setState({
+            modalSpinning: true,
+        });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "disable",
@@ -610,6 +626,7 @@ export class Security extends React.Component {
                     );
                     this.setState({
                         securityEnabled: false,
+                        modalSpinning: false,
                     });
                 })
                 .fail(err => {
@@ -622,6 +639,9 @@ export class Security extends React.Component {
                         "error",
                         `Error disabling security - ${msg}`
                     );
+                    this.setState({
+                        modalSpinning: false,
+                    });
                 });
     }
 
@@ -800,7 +820,7 @@ export class Security extends React.Component {
             if (this.state.securityEnabled) {
                 configPage =
                     <div>
-                        <Form isHorizontal>
+                        <Form isHorizontal autoComplete="off">
                             <Grid
                                 title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  This parameter specifically sets what interface to use for TLS traffic.  Requires restart. (nsslapd-securelistenhost)."
                             >
@@ -1012,6 +1032,7 @@ export class Security extends React.Component {
                         >
                             {saveBtnName}
                         </Button>
+                        <hr />
                     </div>;
             }
 
@@ -1019,14 +1040,17 @@ export class Security extends React.Component {
                 <div>
                     <Grid>
                         <GridItem span={6}>
-                            <h4>Security Settings <FontAwesomeIcon
-                                size="lg"
-                                className="ds-left-margin ds-refresh"
-                                icon={faSyncAlt}
-                                title="Refresh configuration settings"
-                                onClick={this.reloadConfig}
-                            />
-                            </h4>
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Security Settings <FontAwesomeIcon
+                                        size="lg"
+                                        className="ds-left-margin ds-refresh"
+                                        icon={faSyncAlt}
+                                        title="Refresh settings"
+                                        onClick={this.reloadConfig}
+                                    />
+                                </Text>
+                            </TextContent>
                         </GridItem>
                     </Grid>
                     <div className="ds-tab-table">
@@ -1070,22 +1094,32 @@ export class Security extends React.Component {
                 </div>;
         } else {
             securityPage =
-                <div className="ds-loading-spinner ds-center">
-                    <p />
-                    <h4>Loading Security Information ...</h4>
+                <div className="ds-margin-top-xlg ds-loading-spinner ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading Security Information ...
+                        </Text>
+                    </TextContent>
                     <Spinner className="ds-margin-top-lg" size="lg" />
                 </div>;
         }
         return (
             <div className={this.state.saving ? "ds-disabled" : ""}>
                 {securityPage}
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmDisable}
                     closeHandler={this.closeConfirmDisable}
-                    actionFunc={this.disableSecurity}
-                    msg="Are you sure you want to disable security?"
-                    msgContent="Attention: this requires the server to be restarted to take effect."
+                    handleChange={this.handleModalChange}
+                    actionHandler={this.disableSecurity}
+                    spinning={this.state.modalSpinning}
+                    item="Requires server restart to take effect."
+                    checked={this.state.modalChecked}
+                    mTitle="Disable Security"
+                    mMsg="Are you sure you want to disable security?"
+                    mSpinningMsg="Disabling ..."
+                    mBtnName="Disable"
                 />
+
                 <SecurityEnableModal
                     showModal={this.state.showSecurityEnableModal}
                     closeHandler={this.closeSecurityEnableModal}

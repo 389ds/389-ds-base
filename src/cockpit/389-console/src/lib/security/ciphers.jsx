@@ -13,6 +13,9 @@ import {
     SimpleList,
     SimpleListItem,
     Spinner,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import { log_cmd } from "../../lib/tools.jsx";
@@ -350,7 +353,11 @@ export class Ciphers extends React.Component {
         if (this.state.saving) {
             cipherPage =
                 <div className="ds-center ds-margin-top-lg">
-                    <h4>Saving Cipher Preferences ...</h4>
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Saving Cipher Preferences ...
+                        </Text>
+                    </TextContent>
                     <Spinner size="lg" />
                 </div>;
         } else {
@@ -359,7 +366,11 @@ export class Ciphers extends React.Component {
                     <Form className="ds-margin-top-lg" isHorizontal>
                         <Grid>
                             <GridItem span={5} title="The current ciphers the server is accepting.  This list is only updated after a server restart.">
-                                <h4>Enabled Ciphers <font size="2">({enabledList.length})</font></h4>
+                                <TextContent>
+                                    <Text component={TextVariants.h3}>
+                                        Enabled Ciphers <font size="2">({enabledList.length})</font>
+                                    </Text>
+                                </TextContent>
                                 <hr />
                                 <div className="ds-box">
                                     <SimpleList aria-label="enabled cipher list">
@@ -369,7 +380,11 @@ export class Ciphers extends React.Component {
                             </GridItem>
                             <GridItem span={2} />
                             <GridItem span={5} title="The current ciphers the server supports">
-                                <h4>Supported Ciphers <font size="2">({supportedList.length})</font></h4>
+                                <TextContent>
+                                    <Text component={TextVariants.h3}>
+                                        Supported Ciphers <font size="2">({supportedList.length})</font>
+                                    </Text>
+                                </TextContent>
                                 <hr />
                                 <div className="ds-box">
                                     <SimpleList aria-label="supported cipher list">
@@ -396,7 +411,7 @@ export class Ciphers extends React.Component {
                                 </FormSelect>
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top">
+                        <Grid>
                             <GridItem className="ds-label" span={2}>
                                 Allow Specific Ciphers
                             </GridItem>
@@ -423,7 +438,7 @@ export class Ciphers extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top">
+                        <Grid>
                             <GridItem className="ds-label" span={2}>
                                 Deny Specific Ciphers
                             </GridItem>
@@ -464,6 +479,7 @@ export class Ciphers extends React.Component {
                     >
                         {saveBtnName}
                     </Button>
+                    <hr />
                 </div>;
         }
 

@@ -1,26 +1,26 @@
 import React from "react";
 import {
-    Row,
-    Col,
-    ControlLabel,
-    Form,
-    FormGroup,
-    FormControl
-} from "patternfly-react";
-import {
     Button,
     Checkbox,
     Grid,
     GridItem,
+    Form,
     Modal,
     ModalVariant,
+    NumberInput,
     Radio,
     Spinner,
     TextArea,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     Tooltip,
     noop,
 } from "@patternfly/react-core";
+import {
+    CopyIcon,
+} from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 import { get_date_string } from "../tools.jsx";
 import { ReportSingleTable, ReportConsumersTable } from "./monitorTables.jsx";
@@ -46,10 +46,13 @@ class TaskLogModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
-                    <div>
-                        <textarea className="ds-logarea" value={logData} readOnly />
-                    </div>
+                <Form isHorizontal autoComplete="off">
+                    <TextArea
+                        resizeOrientation="vertical"
+                        className="ds-logarea"
+                        value={logData}
+                        aria-label="text area example"
+                    />
                 </Form>
             </Modal>
         );
@@ -92,88 +95,97 @@ class AgmtDetailsModal extends React.Component {
                 onClose={closeHandler}
                 actions={btnList}
             >
-                <Form horizontal>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Replica</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={agmt['replica']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Agreement Enabled</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={agmt['replica-enabled']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Last Init Started</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={convertedDate['last-init-start']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Last Init Ended</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={convertedDate['last-init-end']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Last Initialization Status</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <textarea value={agmt['last-init-status']} rows="5" className="ds-agmt-textarea" readOnly />
-                        </Col>
-                    </Row>
-
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Replication In Progress</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={agmt['update-in-progress']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Changes Sent</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={agmt['number-changes-sent']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Last Update Started</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={convertedDate['last-update-start']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Last Update Ended</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={convertedDate['last-update-end']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Last Update Status</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <textarea value={agmt['last-update-status']} rows="5" className="ds-agmt-textarea" readOnly />
-                        </Col>
-                    </Row>
+                <Form isHorizontal>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <b>Replica</b>
+                        </GridItem>
+                        <GridItem span={8}>
+                            <i>{agmt['replica']}</i>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <b>Agreement Enabled</b>
+                        </GridItem>
+                        <GridItem span={8}>
+                            <i>{agmt['replica-enabled']}</i>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <b>Last Init Started</b>
+                        </GridItem>
+                        <GridItem span={8}>
+                            <i>{convertedDate['last-init-start']}</i>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <b>Last Init Ended</b>
+                        </GridItem>
+                        <GridItem span={8}>
+                            <i>{convertedDate['last-init-end']}</i>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <b>Last Initialization Status</b>
+                        </GridItem>
+                        <GridItem span={8}>
+                            <TextArea
+                                resizeOrientation="vertical"
+                                className="ds-agmt-textarea"
+                                value={agmt['last-init-status']}
+                                aria-label="text area example"
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <b>Replication In Progress</b>
+                        </GridItem>
+                        <GridItem span={8}>
+                            <i>{agmt['update-in-progress']}</i>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <b>Changes Sent</b>
+                        </GridItem>
+                        <GridItem span={8}>
+                            <i>{agmt['number-changes-sent']}</i>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <b>Last Update Started</b>
+                        </GridItem>
+                        <GridItem span={8}>
+                            <i>{convertedDate['last-update-start']}</i>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <b>Last Update Ended</b>
+                        </GridItem>
+                        <GridItem span={8}>
+                            <i>{convertedDate['last-update-end']}</i>
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem span={3}>
+                            <b>Last Update Status</b>
+                        </GridItem>
+                        <GridItem span={8}>
+                            <TextArea
+                                resizeOrientation="vertical"
+                                className="ds-agmt-textarea"
+                                value={agmt['last-update-status']}
+                                aria-label="text area example"
+                            />
+                        </GridItem>
+                    </Grid>
                 </Form>
             </Modal>
         );
@@ -244,10 +256,14 @@ class ConflictCompareModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
+                <Form isHorizontal autoComplete="off">
                     <Grid>
                         <GridItem span={6}>
-                            <h5>Valid Entry</h5>
+                            <TextContent>
+                                <Text component={TextVariants.h4}>
+                                    Valid Entry
+                                </Text>
+                            </TextContent>
                         </GridItem>
                         <GridItem span={6}>
                             <p className="ds-margin-top ds-right-align ds-font-size-sm">
@@ -258,7 +274,11 @@ class ConflictCompareModal extends React.Component {
                             <TextArea id="conflictValid" resizeOrientation="vertical" className="ds-conflict" value={valid} isReadOnly />
                         </GridItem>
                         <GridItem className="ds-margin-top-lg" span={6}>
-                            <h5>Conflict Entry</h5>
+                            <TextContent>
+                                <Text component={TextVariants.h4}>
+                                    Conflict Entry
+                                </Text>
+                            </TextContent>
                         </GridItem>
                         <GridItem className="ds-margin-top-lg" span={6}>
                             <p className="ds-margin-top ds-right-align ds-font-size-sm">
@@ -375,7 +395,10 @@ class ReportCredentialsModal extends React.Component {
             pwInputInterractive,
             bindpw,
             addConfig,
-            editConfig
+            editConfig,
+            onMinusConfig,
+            onPlusConfig,
+            onConfigChange,
         } = this.props;
 
         let title = (newEntry ? "Add" : "Edit") + " Report Credentials";
@@ -391,6 +414,7 @@ class ReportCredentialsModal extends React.Component {
                         key="save"
                         variant="primary"
                         onClick={newEntry ? addConfig : editConfig}
+                        isDisabled={hostname == "" || binddn == "" || bindpw == ""}
                     >
                         Save
                     </Button>,
@@ -399,73 +423,86 @@ class ReportCredentialsModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Row>
-                    <Col sm={12}>
-                        <Form horizontal autoComplete="off">
-                            <FormGroup controlId="credsHostname">
-                                <Col sm={3}>
-                                    <ControlLabel title="A regex for hostname">
-                                        Hostname
-                                    </ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
-                                        type="text"
+                <Grid>
+                    <GridItem span={12}>
+                        <Form isHorizontal autoComplete="off">
+                            <Grid>
+                                <GridItem className="ds-label" span={3}>
+                                    Hostname
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
                                         value={hostname}
-                                        onChange={handleFieldChange}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="credsPort">
-                                <Col sm={3}>
-                                    <ControlLabel title="A regex for port">
-                                        Port
-                                    </ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
                                         type="text"
+                                        id="hostname"
+                                        aria-describedby="cachememsize"
+                                        name="hostname"
+                                        onChange={(str, e) => {
+                                            handleFieldChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid>
+                                <GridItem className="ds-label" span={3}>
+                                    Port
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <NumberInput
                                         value={port}
-                                        onChange={handleFieldChange}
+                                        min={1}
+                                        max={65534}
+                                        onMinus={() => { onMinusConfig("port") }}
+                                        onChange={(e) => { onConfigChange(e, "port", 1) }}
+                                        onPlus={() => { onPlusConfig("port") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={8}
                                     />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="credsBinddn">
-                                <Col sm={3}>
-                                    <ControlLabel title="Bind DN for the specified instances">
-                                        Bind DN
-                                    </ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
-                                        type="text"
+                                </GridItem>
+                            </Grid>
+                            <Grid title="Bind DN for the specified instances">
+                                <GridItem className="ds-label" span={3}>
+                                    Bind DN
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
                                         value={binddn}
-                                        onChange={handleFieldChange}
+                                        type="text"
+                                        id="binddn"
+                                        aria-describedby="cachememsize"
+                                        name="binddn"
+                                        onChange={(str, e) => {
+                                            handleFieldChange(e);
+                                        }}
                                     />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="credsBindpw">
-                                <Col sm={3}>
-                                    <ControlLabel title="Bind password for the specified instances">
-                                        Password
-                                    </ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
-                                        type="password"
+                                </GridItem>
+                            </Grid>
+                            <Grid title="Bind password for the specified instances">
+                                <GridItem className="ds-label" span={3}>
+                                    Password
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
                                         value={bindpw}
-                                        onChange={handleFieldChange}
-                                        disabled={pwInputInterractive}
+                                        type="password"
+                                        id="bindpw"
+                                        aria-describedby="cachememsize"
+                                        name="bindpw"
+                                        isDisabled={pwInputInterractive}
+                                        onChange={(str, e) => {
+                                            handleFieldChange(e);
+                                        }}
                                     />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="interractiveInput">
-                                <Col sm={3}>
-                                    <ControlLabel title="Input the password interactively">
-                                        Interractive Input
-                                    </ControlLabel>
-                                </Col>
-                                <Col sm={9}>
+                                </GridItem>
+                            </Grid>
+                            <Grid title="Input the password interactively">
+                                <GridItem className="ds-label" span={3}>
+                                    Interractive Input
+                                </GridItem>
+                                <GridItem span={9}>
                                     <Checkbox
                                         isChecked={pwInputInterractive}
                                         id="pwInputInterractive"
@@ -473,11 +510,11 @@ class ReportCredentialsModal extends React.Component {
                                             handleFieldChange(e);
                                         }}
                                     />
-                                </Col>
-                            </FormGroup>
+                                </GridItem>
+                            </Grid>
                         </Form>
-                    </Col>
-                </Row>
+                    </GridItem>
+                </Grid>
             </Modal>
         );
     }
@@ -494,7 +531,10 @@ class ReportAliasesModal extends React.Component {
             port,
             alias,
             addConfig,
-            editConfig
+            editConfig,
+            onMinusConfig,
+            onPlusConfig,
+            onConfigChange
         } = this.props;
 
         let title = (newEntry ? "Add" : "Edit") + " Report Alias";
@@ -506,7 +546,12 @@ class ReportAliasesModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={newEntry ? addConfig : editConfig}>
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={newEntry ? addConfig : editConfig}
+                        isDisabled={alias == "" || hostname == ""}
+                    >
                         Save
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
@@ -514,54 +559,66 @@ class ReportAliasesModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Row>
-                    <Col sm={12}>
-                        <Form horizontal>
-                            <FormGroup controlId="aliasName">
-                                <Col sm={3}>
-                                    <ControlLabel title="Alias name for the instance">
-                                        Alias
-                                    </ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
-                                        type="text"
+                <Grid>
+                    <GridItem span={12}>
+                        <Form isHorizontal autoComplete="off">
+                            <Grid title="Alias name for the instance">
+                                <GridItem className="ds-label" span={3}>
+                                    Alias
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
                                         value={alias}
-                                        onChange={handleFieldChange}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="aliasHostname">
-                                <Col sm={3}>
-                                    <ControlLabel title="An instance hostname">
-                                        Hostname
-                                    </ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
                                         type="text"
+                                        id="alias"
+                                        aria-describedby="alias"
+                                        name="alias"
+                                        onChange={(str, e) => {
+                                            handleFieldChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title="An instance hostname">
+                                <GridItem className="ds-label" span={3}>
+                                    Hostname
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
                                         value={hostname}
-                                        onChange={handleFieldChange}
+                                        type="text"
+                                        id="hostname"
+                                        aria-describedby="hostname"
+                                        name="hostname"
+                                        onChange={(str, e) => {
+                                            handleFieldChange(e);
+                                        }}
                                     />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="aliasPort">
-                                <Col sm={3}>
-                                    <ControlLabel title="An instance port">
-                                        Port
-                                    </ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
-                                        type="number"
+                                </GridItem>
+                            </Grid>
+                            <Grid title="An instance port">
+                                <GridItem className="ds-label" span={3}>
+                                    Port
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <NumberInput
                                         value={port}
-                                        onChange={handleFieldChange}
+                                        min={1}
+                                        max={65534}
+                                        onMinus={() => { onMinusConfig("port") }}
+                                        onChange={(e) => { onConfigChange(e, "port", 1) }}
+                                        onPlus={() => { onPlusConfig("port") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={8}
                                     />
-                                </Col>
-                            </FormGroup>
+                                </GridItem>
+                            </Grid>
                         </Form>
-                    </Col>
-                </Row>
+                    </GridItem>
+                </Grid>
             </Modal>
         );
     }
@@ -589,7 +646,12 @@ class ReportLoginModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={processCredsInput}>
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        isDisabled={loginBinddn == "" || loginBindpw == ""}
+                        onClick={processCredsInput}
+                    >
                         Confirm Credentials Input
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
@@ -597,45 +659,55 @@ class ReportLoginModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form horizontal autoComplete="off">
-                    <h6>
-                        In order to get the replication agreement lag times and state, the
-                        authentication credentials to the remote replicas must be provided.
-                    </h6>
+                <Form isHorizontal autoComplete="off">
+                    <TextContent>
+                        <Text component={TextVariants.h5}>
+                            In order to get the replication agreement lag times and state, the
+                            authentication credentials to the remote replicas must be provided.
+                        </Text>
+                    </TextContent>
                     <hr />
-                    <h6>
-                        Bind DN was acquired from <b>Replica Credentials</b> table. If you want
-                        to bind as another user, change or remove the Bind DN there.
-                    </h6>
-                    <FormGroup className="ds-margin-top-lg" controlId="loginBinddn">
-                        <Col sm={3}>
-                            <ControlLabel title="Bind DN for the instance">
-                                Bind DN
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={9}>
-                            <FormControl
-                                type="text"
+                    <TextContent>
+                        <Text component={TextVariants.h5}>
+                            Bind DN was acquired from <b>Replica Credentials</b> table. If you want
+                            to bind as another user, change or remove the Bind DN there.
+                        </Text>
+                    </TextContent>
+                    <Grid className="ds-margin-top-lg" title="Bind DN for the instance">
+                        <GridItem className="ds-label" span={3}>
+                            Bind DN
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
                                 value={loginBinddn}
-                                onChange={handleChange}
-                                disabled={disableBinddn}
+                                type="text"
+                                id="loginBinddn"
+                                aria-describedby="loginBinddn"
+                                name="loginBinddn"
+                                isDisabled={disableBinddn}
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
                             />
-                        </Col>
-                    </FormGroup>
-                    <FormGroup controlId="loginBindpw">
-                        <Col sm={3}>
-                            <ControlLabel title="Password for the Bind DN">
-                                Password
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={9}>
-                            <FormControl
-                                type="password"
+                        </GridItem>
+                    </Grid>
+                    <Grid title="Password for the Bind DN">
+                        <GridItem className="ds-label" span={3}>
+                            Password
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
                                 value={loginBindpw}
-                                onChange={handleChange}
+                                type="password"
+                                id="loginBindpw"
+                                aria-describedby="loginBindpw"
+                                name="loginBindpw"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
                             />
-                        </Col>
-                    </FormGroup>
+                        </GridItem>
+                    </Grid>
                 </Form>
             </Modal>
         );
@@ -677,61 +749,62 @@ class FullReportContent extends React.Component {
         let suppliers = [];
         let supplierName;
         let supplierData;
-        let resultRows = [];
-        let spinner = <ControlLabel />;
+        let resultGrids = [];
+        let spinner = "";
         if (reportLoading) {
             spinner = (
-                <div>
-                    <ControlLabel title="Do the refresh every few seconds">
-                        {reportRefreshing ? "Refreshing" : "Loading"} the report...
-                    </ControlLabel>
-                    <Spinner size="sm" />
+                <div title="Do the refresh every few seconds">
+                    {reportRefreshing ? "Refreshing" : "Loading"} the report...
+                    <Spinner className="ds-left-margin" size="lg" />
                 </div>
             );
         }
         let reportHeader =
-            <h5 className="ds-margin-top-xlg">
-                There is no report, you must first generate the report in the <b>Prepare Report</b> tab.
-            </h5>;
+            <TextContent>
+                <Text className="ds-margin-top-xlg" component={TextVariants.h4}>
+                    There is no report, you must first generate the report in the <b>Prepare Report</b> tab.
+                </Text>
+            </TextContent>;
         if (reportData.length > 0) {
             reportHeader = (
-                <Form horizontal autoComplete="off">
-                    <FormGroup controlId="showDisabledAgreements">
-                        <Col sm={8}>
-                            <Checkbox
-                                isChecked={this.state.showDisabledAgreements}
-                                id="showDisabledAgreements"
-                                onChange={(checked, e) => {
-                                    this.handleSwitchChange(e);
-                                }}
-                                title="Display all agreements including the disabled ones and the ones we failed to connect to"
-                                label="Show Disabled Agreements"
-                            />
-                        </Col>
-                    </FormGroup>
-                    <FormGroup controlId="oneTableReport">
-                        <Col sm={6} title="Show all data in one table (it makes it easier to check lag times)">
-                            <Checkbox
-                                isChecked={this.state.oneTableReport}
-                                onChange={(checked, e) => {
-                                    this.handleSwitchChange(e);
-                                }}
-                                id="oneTableReport"
-                                title="Display all agreements including the disabled ones and the ones we failed to connect to"
-                                label="Table View"
-                            />
-                        </Col>
-                    </FormGroup>
-                    <Button
-                        key="refresh"
-                        className="ds-margin-top"
-                        variant="secondary"
-                        onClick={handleRefresh}
-                    >
-                        Refresh Report
-                    </Button>
-                    <hr />
-                </Form>
+                <div>
+                    <Form isHorizontal autoComplete="off">
+                        <Grid>
+                            <GridItem span={8}>
+                                <Checkbox
+                                    title="Display all agreements including the disabled ones and the ones we failed to connect to"
+                                    isChecked={this.state.showDisabledAgreements}
+                                    id="showDisabledAgreements"
+                                    onChange={(checked, e) => {
+                                        this.handleSwitchChange(e);
+                                    }}
+                                    label="Show Disabled Agreements"
+                                />
+                            </GridItem>
+                            <GridItem span={4}>
+                                <Button
+                                    key="refresh"
+                                    variant="secondary"
+                                    onClick={handleRefresh}
+                                    className="ds-float-right"
+                                >
+                                    Refresh Report
+                                </Button>
+                            </GridItem>
+                            <GridItem span={12} >
+                                <Checkbox
+                                    isChecked={this.state.oneTableReport}
+                                    onChange={(checked, e) => {
+                                        this.handleSwitchChange(e);
+                                    }}
+                                    id="oneTableReport"
+                                    title="Show all data in one table (it makes it easier to check lag times)"
+                                    label="Table View"
+                                />
+                            </GridItem>
+                        </Grid>
+                    </Form>
+                </div>
             );
         }
         if (this.state.oneTableReport) {
@@ -747,13 +820,13 @@ class FullReportContent extends React.Component {
                             agmts.splice(idx, 1);
                         }
                     }
-                    resultRows = resultRows.concat(agmts);
+                    resultGrids = resultGrids.concat(agmts);
                 }
             }
             suppliers = [(<div>
                 <ReportSingleTable
-                    key={resultRows}
-                    rows={resultRows}
+                    key={resultGrids}
+                    rows={resultGrids}
                     viewAgmt={this.props.viewAgmt}
                 />
             </div>
@@ -766,12 +839,11 @@ class FullReportContent extends React.Component {
                      s_data[0].replica_status.startsWith("Unreachable"))) {
                     supplierData = (
                         <div>
-                            <h4>
-                                <b>Can not get replication information from Replica</b>
-                            </h4>
-                            <h4 title="Supplier availability status">
-                                <b>Replica Status:</b> {s_data[0].replica_status}
-                            </h4>
+                            <TextContent>
+                                <Text className="ds-margin-top-xlg" component={TextVariants.h4}>
+                                    <b>Can not get replication information from Replica:</b>&nbsp;&nbsp;{s_data[0].replica_status}
+                                </Text>
+                            </TextContent>
                         </div>
                     );
                 } else {
@@ -791,19 +863,32 @@ class FullReportContent extends React.Component {
                     }
 
                     supplierData = supData.map(replica => (
-                        <div key={replica.replica_root + replica.replica_id}>
-                            <h4 title="Replica Root suffix">
-                                <b>Replica Root:</b> {replica.replica_root}
-                            </h4>
-                            <h4 title="Replica ID">
-                                <b>Replica ID:</b> {replica.replica_id}
-                            </h4>
-                            <h4 title="Replica Status">
-                                <b>Replica Status:</b> {replica.replica_status}
-                            </h4>
-                            <h4 title="Max CSN">
-                                <b>Max CSN:</b> {replica.maxcsn}
-                            </h4>
+                        <Grid key={replica.replica_root + replica.replica_id}>
+                            <GridItem span={2}>
+                                Replica Root
+                            </GridItem>
+                            <GridItem span={10}>
+                                <b>{replica.replica_root}</b>
+                            </GridItem>
+                            <GridItem span={2}>
+                                Replica ID
+                            </GridItem>
+                            <GridItem span={10}>
+                                <b>{replica.replica_id}</b>
+                            </GridItem>
+                            <GridItem span={2}>
+                                Max CSN
+                            </GridItem>
+                            <GridItem span={10}>
+                                <b>{replica.maxcsn}</b>
+                            </GridItem>
+                            <GridItem span={2}>
+                                Replica Status
+                            </GridItem>
+                            <GridItem span={10}>
+                                <b>{replica.replica_status}</b>
+                            </GridItem>
+
                             {"agmts_status" in replica &&
                             replica.agmts_status.length > 0 &&
                             "agmt-name" in replica.agmts_status[0] ? (
@@ -813,20 +898,22 @@ class FullReportContent extends React.Component {
                                     viewAgmt={this.props.viewAgmt}
                                     />
                                 ) : (
-                                    <h4>
-                                        <b>No Agreements Were Found</b>
-                                    </h4>
+                                    <TextContent>
+                                        <Text component={TextVariants.h4}>
+                                            <b><i>No Agreements Were Found</i></b>
+                                        </Text>
+                                    </TextContent>
                                 )}
-                        </div>
+                        </Grid>
                     ));
                 }
                 supplierName = (
-                    <div key={supplier.name}>
-                        <center>
-                            <h2 title="Supplier host:port (and alias if applicable)">
-                                <b>Supplier:</b> {supplier.name}
-                            </h2>
-                        </center>
+                    <div className="ds-margin-top-xlg" key={supplier.name}>
+                        <TextContent title="Supplier host:port (and alias if applicable)">
+                            <Text component={TextVariants.h2}>
+                                <CopyIcon />&nbsp;&nbsp;<b>Supplier:</b>&nbsp;&nbsp;{supplier.name}
+                            </Text>
+                        </TextContent>
                         <hr />
                         {supplierData}
                     </div>
@@ -838,20 +925,20 @@ class FullReportContent extends React.Component {
         let report = suppliers.map(supplier => (
             <div key={supplier.key}>
                 {supplier}
-                <hr />
             </div>
         ));
         if (reportLoading) {
             report =
-                <Col sm={12} className="ds-center ds-margin-top">
+                <GridItem span={12} className="ds-center ds-margin-top">
                     {spinner}
-                </Col>;
+                </GridItem>;
         }
 
         return (
             <div>
                 {reportHeader}
                 {report}
+                <hr />
             </div>
         );
     }
