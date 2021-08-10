@@ -17,6 +17,9 @@ import {
     Tab,
     Tabs,
     TabTitleText,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
@@ -697,21 +700,23 @@ export class SuffixIndexes extends React.Component {
         });
     }
 
-    closeConfirmDeleteIndex(item) {
+    closeConfirmDeleteIndex() {
         this.setState({
             deleteAttrName: "",
             showConfirmDeleteIndex: false,
+            modalSpinning: false,
+            modalChecked: false,
         });
     }
 
-    reindexIndex(attr) {
-        this.reindexAttr(attr);
+    reindexIndex() {
+        this.reindexAttr(this.state.reindexAttrName);
     }
 
-    deleteIndex(idxName) {
+    deleteIndex() {
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "index", "delete", "--attr=" + idxName,
+            "backend", "index", "delete", "--attr=" + this.state.deleteAttrName,
             this.props.suffix,
         ];
 
@@ -722,15 +727,12 @@ export class SuffixIndexes extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "success",
-                        "Successfully deleted index: " + idxName
+                        "Successfully deleted index: " + this.state.deleteAttrName
                     );
-                    this.setState({
-                        showConfirmDeleteIndex: false,
-                        modalSpinning: false,
-                    });
+                    this.props.reload(this.props.suffix);
+                    this.closeConfirmDeleteIndex();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -739,10 +741,7 @@ export class SuffixIndexes extends React.Component {
                         "error",
                         `Error deleting index - ${errMsg.desc}`
                     );
-                    this.setState({
-                        showConfirmDeleteIndex: false,
-                        modalSpinning: false,
-                    });
+                    this.closeConfirmDeleteIndex();
                 });
     }
 
@@ -799,6 +798,7 @@ export class SuffixIndexes extends React.Component {
                             >
                                 Add Index
                             </Button>
+                            <hr />
                         </div>
                     </Tab>
                     <Tab eventKey={1} title={<TabTitleText>System Indexes <font size="2">({this.props.systemIndexRows.length})</font></TabTitleText>}>
@@ -951,7 +951,11 @@ class AddIndexModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <h5 title="Select an attribute to index">Select An Attribute</h5>
+                    <TextContent title="Select an attribute to index">
+                        <Text component={TextVariants.h4}>
+                            Select An Attribute
+                        </Text>
+                    </TextContent>
                     <Select
                         variant={SelectVariant.typeahead}
                         typeAheadAriaLabel="Type a attribute name to index"
@@ -972,7 +976,11 @@ class AddIndexModal extends React.Component {
                             />
                         ))}
                     </Select>
-                    <h5 className="ds-margin-top">Index Types</h5>
+                    <TextContent className="ds-margin-top">
+                        <Text component={TextVariants.h4}>
+                            Index Types
+                        </Text>
+                    </TextContent>
                     <div className="ds-indent">
                         <Grid>
                             <GridItem>
@@ -1024,7 +1032,11 @@ class AddIndexModal extends React.Component {
                     </div>
                     <Grid className="ds-margin-top-lg">
                         <GridItem span={12} title="List of matching rules separated by a 'space'">
-                            <h5>Matching Rules</h5>
+                            <TextContent>
+                                <Text component={TextVariants.h4}>
+                                    Matching Rules
+                                </Text>
+                            </TextContent>
                             <div className="ds-indent ds-margin-top">
                                 <Select
                                     id="addMatchingRules"
@@ -1227,7 +1239,11 @@ class EditIndexModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <h5 className="ds-margin-top">Index Types</h5>
+                    <TextContent>
+                        <Text className="ds-margin-top" component={TextVariants.h4}>
+                            Index Types
+                        </Text>
+                    </TextContent>
                     <div className="ds-indent">
                         <Grid>
                             <GridItem span={9}>
@@ -1252,7 +1268,11 @@ class EditIndexModal extends React.Component {
                     </div>
                     <Grid className="ds-margin-top-lg">
                         <GridItem span={12}>
-                            <h5>Matching Rules</h5>
+                            <TextContent>
+                                <Text component={TextVariants.h4}>
+                                    Matching Rules
+                                </Text>
+                            </TextContent>
                             <div className="ds-indent ds-margin-top">
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}

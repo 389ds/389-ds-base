@@ -12,6 +12,9 @@ import {
     GridItem,
     NumberInput,
     Spinner,
+    Text,
+    TextContent,
+    TextVariants,
     Tooltip,
     noop
 } from '@patternfly/react-core';
@@ -70,6 +73,7 @@ export class Changelog extends React.Component {
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'set-changelog', '--suffix', this.props.suffix
         ];
+        let requires_restart = false;
         let msg = "Successfully updated changelog configuration.";
 
         if (this.state.clMaxEntries != this.state._clMaxEntries) {
@@ -85,6 +89,7 @@ export class Changelog extends React.Component {
             if (this.state.clEncrypt) {
                 cmd.push("--encrypt");
                 msg += "  This requires a server restart to take effect";
+                requires_restart = true;
             } else {
                 cmd.push("--disable-encrypt");
             }
@@ -100,7 +105,7 @@ export class Changelog extends React.Component {
                     .done(content => {
                         this.reloadChangelog();
                         this.props.addNotification(
-                            "success",
+                            requires_restart ? "warning" : "success",
                             msg
                         );
                         this.setState({
@@ -220,8 +225,12 @@ export class Changelog extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = "Saving";
         } else if (this.loading) {
             clPage =
-                <div className="ds-margin-top ds-center">
-                    <h4>Loading changelog configuration ...</h4>
+                <div className="ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading Changelog Configuration ...
+                        </Text>
+                    </TextContent>
                     <Spinner className="ds-margin-top-lg" size="md" />
                 </div>;
         } else {

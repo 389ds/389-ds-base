@@ -14,6 +14,9 @@ import {
     Tabs,
     TabTitleText,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     ValidatedOptions,
     noop
 } from "@patternfly/react-core";
@@ -749,7 +752,7 @@ export class ServerSettings extends React.Component {
                     // Continue with the next mod
                     this.reloadConfig();
                     this.props.addNotification(
-                        "success",
+                        "warning",
                         "Successfully updated server configuration.  These " +
                             "changes require the server to be restarted to take effect."
                     );
@@ -892,7 +895,9 @@ export class ServerSettings extends React.Component {
         if (this.state.loading) {
             body =
                 <div className="ds-loading-spinner ds-margin-top ds-center">
-                    <h4>Loading Server Settings ...</h4>
+                    <TextContent>
+                        <Text component={TextVariants.h3}>Loading Server Settings ...</Text>
+                    </TextContent>
                     <Spinner className="ds-margin-top" size="md" />
                 </div>;
         } else {
@@ -900,19 +905,22 @@ export class ServerSettings extends React.Component {
                 <div>
                     <Grid>
                         <GridItem span={3}>
-                            <h4>Server Settings <FontAwesomeIcon
-                                size="lg"
-                                className="ds-left-margin ds-refresh"
-                                icon={faSyncAlt}
-                                title="Refresh configuration settings"
-                                onClick={this.reloadConfig}
-                            />
-                            </h4>
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Server Settings <FontAwesomeIcon
+                                        size="lg"
+                                        className="ds-left-margin ds-refresh"
+                                        icon={faSyncAlt}
+                                        title="Refresh configuration settings"
+                                        onClick={this.reloadConfig}
+                                    />
+                                </Text>
+                            </TextContent>
                         </GridItem>
                     </Grid>
 
-                    <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-margin-left'}>
-                        <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-left-margin'}>
+                        <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={0} title={<TabTitleText><b>General Settings</b></TabTitleText>}>
                                 <Form className="ds-margin-top-xlg" isHorizontal>
                                     <Grid
@@ -1203,7 +1211,7 @@ export class ServerSettings extends React.Component {
                             </Tab>
                             <Tab eventKey={3} title={<TabTitleText><b>Advanced Settings</b></TabTitleText>}>
                                 <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
-                                    <Grid className="ds-margin-top">
+                                    <Grid>
                                         <GridItem span={5}>
                                             <Checkbox
                                                 id="nsslapd-schemacheck"
@@ -1228,7 +1236,7 @@ export class ServerSettings extends React.Component {
                                             />
                                         </GridItem>
                                     </Grid>
-                                    <Grid className="ds-margin-top">
+                                    <Grid>
                                         <GridItem span={5}>
                                             <Checkbox
                                                 id="nsslapd-plugin-logging"
@@ -1252,7 +1260,7 @@ export class ServerSettings extends React.Component {
                                             />
                                         </GridItem>
                                     </Grid>
-                                    <Grid className="ds-margin-top">
+                                    <Grid>
                                         <GridItem span={5}>
                                             <Checkbox
                                                 id="nsslapd-plugin-binddn-tracking"
@@ -1276,7 +1284,7 @@ export class ServerSettings extends React.Component {
                                             />
                                         </GridItem>
                                     </Grid>
-                                    <Grid className="ds-margin-top">
+                                    <Grid>
                                         <GridItem span={5}>
                                             <Checkbox
                                                 id="nsslapd-dn-validate-strict"
@@ -1300,7 +1308,7 @@ export class ServerSettings extends React.Component {
                                             />
                                         </GridItem>
                                     </Grid>
-                                    <Grid className="ds-margin-top">
+                                    <Grid>
                                         <GridItem span={5}>
                                             <Checkbox
                                                 id="nsslapd-ignore-time-skew"
@@ -1352,7 +1360,6 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        className="ds-margin-top"
                                         title="The DN of a template entry containing the resource limits to apply to anonymous connections (nsslapd-anonlimitsdn)."
                                     >
                                         <GridItem className="ds-label" span={3}>
@@ -1384,6 +1391,7 @@ export class ServerSettings extends React.Component {
                                 >
                                     {saveBtnName}
                                 </Button>
+                                <hr />
                             </Tab>
                         </Tabs>
                     </div>

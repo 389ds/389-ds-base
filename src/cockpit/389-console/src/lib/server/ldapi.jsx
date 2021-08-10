@@ -12,6 +12,9 @@ import {
     SelectVariant,
     Spinner,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -107,10 +110,6 @@ export class ServerLDAPI extends React.Component {
                     this.setState({
                         attributes: attrs,
                     }, this.props.enableTree);
-                })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.props.addNotification("error", `Failed to get attributes - ${errMsg.desc}`);
                 });
     }
 
@@ -261,7 +260,7 @@ export class ServerLDAPI extends React.Component {
             mapUserAttrs =
                 <div className="ds-margin-left">
                     <Grid
-                        className="ds-margin-left ds-margin-top"
+                        className="ds-margin-top"
                         title="The Directory Server attribute to map system UIDs to user entries (nsslapd-ldapiuidnumbertype)."
                     >
                         <GridItem className="ds-label" span={3}>
@@ -282,7 +281,7 @@ export class ServerLDAPI extends React.Component {
                         </GridItem>
                     </Grid>
                     <Grid
-                        className="ds-margin-left ds-margin-top"
+                        className="ds-margin-top"
                         title="The Directory Server attribute to map system GUIDs to user entries (nsslapd-ldapigidnumbertype)."
                     >
                         <GridItem className="ds-label" span={3}>
@@ -304,7 +303,7 @@ export class ServerLDAPI extends React.Component {
                     </Grid>
                     <Grid
                         title="The subtree to search for user entries to use for autobind. (nsslapd-ldapientrysearchbase)."
-                        className="ds-margin-left ds-margin-top"
+                        className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
                             LDAPI Entry Search Base
@@ -326,11 +325,8 @@ export class ServerLDAPI extends React.Component {
 
         let body =
             <div>
-                <Form className="ds-margin-top-xlg" isHorizontal>
-                    <Grid
-                        title="The Unix socket file (nsslapd-ldapifilepath).  The UI requires this exact path so it is a read-only setting."
-                        className="ds-margin-left"
-                    >
+                <Form className="ds-margin-top-xlg ds-left-margin" autoComplete="off" isHorizontal>
+                    <Grid title="The Unix socket file (nsslapd-ldapifilepath).  The UI requires this exact path so it is a read-only setting.">
                         <GridItem className="ds-label" span={3}>
                             LDAPI Socket File Path
                         </GridItem>
@@ -344,12 +340,9 @@ export class ServerLDAPI extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid
-                        title="Map the Unix root entry to this Directory Manager DN (nsslapd-ldapimaprootdn).  The UI requires this to be set to the current root DN so it is a read-only setting."
-                        className="ds-margin-left"
-                    >
+                    <Grid title="Map the Unix root entry to this Directory Manager DN (nsslapd-ldapimaprootdn).  The UI requires this to be set to the current root DN so it is a read-only setting.">
                         <GridItem className="ds-label" span={3}>
-                            LDAPI Socket File Path
+                            LDAPI Map To Root DN
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -363,7 +356,7 @@ export class ServerLDAPI extends React.Component {
                     </Grid>
                     <Grid
                         title="Map regular system users to Directory Server entries (nsslapd-ldapimaptoentries)."
-                        className="ds-margin-left"
+                        className="ds-margin-top"
                     >
                         <GridItem span={5}>
                             <Checkbox
@@ -393,21 +386,30 @@ export class ServerLDAPI extends React.Component {
             </div>;
 
         if (!this.state.loaded) {
-            body = <Spinner size="lg" />;
+            body =
+                <div className="ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>Loading LDAPI configuration ...</Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top" size="lg" />
+                </div>;
         }
 
         return (
             <div id="server-ldapi-page" className={this.state.loading ? "ds-disabled" : ""}>
                 <Grid>
                     <GridItem span={5}>
-                        <h4>LDAPI & AutoBind Settings <FontAwesomeIcon
-                            size="lg"
-                            className="ds-left-margin ds-refresh"
-                            icon={faSyncAlt}
-                            title="Refresh LDAPI settings"
-                            onClick={this.loadConfig}
-                        />
-                        </h4>
+                        <TextContent>
+                            <Text component={TextVariants.h3}>
+                                LDAPI & AutoBind Settings <FontAwesomeIcon
+                                    size="lg"
+                                    className="ds-left-margin ds-refresh"
+                                    icon={faSyncAlt}
+                                    title="Refresh LDAPI settings"
+                                    onClick={this.loadConfig}
+                                />
+                            </Text>
+                        </TextContent>
                     </GridItem>
                 </Grid>
                 {body}

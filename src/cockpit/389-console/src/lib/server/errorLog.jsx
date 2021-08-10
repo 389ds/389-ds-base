@@ -15,6 +15,9 @@ import {
     Tabs,
     TabTitleText,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     TimePicker,
     noop
 } from "@patternfly/react-core";
@@ -478,7 +481,7 @@ export class ServerErrorLog extends React.Component {
         rotationTime = hour + ":" + min;
 
         let body =
-            <div className="ds-margin-top-lg">
+            <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText><b>Settings</b></TabTitleText>}>
                         <Checkbox
@@ -662,7 +665,6 @@ export class ServerErrorLog extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                className="ds-margin-top"
                                 title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-errorlog-logminfreediskspace)."
                             >
                                 <GridItem className="ds-label" span={3}>
@@ -682,7 +684,6 @@ export class ServerErrorLog extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                className="ds-margin-top"
                                 title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-errorlog-logexpirationtime)."
                             >
                                 <GridItem className="ds-label" span={3}>
@@ -736,8 +737,11 @@ export class ServerErrorLog extends React.Component {
 
         if (!this.state.loaded) {
             body =
-                <div className="ds-margin-top-xlg ds-center">
-                    <Spinner size="xl" />
+                <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>Loading Error Log Settings ...</Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top" size="lg" />
                 </div>;
         }
 
@@ -745,16 +749,19 @@ export class ServerErrorLog extends React.Component {
             <div id="server-errorlog-page" className={this.state.loading ? "ds-disabled" : ""}>
                 <Grid>
                     <GridItem span={3}>
-                        <h4>Error Log Settings <FontAwesomeIcon
-                            size="lg"
-                            className="ds-left-margin ds-refresh"
-                            icon={faSyncAlt}
-                            title="Refresh Error Log settings"
-                            onClick={() => {
-                                this.reloadConfig(true);
-                            }}
-                        />
-                        </h4>
+                        <TextContent>
+                            <Text component={TextVariants.h3}>
+                                Error Log Settings <FontAwesomeIcon
+                                    size="lg"
+                                    className="ds-left-margin ds-refresh"
+                                    icon={faSyncAlt}
+                                    title="Refresh log settings"
+                                    onClick={() => {
+                                        this.reloadConfig(true);
+                                    }}
+                                />
+                            </Text>
+                        </TextContent>
                     </GridItem>
                 </Grid>
                 {body}

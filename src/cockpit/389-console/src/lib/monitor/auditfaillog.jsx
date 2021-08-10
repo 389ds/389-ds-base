@@ -2,13 +2,23 @@ import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import {
+    Checkbox,
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
     Spinner,
-    noop,
-    Row,
-    Col,
-    Icon,
-    ControlLabel
-} from "patternfly-react";
+    TextArea,
+    Text,
+    TextContent,
+    TextVariants,
+    noop
+} from "@patternfly/react-core";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faSyncAlt
+} from '@fortawesome/free-solid-svg-icons';
+import '@fortawesome/fontawesome-svg-core/styles.css';
 
 export class AuditFailLogMonitor extends React.Component {
     constructor (props) {
@@ -82,70 +92,73 @@ export class AuditFailLogMonitor extends React.Component {
         if (this.state.auditfailReloading) {
             spinner =
                 <div>
-                    <Spinner inline loading size="sm" />
+                    <Spinner size="sm" />
                     Reloading audit failure log...
                 </div>;
         }
-        let contRefreshCheckbox =
-            <input type="checkbox" className="ds-sm-left-margin"
-                onChange={this.auditFailRefreshCont}
-            />;
-        if (this.state.auditfailRefreshing) {
-            contRefreshCheckbox =
-                <input type="checkbox" className="ds-sm-left-margin"
-                    defaultChecked onChange={this.auditFailRefreshCont}
-                />;
-        }
-
-        let selectLines =
-            <div>
-                <label htmlFor="auditfaillog-lines"> Log Lines To Show</label><select
-                    className="btn btn-default dropdown ds-left-margin"
-                    onChange={this.handleAuditFailChange}
-                    id="auditfaillog-lines" value={this.state.auditfailLines}>
-                    <option>50</option>
-                    <option>100</option>
-                    <option>200</option>
-                    <option>300</option>
-                    <option>400</option>
-                    <option>500</option>
-                    <option>1000</option>
-                    <option>2000</option>
-                    <option>5000</option>
-                    <option>10000</option>
-                    <option>50000</option>
-                </select>
-            </div>;
 
         return (
             <div id="monitor-log-auditfail-page">
-                <Row>
-                    <Col sm={4}>
-                        <ControlLabel className="ds-suffix-header">
-                            Audit Failure Log
-                            <Icon className="ds-left-margin ds-refresh"
-                                type="fa" name="refresh" title="Refresh audit failure log"
-                                onClick={this.refreshAuditFailLog}
-                            />
-                        </ControlLabel>
-                    </Col>
-                    <Col sm={8} className="ds-float-left">
+                <Grid>
+                    <GridItem span={3}>
+                        <TextContent>
+                            <Text component={TextVariants.h3}>
+                                Audit Failure Log <FontAwesomeIcon
+                                    size="lg"
+                                    className="ds-left-margin ds-refresh"
+                                    icon={faSyncAlt}
+                                    title="Refresh audit failure log"
+                                    onClick={this.refreshAuditFailLog}
+                                />
+                            </Text>
+                        </TextContent>
+                    </GridItem>
+                    <GridItem span={9} className="ds-float-left">
                         {spinner}
-                    </Col>
-                </Row>
-                <Row className="ds-margin-top-lg">
-                    <Col sm={6}>
-                        {selectLines}
-                    </Col>
-                    <Col sm={6}>
+                    </GridItem>
+                </Grid>
+
+                <Grid className="ds-margin-top-lg ds-indent">
+                    <GridItem span={2}>
+                        <FormSelect
+                            id="auditfailLines"
+                            value={this.state.auditfailLines}
+                            onChange={(value, event) => {
+                                this.handleAuditFailChange(event);
+                            }}
+                            aria-label="FormSelect Input"
+                        >
+                            <FormSelectOption key="50" value="50" label="50" />
+                            <FormSelectOption key="100" value="100" label="100" />
+                            <FormSelectOption key="200" value="200" label="200" />
+                            <FormSelectOption key="300" value="300" label="300" />
+                            <FormSelectOption key="400" value="400" label="400" />
+                            <FormSelectOption key="500" value="500" label="500" />
+                            <FormSelectOption key="1000" value="1000" label="1000" />
+                            <FormSelectOption key="2000" value="2000" label="2000" />
+                            <FormSelectOption key="5000" value="5000" label="5000" />
+                            <FormSelectOption key="10000" value="10000" label="10000" />
+                            <FormSelectOption key="50000" value="50000" label="50000" />
+                        </FormSelect>
+                    </GridItem>
+                    <GridItem span={10}>
                         <div className="ds-float-right">
-                            <label>
-                                {contRefreshCheckbox} Continuously Refresh
-                            </label>
+                            <Checkbox
+                                id="auditfailRefreshing"
+                                isChecked={this.state.auditfailRefreshing}
+                                onChange={(checked, e) => { this.auditFailRefreshCont(e) }}
+                                label="Continuously Refresh"
+                            />
                         </div>
-                    </Col>
-                </Row>
-                <textarea id="auditfaillog-area" className="ds-logarea" value={this.state.auditfaillogData} readOnly />
+                    </GridItem>
+                    <TextArea
+                        id="auditfaillog-area"
+                        resizeOrientation="vertical"
+                        className="ds-logarea ds-margin-top-lg"
+                        value={this.state.auditfaillogData}
+                        aria-label="text area example"
+                    />
+                </Grid>
             </div>
         );
     }

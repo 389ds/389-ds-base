@@ -1,31 +1,27 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Row,
-    Col,
-    Form,
-    FormGroup,
-    FormControl,
-    ControlLabel
-} from "patternfly-react";
-import {
     Button,
     Checkbox,
-    // Form,
-    // FormGroup,
+    Form,
+    FormHelperText,
+    Grid,
+    GridItem,
     Modal,
     ModalVariant,
     Select,
     SelectVariant,
     SelectOption,
-    // TextInput,
+    TextInput,
+    ValidatedOptions,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, valid_dn } from "../tools.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 
-// Use default aacount policy name
+// Use default account policy name
 
 class AccountPolicy extends React.Component {
     componentDidMount() {
@@ -41,59 +37,73 @@ class AccountPolicy extends React.Component {
     constructor(props) {
         super(props);
 
-        this.getAttributes = this.getAttributes.bind(this);
         this.updateFields = this.updateFields.bind(this);
+        this.handleChange = this.handleChange.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
+        this.handleModalChange = this.handleModalChange.bind(this);
         this.handleCheckboxChange = this.handleCheckboxChange.bind(this);
         this.openModal = this.openModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
         this.addConfig = this.addConfig.bind(this);
         this.editConfig = this.editConfig.bind(this);
         this.deleteConfig = this.deleteConfig.bind(this);
+        this.saveConfig = this.saveConfig.bind(this);
         this.cmdOperation = this.cmdOperation.bind(this);
+        this.showConfirmDelete = this.showConfirmDelete.bind(this);
+        this.closeConfirmDelete = this.closeConfirmDelete.bind(this);
+        this.sharedConfigExists = this.sharedConfigExists.bind(this);
+        this.validateConfig = this.validateConfig.bind(this);
 
         this.state = {
             attributes: [],
+            // Main config
             configArea: "",
+            _configArea: "",
+            error: [],
+            saveBtnDisabled: true,
+            saving: false,
+            addingModal: false,
+            savingModal: false,
+            sharedConfigExists: false,
+            // Modal Config
             configDN: "",
-            altStateAttrName: [],
-            altStateAttrNameOptions: [],
+            altStateAttrName: "",
             alwaysRecordLogin: false,
-            alwaysRecordLoginAttr: [],
-            alwaysRecordLoginAttrOptions: [],
-            limitAttrName: [],
-            limitAttrNameOptions: [],
-            specAttrName: [],
-            specAttrNameOptions: [],
-            stateAttrName: [],
-            stateAttrNameOptions: [],
+            alwaysRecordLoginAttr: "",
+            limitAttrName: "",
+            specAttrName: "",
+            stateAttrName: "",
+            _configDN: "",
+            _altStateAttrName: [],
+            _alwaysRecordLogin: false,
+            _alwaysRecordLoginAttr: "",
+            _limitAttrName: "",
+            _specAttrName: "",
+            _stateAttrName: "",
+            errorModal: {},
+            saveBtnDisabledModal: true,
+            modalChecked: false,
+            modalSpinning: false,
             configEntryModalShow: false,
             fixupModalShow: false,
             newEntry: false,
-
             isRecordLoginOpen: false,
             isSpecificAttrOpen: false,
             isStateAttrOpen: false,
             isAltStateAttrOpen: false,
             isLimitAttrOpen: false,
+            showConfirmDelete: false,
         };
 
         // Always Record Login Attribute
         this.onRecordLoginSelect = (event, selection) => {
-            if (this.state.alwaysRecordLoginAttr.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        alwaysRecordLoginAttr: prevState.alwaysRecordLoginAttr.filter((item) => item !== selection),
-                        isRecordLoginOpen: false
-                    }),
-                );
+            if (selection == this.state.alwaysRecordLoginAttr) {
+                this.onRecordLoginClear();
             } else {
-                this.setState(
-                    (prevState) => ({
-                        alwaysRecordLoginAttr: [...prevState.alwaysRecordLoginAttr, selection],
-                        isRecordLoginOpen: false
-                    }),
-                );
+                this.setState({
+                    alwaysRecordLoginAttr: selection,
+                    isRecordLoginOpen: false
+                }, () => { this.validateConfig() });
             }
         };
         this.onRecordLoginToggle = isRecordLoginOpen => {
@@ -103,35 +113,20 @@ class AccountPolicy extends React.Component {
         };
         this.onRecordLoginClear = () => {
             this.setState({
-                alwaysRecordLoginAttr: [],
+                alwaysRecordLoginAttr: "",
                 isRecordLoginOpen: false
             });
-        };
-        this.onRecordLoginCreateOption = newValue => {
-            if (!this.state.alwaysRecordLoginAttrOptions.includes(newValue)) {
-                this.setState({
-                    alwaysRecordLoginAttrOptions: [...this.state.alwaysRecordLoginAttrOptions, newValue],
-                    isRecordLoginOpen: false
-                });
-            }
         };
 
         // Specific Attribute
         this.onSpecificAttrSelect = (event, selection) => {
-            if (this.state.specAttrName.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        specAttrName: prevState.specAttrName.filter((item) => item !== selection),
-                        isSpecificAttrOpen: false
-                    }),
-                );
+            if (selection == this.state.specAttrName) {
+                this.onSpecificAttrClear();
             } else {
-                this.setState(
-                    (prevState) => ({
-                        specAttrName: [...prevState.specAttrName, selection],
-                        isSpecificAttrOpen: false
-                    }),
-                );
+                this.setState({
+                    specAttrName: selection,
+                    isSpecificAttrOpen: false
+                }, () => { this.validateConfig() });
             }
         };
         this.onSpecificAttrToggle = isSpecificAttrOpen => {
@@ -145,31 +140,16 @@ class AccountPolicy extends React.Component {
                 isSpecificAttrOpen: false
             });
         };
-        this.onSpecificAttrCreateOption = newValue => {
-            if (!this.state.specAttrNameOptions.includes(newValue)) {
-                this.setState({
-                    specAttrNameOptions: [...this.state.specAttrNameOptions, newValue],
-                    isSpecificAttrOpen: false
-                });
-            }
-        };
 
         // State Attribute
         this.onStateAttrSelect = (event, selection) => {
-            if (this.state.stateAttrName.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        stateAttrName: prevState.stateAttrName.filter((item) => item !== selection),
-                        isStateAttrOpen: false
-                    }),
-                );
+            if (selection == this.state.stateAttrName) {
+                this.onStateAttrClear();
             } else {
-                this.setState(
-                    (prevState) => ({
-                        stateAttrName: [...prevState.stateAttrName, selection],
-                        isStateAttrOpen: false
-                    }),
-                );
+                this.setState({
+                    stateAttrName: selection,
+                    isStateAttrOpen: false
+                }, () => { this.validateConfig() });
             }
         };
         this.onStateAttrToggle = isStateAttrOpen => {
@@ -183,31 +163,16 @@ class AccountPolicy extends React.Component {
                 isStateAttrOpen: false
             });
         };
-        this.onStateAttrCreateOption = newValue => {
-            if (!this.state.stateAttrNameOptions.includes(newValue)) {
-                this.setState({
-                    stateAttrName: [...this.state.stateAttrName, newValue],
-                    isStateAttrOpen: false
-                });
-            }
-        };
 
         // Alternative State Attribute
         this.onAlternativeStateSelect = (event, selection) => {
-            if (this.state.altStateAttrName.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        altStateAttrName: prevState.altStateAttrName.filter((item) => item !== selection),
-                        isAltStateAttrOpen: false
-                    }),
-                );
+            if (selection == this.state.altStateAttrName) {
+                this.onAlternativeStateClear();
             } else {
-                this.setState(
-                    (prevState) => ({
-                        altStateAttrName: [...prevState.altStateAttrName, selection],
-                        isAltStateAttrOpen: false
-                    }),
-                );
+                this.setState({
+                    altStateAttrName: selection,
+                    isAltStateAttrOpen: false
+                }, () => { this.validateConfig() });
             }
         };
         this.onAlternativeStateToggle = isAltStateAttrOpen => {
@@ -221,30 +186,16 @@ class AccountPolicy extends React.Component {
                 isAltStateAttrOpen: false
             });
         };
-        this.onAlternativeStateCreateOption = newValue => {
-            if (!this.state.altStateAttrNameOptions.includes(newValue)) {
-                this.setState({
-                    altStateAttrNameOptions: [...this.state.altStateAttrNameOptions, newValue],
-                    isAltStateAttrOpen: false
-                });
-            }
-        };
+
         // Limit Attribute
         this.onLimitAttrSelect = (event, selection) => {
-            if (this.state.limitAttrName.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        limitAttrName: prevState.limitAttrName.filter((item) => item !== selection),
-                        isLimitAttrOpen: false
-                    }),
-                );
+            if (selection == this.state.limitAttrName) {
+                this.onLimitAttrClear();
             } else {
-                this.setState(
-                    (prevState) => ({
-                        limitAttrName: [...prevState.limitAttrName, selection],
-                        isLimitAttrOpen: false
-                    }),
-                );
+                this.setState({
+                    limitAttrName: selection,
+                    isLimitAttrOpen: false
+                }, () => { this.validateConfig() });
             }
         };
         this.onLimitAttrToggle = isLimitAttrOpen => {
@@ -258,29 +209,76 @@ class AccountPolicy extends React.Component {
                 isLimitAttrOpen: false
             });
         };
-        this.onLimitAttrCreateOption = newValue => {
-            if (!this.state.onLimitAttrCreateOption.includes(newValue)) {
-                this.setState({
-                    onLimitAttrCreateOption: [...this.state.onLimitAttrCreateOption, newValue],
-                    isLimitAttrOpen: false
-                });
-            }
-        };
+    }
+
+    showConfirmDelete() {
+        this.setState({
+            showConfirmDelete: true,
+            modalChecked: false,
+            modalSpinning: false,
+        });
+    }
+
+    closeConfirmDelete() {
+        this.setState({
+            showConfirmDelete: false,
+            modalChecked: false,
+            modalSpinning: false,
+        });
+    }
+
+    sharedConfigExists() {
+        if (this.state.configArea) {
+            let cmd = [
+                "dsconf",
+                "-j",
+                "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                "plugin",
+                "account-policy",
+                "config-entry",
+                "show",
+                this.state.configArea
+            ];
+            log_cmd("sharedConfigExists", "Check if Account Policy config entry exists", cmd);
+            cockpit
+                    .spawn(cmd, {
+                        superuser: true,
+                        err: "message"
+                    })
+                    .done(content => {
+                        this.setState({
+                            sharedConfigExists: true
+                        });
+                    })
+                    .fail(_ => {
+                        this.setState({
+                            sharedConfigExists: false
+                        });
+                    });
+        }
     }
 
     openModal() {
-        this.getAttributes();
         if (!this.state.configArea) {
             this.setState({
                 configEntryModalShow: true,
                 newEntry: true,
                 configDN: "",
-                altStateAttrName: [],
+                altStateAttrName: "createTimestamp",
                 alwaysRecordLogin: false,
-                alwaysRecordLoginAttr: [],
-                limitAttrName: [],
-                specAttrName: [],
-                stateAttrName: []
+                alwaysRecordLoginAttr: "lastLoginTime",
+                limitAttrName: "accountInactivityLimit",
+                specAttrName: "acctPolicySubentry",
+                stateAttrName: "lastLoginTime",
+                _configDN: "",
+                _altStateAttrName: "createTimestamp",
+                _alwaysRecordLogin: false,
+                _alwaysRecordLoginAttr: "lastLoginTime",
+                _limitAttrName: "accountInactivityLimit",
+                _specAttrName: "acctPolicySubentry",
+                _stateAttrName: "lastLoginTime",
+                savingModal: false,
+                saveBtnDisabledModal: true,
             });
         } else {
             let cmd = [
@@ -294,7 +292,6 @@ class AccountPolicy extends React.Component {
                 this.state.configArea
             ];
 
-            this.props.toggleLoadingHandler();
             log_cmd("openModal", "Fetch the Account Policy Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
@@ -306,57 +303,80 @@ class AccountPolicy extends React.Component {
                         this.setState({
                             configEntryModalShow: true,
                             newEntry: false,
+                            savingModal: false,
+                            saveBtnDisabledModal: true,
                             configDN: this.state.configArea,
+                            _configDN: this.state.configArea,
                             altStateAttrName:
                             configEntry["altstateattrname"] === undefined
-                                ? []
-                                : [
-                                    configEntry["altstateattrname"][0]
-                                ],
+                                ? "createTimestamp"
+                                : configEntry["altstateattrname"][0],
                             alwaysRecordLogin: !(
                                 configEntry["alwaysrecordlogin"] === undefined ||
                             configEntry["alwaysrecordlogin"][0] == "no"
                             ),
                             alwaysRecordLoginAttr:
                             configEntry["alwaysrecordloginattr"] === undefined
-                                ? []
-                                : [
-                                    configEntry["alwaysrecordloginattr"][0]
-                                ],
+                                ? "lastLoginTime"
+                                : configEntry["alwaysrecordloginattr"][0],
                             limitAttrName:
                             configEntry["limitattrname"] === undefined
-                                ? []
-                                : [
-                                    configEntry["limitattrname"][0]
-                                ],
+                                ? "accountInactivityLimit"
+                                : configEntry["limitattrname"][0],
                             specAttrName:
                             configEntry["specattrname"] === undefined
-                                ? []
-                                : [
-                                    configEntry["specattrname"][0]
-                                ],
+                                ? "acctPolicySubentry"
+                                : configEntry["specattrname"][0],
                             stateAttrName:
                             configEntry["stateattrname"] === undefined
-                                ? []
-                                : [
-                                    configEntry["stateattrname"][0],
-                                ]
+                                ? "lastLoginTime"
+                                : configEntry["stateattrname"][0],
+                            // original values
+                            _altStateAttrName:
+                            configEntry["altstateattrname"] === undefined
+                                ? "createTimestamp"
+                                : configEntry["altstateattrname"][0],
+                            _alwaysRecordLogin: !(
+                                configEntry["alwaysrecordlogin"] === undefined ||
+                            configEntry["alwaysrecordlogin"][0] == "no"
+                            ),
+                            _alwaysRecordLoginAttr:
+                            configEntry["alwaysrecordloginattr"] === undefined
+                                ? "lastLoginTime"
+                                : configEntry["alwaysrecordloginattr"][0],
+                            _limitAttrName:
+                            configEntry["limitattrname"] === undefined
+                                ? "accountInactivityLimit"
+                                : configEntry["limitattrname"][0],
+                            _specAttrName:
+                            configEntry["specattrname"] === undefined
+                                ? "acctPolicySubentry"
+                                : configEntry["specattrname"][0],
+                            _stateAttrName:
+                            configEntry["stateattrname"] === undefined
+                                ? "lastLoginTime"
+                                : configEntry["stateattrname"][0],
                         });
-                        this.props.toggleLoadingHandler();
                     })
                     .fail(_ => {
                         this.setState({
                             configEntryModalShow: true,
                             newEntry: true,
                             configDN: this.state.configArea,
-                            altStateAttrName: [],
+                            altStateAttrName: "createTimestamp",
                             alwaysRecordLogin: false,
-                            alwaysRecordLoginAttr: [],
-                            limitAttrName: [],
-                            specAttrName: [],
-                            stateAttrName: []
+                            alwaysRecordLoginAttr: "lastLoginTime",
+                            limitAttrName: "accountInactivityLimit",
+                            specAttrName: "acctPolicySubentry",
+                            stateAttrName: "lastLoginTime",
+                            _altStateAttrName: "createTimestamp",
+                            _alwaysRecordLogin: false,
+                            _alwaysRecordLoginAttr: "lastLoginTime",
+                            _limitAttrName: "accountInactivityLimit",
+                            _specAttrName: "acctPolicySubentry",
+                            _stateAttrName: "lastLoginTime",
+                            saveBtnDisabledModal: false, // We preset the form so it's ready to save
                         });
-                        this.props.toggleLoadingHandler();
                     });
         }
     }
@@ -390,8 +410,8 @@ class AccountPolicy extends React.Component {
         ];
 
         cmd = [...cmd, "--alt-state-attr"];
-        if (altStateAttrName.length != 0) {
-            cmd = [...cmd, altStateAttrName[0]];
+        if (altStateAttrName != "") {
+            cmd = [...cmd, altStateAttrName];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -399,8 +419,8 @@ class AccountPolicy extends React.Component {
         }
 
         cmd = [...cmd, "--always-record-login-attr"];
-        if (alwaysRecordLoginAttr.length != 0) {
-            cmd = [...cmd, alwaysRecordLoginAttr[0]];
+        if (alwaysRecordLoginAttr != "") {
+            cmd = [...cmd, alwaysRecordLoginAttr];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -408,8 +428,8 @@ class AccountPolicy extends React.Component {
         }
 
         cmd = [...cmd, "--limit-attr"];
-        if (limitAttrName.length != 0) {
-            cmd = [...cmd, limitAttrName[0]];
+        if (limitAttrName != "") {
+            cmd = [...cmd, limitAttrName];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -417,8 +437,8 @@ class AccountPolicy extends React.Component {
         }
 
         cmd = [...cmd, "--spec-attr"];
-        if (specAttrName.length != 0) {
-            cmd = [...cmd, specAttrName[0]];
+        if (specAttrName != "") {
+            cmd = [...cmd, specAttrName];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -426,15 +446,23 @@ class AccountPolicy extends React.Component {
         }
 
         cmd = [...cmd, "--state-attr"];
-        if (stateAttrName.length != 0) {
-            cmd = [...cmd, stateAttrName[0]];
+        if (stateAttrName != "") {
+            cmd = [...cmd, stateAttrName];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
             cmd = [...cmd, "delete"];
         }
 
-        this.props.toggleLoadingHandler();
+        if (action == "add") {
+            this.setState({
+                addingModal: true,
+            });
+        } else {
+            this.setState({
+                savingModal: true,
+            });
+        }
         log_cmd(
             "accountPolicyOperation",
             `Do the ${action} operation on the Account Policy Plugin`,
@@ -453,7 +481,15 @@ class AccountPolicy extends React.Component {
                     );
                     this.props.pluginListHandler();
                     this.closeModal();
-                    this.props.toggleLoadingHandler();
+                    if (action == "add") {
+                        this.setState({
+                            addingModal: false,
+                        });
+                    } else {
+                        this.setState({
+                            savingModal: false,
+                        });
+                    }
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -463,7 +499,15 @@ class AccountPolicy extends React.Component {
                     );
                     this.props.pluginListHandler();
                     this.closeModal();
-                    this.props.toggleLoadingHandler();
+                    if (action == "add") {
+                        this.setState({
+                            addingModal: false,
+                        });
+                    } else {
+                        this.setState({
+                            savingModal: false,
+                        });
+                    }
                 });
     }
 
@@ -479,7 +523,9 @@ class AccountPolicy extends React.Component {
             this.state.configDN
         ];
 
-        this.props.toggleLoadingHandler();
+        this.setState({
+            modalSpinning: true
+        });
         log_cmd("deleteConfig", "Delete the Account Policy Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
@@ -493,8 +539,8 @@ class AccountPolicy extends React.Component {
                         `Config entry ${this.state.configDN} was successfully deleted`
                     );
                     this.props.pluginListHandler();
+                    this.closeConfirmDelete();
                     this.closeModal();
-                    this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -503,8 +549,8 @@ class AccountPolicy extends React.Component {
                         `Error during the config entry removal operation - ${errMsg.desc}`
                     );
                     this.props.pluginListHandler();
+                    this.closeConfirmDelete();
                     this.closeModal();
-                    this.props.toggleLoadingHandler();
                 });
     }
 
@@ -519,59 +565,150 @@ class AccountPolicy extends React.Component {
     handleCheckboxChange(checked, e) {
         this.setState({
             [e.target.id]: checked
+        }, () => { this.validateConfig() });
+    }
+
+    validateConfig() {
+        let errObj = {};
+        let all_good = true;
+        let dnAttrs = [
+            'configDN'
+        ];
+
+        for (let attr of dnAttrs) {
+            if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
+                errObj[attr] = true;
+                all_good = false;
+            }
+        }
+
+        if (all_good) {
+            // Check for value differences to see if the save btn should be enabled
+            all_good = false;
+            let attrs = [
+                'configDN', 'altStateAttrName', 'alwaysRecordLogin',
+                'alwaysRecordLoginAttr', 'limitAttrName', 'stateAttrName'
+            ];
+            for (let check_attr of attrs) {
+                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                    all_good = true;
+                    break;
+                }
+            }
+        }
+        this.setState({
+            saveBtnDisabledModal: !all_good,
+            errorModal: errObj
         });
     }
 
     handleFieldChange(e) {
+        let attr = e.target.id; // always configArea
+        let value = e.target.value;
+        let saveBtnDisabled = true;
+        let errObj = {};
+
+        errObj[attr] = false;
+        if (value != "") {
+            if (!valid_dn(value)) {
+                errObj[attr] = true;
+            } else if (value != this.state['_' + attr]) {
+                // New valid value, enable save button
+                saveBtnDisabled = false;
+            }
+        } else if (value != this.state['_' + attr]) {
+            // New valid value, enable save button
+            saveBtnDisabled = false;
+        }
+
         this.setState({
-            [e.target.id]: e.target.value
+            [attr]: value,
+            error: errObj,
+            saveBtnDisabled: saveBtnDisabled
+        });
+    }
+
+    handleModalChange(e) {
+        this.setState({
+            [e.target.id]: e.target.value,
+        }, () => { this.validateConfig() });
+    }
+
+    handleChange(e) {
+        // Generic handler for things that don't need validating
+        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.setState({
+            [e.target.id]: value,
         });
     }
 
     updateFields() {
         if (this.props.rows.length > 0) {
             const pluginRow = this.props.rows.find(row => row.cn[0] === "Account Policy Plugin");
-
             this.setState({
                 configArea:
                     pluginRow["nsslapd_pluginconfigarea"] === undefined
                         ? ""
                         : pluginRow["nsslapd_pluginconfigarea"][0]
-            });
+            }, () => { this.sharedConfigExists() });
         }
     }
 
-    getAttributes() {
-        const attr_cmd = [
+    saveConfig() {
+        let cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "schema",
-            "attributetypes",
-            "list"
+            "plugin",
+            "account-policy",
+            "set",
+            "--config-entry",
+            this.state.configArea || "delete"
         ];
-        log_cmd("getAttributes", "Get attrs", attr_cmd);
+
+        this.setState({
+            saving: true
+        });
+
+        log_cmd(
+            "saveConfig",
+            `Save Account Policy Plugin`,
+            cmd
+        );
         cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .spawn(cmd, {
+                    superuser: true,
+                    err: "message"
+                })
                 .done(content => {
-                    const attrContent = JSON.parse(content);
-                    let attrs = [];
-                    for (let content of attrContent["items"]) {
-                        attrs.push(content.name[0]);
-                    }
+                    this.props.addNotification(
+                        "success",
+                        `Successfully updated Account Policy Plugin`
+                    );
                     this.setState({
-                        attributes: attrs
+                        saving: false
                     });
+                    this.props.pluginListHandler();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.props.addNotification("error", `Failed to get attributes - ${errMsg.desc}`);
+                    if ('info' in errMsg) {
+                        errMsg = errMsg.desc + " " + errMsg.info;
+                    } else {
+                        errMsg = errMsg.desc;
+                    }
+                    this.props.addNotification(
+                        "error", `Error during update - ${errMsg}`
+                    );
+                    this.setState({
+                        saving: false
+                    });
+                    this.props.pluginListHandler();
                 });
     }
 
     render() {
         const {
-            attributes,
             configArea,
             configDN,
             altStateAttrName,
@@ -581,261 +718,234 @@ class AccountPolicy extends React.Component {
             specAttrName,
             stateAttrName,
             newEntry,
-            configEntryModalShow
+            configEntryModalShow,
+            error,
+            errorModal,
+            saveBtnDisabled,
+            saveBtnDisabledModal,
+            saving,
+            savingModal,
+            addingModal,
         } = this.state;
 
-        let specificPluginCMD = [
-            "dsconf",
-            "-j",
-            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "plugin",
-            "account-policy",
-            "set",
-            "--config-entry",
-            configArea || "delete"
-        ];
+        let extraPrimaryProps = {};
+        let saveBtnText = "Save Config";
+        if (saving) {
+            // Main plugin config
+            saveBtnText = "Saving ...";
+        }
+        let modalButtons = [];
+        if (!newEntry) {
+            modalButtons = [
+                <Button key="del" variant="primary" onClick={this.showConfirmDelete} >
+                    Delete Config
+                </Button>,
+                <Button
+                    key="save"
+                    variant="primary"
+                    onClick={this.editConfig}
+                    isDisabled={saveBtnDisabledModal}
+                    isLoading={savingModal}
+                    spinnerAriaValueText={savingModal ? "Saving" : undefined}
+                    {...extraPrimaryProps}
+                >
+                    {savingModal ? "Saving ..." : "Save Config"}
+                </Button>,
+                <Button key="cancel" variant="link" onClick={this.closeModal}>
+                    Cancel
+                </Button>
+            ];
+        } else {
+            modalButtons = [
+                <Button
+                    key="add"
+                    variant="primary"
+                    onClick={this.addConfig}
+                    isDisabled={saveBtnDisabledModal}
+                    isLoading={addingModal}
+                    spinnerAriaValueText={addingModal ? "Saving" : undefined}
+                    {...extraPrimaryProps}
+                >
+                    {addingModal ? "Adding ..." : "Add Config"}
+                </Button>,
+                <Button key="cancel" variant="link" onClick={this.closeModal}>
+                    Cancel
+                </Button>
+            ];
+        }
 
         return (
-            <div>
+            <div className={this.state.saving || this.state.savingModal || this.state.addingModal ? "ds-disabled" : ""}>
                 <Modal
                     variant={ModalVariant.medium}
                     title="Manage Account Policy Plugin Shared Config Entry"
                     isOpen={configEntryModalShow}
                     aria-labelledby="ds-modal"
                     onClose={this.closeModal}
-                    actions={[
-                        <Button key="delete" variant="primary" onClick={this.deleteConfig} isDisabled={newEntry}>
-                            Delete
-                        </Button>,
-                        <Button key="save" variant="primary" onClick={this.editConfig} isDisabled={newEntry}>
-                            Save
-                        </Button>,
-                        <Button key="add" variant="primary" onClick={this.addConfig} isDisabled={!newEntry}>
-                            Add
-                        </Button>,
-                        <Button key="cancel" variant="link" onClick={this.closeModal}>
-                            Cancel
-                        </Button>
-                    ]}
+                    actions={modalButtons}
                 >
-                    <Row>
-                        <Col sm={12}>
-                            <Form horizontal>
-                                <FormGroup controlId="configDN">
-                                    <Col sm={4} title="DN of the config entry" componentClass={ControlLabel}>
-                                        Config DN
-                                    </Col>
-                                    <Col sm={8}>
-                                        <FormControl
-                                            type="text"
-                                            value={configDN}
-                                            onChange={this.handleFieldChange}
-                                            disabled={!newEntry}
+                    <Form isHorizontal autoComplete="no">
+                        <Grid title="DN of the config entry">
+                            <GridItem span={4} className="ds-label">
+                                Config DN
+                            </GridItem>
+                            <GridItem span={8}>
+                                <TextInput
+                                    value={configDN}
+                                    type="text"
+                                    id="configDN"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="configDN"
+                                    onChange={(str, e) => { this.handleModalChange(e) }}
+                                    validated={errorModal.configDN ? ValidatedOptions.error : ValidatedOptions.default}
+                                    isDisabled={newEntry}
+                                />
+                                <FormHelperText isError isHidden={!errorModal.configDN}>
+                                    Value must be a valid DN
+                                </FormHelperText>
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Specifies the attribute to store the time of the last successful login in this attribute in the users directory entry (alwaysRecordLoginAttr)">
+                            <GridItem span={4} className="ds-label">
+                                Always Record Login Attribute
+                            </GridItem>
+                            <GridItem span={4}>
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={this.onRecordLoginToggle}
+                                    onSelect={this.onRecordLoginSelect}
+                                    onClear={this.onRecordLoginClear}
+                                    selections={alwaysRecordLoginAttr}
+                                    isOpen={this.state.isRecordLoginOpen}
+                                    aria-labelledby="typeAhead-record-login"
+                                    placeholderText="Type an attribute name ..."
+                                    noResultsFoundText="There are no matching entries"
+                                >
+                                    {this.props.attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
                                         />
-                                    </Col>
-                                </FormGroup>
-                            </Form>
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col sm={12}>
-                            <Form horizontal>
-                                <FormGroup
-                                    key="alwaysRecordLoginAttr"
-                                    controlId="alwaysRecordLoginAttr"
-                                    disabled={false}
+                                        ))}
+                                </Select>
+                            </GridItem>
+                            <GridItem span={4}>
+                                <Checkbox
+                                    id="alwaysRecordLogin"
+                                    className="ds-left-margin"
+                                    isChecked={alwaysRecordLogin}
+                                    title="Sets that every entry records its last login time (alwaysRecordLogin)"
+                                    onChange={this.handleCheckboxChange}
+                                    label="Always Record Login"
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Specifies the attribute to identify which entries are account policy configuration entries (specAttrName)">
+                            <GridItem span={4} className="ds-label">
+                                Specific Attribute
+                            </GridItem>
+                            <GridItem span={8}>
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={this.onSpecificAttrToggle}
+                                    onSelect={this.onSpecificAttrSelect}
+                                    onClear={this.onSpecificAttrClear}
+                                    selections={specAttrName}
+                                    isOpen={this.state.isSpecificAttrOpen}
+                                    aria-labelledby="typeAhead-specific-attr"
+                                    placeholderText="Type an attribute name ..."
+                                    noResultsFoundText="There are no matching entries"
                                 >
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={4}
-                                        title="Specifies the attribute to store the time of the last successful login in this attribute in the users directory entry (alwaysRecordLoginAttr)"
-                                    >
-                                        Always Record Login Attribute
-                                    </Col>
-                                    <Col sm={5}>
-                                        <Select
-                                            variant={SelectVariant.typeahead}
-                                            typeAheadAriaLabel="Type an attribute name"
-                                            onToggle={this.onRecordLoginToggle}
-                                            onSelect={this.onRecordLoginSelect}
-                                            onClear={this.onRecordLoginClear}
-                                            selections={alwaysRecordLoginAttr}
-                                            isOpen={this.state.isRecordLoginOpen}
-                                            aria-labelledby="typeAhead-record-login"
-                                            placeholderText="Type an attribute name..."
-                                            noResultsFoundText="There are no matching entries"
-                                            isCreatable
-                                            onCreateOption={this.onRecordLoginCreateOption}
-                                            >
-                                            {attributes.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                                ))}
-                                        </Select>
-                                    </Col>
-                                    <Col sm={3}>
-                                        <Checkbox
-                                            id="alwaysRecordLogin"
-                                            isChecked={alwaysRecordLogin}
-                                            title="Sets that every entry records its last login time (alwaysRecordLogin)"
-                                            onChange={this.handleCheckboxChange}
-                                            label="Always Record Login"
+                                    {this.props.attributes.map((attr) => (
+                                        <SelectOption
+                                            key={attr}
+                                            value={attr}
                                         />
-                                    </Col>
-                                </FormGroup>
-                            </Form>
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col sm={12}>
-                            <Form horizontal>
-                                <FormGroup
-                                    key="specAttrName"
-                                    controlId="specAttrName"
-                                    disabled={false}
+                                        ))}
+                                </Select>
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Specifies the primary time attribute used to evaluate an account policy (stateAttrName)">
+                            <GridItem span={4} className="ds-label">
+                                State Attribute
+                            </GridItem>
+                            <GridItem span={8}>
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={this.onStateAttrToggle}
+                                    onSelect={this.onStateAttrSelect}
+                                    onClear={this.onStateAttrClear}
+                                    selections={stateAttrName}
+                                    isOpen={this.state.isStateAttrOpen}
+                                    aria-labelledby="typeAhead-state-attr"
+                                    placeholderText="Type an attribute name ..."
+                                    noResultsFoundText="There are no matching entries"
                                 >
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={4}
-                                        title="Specifies the attribute to identify which entries are account policy configuration entries (specAttrName)"
-                                    >
-                                        Specific Attribute
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Select
-                                            variant={SelectVariant.typeahead}
-                                            typeAheadAriaLabel="Type an attribute name"
-                                            onToggle={this.onSpecificAttrToggle}
-                                            onSelect={this.onSpecificAttrSelect}
-                                            onClear={this.onSpecificAttrClear}
-                                            selections={specAttrName}
-                                            isOpen={this.state.isSpecificAttrOpen}
-                                            aria-labelledby="typeAhead-specific-attr"
-                                            placeholderText="Type an attribute..."
-                                            noResultsFoundText="There are no matching entries"
-                                            isCreatable
-                                            onCreateOption={this.onSpecificAttrCreateOption}
-                                            >
-                                            {attributes.map((attr) => (
-                                                <SelectOption
-                                                    key={attr}
-                                                    value={attr}
-                                                />
-                                                ))}
-                                        </Select>
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup
-                                    key="stateAttrName"
-                                    controlId="stateAttrName"
-                                    disabled={false}
+                                    {this.props.attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                        ))}
+                                </Select>
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Provides a backup attribute for the server to reference to evaluate the expiration time (altStateAttrName)">
+                            <GridItem span={4} className="ds-label">
+                                Alternative State Attribute
+                            </GridItem>
+                            <GridItem span={8}>
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={this.onAlternativeStateToggle}
+                                    onSelect={this.onAlternativeStateSelect}
+                                    onClear={this.onAlternativeStateClear}
+                                    selections={altStateAttrName}
+                                    isOpen={this.state.isAltStateAttrOpen}
+                                    aria-labelledby="typeAhead-alt-state-attr"
+                                    placeholderText="Type an attribute name ..."
+                                    noResultsFoundText="There are no matching entries"
                                 >
-                                    <Col sm={4} componentClass={ControlLabel} title="Specifies the primary time attribute used to evaluate an account policy (stateAttrName)">
-                                        State Attribute
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Select
-                                            variant={SelectVariant.typeahead}
-                                            typeAheadAriaLabel="Type an attribute name"
-                                            onToggle={this.onStateAttrToggle}
-                                            onSelect={this.onStateAttrSelect}
-                                            onClear={this.onStateAttrClear}
-                                            selections={stateAttrName}
-                                            isOpen={this.state.isStateAttrOpen}
-                                            aria-labelledby="typeAhead-state-attr"
-                                            placeholderText="Type an attribute name..."
-                                            noResultsFoundText="There are no matching entries"
-                                            isCreatable
-                                            onCreateOption={this.onStateAttrCreateOption}
-                                            >
-                                            {attributes.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                                ))}
-                                        </Select>
-                                    </Col>
-                                </FormGroup>
-                            </Form>
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col sm={12}>
-                            <Form horizontal>
-                                <FormGroup
-                                    key="altStateAttrName"
-                                    controlId="altStateAttrName"
-                                    disabled={false}
+                                    {this.props.attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                        ))}
+                                </Select>
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Specifies the attribute within the policy to use for the account inactivation limit (limitAttrName)">
+                            <GridItem span={4} className="ds-label">
+                                Limit Attribute
+                            </GridItem>
+                            <GridItem span={8}>
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={this.onLimitAttrToggle}
+                                    onSelect={this.onLimitAttrSelect}
+                                    onClear={this.onLimitAttrClear}
+                                    selections={limitAttrName}
+                                    isOpen={this.state.isLimitAttrOpen}
+                                    aria-labelledby="typeAhead-limit-attr"
+                                    placeholderText="Type an attribute name ..."
+                                    noResultsFoundText="There are no matching entries"
                                 >
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={4}
-                                        title="Provides a backup attribute for the server to reference to evaluate the expiration time (altStateAttrName)"
-                                    >
-                                        Alternative State Attribute
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Select
-                                            variant={SelectVariant.typeahead}
-                                            typeAheadAriaLabel="Type an attribute name"
-                                            onToggle={this.onAlternativeStateToggle}
-                                            onSelect={this.onAlternativeStateSelect}
-                                            onClear={this.onAlternativeStateClear}
-                                            selections={altStateAttrName}
-                                            isOpen={this.state.isAltStateAttrOpen}
-                                            aria-labelledby="typeAhead-alt-state-attr"
-                                            placeholderText="Type an attribute..."
-                                            noResultsFoundText="There are no matching entries"
-                                            isCreatable
-                                            onCreateOption={this.onAlternativeStateCreateOption}
-                                            >
-                                            {attributes.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                                ))}
-                                        </Select>
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup controlId="limitAttrName" disabled={false}>
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={4}
-                                        title="Specifies the attribute within the policy to use for the account inactivation limit (limitAttrName)"
-                                    >
-                                        Limit Attribute
-                                    </Col>
-                                    <Col sm={8}>
-                                        <Select
-                                            variant={SelectVariant.typeahead}
-                                            typeAheadAriaLabel="Type an attribute name"
-                                            onToggle={this.onLimitAttrToggle}
-                                            onSelect={this.onLimitAttrSelect}
-                                            onClear={this.onLimitAttrClear}
-                                            selections={limitAttrName}
-                                            isOpen={this.state.isLimitAttrOpen}
-                                            aria-labelledby="typeAhead-limit-attr"
-                                            placeholderText="Type an attribute..."
-                                            noResultsFoundText="There are no matching entries"
-                                            isCreatable
-                                            onCreateOption={this.onLimitAttrCreateOption}
-                                            >
-                                            {attributes.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                                ))}
-                                        </Select>
-                                    </Col>
-                                </FormGroup>
-                            </Form>
-                        </Col>
-                    </Row>
+                                    {this.props.attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                        ))}
+                                </Select>
+                            </GridItem>
+                        </Grid>
+                    </Form>
                 </Modal>
 
                 <PluginBasicConfig
@@ -844,44 +954,68 @@ class AccountPolicy extends React.Component {
                     cn="Account Policy Plugin"
                     pluginName="Account Policy"
                     cmdName="account-policy"
-                    specificPluginCMD={specificPluginCMD}
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
-                    <Row>
-                        <Col sm={10}>
-                            <Form horizontal>
-                                <FormGroup key="configAreaAP" controlId="configAreaAP">
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={3}
-                                        title="DN of the shared config entry (nsslapd-pluginConfigArea)"
-                                    >
-                                        Shared Config Entry
-                                    </Col>
-                                    <Col sm={7}>
-                                        <FormControl
-                                            type="text"
-                                            value={configArea}
-                                            onChange={this.handleFieldChange}
-                                        />
-                                    </Col>
-                                    <Col sm={2}>
-                                        <Button
-                                            key="manage"
-                                            variant="primary"
-                                            onClick={this.openModal}
-                                        >
-                                            Manage
-                                        </Button>
-                                    </Col>
-                                </FormGroup>
-                            </Form>
-                        </Col>
-                    </Row>
+                    <Form isHorizontal autoComplete="off">
+                        <Grid title="DN of the shared config entry (nsslapd-pluginConfigArea)">
+                            <GridItem span={3} className="ds-label">
+                                Shared Config Entry
+                            </GridItem>
+                            <GridItem span={7}>
+                                <TextInput
+                                    value={configArea}
+                                    type="text"
+                                    id="configArea"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="configArea"
+                                    onChange={(str, e) => { this.handleFieldChange(e) }}
+                                    validated={error.configArea ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                                <FormHelperText isError isHidden={!error.configArea}>
+                                    Value must be a valid DN
+                                </FormHelperText>
+                            </GridItem>
+                            <GridItem span={2}>
+                                <Button
+                                    className="ds-left-margin"
+                                    key="manage"
+                                    variant="primary"
+                                    onClick={this.openModal}
+                                >
+                                    {this.state.sharedConfigExists ? "Manage Config" : "Create Config"}
+                                </Button>
+                            </GridItem>
+                        </Grid>
+                    </Form>
+                    <Button
+                        className="ds-margin-top-lg"
+                        key="at"
+                        isLoading={saving}
+                        spinnerAriaValueText={saving ? "Loading" : undefined}
+                        variant="primary"
+                        onClick={this.saveConfig}
+                        {...extraPrimaryProps}
+                        isDisabled={saveBtnDisabled}
+                    >
+                        {saveBtnText}
+                    </Button>
                 </PluginBasicConfig>
+                <DoubleConfirmModal
+                    showModal={this.state.showConfirmDelete}
+                    closeHandler={this.closeConfirmDelete}
+                    handleChange={this.handleChange}
+                    actionHandler={this.deleteConfig}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.configDN}
+                    checked={this.state.modalChecked}
+                    mTitle="Delete Account Policy Config Entry"
+                    mMsg="Are you sure you want to delete this config entry?"
+                    mSpinningMsg="Deleting ..."
+                    mBtnName="Delete"
+                />
             </div>
         );
     }

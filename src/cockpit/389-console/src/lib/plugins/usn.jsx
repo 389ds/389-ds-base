@@ -1,26 +1,25 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Row,
-    Col,
-    Form,
-    Switch,
-    FormGroup,
-    FormControl,
-    ControlLabel
-} from "patternfly-react";
-import {
     Button,
-    // Form,
-    // FormGroup,
+    Form,
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
     Modal,
     ModalVariant,
-    // TextInput,
+    Switch,
+    NumberInput,
+    Tooltip,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd } from "../tools.jsx";
+import {
+    WrenchIcon,
+} from '@patternfly/react-icons';
 
 class USN extends React.Component {
     componentDidMount() {
@@ -48,8 +47,28 @@ class USN extends React.Component {
             disableSwitch: false,
             cleanupModalShow: false,
             cleanupSuffix: "",
-            cleanupMaxUSN: "",
+            cleanupMaxUSN: 0,
             suffixList: [],
+            pluginEnabled: false,
+        };
+
+        this.minValue = 0;
+        this.maxValue = 20000000;
+        this.onMinusConfig = () => {
+            this.setState({
+                cleanupMaxUSN: Number(this.state.cleanupMaxUSN) - 1
+            });
+        };
+        this.onConfigChange = (event) => {
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            this.setState({
+                cleanupMaxUSN: newValue > this.maxValue ? this.maxValue : newValue < this.minValue ? this.minValue : newValue
+            });
+        };
+        this.onPlusConfig = (id) => {
+            this.setState({
+                cleanupMaxUSN: Number(this.state.cleanupMaxUSN) + 1
+            });
         };
     }
 
@@ -120,6 +139,12 @@ class USN extends React.Component {
             firstLoad: false,
             disableSwitch: true
         });
+
+        const pluginRow = this.props.rows.find(row => row.cn[0] === "USN");
+        let pluginEnabled = false;
+        if (pluginRow["nsslapd-pluginEnabled"][0] === "on") {
+            pluginEnabled = true;
+        }
         const cmd = [
             "dsconf",
             "-j",
@@ -136,9 +161,8 @@ class USN extends React.Component {
                     let myObject = JSON.parse(content);
                     let usnGlobalAttr = myObject.attrs["nsslapd-entryusn-global"][0];
                     this.setState({
-                        globalMode: !(usnGlobalAttr == "off")
-                    });
-                    this.setState({
+                        globalMode: !(usnGlobalAttr == "off"),
+                        pluginEnabled: pluginEnabled,
                         disableSwitch: false
                     });
                     this.props.toggleLoadingHandler();
@@ -159,7 +183,7 @@ class USN extends React.Component {
         this.setState(prevState => ({
             cleanupModalShow: !prevState.cleanupModalShow,
             cleanupSuffix: prevState.suffixList[0],
-            cleanupMaxUSN: ""
+            cleanupMaxUSN: 0
         }));
     }
 
@@ -177,10 +201,10 @@ class USN extends React.Component {
             ];
 
             if (this.state.cleanupSuffix) {
-                cmd = [...cmd, "--suffix", this.state.cleanupSuffix];
+                cmd = [...cmd, "--suffix=" + this.state.cleanupSuffix];
             }
-            if (this.state.cleanupMaxUSN) {
-                cmd = [...cmd, "--max-usn", this.state.cleanupMaxUSN];
+            if (this.state.cleanupMaxUSN > 0) {
+                cmd = [...cmd, "--max-usn=" + this.state.cleanupMaxUSN];
             }
 
             this.props.toggleLoadingHandler();
@@ -224,15 +248,11 @@ class USN extends React.Component {
             suffixList
         } = this.state;
 
-        let suffixes = suffixList.map((name) =>
-            <option key={name} value={name}>{name}</option>
-        );
-
         return (
             <div>
                 <Modal
                     variant={ModalVariant.small}
-                    title="Fixup MemberOf Task"
+                    title="USN Tombstone Cleanup Task"
                     aria-labelledby="ds-modal"
                     isOpen={cleanupModalShow}
                     onClose={this.toggleCleanupModal}
@@ -245,39 +265,47 @@ class USN extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Row>
-                        <Col sm={12}>
-                            <Form horizontal>
-                                <FormGroup controlId="cleanupSuffix" key="cleanupSuffix">
-                                    <Col sm={4}>
-                                        <ControlLabel title="Gives the suffix in the Directory Server to run the cleanup operation against">
-                                            Cleanup Suffix
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <select id="cleanupSuffix" onChange={this.handleFieldChange} defaultValue={cleanupSuffix}>
-                                            {suffixes}
-                                        </select>
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup controlId="cleanupMaxUSN" key="cleanupMaxUSN">
-                                    <Col sm={4}>
-                                        <ControlLabel title="Gives the highest USN value to delete when removing tombstone entries. All tombstone entries up to and including that number are deleted. Tombstone entries with higher USN values (that means more recent entries) are not deleted">
-                                            Cleanup Max USN
-                                        </ControlLabel>
-                                    </Col>
-                                    <Col sm={8}>
-                                        <FormControl
-                                            type="number"
-                                            min="1"
-                                            value={cleanupMaxUSN}
-                                            onChange={this.handleFieldChange}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                            </Form>
-                        </Col>
-                    </Row>
+                    <Form isHorizontal>
+                        <Grid title="Gives the suffix in the Directory Server to run the cleanup operation against">
+                            <GridItem span={4}>
+                                Cleanup Suffix
+                            </GridItem>
+                            <GridItem span={8}>
+                                <FormSelect
+                                    id="configAutoAddOC"
+                                    value={cleanupSuffix}
+                                    onChange={(value, event) => {
+                                        this.handleFieldChange(event);
+                                    }}
+                                    aria-label="FormSelect Input"
+                                >
+                                    {suffixList.map((attr) => (
+                                        <FormSelectOption key={attr} value={attr} label={attr} />
+                                    ))}
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Gives the highest USN value to delete when removing tombstone entries. All tombstone entries up to and including that number are deleted. Tombstone entries with higher USN values (that means more recent entries) are not deleted">
+                            <GridItem span={4}>
+                                Cleanup Max USN
+                            </GridItem>
+                            <GridItem span={8}>
+                                <NumberInput
+                                    value={cleanupMaxUSN}
+                                    min={this.minValue}
+                                    max={this.maxValue}
+                                    onMinus={this.onMinusConfig}
+                                    onChange={this.onConfigChange}
+                                    onPlus={this.onPlusConfig}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={10}
+                                />
+                            </GridItem>
+                        </Grid>
+                    </Form>
                 </Modal>
                 <PluginBasicConfig
                     rows={this.props.rows}
@@ -290,41 +318,49 @@ class USN extends React.Component {
                     addNotification={this.props.addNotification}
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
-                    <Row>
-                        <Col sm={9}>
-                            <FormGroup key="globalMode" controlId="globalMode">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={3}
-                                    title="Defines if the USN plug-in assigns unique update sequence numbers (USN) across all back end databases or to each database individually"
-                                >
-                                    USN Global
-                                </Col>
-                                <Col sm={3}>
-                                    <Switch
-                                        bsSize="normal"
-                                        title="normal"
-                                        id="bsSize-example"
-                                        value={globalMode}
-                                        onChange={() => this.handleSwitchChange(globalMode)}
-                                        animate={false}
-                                        disabled={disableSwitch}
-                                    />
-                                </Col>
-                            </FormGroup>
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col sm={9}>
-                            <Button
-                                className="ds-margin-top"
-                                variant="primary"
-                                onClick={this.toggleCleanupModal}
-                            >
-                                Run Fixup Task
-                            </Button>
-                        </Col>
-                    </Row>
+                    <Tooltip
+                        maxWidth={500}
+                        content={
+                            <div>
+                                The USN Plug-in enables LDAP clients and servers to identify if entries have been changed. When
+                                the USN Plug-in is enabled, update sequence numbers (USNs) are sequential numbers that are assigned
+                                to an entry whenever a write operation is performed against the entry. (Write operations include add,
+                                modify, modrdn, and delete operations. Internal database operations, like export operations, are
+                                not counted in the update sequence.) A USN counter keeps track of the most recently assigned USN.
+                                <br /><br />
+                                The USN plug-in also moves entries to tombstone entries when the entry is deleted. If replication is
+                                enabled, then separate tombstone entries are kept by both the USN and Replication plug-in. Note that
+                                both tombstone entries are deleted by the replication process.
+                            </div>
+                        }
+                    >
+                        <a className="ds-font-size-sm">What is the USN Plugin?</a>
+                    </Tooltip>
+                    <Form>
+                        <Grid className="ds-margin-top-xlg" title="Enable entryUSN assignment across all backends, instead of per backend.">
+                            <GridItem span={3} className="ds-label">
+                                USN Global
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Switch
+                                    id="globalMode"
+                                    isChecked={globalMode}
+                                    onChange={() => this.handleSwitchChange(globalMode)}
+                                    isDisabled={disableSwitch}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title="This task deletes the tombstone entries maintained by the USN plugin.  This task should not run against a suffix that is being replicated">
+                            <GridItem className="ds-label ds-margin-top" span={3}>
+                                Tombstone Cleanup Task<WrenchIcon className="ds-left-margin" />
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Button className="ds-margin-top" variant="primary" isDisabled={!this.state.pluginEnabled} onClick={this.toggleCleanupModal}>
+                                    Run Task
+                                </Button>
+                            </GridItem>
+                        </Grid>
+                    </Form>
                 </PluginBasicConfig>
             </div>
         );

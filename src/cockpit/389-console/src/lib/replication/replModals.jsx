@@ -21,11 +21,13 @@ import {
     TabTitleIcon,
     TabTitleText,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     TimePicker,
     ValidatedOptions,
     noop
 } from "@patternfly/react-core";
-import { ReplicaLDIFTable } from "./replTables.jsx";
 import PropTypes from "prop-types";
 import ExclamationTriangleIcon from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
 
@@ -650,11 +652,13 @@ export class WinsyncAgmtModal extends React.Component {
                         <Tab eventKey={3} title={<>{scheduleError}<TabTitleText>Scheduling</TabTitleText></>}>
                             <Grid className="ds-margin-top">
                                 <GridItem span={12}>
-                                    <h5>
-                                        By default replication updates are sent to the replica as soon as possible, but
-                                        if there is a need for replication updates to only be sent on certains days and within certain
-                                        windows of time then you can setup a custom replication schedule.
-                                    </h5>
+                                    <TextContent>
+                                        <Text component={TextVariants.h5}>
+                                            By default replication updates are sent to the replica as soon as possible, but
+                                            if there is a need for replication updates to only be sent on certains days and
+                                            within certain windows of time then you can setup a custom replication schedule.
+                                        </Text>
+                                    </TextContent>
                                 </GridItem>
                                 <GridItem className="ds-margin-top-lg" span={12}>
                                     <Checkbox
@@ -1393,11 +1397,13 @@ export class ReplAgmtModal extends React.Component {
                         <Tab eventKey={3} title={<>{scheduleSettingsError}<TabTitleText>Scheduling</TabTitleText></>}>
                             <Grid className="ds-margin-top-med">
                                 <GridItem span={12}>
-                                    <h5>
-                                        By default replication updates are sent to the replica as soon as possible, but
-                                        if there is a need for replication updates to only be sent on certains days and within certain
-                                        windows of time then you can setup a custom replication schedule.
-                                    </h5>
+                                    <TextContent>
+                                        <Text component={TextVariants.h5}>
+                                            By default replication updates are sent to the replica as soon as possible, but
+                                            if there is a need for replication updates to only be sent on certains days and within certain
+                                            windows of time then you can setup a custom replication schedule.
+                                        </Text>
+                                    </TextContent>
                                 </GridItem>
                                 <GridItem className="ds-margin-top-lg" span={12}>
                                     <Checkbox
@@ -1524,7 +1530,11 @@ export class ChangeReplRoleModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <h4>Please choose the new replication role you would like for this suffix</h4>
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Please choose the new replication role you would like for this suffix
+                        </Text>
+                    </TextContent>
                     <Grid className="ds-margin-top-lg">
                         <GridItem className="ds-label" span={3}>
                             New Role
@@ -1608,11 +1618,13 @@ export class AddManagerModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <h5>
-                        Create a Replication Manager entry, and add it to the replication configuration
-                        for this suffix.  If the entry already exists it will be overwritten with
-                        the new credentials.
-                    </h5>
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Create a Replication Manager entry, and add it to the replication configuration
+                            for this suffix.  If the entry already exists it will be overwritten with
+                            the new credentials.
+                        </Text>
+                    </TextContent>
                     <Grid className="ds-margin-top-lg" title="The DN of the replication manager">
                         <GridItem className="ds-label" span={3}>
                             Replication Manager DN
@@ -1701,7 +1713,7 @@ export class EnableReplModal extends React.Component {
         let replicaIDRow = "";
         if (enableRole == "Supplier") {
             replicaIDRow =
-                <Grid className="ds-margin-top">
+                <Grid>
                     <GridItem span={3} className="ds-label">
                         Replica ID
                     </GridItem>
@@ -1748,14 +1760,15 @@ export class EnableReplModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <h5>
-                        Choose the replication role for this suffix.  If it
-                        is a Supplier replica then you must pick a unique ID
-                        to identify it among the other Supplier replicas in your
-                        environment.  The replication changelog will also
-                        automatically be created for you.
-                    </h5>
-                    <hr />
+                    <TextContent>
+                        <Text component={TextVariants.h6}>
+                            Choose the replication role for this suffix.  If it
+                            is a Supplier replica then you must pick a unique ID
+                            to identify it among the other Supplier replicas in your
+                            environment.  The replication changelog will also
+                            automatically be created for you.
+                        </Text>
+                    </TextContent>
                     <Grid>
                         <GridItem span={3} className="ds-label">
                             Replication Role
@@ -1776,17 +1789,19 @@ export class EnableReplModal extends React.Component {
                         </GridItem>
                     </Grid>
                     {replicaIDRow}
-                    <h5 className="ds-margin-top-lg">
-                        You can optionally define the authentication information
-                        for this replicated suffix.  Either a Manager DN and Password,
-                        a Bind Group DN, or both, can be provided.  The Manager DN should
-                        be an entry under "cn=config" and if it does not exist it will
-                        be created, while the Bind Group DN is usually an existing
-                        group located in the database suffix.  Typically, just the
-                        Manager DN and Password are used when enabling replication
-                        for a suffix.
-                    </h5>
                     <hr />
+                    <TextContent>
+                        <Text component={TextVariants.h6}>
+                            You can optionally define the authentication information
+                            for this replicated suffix.  Either a Manager DN and Password,
+                            a Bind Group DN, or both, can be provided.  The Manager DN should
+                            be an entry under "cn=config" and if it does not exist it will
+                            be created, while the Bind Group DN is usually an existing
+                            group located in the database suffix.  Typically, just the
+                            Manager DN and Password are used when enabling replication
+                            for a suffix.
+                        </Text>
+                    </TextContent>
                     <Grid title="The DN of the replication manager.  If you supply a password the entry will be created in the server (it will also overwrite the entry is it already exists).">
                         <GridItem className="ds-label" span={3}>
                             Replication Manager DN
@@ -1841,7 +1856,6 @@ export class EnableReplModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <hr />
                     <Grid title="The DN of a group that contains users that can perform replication updates">
                         <GridItem className="ds-label" span={3}>
                             Bind Group DN
@@ -1901,21 +1915,25 @@ export class ExportCLModal extends React.Component {
 
         if (defaultCL) {
             page =
-                <h5>
-                    This will export the changelog to the server's LDIF directory.  This
-                    is the only LDIF file that can be imported into the server for enabling
-                    changelog encryption.  Do not edit or rename the file.
-                </h5>;
+                <TextContent>
+                    <Text component={TextVariants.h4}>
+                        This will export the changelog to the server's LDIF directory.  This
+                        is the only LDIF file that can be imported into the server for enabling
+                        changelog encryption.  Do not edit or rename the file.
+                    </Text>
+                </TextContent>;
         } else {
             page =
                 <div>
                     <Grid>
                         <GridItem span={12}>
-                            <h5>
-                                The LDIF file that is generated should <b>not</b> be used
-                                to initialize the Replication Changelog.  It is only
-                                meant for debugging/investigative purposes.
-                            </h5>
+                            <TextContent>
+                                <Text component={TextVariants.h4}>
+                                    The LDIF file that is generated should <b>not</b> be used
+                                    to initialize the Replication Changelog.  It is only
+                                    meant for debugging/investigative purposes.
+                                </Text>
+                            </TextContent>
                         </GridItem>
                     </Grid>
                     <Grid className="ds-margin-top-xlg">

@@ -23,20 +23,14 @@ import {
     ConflictCompareModal,
 } from "./monitorModals.jsx";
 import {
-    Nav,
-    NavItem,
-    TabContent,
-    TabPane,
-    TabContainer,
-} from "patternfly-react";
-import {
     Button,
     ExpandableSection,
-    // Tab,
-    // Tabs,
-    // TabTitleText,
-    // Grid,
-    // GridItem,
+    Tab,
+    Tabs,
+    TabTitleText,
+    Text,
+    TextContent,
+    TextVariants,
     Tooltip,
     noop
 } from "@patternfly/react-core";
@@ -47,6 +41,171 @@ import {
 const _ = cockpit.gettext;
 
 export class ReplMonitor extends React.Component {
+    constructor (props) {
+        super(props);
+        this.state = {
+            activeTabKey: 0,
+            activeTabReplKey: 0,
+            activeTabTaskKey: 0,
+            activeTabConflictKey: 0,
+            logData: "",
+            showBindModal: false,
+            showLogModal: false,
+            showFullReportModal: false,
+            showReportLoginModal: false,
+            showCredentialsModal: false,
+            showAliasesModal: false,
+            showCompareModal: false,
+            showConfirmDeleteGlue: false,
+            showConfirmConvertGlue: false,
+            showConfirmSwapConflict: false,
+            showConfirmConvertConflict: false,
+            showConfirmDeleteConflict: false,
+            modalSpinning: false,
+            modalChecked: false,
+            lagAgmts: [],
+            credsData: [],
+            aliasData: [],
+            reportData: [],
+            agmt: "",
+            convertRDN: "",
+            glueEntry: "",
+            conflictEntry: "",
+            binddn: "cn=Directory Manager",
+            bindpw: "",
+            errObj: {},
+            aliasList: [],
+            newEntry: false,
+            initCreds: true,
+            isExpanded: false,
+
+            fullReportProcess: {},
+            interruptLoginCredsInput: false,
+            doFullReportCleanup: false,
+            reportRefreshing: false,
+            reportLoading: false,
+
+            credsInstanceName: "",
+            disableBinddn: false,
+            loginBinddn: "",
+            loginBindpw: "",
+            inputLoginData: false,
+
+            credsHostname: "",
+            credsPort: "",
+            credsBinddn: "cn=Directory Manager",
+            credsBindpw: "",
+            pwInputInterractive: false,
+
+            aliasHostname: "",
+            aliasPort: 389,
+            aliasName: "",
+
+            credentialsList: [],
+            dynamicCredentialsList: [],
+            credSortBy: {},
+            aliasesList: [],
+            aliasSortBy: {},
+
+            deleteConflictRadio: true,
+            swapConflictRadio: false,
+            convertConflictRadio: false,
+        };
+
+        this.onToggle = (isExpanded) => {
+            this.setState({
+                isExpanded
+            });
+        };
+
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+        // Toggle currently active tab
+        this.handleNavTaskSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabTaskKey: tabIndex
+            });
+        };
+        // Toggle currently active tab
+        this.handleNavConflictSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabConflictKey: tabIndex
+            });
+        };
+        // Toggle currently active tab
+        this.handleNavReplSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabReplKey: tabIndex
+            });
+        };
+
+        this.maxValue = 65534;
+
+        this.handleFieldChange = this.handleFieldChange.bind(this);
+        this.handleReportNavSelect = this.handleReportNavSelect.bind(this);
+        this.pokeAgmt = this.pokeAgmt.bind(this);
+        this.pokeWinsyncAgmt = this.pokeWinsyncAgmt.bind(this);
+        this.showAgmtModalRemote = this.showAgmtModalRemote.bind(this);
+        this.closeAgmtModal = this.closeAgmtModal.bind(this);
+        this.viewCleanLog = this.viewCleanLog.bind(this);
+        this.viewAbortLog = this.viewAbortLog.bind(this);
+        this.closeLogModal = this.closeLogModal.bind(this);
+        this.closeReportLoginModal = this.closeReportLoginModal.bind(this);
+
+        // Replication report functions
+        this.addCreds = this.addCreds.bind(this);
+        this.editCreds = this.editCreds.bind(this);
+        this.removeCreds = this.removeCreds.bind(this);
+        this.openCredsModal = this.openCredsModal.bind(this);
+        this.showAddCredsModal = this.showAddCredsModal.bind(this);
+        this.showEditCredsModal = this.showEditCredsModal.bind(this);
+        this.closeCredsModal = this.closeCredsModal.bind(this);
+        this.onCredSort = this.onCredSort.bind(this);
+
+        this.addAliases = this.addAliases.bind(this);
+        this.editAliases = this.editAliases.bind(this);
+        this.removeAliases = this.removeAliases.bind(this);
+        this.openAliasesModal = this.openAliasesModal.bind(this);
+        this.showAddAliasesModal = this.showAddAliasesModal.bind(this);
+        this.showEditAliasesModal = this.showEditAliasesModal.bind(this);
+        this.closeAliasesModal = this.closeAliasesModal.bind(this);
+        this.onAliasSort = this.onAliasSort.bind(this);
+
+        this.doFullReport = this.doFullReport.bind(this);
+        this.processCredsInput = this.processCredsInput.bind(this);
+        this.closeReportModal = this.closeReportModal.bind(this);
+        this.refreshFullReport = this.refreshFullReport.bind(this);
+
+        // Conflict entry functions
+        this.convertConflict = this.convertConflict.bind(this);
+        this.swapConflict = this.swapConflict.bind(this);
+        this.deleteConflict = this.deleteConflict.bind(this);
+        this.resolveConflict = this.resolveConflict.bind(this);
+        this.convertGlue = this.convertGlue.bind(this);
+        this.deleteGlue = this.deleteGlue.bind(this);
+        this.closeCompareModal = this.closeCompareModal.bind(this);
+        this.confirmDeleteGlue = this.confirmDeleteGlue.bind(this);
+        this.confirmConvertGlue = this.confirmConvertGlue.bind(this);
+        this.closeConfirmDeleteGlue = this.closeConfirmDeleteGlue.bind(this);
+        this.closeConfirmConvertGlue = this.closeConfirmConvertGlue.bind(this);
+        this.handleRadioChange = this.handleRadioChange.bind(this);
+        this.handleChange = this.handleChange.bind(this);
+        this.handleConflictConversion = this.handleConflictConversion.bind(this);
+        this.confirmDeleteConflict = this.confirmDeleteConflict.bind(this);
+        this.confirmConvertConflict = this.confirmConvertConflict.bind(this);
+        this.confirmSwapConflict = this.confirmSwapConflict.bind(this);
+        this.closeConfirmDeleteConflict = this.closeConfirmDeleteConflict.bind(this);
+        this.closeConfirmConvertConflict = this.closeConfirmConvertConflict.bind(this);
+        this.closeConfirmSwapConflict = this.closeConfirmSwapConflict.bind(this);
+        this.onMinusConfig = this.onMinusConfig.bind(this);
+        this.onConfigChange = this.onConfigChange.bind(this);
+        this.onPlusConfig = this.onPlusConfig.bind(this);
+    }
+
     componentDidUpdate(prevProps, prevState) {
         if (!(prevState.showReportLoginModal) && (this.state.showReportLoginModal)) {
             // When the login modal turned on
@@ -119,138 +278,23 @@ export class ReplMonitor extends React.Component {
         this.props.enableTree();
     }
 
-    constructor (props) {
-        super(props);
-        this.state = {
-            activeKey: 1,
-            activeReportKey: 1,
-            logData: "",
-            showBindModal: false,
-            showLogModal: false,
-            showFullReportModal: false,
-            showReportLoginModal: false,
-            showCredentialsModal: false,
-            showAliasesModal: false,
-            showCompareModal: false,
-            showConfirmDeleteGlue: false,
-            showConfirmConvertGlue: false,
-            showConfirmSwapConflict: false,
-            showConfirmConvertConflict: false,
-            showConfirmDeleteConflict: false,
-            modalSpinning: false,
-            modalChecked: false,
-            lagAgmts: [],
-            credsData: [],
-            aliasData: [],
-            reportData: [],
-            agmt: "",
-            convertRDN: "",
-            glueEntry: "",
-            conflictEntry: "",
-            binddn: "cn=Directory Manager",
-            bindpw: "",
-            errObj: {},
-            aliasList: [],
-            newEntry: false,
-            initCreds: true,
-            isExpanded: false,
+    onMinusConfig(id) {
+        this.setState({
+            [id]: Number(this.state[id]) - 1
+        });
+    }
 
-            fullReportProcess: {},
-            interruptLoginCredsInput: false,
-            doFullReportCleanup: false,
-            reportRefreshing: false,
-            reportLoading: false,
+    onConfigChange(event, id, min) {
+        const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+        this.setState({
+            [id]: newValue > this.maxValue ? this.maxValue : newValue < min ? min : newValue
+        });
+    }
 
-            credsInstanceName: "",
-            disableBinddn: false,
-            loginBinddn: "",
-            loginBindpw: "",
-            inputLoginData: false,
-
-            credsHostname: "",
-            credsPort: "",
-            credsBinddn: "cn=Directory Manager",
-            credsBindpw: "",
-            pwInputInterractive: false,
-
-            aliasHostname: "",
-            aliasPort: 389,
-            aliasName: "",
-
-            credentialsList: [],
-            dynamicCredentialsList: [],
-            credSortBy: {},
-            aliasesList: [],
-            aliasSortBy: {},
-
-            deleteConflictRadio: true,
-            swapConflictRadio: false,
-            convertConflictRadio: false,
-        };
-
-        this.onToggle = (isExpanded) => {
-            this.setState({
-                isExpanded
-            });
-        };
-
-        this.handleFieldChange = this.handleFieldChange.bind(this);
-        this.handleNavSelect = this.handleNavSelect.bind(this);
-        this.handleReportNavSelect = this.handleReportNavSelect.bind(this);
-        this.pokeAgmt = this.pokeAgmt.bind(this);
-        this.pokeWinsyncAgmt = this.pokeWinsyncAgmt.bind(this);
-        this.showAgmtModalRemote = this.showAgmtModalRemote.bind(this);
-        this.closeAgmtModal = this.closeAgmtModal.bind(this);
-        this.viewCleanLog = this.viewCleanLog.bind(this);
-        this.viewAbortLog = this.viewAbortLog.bind(this);
-        this.closeLogModal = this.closeLogModal.bind(this);
-        this.closeReportLoginModal = this.closeReportLoginModal.bind(this);
-
-        // Replication report functions
-        this.addCreds = this.addCreds.bind(this);
-        this.editCreds = this.editCreds.bind(this);
-        this.removeCreds = this.removeCreds.bind(this);
-        this.openCredsModal = this.openCredsModal.bind(this);
-        this.showAddCredsModal = this.showAddCredsModal.bind(this);
-        this.showEditCredsModal = this.showEditCredsModal.bind(this);
-        this.closeCredsModal = this.closeCredsModal.bind(this);
-        this.onCredSort = this.onCredSort.bind(this);
-
-        this.addAliases = this.addAliases.bind(this);
-        this.editAliases = this.editAliases.bind(this);
-        this.removeAliases = this.removeAliases.bind(this);
-        this.openAliasesModal = this.openAliasesModal.bind(this);
-        this.showAddAliasesModal = this.showAddAliasesModal.bind(this);
-        this.showEditAliasesModal = this.showEditAliasesModal.bind(this);
-        this.closeAliasesModal = this.closeAliasesModal.bind(this);
-        this.onAliasSort = this.onAliasSort.bind(this);
-
-        this.doFullReport = this.doFullReport.bind(this);
-        this.processCredsInput = this.processCredsInput.bind(this);
-        this.closeReportModal = this.closeReportModal.bind(this);
-        this.refreshFullReport = this.refreshFullReport.bind(this);
-
-        // Conflict entry functions
-        this.convertConflict = this.convertConflict.bind(this);
-        this.swapConflict = this.swapConflict.bind(this);
-        this.deleteConflict = this.deleteConflict.bind(this);
-        this.resolveConflict = this.resolveConflict.bind(this);
-        this.convertGlue = this.convertGlue.bind(this);
-        this.deleteGlue = this.deleteGlue.bind(this);
-        this.closeCompareModal = this.closeCompareModal.bind(this);
-        this.confirmDeleteGlue = this.confirmDeleteGlue.bind(this);
-        this.confirmConvertGlue = this.confirmConvertGlue.bind(this);
-        this.closeConfirmDeleteGlue = this.closeConfirmDeleteGlue.bind(this);
-        this.closeConfirmConvertGlue = this.closeConfirmConvertGlue.bind(this);
-        this.handleRadioChange = this.handleRadioChange.bind(this);
-        this.handleChange = this.handleChange.bind(this);
-        this.handleConflictConversion = this.handleConflictConversion.bind(this);
-        this.confirmDeleteConflict = this.confirmDeleteConflict.bind(this);
-        this.confirmConvertConflict = this.confirmConvertConflict.bind(this);
-        this.confirmSwapConflict = this.confirmSwapConflict.bind(this);
-        this.closeConfirmDeleteConflict = this.closeConfirmDeleteConflict.bind(this);
-        this.closeConfirmConvertConflict = this.closeConfirmConvertConflict.bind(this);
-        this.closeConfirmSwapConflict = this.closeConfirmSwapConflict.bind(this);
+    onPlusConfig(id) {
+        this.setState({
+            [id]: Number(this.state[id]) + 1
+        });
     }
 
     handleRadioChange(value, evt) {
@@ -949,7 +993,7 @@ export class ReplMonitor extends React.Component {
         // Initiate the report and continue the processing in the input window
         this.setState({
             reportLoading: true,
-            activeReportKey: 2
+            activeTabKey: 1
         });
 
         let password = "";
@@ -1227,6 +1271,9 @@ export class ReplMonitor extends React.Component {
                     showModal={this.state.showCredentialsModal}
                     closeHandler={this.closeCredsModal}
                     handleFieldChange={this.handleFieldChange}
+                    onMinusConfig={this.onMinusConfig}
+                    onConfigChange={this.onConfigChange}
+                    onPlusConfig={this.onPlusConfig}
                     newEntry={this.state.newEntry}
                     hostname={this.state.credsHostname}
                     port={this.state.credsPort}
@@ -1243,6 +1290,9 @@ export class ReplMonitor extends React.Component {
                     showModal={this.state.showAliasesModal}
                     closeHandler={this.closeAliasesModal}
                     handleFieldChange={this.handleFieldChange}
+                    onMinusConfig={this.onMinusConfig}
+                    onConfigChange={this.onConfigChange}
+                    onPlusConfig={this.onPlusConfig}
                     newEntry={this.state.newEntry}
                     hostname={this.state.aliasHostname}
                     port={this.state.aliasPort}
@@ -1260,99 +1310,104 @@ export class ReplMonitor extends React.Component {
                 />;
         }
 
+        let reportBtnName = "Generate Report";
+        let extraPrimaryProps = {};
+        if (this.state.reportLoading) {
+            reportBtnName = "Generating ...";
+            extraPrimaryProps.spinnerAriaValueText = "Generating";
+        }
+
         let reportContent =
-            <div>
-                <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                    <NavItem className="ds-nav-med" eventKey={1}>
-                        {_("Prepare Report")}
-                    </NavItem>
-                    <NavItem className="ds-nav-med" eventKey={2}>
-                        {_("Report Result")}
-                    </NavItem>
-                </Nav>
-                <TabContent>
-                    <TabPane eventKey={1}>
-                        <div className="ds-indent ds-margin-top-lg">
-                            <ExpandableSection
-                                className="h5Z"
-                                toggleText={this.state.isExpanded ? 'Hide Help' : 'Show Help'}
-                                onToggle={this.onToggle}
-                                isExpanded={this.state.isExpanded}
-                            >
-                                <div className="ds-left-indent-md">
-                                    <h4>How To Use Replication Sync Report</h4>
-                                    <ol className="ds-left-indent-md ds-margin-top">
-                                        <li>
-                                            Update The <b>Replication Credentials</b>
-                                            <ul>
-                                                <li>• Initially, the table is populated with the local instance's replication
-                                                    agreements, which includes the local instance.</li>
-                                                <li>• Add the remaining replica server credentials from your replication topology.</li>
-                                                <li>• It is advised to use an <b>Interactive Input</b> option for the
-                                                    password because it's more secure.</li>
-                                            </ul>
-                                        </li>
-                                        <li>
-                                            Add <b>Instance Aliases</b> (if desired)
-                                            <ul>
-                                                <li>• Adding the aliases will make the report more readable.</li>
-                                                <li>• Each instance can have one alias. For example, you can give names like this:
-                                                    <b> Alias</b>=Main Supplier, <b>Hostname</b>=192.168.122.01, <b>Port</b>=38901</li>
-                                                <li>• In the report result, the report will have an entry like this:
-                                                    <b> Supplier: Main Supplier (192.168.122.01:38901)</b>.</li>
-                                            </ul>
-                                        </li>
-                                        <li>
-                                            Press <b>Generate Report</b> Button
-                                            <ul>
-                                                <li>• It will initiate the report creation.</li>
-                                                <li>• You may be asked for the credentials while the process is running through the agreements.</li>
-                                            </ul>
-                                        </li>
-                                    </ol>
-                                    <p />
-                                </div>
-                            </ExpandableSection>
-                            <Button
-                                className="ds-margin-top-lg"
-                                variant="primary"
-                                onClick={this.doFullReport}
-                                title="Use the specified credentials and display full topology report"
-                            >
-                                Generate Report
-                            </Button>
-                            <hr />
-                            <ReportCredentialsTable
-                                rows={credentialsList}
-                                deleteConfig={this.removeCreds}
-                                editConfig={this.showEditCredsModal}
-                                sortBy={this.state.credSortBy}
-                                onSort={this.onCredSort}
-                            />
-                            <Button
-                                className="ds-margin-top"
-                                variant="secondary"
-                                onClick={this.showAddCredsModal}
-                            >
-                                Add Credentials
-                            </Button>
-                            <ReportAliasesTable
-                                rows={aliasesList}
-                                deleteConfig={this.removeAliases}
-                                editConfig={this.showEditAliasesModal}
-                                sortBy={this.state.aliasSortBy}
-                                onSort={this.onAliasSort}
-                            />
-                            <Button
-                                className="ds-margin-top"
-                                variant="secondary"
-                                onClick={this.showAddAliasesModal}
-                            >
-                                Add Alias
-                            </Button>
-                        </div>
-                    </TabPane>
-                    <TabPane eventKey={2}>
+            <div className="ds-margin-top-lg ds-indent">
+                <Tabs isBox activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Prepare Report")}</TabTitleText>}>
+                        <ExpandableSection
+                            toggleText={this.state.isExpanded ? 'Hide Help' : 'Show Help'}
+                            onToggle={this.onToggle}
+                            isExpanded={this.state.isExpanded}
+                            className="ds-margin-top-lg ds-left-margin"
+                        >
+                            <div className="ds-left-indent-md">
+                                <TextContent>
+                                    <Text component={TextVariants.h3}>
+                                        How To Use Replication Sync Report
+                                    </Text>
+                                </TextContent>
+                                <ol className="ds-left-indent-md ds-margin-top">
+                                    <li>
+                                        Update The <b>Replication Credentials</b>
+                                        <ul>
+                                            <li>• Initially, the table is populated with the local instance's replication
+                                                agreements, which includes the local instance.</li>
+                                            <li>• Add the remaining replica server credentials from your replication topology.</li>
+                                            <li>• It is advised to use an <b>Interactive Input</b> option for the
+                                                password because it's more secure.</li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        Add <b>Replica Aliases</b> (if desired)
+                                        <ul>
+                                            <li>• Adding aliases will make the report more readable.</li>
+                                            <li>• Each Replica can have one alias. For example, you can give names like this:
+                                                <b> Alias</b>=Main Supplier, <b>Hostname</b>=192.168.122.01, <b>Port</b>=38901</li>
+                                            <li>• In the report result, the report will have an entry like this:
+                                                <b> Supplier: Main Supplier (192.168.122.01:38901)</b>.</li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        Press <b>Generate Report</b> Button
+                                        <ul>
+                                            <li>• It will initiate the report creation.</li>
+                                            <li>• You may be asked for the credentials while the process is running through the agreements.</li>
+                                        </ul>
+                                    </li>
+                                </ol>
+                                <p />
+                            </div>
+                        </ExpandableSection>
+                        <Button
+                            className="ds-margin-top-lg"
+                            variant="primary"
+                            onClick={this.doFullReport}
+                            title="Use the specified credentials and display full topology report"
+                            isLoading={this.state.reportLoading}
+                            spinnerAriaValueText={this.state.reportLoading ? "Generating" : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {reportBtnName}
+                        </Button>
+                        <hr />
+                        <ReportCredentialsTable
+                            rows={credentialsList}
+                            deleteConfig={this.removeCreds}
+                            editConfig={this.showEditCredsModal}
+                            sortBy={this.state.credSortBy}
+                            onSort={this.onCredSort}
+                        />
+                        <Button
+                            className="ds-margin-top"
+                            variant="secondary"
+                            onClick={this.showAddCredsModal}
+                        >
+                            Add Credentials
+                        </Button>
+                        <ReportAliasesTable
+                            rows={aliasesList}
+                            deleteConfig={this.removeAliases}
+                            editConfig={this.showEditAliasesModal}
+                            sortBy={this.state.aliasSortBy}
+                            onSort={this.onAliasSort}
+                        />
+                        <Button
+                            className="ds-margin-top"
+                            variant="secondary"
+                            onClick={this.showAddAliasesModal}
+                        >
+                            Add Alias
+                        </Button>
+                        <hr />
+                    </Tab>
+                    <Tab isHidden={reportData.length == 0} eventKey={1} title={<TabTitleText>{_("Report Result")}</TabTitleText>}>
                         <div className="ds-indent ds-margin-top-lg">
                             <FullReportContent
                                 reportData={reportData}
@@ -1362,55 +1417,36 @@ export class ReplMonitor extends React.Component {
                                 reportLoading={this.state.reportLoading}
                             />
                         </div>
-                    </TabPane>
-                </TabContent>
+                    </Tab>
+                </Tabs>
             </div>;
-        let cleanNavTitle = 'CleanAllRUV Tasks <font size="2">(' + cleanTasks.length + ')</font>';
-        let abortNavTitle = 'Abort CleanAllRUV Tasks <font size="2">(' + abortTasks.length + ')</font>';
+
         let taskContent =
-            <div>
-                <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                    <NavItem className="ds-nav-med" eventKey={1}>
-                        <div dangerouslySetInnerHTML={{__html: cleanNavTitle}} />
-                    </NavItem>
-                    <NavItem className="ds-nav-med" eventKey={2}>
-                        <div dangerouslySetInnerHTML={{__html: abortNavTitle}} />
-                    </NavItem>
-                </Nav>
-                <TabContent>
-                    <TabPane eventKey={1}>
+            <div className="ds-margin-top-lg">
+                <Tabs isBox activeKey={this.state.activeTabTaskKey} onSelect={this.handleNavTaskSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>CleanAllRUV Tasks <font size="2">({cleanTasks.length})</font></TabTitleText>}>
                         <div className="ds-indent ds-margin-top-lg">
                             <CleanALLRUVTable
                                 tasks={cleanTasks}
                                 viewLog={this.viewCleanLog}
                             />
                         </div>
-                    </TabPane>
-                    <TabPane eventKey={2}>
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText>Abort CleanAllRUV Tasks <font size="2">({abortTasks.length})</font></TabTitleText>}>
                         <div className="ds-indent ds-margin-top-lg">
                             <AbortCleanALLRUVTable
                                 tasks={abortTasks}
                                 viewLog={this.viewAbortLog}
                             />
                         </div>
-                    </TabPane>
-                </TabContent>
+                    </Tab>
+                </Tabs>
             </div>;
 
-        let conflictNavTitle = 'Conflict Entries <font size="2">(' + conflictEntries.length + ')</font>';
-        let glueNavTitle = 'Glue Entries <font size="2">(' + glueEntries.length + ')</font>';
         let conflictContent =
-            <div>
-                <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                    <NavItem className="ds-nav-med" eventKey={1}>
-                        <div dangerouslySetInnerHTML={{__html: conflictNavTitle}} />
-                    </NavItem>
-                    <NavItem className="ds-nav-med" eventKey={2}>
-                        <div dangerouslySetInnerHTML={{__html: glueNavTitle}} />
-                    </NavItem>
-                </Nav>
-                <TabContent>
-                    <TabPane eventKey={1}>
+            <div className="ds-margin-top-lg">
+                <Tabs isBox activeKey={this.state.activeTabConflictKey} onSelect={this.handleNavConflictSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>Conflict Entries <font size="2">({conflictEntries.length})</font></TabTitleText>}>
                         <div className="ds-indent ds-margin-top-lg">
                             <Tooltip
                                 content={
@@ -1432,8 +1468,8 @@ export class ReplMonitor extends React.Component {
                                 key={conflictEntries}
                             />
                         </div>
-                    </TabPane>
-                    <TabPane eventKey={2}>
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText>Glue Entries <font size="2">({glueEntries.length})</font></TabTitleText>}>
                         <div className="ds-indent ds-margin-top-lg">
                             <Tooltip
                                 content={
@@ -1457,84 +1493,45 @@ export class ReplMonitor extends React.Component {
                                 key={glueEntries}
                             />
                         </div>
-                    </TabPane>
-                </TabContent>
+                    </Tab>
+                </Tabs>
             </div>;
-
-        let fullReportTitle = 'Synchronization Report';
-        let replAgmtNavTitle = 'Agreements <font size="2">(' + replAgmts.length + ')</font>';
-        let winsyncNavTitle = 'Winsync <font size="2">(' + replWinsyncAgmts.length + ')</font>';
-        let tasksNavTitle = 'Tasks <font size="2">(' + (cleanTasks.length + abortTasks.length) + ')</font>';
-        let conflictsNavTitle = 'Conflict Entries <font size="2">(' + (conflictEntries.length + glueEntries.length) + ')</font>';
 
         return (
             <div>
                 <div id="monitor-suffix-page" className="ds-tab-table">
-                    <TabContainer className="ds-margin-top-lg" id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                        <div>
-                            <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                                <NavItem eventKey={1}>
-                                    <div dangerouslySetInnerHTML={{__html: fullReportTitle}} />
-                                </NavItem>
-                                <NavItem eventKey={2}>
-                                    <div dangerouslySetInnerHTML={{__html: replAgmtNavTitle}} />
-                                </NavItem>
-                                <NavItem eventKey={3}>
-                                    <div dangerouslySetInnerHTML={{__html: winsyncNavTitle}} />
-                                </NavItem>
-                                <NavItem eventKey={4}>
-                                    <div dangerouslySetInnerHTML={{__html: tasksNavTitle}} />
-                                </NavItem>
-                                <NavItem eventKey={5}>
-                                    <div dangerouslySetInnerHTML={{__html: conflictsNavTitle}} />
-                                </NavItem>
-                            </Nav>
-                            <TabContent>
-                                <TabPane eventKey={1}>
-                                    <div className="ds-indent ds-tab-table">
-                                        <TabContainer
-                                            id="task-tabs"
-                                            defaultActiveKey={1}
-                                            onSelect={this.handleReportNavSelect}
-                                            activeKey={this.state.activeReportKey}
-                                        >
-                                            {reportContent}
-                                        </TabContainer>
-                                    </div>
-                                </TabPane>
-                                <TabPane eventKey={2}>
-                                    <div className="ds-indent ds-tab-table">
-                                        <AgmtTable
-                                            agmts={replAgmts}
-                                            pokeAgmt={this.pokeAgmt}
-                                        />
-                                    </div>
-                                </TabPane>
-                                <TabPane eventKey={3}>
-                                    <div className="dds-indent ds-tab-table">
-                                        <WinsyncAgmtTable
-                                            agmts={replWinsyncAgmts}
-                                            pokeAgmt={this.pokeWinsyncAgmt}
-                                        />
-                                    </div>
-                                </TabPane>
-                                <TabPane eventKey={4}>
-                                    <div className="ds-indent ds-tab-table">
-                                        <TabContainer id="task-tabs" defaultActiveKey={1}>
-                                            {taskContent}
-                                        </TabContainer>
-                                    </div>
-                                </TabPane>
-                                <TabPane eventKey={5}>
-                                    <div className="ds-indent ds-tab-table">
-                                        <TabContainer id="task-tabs" defaultActiveKey={1}>
-                                            {conflictContent}
-                                        </TabContainer>
-                                    </div>
-                                </TabPane>
-                            </TabContent>
-                        </div>
-                    </TabContainer>
+                    <Tabs activeKey={this.state.activeTabReplKey} onSelect={this.handleNavReplSelect}>
+                        <Tab eventKey={0} title={<TabTitleText>Synchronization Report</TabTitleText>}>
+                            {reportContent}
+                        </Tab>
+                        <Tab eventKey={1} title={<TabTitleText>Agreements <font size="2">({replAgmts.length})</font></TabTitleText>}>
+                            <div className="ds-indent ds-tab-table">
+                                <AgmtTable
+                                    agmts={replAgmts}
+                                    pokeAgmt={this.pokeAgmt}
+                                />
+                            </div>
+                        </Tab>
+                        <Tab eventKey={2} title={<TabTitleText>Winsync <font size="2">({replWinsyncAgmts.length})</font></TabTitleText>}>
+                            <div className="ds-indent ds-tab-table">
+                                <WinsyncAgmtTable
+                                    agmts={replWinsyncAgmts}
+                                    pokeAgmt={this.pokeWinsyncAgmt}
+                                />
+                            </div>
+                        </Tab>
+                        <Tab eventKey={3} title={<TabTitleText>Tasks <font size="2">({(cleanTasks.length + abortTasks.length)})</font></TabTitleText>}>
+                            <div className="ds-indent ds-tab-table">
+                                {taskContent}
+                            </div>
+                        </Tab>
+                        <Tab eventKey={4} title={<TabTitleText>Conflict Entries <font size="2">({(conflictEntries.length + glueEntries.length)})</font></TabTitleText>}>
+                            <div className="ds-indent ds-tab-table">
+                                {conflictContent}
+                            </div>
+                        </Tab>
+                    </Tabs>
+
                     <TaskLogModal
                         showModal={this.state.showLogModal}
                         closeHandler={this.closeLogModal}

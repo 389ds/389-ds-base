@@ -1,41 +1,36 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Row,
-    Col,
-    Form,
-    Radio,
-    FormGroup,
-    FormControl,
-    ControlLabel
-} from "patternfly-react";
-import {
     Button,
     Checkbox,
-    // Form,
-    // FormGroup,
+    Form,
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
     Modal,
     ModalVariant,
+    NumberInput,
     Select,
     SelectOption,
     SelectVariant,
-    // TextInput,
+    Tab,
+    Tabs,
+    TabTitleText,
+    TextInput,
+    ValidatedOptions,
     noop
 } from "@patternfly/react-core";
 import { PassthroughAuthURLsTable, PassthroughAuthConfigsTable } from "./pluginTables.jsx";
 import PluginBasicPAMConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
 class PassthroughAuthentication extends React.Component {
-    componentDidUpdate() {
-        if (this.props.wasActiveList.includes(5)) {
-            if (this.state.firstLoad) {
-                this.loadPAMConfigs();
-                this.loadURLs();
-            }
-        }
+    componentDidMount() {
+        this.loadPAMConfigs();
+        this.loadURLs();
     }
 
     constructor(props) {
@@ -44,43 +39,74 @@ class PassthroughAuthentication extends React.Component {
             firstLoad: true,
             pamConfigRows: [],
             urlRows: [],
-            attributes: [],
             tableKey: 1,
+            activeTabKey: 0,
+            error: {},
+            modalSpinning: false,
+            modalChecked: false,
 
             pamConfigName: "",
             pamExcludeSuffix: [],
-            isExcludeOpen: false,
-            excludeOptions: [],
             pamIncludeSuffix: [],
-            isIncludeOpen: false,
-            includeOptions: [],
             pamMissingSuffix: "",
             pamFilter: "",
-            pamIDAttr: [],
-            isAttrOpen: false,
-            attrOptions: [],
-            pamIDMapMethod: "",
+            pamIDAttr: "",
+            pamIDMapMethod: "RDN",
             pamFallback: false,
             pamSecure: false,
-            pamService: "",
+            pamService: "ldapserver",
+            _pamConfigName: "",
+            _pamExcludeSuffix: [],
+            _pamIncludeSuffix: [],
+            _pamMissingSuffix: "",
+            _pamFilter: "",
+            _pamIDAttr: "",
+            _pamIDMapMethod: "RDN",
+            _pamFallback: false,
+            _pamSecure: false,
+            _pamService: "ldapserver",
+            isExcludeOpen: false,
+            excludeOptions: [],
+            isIncludeOpen: false,
+            includeOptions: [],
             showConfirmDeleteConfig: false,
+            saveBtnDisabledPAM: true,
+            savingPAM: false,
 
             oldURL: "",
-            urlConnType: "ldap",
+            urlConnType: "ldaps",
             urlAuthDS: "",
             urlSubtree: "",
-            urlMaxConns: "3",
-            urlMaxOps: "5",
-            urlTimeout: "300",
+            urlMaxConns: 3,
+            urlMaxOps: 5,
+            urlTimeout: 300,
             urlLDVer: "3",
-            urlConnLifeTime: "300",
+            urlConnLifeTime: 300,
             urlStartTLS: false,
+            _urlConnType: "ldaps",
+            _urlAuthDS: "",
+            _urlSubtree: "",
+            _urlMaxConns: 3,
+            _urlMaxOps: 5,
+            _urlTimeout: 300,
+            _urlLDVer: "3",
+            _urlConnLifeTime: 300,
+            _urlStartTLS: false,
             showConfirmDeleteURL: false,
+            saveBtnDisabledPassthru: true,
+            savingPassthru: false,
 
             newPAMConfigEntry: false,
             newURLEntry: false,
             pamConfigEntryModalShow: false,
             urlEntryModalShow: false
+        };
+
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
         };
 
         this.onExcludeToggle = isExcludeOpen => {
@@ -92,7 +118,7 @@ class PassthroughAuthentication extends React.Component {
             this.setState({
                 pamExcludeSuffix: [],
                 isExcludeOpen: false
-            });
+            }, () => { this.validatePAM() });
         };
         this.onExcludeSelect = (event, selection) => {
             if (this.state.pamExcludeSuffix.includes(selection)) {
@@ -100,14 +126,14 @@ class PassthroughAuthentication extends React.Component {
                     prevState => ({
                         pamExcludeSuffix: prevState.pamExcludeSuffix.filter(item => item !== selection),
                         isExcludeOpen: false
-                    })
+                    }), () => { this.validatePAM() }
                 );
             } else {
                 this.setState(
                     prevState => ({
                         pamExcludeSuffix: [...prevState.pamExcludeSuffix, selection],
                         isExcludeOpen: false
-                    })
+                    }), () => { this.validatePAM() }
                 );
             }
         };
@@ -116,7 +142,7 @@ class PassthroughAuthentication extends React.Component {
                 this.setState({
                     excludeOptions: [...this.state.excludeOptions, newValue],
                     isExcludeOpen: false
-                });
+                }, () => { this.validatePaAM() });
             }
         };
 
@@ -129,7 +155,7 @@ class PassthroughAuthentication extends React.Component {
             this.setState({
                 pamIncludeSuffix: [],
                 isIncludeOpen: false
-            });
+            }, () => { this.validatePAM() });
         };
         this.onIncludeSelect = (event, selection) => {
             if (this.state.pamIncludeSuffix.includes(selection)) {
@@ -157,49 +183,37 @@ class PassthroughAuthentication extends React.Component {
             }
         };
 
-        this.onAttrToggle = isAttrOpen => {
+        this.maxValue = 20000000;
+        this.onMinusConfig = (id) => {
             this.setState({
-                isAttrOpen
-            });
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validatePassthru() });
         };
-        this.clearAttrSelection = () => {
+        this.onConfigChange = (event, id, min) => {
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
             this.setState({
-                pamIDAttr: [],
-                isAttrOpen: false
-            });
+                [id]: newValue > this.maxValue ? this.maxValue : newValue < min ? min : newValue
+            }, () => { this.validatePassthru() });
         };
-        this.onAttrSelect = (event, selection) => {
-            if (this.state.pamIDAttr.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        pamIDAttr: prevState.pamIDAttr.filter(item => item !== selection),
-                        isAttrOpen: false
-                    })
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        pamIDAttr: [...prevState.pamIDAttr, selection],
-                        isAttrOpen: false
-                    })
-                );
-            }
-        };
-        this.onCreateAttrOption = newValue => {
-            if (!this.state.attributes.includes(newValue)) {
-                this.setState({
-                    attributes: [...this.state.attributes, newValue],
-                    isIncludeOpen: false
-                });
-            }
+        this.onPlusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validatePassthru() });
         };
 
-        this.handleFieldChange = this.handleFieldChange.bind(this);
-        this.handleCheckboxChange = this.handleCheckboxChange.bind(this);
+        // This vastly improves rendering performance during handleChange()
+        this.attrRows = this.props.attributes.map((attr) => (
+            <FormSelectOption key={attr} value={attr} label={attr} />
+        ));
+
+        this.handlePassthruChange = this.handlePassthruChange.bind(this);
+        this.handlePAMChange = this.handlePAMChange.bind(this);
+        this.handleModalChange = this.handleModalChange.bind(this);
+        this.validatePassthru = this.validatePassthru.bind(this);
+        this.validatePAM = this.validatePAM.bind(this);
 
         this.loadPAMConfigs = this.loadPAMConfigs.bind(this);
         this.loadURLs = this.loadURLs.bind(this);
-        this.getAttributes = this.getAttributes.bind(this);
 
         this.openPAMModal = this.openPAMModal.bind(this);
         this.closePAMModal = this.closePAMModal.bind(this);
@@ -222,6 +236,130 @@ class PassthroughAuthentication extends React.Component {
         this.showConfirmDeleteURL = this.showConfirmDeleteURL.bind(this);
         this.closeConfirmDeleteConfig = this.closeConfirmDeleteConfig.bind(this);
         this.closeConfirmDeleteURL = this.closeConfirmDeleteURL.bind(this);
+    }
+
+    validatePassthru() {
+        let errObj = {};
+        let all_good = true;
+
+        let reqAttrs = ['urlAuthDS', 'urlSubtree'];
+        let dnAttrs = ['urlSubtree'];
+
+        // Check we have our required attributes set
+        for (let attr of reqAttrs) {
+            if (this.state[attr] == "") {
+                errObj[attr] = true;
+                all_good = false;
+                break;
+            }
+        }
+
+        // Check the DN's of our lists
+        for (let attr of dnAttrs) {
+            if (!valid_dn(this.state[attr])) {
+                errObj[attr] = true;
+                all_good = false;
+                break;
+            }
+        }
+
+        if (all_good) {
+            // Check for value differences to see if the save btn should be enabled
+            all_good = false;
+
+            let configAttrs = [
+                'urlSubtree', 'urlConnType', 'urlAuthDS', 'urlMaxConns',
+                'urlMaxOps', 'urlTimeout', 'urlLDVer', 'urlConnLifeTime',
+                'urlStartTLS'
+            ];
+            for (let check_attr of configAttrs) {
+                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                    all_good = true;
+                    break;
+                }
+            }
+        }
+        this.setState({
+            saveBtnDisabledPassthru: !all_good,
+            error: errObj
+        });
+    }
+
+    validatePAM() {
+        let errObj = {};
+        let all_good = true;
+
+        let reqAttrs = ['pamConfigName', 'pamIDAttr'];
+        let dnAttrLists = ['pamExcludeSuffix', 'pamExcludeSuffix'];
+
+        // Check we have our required attributes set
+        for (let attr of reqAttrs) {
+            if (this.state[attr] == "") {
+                errObj[attr] = true;
+                all_good = false;
+                break;
+            }
+        }
+
+        // Check the DN's of our lists
+        for (let attrList of dnAttrLists) {
+            for (let dn of this.state[attrList]) {
+                if (!valid_dn(dn)) {
+                    errObj[attrList] = true;
+                    all_good = false;
+                    break;
+                }
+            }
+        }
+
+        if (all_good) {
+            // Check for value differences to see if the save btn should be enabled
+            all_good = false;
+            let attrLists = ['pamExcludeSuffix', 'pamIncludeSuffix'];
+            for (let check_attr of attrLists) {
+                if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
+                    all_good = true;
+                    break;
+                }
+            }
+
+            let configAttrs = [
+                'pamConfigName', 'pamFilter', 'pamMissingSuffix', 'pamIDMapMethod',
+                'pamIDAttr', 'pamFallback', 'pamSecure', 'pamService'
+            ];
+            for (let check_attr of configAttrs) {
+                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                    all_good = true;
+                    break;
+                }
+            }
+        }
+        this.setState({
+            saveBtnDisabledPAM: !all_good,
+            error: errObj
+        });
+    }
+
+    handlePassthruChange(e) {
+        // Pass thru
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.setState({
+            [e.target.id]: value
+        }, () => { this.validatePassthru() });
+    }
+
+    handlePAMChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.setState({
+            [e.target.id]: value
+        }, () => { this.validatePAM() });
+    }
+
+    handleModalChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.setState({
+            [e.target.id]: value
+        });
     }
 
     showConfirmDeleteConfig (name) {
@@ -257,19 +395,6 @@ class PassthroughAuthentication extends React.Component {
             modalChecked: false,
             modalSpinning: false,
             deleteName: ""
-        });
-    }
-
-    handleFieldChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        this.setState({
-            [e.target.id]: value
-        });
-    }
-
-    handleCheckboxChange(checked, e) {
-        this.setState({
-            [e.target.id]: checked
         });
     }
 
@@ -346,7 +471,6 @@ class PassthroughAuthentication extends React.Component {
     }
 
     openPAMModal(name) {
-        this.getAttributes();
         if (!name) {
             this.setState({
                 pamConfigEntryModalShow: true,
@@ -356,16 +480,16 @@ class PassthroughAuthentication extends React.Component {
                 pamIncludeSuffix: [],
                 pamMissingSuffix: "",
                 pamFilter: "",
-                pamIDAttr: [],
-                pamIDMapMethod: "",
+                pamIDAttr: "",
+                pamIDMapMethod: "RDN",
                 pamFallback: false,
                 pamSecure: false,
-                pamService: ""
+                pamService: "ldapserver",
+                saveBtnDisabledPAM: true,
             });
         } else {
             let pamExcludeSuffixList = [];
             let pamIncludeSuffixList = [];
-            let pamIDAttrList = [];
             let cmd = [
                 "dsconf",
                 "-j",
@@ -402,19 +526,15 @@ class PassthroughAuthentication extends React.Component {
                                 pamIncludeSuffixList = [...pamIncludeSuffixList, value];
                             }
                         }
-                        if (pamConfigEntry["pamidattr"] !== undefined) {
-                            for (let value of pamConfigEntry["pamidattr"]) {
-                                pamIDAttrList = [...pamIDAttrList, value];
-                            }
-                        }
 
                         this.setState({
                             tableKey: tableKey,
+                            saveBtnDisabledPAM: true,
                             pamConfigEntryModalShow: true,
                             newPAMConfigEntry: false,
                             pamExcludeSuffix: pamExcludeSuffixList,
                             pamIncludeSuffix: pamIncludeSuffixList,
-                            pamIDAttr: pamIDAttrList,
+                            pamIDAttr: pamConfigEntry["pamidattr"][0],
                             pamConfigName:
                             pamConfigEntry["cn"] === undefined ? "" : pamConfigEntry["cn"][0],
                             pamMissingSuffix:
@@ -427,7 +547,7 @@ class PassthroughAuthentication extends React.Component {
                                 : pamConfigEntry["pamfilter"][0],
                             pamIDMapMethod:
                             pamConfigEntry["pamidmapmethod"] === undefined
-                                ? ""
+                                ? "RDN"
                                 : pamConfigEntry["pamidmapmethod"][0],
                             pamFallback: !(
                                 pamConfigEntry["pamfallback"] === undefined ||
@@ -439,7 +559,37 @@ class PassthroughAuthentication extends React.Component {
                             ),
                             pamService:
                             pamConfigEntry["pamservice"] === undefined
+                                ? "ldapserver"
+                                : pamConfigEntry["pamservice"][0],
+                            // Backup values
+                            _pamExcludeSuffix: [...pamExcludeSuffixList],
+                            _pamIncludeSuffix: [...pamIncludeSuffixList],
+                            _pamIDAttr: pamConfigEntry["pamidattr"][0],
+                            _pamConfigName:
+                            pamConfigEntry["cn"] === undefined ? "" : pamConfigEntry["cn"][0],
+                            _pamMissingSuffix:
+                            pamConfigEntry["pammissingsuffix"] === undefined
                                 ? ""
+                                : pamConfigEntry["pammissingsuffix"][0],
+                            _pamFilter:
+                            pamConfigEntry["pamfilter"] === undefined
+                                ? ""
+                                : pamConfigEntry["pamfilter"][0],
+                            _pamIDMapMethod:
+                            pamConfigEntry["pamidmapmethod"] === undefined
+                                ? "ldapserver"
+                                : pamConfigEntry["pamidmapmethod"][0],
+                            _pamFallback: !(
+                                pamConfigEntry["pamfallback"] === undefined ||
+                            pamConfigEntry["pamfallback"][0] == "FALSE"
+                            ),
+                            _pamSecure: !(
+                                pamConfigEntry["pamsecure"] === undefined ||
+                            pamConfigEntry["pamsecure"][0] == "FALSE"
+                            ),
+                            _pamService:
+                            pamConfigEntry["pamservice"] === undefined
+                                ? "ldapserver"
                                 : pamConfigEntry["pamservice"][0],
                         });
                         this.props.toggleLoadingHandler();
@@ -453,11 +603,12 @@ class PassthroughAuthentication extends React.Component {
                             pamIncludeSuffix: [],
                             pamMissingSuffix: "",
                             pamFilter: "",
-                            pamIDAttr: [],
+                            pamIDAttr: "",
                             pamIDMapMethod: "",
                             pamFallback: false,
                             pamSecure: false,
-                            pamService: ""
+                            pamService: "",
+                            saveBtnDisabledPAM: true,
                         });
                         this.props.toggleLoadingHandler();
                     });
@@ -465,7 +616,10 @@ class PassthroughAuthentication extends React.Component {
     }
 
     closePAMModal() {
-        this.setState({ pamConfigEntryModalShow: false });
+        this.setState({
+            pamConfigEntryModalShow: false,
+            savingPAM: false,
+        });
     }
 
     deletePAMConfig() {
@@ -584,17 +738,17 @@ class PassthroughAuthentication extends React.Component {
             cmd = [...cmd, "delete"];
         }
         cmd = [...cmd, "--id-attr"];
-        if (pamIDAttr.length != 0) {
-            for (let value of pamIDAttr) {
-                cmd = [...cmd, value];
-            }
+        if (pamIDAttr != "") {
+            cmd = [...cmd, pamIDAttr];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
             cmd = [...cmd, "delete"];
         }
 
-        this.props.toggleLoadingHandler();
+        this.setState({
+            savingPAM: true
+        });
         log_cmd(
             "pamPassthroughAuthOperation",
             `Do the ${action} operation on the PAM Passthough Authentication Plugin`,
@@ -613,7 +767,6 @@ class PassthroughAuthentication extends React.Component {
                     );
                     this.loadPAMConfigs();
                     this.closePAMModal();
-                    this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -623,7 +776,6 @@ class PassthroughAuthentication extends React.Component {
                     );
                     this.loadPAMConfigs();
                     this.closePAMModal();
-                    this.props.toggleLoadingHandler();
                 });
     }
 
@@ -649,7 +801,8 @@ class PassthroughAuthentication extends React.Component {
                 urlTimeout: "300",
                 urlLDVer: "3",
                 urlConnLifeTime: "300",
-                urlStartTLS: false
+                urlStartTLS: false,
+                saveBtnDisabledPassthru: true,
             });
         } else {
             let link = url.split(" ")[0];
@@ -666,13 +819,17 @@ class PassthroughAuthentication extends React.Component {
                 urlTimeout: params.split(",")[2],
                 urlLDVer: params.split(",")[3],
                 urlConnLifeTime: params.split(",")[4],
-                urlStartTLS: !(params.split(",")[5] == "0")
+                urlStartTLS: !(params.split(",")[5] == "0"),
+                saveBtnDisabledPassthru: true,
             });
         }
     }
 
     closeURLModal() {
-        this.setState({ urlEntryModalShow: false });
+        this.setState({
+            urlEntryModalShow: false,
+            savingPassthru: false
+        });
     }
 
     deleteURL() {
@@ -691,7 +848,6 @@ class PassthroughAuthentication extends React.Component {
             modalSpinning: true
         });
 
-        this.props.toggleLoadingHandler();
         log_cmd("deleteURL", "Delete the Passthough Authentication Plugin URL entry", cmd);
         cockpit
                 .spawn(cmd, {
@@ -703,7 +859,6 @@ class PassthroughAuthentication extends React.Component {
                     this.props.addNotification("success", `URL ${this.state.deleteName} was successfully deleted`);
                     this.loadURLs();
                     this.closeConfirmDeleteURL();
-                    this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -713,7 +868,6 @@ class PassthroughAuthentication extends React.Component {
                     );
                     this.loadURLs();
                     this.closeConfirmDeleteURL();
-                    this.props.toggleLoadingHandler();
                 });
     }
 
@@ -739,90 +893,55 @@ class PassthroughAuthentication extends React.Component {
             urlStartTLS
         } = this.state;
 
-        if (!urlAuthDS || !urlSubtree) {
-            this.props.addNotification(
-                "warning",
-                "Authentication Hostname and Subtree fields are required."
-            );
-        } else {
-            const constructedURL = `${urlConnType}://${urlAuthDS}/${urlSubtree} ${urlMaxConns},${urlMaxOps},${urlTimeout},${urlLDVer},${urlConnLifeTime},${
-                urlStartTLS ? "1" : "0"
-            }`;
+        const constructedURL = `${urlConnType}://${urlAuthDS}/${urlSubtree} ${urlMaxConns},${urlMaxOps},${urlTimeout},${urlLDVer},${urlConnLifeTime},${
+            urlStartTLS ? "1" : "0"
+        }`;
 
-            let cmd = [
-                "dsconf",
-                "-j",
-                "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-                "plugin",
-                "pass-through-auth",
-                "url",
-                action
-            ];
-            if (oldURL != "" && action == "modify") {
-                cmd = [...cmd, oldURL, constructedURL];
-            } else {
-                cmd = [...cmd, constructedURL];
-            }
-
-            this.props.toggleLoadingHandler();
-            log_cmd(
-                "PassthroughAuthOperation",
-                `Do the ${action} operation on the Passthough Authentication Plugin`,
-                cmd
-            );
-            cockpit
-                    .spawn(cmd, {
-                        superuser: true,
-                        err: "message"
-                    })
-                    .done(content => {
-                        console.info("PassthroughAuthOperation", "Result", content);
-                        this.props.addNotification(
-                            "success",
-                            `The ${action} operation was successfully done on "${constructedURL}" entry`
-                        );
-                        this.loadURLs();
-                        this.closeURLModal();
-                        this.props.toggleLoadingHandler();
-                    })
-                    .fail(err => {
-                        let errMsg = JSON.parse(err);
-                        this.props.addNotification(
-                            "error",
-                            `Error during the URL ${action} operation - ${errMsg.desc}`
-                        );
-                        this.loadURLs();
-                        this.closeURLModal();
-                        this.props.toggleLoadingHandler();
-                    });
-        }
-    }
-
-    getAttributes() {
-        const attr_cmd = [
+        let cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "schema",
-            "attributetypes",
-            "list"
+            "plugin",
+            "pass-through-auth",
+            "url",
+            action
         ];
-        log_cmd("getAttributes", "Get attrs", attr_cmd);
+        if (oldURL != "" && action == "modify") {
+            cmd = [...cmd, oldURL, constructedURL];
+        } else {
+            cmd = [...cmd, constructedURL];
+        }
+
+        this.setState({
+            savingPassthru: true
+        });
+        log_cmd(
+            "PassthroughAuthOperation",
+            `Do the ${action} operation on the Passthough Authentication Plugin`,
+            cmd
+        );
         cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .spawn(cmd, {
+                    superuser: true,
+                    err: "message"
+                })
                 .done(content => {
-                    const attrContent = JSON.parse(content);
-                    let attrs = [];
-                    for (let content of attrContent["items"]) {
-                        attrs.push(content.name[0]);
-                    }
-                    this.setState({
-                        attributes: attrs
-                    });
+                    console.info("PassthroughAuthOperation", "Result", content);
+                    this.props.addNotification(
+                        "success",
+                        `The ${action} operation was successfully done on "${constructedURL}" entry`
+                    );
+                    this.loadURLs();
+                    this.closeURLModal();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.props.addNotification("error", `Failed to get attributes - ${errMsg.desc}`);
+                    this.props.addNotification(
+                        "error",
+                        `Error during the URL ${action} operation - ${errMsg.desc}`
+                    );
+                    this.loadURLs();
+                    this.closeURLModal();
                 });
     }
 
@@ -830,7 +949,6 @@ class PassthroughAuthentication extends React.Component {
         const {
             urlRows,
             pamConfigRows,
-            attributes,
             pamConfigName,
             pamMissingSuffix,
             pamExcludeSuffix,
@@ -853,65 +971,65 @@ class PassthroughAuthentication extends React.Component {
             newPAMConfigEntry,
             newURLEntry,
             pamConfigEntryModalShow,
-            urlEntryModalShow
+            urlEntryModalShow,
+            error,
+            savingPAM,
+            savingPassthru
         } = this.state;
-
-        const modalPAMConfigFields = {
-            pamFilter: {
-                name: "Filter",
-                value: pamFilter,
-                help: `Sets an LDAP filter to use to identify specific entries within the included suffixes for which to use PAM pass-through authentication (pamFilter)`
-            },
-            pamIDMapMethod: {
-                name: "Map Method",
-                value: pamIDMapMethod,
-                help: `Gives the method to use to map the LDAP bind DN to a PAM identity (pamIDMapMethod)`
-            },
-            pamService: {
-                name: "Service",
-                value: pamService,
-                help: `Contains the service name to pass to PAM (pamService)`
-            }
-        };
 
         const modalURLFields = {
             urlAuthDS: {
                 name: "Authentication Hostname",
+                id: 'urlAuthDS',
                 value: urlAuthDS,
                 help: `The authenticating directory host name. The port number of the Directory Server can be given by adding a colon and then the port number. For example, dirserver.example.com:389. If the port number is not specified, the PTA server attempts to connect using either of the standard ports: Port 389 if ldap:// is specified in the URL. Port 636 if ldaps:// is specified in the URL.`
             },
             urlSubtree: {
                 name: "Subtree",
+                id: 'urlSubtree',
                 value: urlSubtree,
                 help: `The pass-through subtree. The PTA Directory Server passes through bind requests to the authenticating Directory Server from all clients whose DN is in this subtree.`
             },
+        };
+        const modalURLNumberFields = {
             urlMaxConns: {
                 name: "Maximum Number of Connections",
                 value: urlMaxConns,
+                id: 'urlMaxConns',
                 help: `The maximum number of connections the PTA directory can simultaneously open to the authenticating directory.`
             },
             urlMaxOps: {
                 name: "Maximum Number of Simultaneous Operations",
                 value: urlMaxOps,
+                id: 'urlMaxOps',
                 help: `The maximum number of simultaneous operations (usually bind requests) the PTA directory can send to the authenticating directory within a single connection.`
             },
             urlTimeout: {
                 name: "Timeout",
                 value: urlTimeout,
+                id: 'urlTimeout',
                 help: `The time limit, in seconds, that the PTA directory waits for a response from the authenticating Directory Server. If this timeout is exceeded, the server returns an error to the client. The default is 300 seconds (five minutes). Specify zero (0) to indicate no time limit should be enforced.`
             },
             urlConnLifeTime: {
                 name: "Connection Life Time",
                 value: urlConnLifeTime,
+                id: 'urlConnLifeTime',
                 help: `The time limit, in seconds, within which a connection may be used.`
             }
         };
 
-        let title = (newPAMConfigEntry ? "Add" : "Edit") + " PAM Passthough Authentication Plugin Config Entry";
-        let title_url = (newPAMConfigEntry ? "Add " : "Edit ") + "Passthough Authentication Plugin URL";
+        let saveBtnName = "Save Config";
+        let extraPrimaryProps = {};
+        if (this.state.savingPassthru || this.state.savingPAM) {
+            saveBtnName = "Saving Config ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
+
+        let title = (newPAMConfigEntry ? "Add" : "Edit") + " PAM Passthough Auth Plugin Config Entry";
+        let title_url = (newPAMConfigEntry ? "Add " : "Edit ") + "Pass-Though Authentication Plugin URL";
 
         return (
-            <div>
+            <div className={savingPAM || savingPassthru ? "ds-disabled" : ""}>
                 <Modal
                     variant={ModalVariant.medium}
                     aria-labelledby="ds-modal"
@@ -919,223 +1037,223 @@ class PassthroughAuthentication extends React.Component {
                     isOpen={pamConfigEntryModalShow}
                     onClose={this.closePAMModal}
                     actions={[
-                        <Button key="confirm" variant="primary" onClick={newPAMConfigEntry ? this.addPAMConfig : this.editPAMConfig}>
-                            Save
+                        <Button
+                            key="confirm"
+                            variant="primary"
+                            onClick={newPAMConfigEntry ? this.addPAMConfig : this.editPAMConfig}
+                            isDisabled={this.state.saveBtnDisabledPAM}
+                            isLoading={this.state.savingPAM}
+                            spinnerAriaValueText={this.state.savingPAM ? "Saving" : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveBtnName}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.closePAMModal}>
                             Cancel
                         </Button>
                     ]}
                 >
-                    <Row>
-                        <Col sm={12}>
-                            <Form horizontal>
-                                <FormGroup key="pamConfigName" controlId="pamConfigName">
-                                    <Col componentClass={ControlLabel} sm={3}>
-                                        Config Name
-                                    </Col>
-                                    <Col sm={9}>
-                                        <FormControl
-                                            required
-                                            type="text"
-                                            value={pamConfigName}
-                                            onChange={this.handleFieldChange}
-                                            disabled={!newPAMConfigEntry}
+                    <Form isHorizontal autoComplete="off">
+                        <Grid className="ds-margin-top">
+                            <GridItem className="ds-label" span={3}>
+                                Config Name
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={pamConfigName}
+                                    type="text"
+                                    id="pamConfigName"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="pamConfigName"
+                                    onChange={(str, e) => {
+                                        this.handlePAMChange(e);
+                                    }}
+                                    isDisabled={!newPAMConfigEntry}
+                                    validated={error.pamConfigName ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem
+                                className="ds-label"
+                                span={3}
+                                title="Specifies a suffix to exclude from PAM authentication (pamExcludeSuffix)"
+                            >
+                                Exclude Suffix
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    isCreatable
+                                    onCreateOption={this.onCreateExcludeOption}
+                                    typeAheadAriaLabel="Add a suffix"
+                                    onToggle={this.onExcludeToggle}
+                                    onSelect={this.onExcludeSelect}
+                                    onClear={this.clearExcludeSelection}
+                                    selections={pamExcludeSuffix}
+                                    isOpen={this.state.isExcludeOpen}
+                                    aria-labelledby="Add a suffix"
+                                    placeholderText="Type a suffix DN ..."
+                                >
+                                    {this.state.excludeOptions.map((suffix, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={suffix}
                                         />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup
-                                    key="pamExcludeSuffix"
-                                    controlId="pamExcludeSuffix"
-                                    disabled={false}
+                                    ))}
+                                </Select>
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem
+                                className="ds-label"
+                                span={3}
+                                title="Sets a suffix to include for PAM authentication (pamIncludeSuffix)"
+                            >
+                                Include Suffix
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    isCreatable
+                                    onCreateOption={this.onCreateIncludeOption}
+                                    typeAheadAriaLabel="Add an include suffix"
+                                    onToggle={this.onIncludeToggle}
+                                    onSelect={this.onIncludeSelect}
+                                    onClear={this.clearIncludeSelection}
+                                    selections={pamIncludeSuffix}
+                                    isOpen={this.state.isIncludeOpen}
+                                    aria-labelledby="Add an include suffix"
+                                    placeholderText="Type a suffix DN ..."
                                 >
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={3}
-                                        title="Specifies a suffix to exclude from PAM authentication (pamExcludeSuffix)"
-                                    >
-                                        Exclude Suffix
-                                    </Col>
-                                    <Col sm={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            isCreatable
-                                            onCreateOption={this.onCreateExcludeOption}
-                                            typeAheadAriaLabel="Add a suffix"
-                                            onToggle={this.onExcludeToggle}
-                                            onSelect={this.onExcludeSelect}
-                                            onClear={this.clearExcludeSelection}
-                                            selections={pamExcludeSuffix}
-                                            isOpen={this.state.isExcludeOpen}
-                                            aria-labelledby="Add a suffix"
-                                            placeholderText="Type a suffix DN ..."
-                                        >
-                                            {this.state.excludeOptions.map((suffix, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={suffix}
-                                                />
-                                            ))}
-                                        </Select>
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup
-                                    key="pamIncludeSuffix"
-                                    controlId="pamIncludeSuffix"
-                                    disabled={false}
+                                    {this.state.includeOptions.map((suffix, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={suffix}
+                                        />
+                                    ))}
+                                </Select>
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem className="ds-label" span={3} title="Contains the attribute name which is used to hold the PAM user ID (pamIDAttr)">
+                                ID Attribute
+                            </GridItem>
+                            <GridItem span={9}>
+                                <FormSelect
+                                    id="pamIDAttr"
+                                    value={pamIDAttr}
+                                    onChange={(value, event) => {
+                                        this.handlePAMChange(event);
+                                    }}
+                                    aria-label="FormSelect Input"
                                 >
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={3}
-                                        title="Sets a suffix to include for PAM authentication (pamIncludeSuffix)"
-                                    >
-                                        Include Suffix
-                                    </Col>
-                                    <Col sm={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            isCreatable
-                                            onCreateOption={this.onCreateIncludeOption}
-                                            typeAheadAriaLabel="Add an include suffix"
-                                            onToggle={this.onIncludeToggle}
-                                            onSelect={this.onIncludeSelect}
-                                            onClear={this.clearIncludeSelection}
-                                            selections={pamIncludeSuffix}
-                                            isOpen={this.state.isIncludeOpen}
-                                            aria-labelledby="Add an include suffix"
-                                            placeholderText="Type a suffix DN ..."
-                                        >
-                                            {this.state.includeOptions.map((suffix, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={suffix}
-                                                />
-                                            ))}
-                                        </Select>
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup
-                                    key="pamIDAttr"
-                                    controlId="pamIDAttr"
-                                    disabled={false}
+                                    <FormSelectOption key="no_setting2" value="" label="Choose an attribute..." />
+                                    {this.attrRows}
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Identifies how to handle missing include or exclude suffixes (pamMissingSuffix)">
+                            <GridItem className="ds-label" span={3}>
+                                Missing Suffix
+                            </GridItem>
+                            <GridItem span={9}>
+                                <FormSelect
+                                    id="pamMissingSuffix"
+                                    value={pamMissingSuffix}
+                                    onChange={(value, event) => {
+                                        this.handlePAMChange(event);
+                                    }}
+                                    aria-label="FormSelect Input"
                                 >
-                                    <Col componentClass={ControlLabel} sm={3} title="Contains the attribute name which is used to hold the PAM user ID (pamIDAttr)">
-                                        ID Attribute
-                                    </Col>
-                                    <Col sm={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            isCreatable
-                                            onCreateOption={this.onCreateAttrOption}
-                                            typeAheadAriaLabel="Add an attribute: "
-                                            onToggle={this.onAttrToggle}
-                                            onSelect={this.onAttrSelect}
-                                            onClear={this.clearAttrSelection}
-                                            selections={pamIDAttr}
-                                            isOpen={this.state.isAttrOpen}
-                                            aria-labelledby="Add an attribute: "
-                                            placeholderText="Type an attribute ..."
-                                        >
-                                            {attributes.map((suffix, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={suffix}
-                                                />
-                                            ))}
-                                        </Select>
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup
-                                    key="pamMissingSuffix"
-                                    controlId="pamMissingSuffix"
-                                    disabled={false}
+                                    <FormSelectOption key="ERROR" value="ERROR" label="ERROR" />
+                                    <FormSelectOption key="ALLOW" value="ALLOW" label="ALLOW" />
+                                    <FormSelectOption key="IGNORE" value="IGNORE" label="IGNORE" />
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Sets an LDAP filter to use to identify specific entries within the included suffixes for which to use PAM pass-through authentication (pamFilter)">
+                            <GridItem className="ds-label" span={3}>
+                                Filter
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={pamFilter}
+                                    type="text"
+                                    id="pamFilter"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="pamFilter"
+                                    onChange={(str, e) => {
+                                        this.handlePAMChange(e);
+                                    }}
+                                    validated={error.pamFilter ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Gives the method to use to map the LDAP bind DN to a PAM identity (pamIDMapMethod)">
+                            <GridItem className="ds-label" span={3}>
+                                Map Method
+                            </GridItem>
+                            <GridItem span={9}>
+                                <FormSelect
+                                    id="pamIDMapMethod"
+                                    value={pamIDMapMethod}
+                                    onChange={(value, event) => {
+                                        this.handlePAMChange(event);
+                                    }}
+                                    aria-label="FormSelect Input"
                                 >
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={3}
-                                        title="Identifies how to handle missing include or exclude suffixes (pamMissingSuffix)"
-                                    >
-                                        Missing Suffix
-                                    </Col>
-                                    <Col sm={9}>
-                                        <div>
-                                            <Radio
-                                                id="pamMissingSuffix"
-                                                value="ERROR"
-                                                name="ERROR"
-                                                inline
-                                                checked={pamMissingSuffix === "ERROR"}
-                                                onChange={this.handleFieldChange}
-                                            >
-                                                ERROR
-                                            </Radio>
-                                            <Radio
-                                                id="pamMissingSuffix"
-                                                value="ALLOW"
-                                                name="ALLOW"
-                                                inline
-                                                checked={pamMissingSuffix === "ALLOW"}
-                                                onChange={this.handleFieldChange}
-                                            >
-                                                ALLOW
-                                            </Radio>
-                                            <Radio
-                                                id="pamMissingSuffix"
-                                                value="IGNORE"
-                                                name="IGNORE"
-                                                inline
-                                                checked={pamMissingSuffix === "IGNORE"}
-                                                onChange={this.handleFieldChange}
-                                            >
-                                                IGNORE
-                                            </Radio>
-                                        </div>
-                                    </Col>
-                                </FormGroup>
-                                {Object.entries(modalPAMConfigFields).map(
-                                    ([id, content]) => (
-                                        <FormGroup key={id} controlId={id}>
-                                            <Col componentClass={ControlLabel} sm={3} title={content.help}>
-                                                {content.name}
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={content.value}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    )
-                                )}
-
-                                <FormGroup key="pamCheckboxes" controlId="pamCheckboxes">
-                                    <Row>
-                                        <Col smOffset={1} sm={7}>
-                                            <Checkbox
-                                                id="pamFallback"
-                                                isChecked={pamFallback}
-                                                onChange={this.handleCheckboxChange}
-                                                title={`Sets whether to fallback to regular LDAP authentication if PAM authentication fails (pamFallback)`}
-                                                label="Fallback Enabled"
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top">
-                                        <Col smOffset={1} sm={7}>
-                                            <Checkbox
-                                                id="pamSecure"
-                                                isChecked={pamSecure}
-                                                onChange={this.handleCheckboxChange}
-                                                title="Requires secure TLS connection for PAM authentication (pamSecure)"
-                                                label="Require Secure Connection"
-                                            />
-                                        </Col>
-                                    </Row>
-                                </FormGroup>
-                            </Form>
-                        </Col>
-                    </Row>
+                                    <FormSelectOption key="RDN" value="RDN" label="RDN" />
+                                    <FormSelectOption key="DN" value="DN" label="DN" />
+                                    <FormSelectOption key="ENTRY" value="ENTRY" label="ENTRY" />
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Contains the service name to pass to PAM (pamService)">
+                            <GridItem className="ds-label" span={3}>
+                                Service
+                            </GridItem>
+                            <GridItem span={9}>
+                                <FormSelect
+                                    id="pamService"
+                                    value={pamService}
+                                    onChange={(value, event) => {
+                                        this.handlePAMChange(event);
+                                    }}
+                                    aria-label="FormSelect Input"
+                                >
+                                    <FormSelectOption key="ldapserver" value="ldapserver" label="ldapserver" />
+                                    <FormSelectOption key="system-auth" value="system-auth" label="system-auth (For AD)" />
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem span={3} className="ds-label">
+                                Fallback Auth Enabled
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Checkbox
+                                    id="pamFallback"
+                                    isChecked={pamFallback}
+                                    onChange={(checked, e) => { this.handlePAMChange(e) }}
+                                    title={`Sets whether to fallback to regular LDAP authentication if PAM authentication fails (pamFallback)`}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid className="ds-margin-top">
+                            <GridItem span={3} className="ds-label">
+                                Require Secure Connection
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Checkbox
+                                    id="pamSecure"
+                                    isChecked={pamSecure}
+                                    onChange={(checked, e) => { this.handlePAMChange(e) }}
+                                    title="Requires secure TLS connection for PAM authentication (pamSecure)"
+                                />
+                            </GridItem>
+                        </Grid>
+                    </Form>
                 </Modal>
 
                 <Modal
@@ -1144,134 +1262,135 @@ class PassthroughAuthentication extends React.Component {
                     isOpen={urlEntryModalShow}
                     onClose={this.closeURLModal}
                     actions={[
-                        <Button key="confirm" variant="primary" onClick={newURLEntry ? this.addURL : this.editURL}>
-                            Save
+                        <Button
+                            key="confirm"
+                            variant="primary"
+                            onClick={newURLEntry ? this.addURL : this.editURL}
+                            isDisabled={this.state.saveBtnDisabledPassthru}
+                            isLoading={this.state.savingPassthru}
+                            spinnerAriaValueText={this.state.savingPassthru ? "Saving" : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveBtnName}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.closeURLModal}>
                             Cancel
                         </Button>
                     ]}
                 >
-                    <Row>
-                        <Col sm={12}>
-                            <Form horizontal>
-                                <FormGroup
-                                    key="urlConnType"
-                                    controlId="urlConnType"
-                                    disabled={false}
+                    <Form isHorizontal autoComplete="off">
+                        <Grid className="ds-margin-top">
+                            <GridItem
+                                className="ds-label"
+                                span={5}
+                                title="Defines whether TLS is used for communication between the two Directory Servers."
+                            >
+                                Connection Type
+                            </GridItem>
+                            <GridItem span={7}>
+                                <FormSelect
+                                    id="urlConnType"
+                                    value={urlConnType}
+                                    onChange={(value, event) => {
+                                        this.handlePassthruChange(event);
+                                    }}
+                                    aria-label="FormSelect Input"
                                 >
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={5}
-                                        title="Defines whether TLS is used for communication between the two Directory Servers."
-                                    >
-                                        Connection Type
-                                    </Col>
-                                    <Col sm={7}>
-                                        <div>
-                                            <Radio
-                                                id="urlConnType"
-                                                value="ldap"
-                                                name="ldap"
-                                                inline
-                                                checked={urlConnType === "ldap"}
-                                                onChange={this.handleFieldChange}
-                                            >
-                                                ldap
-                                            </Radio>
-                                            <Radio
-                                                id="urlConnType"
-                                                value="ldaps"
-                                                name="ldaps"
-                                                inline
-                                                checked={urlConnType === "ldaps"}
-                                                onChange={this.handleFieldChange}
-                                            >
-                                                ldaps
-                                            </Radio>
-                                        </div>
-                                    </Col>
-                                </FormGroup>
-                                {Object.entries(modalURLFields).map(([id, content]) => (
-                                    <FormGroup key={id} controlId={id}>
-                                        <Col componentClass={ControlLabel} sm={5} title={content.help}>
-                                            {content.name}
-                                        </Col>
-                                        <Col sm={7}>
-                                            <FormControl
-                                                type="text"
-                                                value={content.value}
-                                                onChange={this.handleFieldChange}
-                                            />
-                                        </Col>
-                                    </FormGroup>
-                                ))}
-
-                                <FormGroup
-                                    key="urlLDVer"
-                                    controlId="urlLDVer"
-                                    disabled={false}
+                                    <FormSelectOption key="urlldaps" value="ldaps" label="ldaps" />
+                                    <FormSelectOption key="urlldap" value="ldap" label="ldap" />
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        {Object.entries(modalURLFields).map(([id, content]) => (
+                            <Grid key={id}>
+                                <GridItem className="ds-label" span={5} title={content.help}>
+                                    {content.name}
+                                </GridItem>
+                                <GridItem span={7}>
+                                    <TextInput
+                                        value={content.value}
+                                        type="text"
+                                        id={content.id}
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name={content.name}
+                                        onChange={(str, e) => {
+                                            this.handlePassthruChange(e);
+                                        }}
+                                        validated={error[content.id] ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                </GridItem>
+                            </Grid>
+                        ))}
+                        {Object.entries(modalURLNumberFields).map(([id, content]) => (
+                            <Grid key={id}>
+                                <GridItem className="ds-label" span={5} title={content.help}>
+                                    {content.name}
+                                </GridItem>
+                                <GridItem span={7}>
+                                    <NumberInput
+                                        value={content.value}
+                                        min={-1}
+                                        max={this.maxValue}
+                                        onMinus={() => { this.onMinusConfig(content.id) }}
+                                        onChange={(e) => { this.onConfigChange(e, content.id, -1) }}
+                                        onPlus={() => { this.onPlusConfig(content.id) }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={8}
+                                    />
+                                </GridItem>
+                            </Grid>
+                        ))}
+                        <Grid>
+                            <GridItem
+                                className="ds-label"
+                                span={5}
+                                title={`The version of the LDAP protocol used to connect to the authenticating directory. Directory Server supports LDAP version 2 and 3. The default is version 3, and Red Hat strongly recommends against using LDAPv2, which is old and will be deprecated.`}
+                            >
+                                Version
+                            </GridItem>
+                            <GridItem span={7}>
+                                <FormSelect
+                                    id="urlLDVer"
+                                    value={urlLDVer}
+                                    onChange={(value, event) => {
+                                        this.handlePassthruChange(event);
+                                    }}
+                                    aria-label="FormSelect Input"
                                 >
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={5}
-                                        title={`The version of the LDAP protocol used to connect to the authenticating directory. Directory Server supports LDAP version 2 and 3. The default is version 3, and Red Hat strongly recommends against using LDAPv2, which is old and will be deprecated.`}
-                                    >
-                                        Version
-                                    </Col>
-                                    <Col sm={7}>
-                                        <div>
-                                            <Radio
-                                                id="urlLDVer"
-                                                value="2"
-                                                name="LDAPv2"
-                                                inline
-                                                checked={urlLDVer === "2"}
-                                                onChange={this.handleFieldChange}
-                                            >
-                                                LDAPv2
-                                            </Radio>
-                                            <Radio
-                                                id="urlLDVer"
-                                                value="3"
-                                                name="LDAPv3"
-                                                inline
-                                                checked={urlLDVer === "3"}
-                                                onChange={this.handleFieldChange}
-                                            >
-                                                LDAPv3
-                                            </Radio>
-                                        </div>
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup key="urlStartTLS" controlId="urlStartTLS">
-                                    <Col componentClass={ControlLabel} sm={5}>
-                                        <Checkbox
-                                            id="urlStartTLS"
-                                            isChecked={urlStartTLS}
-                                            onChange={this.handleCheckboxChange}
-                                            title={`A flag of whether to use Start TLS for the connection to the authenticating directory. Start TLS establishes a secure connection over the standard port, so it is useful for connecting using LDAP instead of LDAPS. The TLS server and CA certificates need to be available on both of the servers. To use Start TLS, the LDAP URL must use ldap:, not ldaps:.`}
-                                            label="Enable StartTLS"
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <hr />
-                                <FormGroup key="resultURL" controlId="resultURL">
-                                    <Col componentClass={ControlLabel} sm={5} title="The URL that will be added or modified after you click 'Save'">
-                                        Result URL
-                                    </Col>
-                                    <Col sm={7}>
-                                        <b>
-                                            {urlConnType}://{urlAuthDS}/{urlSubtree}{" "}
-                                            {urlMaxConns},{urlMaxOps},{urlTimeout},
-                                            {urlLDVer},{urlConnLifeTime},
-                                            {urlStartTLS ? "1" : "0"}
-                                        </b>
-                                    </Col>
-                                </FormGroup>
-                            </Form>
-                        </Col>
-                    </Row>
+                                    <FormSelectOption key="LDAPv3" value="3" label="LDAPv3" />
+                                    <FormSelectOption key="LDAPv2" value="2" label="LDAPv2" />
+                                </FormSelect>
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem className="ds-label" span={5}>
+                                <Checkbox
+                                    id="urlStartTLS"
+                                    isChecked={urlStartTLS}
+                                    onChange={(checked, e) => { this.handlePassthruChange(e) }}
+                                    title={`A flag of whether to use Start TLS for the connection to the authenticating directory. Start TLS establishes a secure connection over the standard port, so it is useful for connecting using LDAP instead of LDAPS. The TLS server and CA certificates need to be available on both of the servers. To use Start TLS, the LDAP URL must use ldap:, not ldaps:.`}
+                                    label="Enable StartTLS"
+                                />
+                            </GridItem>
+                        </Grid>
+                        <hr />
+                        <Grid title="The URL that will be added or modified after you click 'Save'">
+                            <GridItem className="ds-label" span={5} >
+                                Result URL
+                            </GridItem>
+                            <GridItem span={7}>
+                                <b>
+                                    {urlConnType}://{urlAuthDS}/{urlSubtree}{" "}
+                                    {urlMaxConns},{urlMaxOps},{urlTimeout},
+                                    {urlLDVer},{urlConnLifeTime},
+                                    {urlStartTLS ? "1" : "0"}
+                                </b>
+                            </GridItem>
+                        </Grid>
+                    </Form>
                 </Modal>
 
                 <PluginBasicPAMConfig
@@ -1285,48 +1404,45 @@ class PassthroughAuthentication extends React.Component {
                     addNotification={this.props.addNotification}
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
-                    <Row>
-                        <h5 className="ds-center">URL Table</h5>
-                        <Col sm={12}>
-                            <PassthroughAuthURLsTable
-                                rows={urlRows}
-                                key={this.state.tableKey}
-                                editConfig={this.showEditURLModal}
-                                deleteConfig={this.showConfirmDeleteURL}
-                            />
-                            <Button
-                                className="ds-margin-top"
-                                variant="primary"
-                                onClick={this.showAddURLModal}
-                            >
-                                Add URL
-                            </Button>
-                        </Col>
-                    </Row>
-                    <hr />
-                    <Row>
-                        <h5 className="ds-center">Configuration Table</h5>
-                        <Col sm={12}>
-                            <PassthroughAuthConfigsTable
-                                rows={pamConfigRows}
-                                key={this.state.tableKey}
-                                editConfig={this.showEditPAMConfigModal}
-                                deleteConfig={this.showConfirmDeleteConfig}
-                            />
-                            <Button
-                                className="ds-margin-top"
-                                variant="primary"
-                                onClick={this.showAddPAMConfigModal}
-                            >
-                                Add Config
-                            </Button>
-                        </Col>
-                    </Row>
+                    <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                        <Tab eventKey={0} title={<TabTitleText>PTA Configurations</TabTitleText>}>
+                            <div className="ds-indent">
+                                <PassthroughAuthURLsTable
+                                    rows={urlRows}
+                                    key={this.state.tableKey}
+                                    editConfig={this.showEditURLModal}
+                                    deleteConfig={this.showConfirmDeleteURL}
+                                />
+                                <Button
+                                    variant="primary"
+                                    onClick={this.showAddURLModal}
+                                >
+                                    Add URL
+                                </Button>
+                            </div>
+                        </Tab>
+                        <Tab eventKey={1} title={<TabTitleText>PAM Configurations</TabTitleText>}>
+                            <div className="ds-indent">
+                                <PassthroughAuthConfigsTable
+                                    rows={pamConfigRows}
+                                    key={this.state.tableKey}
+                                    editConfig={this.showEditPAMConfigModal}
+                                    deleteConfig={this.showConfirmDeleteConfig}
+                                />
+                                <Button
+                                    variant="primary"
+                                    onClick={this.showAddPAMConfigModal}
+                                >
+                                    Add Config
+                                </Button>
+                            </div>
+                        </Tab>
+                    </Tabs>
                 </PluginBasicPAMConfig>
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDeleteConfig}
                     closeHandler={this.closeConfirmDelete}
-                    handleChange={this.handleFieldChange}
+                    handleChange={this.handleModalChange}
                     actionHandler={this.deletePAMConfig}
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteName}
@@ -1339,7 +1455,7 @@ class PassthroughAuthentication extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDeleteURL}
                     closeHandler={this.closeConfirmDeleteURL}
-                    handleChange={this.handleFieldChange}
+                    handleChange={this.handleModalChange}
                     actionHandler={this.deleteURL}
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteName}

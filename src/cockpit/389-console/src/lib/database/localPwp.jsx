@@ -21,6 +21,9 @@ import {
     Tabs,
     TabTitleText,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     ValidatedOptions
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -119,9 +122,11 @@ class CreatePolicy extends React.Component {
         return (
             <div>
                 <Form className="ds-margin-left ds-margin-top-xlg" isHorizontal>
-                    <h4 className="ds-center">
-                        Create A New Local Password Policy
-                    </h4>
+                    <TextContent>
+                        <Text className="ds-center" component={TextVariants.h3}>
+                            Create A New Local Password Policy
+                        </Text>
+                    </TextContent>
                     <Grid className="ds-margin-top-lg">
                         <GridItem className="ds-label" span={3}>
                             Password Policy Type
@@ -772,6 +777,7 @@ class CreatePolicy extends React.Component {
                 >
                     Create New Policy
                 </Button>
+                <hr />
             </div>
         );
     }
@@ -1815,8 +1821,7 @@ export class LocalPwPolicy extends React.Component {
                         loaded: true,
                         loading: false,
                     }, this.props.enableTree);
-                    this.props.addNotification(
-                        "error",
+                    console.log(
                         `Error loading local password policies - ${errMsg.desc}`
                     );
                 });
@@ -2509,12 +2514,20 @@ export class LocalPwPolicy extends React.Component {
         if (!this.state.editPolicy) {
             edit_tab =
                 <div className="ds-margin-top-xlg ds-center">
-                    <h4>Please choose a policy from the <a onClick={this.resetTab}>Local Policy Table</a>.</h4>
+                    <TextContent>
+                        <Text className="ds-center" component={TextVariants.h3}>
+                            Please choose a policy from the <a onClick={this.resetTab}>Local Policy Table</a>.
+                        </Text>
+                    </TextContent>
                 </div>;
         } else {
             edit_tab =
                 <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-margin-left'}>
-                    <h5 className="ds-margin-top-xlg" ><b>{this.state.policyName}</b> <font size="2">({this.state.policyType})</font></h5>
+                    <TextContent>
+                        <Text className="ds-margin-top-xlg" component={TextVariants.h4}>
+                            <b>{this.state.policyName}</b> <font size="2">({this.state.policyType})</font>
+                        </Text>
+                    </TextContent>
                     <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab eventKey={0} title={<TabTitleText>General Settings</TabTitleText>}>
                             <Form className="ds-margin-left-sm ds-margin-top-lg" isHorizontal>
@@ -2809,14 +2822,17 @@ export class LocalPwPolicy extends React.Component {
             <div className={this.state.saving ? "ds-disabled" : ""}>
                 <Grid>
                     <GridItem span={12}>
-                        <h4>Local Password Policies <FontAwesomeIcon
-                            size="lg"
-                            className="ds-left-margin ds-refresh"
-                            icon={faSyncAlt}
-                            title="Refresh the local password policies"
-                            onClick={this.loadPolicies}
-                        />
-                        </h4>
+                        <TextContent>
+                            <Text component={TextVariants.h2}>
+                                Local Password Policies <FontAwesomeIcon
+                                    size="lg"
+                                    className="ds-left-margin ds-refresh"
+                                    icon={faSyncAlt}
+                                    title="Refresh the local password policies"
+                                    onClick={this.loadPolicies}
+                                />
+                            </Text>
+                        </TextContent>
                     </GridItem>
                 </Grid>
                 {body}

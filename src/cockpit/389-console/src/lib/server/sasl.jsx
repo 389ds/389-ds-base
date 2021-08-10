@@ -13,6 +13,9 @@ import {
     SelectOption,
     Spinner,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
 } from "@patternfly/react-core";
 import { SASLTable } from "./serverTables.jsx";
 import { SASLMappingModal } from "./serverModals.jsx";
@@ -624,7 +627,7 @@ export class ServerSASL extends React.Component {
                 .done(content => {
                     this.loadConfig();
                     this.props.addNotification(
-                        "success",
+                        "warning",
                         "Successfully updated SASL configuration.  These " +
                             "changes require the server to be restarted to take effect."
                     );
@@ -650,28 +653,32 @@ export class ServerSASL extends React.Component {
 
         if (!this.state.loaded) {
             body =
-                <div className="ds-loading-spinner ds-margin-top ds-center">
-                    <h4>Loading SASL configuration ...</h4>
+                <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>Loading SASL Configuration ...</Text>
+                    </TextContent>
                     <Spinner className="ds-margin-top" size="lg" />
                 </div>;
         } else {
             body =
-                <div className={this.state.configLoading ? "ds-disabled ds-margin-left-sm" : "ds-margin-left-sm"}>
+                <div className={this.state.configLoading ? "ds-disabled" : ""}>
                     <Grid>
                         <GridItem span={3}>
-                            <h4>SASL Settings <FontAwesomeIcon
-                                size="lg"
-                                className="ds-left-margin ds-refresh"
-                                icon={faSyncAlt}
-                                title="Refresh SASL configuration"
-                                onClick={this.loadConfig}
-                            />
-                            </h4>
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    SASL Settings <FontAwesomeIcon
+                                        size="lg"
+                                        className="ds-left-margin ds-refresh"
+                                        icon={faSyncAlt}
+                                        title="Refresh SASL settings"
+                                        onClick={this.loadConfig}
+                                    />
+                                </Text>
+                            </TextContent>
                         </GridItem>
                     </Grid>
-                    <hr />
-                    <Form>
-                        <Grid title="The maximum SASL buffer size in bytes (nsslapd-sasl-max-buffer-size)." className="ds-margin-top">
+                    <Form isHorizontal autoComplete="off" className="ds-left-margin">
+                        <Grid title="The maximum SASL buffer size in bytes (nsslapd-sasl-max-buffer-size)." className="ds-margin-top-xlg">
                             <GridItem className="ds-label" span={3}>
                                 Max SASL Buffer Size
                             </GridItem>
@@ -690,7 +697,6 @@ export class ServerSASL extends React.Component {
                         </Grid>
                         <Grid
                             title="A list of SASL mechanisms the server will only accept (nsslapd-allowed-sasl-mechanisms).  The default is all mechanisms are allowed."
-                            className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={3}>
                                 Allowed SASL Mechanisms
@@ -719,7 +725,6 @@ export class ServerSASL extends React.Component {
                         </Grid>
                         <Grid
                             title="Check all sasl mappings until one succeeds or they all fail (nsslapd-sasl-mapping-fallback)."
-                            className="ds-margin-top"
                         >
                             <Checkbox
                                 isChecked={this.state.mappingFallback}
@@ -747,9 +752,11 @@ export class ServerSASL extends React.Component {
                         title="A list of SASL mechanisms the server will only accept (nsslapd-allowed-sasl-mechanisms).  The default is all mechanisms are allowed."
                         className="ds-margin-top"
                     >
-                        <h4 className="ds-center ds-margin-top" span={12}>
-                            SASL Mappings
-                        </h4>
+                        <TextContent>
+                            <Text className="ds-center ds-margin-top" component={TextVariants.h3}>
+                                SASL Mappings
+                            </Text>
+                        </TextContent>
                     </Grid>
                     <SASLTable
                         key={this.state.mappingKey}
@@ -764,6 +771,7 @@ export class ServerSASL extends React.Component {
                     >
                         Create New Mapping
                     </Button>
+                    <hr />
                 </div>;
         }
 

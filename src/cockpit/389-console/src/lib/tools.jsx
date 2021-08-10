@@ -154,6 +154,15 @@ export function bad_file_name(file_name) {
     return false;
 }
 
+export function file_is_path(file_name) {
+    if (file_name.length >= 2 && file_name.startsWith("/") && !file_name.endsWith("/")) {
+        // Simple and Crude
+        return true;
+    } else {
+        return false;
+    }
+}
+
 export function valid_port(val) {
     // Validate value is a number and between 1 and 65535
     let result = !isNaN(val);
@@ -216,6 +225,8 @@ export function listsEqual(list1, list2) {
                 return false;
             }
         }
+        return true;
+    } else if (list1 === undefined && list2 === undefined) {
         return true;
     } else {
         return false;

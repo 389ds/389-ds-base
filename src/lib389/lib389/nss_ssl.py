@@ -905,7 +905,7 @@ only.
         except subprocess.CalledProcessError as e:
             raise ValueError(e.output.decode('utf-8').rstrip())
 
-        return result
+        return ensure_str(result)
 
 
     def get_cert_details(self, nickname):

@@ -12,8 +12,15 @@ import AuditFailLogMonitor from "./lib/monitor/auditfaillog.jsx";
 import ErrorLogMonitor from "./lib/monitor/errorlog.jsx";
 import ReplMonitor from "./lib/monitor/replMonitor.jsx";
 import {
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
     Spinner,
     TreeView,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -114,6 +121,23 @@ export class Monitor extends React.Component {
         }
     }
 
+    processTree(suffixData) {
+        for (let suffix of suffixData) {
+            if (suffix['type'] == "suffix") {
+                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faTree} />;
+            } else if (suffix['type'] == "subsuffix") {
+                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faLeaf} />;
+            } else {
+                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faLink} />;
+            }
+            if (suffix['children'].length == 0) {
+                delete suffix.children;
+            } else {
+                this.processTree(suffix.children);
+            }
+        }
+    }
+
     loadSuffixTree(fullReset) {
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -124,18 +148,7 @@ export class Monitor extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let treeData = JSON.parse(content);
-                    for (let suffix of treeData) {
-                        if (suffix['type'] == "suffix") {
-                            suffix['icon'] = <FontAwesomeIcon size="sm" icon={faTree} />;
-                        } else if (suffix['type'] == "subsuffix") {
-                            suffix['icon'] = <FontAwesomeIcon size="sm" icon={faLeaf} />;
-                        } else {
-                            suffix['icon'] = <FontAwesomeIcon size="sm" icon={faLink} />;
-                        }
-                        if (suffix['children'].length == 0) {
-                            delete suffix.children;
-                        }
-                    }
+                    this.processTree(treeData);
                     let basicData = [
                         {
                             name: "Server Statistics",
@@ -771,7 +784,11 @@ export class Monitor extends React.Component {
                 if (this.state.ldbmLoading) {
                     monitor_element =
                         <div className="ds-margin-top-xlg ds-center">
-                            <h4>Loading Database Monitor Information ...</h4>
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Loading Database Monitor Information ...
+                                </Text>
+                            </TextContent>
                             <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
@@ -786,7 +803,11 @@ export class Monitor extends React.Component {
                 if (this.state.serverLoading) {
                     monitor_element =
                         <div className="ds-margin-top-xlg ds-center">
-                            <h4>Loading Server Monitor Information ...</h4>
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Loading Server Monitor Information ...
+                                </Text>
+                            </TextContent>
                             <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
@@ -830,7 +851,11 @@ export class Monitor extends React.Component {
                 if (this.state.replLoading) {
                     monitor_element =
                         <div className="ds-margin-top-xlg ds-center">
-                            <h4>Loading Replication Monitor Information ...</h4>
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Loading Replication Monitor Information ...
+                                </Text>
+                            </TextContent>
                             <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
@@ -841,23 +866,36 @@ export class Monitor extends React.Component {
                             </div>;
                     } else {
                         let suffixList = this.state.replicatedSuffixes.map((suffix) =>
-                            <option key={suffix} value={suffix}>{suffix}</option>
+                            <FormSelectOption key={suffix} value={suffix} label={suffix} />
                         );
                         monitor_element =
                             <div>
                                 <div className="ds-container">
-                                    <h4>Replication Monitoring</h4>
-                                    <select className="ds-left-indent" defaultValue={this.state.replSuffix} onChange={this.replSuffixChange}>
-                                        {suffixList}
-                                    </select>
-                                    <FontAwesomeIcon
-                                        className="ds-left-margin ds-refresh"
-                                        icon={faSyncAlt}
-                                        size="lg"
-                                        title="Refresh replication monitor"
-                                        onClick={this.loadMonitorReplication}
-                                    />
+                                    <TextContent>
+                                        <Text component={TextVariants.h3}>
+                                            Replication Monitoring <FontAwesomeIcon
+                                                size="lg"
+                                                className="ds-left-margin ds-refresh"
+                                                icon={faSyncAlt}
+                                                title="Refresh replication monitor"
+                                                onClick={this.loadMonitorReplication}
+                                            />
+                                        </Text>
+                                    </TextContent>
                                 </div>
+                                <Grid className="ds-margin-top">
+                                    <GridItem span={5}>
+                                        <FormSelect
+                                            value={this.state.replSuffix}
+                                            onChange={(value, event) => {
+                                                this.replSuffixChange(event);
+                                            }}
+                                            aria-label="FormSelect Input"
+                                        >
+                                            {suffixList}
+                                        </FormSelect>
+                                    </GridItem>
+                                </Grid>
                                 <div className="ds-margin-top-xlg">
                                     <ReplMonitor
                                         suffix={this.state.replSuffix}
@@ -879,7 +917,11 @@ export class Monitor extends React.Component {
                 if (this.state.chainingLoading) {
                     monitor_element =
                         <div className="ds-margin-top-xlg ds-center">
-                            <h4>Loading Chaining Monitor Information For <b>{this.state.node_text} ...</b></h4>
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Loading Chaining Monitor Information For <b>{this.state.node_text} ...</b>
+                                </Text>
+                            </TextContent>
                             <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
@@ -928,7 +970,11 @@ export class Monitor extends React.Component {
         } else {
             monitorPage =
                 <div className="ds-margin-top-xlg ds-center">
-                    <h4>Loading Monitor Information ...</h4>
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading Monitor Information ...
+                        </Text>
+                    </TextContent>
                     <Spinner className="ds-margin-top-lg" size="xl" />
                 </div>;
         }

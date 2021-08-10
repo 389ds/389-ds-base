@@ -6,6 +6,9 @@ import {
     PaginationVariant,
     SearchInput,
     Spinner,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from '@patternfly/react-core';
 import {
@@ -240,7 +243,11 @@ class ObjectClassesTable extends React.Component {
 
         let content =
             <div className="ds-center ds-margin-top-xlg">
-                <h4>Loading Objectclasses ...</h4>
+                <TextContent>
+                    <Text component={TextVariants.h3}>
+                        Loading Objectclasses ...
+                    </Text>
+                </TextContent>
                 <Spinner className="ds-margin-top-lg" size="xl" />
             </div>;
 
@@ -534,7 +541,11 @@ class AttributesTable extends React.Component {
 
         let content =
             <div className="ds-center ds-margin-top-xlg">
-                <h4>Loading Attributes ...</h4>
+                <TextContent>
+                    <Text component={TextVariants.h3}>
+                        Loading Attributes ...
+                    </Text>
+                </TextContent>
                 <Spinner className="ds-margin-top-lg" size="xl" />
             </div>;
 

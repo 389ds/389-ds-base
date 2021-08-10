@@ -10,6 +10,9 @@ import {
     Tab,
     Tabs,
     TabTitleText,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import {
@@ -226,7 +229,11 @@ export class SuffixMonitor extends React.Component {
 
         let content =
             <div className="ds-margin-top-xlg ds-center">
-                <h4>Loading suffix monitor information ...</h4>
+                <TextContent>
+                    <Text component={TextVariants.h3}>
+                        Loading Suffix Monitor Information ...
+                    </Text>
+                </TextContent>
                 <Spinner className="ds-margin-top-lg" size="xl" />
             </div>;
 
@@ -296,8 +303,16 @@ export class SuffixMonitor extends React.Component {
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
-                                                        <h4 className="ds-margin-top">Cache Hit Ratio</h4>
-                                                        <h3><b>{cachehit}%</b></h3>
+                                                        <TextContent>
+                                                            <Text className="ds-margin-top" component={TextVariants.h3}>
+                                                                Cache Hit Ratio
+                                                            </Text>
+                                                        </TextContent>
+                                                        <TextContent>
+                                                            <Text className="ds-margin-top" component={TextVariants.h2}>
+                                                                <b>{cachehit}%</b>
+                                                            </Text>
+                                                        </TextContent>
                                                     </div>
                                                     <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
                                                         <Chart
@@ -334,9 +349,21 @@ export class SuffixMonitor extends React.Component {
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
-                                                        <h4 className="ds-margin-top">Cache Utilization</h4>
-                                                        <h3><b>{utilratio}%</b></h3>
-                                                        <h6 className="ds-margin-top-xlg">Cached Entries</h6>
+                                                        <TextContent>
+                                                            <Text className="ds-margin-top" component={TextVariants.h3}>
+                                                                Cache Utilization
+                                                            </Text>
+                                                        </TextContent>
+                                                        <TextContent>
+                                                            <Text className="ds-margin-top" component={TextVariants.h2}>
+                                                                <b>{utilratio}%</b>
+                                                            </Text>
+                                                        </TextContent>
+                                                        <TextContent>
+                                                            <Text className="ds-margin-top-lg" component={TextVariants.h5}>
+                                                                Cached Entries
+                                                            </Text>
+                                                        </TextContent>
                                                         <b>{cachecount}</b>
                                                     </div>
                                                     <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
@@ -424,8 +451,16 @@ export class SuffixMonitor extends React.Component {
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
-                                                        <h4 className="ds-margin-top">Cache Hit Ratio</h4>
-                                                        <h3><b>{dncachehit}%</b></h3>
+                                                        <TextContent>
+                                                            <Text className="ds-margin-top" component={TextVariants.h3}>
+                                                                Cache Hit Ratio
+                                                            </Text>
+                                                        </TextContent>
+                                                        <TextContent>
+                                                            <Text className="ds-margin-top" component={TextVariants.h2}>
+                                                                <b>{dncachehit}%</b>
+                                                            </Text>
+                                                        </TextContent>
                                                     </div>
                                                     <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
                                                         <Chart
@@ -462,9 +497,21 @@ export class SuffixMonitor extends React.Component {
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
-                                                        <h4 className="ds-margin-top">Cache Utilization</h4>
-                                                        <h3><b>{dnutilratio}%</b></h3>
-                                                        <h6 className="ds-margin-top-lg">Cached DN's</h6>
+                                                        <TextContent>
+                                                            <Text className="ds-margin-top" component={TextVariants.h3}>
+                                                                Cache Utilization
+                                                            </Text>
+                                                        </TextContent>
+                                                        <TextContent>
+                                                            <Text component={TextVariants.h2}>
+                                                                <b>{dnutilratio}%</b>
+                                                            </Text>
+                                                        </TextContent>
+                                                        <TextContent>
+                                                            <Text className="ds-margin-top-lg" component={TextVariants.h5}>
+                                                                Cached DN's
+                                                            </Text>
+                                                        </TextContent>
                                                         <b>{numToCommas(dncachecount)}</b>
                                                     </div>
                                                     <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
@@ -550,9 +597,11 @@ export class SuffixMonitor extends React.Component {
 
         return (
             <div>
-                <h3>
-                    <FontAwesomeIcon size="sm" icon={suffixIcon} /> {this.props.suffix} (<i>{this.props.bename}</i>)
-                </h3>
+                <TextContent>
+                    <Text component={TextVariants.h2}>
+                        <FontAwesomeIcon size="sm" icon={suffixIcon} /> {this.props.suffix} (<b>{this.props.bename}</b>)
+                    </Text>
+                </TextContent>
                 <div className="ds-margin-top-xlg">
                     {content}
                 </div>

@@ -10,6 +10,9 @@ import {
     Tab,
     Tabs,
     TabTitleText,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import {
@@ -180,7 +183,11 @@ export class DatabaseMonitor extends React.Component {
         let utilratio = 0;
         let content =
             <div className="ds-margin-top-xlg ds-center">
-                <h4>Loading database monitor information ...</h4>
+                <TextContent>
+                    <Text component={TextVariants.h3}>
+                        Loading database monitor information ...
+                    </Text>
+                </TextContent>
                 <Spinner className="ds-margin-top-lg" size="xl" />
             </div>;
 
@@ -228,8 +235,16 @@ export class DatabaseMonitor extends React.Component {
                                 <CardBody>
                                     <div className="ds-container">
                                         <div className="ds-center">
-                                            <h4 className="ds-margin-top-xlg">Cache Hit Ratio</h4>
-                                            <h3><b>{dbcachehit}%</b></h3>
+                                            <TextContent className="ds-margin-top-xlg">
+                                                <Text component={TextVariants.h3}>
+                                                    Cache Hit Ratio
+                                                </Text>
+                                            </TextContent>
+                                            <TextContent>
+                                                <Text component={TextVariants.h2}>
+                                                    <b>{dbcachehit}%</b>
+                                                </Text>
+                                            </TextContent>
                                         </div>
                                         <div className="ds-margin-left" style={{ height: '200px', width: '500px' }}>
                                             <Chart
@@ -316,8 +331,16 @@ export class DatabaseMonitor extends React.Component {
                                         <CardBody>
                                             <div className="ds-container">
                                                 <div className="ds-center">
-                                                    <h4 className="ds-margin-top-lg">Cache Hit Ratio</h4>
-                                                    <h3><b>{ndncachehit}%</b></h3>
+                                                    <TextContent className="ds-margin-top-xlg">
+                                                        <Text component={TextVariants.h3}>
+                                                            Cache Hit Ratio
+                                                        </Text>
+                                                    </TextContent>
+                                                    <TextContent>
+                                                        <Text component={TextVariants.h2}>
+                                                            <b>{ndncachehit}%</b>
+                                                        </Text>
+                                                    </TextContent>
                                                 </div>
                                                 <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
                                                     <Chart
@@ -354,9 +377,21 @@ export class DatabaseMonitor extends React.Component {
                                         <CardBody>
                                             <div className="ds-container">
                                                 <div className="ds-center">
-                                                    <h4 className="ds-margin-top-lg">Cache Utilization</h4>
-                                                    <h3><b>{utilratio}%</b></h3>
-                                                    <h6 className="ds-margin-top-xlg">Cached DN's</h6>
+                                                    <TextContent className="ds-margin-top-lg">
+                                                        <Text component={TextVariants.h2}>
+                                                            Cache Utilization
+                                                        </Text>
+                                                    </TextContent>
+                                                    <TextContent>
+                                                        <Text component={TextVariants.h3}>
+                                                            <b>{utilratio}%</b>
+                                                        </Text>
+                                                    </TextContent>
+                                                    <TextContent className="ds-margin-top-xlg">
+                                                        <Text component={TextVariants.h5}>
+                                                            Cached DN's
+                                                        </Text>
+                                                    </TextContent>
                                                     <b>{numToCommas(this.state.data.currentnormalizeddncachecount[0])}</b>
                                                 </div>
                                                 <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
@@ -454,9 +489,11 @@ export class DatabaseMonitor extends React.Component {
 
         return (
             <div id="db-content">
-                <h3>
-                    Database Performance Statistics
-                </h3>
+                <TextContent>
+                    <Text className="ds-sub-header" component={TextVariants.h2}>
+                        Database Performance Statistics
+                    </Text>
+                </TextContent>
                 <div className="ds-margin-top-xlg">
                     {content}
                 </div>

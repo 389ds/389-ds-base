@@ -190,6 +190,24 @@ def pam_pta_del(inst, basedn, log, args):
     log.info("Successfully deleted the %s", config.dn)
 
 
+def enable_plugins(inst, basedn, log, args):
+    log.debug("Enabling the Pass Through Authentication & Pam Passthru Auth plugins")
+    passthru_plugin = PassThroughAuthenticationPlugin(inst)
+    pam_passthru_plugin = PAMPassThroughAuthPlugin(inst)
+    passthru_plugin.enable()
+    pam_passthru_plugin.enable();
+    log.info("Plugins disabled.")
+
+
+def disable_plugins(inst, basedn, log, args):
+    log.debug("Disabling the Pass Through Authentication & Pam Passthru Auth plugins")
+    passthru_plugin = PassThroughAuthenticationPlugin(inst)
+    pam_passthru_plugin = PAMPassThroughAuthPlugin(inst)
+    passthru_plugin.disable()
+    pam_passthru_plugin.disable();
+    log.info("Plugins disabled.")
+
+
 def _add_parser_args_pam(parser):
     parser.add_argument('--exclude-suffix', nargs='+',
                         help='Specifies a suffix to exclude from PAM authentication (pamExcludeSuffix)')
@@ -200,7 +218,7 @@ def _add_parser_args_pam(parser):
     parser.add_argument('--filter',
                         help='Sets an LDAP filter to use to identify specific entries within '
                              'the included suffixes for which to use PAM pass-through authentication (pamFilter)')
-    parser.add_argument('--id-attr', nargs='+',
+    parser.add_argument('--id-attr',
                         help='Contains the attribute name which is used to hold the PAM user ID (pamIDAttr)')
     parser.add_argument('--id_map_method',
                         help='Gives the method to use to map the LDAP bind DN to a PAM identity (pamIDMapMethod)')
@@ -219,6 +237,12 @@ def create_parser(subparsers):
                                                         '(URLs and PAM)')
     subcommands = passthroughauth_parser.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, PassThroughAuthenticationPlugin)
+
+    enable = subcommands.add_parser('enable', help='Enable the pass through authentication plugins')
+    enable.set_defaults(func=enable_plugins)
+
+    disable = subcommands.add_parser('disable', help='Disable the pass through authentication plugins')
+    disable.set_defaults(func=disable_plugins)
 
     list = subcommands.add_parser('list', help='List pass-though plugin URLs or PAM configurations.')
     subcommands_list = list.add_subparsers(help='action')

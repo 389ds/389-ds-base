@@ -8,14 +8,14 @@ import {
     Button,
     Checkbox,
     ExpandableSection,
+    Form,
     Grid,
     GridItem,
-    Form,
     NumberInput,
     TextInput,
     ValidatedOptions
 } from "@patternfly/react-core";
-// import PropTypes from "prop-types";
+import PropTypes from "prop-types";
 
 export class ReplConfig extends React.Component {
     constructor(props) {
@@ -577,9 +577,11 @@ export class ReplConfig extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <hr />
                         <Grid>
-                            <GridItem span={9}>
+                            <GridItem className="ds-label" span={12}>
+                                Replication Managers
+                            </GridItem>
+                            <GridItem className="ds-margin-top" span={9}>
                                 <ManagerTable
                                     rows={manager_rows}
                                     confirmDelete={this.confirmManagerDelete}
@@ -596,7 +598,6 @@ export class ReplConfig extends React.Component {
                                 </Button>
                             </GridItem>
                         </Grid>
-                        <hr />
                         <ExpandableSection
                             toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
                             onToggle={this.onToggle}
@@ -816,6 +817,7 @@ export class ReplConfig extends React.Component {
                                         </Button>
                                     </GridItem>
                                 </Grid>
+                                <hr />
                             </div>
                         </ExpandableSection>
                     </Form>
@@ -862,3 +864,17 @@ export class ReplConfig extends React.Component {
         );
     }
 }
+
+ReplConfig.propTypes = {
+    role: PropTypes.string,
+    suffix: PropTypes.string,
+    data: PropTypes.object,
+    serverId: PropTypes.string,
+};
+
+ReplConfig.defaultProps = {
+    role: "",
+    suffix: "",
+    data: {},
+    serverId: "",
+};

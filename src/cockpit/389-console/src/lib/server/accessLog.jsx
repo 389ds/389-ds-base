@@ -15,6 +15,9 @@ import {
     Tabs,
     TabTitleText,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     TimePicker,
     noop
 } from "@patternfly/react-core";
@@ -480,7 +483,7 @@ export class ServerAccessLog extends React.Component {
         rotationTime = hour + ":" + min;
 
         let body =
-            <div className="ds-margin-top-lg">
+            <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText><b>Settings</b></TabTitleText>}>
                         <Checkbox
@@ -673,7 +676,6 @@ export class ServerAccessLog extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                className="ds-margin-top"
                                 title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-accesslog-logminfreediskspace)."
                             >
                                 <GridItem className="ds-label" span={3}>
@@ -693,7 +695,6 @@ export class ServerAccessLog extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                className="ds-margin-top"
                                 title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-accesslog-logexpirationtime)."
                             >
                                 <GridItem className="ds-label" span={3}>
@@ -748,6 +749,9 @@ export class ServerAccessLog extends React.Component {
         if (!this.state.loaded) {
             body =
                 <div className="ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>Loading Access Log Settings ...</Text>
+                    </TextContent>
                     <Spinner size="xl" />
                 </div>;
         }
@@ -756,16 +760,19 @@ export class ServerAccessLog extends React.Component {
             <div id="server-accesslog-page" className={this.state.loading ? "ds-disabled" : ""}>
                 <Grid>
                     <GridItem span={3}>
-                        <h4>Access Log Settings <FontAwesomeIcon
-                            size="lg"
-                            className="ds-left-margin ds-refresh"
-                            icon={faSyncAlt}
-                            title="Refresh Access Log settings"
-                            onClick={() => {
-                                this.reloadConfig(true);
-                            }}
-                        />
-                        </h4>
+                        <TextContent>
+                            <Text component={TextVariants.h3}>
+                                Access Log Settings <FontAwesomeIcon
+                                    size="lg"
+                                    className="ds-left-margin ds-refresh"
+                                    icon={faSyncAlt}
+                                    title="Refresh log settings"
+                                    onClick={() => {
+                                        this.reloadConfig(true);
+                                    }}
+                                />
+                            </Text>
+                        </TextContent>
                     </GridItem>
                 </Grid>
                 {body}
