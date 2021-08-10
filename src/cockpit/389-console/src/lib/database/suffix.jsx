@@ -785,14 +785,10 @@ export class Suffix extends React.Component {
                     .done(content => {
                         // Continue with the next mod
                         this.props.reload(this.props.suffix);
-                        this.props.addNotification(
-                            "success",
-                            msg
-                        );
                         if (requireRestart) {
                             this.props.addNotification(
                                 "warning",
-                                `You must restart the Directory Server for these changes to take effect.`
+                                msg + "You must restart the Directory Server for these changes to take effect."
                             );
                         }
                         this.setState({
@@ -849,7 +845,7 @@ export class Suffix extends React.Component {
             <div id="suffix-page">
                 <Grid>
                     <GridItem className="ds-suffix-header" span={9}>
-                        <FontAwesomeIcon size="sm" icon={suffixIcon} /> {this.props.suffix} (<i>{this.props.bename}</i>)
+                        <FontAwesomeIcon size="sm" icon={suffixIcon} />&nbsp;&nbsp;{this.props.suffix} (<i>{this.props.bename}</i>)
                         <FontAwesomeIcon
                             className="ds-left-margin ds-refresh"
                             icon={faSyncAlt}

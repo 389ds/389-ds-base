@@ -22,6 +22,9 @@ import {
     Spinner,
     TextInput,
     TreeView,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -86,6 +89,7 @@ export class Database extends React.Component {
             chainingLoading: false,
             // Suffix
             suffixLoading: false,
+            modalSpinning: false,
             attributes: [],
             // Loaded suffix configurations
             suffix: {},
@@ -706,6 +710,10 @@ export class Database extends React.Component {
             return;
         }
 
+        this.setState({
+            modalSpinning: true
+        });
+
         // Create a new suffix
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -730,6 +738,9 @@ export class Database extends React.Component {
                     // Refresh tree
                     this.loadSuffixTree(false);
                     this.loadSuffixList();
+                    this.setState({
+                        modalSpinning: false
+                    });
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -738,6 +749,9 @@ export class Database extends React.Component {
                         `Error creating suffix - ${errMsg.desc}`
                     );
                     this.closeSuffixModal();
+                    this.setState({
+                        modalSpinning: false
+                    });
                 });
     }
 
@@ -974,7 +988,7 @@ export class Database extends React.Component {
                         "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                         "backend", "vlv-index", "list", suffix
                     ];
-                    log_cmd("loadVLV", "Load VLV indexes", cmd);
+                    log_cmd("loadSuffix", "Load VLV indexes", cmd);
                     cockpit
                             .spawn(cmd, { superuser: true, err: "message" })
                             .done(content => {
@@ -1156,13 +1170,6 @@ export class Database extends React.Component {
                         attributes: attrs,
                         loaded: true
                     }, this.update_tree_nodes);
-                })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to get attributes - ${errMsg.desc}`
-                    );
                 });
     }
 
@@ -1235,8 +1242,12 @@ export class Database extends React.Component {
                 if (this.state.dbtype == "suffix" || this.state.dbtype == "subsuffix") {
                     if (this.state.suffixLoading) {
                         db_element =
-                            <div className="ds-margin-top ds-loading-spinner ds-center">
-                                <h4>Loading suffix configuration for <b>{this.state.node_text} ...</b></h4>
+                            <div className="ds-margin-top-xlg ds-loading-spinner ds-center">
+                                <TextContent>
+                                    <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+                                        Loading suffix configuration for <b>{this.state.node_text} ...</b>
+                                    </Text>
+                                </TextContent>
                                 <Spinner className="ds-margin-top-lg" size="xl" />
                             </div>;
                     } else {
@@ -1267,7 +1278,11 @@ export class Database extends React.Component {
                     if (this.state.chainingLoading) {
                         db_element =
                             <div className="ds-margin-top ds-loading-spinner ds-center">
-                                <h4>Loading Chaining configuration for <b>{this.state.node_text} ...</b></h4>
+                                <TextContent>
+                                    <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+                                        Loading Chaining configuration for <b>{this.state.node_text} ...</b>
+                                    </Text>
+                                </TextContent>
                                 <Spinner className="ds-margin-top-lg" size="xl" />
                             </div>;
                     } else {
@@ -1297,11 +1312,13 @@ export class Database extends React.Component {
                                 />
                             </div>
                         </div>
-                        <div>
-                            <Button variant="primary" onClick={this.showSuffixModal}>
-                                Create Suffix
-                            </Button>
-                        </div>
+                        <Button
+                            className="ds-left-margin-md"
+                            variant="primary"
+                            onClick={this.showSuffixModal}
+                        >
+                            Create Suffix
+                        </Button>
                     </div>
                     <div className="ds-tree-content">
                         {db_element}
@@ -1310,7 +1327,11 @@ export class Database extends React.Component {
         } else {
             body =
                 <div className="ds-center">
-                    <h4>Loading Database Configuration ...</h4>
+                    <TextContent>
+                        <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+                            Loading Database Configuration ...
+                        </Text>
+                    </TextContent>
                     <Spinner className="ds-margin-top" size="xl" />
                 </div>;
         }
@@ -1326,6 +1347,7 @@ export class Database extends React.Component {
                     saveHandler={this.createSuffix}
                     initOption={this.state.createInitOption}
                     createNotOK={this.state.createNotOK}
+                    modalSpinning={this.state.modalSpinning}
                     error={this.state.errObj}
                 />
             </div>
@@ -1343,8 +1365,16 @@ class CreateSuffixModal extends React.Component {
             saveHandler,
             createNotOK,
             initOption,
+            modalSpinning,
             error
         } = this.props;
+
+        let saveBtnName = "Create Suffix";
+        let extraPrimaryProps = {};
+        if (modalSpinning) {
+            saveBtnName = "Creating ...";
+            extraPrimaryProps.spinnerAriaValueText = "Creating";
+        }
 
         return (
             <Modal
@@ -1354,8 +1384,16 @@ class CreateSuffixModal extends React.Component {
                 aria-labelledby="ds-modal"
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={saveHandler} isDisabled={createNotOK}>
-                        Create Suffix
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isDisabled={createNotOK}
+                        isLoading={modalSpinning}
+                        spinnerAriaValueText={modalSpinning ? "Creating Suffix" : undefined}
+                        {...extraPrimaryProps}
+                    >
+                        {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
@@ -1439,6 +1477,7 @@ CreateSuffixModal.propTypes = {
     handleChange: PropTypes.func,
     handleSelectChange: PropTypes.func,
     saveHandler: PropTypes.func,
+    modalSpinning: PropTypes.bool,
     error: PropTypes.object,
 };
 
@@ -1448,5 +1487,6 @@ CreateSuffixModal.defaultProps = {
     handleChange: noop,
     handleSelectChange: noop,
     saveHandler: noop,
+    modalSpinning: false,
     error: {},
 };

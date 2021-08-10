@@ -28,27 +28,42 @@ import {
     Tab,
     Tabs,
     TabTitleText,
+    Text,
+    TextContent,
+    TextVariants
 } from "@patternfly/react-core";
 
 const staticStates = {
     noPackage: (
-        <h3 className="ds-margin-top-xlg">
-            There is no <b>389-ds-base</b> package installed on this system. Sorry there is nothing
-            to manage...
-        </h3>
+        <TextContent>
+            <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+                There is no <b>389-ds-base</b> package installed on this system. Sorry there is nothing
+                to manage...
+            </Text>
+        </TextContent>
     ),
-    noInsts: <h3 className="ds-margin-top-xlg">There are no Directory Server instances to manage</h3>,
+    noInsts: (
+        <TextContent>
+            <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+                There are no Directory Server instances to manage
+            </Text>
+        </TextContent>
+    ),
     notRunning: (
-        <h3>
-            This server instance is not running, either start it from the <b>Actions</b> dropdown
-            menu, or choose a different instance
-        </h3>
+        <TextContent>
+            <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+                This server instance is not running, either start it from the <b>Actions</b> dropdown
+                menu, or choose a different instance
+            </Text>
+        </TextContent>
     ),
     notConnecting: (
-        <h3 className="ds-margin-top-xlg">
-            This server instance is running, but we can not connect to it. Check LDAPI is properly
-            configured on this instance.
-        </h3>
+        <TextContent>
+            <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+                This server instance is running, but we can not connect to it. Check LDAPI is properly
+                configured on this instance.
+            </Text>
+        </TextContent>
     )
 };
 
@@ -527,7 +542,11 @@ export class DSInstance extends React.Component {
             mainContent = (
                 <div id="loading-instances" className="all-pages ds-center">
                     <div id="loading-page" className="ds-center ds-loading">
-                        <h4 id="loading-msg">Loading Directory Server Configuration ...</h4>
+                        <TextContent>
+                            <Text id="loading-msg" component={TextVariants.h3}>
+                                Loading Directory Server Configuration ...
+                            </Text>
+                        </TextContent>
                         <p className="ds-margin-top-lg">
                             <span className="spinner spinner-lg spinner-inline" />
                         </p>
@@ -589,43 +608,45 @@ export class DSInstance extends React.Component {
                 pageLoadingState.state !== "noInsts" &&
                 pageLoadingState.state !== "noPackage" ? (
                     <div className="ds-logo" hidden={pageLoadingState.state === "loading"}>
-                        <h2 className="ds-logo-style" id="main-banner" title={this.state.version}>
-                            <div className="ds-server-action">
-                                <FormSelect
-                                    title="Directory Server instance list"
-                                    value={serverId}
-                                    id="serverId"
-                                    onChange={this.handleServerIdChange}
-                                    aria-label="FormSelect Input"
-                            >
-                                    {instList.map((option, index) => (
-                                        <FormSelectOption
-                                            isDisabled={option.disabled}
-                                            key={index}
-                                            value={option.value.replace("slapd-", "")}
-                                            label={option.label}
-                                        />
-                                    ))}
-                                </FormSelect>
-
-                            </div>
-                            {operateSpinner}
-                            <div className="dropdown ds-float-right">
-                                <Dropdown
-                                    id="ds-action"
-                                    className="ds-action-button"
-                                    position={DropdownPosition.right}
-                                    onSelect={this.onSelect}
-                                    toggle={
-                                        <DropdownToggle id="ds-dropdown" isPrimary onToggle={this.onToggle}>
-                                            Actions
-                                        </DropdownToggle>
-                                    }
-                                    isOpen={dropdownIsOpen}
-                                    dropdownItems={dropdownItems}
-                                />
-                            </div>
-                        </h2>
+                        <TextContent className="ds-logo-style" title={this.state.version}>
+                            <Text id="main-banner" component={TextVariants.h1}>
+                                <div className="ds-server-action">
+                                    <FormSelect
+                                        title="Directory Server instance list"
+                                        value={serverId}
+                                        id="serverId"
+                                        onChange={this.handleServerIdChange}
+                                        aria-label="FormSelect Input"
+                                        className="ds-instance-select"
+                                    >
+                                        {instList.map((option, index) => (
+                                            <FormSelectOption
+                                                isDisabled={option.disabled}
+                                                key={index}
+                                                value={option.value.replace("slapd-", "")}
+                                                label={option.label}
+                                            />
+                                        ))}
+                                    </FormSelect>
+                                </div>
+                                {operateSpinner}
+                                <div className="dropdown ds-float-right">
+                                    <Dropdown
+                                        id="ds-action"
+                                        className="ds-action-button"
+                                        position={DropdownPosition.right}
+                                        onSelect={this.onSelect}
+                                        toggle={
+                                            <DropdownToggle id="ds-dropdown" isPrimary onToggle={this.onToggle}>
+                                                Actions
+                                            </DropdownToggle>
+                                        }
+                                        isOpen={dropdownIsOpen}
+                                        dropdownItems={dropdownItems}
+                                    />
+                                </div>
+                            </Text>
+                        </TextContent>
                     </div>
                 ) : (
                     <div />

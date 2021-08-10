@@ -17,6 +17,9 @@ import {
     SelectVariant,
     SelectOption,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     ValidatedOptions,
     noop
 } from "@patternfly/react-core";
@@ -560,7 +563,7 @@ class AddVLVIndexModal extends React.Component {
                 aria-labelledby="ds-modal"
                 title="Create VLV Sort Index"
                 isOpen={showModal}
-                onClose={this.close}
+                onClose={this.props.closeHandler}
                 className={this.state.isVLVSortOpen ? "ds-modal-select-tall" : "ds-modal-select"}
                 actions={[
                     <Button
@@ -581,7 +584,7 @@ class AddVLVIndexModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal>
+                <Form isHorizontal autoComplete="off">
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={12}>
                             Build a list of attributes to form the "Sort" index
@@ -648,7 +651,7 @@ class AddVLVModal extends React.Component {
                 aria-labelledby="ds-modal"
                 title="Create VLV Search Index"
                 isOpen={showModal}
-                onClose={this.close}
+                onClose={closeHandler}
                 actions={[
                     <Button
                         key="confirm"
@@ -742,13 +745,15 @@ class AddVLVModal extends React.Component {
                     </Grid>
                     <Grid>
                         <GridItem offset={1} className="ds-margin-top-lg ds-margin-bottom" span={10}>
-                            <h5>
-                                After creating this VLV Search entry you can goto
-                                the table and add VLV Sort Indexes to this VLV
-                                Search.  After adding the Sort Indexes you will
-                                need to <i>reindex</i> the VLV Index to make it
-                                active.
-                            </h5>
+                            <TextContent>
+                                <Text component={TextVariants.h4}>
+                                    After creating this VLV Search entry you can goto
+                                    the table and add VLV Sort Indexes to this VLV
+                                    Search.  After adding the Sort Indexes you will
+                                    need to <i>reindex</i> the VLV Index to make it
+                                    active.
+                                </Text>
+                            </TextContent>
                         </GridItem>
                     </Grid>
                 </Form>

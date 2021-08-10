@@ -19,6 +19,9 @@ import {
     TabTitleText,
     Tooltip,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     ValidatedOptions,
     noop
 } from "@patternfly/react-core";
@@ -1029,7 +1032,7 @@ class ManagedEntries extends React.Component {
                             />
                         </FormGroup>
                         <FormGroup
-                            label="Scope"
+                            label="Subtree Scope"
                             fieldId="originScope"
                             helperTextInvalid="A valid DN must be provided"
                             validated={
@@ -1405,9 +1408,13 @@ class ManagedEntries extends React.Component {
                     </Form>
                 </Modal>
 
-                <div className="ds-center" hidden={!this.state.loading}>
-                    <h4>Loading Managed Entries configuration</h4>
-                    <Spinner size="lg" />
+                <div className="ds-center ds-margin-top-xlg" hidden={!this.state.loading}>
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading Managed Entries Configuration ...
+                        </Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top" size="lg" />
                 </div>
 
                 <div hidden={this.state.loading}>

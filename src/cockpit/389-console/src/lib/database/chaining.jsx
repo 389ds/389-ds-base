@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { ConfirmPopup, DoubleConfirmModal } from "../notifications.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
     Button,
@@ -20,6 +20,9 @@ import {
     Tabs,
     TabTitleText,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     ValidatedOptions,
     noop
 } from "@patternfly/react-core";
@@ -56,6 +59,8 @@ export class ChainingDatabaseConfig extends React.Component {
             saveBtnDisabled: true,
             isOpen: false,
             isModalSelectOpen: false,
+            modalChecked: false,
+            modalSpinning: false,
             // Chaining config settings
             defSearchCheck: this.props.data.defSearchCheck[0],
             defBindConnLimit: this.props.data.defBindConnLimit[0],
@@ -114,6 +119,7 @@ export class ChainingDatabaseConfig extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
+        this.handleModalChange = this.handleModalChange.bind(this);
         this.save_chaining_config = this.save_chaining_config.bind(this);
         // Chaining Control OIDs
         this.showOidModal = this.showOidModal.bind(this);
@@ -136,6 +142,13 @@ export class ChainingDatabaseConfig extends React.Component {
 
     componentDidMount() {
         this.props.enableTree();
+    }
+
+    handleModalChange(e) {
+        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.setState({
+            [e.target.id]: value
+        });
     }
 
     handleChange(e) {
@@ -548,7 +561,9 @@ export class ChainingDatabaseConfig extends React.Component {
 
         return (
             <div id="chaining-page" className={this.state.saving ? "ds-disabled" : ""}>
-                <h3 className="ds-config-header">Database Chaining Settings</h3>
+                <TextContent>
+                    <Text className="ds-config-header" component={TextVariants.h2}>Database Chaining Settings</Text>
+                </TextContent>
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText><b>Default Creation Settings</b></TabTitleText>}>
                         <div className="ds-indent">
@@ -847,6 +862,7 @@ export class ChainingDatabaseConfig extends React.Component {
                             >
                                 {saveBtnName}
                             </Button>
+                            <hr />
                         </div>
                     </Tab>
                     <Tab eventKey={1} title={<TabTitleText><b>Controls & Components</b></TabTitleText>}>
@@ -856,13 +872,15 @@ export class ChainingDatabaseConfig extends React.Component {
                                     span={4}
                                     title="A list of LDAP control OIDs to be forwarded through chaining."
                                 >
-                                    <h5>Forwarded LDAP Controls</h5>
+                                    <TextContent>
+                                        <Text component={TextVariants.h4}>Forwarded LDAP Controls</Text>
+                                    </TextContent>
                                     <div className="ds-box ds-margin-top">
                                         <SimpleList onSelect={this.handleSelectOids} aria-label="forward ctrls">
                                             {oids}
                                         </SimpleList>
                                     </div>
-                                    <div className="ds-container">
+                                    <div className="ds-margin-bottom-md ds-container">
                                         <div className="ds-panel-left">
                                             <Button
                                                 variant="primary"
@@ -886,13 +904,15 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                                 <GridItem span={1} />
                                 <GridItem span={4} title="A list of components to go through chaining">
-                                    <h5>Components to Chain</h5>
+                                    <TextContent>
+                                        <Text component={TextVariants.h4}>Components to Chain</Text>
+                                    </TextContent>
                                     <div className="ds-box ds-margin-top">
                                         <SimpleList onSelect={this.handleSelectComps} aria-label="comps">
                                             {comps}
                                         </SimpleList>
                                     </div>
-                                    <div className="ds-container">
+                                    <div className="ds-margin-bottom-md ds-container">
                                         <div className="ds-panel-left">
                                             <Button
                                                 variant="primary"
@@ -935,19 +955,31 @@ export class ChainingDatabaseConfig extends React.Component {
                     compList={this.state.availableComps}
                     spinning={this.state.modalSpinning}
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmOidDelete}
                     closeHandler={this.closeConfirmOidDelete}
-                    actionFunc={this.deleteOids}
-                    msg="Are you sure you want to delete these OID's?"
-                    msgContent={this.state.removeOid}
+                    handleChange={this.handleModalChange}
+                    actionHandler={this.deleteOids}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.removeOid}
+                    checked={this.state.modalChecked}
+                    mTitle="Remove Chaining OID"
+                    mMsg="Are you sure you want to delete this OID?"
+                    mSpinningMsg="Deleting ..."
+                    mBtnName="Delete"
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmCompDelete}
                     closeHandler={this.closeConfirmCompDelete}
-                    actionFunc={this.deleteComps}
-                    msg="Are you sure you want to delete these components?"
-                    msgContent={this.state.removeComp}
+                    handleChange={this.handleModalChange}
+                    actionHandler={this.deleteComps}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.removeComp}
+                    checked={this.state.modalChecked}
+                    mTitle="Remove Chaining Component"
+                    mMsg="Are you sure you want to delete this component?"
+                    mSpinningMsg="Deleting ..."
+                    mBtnName="Delete"
                 />
             </div>
         );
@@ -1331,19 +1363,23 @@ export class ChainingConfig extends React.Component {
         return (
             <div className={this.state.saving ? "ds-disabled" : ""}>
                 <Grid>
-                    <GridItem span={11} className="ds-word-wrap">
-                        <h4><FontAwesomeIcon size="sm" icon={faLink} /> {this.props.suffix} (<i><font size="3">{this.props.bename}</font></i>)
-                            <FontAwesomeIcon
-                                size="lg"
-                                className="ds-left-margin ds-refresh"
-                                icon={faSyncAlt}
-                                title="Refresh database link"
-                                onClick={() => this.props.reload(this.props.suffix)}
-                            />
-                        </h4>
+                    <GridItem span={10} className="ds-word-wrap">
+                        <TextContent>
+                            <Text className="ds-suffix-header" component={TextVariants.h3}>
+                                <FontAwesomeIcon size="sm" icon={faLink} /> {this.props.suffix} (<i><font size="3">{this.props.bename}</font></i>)
+                                <FontAwesomeIcon
+                                    size="lg"
+                                    className="ds-left-margin ds-refresh"
+                                    icon={faSyncAlt}
+                                    title="Refresh database link"
+                                    onClick={() => this.props.reload(this.props.suffix)}
+                                />
+                            </Text>
+                        </TextContent>
                     </GridItem>
-                    <GridItem span={1}>
+                    <GridItem span={2}>
                         <Button
+                            className="ds-float-right"
                             variant="danger"
                             onClick={this.showDeleteConfirm}
                         >
@@ -1830,7 +1866,11 @@ export class ChainControlsModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal>
-                    <h5 title="A list of LDAP control OIDs to be forwarded through chaining">Available LDAP Controls</h5>
+                    <TextContent title="A list of LDAP control OIDs to be forwarded through chaining">
+                        <Text component={TextVariants.h3}>
+                            Available LDAP Controls
+                        </Text>
+                    </TextContent>
                     <div className="ds-box ds-margin-top">
                         <SimpleList onSelect={handleChange} aria-label="comps">
                             {oids}
@@ -1885,7 +1925,12 @@ export class ChainCompsModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal>
-                    <h5 title="A list of LDAP control components">Available Components</h5>
+                    <TextContent title="A list of LDAP control components">
+                        <Text component={TextVariants.h3}>
+                            Available Components
+                        </Text>
+                    </TextContent>
+                    Available LDAP Controls
                     <div className="ds-box ds-margin-top">
                         <SimpleList onSelect={handleChange} aria-label="comps">
                             {comps}

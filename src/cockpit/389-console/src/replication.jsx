@@ -6,6 +6,9 @@ import PropTypes from "prop-types";
 import {
     Spinner,
     TreeView,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -60,6 +63,7 @@ export class Replication extends React.Component {
         this.handleChange = this.handleChange.bind(this);
         this.disableTree = this.disableTree.bind(this);
         this.enableTree = this.enableTree.bind(this);
+        this.update_tree_nodes = this.update_tree_nodes.bind(this);
 
         this.reloadConfig = this.reloadConfig.bind(this);
         this.reloadAgmts = this.reloadAgmts.bind(this);
@@ -154,6 +158,9 @@ export class Replication extends React.Component {
                 treeBranch[sub].icon = <FontAwesomeIcon size="sm" icon={faClone} />;
                 treeBranch[sub].replicated = true;
             }
+            if (treeBranch[sub].children.length == 0) {
+                delete treeBranch[sub].children;
+            }
             this.processBranch(treeBranch[sub].children);
         }
     }
@@ -221,6 +228,10 @@ export class Replication extends React.Component {
                                 }
                             }
                             this.processBranch(treeData[i].children);
+                            if (treeData[i].children && treeData[i].children.length == 0) {
+                                // Clean up tree
+                                delete treeData[i].children;
+                            }
                         }
                         if (!found) {
                             // No replicated suffixes, load the first one
@@ -244,13 +255,14 @@ export class Replication extends React.Component {
                         }
                         this.loadReplSuffix(current_node);
                     }
+
                     basicData[0].children = treeData;
-                    this.setState(() => ({
+                    this.setState({
                         nodes: basicData,
                         node_name: current_node,
                         node_type: current_type,
                         node_replicated: replicated,
-                    }), this.update_tree_nodes);
+                    }, () => { this.update_tree_nodes() });
                 });
     }
 
@@ -260,7 +272,7 @@ export class Replication extends React.Component {
         }
 
         this.setState({
-            activeItems: [treeViewItem, parentItem],
+            activeItems: [treeViewItem],
             node_name: treeViewItem.id,
             node_type: treeViewItem.type,
             node_replicated: treeViewItem.replicated,
@@ -295,6 +307,9 @@ export class Replication extends React.Component {
             if (element) {
                 let elements = element.getElementsByClassName(className);
                 for (let el of elements) {
+                    if (el.id == "repl-suffixes") {
+                        continue;
+                    }
                     el.setAttribute('title', el.innerText);
                 }
             }
@@ -582,6 +597,27 @@ export class Replication extends React.Component {
                         suffixSpinning: false,
                         disabled: false
                     });
+                });
+    }
+
+    loadLDIFs() {
+        const cmd = [
+            "dsctl", "-j", this.props.serverId, "ldifs"
+        ];
+        log_cmd("loadLDIFs", "Load replication LDIF Files", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const config = JSON.parse(content);
+                    let rows = [];
+                    for (let row of config.items) {
+                        if (row[3].toLowerCase() == this.state.node_name.toLowerCase()) {
+                            rows.push([row[0], row[1], row[2]]);
+                        }
+                    }
+                    this.setState({
+                        ldifRows: rows,
+                    }, () => { this.update_tree_nodes() });
                 });
     }
 
@@ -918,13 +954,6 @@ export class Replication extends React.Component {
                     this.setState({
                         attributes: attrs,
                     });
-                })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to get attributes - ${errMsg.desc}`
-                    );
                 });
     }
 
@@ -943,75 +972,83 @@ export class Replication extends React.Component {
     render() {
         const { nodes } = this.state;
         let repl_page = "";
+        let repl_element = "";
         let disabled = "tree-view-container";
         if (this.state.disableTree) {
             disabled = "tree-view-container ds-disabled";
         }
-        let repl_element =
-            <h4>There are currently no databases to configure for replication</h4>;
-        if (this.state.loaded) {
-            // We have a suffix, or database link
-            if (this.state.node_type == "suffix" || this.state.node_type == "subsuffix") {
-                if (this.state.suffixLoading) {
+        if (!this.state.loaded) {
+            repl_page =
+                <div className="ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>Loading Replication Information ...</Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top-lg" size="xl" />
+                </div>;
+        } else {
+            if (this.state.suffixLoading) {
+                repl_element =
+                    <div className="ds-margin-top-xlg ds-center">
+                        <TextContent>
+                            <Text component={TextVariants.h3}>Loading Replication Configuration For <b>{this.state.node_name} ...</b></Text>
+                        </TextContent>
+                        <Spinner className="ds-margin-top-lg" size="xl" />
+                    </div>;
+            } else {
+                if (this.state.node_name in this.state) {
                     repl_element =
-                        <div className="ds-margin-top-xlg ds-center">
-                            <h4>Loading replication configuration for <b>{this.state.node_name} ...</b></h4>
-                            <Spinner className="ds-margin-top-lg" size="xl" />
-                        </div>;
-                } else {
-                    if (this.state.node_name in this.state) {
-                        repl_element =
-                            <div>
-                                <ReplSuffix
-                                    serverId={this.props.serverId}
-                                    suffix={this.state.node_name}
-                                    role={this.state[this.state.node_name].role}
-                                    data={this.state[this.state.node_name]}
-                                    addNotification={this.props.addNotification}
-                                    agmtRows={this.state[this.state.node_name].agmtRows}
-                                    winsyncRows={this.state[this.state.node_name].winsyncRows}
-                                    ruvRows={this.state[this.state.node_name].ruvRows}
-                                    ldifRows={this.state.ldifRows}
-                                    reloadAgmts={this.reloadAgmts}
-                                    reloadWinsyncAgmts={this.reloadWinsyncAgmts}
-                                    reloadRUV={this.reloadRUV}
-                                    reloadConfig={this.reloadConfig}
-                                    reload={this.loadSuffixTree}
-                                    attrs={this.state.attributes}
-                                    replicated={this.state.node_replicated}
-                                    enableTree={this.enableTree}
-                                    disableTree={this.disableTree}
-                                    key={this.state.suffixKey}
-                                    disabled={this.state.disabled}
-                                    spinning={this.state.suffixSpinning}
-                                />
-                            </div>;
-                    } else {
-                        // Suffix is not replicated
-                        repl_element =
+                        <div>
                             <ReplSuffix
                                 serverId={this.props.serverId}
                                 suffix={this.state.node_name}
-                                role=""
-                                data=""
+                                role={this.state[this.state.node_name].role}
+                                data={this.state[this.state.node_name]}
                                 addNotification={this.props.addNotification}
-                                disableWSAgmtTable={this.state.disableWSAgmtTable}
-                                disableAgmtTable={this.state.disableAgmtTable}
+                                agmtRows={this.state[this.state.node_name].agmtRows}
+                                winsyncRows={this.state[this.state.node_name].winsyncRows}
+                                ruvRows={this.state[this.state.node_name].ruvRows}
+                                ldifRows={this.state.ldifRows}
                                 reloadAgmts={this.reloadAgmts}
                                 reloadWinsyncAgmts={this.reloadWinsyncAgmts}
                                 reloadRUV={this.reloadRUV}
                                 reloadConfig={this.reloadConfig}
+                                reloadLDIF={this.loadLDIFs}
                                 reload={this.loadSuffixTree}
                                 attrs={this.state.attributes}
                                 replicated={this.state.node_replicated}
                                 enableTree={this.enableTree}
                                 disableTree={this.disableTree}
-                                spinning={this.state.suffixSpinning}
+                                key={this.state.suffixKey}
                                 disabled={this.state.disabled}
-                                ldifRows={this.state.ldifRows}
-                                key={this.state.node_name}
-                            />;
-                    }
+                                spinning={this.state.suffixSpinning}
+                            />
+                        </div>;
+                } else {
+                    // Suffix is not replicated
+                    repl_element =
+                        <ReplSuffix
+                            serverId={this.props.serverId}
+                            suffix={this.state.node_name}
+                            role=""
+                            data=""
+                            addNotification={this.props.addNotification}
+                            disableWSAgmtTable={this.state.disableWSAgmtTable}
+                            disableAgmtTable={this.state.disableAgmtTable}
+                            reloadAgmts={this.reloadAgmts}
+                            reloadWinsyncAgmts={this.reloadWinsyncAgmts}
+                            reloadRUV={this.reloadRUV}
+                            reloadLDIF={this.loadLDIFs}
+                            reloadConfig={this.reloadConfig}
+                            reload={this.loadSuffixTree}
+                            attrs={this.state.attributes}
+                            replicated={this.state.node_replicated}
+                            enableTree={this.enableTree}
+                            disableTree={this.disableTree}
+                            spinning={this.state.suffixSpinning}
+                            disabled={this.state.disabled}
+                            ldifRows={this.state.ldifRows}
+                            key={this.state.node_name}
+                        />;
                 }
             }
             repl_page =
@@ -1032,12 +1069,6 @@ export class Replication extends React.Component {
                             {repl_element}
                         </div>
                     </div>
-                </div>;
-        } else {
-            repl_page =
-                <div className="ds-margin-top-xlg ds-center">
-                    <h4>Loading Replication Information ...</h4>
-                    <Spinner className="ds-margin-top-lg" size="xl" />
                 </div>;
         }
 

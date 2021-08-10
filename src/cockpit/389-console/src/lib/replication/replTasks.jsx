@@ -10,6 +10,9 @@ import {
     Form,
     Grid,
     GridItem,
+    Text,
+    TextContent,
+    TextVariants,
     noop,
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -308,7 +311,7 @@ export class ReplRUV extends React.Component {
         let localRUV =
             <div className="ds-left-indent-md">
                 <Grid className="ds-margin-top-med">
-                    <GridItem className="ds-label" span={2}>
+                    <GridItem span={2}>
                         Replica ID
                     </GridItem>
                     <GridItem span={10}>
@@ -316,7 +319,7 @@ export class ReplRUV extends React.Component {
                     </GridItem>
                 </Grid>
                 <Grid>
-                    <GridItem className="ds-label" span={2}>
+                    <GridItem span={2}>
                         LDAP URL
                     </GridItem>
                     <GridItem span={10}>
@@ -324,7 +327,7 @@ export class ReplRUV extends React.Component {
                     </GridItem>
                 </Grid>
                 <Grid>
-                    <GridItem className="ds-label" span={2}>
+                    <GridItem span={2}>
                         Min CSN
                     </GridItem>
                     <GridItem span={10}>
@@ -332,7 +335,7 @@ export class ReplRUV extends React.Component {
                     </GridItem>
                 </Grid>
                 <Grid>
-                    <GridItem className="ds-label" span={2}>
+                    <GridItem span={2}>
                         Max CSN
                     </GridItem>
                     <GridItem span={10}>
@@ -352,38 +355,46 @@ export class ReplRUV extends React.Component {
 
         return (
             <div className="ds-margin-top-xlg ds-indent">
-                <h4>Local RUV <FontAwesomeIcon
-                    size="lg"
-                    className="ds-left-margin ds-refresh"
-                    icon={faSyncAlt}
-                    title="Refresh the RUV for this suffixs"
-                    onClick={() => {
-                        this.props.reload(this.props.suffix);
-                    }}
-                />
-                </h4>
+                <TextContent>
+                    <Text component={TextVariants.h3}>
+                        Local RUV <FontAwesomeIcon
+                            size="lg"
+                            className="ds-left-margin ds-refresh"
+                            icon={faSyncAlt}
+                            title="RRefresh the RUV for this suffixs"
+                            onClick={() => {
+                                this.props.reload(this.props.suffix);
+                            }}
+                        />
+                    </Text>
+                </TextContent>
                 {localRUV}
-                <hr />
-                <h4 className="ds-margin-top">Remote RUV's <FontAwesomeIcon
-                    size="lg"
-                    className="ds-left-margin ds-refresh"
-                    icon={faSyncAlt}
-                    title="Refresh the RUV for this suffixs"
-                    onClick={() => {
-                        this.props.reload(this.props.suffix);
-                    }}
-                />
-                </h4>
-                <div className="ds-left-indent-md ds-margin-top-lg">
+                <TextContent className="ds-margin-top-xlg">
+                    <Text component={TextVariants.h3}>
+                        Remote RUV's <FontAwesomeIcon
+                            size="lg"
+                            className="ds-left-margin ds-refresh"
+                            icon={faSyncAlt}
+                            title="Refresh the remote RUVs for this suffixs"
+                            onClick={() => {
+                                this.props.reload(this.props.suffix);
+                            }}
+                        />
+                    </Text>
+                </TextContent>
+                <div className="ds-left-indent-md">
                     <RUVTable
                         rows={remote_rows}
                         confirmDelete={this.showConfirmCleanRUV}
                     />
                 </div>
-                <hr />
-                <h4 className="ds-margin-top-xlg">Replication Change Log Tasks</h4>
+                <TextContent className="ds-margin-top-xlg">
+                    <Text component={TextVariants.h3}>
+                        Replication Change Log Tasks
+                    </Text>
+                </TextContent>
                 <Form className="ds-margin-top-lg ds-left-indent-md" isHorizontal>
-                    <Grid className="ds-margin-top-lg">
+                    <Grid>
                         <GridItem
                             span={3}
                             title="Export the changelog to an LDIF file.  Typically used for changelog encryption purposes, or debugging."

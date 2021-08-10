@@ -15,6 +15,9 @@ import {
     Tab,
     Tabs,
     TabTitleText,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
@@ -1379,7 +1382,9 @@ export class Schema extends React.Component {
         if (this.state.loading) {
             schemaPage = (
                 <div className="ds-center ds-margin-top-xlg">
-                    <h4>Loading Schema Information ...</h4>
+                    <TextContent>
+                        <Text component={TextVariants.h3}>Loading Schema Information ...</Text>
+                    </TextContent>
                     <Spinner className="ds-margin-top-lg" size="xl" />
                 </div>
             );
@@ -1412,6 +1417,7 @@ export class Schema extends React.Component {
                                 >
                                     Add ObjectClass
                                 </Button>
+                                <hr />
                                 <ObjectClassModal
                                     addHandler={this.addObjectclass}
                                     editHandler={this.editObjectclass}
@@ -1474,6 +1480,7 @@ export class Schema extends React.Component {
                                 >
                                     Add Attribute
                                 </Button>
+                                <hr />
                                 <AttributeTypeModal
                                     addHandler={this.addAttribute}
                                     editHandler={this.editAttribute}

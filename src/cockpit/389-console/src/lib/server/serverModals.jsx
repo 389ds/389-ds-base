@@ -55,6 +55,7 @@ export class SASLMappingModal extends React.Component {
                 <Form isHorizontal>
                     <Grid
                         title="SASL Mapping entry name"
+                        className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
                             SASL Mapping Name
@@ -76,7 +77,6 @@ export class SASLMappingModal extends React.Component {
                     </Grid>
                     <Grid
                         title="SASL mapping Regular Expression"
-                        className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
                             SASL mapping Regular Expression
@@ -98,7 +98,6 @@ export class SASLMappingModal extends React.Component {
                     </Grid>
                     <Grid
                         title="Test Regular Expression"
-                        className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
                             <font size="2">* Test Regex</font>
@@ -118,6 +117,7 @@ export class SASLMappingModal extends React.Component {
                         </GridItem>
                         <GridItem span={4}>
                             <Button
+                                className="ds-left-margin"
                                 isDisabled={this.props.testBtnDisabled}
                                 variant="primary"
                                 onClick={this.props.handleTestRegex}
@@ -128,7 +128,6 @@ export class SASLMappingModal extends React.Component {
                     </Grid>
                     <Grid
                         title="The search base or a specific entry DN to match against the constructed DN"
-                        className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
                             SASL Mapping Base
@@ -150,7 +149,6 @@ export class SASLMappingModal extends React.Component {
                     </Grid>
                     <Grid
                         title="SASL mapping search filter"
-                        className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
                             SASL Mapping Filter
@@ -172,7 +170,6 @@ export class SASLMappingModal extends React.Component {
                     </Grid>
                     <Grid
                         title="Set the mapping priority for which mappings should be tried first"
-                        className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
                             SASL Mapping Priority

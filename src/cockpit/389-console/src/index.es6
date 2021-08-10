@@ -1,4 +1,4 @@
-import "./patternfly/patternfly-cockpit.scss";
+import "./css/patternfly-4-cockpit.scss";
 import React from "react";
 import ReactDOM from "react-dom";
 import "./css/ds.css";

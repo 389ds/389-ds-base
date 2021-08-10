@@ -6,6 +6,9 @@ import {
     Pagination,
     PaginationVariant,
     SearchInput,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from '@patternfly/react-core';
 import {
@@ -62,9 +65,11 @@ class AbortCleanALLRUVTable extends React.Component {
 
     getLog(log) {
         return (
-            <h6 >
-                {log}
-            </h6>
+            <TextContent>
+                <Text component={TextVariants.h5}>
+                    {log}
+                </Text>
+            </TextContent>
         );
     }
 
@@ -235,9 +240,11 @@ class CleanALLRUVTable extends React.Component {
 
     getLog(log) {
         return (
-            <h6 >
-                {log}
-            </h6>
+            <TextContent>
+                <Text component={TextVariants.h5}>
+                    {log}
+                </Text>
+            </TextContent>
         );
     }
 
@@ -1037,7 +1044,11 @@ class ConnectionTable extends React.Component {
 
         return (
             <div className="ds-margin-top-xlg">
-                <h5>Client Connections:<b className="ds-left-margin">{this.props.conns.length}</b></h5>
+                <TextContent>
+                    <Text component={TextVariants.h4}>
+                        Client Connections:<b className="ds-left-margin">{this.props.conns.length}</b>
+                    </Text>
+                </TextContent>
                 <SearchInput
                     className="ds-margin-top-xlg"
                     placeholder='Search connections'
@@ -1450,7 +1461,11 @@ class ReportAliasesTable extends React.Component {
 
         return (
             <div className="ds-margin-top-xlg">
-                <h4 className="ds-center ds-margin-bottom">Aliases</h4>
+                <TextContent>
+                    <Text className="ds-center ds-margin-bottom" component={TextVariants.h4}>
+                        Replica Naming Aliases
+                    </Text>
+                </TextContent>
                 <Table
                     variant={TableVariant.compact} aria-label="Sortable Table"
                     sortBy={this.props.sortBy} onSort={this.props.onSort} cells={columns}
@@ -1531,7 +1546,11 @@ class ReportCredentialsTable extends React.Component {
 
         return (
             <div className="ds-margin-top">
-                <h4 className="ds-center ds-margin-bottom">Replication Credentials</h4>
+                <TextContent>
+                    <Text className="ds-center ds-margin-bottom" component={TextVariants.h4}>
+                        Replication Report Credentials
+                    </Text>
+                </TextContent>
                 <Table
                     variant={TableVariant.compact} aria-label="Cred Table"
                     sortBy={this.props.sortBy} onSort={this.props.onSort} cells={columns}
@@ -1572,7 +1591,11 @@ class ReportSingleTable extends React.Component {
     getExpandedRow(agmt) {
         if (agmt['agmt-name'][0] == "-") {
             return (
-                <h5>No agreement information</h5>
+                <TextContent>
+                    <Text component={TextVariants.h4}>
+                        No agreement information
+                    </Text>
+                </TextContent>
             );
         }
         let replEnabled;
@@ -1649,27 +1672,29 @@ class ReportSingleTable extends React.Component {
             } else {
                 agmtName = replica['agmt-name'][0];
             }
-            rows.push({
-                isOpen: false,
-                cells: [
-                    replica.supplierName[0],
-                    { title: agmtName },
-                    replica['replication-status'][0],
-                    replica['replication-lag-time'][0],
-                ],
-            });
-
-            rows.push({
-                parent: count,
-                fullWidth: true,
-                cells: [{ title: this.getExpandedRow(replica) }]
-            });
+            rows.push(
+                {
+                    isOpen: false,
+                    cells: [
+                        replica.supplierName[0],
+                        { title: agmtName },
+                        replica['replication-status'][0],
+                        replica['replication-lag-time'][0],
+                    ],
+                },
+                {
+                    parent: count,
+                    fullWidth: true,
+                    cells: [{ title: this.getExpandedRow(replica) }]
+                }
+            );
             count += 2;
         }
         if (rows.length == 0) {
             rows = [{cells: ['No Agreements']}];
             columns = [{title: 'Replication Agreements'}];
         }
+
         this.setState({
             rows: rows,
             columns: columns
@@ -1677,9 +1702,9 @@ class ReportSingleTable extends React.Component {
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows, perPage, page } = this.state;
-        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
-        rows[index].isOpen = isOpen;
+        const { rows } = this.state;
+        // const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[rowKey].isOpen = isOpen;
         this.setState({
             rows
         });
@@ -1790,7 +1815,11 @@ class ReportConsumersTable extends React.Component {
         let replEnabled;
         if (agmt['agmt-name'][0] == "-") {
             return (
-                <h5>No agreement information</h5>
+                <TextContent>
+                    <Text component={TextVariants.h4}>
+                        No agreement information
+                    </Text>
+                </TextContent>
             );
         }
         if (agmt['replica-enabled'] == "off") {
@@ -1802,7 +1831,7 @@ class ReportConsumersTable extends React.Component {
             replEnabled = agmt['replica-enabled'][0];
         }
         return (
-            <Grid className="ds-indent">
+            <Grid className="ds-margin-left">
                 <GridItem span={3}>Suffix & Replica ID:</GridItem>
                 <GridItem span={9}><b>{ agmt.replicaName[0] }</b></GridItem>
                 <GridItem span={3}>Replica Server Status:</GridItem>
@@ -1864,20 +1893,22 @@ class ReportConsumersTable extends React.Component {
             } else {
                 replEnabled = replica['replica-enabled'][0];
             }
-            rows.push({
-                isOpen: false,
-                cells: [
-                    replica['agmt-name'][0],
-                    { title: replEnabled },
-                    replica['replication-status'][0],
-                    replica['replication-lag-time'][0],
-                ]
-            });
-            rows.push({
-                parent: count,
-                fullWidth: true,
-                cells: [{ title: this.getExpandedRow(replica) }]
-            });
+            rows.push(
+                {
+                    isOpen: false,
+                    cells: [
+                        replica['agmt-name'][0],
+                        { title: replEnabled },
+                        replica['replication-status'][0],
+                        replica['replication-lag-time'][0],
+                    ]
+                },
+                {
+                    parent: count,
+                    fullWidth: true,
+                    cells: [{ title: this.getExpandedRow(replica) }]
+                }
+            );
             count += 2;
         }
         if (rows.length == 0) {
@@ -1891,9 +1922,9 @@ class ReportConsumersTable extends React.Component {
     }
 
     onCollapse(event, rowKey, isOpen) {
-        const { rows, perPage, page } = this.state;
-        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
-        rows[index].isOpen = isOpen;
+        const { rows } = this.state;
+        // const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[rowKey].isOpen = isOpen;
         this.setState({
             rows
         });
@@ -1961,7 +1992,7 @@ class ReportConsumersTable extends React.Component {
         // This is an expandable list
         const { columns, rows, sortBy } = this.state;
         return (
-            <div className="ds-margin-top-xlg">
+            <div className="ds-margin-top">
                 <Table
                     className="ds-margin-top"
                     aria-label="Expandable consumer table"

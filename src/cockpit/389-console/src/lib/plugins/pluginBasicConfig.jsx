@@ -1,22 +1,14 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Row,
-    Col,
-    Form,
-    Switch,
-    FormGroup,
-    FormControl,
-    ControlLabel
-} from "patternfly-react";
-import {
-    Button,
     ExpandableSection,
-    // Form,
-    // FormGroup,
-    // TextInput,
-    // Grid,
-    // GridItem,
+    Form,
+    Grid,
+    GridItem,
+    Switch,
+    Text,
+    TextContent,
+    TextVariants,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
@@ -29,6 +21,7 @@ class PluginBasicConfig extends React.Component {
         this.updateFields = this.updateFields.bind(this);
         this.updateSwitch = this.updateSwitch.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
+        this.handleSwitchChange = this.handleSwitchChange.bind(this);
 
         this.state = {
             disableSwitch: false,
@@ -64,12 +57,13 @@ class PluginBasicConfig extends React.Component {
     }
 
     handleFieldChange(e) {
+        e.preventDefault();
         this.setState({
             [e.target.id]: e.target.value
         });
     }
 
-    handleSwitchChange(value) {
+    handleSwitchChange() {
         const {
             pluginName,
             cmdName,
@@ -97,7 +91,7 @@ class PluginBasicConfig extends React.Component {
                     console.info("savePlugin", "Result", content);
                     pluginListHandler();
                     addNotification(
-                        "success",
+                        "warning",
                         `${pluginName} plugin was successfully ${new_status}d.
                         Please, restart the instance.`
                     );
@@ -169,169 +163,135 @@ class PluginBasicConfig extends React.Component {
 
     render() {
         const {
-            currentPluginEnabled,
-            currentPluginType,
-            currentPluginPath,
-            currentPluginInitfunc,
-            currentPluginId,
-            currentPluginVendor,
-            currentPluginVersion,
-            currentPluginDescription,
-            currentPluginDependsOnType,
-            currentPluginDependsOnNamed,
-            currentPluginPrecedence,
             disableSwitch
         } = this.state;
 
-        const modalFieldsCol1 = {
-            currentPluginType: this.state.currentPluginType,
-            currentPluginPath: this.state.currentPluginPath,
-            currentPluginInitfunc: this.state.currentPluginInitfunc
-        };
-        const modalFieldsCol2 = {
-            currentPluginVendor: this.state.currentPluginVendor,
-            currentPluginVersion: this.state.currentPluginVersion,
-            currentPluginDescription: this.state.currentPluginDescription,
-            currentPluginId: this.state.currentPluginId,
-            currentPluginPrecedence: this.state.currentPluginPrecedence
-        };
+        const enabled = <i>Plugin is enabled</i>;
+        const disabled = <i>Plugin is disabled</i>;
+
         return (
             <div>
-                <Form inline>
-                    <Row>
-                        <Col sm={6} className="ds-margin-top">
-                            <h3>
-                                <ControlLabel className="ds-plugin-tab-header">
-                                    {this.props.pluginName}
-                                </ControlLabel>
-                            </h3>
-                        </Col>
-
+                <Form isHorizontal>
+                    <Grid>
+                        <GridItem span={9} className="ds-margin-top">
+                            <TextContent>
+                                <Text component={TextVariants.h2}>
+                                    {this.props.pluginName} Plugin
+                                </Text>
+                            </TextContent>
+                        </GridItem>
                         {this.props.removeSwitch || (
-                            <Col smOffset={1} sm={4} className="ds-margin-top">
-                                <FormGroup key="switchPluginStatus" controlId="switchPluginStatus">
-                                    <ControlLabel className="toolbar-pf-find ds-float-left ds-right-indent">
-                                        Status
-                                    </ControlLabel>
-                                    <Switch
-                                        bsSize="normal"
-                                        title="normal"
-                                        id="bsSize-example"
-                                        value={currentPluginEnabled}
-                                        onChange={() =>
-                                            this.handleSwitchChange(currentPluginEnabled)
-                                        }
-                                        animate={false}
-                                        disabled={disableSwitch}
-                                    />
-                                </FormGroup>
-                            </Col>
+                            <GridItem span={3} className="ds-float-right ds-margin-top">
+                                <Switch
+                                    id="this.props.pluginName"
+                                    label={enabled}
+                                    labelOff={disabled}
+                                    isChecked={this.state.currentPluginEnabled}
+                                    onChange={this.handleSwitchChange}
+                                    isDisabled={disableSwitch}
+                                />
+                            </GridItem>
                         )}
-                    </Row>
+                        <hr />
+                    </Grid>
                 </Form>
-                <div className="ds-margin-top">
+                <div className="ds-left-margin">
                     {this.props.children}
                 </div>
                 <ExpandableSection
-                    className="ds-margin-top-xlg"
-                    toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                    className="ds-margin-top-lg"
+                    toggleText={this.state.isExpanded ? 'Hide Plugin Details' : 'Show Plugin Details'}
                     onToggle={this.onToggle}
                     isExpanded={this.state.isExpanded}
                 >
-                    <Row>
-                        <Col sm={12}>
-                            <Form horizontal>
-                                {Object.entries(modalFieldsCol1).map(([id, value]) => (
-                                    <FormGroup key={id} controlId={id + this.props.pluginName} disabled={false}>
-                                        <Col componentClass={ControlLabel} sm={3}>
-                                            {this.props.memberOfAttr} Plugin{" "}
-                                            {id.replace("currentPlugin", "")}
-                                        </Col>
-                                        <Col sm={6}>
-                                            <FormControl
-                                                type="text"
-                                                value={value}
-                                                onChange={this.handleFieldChange}
-                                            />
-                                        </Col>
-                                    </FormGroup>
-                                ))}
-                                <FormGroup
-                                    key="currentPluginDependsOnType"
-                                    controlId={"currentPluginDependsOnType" + this.props.pluginName}
-                                    disabled={false}
-                                >
-                                    <Col componentClass={ControlLabel} sm={3}>
-                                        Plugin Depends On Type
-                                    </Col>
-                                    <Col sm={6}>
-                                        <FormControl
-                                            type="text"
-                                            value={this.state.currentPluginDependsOnType}
-                                            onChange={this.handleFieldChange}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup
-                                    key="currentPluginDependsOnNamed"
-                                    controlId={"currentPluginDependsOnNamed" + this.props.pluginName}
-                                    disabled={false}
-                                >
-                                    <Col componentClass={ControlLabel} sm={3}>
-                                        Plugin Depends On Named
-                                    </Col>
-                                    <Col sm={6}>
-                                        <FormControl
-                                            type="text"
-                                            value={this.state.currentPluginDependsOnNamed}
-                                            onChange={this.handleFieldChange}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                {Object.entries(modalFieldsCol2).map(([id, value]) => (
-                                    <FormGroup key={id} controlId={id + this.props.pluginName} disabled={false}>
-                                        <Col componentClass={ControlLabel} sm={3}>
-                                            Plugin {id.replace("currentPlugin", "")}
-                                        </Col>
-                                        <Col sm={6}>
-                                            <FormControl
-                                                type="text"
-                                                value={value}
-                                                onChange={this.handleFieldChange}
-                                            />
-                                        </Col>
-                                    </FormGroup>
-                                ))}
+                    <Grid className="ds-margin-left">
+                        <GridItem span={12}>
+                            <Form isHorizontal>
+                                <Grid>
+                                    <GridItem span={3}>
+                                        <b>Plugin Type</b>
+                                    </GridItem>
+                                    <GridItem span={6}>
+                                        <i>{this.state.currentPluginType}</i>
+                                    </GridItem>
+                                </Grid>
+                                <Grid>
+                                    <GridItem span={3}>
+                                        <b>Plugin Path</b>
+                                    </GridItem>
+                                    <GridItem span={6}>
+                                        <i>{this.state.currentPluginPath}</i>
+                                    </GridItem>
+                                </Grid>
+                                <Grid>
+                                    <GridItem span={3}>
+                                        <b>Plugin Initfunc</b>
+                                    </GridItem>
+                                    <GridItem span={6}>
+                                        <i>{this.state.currentPluginInitfunc}</i>
+                                    </GridItem>
+                                </Grid>
+                                <Grid>
+                                    <GridItem span={3}>
+                                        <b>Plugin Depends On Type</b>
+                                    </GridItem>
+                                    <GridItem span={6}>
+                                        <i>{this.state.currentPluginDependsOnType}</i>
+                                    </GridItem>
+                                </Grid>
+                                <Grid>
+                                    <GridItem span={3}>
+                                        <b>Plugin Depends On Named</b>
+                                    </GridItem>
+                                    <GridItem span={6}>
+                                        <i>{this.state.currentPluginDependsOnNamed}</i>
+                                    </GridItem>
+                                </Grid>
+                                <Grid>
+                                    <GridItem span={3}>
+                                        <b>Plugin Vendor</b>
+                                    </GridItem>
+                                    <GridItem span={6}>
+                                        <i>{this.state.currentPluginVendor}</i>
+                                    </GridItem>
+                                </Grid>
+                                <Grid>
+                                    <GridItem span={3}>
+                                        <b>Plugin Version</b>
+                                    </GridItem>
+                                    <GridItem span={6}>
+                                        <i>{this.state.currentPluginVersion}</i>
+                                    </GridItem>
+                                </Grid>
+                                <Grid>
+                                    <GridItem span={3}>
+                                        <b>Plugin Description</b>
+                                    </GridItem>
+                                    <GridItem span={6}>
+                                        <i>{this.state.currentPluginDescription}</i>
+                                    </GridItem>
+                                </Grid>
+                                <Grid>
+                                    <GridItem span={3}>
+                                        <b>Plugin ID</b>
+                                    </GridItem>
+                                    <GridItem span={6}>
+                                        <i>{this.state.currentPluginId}</i>
+                                    </GridItem>
+                                </Grid>
+                                <Grid>
+                                    <GridItem span={3}>
+                                        <b>Plugin Precedence</b>
+                                    </GridItem>
+                                    <GridItem span={6}>
+                                        <i>{this.state.currentPluginPrecedence}</i>
+                                    </GridItem>
+                                </Grid>
+                                <hr />
                             </Form>
-                        </Col>
-                    </Row>
+                        </GridItem>
+                    </Grid>
                 </ExpandableSection>
-                <Row className="ds-margin-top-lg">
-                    <Col sm={1}>
-                        <Button
-                            key="saveconf"
-                            variant="primary"
-                            onClick={() =>
-                                this.props.savePluginHandler({
-                                    name: this.props.cn,
-                                    type: currentPluginType,
-                                    path: currentPluginPath,
-                                    initfunc: currentPluginInitfunc,
-                                    id: currentPluginId,
-                                    vendor: currentPluginVendor,
-                                    version: currentPluginVersion,
-                                    description: currentPluginDescription,
-                                    dependsOnType: currentPluginDependsOnType,
-                                    dependsOnNamed: currentPluginDependsOnNamed,
-                                    precedence: currentPluginPrecedence,
-                                    specificPluginCMD: this.props.specificPluginCMD
-                                })
-                            }
-                        >
-                            Save Config
-                        </Button>
-                    </Col>
-                </Row>
             </div>
         );
     }
@@ -345,11 +305,9 @@ PluginBasicConfig.propTypes = {
     pluginName: PropTypes.string,
     cmdName: PropTypes.string,
     removeSwitch: PropTypes.bool,
-    specificPluginCMD: PropTypes.array,
-    savePluginHandler: PropTypes.func,
     pluginListHandler: PropTypes.func,
     addNotification: PropTypes.func,
-    toggleLoadingHandler: PropTypes.func
+    toggleLoadingHandler: PropTypes.func,
 };
 
 PluginBasicConfig.defaultProps = {
@@ -359,11 +317,9 @@ PluginBasicConfig.defaultProps = {
     pluginName: "",
     cmdName: "",
     removeSwitch: false,
-    specificPluginCMD: [],
-    savePluginHandler: noop,
     pluginListHandler: noop,
     addNotification: noop,
-    toggleLoadingHandler: noop
+    toggleLoadingHandler: noop,
 };
 
 export default PluginBasicConfig;

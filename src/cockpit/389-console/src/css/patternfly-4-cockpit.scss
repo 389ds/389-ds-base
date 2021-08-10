@@ -8,9 +8,7 @@
 $pf-global--font-path: 'patternfly-fonts-fake-path';
 $pf-global--fonticon-path: 'patternfly-icons-fake-path';
 $pf-global--disable-fontawesome: true !default; // Disable Font Awesome 5 Free
-
 @import '~@patternfly/patternfly/patternfly-base.scss';
-// @import '~@patternfly/react-core/dist/styles/base.css';
 
 /* Import our own fonts since the PF4 font-face rules are filtered out with patternfly.sed */
 @import "./fonts";

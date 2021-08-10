@@ -176,10 +176,7 @@ class ManagerTable extends React.Component {
         this.state = {
             sortBy: {},
             rows: [],
-            columns: [
-                { title: 'Replication Managers', transforms: [sortable] },
-                { props: { textCenter: true }, title: 'Delete' },
-            ],
+            columns: ['', ''],
         };
 
         this.onSort = this.onSort.bind(this);
@@ -196,7 +193,7 @@ class ManagerTable extends React.Component {
         }
         if (rows.length == 0) {
             rows = [{cells: ['No Replication Managers']}];
-            columns = [{title: 'Replication Managers'}];
+            columns = [{title: ''}];
         }
         this.setState({
             rows: rows,
@@ -208,13 +205,14 @@ class ManagerTable extends React.Component {
         let rows = [];
         let sortedManagers = [...this.state.rows];
 
-        // Sort the referrals and build the new rows
+        // Sort the managers and build the new rows
         sortedManagers.sort();
         if (direction !== SortByDirection.asc) {
             sortedManagers.reverse();
         }
+
         for (let managerRow of sortedManagers) {
-            rows.push({ cells: [managerRow, { props: { textCenter: true }, title: this.getDeleteButton(managerRow) }] });
+            rows.push({ cells: [managerRow.cells[0], { props: { textCenter: true }, title: this.getDeleteButton(managerRow.cells[0]) }] });
         }
 
         this.setState({
@@ -320,7 +318,7 @@ class RUVTable extends React.Component {
 
     render() {
         return (
-            <div className="ds-margin-top-lg">
+            <div className="ds-margin-top">
                 <Table
                     className="ds-margin-top"
                     aria-label="ruv table"

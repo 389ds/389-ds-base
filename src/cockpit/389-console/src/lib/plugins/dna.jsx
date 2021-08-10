@@ -3,13 +3,13 @@ import React from "react";
 import {
     Button,
     Form,
-    FormGroup,
     FormSelect,
     FormSelectOption,
     Grid,
     GridItem,
     Modal,
     ModalVariant,
+    NumberInput,
     Select,
     SelectOption,
     SelectVariant,
@@ -18,6 +18,9 @@ import {
     Tabs,
     TabTitleText,
     TextInput,
+    Text,
+    TextContent,
+    TextVariants,
     Tooltip,
     noop,
     ValidatedOptions,
@@ -25,9 +28,8 @@ import {
 import { DNATable, DNASharedTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
-import ExclamationCircleIcon from '@patternfly/react-icons/dist/js/icons/exclamation-circle-icon';
 
 class DNA extends React.Component {
     constructor(props) {
@@ -36,13 +38,13 @@ class DNA extends React.Component {
             firstLoad: true,
             configRows: [],
             sharedConfigRows: [],
-            attributes: [],
             activeTabKey: 1,
             tableKey: 1,
             modalSpinning: false,
             modalChecked: false,
             deleteItem: "",
             loading: true,
+            error: {},
 
             validatedBindMethod: ValidatedOptions.default,
             validatedBindMethodText: "",
@@ -64,6 +66,7 @@ class DNA extends React.Component {
             nextRange: "",
             rangeRequestTimeout: "",
             showDeleteConfirm: false,
+            saving: false,
 
             sharedBaseDN: "",
             sharedHostname: "",
@@ -73,6 +76,7 @@ class DNA extends React.Component {
             sharedRemoteBindMethod: "",
             sharedRemoteConnProtocol: "",
             showSharedDeleteConfirm: false,
+            savingShared: false,
 
             newEntry: false,
             configEntryModalShow: false,
@@ -80,6 +84,7 @@ class DNA extends React.Component {
             // typeahead
             isOpen: false,
             selected: [],
+            saveBtnDisabled: true,
         };
 
         this.onToggle = isOpen => {
@@ -88,17 +93,11 @@ class DNA extends React.Component {
             });
         };
 
-        this.toggleLoading = () => {
-            this.setState(prevState => ({
-                loading: !prevState.loading,
-            }));
-        };
-
         this.clearSelection = () => {
             this.setState({
                 selected: [],
                 isOpen: false
-            });
+            }, () => { this.validateConfig() });
         };
 
         this.onSelect = (event, selection) => {
@@ -108,16 +107,34 @@ class DNA extends React.Component {
                     prevState => ({
                         selected: prevState.selected.filter(item => item !== selection),
                         isOpen: false
-                    })
+                    }), () => { this.validateConfig() }
                 );
             } else {
                 this.setState(
                     prevState => ({
                         selected: [...prevState.selected, selection],
                         isOpen: false,
-                    })
+                    }), () => { this.validateConfig() }
                 );
             }
+        };
+
+        this.maxValue = 20000000;
+        this.onMinusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validateConfig() });
+        };
+        this.onConfigChange = (event, id, min) => {
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            this.setState({
+                [id]: newValue > this.maxValue ? this.maxValue : newValue < min ? min : newValue
+            }, () => { this.validateConfig() });
+        };
+        this.onPlusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validateConfig() });
         };
 
         this.handleNavSelect = (event, tabIndex) => {
@@ -129,7 +146,7 @@ class DNA extends React.Component {
         this.handleFieldChange = this.handleFieldChange.bind(this);
         this.loadConfigs = this.loadConfigs.bind(this);
         this.loadSharedConfigs = this.loadSharedConfigs.bind(this);
-        this.getAttributes = this.getAttributes.bind(this);
+        this.validateConfig = this.validateConfig.bind(this);
 
         this.openModal = this.openModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
@@ -205,7 +222,7 @@ class DNA extends React.Component {
     handleFieldChange(str, e) {
         this.setState({
             [e.target.id]: e.target.value,
-        });
+        }, () => { this.validateConfig() });
     }
 
     loadConfigs() {
@@ -226,8 +243,9 @@ class DNA extends React.Component {
                     let tableKey = this.state.tableKey + 1;
                     this.setState({
                         configRows: myObject.items.map(item => item.attrs),
-                        tableKey: tableKey
-                    }, this.toggleLoading());
+                        tableKey: tableKey,
+                        loading: false,
+                    });
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -267,6 +285,7 @@ class DNA extends React.Component {
                     let myObject = JSON.parse(content);
                     this.setState({
                         sharedConfigRows: myObject.items.map(item => item.attrs),
+                        firstLoad: false,
                         loading: false,
                     });
                 })
@@ -282,12 +301,11 @@ class DNA extends React.Component {
         this.openModal(rowData);
     }
 
-    showAddConfigModal(rowData) {
+    showAddConfigModal() {
         this.openModal();
     }
 
     openModal(name) {
-        this.getAttributes();
         if (!name) {
             this.setState({
                 configEntryModalShow: true,
@@ -296,19 +314,21 @@ class DNA extends React.Component {
                 configName: "",
                 selected: [],
                 prefix: "",
-                nextValue: "",
-                maxValue: "",
-                interval: "",
+                nextValue: 1,
+                maxValue: -1,
+                interval: 1,
                 magicRegen: "",
                 filter: "",
                 scope: "",
                 remoteBindDN: "",
                 remoteBindCred: "",
                 sharedConfigEntry: "",
-                threshold: "",
+                threshold: 1,
                 nextRange: "",
-                rangeRequestTimeout: "",
+                rangeRequestTimeout: 600,
                 sharedConfigRows: [],
+                saveBtnDisabled: true,
+                error: {},
             });
         } else {
             let dnaTypeList = [];
@@ -323,7 +343,6 @@ class DNA extends React.Component {
                 "show"
             ];
 
-            this.toggleLoading();
             log_cmd("openModal", "Fetch the DNA Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
@@ -384,40 +403,42 @@ class DNA extends React.Component {
                             activeTabKey: 1,
                             configName: configEntry["cn"][0],
                             prefix: configEntry["dnaprefix"],
-                            nextValue: configEntry["dnanextvalue"],
-                            maxValue: configEntry["dnamaxvalue"],
-                            interval: configEntry["dnainterval"],
+                            nextValue: Number(configEntry["dnanextvalue"]) == 0 ? 1 : Number(configEntry["dnanextvalue"]),
+                            maxValue: Number(configEntry["dnamaxvalue"]) == 0 ? -1 : Number(configEntry["dnamaxvalue"]),
+                            interval: Number(configEntry["dnainterval"]) == 0 ? 1 : Number(configEntry["dnainterval"]),
                             magicRegen: configEntry["dnamagicregen"],
                             filter: configEntry["dnafilter"],
                             scope: configEntry["dnascope"],
                             remoteBindDN: configEntry["dnaremotebinddn"],
                             remoteBindCred: configEntry["dnaremotebindcred"],
                             sharedConfigEntry: configEntry["dnasharedcfgdn"],
-                            threshold: configEntry["dnathreshold"],
+                            threshold: Number(configEntry["dnathreshold"]) == 0 ? 1 : Number(configEntry["dnathreshold"]),
                             nextRange: configEntry["dnanextrange"],
-                            rangeRequestTimeout: configEntry["dnarangerequesttimeout"],
+                            rangeRequestTimeout: Number(configEntry["dnarangerequesttimeout"]) == 0 ? 600 : Number(configEntry["dnarangerequesttimeout"]),
                             // Preserve original values
                             _prefix: configEntry["dnaprefix"],
-                            _nextValue: configEntry["dnanextvalue"],
-                            _maxValue: configEntry["dnamaxvalue"],
-                            _interval: configEntry["dnainterval"],
+                            _nextValue: Number(configEntry["dnanextvalue"]) == 0 ? 1 : Number(configEntry["dnanextvalue"]),
+                            _maxValue: Number(configEntry["dnamaxvalue"]) == 0 ? -1 : Number(configEntry["dnamaxvalue"]),
+                            _interval: Number(configEntry["dnainterval"]) == 0 ? 1 : Number(configEntry["dnainterval"]),
                             _magicRegen: configEntry["dnamagicregen"],
                             _filter: configEntry["dnafilter"],
                             _scope: configEntry["dnascope"],
                             _remoteBindDN: configEntry["dnaremotebinddn"],
                             _remoteBindCred: configEntry["dnaremotebindcred"],
                             _sharedConfigEntry: configEntry["dnasharedcfgdn"],
-                            _threshold: configEntry["dnathreshold"],
+                            _threshold: Number(configEntry["dnathreshold"]) == 0 ? 1 : Number(configEntry["dnathreshold"]),
                             _nextRange: configEntry["dnanextrange"],
-                            _rangeRequestTimeout: configEntry["dnarangerequesttimeout"],
-                        }, this.loadSharedConfigs(sharedCfgDN));
+                            _rangeRequestTimeout: Number(configEntry["dnarangerequesttimeout"]) == 0 ? 600 : Number(configEntry["dnarangerequesttimeout"]),
+                            saveBtnDisabled: true,
+                            error: {},
+                        }, () => { this.loadSharedConfigs(sharedCfgDN) });
                         if (configEntry["dnatype"] === undefined) {
-                            this.setState({ selected: [] });
+                            this.setState({ selected: [], _selected: [] });
                         } else {
                             for (let value of configEntry["dnatype"]) {
                                 dnaTypeList = [...dnaTypeList, value];
                             }
-                            this.setState({ selected: dnaTypeList });
+                            this.setState({ selected: dnaTypeList, _selected: [...dnaTypeList] });
                         }
                     })
                     .fail(_ => {
@@ -438,8 +459,9 @@ class DNA extends React.Component {
                             sharedConfigEntry: "",
                             threshold: "",
                             nextRange: "",
-                            rangeRequestTimeout: ""
-                        }, this.toggleLoading());
+                            rangeRequestTimeout: "",
+                            saveBtnDisabled: true,
+                        });
                     });
         }
     }
@@ -486,12 +508,9 @@ class DNA extends React.Component {
             action,
             "--prefix",
             prefix || action == "add" ? prefix : "delete",
-            "--next-value",
-            nextValue || action == "add" ? nextValue : "delete",
-            "--max-value",
-            maxValue || action == "add" ? maxValue : "delete",
-            "--interval",
-            interval || action == "add" ? interval : "delete",
+            "--next-value=" + (nextValue || action == "add" ? nextValue : "delete"),
+            "--max-value=" + (maxValue || action == "add" ? maxValue : "delete"),
+            "--interval=" + (interval || action == "add" ? interval : "delete"),
             "--magic-regen",
             magicRegen || action == "add" ? magicRegen : "delete",
             "--filter",
@@ -504,12 +523,11 @@ class DNA extends React.Component {
             remoteBindCred || action == "add" ? remoteBindCred : "delete",
             "--shared-config-entry",
             sharedConfigEntry || action == "add" ? sharedConfigEntry : "delete",
-            "--threshold",
-            threshold || action == "add" ? threshold : "delete",
+            "--threshold=" + (threshold || action == "add" ? threshold : "delete"),
             "--next-range",
             nextRange || action == "add" ? nextRange : "delete",
-            "--range-request-timeout",
-            rangeRequestTimeout || action == "add" ? rangeRequestTimeout : "delete"
+            "--range-request-timeout=" + (rangeRequestTimeout || action == "add" ? rangeRequestTimeout : "delete"),
+
         ];
 
         // Delete attributes if the user set an empty value to the field
@@ -526,7 +544,10 @@ class DNA extends React.Component {
             }
         }
 
-        this.toggleLoading();
+        this.setState({
+            saving: true
+        });
+
         log_cmd("DNAOperation", `Do the ${action} operation on the DNA Plugin`, cmd);
         cockpit
                 .spawn(cmd, {
@@ -541,6 +562,9 @@ class DNA extends React.Component {
                     );
                     this.loadConfigs();
                     this.closeModal();
+                    this.setState({
+                        saving: false
+                    });
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -552,6 +576,9 @@ class DNA extends React.Component {
                     }
                     this.loadConfigs();
                     this.closeModal();
+                    this.setState({
+                        saving: false
+                    });
                 });
     }
 
@@ -571,7 +598,6 @@ class DNA extends React.Component {
             modalSpinning: true,
         });
 
-        this.toggleLoading();
         log_cmd("deleteConfig", "Delete the DNA Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
@@ -623,7 +649,6 @@ class DNA extends React.Component {
                 sharedName,
                 "show"
             ];
-            this.toggleLoading();
 
             log_cmd("openSharedModal", "Fetch the DNA Plugin shared config entry", cmd);
             cockpit
@@ -669,6 +694,7 @@ class DNA extends React.Component {
                             // Preserve settings
                             _sharedRemoteBindMethod: configEntry["dnaremotebindmethod"],
                             _sharedRemoteConnProtocol: configEntry["dnaremoteconnprotocol"],
+                            saveBtnDisabled: true,
                         });
                     })
                     .fail(_ => {
@@ -681,7 +707,7 @@ class DNA extends React.Component {
                             sharedRemainingValues: "",
                             sharedRemoteBindMethod: "",
                             sharedRemoteConnProtocol: "",
-                        }, this.toggleLoading());
+                        });
                     });
         } else {
             this.setState({
@@ -723,7 +749,9 @@ class DNA extends React.Component {
             sharedRemoteConnProtocol || "delete",
         ];
 
-        this.toggleLoading();
+        this.setState({
+            savingShared: true
+        });
         log_cmd(
             "editSharedConfig",
             `Do the set operation on the DNA Plugin Shared Entry`,
@@ -741,6 +769,9 @@ class DNA extends React.Component {
                     );
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
                     this.closeSharedModal();
+                    this.setState({
+                        savingShared: false
+                    });
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -749,6 +780,10 @@ class DNA extends React.Component {
                         `Error during the config entry set operation - ${errMsg.desc}`
                     );
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
+                    this.closeSharedModal();
+                    this.setState({
+                        savingShared: false
+                    });
                 });
     }
 
@@ -770,7 +805,6 @@ class DNA extends React.Component {
             modalSpinning: true,
         });
 
-        this.toggleLoading();
         log_cmd("deleteSharedConfig", "Delete the DNA Plugin Shared config entry", cmd);
         cockpit
                 .spawn(cmd, {
@@ -794,35 +828,6 @@ class DNA extends React.Component {
                     );
                     this.closeSharedDeleteConfirm();
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
-                });
-    }
-
-    getAttributes() {
-        const attr_cmd = [
-            "dsconf",
-            "-j",
-            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "schema",
-            "attributetypes",
-            "list"
-        ];
-        log_cmd("getAttributes", "Get attrs", attr_cmd);
-        cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    const attrContent = JSON.parse(content);
-                    let attrs = [];
-                    for (let content of attrContent["items"]) {
-                        attrs.push(content.name[0]);
-                    }
-                    this.setState({
-                        attributes: attrs,
-                        firstLoad: false
-                    });
-                })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.props.addNotification("error", `Failed to get attributes - ${errMsg.desc}`);
                 });
     }
 
@@ -880,49 +885,58 @@ class DNA extends React.Component {
         };
     }
 
-    validateConfigResult(adding) {
-        let saveConfigNotOK = false;
+    validateConfig() {
+        let error = {};
+        let all_good = true;
 
-        if (this.state.sharedConfigEntry != "" && !valid_dn(this.state.sharedConfigEntry)) {
-            saveConfigNotOK = true;
-        } else if (this.state.configName == "") {
-            saveConfigNotOK = true;
-        } else if (this.state.nextValue == "" || parseInt(this.state.nextValue < 1)) {
-            saveConfigNotOK = true;
-        } else if (this.state.maxValue != "" &&
-                   this.state.maxValue == "0" &&
-                   parseInt(this.state.maxValue) < -1) {
-            saveConfigNotOK = true;
-        } else if (this.state.filter == "") {
-            saveConfigNotOK = true;
-        } else if (this.state.scope == "") {
-            saveConfigNotOK = true;
-        } else if (this.state.selected == "" || this.state.selected.length == 0) {
-            saveConfigNotOK = true;
+        let dnAttrs = [
+            'sharedConfigEntry', 'scope'
+        ];
+        let reqAttrs = [
+            'configName', 'nextValue', 'filter', 'scope',
+        ];
+
+        if (this.state.selected == "" || this.state.selected.length == 0) {
+            all_good = false;
         }
 
-        // If editing an entry we need to check if values were changed before
-        // enabling the save button
-        if (!adding && !saveConfigNotOK) {
-            if (this.state._prefix == this.state.prefix &&
-                this.state._maxValue == this.state.maxValue &&
-                this.state._interval == this.state.interval &&
-                this.state._magicRegen == this.state.magicRegen &&
-                this.state._filter == this.state.filter &&
-                this.state._scope == this.state.scope &&
-                this.state._nextValue == this.state.nextValue &&
-                this.state._remoteBindDN == this.state.remoteBindDN &&
-                this.state._remoteBindCred == this.state.remoteBindCred &&
-                this.state._sharedConfigEntry == this.state.sharedConfigEntry &&
-                this.state._threshold == this.state.threshold &&
-                this.state._nextRange == this.state.nextRange &&
-                this.state._rangeRequestTimeout == this.state.rangeRequestTimeout) {
-                // Nothing changed, so there is nothing to save
-                saveConfigNotOK = true;
+        for (let attr of reqAttrs) {
+            if (this.state[attr] == "") {
+                error[attr] = true;
+                all_good = false;
             }
         }
 
-        return saveConfigNotOK;
+        for (let attr of dnAttrs) {
+            if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
+                error[attr] = true;
+                all_good = false;
+            }
+        }
+
+        if (all_good) {
+            // Check for value differences to see if the save btn should be enabled
+            all_good = false;
+            let attrs = [
+                'maxValue', 'interval', 'magicRegen', 'filter', 'scope',
+                'nextValue', 'remoteBindDN', 'remoteBindCred', 'sharedConfigEntry',
+                'threshold', 'nextRange', 'rangeRequestTimeout'
+            ];
+            for (let check_attr of attrs) {
+                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                    all_good = true;
+                    break;
+                }
+            }
+            if (!listsEqual(this.state.selected, this.state._selected)) {
+                all_good = true;
+            }
+        }
+
+        this.setState({
+            saveBtnDisabled: !all_good,
+            error: error
+        });
     }
 
     render() {
@@ -931,6 +945,7 @@ class DNA extends React.Component {
             configEntryModalShow,
             configName,
             newEntry,
+            rangeRequestTimeout,
             sharedConfigEntry,
             sharedConfigEntryModalShow,
             sharedHostname,
@@ -942,12 +957,16 @@ class DNA extends React.Component {
             magicRegen,
             scope,
             filter,
-            attributes,
             selected,
             nextValue,
             maxValue,
+            interval,
+            saving,
+            savingShared,
+            saveBtnDisabled,
+            threshold,
+            error,
         } = this.state;
-        let saveConfigNotOK = false;
         let sharedResult = {};
 
         let bindMethodOptions = [
@@ -987,37 +1006,38 @@ class DNA extends React.Component {
                 type: 'text',
                 help: "Specifies the Replication Manager's password (dnaRemoteBindCred)"
             },
-            threshold: {
-                name: "Threshold",
-                value: this.state.threshold,
-                id: 'threshold',
-                type: 'number',
-                help:
-                    "Sets a threshold of remaining available numbers in the range. When the server hits the threshold, it sends a request for a new range (dnaThreshold)"
-            },
             nextRange: {
                 name: "Next Range",
                 value: this.state.nextRange,
                 id: 'nextRange',
                 type: 'text',
                 help:
-                    "Defines the next range to use when the current range is exhausted (dnaNextRange)"
+                    "Defines the next range to use when the current range is exhausted.  Format is '####-####', or '1000-5000' (dnaNextRange)."
             },
-            rangeRequestTimeout: {
-                name: "Range Request Timeout",
-                value: this.state.rangeRequestTimeout,
-                id: 'rangeRequestTimeout',
-                type: 'number',
-                help:
-                    "Sets a timeout period, in seconds, for range requests so that the server does not stall waiting on a new range from one server and can request a range from a new server (dnaRangeRequestTimeout)"
-            }
         };
 
-        saveConfigNotOK = this.validateConfigResult(newEntry);
         sharedResult = this.validateSharedConfig(newEntry);
 
+        let saveBtnName;
+        let saveSharedBtnName = "Save Shared Config";
+        if (newEntry) {
+            saveBtnName = "Add Config";
+        } else {
+            saveBtnName = "Save Config";
+        }
+        let extraPrimaryProps = {};
+        if (saving) {
+            if (newEntry) {
+                saveBtnName = "Adding Config ...";
+            } else {
+                saveBtnName = "Saving Config ...";
+            }
+            saveSharedBtnName = "Saving Config ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
+
         return (
-            <div>
+            <div className={saving || savingShared ? "ds-disabled" : ""}>
                 <Modal
                     variant={ModalVariant.medium}
                     title={newEntry ? "Create DNA Config Entry" : "Edit DNA Config Entry"}
@@ -1025,8 +1045,16 @@ class DNA extends React.Component {
                     aria-labelledby="ds-modal"
                     onClose={this.closeModal}
                     actions={[
-                        <Button key="saveshared" isDisabled={saveConfigNotOK} variant="primary" onClick={newEntry ? this.addConfig : this.editConfig}>
-                            Save Config
+                        <Button
+                            key="saveshared"
+                            isDisabled={saveBtnDisabled}
+                            variant="primary"
+                            onClick={newEntry ? this.addConfig : this.editConfig}
+                            isLoading={saving}
+                            spinnerAriaValueText={saving ? "Saving" : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveBtnName}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.closeModal}>
                             Cancel
@@ -1035,166 +1063,218 @@ class DNA extends React.Component {
                 >
                     <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab eventKey={1} title={<TabTitleText><b>DNA Configuration</b></TabTitleText>}>
-                            <Form className="ds-margin-top-xlg" isHorizontal>
-                                <FormGroup
-                                    label="Config Name"
-                                    fieldId="configName"
-                                    isRequired
-                                >
-                                    <TextInput
-                                        value={configName}
-                                        type="text"
-                                        id="configName"
-                                        aria-describedby="configName"
-                                        name="configName"
-                                        onChange={this.handleFieldChange}
-                                        isDisabled={!newEntry}
-                                        isRequired
-                                    />
-                                </FormGroup>
-                                <FormGroup
-                                    label="Attributes"
-                                    fieldId="Attributes"
-                                    title="Sets which attributes have unique numbers being generated for them (dnaType)."
-                                    isRequired
-                                >
-                                    <Select
-                                        variant={SelectVariant.typeaheadMulti}
-                                        typeAheadAriaLabel="Type an attribute"
-                                        onToggle={this.onToggle}
-                                        onSelect={this.onSelect}
-                                        onClear={this.clearSelection}
-                                        selections={selected}
-                                        isOpen={this.state.isOpen}
-                                        aria-labelledby="typeAhead-1"
-                                        placeholderText="Type an attribute..."
-                                    >
-                                        {attributes.map((attr) => (
-                                            <SelectOption
-                                                key={attr}
-                                                value={attr}
-                                            />
-                                        ))}
-                                    </Select>
-                                </FormGroup>
-
-                                <FormGroup
-                                    label="Magic Regen"
-                                    fieldId="magicRegen"
-                                    title="Sets a user-defined value that instructs the plug-in to assign a new value for the entry (dnaMagicRegen)"
-                                    isRequired
-                                >
-                                    <TextInput
-                                        value={magicRegen}
-                                        type="text"
-                                        id="magicRegen"
-                                        aria-describedby="magicRegen"
-                                        name="magicRegen"
-                                        onChange={this.handleFieldChange}
-                                        isRequired
-                                    />
-                                </FormGroup>
-                                <FormGroup
-                                    label="Filter"
-                                    fieldId="filter"
-                                    title="Sets an LDAP filter to use to search for and identify the entries to which to apply the distributed numeric assignment range (dnaFilter)"
-                                    isRequired
-                                >
-                                    <TextInput
-                                        value={filter}
-                                        type="text"
-                                        id="filter"
-                                        aria-describedby="filter"
-                                        name="filter"
-                                        onChange={this.handleFieldChange}
-                                        isRequired
-                                    />
-                                </FormGroup>
-                                <FormGroup
-                                    label="Scope"
-                                    fieldId="scope"
-                                    title="Sets the base DN to search for entries to which to apply the distributed numeric assignment (dnaScope)"
-                                    helperTextInvalid={
-                                        scope != "" ? "A valid LDAP DN must be provided" : ""
-                                    }
-                                    validated={scope != "" && !valid_dn(scope) ? ValidatedOptions.error : ValidatedOptions.default}
-                                    isRequired
-                                >
-                                    <TextInput
-                                        value={scope}
-                                        type="text"
-                                        id="scope"
-                                        aria-describedby="scope"
-                                        name="scope"
-                                        onChange={this.handleFieldChange}
-                                        validated={scope != "" && !valid_dn(scope) ? ValidatedOptions.error : ValidatedOptions.default}
-                                        isRequired
-                                    />
-                                </FormGroup>
-                                <FormGroup
-                                    label="Next Value"
-                                    fieldId="nextValue"
-                                    title="Gives the next available number which can be assigned (dnaNextValue)"
-                                    helperTextInvalid={parseInt(nextValue) < 1 ? "Value must be greater than 0" : ""}
-                                    validated={parseInt(nextValue) < 1 ? ValidatedOptions.error : ValidatedOptions.default}
-                                    isRequired
-                                >
-                                    <TextInput
-                                        value={nextValue}
-                                        type="number"
-                                        id="nextValue"
-                                        aria-describedby="nextValue"
-                                        name="nextValue"
-                                        onChange={this.handleFieldChange}
-                                        validated={parseInt(nextValue) < 1 ? ValidatedOptions.error : ValidatedOptions.default}
-                                        isRequired
-                                    />
-                                </FormGroup>
-                                <FormGroup
-                                    label="Max Value"
-                                    fieldId="maxValue"
-                                    title="Sets the maximum value that can be assigned for the range, default is -1 (dnaMaxValue)"
-                                    helperTextInvalid={
-                                        parseInt(maxValue) < 1
-                                        ? "Value values are -1, or a number greater than 0"
-                                        : ""
-                                    }
-                                    validated={
-                                        maxValue != "" && (maxValue == "0" || parseInt(maxValue) < -1)
-                                        ? ValidatedOptions.error : ValidatedOptions.default
-                                    }
-                                >
-                                    <TextInput
-                                        value={maxValue}
-                                        type="number"
-                                        id="maxValue"
-                                        aria-describedby="maxValue"
-                                        name="maxValue"
-                                        onChange={this.handleFieldChange}
-                                        validated={
-                                            maxValue != "" && (maxValue == "0" || parseInt(maxValue) < -1)
-                                            ? ValidatedOptions.error : ValidatedOptions.default
-                                        }
-                                    />
-                                </FormGroup>
-                                {Object.entries(modalConfigFields).map(([id, content]) => (
-                                    <FormGroup
-                                        label={content.name}
-                                        fieldId={content.id}
-                                        key={content.id}
-                                        title={content.help}
-                                    >
+                            <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
+                                <Grid>
+                                    <GridItem span={3} className="ds-label">
+                                        Config Name
+                                    </GridItem>
+                                    <GridItem span={9}>
                                         <TextInput
-                                            value={content.value}
-                                            type={content.type}
-                                            id={content.id}
-                                            aria-describedby={content.name}
-                                            name={content.name}
-                                            key={content.name}
+                                            value={configName}
+                                            type="text"
+                                            id="configName"
+                                            aria-describedby="configName"
+                                            name="configName"
                                             onChange={this.handleFieldChange}
+                                            isDisabled={!newEntry}
+                                            validated={error.configName ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                    </FormGroup>
+                                    </GridItem>
+                                </Grid>
+                                <Grid title="Sets which attributes that will have unique numbers generated for them (dnaType).">
+                                    <GridItem span={3} className="ds-label">
+                                        DNA Managed Attributes
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type an attribute"
+                                            onToggle={this.onToggle}
+                                            onSelect={this.onSelect}
+                                            onClear={this.clearSelection}
+                                            selections={selected}
+                                            isOpen={this.state.isOpen}
+                                            aria-labelledby="typeAhead-1"
+                                            placeholderText="Type an attribute..."
+                                            validated={selected.length == 0 ? 'error' : 'default'}
+                                        >
+                                            {this.props.attributes.map((attr) => (
+                                                <SelectOption
+                                                    key={attr}
+                                                    value={attr}
+                                                />
+                                            ))}
+                                        </Select>
+                                    </GridItem>
+                                </Grid>
+                                <Grid title="Sets an LDAP filter to use to search for and identify the entries to which to apply the distributed numeric assignment range (dnaFilter)">
+                                    <GridItem span={3} className="ds-label">
+                                        Filter
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={filter}
+                                            type="text"
+                                            id="filter"
+                                            aria-describedby="filter"
+                                            name="filter"
+                                            onChange={this.handleFieldChange}
+                                            validated={error.filter ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid title="Sets the base DN to search for entries to which to apply the distributed numeric assignment (dnaScope)">
+                                    <GridItem span={3} className="ds-label">
+                                        Subtree Scope
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={scope}
+                                            type="text"
+                                            id="scope"
+                                            aria-describedby="scope"
+                                            name="scope"
+                                            onChange={this.handleFieldChange}
+                                            validated={error.scope ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid title="Gives the next available number which can be assigned (dnaNextValue)">
+                                    <GridItem span={3} className="ds-label">
+                                        Next Value
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={nextValue}
+                                            min={1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nextValue") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nextValue", 1) }}
+                                            onPlus={() => { this.onPlusConfig("nextValue") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid title="Sets the maximum value that can be assigned for the range, default is -1 (dnaMaxValue)">
+                                    <GridItem span={3} className="ds-label">
+                                        Max Value
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={maxValue}
+                                            min={-1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("maxValue") }}
+                                            onChange={(e) => { this.onConfigChange(e, "maxValue", -1) }}
+                                            onPlus={() => { this.onPlusConfig("maxValue") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid title="Sets a user-defined value that instructs the plug-in to assign a new value for the entry (dnaMagicRegen)">
+                                    <GridItem span={3} className="ds-label">
+                                        Magic Regeneration Value
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={magicRegen}
+                                            type="text"
+                                            id="magicRegen"
+                                            aria-describedby="magicRegen"
+                                            name="magicRegen"
+                                            onChange={this.handleFieldChange}
+                                            validated={error.magicRegen ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                {Object.entries(modalConfigFields).map(([id, content]) => (
+                                    <Grid key={content.name} title={content.help}>
+                                        <GridItem className="ds-label" span={3}>
+                                            {content.name}
+                                        </GridItem>
+                                        <GridItem span={9}>
+                                            <TextInput
+                                                value={content.value}
+                                                type={content.type}
+                                                id={content.id}
+                                                aria-describedby={content.name}
+                                                name={content.name}
+                                                key={content.name}
+                                                onChange={this.handleFieldChange}
+                                                validated={error[content.id] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            />
+                                        </GridItem>
+                                    </Grid>
                                 ))}
+                                <Grid title="Sets a threshold of remaining available numbers in the range. When the server hits the threshold, it sends a request for a new range (dnaThreshold)">
+                                    <GridItem span={3} className="ds-label">
+                                        Threshold
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={threshold}
+                                            min={1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("threshold") }}
+                                            onChange={(e) => { this.onConfigChange(e, "threshold", 1) }}
+                                            onPlus={() => { this.onPlusConfig("threshold") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid title="Sets a timeout period, in seconds, for range requests so that the server does not stall waiting on a new range from one server and can request a range from a new server (dnaRangeRequestTimeout)">
+                                    <GridItem span={3} className="ds-label">
+                                        Range Request Timeout
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={rangeRequestTimeout}
+                                            min={1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("rangeRequestTimeout") }}
+                                            onChange={(e) => { this.onConfigChange(e, "rangeRequestTimeout", 1) }}
+                                            onPlus={() => { this.onPlusConfig("rangeRequestTimeout") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid title="Sets an interval, or increment, to add to the next DNA assigned number. If the next DNA number is '10', and the 'interval' is '1000', then the assigned value in the entry will be '1010' (dnaInterval)">
+                                    <GridItem span={3} className="ds-label">
+                                        Number Interval
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={interval}
+                                            min={1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("interval") }}
+                                            onChange={(e) => { this.onConfigChange(e, "interval", 1) }}
+                                            onPlus={() => { this.onPlusConfig("interval") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <hr />
                             </Form>
                         </Tab>
                         <Tab
@@ -1220,32 +1300,22 @@ class DNA extends React.Component {
                                 </Tooltip>
                             </div>
                             <Form className="ds-margin-top-lg" isHorizontal>
-                                <FormGroup
-                                    label="Shared Config Entry"
-                                    fieldId="sharedConfigEntry"
-                                    title="Defines a container entry for DNA remote server configuration that the servers can use to transfer ranges between one another (dnaSharedCfgDN)"
-                                    helperTextInvalid="The DN of the suffix is invalid"
-                                    helperTextInvalidIcon={<ExclamationCircleIcon />}
-                                    validated={
-                                        this.state.sharedConfigEntry != "" && !valid_dn(this.state.sharedConfigEntry)
-                                        ? ValidatedOptions.error
-                                        : ValidatedOptions.default
-                                    }
-                                >
-                                    <TextInput
-                                        isRequired
-                                        type="text"
-                                        id="sharedConfigEntry"
-                                        aria-describedby="createSuffix"
-                                        name="sharedConfigEntry"
-                                        value={sharedConfigEntry}
-                                        onChange={this.handleFieldChange}
-                                        validated={
-                                            this.state.sharedConfigEntry != "" && !valid_dn(this.state.sharedConfigEntry)
-                                            ? ValidatedOptions.error : ValidatedOptions.default
-                                        }
-                                    />
-                                </FormGroup>
+                                <Grid title="Defines a container entry DN for DNA remote server configuration that the servers can use to transfer ranges between one another (dnaSharedCfgDN)">
+                                    <GridItem span={3} className="ds-label">
+                                        Shared Config Entry DN
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={sharedConfigEntry}
+                                            type="text"
+                                            id="sharedConfigEntry"
+                                            aria-describedby="sharedConfigEntry"
+                                            name="sharedConfigEntry"
+                                            onChange={this.handleFieldChange}
+                                            validated={error.sharedConfigEntry ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                    </GridItem>
+                                </Grid>
                             </Form>
                             <div className="ds-margin-top-xlg">
                                 <DNASharedTable
@@ -1267,51 +1337,58 @@ class DNA extends React.Component {
                     aria-labelledby="ds-modal"
                     onClose={this.closeSharedModal}
                     actions={[
-                        <Button key="confirm" isDisabled={sharedResult.saveSharedNotOK} variant="primary" onClick={this.editSharedConfig}>
-                            Save Shared Config
+                        <Button
+                            key="confirm"
+                            isDisabled={sharedResult.saveSharedNotOK}
+                            variant="primary"
+                            onClick={this.editSharedConfig}
+                            isLoading={savingShared}
+                            spinnerAriaValueText={savingShared ? "Saving" : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveSharedBtnName}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.closeSharedModal}>
                             Cancel
                         </Button>
                     ]}
                 >
-                    <Grid hasGutter className="ds-margin-top-xlg">
-                        <GridItem span={3}>
-                            Hostname:
-                        </GridItem>
-                        <GridItem span={4}>
-                            <b>{sharedHostname}</b>
-                        </GridItem>
-                        <GridItem span={2}>
-                            Port:
-                        </GridItem>
-                        <GridItem span={3}>
-                            <b>{sharedPort}</b>
-                        </GridItem>
-                        <GridItem span={3}>
-                            Remaining Values:
-                        </GridItem>
-                        <GridItem span={4}>
-                            <b>{sharedRemainingValues}</b>
-                        </GridItem>
-                        <GridItem span={2}>
-                            Secure Port:
-                        </GridItem>
-                        <GridItem span={3}>
-                            <b>{sharedSecurePort}</b>
-                        </GridItem>
-                        <hr />
-                        <h5 className="ds-center" title="Used with Replication to share ranges between replicas">
-                            Remote Authentication Preferences
-                        </h5>
-                        <Form isHorizontal>
-                            <FormGroup
-                                label="Remote Bind Method"
-                                type="string"
-                                helperTextInvalid={sharedResult.validatedBindMethodText}
-                                fieldId="validatedBindMethodTextSelection"
-                                validated={sharedResult.validatedBindMethod}
-                            >
+                    <Form isHorizontal autoComplete="off">
+                        <Grid hasGutter className="ds-margin-top-xlg">
+                            <GridItem span={3}>
+                                Hostname:
+                            </GridItem>
+                            <GridItem span={4}>
+                                <b>{sharedHostname}</b>
+                            </GridItem>
+                            <GridItem span={2}>
+                                Port:
+                            </GridItem>
+                            <GridItem span={3}>
+                                <b>{sharedPort}</b>
+                            </GridItem>
+                            <GridItem span={3}>
+                                Remaining Values:
+                            </GridItem>
+                            <GridItem span={4}>
+                                <b>{sharedRemainingValues}</b>
+                            </GridItem>
+                            <GridItem span={2}>
+                                Secure Port:
+                            </GridItem>
+                            <GridItem span={3}>
+                                <b>{sharedSecurePort}</b>
+                            </GridItem>
+                            <hr />
+                            <TextContent>
+                                <Text className="ds-center" title="Used with Replication to share ranges between replicas" component={TextVariants.h3}>
+                                    Remote Authentication Preferences
+                                </Text>
+                            </TextContent>
+                            <GridItem span={3} className="ds-label">
+                                Remote Bind Method
+                            </GridItem>
+                            <GridItem span={9}>
                                 <FormSelect
                                     id="sharedRemoteBindMethod"
                                     value={sharedRemoteBindMethod}
@@ -1323,14 +1400,12 @@ class DNA extends React.Component {
                                         <FormSelectOption key={index} value={option.value} label={option.label} />
                                     ))}
                                 </FormSelect>
-                            </FormGroup>
-                            <FormGroup
-                                label="Connection Protocol"
-                                type="string"
-                                helperTextInvalid={sharedResult.validatedConnText}
-                                fieldId="validatedConnProtTextSelection"
-                                validated={sharedResult.validatedConnProtocol}
-                            >
+                            </GridItem>
+
+                            <GridItem span={3} className="ds-label">
+                                Connection Protocol
+                            </GridItem>
+                            <GridItem span={9}>
                                 <FormSelect
                                     id="sharedRemoteConnProtocol"
                                     value={sharedRemoteConnProtocol}
@@ -1342,12 +1417,16 @@ class DNA extends React.Component {
                                         <FormSelectOption key={index} value={option.value} label={option.label} />
                                     ))}
                                 </FormSelect>
-                            </FormGroup>
-                        </Form>
-                    </Grid>
+                            </GridItem>
+                        </Grid>
+                    </Form>
                 </Modal>
-                <div className="ds-center" hidden={!this.state.loading}>
-                    <h4>Loading DNA configuration</h4>
+                <div className="ds-margin-top-xlg ds-center" hidden={!this.state.loading}>
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading DNA configuration
+                        </Text>
+                    </TextContent>
                     <Spinner size="lg" />
                 </div>
                 <div hidden={this.state.loading}>
@@ -1361,7 +1440,7 @@ class DNA extends React.Component {
                         savePluginHandler={this.props.savePluginHandler}
                         pluginListHandler={this.props.pluginListHandler}
                         addNotification={this.props.addNotification}
-                        toggleLoadingHandler={this.toggleLoading}
+                        toggleLoadingHandler={this.props.toggleLoadingHandler}
                     >
                         <div>
                             <DNATable
