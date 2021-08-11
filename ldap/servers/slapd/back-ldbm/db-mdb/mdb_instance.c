@@ -721,15 +721,19 @@ void dbmdb_ctx_close(dbmdb_ctx_t *ctx)
         mdb_env_close(ctx->env);
         ctx->env = NULL;
     }
-    for (i=1; i<ctx->nbdbis; i++) {
-        /* ctx->dbis[0].dbname is "__DBNAMES" which is a static string ==> so let start at i=1 */
-        slapi_ch_free_string((char**)&ctx->dbis[i].dbname);
+    if (ctx->dbis) {
+        for (i=1; i<ctx->nbdbis; i++) {
+            /* ctx->dbis[0].dbname is "__DBNAMES" which is a static
+             * string ==> so let start at i=1
+             */
+            slapi_ch_free_string((char**)&ctx->dbis[i].dbname);
+        }
+        ctx->nbdbis = 0;
+        slapi_ch_free((void**)&ctx->dbis);
+        pthread_mutex_destroy(&ctx->dbis_lock);
+        pthread_mutex_destroy(&ctx->rcmutex);
+        pthread_rwlock_destroy(&ctx->dbmdb_env_lock);
     }
-    ctx->nbdbis = 0;
-    slapi_ch_free((void**)&ctx->dbis);
-    pthread_mutex_destroy(&ctx->dbis_lock);
-    pthread_mutex_destroy(&ctx->rcmutex);
-    pthread_rwlock_destroy(&ctx->dbmdb_env_lock);
 }
 
 /* API used by dbscan to list the dbs */

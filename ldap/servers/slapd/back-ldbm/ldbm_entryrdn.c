@@ -197,6 +197,7 @@ entryrdn_index_entry(backend *be,
             goto bail;
         }
         rc = slapi_rdn_init_all_sdn(srdn, sdn);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
         if (rc < 0) {
             slapi_log_err(SLAPI_LOG_ERR, "entryrdn_index_entry",
                           "Failed to convert %s to Slapi_RDN\n", slapi_sdn_get_dn(sdn));
@@ -213,6 +214,7 @@ entryrdn_index_entry(backend *be,
     /* Make a cursor */
     for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
         rc = dblayer_new_cursor(be, db, db_txn, &cursor);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
         if (rc) {
             slapi_log_err(ENTRYRDN_LOGLEVEL(rc), "entryrdn_index_entry",
                           "Failed to make a cursor: %s(%d)\n", dblayer_strerror(rc), rc);
@@ -234,8 +236,10 @@ entryrdn_index_entry(backend *be,
 
     if (flags & BE_INDEX_ADD) {
         rc = entryrdn_insert_key(be, &cursor, srdn, e->ep_id, txn);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
     } else if (flags & BE_INDEX_DEL) {
         rc = entryrdn_delete_key(be, &cursor, srdn, e->ep_id, txn);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
         if (DBI_RC_NOTFOUND == rc) {
             rc = 0;
         }
@@ -246,6 +250,7 @@ bail:
     for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
         int myrc = dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
         if (0 != myrc) {
+if (myrc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, myrc); }
             slapi_log_err(ENTRYRDN_LOGLEVEL(myrc), "entryrdn_index_entry",
                           "Failed to close cursor: %s(%d)\n",
                           dblayer_strerror(myrc), myrc);
@@ -2152,6 +2157,7 @@ entryrdn_insert_key(backend *be,
         dblayer_value_set_buffer(be, &adddata, elem, len);
 
         rc = _entryrdn_put_data(cursor, &key, &adddata, RDN_INDEX_SELF, db_txn);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
         if (DBI_RC_KEYEXIST == rc) {
             dbi_val_t existdata = {0};
             rdn_elem *existelem = NULL;
@@ -2159,6 +2165,7 @@ entryrdn_insert_key(backend *be,
             dblayer_value_init(be, &existdata);
             for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
                 rc = dblayer_cursor_op(cursor, DBI_OP_MOVE_TO_KEY, &key, &existdata);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
                 if (rc) {
                     slapi_log_err(ENTRYRDN_LOGLEVEL(rc), "entryrdn_insert_key",
                                   "Get existing suffix %s failed: %s (%d)\n",
@@ -2184,6 +2191,7 @@ entryrdn_insert_key(backend *be,
             if (TMPID == tmpid) {
                 rc = _entryrdn_replace_suffix_id(cursor, &key, &adddata,
                                                  id, nrdn, db_txn);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
                 if (rc) {
                     goto bail;
                 }
@@ -2201,6 +2209,7 @@ entryrdn_insert_key(backend *be,
     tmpsrdn = NULL;
     /* tmpsrdn == suffix'es srdn */
     rc = slapi_rdn_partial_dup(srdn, &tmpsrdn, rdnidx);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
     if (rc) {
         char *dn = NULL;
         slapi_rdn_get_dn(srdn, &dn);
@@ -2223,6 +2232,7 @@ entryrdn_insert_key(backend *be,
 
     /* getting the suffix element */
     rc = _entryrdn_get_elem(cursor, &key, &data, nrdn, &elem, db_txn);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
     if (rc) {
         const char *myrdn = slapi_rdn_get_nrdn(srdn);
         const char **ep = NULL;
@@ -2259,6 +2269,7 @@ entryrdn_insert_key(backend *be,
 
             dblayer_value_set_buffer(be, &adddata, elem, len);
             rc = _entryrdn_put_data(cursor, &key, &adddata, RDN_INDEX_SELF, db_txn);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
             slapi_log_err(SLAPI_LOG_TRACE, "entryrdn_insert_key",
                           "Suffix %s added: %d\n", slapi_rdn_get_rdn(tmpsrdn), rc);
 #ifdef FIX_TXN_DEADLOCKS
@@ -2296,6 +2307,7 @@ entryrdn_insert_key(backend *be,
         tmpsrdn = srdn;
         if (0 < rdnidx) {
             rc = slapi_rdn_partial_dup(srdn, &tmpsrdn, rdnidx);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
             if (rc) {
                 char *dn = NULL;
                 slapi_rdn_get_dn(srdn, &dn);
@@ -2324,6 +2336,7 @@ entryrdn_insert_key(backend *be,
         /* getting the child element */
 
         rc = _entryrdn_get_elem(cursor, &key, &data, childnrdn, &tmpelem, db_txn);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
         if (rc) {
             slapi_ch_free((void **)&tmpelem);
             if ((rc == DBI_RC_RETRY) && db_txn) {
@@ -2339,6 +2352,7 @@ entryrdn_insert_key(backend *be,
                     id_internal_to_stored(id, elem->rdn_elem_id);
                     rc = _entryrdn_insert_key_elems(be, cursor, srdn, &key,
                                                     parentelem, elem, len, db_txn);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
                     goto bail;
                     /* done */
                 } else {
@@ -2356,6 +2370,7 @@ entryrdn_insert_key(backend *be,
                      */
                     rc = _entryrdn_get_tombstone_elem(cursor, tmpsrdn, &key,
                                                       childnrdn, &tmpelem, db_txn);
+if (rc) { slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d function failed. rc=%d\n", __FILE__,__LINE__, rc); }
                     if (rc) {
                         char *dn = NULL;
                         slapi_rdn_get_dn(tmpsrdn, &dn);
