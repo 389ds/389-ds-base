@@ -216,9 +216,9 @@ def create_parser(subparsers):
     # General settings
     set_parser.add_argument('--pwdscheme', help="The password storage scheme")
     set_parser.add_argument('--pwdchange', help="Allow users to change their passwords")
-    set_parser.add_argument('--pwdmustchange', help="User must change their passwrod after it is reset by an Administrator")
+    set_parser.add_argument('--pwdmustchange', help="Users must change their password after it was reset by an administrator")
     set_parser.add_argument('--pwdhistory', help="To enable password history set this to \"on\", otherwise \"off\"")
-    set_parser.add_argument('--pwdhistorycount', help="The number of password to keep in history")
+    set_parser.add_argument('--pwdhistorycount', help="The number of passwords to keep in history")
     set_parser.add_argument('--pwdadmin', help="The DN of an entry or a group of account that can bypass password policy constraints")
     set_parser.add_argument('--pwdtrack', help="Set to \"on\" to track the time the password was last changed")
     set_parser.add_argument('--pwdwarning', help="Send an expiring warning if password expires within this time (in seconds)")
@@ -235,7 +235,7 @@ def create_parser(subparsers):
     set_parser.add_argument('--pwdmaxfailures', help="The maximum number of allowed failed password attempts before the account gets locked")
     set_parser.add_argument('--pwdresetfailcount', help="The number of seconds to wait before reducing the failed login count on an account")
     # Syntax settings
-    set_parser.add_argument('--pwdchecksyntax', help="Set to \"on\" to Enable password syntax checking")
+    set_parser.add_argument('--pwdchecksyntax', help="Set to \"on\" to enable password syntax checking")
     set_parser.add_argument('--pwdminlen', help="The minimum number of characters required in a password")
     set_parser.add_argument('--pwdmindigits', help="The minimum number of digit/number characters in a password")
     set_parser.add_argument('--pwdminalphas', help="The minimum number of alpha characters required in a password")
@@ -285,7 +285,7 @@ def create_parser(subparsers):
                                                       help='Set an attribute in a global password policy')
     set_global_parser.set_defaults(func=set_global_policy)
     set_global_parser.add_argument('--pwdlocal', help="Set to \"on\" to enable fine-grained (subtree/user-level) password policies")
-    set_global_parser.add_argument('--pwdisglobal', help="Set to \"on\" to enable password policy state attributesto be replicated")
+    set_global_parser.add_argument('--pwdisglobal', help="Set to \"on\" to enable password policy state attributes to be replicated")
     set_global_parser.add_argument('--pwdallowhash', help="Set to \"on\" to allow adding prehashed passwords")
 
     #############################################
