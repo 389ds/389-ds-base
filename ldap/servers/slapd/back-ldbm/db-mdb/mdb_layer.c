@@ -2372,7 +2372,7 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
             rc = MDB_CURSOR_PUT(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_CURRENT);
             break;
         case DBI_OP_ADD:
-            rc = MDB_CURSOR_PUT(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NODUPDATA);
+            rc = MDB_CURSOR_PUT(dbmdb_cur, &dbmdb_key, &dbmdb_data, 0);
             break;
         case DBI_OP_DEL:
             rc = mdb_cursor_del(dbmdb_cur, 0);
@@ -2421,7 +2421,7 @@ int dbmdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *ke
             rc = MDB_PUT(mdb_txn, dbi, &dbmdb_key, &dbmdb_data, 0);
             break;
         case DBI_OP_ADD:
-            rc = MDB_PUT(mdb_txn, dbi, &dbmdb_key, &dbmdb_data, MDB_NODUPDATA);
+            rc = MDB_PUT(mdb_txn, dbi, &dbmdb_key, &dbmdb_data, 0);
             break;
         case DBI_OP_DEL:
             rc = MDB_DEL(mdb_txn, dbi, &dbmdb_key, dbmdb_data.mv_data ? &dbmdb_data : NULL);
