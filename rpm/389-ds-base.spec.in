@@ -259,6 +259,15 @@ Requires:         systemd-libs
 %description      devel
 Development Libraries and headers for the 389 Directory Server base package.
 
+%if %{use_rust}
+%package          entryuuid
+Summary:          EntryUUID plugin for 389 Directory Server
+Group:            Development/Libraries
+Requires:         %{name} = %{version}-%{release}
+
+%description      entryuuid
+EntryUUID Plugin and Schema for the 389 Directory Server base package.
+%endif
 
 %package          snmp
 Summary:          SNMP Agent for 389 Directory Server
@@ -558,6 +567,29 @@ fi
 %postun snmp
 %systemd_postun_with_restart %{pkgname}-snmp.service
 
+%if %{use_rust}
+%post entryuuid
+# Add the entryuuid plugins
+instbase="%{_sysconfdir}/%{pkgname}"
+ninst=0
+for dir in $instbase/slapd-* ; do
+    if [ ! -d "$dir" ] ; then continue ; fi
+    case "$dir" in *.removed) continue ;; esac
+    basename=`basename $dir`
+    dsctl $basename entryuuid install > /dev/null 2>&1
+done
+
+%postun entryuuid
+# Remove the entryuuid config entries
+instbase="%{_sysconfdir}/%{pkgname}"
+ninst=0
+for dir in $instbase/slapd-* ; do
+    if [ ! -d "$dir" ] ; then continue ; fi
+    case "$dir" in *.removed) continue ;; esac
+    basename=`basename $dir`
+    dsctl $basename entryuuid uninstall > /dev/null 2>&1
+done
+%endif
 
 %files
 %if %{bundle_jemalloc}
@@ -574,6 +606,7 @@ fi
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/slapd-collations.conf
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/certmap.conf
 %{_datadir}/%{pkgname}
+%exclude %{_datadir}/%{pkgname}/schema/03entryuuid.ldif
 %{_datadir}/gdb/auto-load/*
 %{_unitdir}
 %{_bindir}/dbscan
@@ -603,6 +636,7 @@ fi
 %{_libdir}/%{pkgname}/python
 %dir %{_libdir}/%{pkgname}/plugins
 %{_libdir}/%{pkgname}/plugins/*.so
+%exclude %{_libdir}/%{pkgname}/plugins/libentryuuid-plugin*
 # This has to be hardcoded to /lib - $libdir changes between lib/lib64, but
 # sysctl.d is always in /lib.
 %{_prefix}/lib/sysctl.d/*
@@ -645,6 +679,13 @@ fi
 %{_libdir}/%{pkgname}/librewriters.so*
 %if %{bundle_jemalloc}
 %{_libdir}/%{pkgname}/lib/libjemalloc.so.2
+%endif
+
+%if %{use_rust}
+%files entryuuid
+%doc LICENSE LICENSE.GPLv3+
+%{_libdir}/%{pkgname}/plugins/libentryuuid-plugin.so
+%{_datadir}/%{pkgname}/schema/03entryuuid.ldif
 %endif
 
 %files snmp

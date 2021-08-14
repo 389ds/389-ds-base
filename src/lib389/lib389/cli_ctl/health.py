@@ -8,7 +8,6 @@
 
 import json
 import re
-from lib389._mapped_object import DSLdapObjects
 from lib389._mapped_object_lint import DSLint
 from lib389.cli_base import connect_instance, disconnect_instance
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat

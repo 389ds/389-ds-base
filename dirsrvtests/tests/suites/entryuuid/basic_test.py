@@ -8,9 +8,8 @@
 
 import ldap
 import pytest
-import time
 import shutil
-from lib389.idm.user import nsUserAccounts, UserAccounts
+from lib389.idm.user import nsUserAccounts
 from lib389.idm.account import Accounts
 from lib389.idm.domain import Domain
 from lib389.topologies import topology_st as topology
@@ -30,6 +29,13 @@ UUID_BETWEEN = "eeeeeeee-0000-0000-0000-000000000000"
 IMPORT_UUID_B = "f6df8fe9-6b30-46aa-aa13-f0bf755371e8"
 UUID_MIN = "00000000-0000-0000-0000-000000000000"
 UUID_MAX = "ffffffff-ffff-ffff-ffff-ffffffffffff"
+
+
+@pytest.fixture(scope="module")
+def _plugin_setup(topology):
+    entryuuid_plugin = EntryUUIDPlugin(topology.standalone)
+    entryuuid_plugin.install()
+    topology.standalone.restart()
 
 def _entryuuid_import_and_search(topology):
     # 1
@@ -72,7 +78,7 @@ def _entryuuid_import_and_search(topology):
 
 
 @pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.2.0'), reason="Entryuuid is not available in older versions")
-def test_entryuuid_indexed_import_and_search(topology):
+def test_entryuuid_indexed_import_and_search(topology, _plugin_setup):
     """ Test that an ldif of entries containing entryUUID's can be indexed and searched
     correctly. As https://tools.ietf.org/html/rfc4530 states, the MR's are equality and
     ordering, so we check these are correct.
@@ -112,7 +118,7 @@ def test_entryuuid_indexed_import_and_search(topology):
     _entryuuid_import_and_search(topology)
 
 @pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.2.0'), reason="Entryuuid is not available in older versions")
-def test_entryuuid_unindexed_import_and_search(topology):
+def test_entryuuid_unindexed_import_and_search(topology, _plugin_setup):
     """ Test that an ldif of entries containing entryUUID's can be UNindexed searched
     correctly. As https://tools.ietf.org/html/rfc4530 states, the MR's are equality and
     ordering, so we check these are correct.
@@ -154,7 +160,7 @@ def test_entryuuid_unindexed_import_and_search(topology):
 
 # Test entryUUID generation
 @pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.2.0'), reason="Entryuuid is not available in older versions")
-def test_entryuuid_generation_on_add(topology):
+def test_entryuuid_generation_on_add(topology, _plugin_setup):
     """ Test that when an entry is added, the entryuuid is added.
 
     :id: a7439b0a-dcee-4cd6-b8ef-771476c0b4f6
@@ -178,7 +184,7 @@ def test_entryuuid_generation_on_add(topology):
 
 # Test fixup task
 @pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.2.0'), reason="Entryuuid is not available in older versions")
-def test_entryuuid_fixup_task(topology):
+def test_entryuuid_fixup_task(topology, _plugin_setup):
     """Test that when an entries without UUID's can have one generated via
     the fixup process.
 

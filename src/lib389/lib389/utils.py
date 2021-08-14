@@ -667,7 +667,8 @@ def isLocalHost(host_name):
     # first see if this is a "well known" local hostname
     if host_name == 'localhost' or \
        host_name == 'localhost.localdomain' or \
-       host_name == socket.gethostname():
+       host_name == socket.gethostname() or \
+       host_name is None:
         return True
 
     # first lookup ip addr

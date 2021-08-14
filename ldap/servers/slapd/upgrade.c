@@ -98,7 +98,9 @@ upgrade_AES_reverpwd_plugin(void)
     return uresult;
 }
 
-#ifdef RUST_ENABLE
+
+
+#if defined(RUST_ENABLE) && defined(ENTRYUUID_AUTOMATIC)
 static upgrade_status
 upgrade_143_entryuuid_exists(void)
 {
@@ -109,11 +111,13 @@ upgrade_143_entryuuid_exists(void)
                   "nsslapd-pluginpath: libentryuuid-plugin\n"
                   "nsslapd-plugininitfunc: entryuuid_plugin_init\n"
                   "nsslapd-plugintype: betxnpreoperation\n"
-                  "nsslapd-pluginenabled: on\n"
+                  "nsslapd-pluginenabled: off\n"
                   "nsslapd-pluginId: entryuuid\n"
                   "nsslapd-pluginVersion: none\n"
                   "nsslapd-pluginVendor: 389 Project\n"
                   "nsslapd-pluginDescription: entryuuid\n";
+
+    slapi_log_err(SLAPI_LOG_ALERT, "MARK", "okay adding plugin\n");
 
     return upgrade_entry_exists_or_create(
         "upgrade_143_entryuuid_exists",
@@ -123,6 +127,7 @@ upgrade_143_entryuuid_exists(void)
     );
 }
 #endif
+
 
 static upgrade_status
 upgrade_144_remove_http_client_presence(void)
@@ -229,12 +234,15 @@ upgrade_205_fixup_repl_dep(void)
 upgrade_status
 upgrade_server(void)
 {
-#ifdef RUST_ENABLE
+#if defined(RUST_ENABLE) && defined(ENTRYUUID_AUTOMATIC)
+
     if (upgrade_143_entryuuid_exists() != UPGRADE_SUCCESS) {
         return UPGRADE_FAILURE;
     }
 #endif
-
+#ifdef ENTRYUUID_AUTOMATIC
+    slapi_log_err(SLAPI_LOG_ALERT, "MARK", "Ok automatic is set!\n");
+#endif
     if (upgrade_AES_reverpwd_plugin() != UPGRADE_SUCCESS) {
         return UPGRADE_FAILURE;
     }

@@ -104,6 +104,13 @@ fi
 AC_SUBST([enable_rust])
 AM_CONDITIONAL([RUST_ENABLE],[test "$enable_rust" = yes -o "$enable_rust_offline" = yes])
 
+# Check is we should add the entryuuid plugin by default
+AC_MSG_CHECKING(for --enable-entryuuid)
+AC_ARG_ENABLE(entryuuid, AS_HELP_STRING([--enable-entryuuid], [Enable the entryuuid plugin (default: no)]),
+              [], [ enable_entryuuid=no ])
+AC_MSG_RESULT($enable_entryuuid)
+AM_CONDITIONAL([ENTRYUUID_AUTOMATIC],[test "$enable_entryuuid" = yes])
+
 # Optional cockpit support (enabled by default)
 AC_MSG_CHECKING(for --enable-cockpit)
 AC_ARG_ENABLE(cockpit, AS_HELP_STRING([--enable-cockpit], [Enable cockpit plugin (default: yes)]),

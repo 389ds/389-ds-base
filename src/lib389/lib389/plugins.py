@@ -15,6 +15,7 @@ from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.lint import DSRILE0001, DSRILE0002
 from lib389.utils import ensure_str, ensure_list_bytes
 from lib389.schema import Schema
+from lib389.dseldif import DSEldif
 from lib389._constants import DN_PLUGIN
 from lib389.properties import (
         PLUGINS_OBJECTCLASS_VALUE, PLUGIN_PROPNAME_TO_ATTRNAME,
@@ -2259,6 +2260,10 @@ class EntryUUIDPlugin(Plugin):
 
     def __init__(self, instance, dn="cn=entryuuid,cn=plugins,cn=config"):
         super(EntryUUIDPlugin, self).__init__(instance, dn)
+        self._dn = dn
+        self._rdn_attribute = 'cn'
+        self._create_objectclasses = ['top', 'nsslapdplugin']
+        self._protected = False
 
     def fixup(self, basedn, _filter=None):
         """Create an entryuuid fixup task
@@ -2278,6 +2283,47 @@ class EntryUUIDPlugin(Plugin):
         task.create(properties=task_properties)
 
         return task
+
+    def install(self):
+        """Add the plugin config entry to cn=config.  Used when installing the
+        entryuuid-plugin subpackage
+        """
+
+        plugin_props = {
+            'cn': 'entryuuid',
+            'nsslapd-pluginPath': 'libentryuuid-plugin',
+            'nsslapd-pluginInitfunc': 'entryuuid_plugin_init',
+            'nsslapd-pluginType': 'betxnpreoperation',
+            'nsslapd-pluginEnabled': 'on',
+            'nsslapd-pluginId': 'entryuuid',
+            'nsslapd-pluginVersion': 'none',
+            'nsslapd-pluginVendor': '389 Project',
+            'nsslapd-pluginDescription': 'entryuuid',
+        }
+        if self._instance.status():
+            # Create the plugin entry
+            try:
+                self.create(properties=plugin_props, basedn="cn=plugins,cn=config")
+            except ldap.ALREADY_EXISTS:
+                self._instance.log.debug("Attempted to add entryUUID plugin but it already exists")
+        else:
+            plugin_props['objectclass'] = self._create_objectclasses
+            dse_ldif = DSEldif(self._instance)
+            dse_ldif.create_entry(self._dn, plugin_props)
+
+    def uninstall(self):
+        """Remove the plugin config entry from cn=config.  Used when
+        uninstalling the entryuuid-plugin subpackage
+        """
+        if self._instance.status():
+            try:
+                self.delete()
+            except ldap.NO_SUCH_OBJECT:
+                self._instance.log.debug("Attempted to remove entryUUID plugin but it was already deleted")
+        else:
+            dse_ldif = DSEldif(self._instance)
+            dse_ldif.delete_entry(self._dn)
+
 
 class ContentSyncPlugin(Plugin):
     """A single instance of Content Sync (aka syncrepl) plugin entry

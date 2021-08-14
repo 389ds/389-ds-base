@@ -8,21 +8,30 @@
 
 import ldap
 import pytest
-import logging
 from lib389.topologies import topology_m2 as topo_m2
 from lib389.idm.user import nsUserAccounts
 from lib389.paths import Paths
 from lib389.utils import ds_is_older
 from lib389._constants import *
 from lib389.replica import ReplicationManager
+from lib389.plugins import EntryUUIDPlugin, EntryUUIDSyntaxPlugin
 
 default_paths = Paths()
 
 pytestmark = pytest.mark.tier1
 
-@pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.2.0'), reason="Entryuuid is not available in older versions")
+@pytest.fixture(scope="module")
+def _plugin_setup(topo_m2):
+    for inst in [topo_m2.ms["supplier1"], topo_m2.ms["supplier2"]]:
+        entryuuid_plugin = EntryUUIDPlugin(inst)
+        entryuuid_plugin.install()
+        entryuuid_syntax_plugin = EntryUUIDSyntaxPlugin(inst)
+        entryuuid_syntax_plugin.install()
+        inst.restart()
 
-def test_entryuuid_with_replication(topo_m2):
+
+@pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.2.0'), reason="Entryuuid is not available in older versions")
+def test_entryuuid_with_replication(topo_m2, _plugin_setup):
     """ Check that entryuuid works with replication
 
     :id: a5f15bf9-7f63-473a-840c-b9037b787024

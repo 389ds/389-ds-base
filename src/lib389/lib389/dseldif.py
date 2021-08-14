@@ -60,6 +60,8 @@ class DSEldif(DSLint):
                         processed_line = line
                 else:
                     processed_line = processed_line[:-1] + line[1:]
+            if processed_line:
+                self._contents.append(processed_line)
 
     @classmethod
     def lint_uid(cls):
@@ -243,6 +245,42 @@ class DSEldif(DSLint):
         self.add(entry_dn, attr, value)
         self._update()
 
+    def create_entry(self, entry_dn, properties):
+        """Create an entry under cn=config
+        """
+
+        try:
+            self._contents.index("dn: {}\n".format(entry_dn.lower()))
+            self._instance.log.debug("Entry already exists.")
+            return
+        except ValueError:
+            # entry does not exist, proceed...
+            pass
+
+        new_entry = f'dn: {entry_dn}\n'
+        for attr, value in properties.items():
+            if type(value) == list:
+                for multi_val in value:
+                    new_entry += f'{attr}: {multi_val}\n'
+            else:
+                new_entry += f'{attr}: {value}\n'
+        new_entry += '\n'
+        self._contents.append(new_entry)
+        self._update()
+
+    def delete_entry(self, entry_dn):
+        """Delete an entry from cn=config
+        """
+        try:
+            entry_idx = self._contents.index("dn: {}\n".format(entry_dn.lower()))
+            while entry_idx < len(self._contents) and self._contents[entry_idx] != "\n":
+                del self._contents[entry_idx]
+            if entry_idx < len(self._contents) and self._contents[entry_idx] == "\n":
+                del self._contents[entry_idx]  # remove the newline following the entry
+            self._update()
+        except ValueError:
+            self._instance.log.debug(f"delete_entry: entry not found: {entry_dn}")
+
     # Read NsState helper functions
     def _flipend(self, end):
         if end == '<':
@@ -251,7 +289,7 @@ class DSEldif(DSLint):
             return '<'
 
     def _getGenState(self, dn, replica_suffix, nsstate, flip):
-        """Return a dict ofall the nsState properties
+        """Return a dict of all the nsState properties
         """
         from lib389.utils import print_nice_time
         if pack('<h', 1) == pack('=h',1):
