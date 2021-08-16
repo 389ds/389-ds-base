@@ -85,7 +85,7 @@ dbmdb_back_free_incl_excl(char **include, char **exclude)
     }
 }
 
-
+#define DBG(msg,val) { slapi_log_err(SLAPI_LOG_ERR, "dbmdb_add_op_attrs", "%s(%d): %s %d\n", __FILE__, __LINE__, msg, val); }
 /*
  * dbmdb_add_op_attrs - add the parentid, entryid, dncomp,
  * and entrydn operational attributes to an entry.
@@ -121,7 +121,7 @@ dbmdb_add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused))
     /* parentid */
     if ((pdn = slapi_dn_parent_ext(backentry_get_ndn(ep), is_tombstone)) != NULL) {
         int err = 0;
-
+DBG("parentid", 0)
         /*
          * read the entrydn/entryrdn index to get the id of the parent
          * If this entry's parent is not present in the index,
@@ -137,6 +137,7 @@ dbmdb_add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused))
             slapi_sdn_set_dn_byval(&sdn, pdn);
             err = entryrdn_index_read_ext(be, &sdn, &pid,
                                           TOMBSTONE_INCLUDED, NULL);
+DBG("entryrdn_index_read_ext", err)
             slapi_sdn_done(&sdn);
             if (DBI_RC_NOTFOUND == err) {
                 /*
@@ -148,10 +149,13 @@ dbmdb_add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused))
                                             SLAPI_ENTRY_FLAG_TOMBSTONE) &&
                     (0 == strncasecmp(pdn, SLAPI_ATTR_UNIQUEID,
                                       sizeof(SLAPI_ATTR_UNIQUEID) - 1))) {
+DBG("tombstone", 0)
                     char *ppdn = slapi_dn_parent(pdn);
                     slapi_ch_free_string(&pdn);
                     if (NULL == ppdn) {
+DBG("tombstone no ppdn", 0)
                         if (NULL != status) {
+DBG("tombstone no ppdn and status", 0)
                             *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
                             goto next;
                         }
@@ -168,11 +172,14 @@ dbmdb_add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused))
                     slapi_ch_free_string(&pdn);
                     return (-1);
                 }
+DBG("not found", err)
                 if (NULL != status) {
+DBG("not found and status", err)
                     *status = IMPORT_ADD_OP_ATTRS_NO_PARENT;
                 }
             }
         } else {
+DBG("entrydn",0)
             struct berval bv;
             IDList *idl = NULL;
             bv.bv_val = pdn;
