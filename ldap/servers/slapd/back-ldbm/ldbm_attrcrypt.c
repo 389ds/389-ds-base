@@ -979,6 +979,48 @@ attrcrypt_encrypt_index_key(backend *be, struct attrinfo *ai, const struct berva
     struct berval *out_berval = NULL;
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
 
+    *out = NULL;
+    /* If the index key is too long (mdb) we must hash it */
+    if (in_size >=  inst->inst_li->li_max_key_len ) {
+        PK11Context *c = PK11_CreateDigestContext(SEC_OID_MD5);
+        if (c != NULL) {
+            unsigned char hash[32];
+            unsigned int hashLen;
+            char *hkey;
+            int i;
+
+            out_berval = (struct berval *)ber_alloc();
+            if (NULL == out_berval) {
+                PK11_DestroyContext(c, PR_TRUE);
+                return ENOMEM;
+            }
+            slapi_log_err(SLAPI_LOG_TRACE, "attrcrypt_encrypt_index_key",
+                          "Must hash the key\n");
+            slapi_be_set_flag(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
+            PK11_DigestBegin(c);
+            /* Compute hash for the key without the prefix */
+            PK11_DigestOp(c, (unsigned char *)in_data+1, in_size-1);
+            PK11_DigestFinal(c, hash, &hashLen, sizeof hash);
+            /* Build the key: hash prefix + key prefix + hash value in hexa */
+            hkey = slapi_ch_malloc(3+2*sizeof hash);
+            in_size = 0;
+            hkey[in_size++] = HASH_PREFIX;
+            hkey[in_size++] = in_data[0];
+            for (i=0; i<hashLen; i++) {
+                sprintf(&hkey[in_size], "%02X", hash[i]);
+                in_size += 2;
+            }
+            in_data = hkey;
+            /* Set up out for the no encryption case */
+            out_berval->bv_val = hkey;
+            out_berval->bv_len = in_size;
+            *out = out_berval;
+            PK11_DestroyContext(c, PR_TRUE);
+        } else {
+            return ENODEV;
+        }
+    }
+
     if (!inst->attrcrypt_configured) {
         /* No encryption is enabled in this backend at all. */
         return ret;
@@ -987,6 +1029,7 @@ attrcrypt_encrypt_index_key(backend *be, struct attrinfo *ai, const struct berva
     if (ai->ai_attrcrypt) {
         slapi_log_err(SLAPI_LOG_TRACE, "attrcrypt_encrypt_index_key", "->\n");
         ret = attrcrypt_crypto_op(ai->ai_attrcrypt, be, ai, in_data, in_size, &out_data, &out_size, 1);
+        ber_bvecfree(out);  /* Free hashed value (in_data) */
         if (0 == ret) {
             out_berval = (struct berval *)ber_alloc();
             if (NULL == out_berval) {

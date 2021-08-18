@@ -153,6 +153,8 @@ ldbm_back_init(Slapi_PBlock *pb)
         goto fail;
     }
 
+    li->li_max_key_len = UINT_MAX;
+
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_init", "<=\n");
 
     return (0);

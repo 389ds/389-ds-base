@@ -25,6 +25,7 @@
 int
 id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, int *cache_res)
 {
+#define DBG(msg,val) slapi_log_err(SLAPI_LOG_ERR, "id2entry_add_ext", "%s[%d]: %s %d\n", __FILE__, __LINE__, msg, val)
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     dbi_db_t *db = NULL;
     dbi_txn_t *db_txn = NULL;
@@ -42,6 +43,7 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, i
     if ((rc = dblayer_get_id2entry(be, &db)) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "id2entry_add_ext",
                       "Could not open/create id2entry\n");
+DBG("dblayer_get_id2entry failed",0);
         rc = -1;
         goto done;
     }
@@ -110,8 +112,10 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, i
     /* store it  */
     if (txn && txn->back_special_handling_fn) {
         rc = txn->back_special_handling_fn(be, BTXNACT_ID2ENTRY_ADD, db, &key, &data, txn);
+DBG("txn->back_special_handling_fn", rc);
     } else {
         rc = dblayer_db_op(be, db, db_txn, DBI_OP_PUT, &key, &data);
+DBG("dblayer_db_op", rc);
     }
     /* DBDB looks like we're freeing memory allocated by another DLL, which is bad */
     slapi_ch_free(&(data.dptr));

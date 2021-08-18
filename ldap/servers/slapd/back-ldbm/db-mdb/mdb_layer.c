@@ -177,8 +177,12 @@ int
 dbmdb_start(struct ldbminfo *li, int dbmode)
 {
     int readonly = dbmode & (DBLAYER_ARCHIVE_MODE | DBLAYER_EXPORT_MODE | DBLAYER_TEST_MODE);
+    int rc;
     dblayer_init_pvt_txn();    /* Initialize thread local storage for handling dblayer txn */
-    return dbmdb_make_env(MDB_CONFIG(li), readonly, li->li_mode);
+    rc = dbmdb_make_env(MDB_CONFIG(li), readonly, li->li_mode);
+    if (rc == 0) { 
+        li->li_max_key_len = mdb_env_get_maxkeysize(MDB_CONFIG(li)->env);
+    }
 }
 
 /* mode is one of

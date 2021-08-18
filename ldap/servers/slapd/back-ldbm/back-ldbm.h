@@ -176,6 +176,7 @@ extern int ldbm_warn_if_no_db;
 #define CONT_PREFIX   '\\' /* prefix for continuation keys */
 #define RULE_PREFIX   ':'  /* prefix for matchingRule keys */
 #define PRES_PREFIX   '+'
+#define HASH_PREFIX   '#'
 
 /* Values for "disposition" value in idl_insert_key() */
 #define IDL_INSERT_NORMAL     1
@@ -631,6 +632,7 @@ struct ldbminfo
 #define BACKEND_OPT_DBLOCK_INSIDE_TXN          0x02
 #define BACKEND_OPT_MANAGE_ENTRY_BEFORE_DBLOCK 0x04
     int li_backend_opt_level;
+    size_t li_max_key_len;
 };
 
 
