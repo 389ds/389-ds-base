@@ -183,6 +183,7 @@ dbmdb_start(struct ldbminfo *li, int dbmode)
     if (rc == 0) { 
         li->li_max_key_len = mdb_env_get_maxkeysize(MDB_CONFIG(li)->env);
     }
+    return rc;
 }
 
 /* mode is one of

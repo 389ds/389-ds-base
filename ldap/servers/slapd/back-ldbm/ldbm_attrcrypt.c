@@ -978,10 +978,11 @@ attrcrypt_encrypt_index_key(backend *be, struct attrinfo *ai, const struct berva
     size_t out_size = 0;
     struct berval *out_berval = NULL;
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
 
     *out = NULL;
-    /* If the index key is too long (mdb) we must hash it */
-    if (in_size >=  inst->inst_li->li_max_key_len ) {
+    /* If the index key is too long (i.e mdb case) we must hash it */
+    if (in_size >=  li->li_max_key_len) {
         PK11Context *c = PK11_CreateDigestContext(SEC_OID_MD5);
         if (c != NULL) {
             unsigned char hash[32];

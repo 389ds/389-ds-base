@@ -1470,6 +1470,41 @@ index_range_read_ext(
         index_free_prefix(prefix);
         return (NULL); /* why not allids? */
     }
+    /* check that there are no equality hash key in the index file
+     * which would make the index unusable for ranges 
+     * (that would make the equality index unusable for ranges)
+     */
+    if (li->li_max_key_len < UINT_MAX) {
+        char hkeybuf[3] = { HASH_PREFIX, EQ_PREFIX, 0 };
+        dbi_val_t hkey = {0};
+        int rc;
+
+        dblayer_value_strdup(be, &hkey, hkeybuf);
+        rc = dblayer_cursor_op(&dbc, DBI_OP_MOVE_NEAR_KEY, &hkey, &data);
+        dblayer_value_free(be, &data);
+        if (rc == 0 && strncmp(hkey.data, hkeybuf, 2) == 0) {
+            /* equality index hashed value found ==> unindexed search */
+            slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_UNINDEXED);
+            dblayer_value_free(be, &hkey);
+            idl = idl_allids(be);
+            slapi_log_err(SLAPI_LOG_TRACE,
+                      "index_range_read_ext", "(%s,%s) %lu candidates (allids) because equality index contains hashed values\n",
+                      type, prefix, (u_long)IDL_NIDS(idl));
+            index_free_prefix(prefix);
+            dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL);
+            return (idl);
+        }
+        dblayer_value_free(be, &hkey);
+        if (rc != DBI_RC_NOTFOUND) {
+            *err = rc;
+            ldbm_nasty("index_range_read_ext", errmsg, 1068, *err);
+            slapi_log_err(SLAPI_LOG_ERR,
+                          "index_range_read_ext", "(%s,%s) seek to end of index file err %i\n",
+                          type, prefix, *err);
+            dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL);
+            goto error;
+        }
+    }
 
     /* set up the starting and ending keys for a range search */
     if (range != 1) { /* open range search */
