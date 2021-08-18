@@ -1393,12 +1393,12 @@ preop_modrdn(Slapi_PBlock *pb)
             if (NULL != markerObjectClass) {
                 /* Subtree defined by location of marker object class */
                 result = findSubtreeAndSearch(slapi_entry_get_sdn(e), attrNames, attr, NULL,
-                                              requiredObjectClass, sdn,
+                                              requiredObjectClass, superior,
                                               markerObjectClass, config->exclude_subtrees);
             } else {
                 /* Subtrees listed on invocation line */
                 result = searchAllSubtrees(config->subtrees, config->exclude_subtrees, attrNames, attr, NULL,
-                                           requiredObjectClass, sdn, config->unique_in_all_subtrees);
+                                           requiredObjectClass, superior, config->unique_in_all_subtrees);
             }
             if (result != LDAP_SUCCESS) {
                 break;
