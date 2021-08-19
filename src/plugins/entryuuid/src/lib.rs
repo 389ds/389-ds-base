@@ -144,7 +144,17 @@ impl SlapiPlugin3 for EntryUuid {
         // Error if the first filter is empty?
 
         // Now, to make things faster, we wrap the filter in a exclude term.
-        let raw_filter = format!("(&{}(!(entryuuid=*)))", raw_filter);
+
+        // 2021 - #4877 because we allow entryuuid to be strings, on import these may
+        // be invalid. As a result, we DO need to allow the fixup to check the entryuuid
+        // value is correct, so we can not exclude these during the search.
+        /*
+        let raw_filter = if !raw_filter.starts_with('(') && !raw_filter.ends_with('(') {
+            format!("(&({})(!(entryuuid=*)))", raw_filter)
+        } else {
+            format!("(&{}(!(entryuuid=*)))", raw_filter)
+        };
+        */
 
         Ok(FixupData { basedn, raw_filter })
     }
@@ -209,14 +219,20 @@ pub fn entryuuid_fixup_mapfn(e: &EntryRef, _data: &()) -> Result<(), PluginError
     /* Supply a modification to the entry. */
     let sdn = e.get_sdnref();
 
-    /* Sanity check that entryuuid doesn't already exist */
-    if e.contains_attr("entryUUID") {
-        log_error!(
-            ErrorLevel::Trace,
-            "skipping fixup for -> {}",
-            sdn.to_dn_string()
-        );
-        return Ok(());
+    /* Check that entryuuid doesn't already exist, and is valid */
+    if let Some(valueset) = e.get_attr("entryUUID") {
+        if valueset.iter().all(|v| {
+            let u: Result<Uuid, _> = (&v).try_into();
+            u.is_ok()
+        }) {
+            // All values were valid uuid, move on!
+            log_error!(
+                ErrorLevel::Plugin,
+                "skipping fixup for -> {}",
+                sdn.to_dn_string()
+            );
+            return Ok(());
+        }
     }
 
     // Setup the modifications
