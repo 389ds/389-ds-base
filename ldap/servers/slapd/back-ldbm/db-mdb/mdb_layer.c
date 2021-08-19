@@ -2322,6 +2322,7 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
     MDB_cursor *dbmdb_cur = (MDB_cursor*)cursor->cur;
     MDB_val dbmdb_key = {0};
     MDB_val dbmdb_data = {0};
+    uint flags = 0;
     int rc = 0;
 
     if (dbmdb_cur == NULL) {
@@ -2339,10 +2340,24 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
             rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_SET_RANGE);
             break;
         case DBI_OP_MOVE_TO_DATA:
-            rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_GET_BOTH);
+            rc = mdb_dbi_flags(mdb_cursor_txn(dbmdb_cur), mdb_cursor_dbi(dbmdb_cur), &flags);
+            if (rc == 0) {
+                if (flags & MDB_DUPSORT) {
+                    rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_GET_BOTH);
+                } else {
+                    rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_SET);
+                }
+            }
             break;
         case DBI_OP_MOVE_NEAR_DATA:
-            rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_GET_BOTH_RANGE);
+            rc = mdb_dbi_flags(mdb_cursor_txn(dbmdb_cur), mdb_cursor_dbi(dbmdb_cur), &flags);
+            if (rc == 0) {
+                if (flags & MDB_DUPSORT) {
+                    rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_GET_BOTH_RANGE);
+                } else {
+                    rc = MDB_CURSOR_GET(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_SET_RANGE);
+                }
+            }
             break;
         case DBI_OP_MOVE_TO_RECNO:
             rc = dbmdb_cursor_set_recno(cursor, &dbmdb_key, &dbmdb_data);
