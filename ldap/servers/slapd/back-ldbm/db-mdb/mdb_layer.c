@@ -181,7 +181,11 @@ dbmdb_start(struct ldbminfo *li, int dbmode)
     dblayer_init_pvt_txn();    /* Initialize thread local storage for handling dblayer txn */
     rc = dbmdb_make_env(MDB_CONFIG(li), readonly, li->li_mode);
     if (rc == 0) { 
-        li->li_max_key_len = mdb_env_get_maxkeysize(MDB_CONFIG(li)->env);
+        /* As indexes are DUPSORT db, index key + index data are limited
+         * to mdb_env_get_maxkeysize(env) and indexes data are IDs 
+         * So we determine here the max key lenght 
+         */
+        li->li_max_key_len = mdb_env_get_maxkeysize(MDB_CONFIG(li)->env) - sizeof (ID);
     }
     return rc;
 }
@@ -353,7 +357,8 @@ int dbmdb_get_open_flags(const char *dbname)
     }
 
     if (!strcasecmp(pt, LDBM_ENTRYRDN_STR LDBM_FILENAME_SUFFIX)) {
-        return MDB_DUPSORT;
+        /* return MDB_DUPSORT; */
+        return 0;
     }
     if (!strcasecmp(pt, ID2ENTRY LDBM_FILENAME_SUFFIX)) {
         return 0;
