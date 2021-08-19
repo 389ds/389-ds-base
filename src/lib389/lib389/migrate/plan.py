@@ -443,6 +443,8 @@ class Migration(object):
             '2.5.6.13', # dsa
             '2.5.6.17', # groupOfUniqueNames
             '2.5.6.20', # dmd
+            # This has to be excluded as 389 syntax had an issue in 4872
+            '1.3.6.1.1.16.4',
             # We ignore all of the conflicts/changes from rfc2307 and rfc2307bis
             # as we provide rfc2307compat, which allows both to coexist.
             '1.3.6.1.1.1.1.16', # ipServiceProtocol
