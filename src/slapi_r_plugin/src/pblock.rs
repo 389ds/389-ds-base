@@ -313,7 +313,9 @@ impl PblockRef {
     }
 
     pub fn get_is_replicated_operation(&mut self) -> bool {
-        let i = self.get_value_i32(PblockType::IsReplicationOperation).unwrap_or(0);
+        let i = self
+            .get_value_i32(PblockType::IsReplicationOperation)
+            .unwrap_or(0);
         // Because rust returns the result of the last evaluation, we can
         // just return if not equal 0.
         i != 0

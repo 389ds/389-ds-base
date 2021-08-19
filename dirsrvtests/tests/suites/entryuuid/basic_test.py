@@ -10,6 +10,7 @@ import ldap
 import pytest
 import time
 import shutil
+import uuid
 from lib389.idm.user import nsUserAccounts, UserAccounts
 from lib389.idm.account import Accounts
 from lib389.idm.domain import Domain
@@ -218,7 +219,7 @@ def test_entryuuid_fixup_task(topology):
 
     # 4. run the fix up
     # For now set the log level to high!
-    topology.standalone.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.TRACE))
+    topology.standalone.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.PLUGIN))
     task = plug.fixup(DEFAULT_SUFFIX)
     task.wait()
     assert(task.is_complete() and task.get_exit_code() == 0)
@@ -242,4 +243,59 @@ def test_entryuuid_fixup_task(topology):
     # 6.2 Assert it on the domain entry.
     euuid_domain_2 = domain.get_attr_val_utf8('entryUUID')
     assert(euuid_domain_2 == euuid_domain)
+
+@pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.2.0'), reason="Entryuuid is not available in older versions")
+def test_entryuuid_import_and_fixup_of_invalid_values(topology):
+    """ Test that when we import a database with an invalid entryuuid
+    that it is accepted *and* that subsequently we can fix the invalid
+    entryuuid during a fixup.
+
+    :id: ec8ef3a7-3cd2-4cbd-b6f1-2449fa17be75
+
+    :setup: Standalone instance
+
+    :steps:
+        1. Import the db from the ldif
+        2. Check the entryuuid is invalid
+        3. Run the fixup
+        4. Check the entryuuid is now valid (regenerated)
+
+    :expectedresults:
+        1. Success
+        2. The entryuuid is invalid
+        3. Success
+        4. The entryuuid is valid
+    """
+
+    # 1. Import the db
+    ldif_dir = topology.standalone.get_ldif_dir()
+    target_ldif = os.path.join(ldif_dir, 'localhost-userRoot-invalid.ldif')
+    import_ldif = os.path.join(DATADIR1, 'localhost-userRoot-invalid.ldif')
+    shutil.copyfile(import_ldif, target_ldif)
+    os.chmod(target_ldif, 0o777)
+
+    be = Backends(topology.standalone).get('userRoot')
+    task = be.import_ldif([target_ldif])
+    task.wait()
+    assert(task.is_complete() and task.get_exit_code() == 0)
+
+    # 2. Check the entryuuid is invalid
+    account = nsUserAccounts(topology.standalone, DEFAULT_SUFFIX).get("demo_user")
+    euuid = account.get_attr_val_utf8('entryUUID')
+    assert(euuid == "INVALID_UUID")
+
+    # 3. Run the fixup
+    topology.standalone.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.PLUGIN))
+    plug = EntryUUIDPlugin(topology.standalone)
+    task = plug.fixup(DEFAULT_SUFFIX)
+    task.wait()
+    assert(task.is_complete() and task.get_exit_code() == 0)
+    topology.standalone.config.loglevel(vals=(ErrorLog.DEFAULT,))
+
+    # 4. Check the entryuuid is valid
+    euuid = account.get_attr_val_utf8('entryUUID')
+    print(f"❄️   account entryUUID -> {euuid}");
+    assert(euuid != "INVALID_UUID")
+    # Raises an error if invalid
+    uuid.UUID(euuid)
 

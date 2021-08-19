@@ -1,6 +1,6 @@
 use crate::ber::{ol_berval, BerValRef};
 use crate::dn::Sdn;
-use std::convert::{From, TryFrom};
+use std::convert::{From, TryFrom, TryInto};
 use std::ffi::CString;
 use std::iter::once;
 use std::iter::FromIterator;
@@ -210,6 +210,14 @@ impl TryFrom<&ValueRef> for String {
 
     fn try_from(value: &ValueRef) -> Result<Self, Self::Error> {
         value.bvr.into_string().ok_or(())
+    }
+}
+
+impl TryFrom<&ValueRef> for Uuid {
+    type Error = ();
+
+    fn try_from(value: &ValueRef) -> Result<Self, Self::Error> {
+        (&value.bvr).try_into().map_err(|_| ())
     }
 }
 
