@@ -864,6 +864,7 @@ slapd_sockets_ports_free(daemon_ports_t *ports_info)
     for (fdesp = ports_info->n_socket; fdesp && *fdesp; fdesp++) {
         if (*fdesp) {
             PR_Close(*fdesp);
+            *fdesp = NULL;
         }
     }
     slapi_ch_free((void **)&ports_info->n_socket);
@@ -871,6 +872,7 @@ slapd_sockets_ports_free(daemon_ports_t *ports_info)
     for (fdesp = ports_info->s_socket; fdesp && *fdesp; fdesp++) {
         if (*fdesp) {
             PR_Close(*fdesp);
+            *fdesp = NULL;
         }
     }
     slapi_ch_free((void **)&ports_info->s_socket);
@@ -878,6 +880,7 @@ slapd_sockets_ports_free(daemon_ports_t *ports_info)
     for (fdesp = ports_info->i_socket; fdesp && *fdesp; fdesp++) {
         if (*fdesp) {
             PR_Close(*fdesp);
+            *fdesp = NULL;
         }
     }
     slapi_ch_free((void **)&ports_info->i_socket);

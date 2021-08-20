@@ -123,11 +123,8 @@ dbmdb_get_file_params(dbi_open_ctx_t *octx)
         pt++;
     }
     if (is_dbfile(pt, LDBM_ENTRYRDN_STR)) {
-        /* octx->fstate.flags |= MDB_DUPSORT;
-         * octx->dupsort_fn = dbmdb_entryrdn_compare_dups;
-         */
-        octx->fstate.flags |= 0;
-        octx->dupsort_fn = NULL;
+        octx->fstate.flags |= MDB_DUPSORT;
+        octx->dupsort_fn = dbmdb_entryrdn_compare_dups;
     } else if (is_dbfile(pt, ID2ENTRY)) {
         octx->fstate.flags |= MDB_INTEGERKEY;
         octx->dupsort_fn = NULL;
