@@ -91,11 +91,10 @@ dbmdb_compute_limits(struct ldbminfo *li)
 
     total_space = ((uint64_t)(buf.f_blocks)) * ((uint64_t)(buf.f_bsize));
     avail_space = ((uint64_t)(buf.f_bavail)) * ((uint64_t)(buf.f_bsize));
-    avail_space = ((uint64_t)(buf.f_bavail)) * 9 / 10 ; /* Limit to 90% of available space */
 
     limits->disk_reserve = DBMDB_DISK_RESERVE(total_space);
     limits->min_size = DBMDB_DB_MINSIZE;
-    limits->max_size = avail_space + cur_dbsize;
+    limits->max_size = (avail_space + cur_dbsize) * 9 / 10;
     info->strversion = mdb_version(&v1,&v2, &v3);
     info->libversion = DBMDB_LIBVERSION(v1, v2, v3);
     info->dataversion = DBMDB_CURRENT_DATAVERSION;
