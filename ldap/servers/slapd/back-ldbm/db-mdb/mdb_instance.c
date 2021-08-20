@@ -14,6 +14,12 @@
 
 /* Info file used to check version and get parameters needed to open the db in dbscan case */
 
+/*
+ * Maximum db size by default (final size may be smaller if not enough disk is available 
+ *  final size may be greater is explicitly configured 
+ */
+#define DEFAULT_DB_SIZE (1L*1024*1024*1024)
+
 /* Flags allowed in mdb_dbi_open */
 #define MDB_DBIOPEN_MASK (MDB_REVERSEKEY | MDB_DUPSORT | MDB_INTEGERKEY |  \
                 MDB_DUPFIXED | MDB_INTEGERDUP | MDB_REVERSEDUP | MDB_CREATE)
@@ -590,6 +596,9 @@ void dbmdb_init_startcfg(dbmdb_ctx_t *ctx)
             ctx->startcfg.max_size = ctx->limits.max_size - ctx->limits.disk_reserve;
         } else {
             ctx->startcfg.max_size = ctx->limits.max_size;
+        }
+        if (ctx->startcfg.max_size > DEFAULT_DB_SIZE) {
+            ctx->startcfg.max_size = DEFAULT_DB_SIZE;
         }
     }
 

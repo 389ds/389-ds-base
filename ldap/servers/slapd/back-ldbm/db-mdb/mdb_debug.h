@@ -19,7 +19,7 @@ extern int dbgmdb_level; /* defined in mdb_debug.c */
 void dbg_log(const char *file, int lineno, const char *funcname, int loglevel, char *fmt, ...);
 void dbgval2str(char *buff, size_t bufsiz, MDB_val *val);
 
-#define DBMDB_DEBUG 1
+/* #define DBMDB_DEBUG 1 */
 #define DBGMDB_LEVEL_DEFAULT DBGMDB_LEVEL_MDBAPI
 
 /* Define the wrapper associated with each log level */

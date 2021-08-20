@@ -1471,8 +1471,8 @@ index_range_read_ext(
         return (NULL); /* why not allids? */
     }
     /* check that there are no equality hash key in the index file
-     * which would make the index unusable for ranges 
-     * (that would make the equality index unusable for ranges)
+     * (that would make the index unusable for ranges as hash transformation
+     *  does not preserve the order)
      */
     if (li->li_max_key_len < UINT_MAX) {
         char hkeybuf[3] = { HASH_PREFIX, EQ_PREFIX, 0 };
