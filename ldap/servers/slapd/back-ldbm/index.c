@@ -914,8 +914,10 @@ index_read_ext_allids(
     char *basetmp, *basetype;
     int retry_count = 0;
     struct berval *encrypted_val = NULL;
+    struct berval *hashed_val = NULL;
     int is_and = 0;
     unsigned int ai_flags = 0;
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
 
     *err = 0;
 
@@ -1025,6 +1027,21 @@ index_read_ext_allids(
         size_t vlen;
         int ret = 0;
 
+        /* If necessary, hash this index key */
+        if (val->bv_len >=  li->li_max_key_len) {
+            ret = attrcrypt_hash_large_index_key(be, &prefix, ai, val, &hashed_val);
+            if (ret) {
+                slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids",
+                              "Failed to hash large index key for %s\n", basetype);
+                *err = DBI_RC_OTHER;
+                index_free_prefix(prefix);
+                slapi_ch_free_string(&basetmp);
+                return (NULL);
+            }
+            if (hashed_val) {
+                val = hashed_val;
+            }
+        }
         /* If necessary, encrypt this index key */
         ret = attrcrypt_encrypt_index_key(be, ai, val, &encrypted_val);
         if (ret) {
@@ -1080,6 +1097,9 @@ index_read_ext_allids(
 
     index_free_prefix(prefix);
 
+    if (hashed_val) {
+        ber_bvfree(hashed_val);
+    }
     if (encrypted_val) {
         ber_bvfree(encrypted_val);
     }
@@ -1495,7 +1515,7 @@ index_range_read_ext(
             return (idl);
         }
         dblayer_value_free(be, &hkey);
-        if (rc != DBI_RC_NOTFOUND) {
+        if (rc && rc != DBI_RC_NOTFOUND) {
             *err = rc;
             ldbm_nasty("index_range_read_ext", errmsg, 1068, *err);
             slapi_log_err(SLAPI_LOG_ERR,
@@ -1811,7 +1831,9 @@ addordel_values_sv(
     char *realbuf;
     char *prefix = NULL;
     const struct berval *bvp;
+    struct berval *hashed_bvp = NULL;
     struct berval *encrypted_bvp = NULL;
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
 
     slapi_log_err(SLAPI_LOG_TRACE, "addordel_values_sv", "%s_values\n",
                   (flags & BE_INDEX_ADD) ? "add" : "del");
@@ -1853,6 +1875,18 @@ addordel_values_sv(
     for (i = 0; vals[i] != NULL; i++) {
         bvp = slapi_value_get_berval(vals[i]);
 
+        /* Hash large index key if necessary */
+        if (bvp->bv_len >=  li->li_max_key_len) {
+            rc = attrcrypt_hash_large_index_key(be, &prefix, a, bvp, &hashed_bvp);
+            if (rc) {
+                slapi_log_err(SLAPI_LOG_ERR, "index_read_ext_allids",
+                              "Failed to hash large index key for %s\n", a->ai_type);
+                break;
+            } else {
+                bvp = hashed_bvp;
+                plen = strlen(prefix);
+            }
+        }
         /* Encrypt the index key if necessary */
         {
             if (a->ai_attrcrypt && (0 == (flags & BE_INDEX_DONT_ENCRYPT))) {
@@ -1881,6 +1915,10 @@ addordel_values_sv(
         memcpy(realbuf + plen, bvp->bv_val, vlen);
         realbuf[len] = '\0';
         /* Free the encrypted berval if necessary */
+        if (hashed_bvp) {
+            ber_bvfree(hashed_bvp);
+            hashed_bvp = NULL;
+        }
         if (encrypted_bvp) {
             ber_bvfree(encrypted_bvp);
             encrypted_bvp = NULL;

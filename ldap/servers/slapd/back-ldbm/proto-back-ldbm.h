@@ -610,6 +610,7 @@ int attrcrypt_encrypt_entry_inplace(backend *be, const struct backentry *inout);
 int attrcrypt_encrypt_entry(backend *be, const struct backentry *in, struct backentry **out);
 int attrcrypt_encrypt_index_key(backend *be, struct attrinfo *ai, const struct berval *in, struct berval **out);
 int attrcrypt_decrypt_index_key(backend *be, struct attrinfo *ai, const struct berval *in, struct berval **out);
+int attrcrypt_hash_large_index_key(backend *be, char **prefix, struct attrinfo *ai, const struct berval *in, struct berval **out);
 int attrcrypt_init(ldbm_instance *li);
 int attrcrypt_cleanup_private(ldbm_instance *li);
 
