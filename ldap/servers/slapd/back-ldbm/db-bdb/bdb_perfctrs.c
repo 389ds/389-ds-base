@@ -179,7 +179,7 @@ typedef struct slapi_ldbm_perfctr_at_map
     size_t pam_offset; /* offset into performance_counters struct */
 } SlapiLDBMPerfctrATMap;
 
-static SlapiLDBMPerfctrATMap perfctr_at_map[] = {
+static SlapiLDBMPerfctrATMap bdb_perfctr_at_map[] = {
     {SLAPI_LDBM_PERFCTR_AT_PREFIX "abort-rate",
      offsetof(performance_counters, abort_rate)},
     {SLAPI_LDBM_PERFCTR_AT_PREFIX "active-txns",
@@ -250,7 +250,7 @@ static SlapiLDBMPerfctrATMap perfctr_at_map[] = {
      offsetof(performance_counters, txn_region_wait_rate)},
 };
 #define SLAPI_LDBM_PERFCTR_AT_MAP_COUNT \
-    (sizeof(perfctr_at_map) / sizeof(SlapiLDBMPerfctrATMap))
+    (sizeof(bdb_perfctr_at_map) / sizeof(SlapiLDBMPerfctrATMap))
 
 
 /*
@@ -277,8 +277,8 @@ bdb_perfctrs_as_entry(Slapi_Entry *e, perfctrs_private *priv, DB_ENV *db_env)
      * Then convert all the counters to attribute values.
      */
     for (i = 0; i < SLAPI_LDBM_PERFCTR_AT_MAP_COUNT; ++i) {
-        bdb_perfctr_add_to_entry(e, perfctr_at_map[i].pam_type,
-                             *((uint64_t *)((char *)perf + perfctr_at_map[i].pam_offset)));
+        bdb_perfctr_add_to_entry(e, bdb_perfctr_at_map[i].pam_type,
+                             *((uint64_t *)((char *)perf + bdb_perfctr_at_map[i].pam_offset)));
     }
 }
 

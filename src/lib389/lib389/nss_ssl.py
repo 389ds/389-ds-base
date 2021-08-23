@@ -192,7 +192,7 @@ only.
 
         # Init the db.
         # 48886; This needs to be sql format ...
-        cmd = ['/usr/bin/certutil', '-N', '-d', self._certdb, '-f', '%s/%s' % (self._certdb, PWD_TXT)]
+        cmd = ['/usr/bin/certutil', '-N', '-d', self._certdb, '-f', '%s/%s' % (self._certdb, PWD_TXT),  '-@', '%s/%s' % (self._certdb, PWD_TXT)]
         self._generate_noise('%s/noise.txt' % self._certdb)
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         try:

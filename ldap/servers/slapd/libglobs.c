@@ -252,11 +252,6 @@ slapi_onoff_t init_cn_uses_dn_syntax_in_dns;
 slapi_onoff_t init_global_backend_local;
 slapi_onoff_t init_enable_nunc_stans;
 #if defined(LINUX)
-#if defined(__GLIBC__)
-slapi_int_t init_malloc_mxfast;
-slapi_int_t init_malloc_trim_threshold;
-slapi_int_t init_malloc_mmap_threshold;
-#endif
 #endif
 slapi_onoff_t init_extract_pem;
 slapi_onoff_t init_ignore_vattrs;
@@ -1162,17 +1157,17 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.malloc_mxfast,
      CONFIG_INT, (ConfigGetFunc)config_get_malloc_mxfast,
-     &init_malloc_mxfast, NULL},
+     DEFAULT_MALLOC_UNSET_STR, NULL},
     {CONFIG_MALLOC_TRIM_THRESHOLD, config_set_malloc_trim_threshold,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.malloc_trim_threshold,
      CONFIG_INT, (ConfigGetFunc)config_get_malloc_trim_threshold,
-     &init_malloc_trim_threshold, NULL},
+     DEFAULT_MALLOC_UNSET_STR, NULL},
     {CONFIG_MALLOC_MMAP_THRESHOLD, config_set_malloc_mmap_threshold,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.malloc_mmap_threshold,
      CONFIG_INT, (ConfigGetFunc)config_get_malloc_mmap_threshold,
-     &init_malloc_mmap_threshold, NULL},
+     DEFAULT_MALLOC_UNSET_STR, NULL},
 #endif
 #endif
     {CONFIG_IGNORE_TIME_SKEW, config_set_ignore_time_skew,
@@ -1825,9 +1820,9 @@ FrontendConfig_init(void)
     init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_OFF;
 #if defined(LINUX)
 #if defined(__GLIBC__)
-    init_malloc_mxfast = cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
-    init_malloc_trim_threshold = cfg->malloc_trim_threshold = DEFAULT_MALLOC_UNSET;
-    init_malloc_mmap_threshold = cfg->malloc_mmap_threshold = DEFAULT_MALLOC_UNSET;
+    cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
+    cfg->malloc_trim_threshold = DEFAULT_MALLOC_UNSET;
+    cfg->malloc_mmap_threshold = DEFAULT_MALLOC_UNSET;
 #endif
 #endif
     init_extract_pem = cfg->extract_pem = LDAP_ON;
@@ -8836,7 +8831,7 @@ config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorb
     errno = 0;
     mmap_threshold = strtol(value, &endp, 10);
     if ((*endp != '\0') || (errno == ERANGE)) {
-        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "limit \"%s\" is invalid, %s must range from 0 to %d",
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "limit \"%s\"d is invalid, value must range from 0 to %d",
                               value, CONFIG_MALLOC_MMAP_THRESHOLD, max);
         return LDAP_OPERATIONS_ERROR;
     }

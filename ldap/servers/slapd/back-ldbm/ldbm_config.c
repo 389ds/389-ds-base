@@ -283,17 +283,27 @@ ldbm_config_backend_implement_set(void *arg, void *value, char *errorbuf __attri
     struct ldbminfo *li = (struct ldbminfo *)arg;
     int retval = LDAP_SUCCESS;
 
+    if (strcasecmp(value, BDB_IMPL) && strcasecmp(value, LMDB_IMPL)) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_backend_implement_set", "Invalid db implementation value. It should be %s or %s.\n", BDB_IMPL, LMDB_IMPL);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
     if (apply) {
         slapi_ch_free((void **)&(li->li_backend_implement));
         li->li_backend_implement = slapi_ch_strdup((char *)value);
-        /* Set a flag that we can efficiently check which backend
-         * implementation we are using */
-        if (strcasecmp(li->li_backend_implement, BDB_IMPL) == 0) {
-            li->li_flags |= LI_BDB_IMPL;
-        } else if (strcasecmp(li->li_backend_implement, LMDB_IMPL) == 0) {
-            li->li_flags |= LI_LMDB_IMPL;
+        if (CONFIG_PHASE_RUNNING == phase) {
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_directory_set",
+                      "New db implentation will not take affect until the server is restarted\n");
         } else {
-            li->li_flags |= LI_DEFAULT_IMPL_FLAG;
+            /* Set a flag that we can efficiently check which backend
+             * implementation we are using */
+            if (strcasecmp(li->li_backend_implement, BDB_IMPL) == 0) {
+                li->li_flags |= LI_BDB_IMPL;
+            } else if (strcasecmp(li->li_backend_implement, LMDB_IMPL) == 0) {
+                li->li_flags |= LI_LMDB_IMPL;
+            } else {
+                li->li_flags |= LI_DEFAULT_IMPL_FLAG;
+            }
         }
     }
 
@@ -975,7 +985,7 @@ static config_info ldbm_config[] = {
     {CONFIG_PAGEDIDLISTSCANLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedallidsthreshold_get, &ldbm_config_pagedallidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_RANGELOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_rangelookthroughlimit_get, &ldbm_config_rangelookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_BACKEND_OPT_LEVEL, CONFIG_TYPE_INT, "1", &ldbm_config_backend_opt_level_get, &ldbm_config_backend_opt_level_set, CONFIG_FLAG_ALWAYS_SHOW},
-    {CONFIG_BACKEND_IMPLEMENT, CONFIG_TYPE_STRING, "bdb", &ldbm_config_backend_implement_get, &ldbm_config_backend_implement_set, CONFIG_FLAG_ALWAYS_SHOW},
+    {CONFIG_BACKEND_IMPLEMENT, CONFIG_TYPE_STRING, "bdb", &ldbm_config_backend_implement_get, &ldbm_config_backend_implement_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}};
 
 void
@@ -1038,9 +1048,11 @@ ldbm_config_read_instance_entries(struct ldbminfo *li, const char *backend_type)
  * Creates dse entries used to configure the ldbm plugin and dblayer
  * if they don't already exist.  Registers dse callback functions to
  * maintain those dse entries.  Returns 0 on success.
+ *
+ * Phase0 can be done without the implementation plugin
  */
 int
-ldbm_config_load_dse_info(struct ldbminfo *li)
+ldbm_config_load_dse_info_phase0(struct ldbminfo *li)
 {
     Slapi_PBlock *search_pb;
     Slapi_Entry **entries = NULL;
@@ -1105,10 +1117,44 @@ ldbm_config_load_dse_info(struct ldbminfo *li)
         slapi_pblock_destroy(search_pb);
     }
 
+bail:
+    slapi_ch_free_string(&dn);
+    return rval;
+}
+
+
+/* Reads in any config information held in the dse for the ldbm plugin.
+ * Creates dse entries used to configure the ldbm plugin and dblayer
+ * if they don't already exist.  Registers dse callback functions to
+ * maintain those dse entries.  Returns 0 on success.
+ *
+ * Phase1 requires that db plugin is initialized.
+ */
+int
+ldbm_config_load_dse_info_phase1(struct ldbminfo *li)
+{
+    char *dn = NULL;
+    int rval = 0;
+
+    /* We try to read the entry
+     * cn=config, cn=ldbm database, cn=plugins, cn=config.  If the entry is
+     * there, then we process the config information it stores.
+     */
+    dn = slapi_create_dn_string("cn=config,cn=%s,cn=plugins,cn=config",
+                                li->li_plugin->plg_name);
+    if (NULL == dn) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "ldbm_config_load_dse_info",
+                      "failed create config dn for %s\n",
+                      li->li_plugin->plg_name);
+        rval = 1;
+        goto bail;
+    }
+
     rval = ldbm_config_read_instance_entries(li, li->li_plugin->plg_name);
     if (rval) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "bdb_config_load_dse_info",
+                      "ldbm_config_load_dse_info",
                       "failed to read instance entries\n");
         goto bail;
     }
@@ -1201,6 +1247,7 @@ ldbm_config_ignored_attr(char *attr_name)
      * config entries but are not config attributes. */
     if (!strcasecmp("objectclass", attr_name) ||
         !strcasecmp("cn", attr_name) ||
+        !strcasecmp("nsUniqueId", attr_name) ||
         !strcasecmp("creatorsname", attr_name) ||
         !strcasecmp("createtimestamp", attr_name) ||
         !strcasecmp(LDBM_NUMSUBORDINATES_STR, attr_name) ||
@@ -1251,7 +1298,6 @@ ldbm_config_search_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
                     }
                 }
             }
-        
         }
     }
 

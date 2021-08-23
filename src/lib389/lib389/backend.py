@@ -23,8 +23,6 @@ from lib389.replica import Replicas, Changelog
 from lib389.cos import (CosTemplates, CosIndirectDefinitions,
                         CosPointerDefinitions, CosClassicDefinitions)
 
-# We need to be a factor to the backend monitor
-from lib389.monitor import MonitorBackend
 from lib389.index import Index, Indexes, VLVSearches, VLVSearch
 from lib389.tasks import ImportTask, ExportTask, Tasks
 from lib389.encrypted_attributes import EncryptedAttr, EncryptedAttrs
@@ -694,6 +692,8 @@ class Backend(DSLdapObject):
 
     def get_monitor(self):
         """Get a MonitorBackend(DSLdapObject) for the backend"""
+        # We need to be a factor to the backend monitor
+        from lib389.monitor import MonitorBackend
 
         monitor = MonitorBackend(instance=self._instance, dn="cn=monitor,%s" % self._dn)
         return monitor
@@ -1015,6 +1015,9 @@ class DatabaseConfig(DSLdapObject):
             'nsslapd-rangelookthroughlimit',
             'nsslapd-backend-opt-level',
             'nsslapd-backend-implement',
+            'nsslapd-db-durable-transaction',
+            'nsslapd-search-bypass-filter-test',
+            'nsslapd-serial-lock',
         ]
         self._db_attrs = {
             'bdb':
@@ -1022,7 +1025,6 @@ class DatabaseConfig(DSLdapObject):
                     'nsslapd-dbcachesize',
                     'nsslapd-db-logdirectory',
                     'nsslapd-db-home-directory',
-                    'nsslapd-db-durable-transaction',
                     'nsslapd-db-transaction-wait',
                     'nsslapd-db-checkpoint-interval',
                     'nsslapd-db-compactdb-interval',
@@ -1041,22 +1043,24 @@ class DatabaseConfig(DSLdapObject):
                     'nsslapd-cache-autosize',
                     'nsslapd-cache-autosize-split',
                     'nsslapd-import-cachesize',
-                    'nsslapd-search-bypass-filter-test',
-                    'nsslapd-serial-lock',
                     'nsslapd-db-deadlock-policy',
                 ],
-            'lmdb': []
+            'mdb': [
+                    'nsslapd-mdb-max-size',
+                    'nsslapd-mdb-max-readers',
+                    'nsslapd-mdb-max-dbs',
+                ]
         }
         self._create_objectclasses = ['top', 'extensibleObject']
         self._protected = True
-        # This could be "bdb" or "lmdb", use what we have configured in the global config
+        # This could be "bdb" or "mdb", use what we have configured in the global config
         self._db_lib = self.get_attr_val_utf8_l('nsslapd-backend-implement')
         self._dn = "cn=config,cn=ldbm database,cn=plugins,cn=config"
         self._db_dn = f"cn={self._db_lib},cn=config,cn=ldbm database,cn=plugins,cn=config"
         self._globalObj = DSLdapObject(self._instance, dn=self._dn)
         self._dbObj = DSLdapObject(self._instance, dn=self._db_dn)
         # Assert there is no overlap in different config sets
-        assert_c(len(set(self._global_attrs).intersection(set(self._db_attrs['bdb']), set(self._db_attrs['lmdb']))) == 0)
+        assert_c(len(set(self._global_attrs).intersection(set(self._db_attrs['bdb']), set(self._db_attrs['mdb']))) == 0)
 
     def get(self):
         """Get the combined config entries"""
@@ -1079,7 +1083,7 @@ class DatabaseConfig(DSLdapObject):
             self._instance.log.info(f'{k}: {vo}')
 
     def get_db_lib(self):
-        """Return the backend library, bdb, lmdb, etc"""
+        """Return the backend library, bdb, mdb, etc"""
         return self._db_lib
 
     def set(self, value_pairs):
@@ -1091,8 +1095,9 @@ class DatabaseConfig(DSLdapObject):
             elif attr in self._db_attrs['bdb']:
                 db_config = DSLdapObject(self._instance, dn=self._db_dn)
                 db_config.replace(attr, val)
-            elif attr in self._db_attrs['lmdb']:
-                pass
+            elif attr in self._db_attrs['mdb']:
+                db_config = DSLdapObject(self._instance, dn=self._db_dn)
+                db_config.replace(attr, val)
             else:
                 # Unknown attribute
                 raise ValueError("Can not update database configuration with unknown attribute: " + attr)

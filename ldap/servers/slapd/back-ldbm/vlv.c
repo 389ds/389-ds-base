@@ -25,6 +25,7 @@
 
 
 #include "back-ldbm.h"
+#include "dblayer.h"
 #include "vlv_srch.h"
 #include "vlv_key.h"
 
@@ -760,15 +761,18 @@ error:
  */
 
 static int
-do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), Slapi_PBlock *pb, struct vlvIndex *pIndex, struct backentry *entry, int insert)
+do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct vlvIndex *pIndex, struct backentry *entry, int insert)
 {
     backend *be;
     int rc = 0;
     dbi_db_t *db = NULL;
     dbi_txn_t *db_txn = NULL;
     struct vlv_key *key = NULL;
+    dbi_val_t data = {0};
+    dblayer_private *priv = NULL;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+    priv = (dblayer_private *)li->li_dblayer_private;
 
     rc = dblayer_get_index_file(be, pIndex->vlv_attrinfo, &db, DBOPEN_CREATE);
     if (rc != 0) {
@@ -784,17 +788,28 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), 
     } else {
         /* Very bad idea to do this outside of a transaction */
     }
+    if (priv->dblayer_clear_vlv_cache_fn) {
+        priv->dblayer_clear_vlv_cache_fn(be, db_txn, db);
+    }
+    data.size = sizeof(entry->ep_id);
+    data.data = &entry->ep_id;
 
     if (insert) {
-        dbi_val_t data = {0};
-        data.size = sizeof(entry->ep_id);
-        data.data = &entry->ep_id;
-        rc = dblayer_db_op(be, db, db_txn, DBI_OP_PUT, &key->key, &data);
+        if (txn && txn->back_special_handling_fn) {
+            rc = txn->back_special_handling_fn(be, BTXNACT_VLV_ADD, db, &key->key, &data, txn);
+        } else {
+            rc = dblayer_db_op(be, db, db_txn, DBI_OP_PUT, &key->key, &data);
+        }
         if (rc == 0) {
             slapi_log_err(SLAPI_LOG_TRACE,
                           "vlv_update_index", "%s Insert %s ID=%lu\n",
                           pIndex->vlv_name, (char *)key->key.data, (u_long)entry->ep_id);
-            vlvIndex_increment_indexlength(be, pIndex, db, txn);
+            if (txn && txn->back_special_handling_fn) {
+                /* In import only one thread works on a given vlv index */
+                pIndex->vlv_indexlength++;
+            } else {
+                vlvIndex_increment_indexlength(be, pIndex, db, txn);
+            }
         } else if (rc == DBI_RC_RUNRECOVERY) {
             ldbm_nasty("do_vlv_update_index", pIndex->vlv_name, 77, rc);
         } else if (rc != DBI_RC_RETRY) {
@@ -808,9 +823,18 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), 
         slapi_log_err(SLAPI_LOG_TRACE,
                       "vlv_update_index", "%s Delete %s\n",
                       pIndex->vlv_name, (char *)key->key.data);
-        rc = dblayer_db_op(be, db, db_txn, DBI_OP_DEL, &key->key, NULL);
+        if (txn && txn->back_special_handling_fn) {
+            rc = txn->back_special_handling_fn(be, BTXNACT_VLV_DEL, db, &key->key, &data, txn);
+        } else {
+            rc = dblayer_db_op(be, db, db_txn, DBI_OP_DEL, &key->key, NULL);
+        }
         if (rc == 0) {
-            vlvIndex_decrement_indexlength(be, pIndex, db, txn);
+            if (txn && txn->back_special_handling_fn) {
+                /* In import only one thread works on a given vlv index */
+                pIndex->vlv_indexlength--;
+            } else {
+                vlvIndex_decrement_indexlength(be, pIndex, db, txn);
+            }
         } else if (rc == DBI_RC_RUNRECOVERY) {
             ldbm_nasty("do_vlv_update_index", pIndex->vlv_name, 78, rc);
         } else if (rc != DBI_RC_RETRY) {
@@ -1010,7 +1034,7 @@ vlv_build_candidate_list_byvalue(backend *be, struct vlvIndex *p, dbi_cursor_t *
 
     dblayer_value_set(be, &key, typedown_value[0]->bv_val, typedown_value[0]->bv_len);
     dblayer_value_protect_data(be, &key);  /* typedown_value[0]->bv_val should not be freed */
-    
+
     dblayer_value_init(be, &data);
     err = dblayer_cursor_op(dbc, DBI_OP_MOVE_NEAR_KEY, &key, &data);
     if (err == 0) {

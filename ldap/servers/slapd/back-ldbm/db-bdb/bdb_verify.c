@@ -15,7 +15,7 @@
 #include "bdb_layer.h"
 
 static int
-dbverify_ext(ldbm_instance *inst, int verbose)
+bdb_dbverify_ext(ldbm_instance *inst, int verbose)
 {
     char dbdir[MAXPATHLEN];
     char *filep = NULL;
@@ -36,7 +36,7 @@ dbverify_ext(ldbm_instance *inst, int verbose)
                 inst->inst_dir_name);
     if ('\0' != dbdir[sizeof(dbdir) - 1]) /* overflown */
     {
-        slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_dbverify_ext",
                       "db path too long: %s/%s\n",
                       inst->inst_parent_dir_name, inst->inst_dir_name);
         return 1;
@@ -48,7 +48,7 @@ dbverify_ext(ldbm_instance *inst, int verbose)
     /* run dbverify on each each db file */
     dirhandle = PR_OpenDir(dbdir);
     if (!dirhandle) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_dbverify_ext",
                       "PR_OpenDir (%s) failed (%d): %s\n",
                       dbdir, PR_GetError(), slapd_pr_strerror(PR_GetError()));
         return 1;
@@ -66,7 +66,7 @@ dbverify_ext(ldbm_instance *inst, int verbose)
             continue;
         }
         if (sizeof(direntry->name) + 2 > filelen) {
-            slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_dbverify_ext",
                           "db path too long: %s/%s\n",
                           dbdir, direntry->name);
             continue;
@@ -74,7 +74,7 @@ dbverify_ext(ldbm_instance *inst, int verbose)
         PR_snprintf(filep, filelen, "/%s", direntry->name);
         rval = db_create(&dbp, pEnv->bdb_DB_ENV, 0);
         if (0 != rval) {
-            slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_dbverify_ext",
                           "Unable to create id2entry db file %d\n", rval);
             return rval;
         }
@@ -109,14 +109,14 @@ dbverify_ext(ldbm_instance *inst, int verbose)
             if (0 == strncmp(direntry->name, VLVPREFIX, strlen(VLVPREFIX))) {
                 rval = dbp->set_flags(dbp, DB_RECNUM);
                 if (0 != rval) {
-                    slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
+                    slapi_log_err(SLAPI_LOG_ERR, "bdb_dbverify_ext",
                                   "Unable to set RECNUM flag to vlv index (%d)\n", rval);
                     return rval;
                 }
             } else if (idl_get_idl_new()) {
                 rval = dbp->set_flags(dbp, DB_DUP | DB_DUPSORT);
                 if (0 != rval) {
-                    slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
+                    slapi_log_err(SLAPI_LOG_ERR, "bdb_dbverify_ext",
                                   "Unable to set DUP flags to db (%d)\n", rval);
                     return rval;
                 }
@@ -129,7 +129,7 @@ dbverify_ext(ldbm_instance *inst, int verbose)
                 }
 
                 if (0 != rval) {
-                    slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
+                    slapi_log_err(SLAPI_LOG_ERR, "bdb_dbverify_ext",
                                   "Unable to set dup_compare to db (%d)\n", rval);
                     return rval;
                 }
@@ -139,11 +139,11 @@ dbverify_ext(ldbm_instance *inst, int verbose)
         rval = dbp->verify(dbp, dbdir, NULL, NULL, 0);
         if (0 == rval) {
             if (verbose) {
-                slapi_log_err(SLAPI_LOG_INFO, "dbverify_ext",
+                slapi_log_err(SLAPI_LOG_INFO, "bdb_dbverify_ext",
                               "%s: ok\n", dbdir);
             }
         } else {
-            slapi_log_err(SLAPI_LOG_ERR, "dbverify_ext",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_dbverify_ext",
                           "verify failed(%d): %s\n", rval, dbdir);
         }
         rval_main |= rval;
@@ -193,7 +193,7 @@ bdb_verify(Slapi_PBlock *pb)
                     slapi_ch_free_string(&inst->inst_parent_dir_name);
                     inst->inst_parent_dir_name = slapi_ch_strdup(dbdir);
                 }
-                rval_main |= dbverify_ext(inst, verbose);
+                rval_main |= bdb_dbverify_ext(inst, verbose);
             } else {
                 rval_main |= 1; /* no such instance */
             }
@@ -217,7 +217,7 @@ bdb_verify(Slapi_PBlock *pb)
                 slapi_ch_free_string(&inst->inst_parent_dir_name);
                 inst->inst_parent_dir_name = slapi_ch_strdup(dbdir);
             }
-            rval_main |= dbverify_ext(inst, verbose);
+            rval_main |= bdb_dbverify_ext(inst, verbose);
         }
     }
 

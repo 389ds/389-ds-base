@@ -9,6 +9,7 @@
 
 #include "../back-ldbm.h"
 #include "../dblayer.h"
+#include "../import.h"
 #include <db.h>
 
 #define BDB_CONFIG(li) ((bdb_config *)(li)->li_dblayer_config)
@@ -89,8 +90,8 @@ typedef struct bdb_config
     int bdb_lock_config;
     int bdb_previous_lock_config;  /* Max lock count when we last shut down--
                                       * used to determine if we delete the mpool */
-    u_int32_t bdb_deadlock_policy; /* i.e. the atype to DB_ENV->lock_detect in deadlock_threadmain */
-    int32_t bdb_compactdb_interval; /* interval to execute compact id2entry dbs */
+    u_int32_t bdb_deadlock_policy; /* i.e. the atype to DB_ENV->lock_detect in bdb_deadlock_threadmain */
+    int bdb_compactdb_interval;    /* interval to execute compact id2entry dbs */
     char *bdb_compactdb_time;       /* time of day to execute compact id2entry dbs */
 } bdb_config;
 
@@ -108,7 +109,7 @@ int bdb_db_size(Slapi_PBlock *pb);
 int bdb_upgradedb(Slapi_PBlock *pb);
 int bdb_upgradednformat(Slapi_PBlock *pb);
 int bdb_upgradeddformat(Slapi_PBlock *pb);
-int32_t bdb_compact(struct ldbminfo *li, PRBool just_changelog);
+int bdb_compact(struct ldbminfo *li, PRBool just_changelog);
 int bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task);
 int bdb_cleanup(struct ldbminfo *li);
 int bdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool use_lock);
@@ -117,7 +118,7 @@ int bdb_txn_abort(struct ldbminfo *li, back_txn *txn, PRBool use_lock);
 int bdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, dbi_db_t **ppDB);
 int bdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_chkpt);
 int bdb_delete_db(struct ldbminfo *li);
-int bdb_import_main(void *arg);
+int bdb_public_bdb_import_main(void *arg);
 int bdb_get_info(Slapi_Backend *be, int cmd, void **info);
 int bdb_set_info(Slapi_Backend *be, int cmd, void **info);
 int bdb_back_ctrl(Slapi_Backend *be, int cmd, void *info);
@@ -125,6 +126,9 @@ int bdb_config_load_dse_info(struct ldbminfo *li);
 int bdb_config_internal_set(struct ldbminfo *li, char *attrname, char *value);
 void bdb_public_config_get(struct ldbminfo *li, char *attrname, char *value);
 int bdb_public_config_set(struct ldbminfo *li, char *attrname, int apply_mod, int mod_op, int phase, char *value);
+int bdb_public_dblayer_compact(Slapi_Backend *be, PRBool just_changelog);
+int bdb_close_file(DB **db);
+
 
 /* dbimpl callbacks */
 dblayer_get_db_filename_fn_t bdb_public_get_db_filename;
@@ -169,11 +173,10 @@ int bdb_remove_env(struct ldbminfo *li);
 int bdb_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2);
 int bdb_open_huge_file(const char *path, int oflag, int mode);
 int bdb_check_and_set_import_cache(struct ldbminfo *li);
-int bdb_close_file(DB **db);
 int bdb_post_close(struct ldbminfo *li, int dbmode);
 int bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod, int mod_op);
 void bdb_config_get(void *arg, config_info *config, char *buf);
-int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep, int *status);
+int bdb_add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep, int *status);
 int bdb_back_ldif2db(Slapi_PBlock *pb);
 void bdb_set_recovery_required(struct ldbminfo *li);
 void *bdb_config_db_logdirectory_get_ext(void *arg);
@@ -187,6 +190,42 @@ int bdb_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include, char ***exclude)
 PRUint64 bdb_get_id2entry_size(ldbm_instance *inst);
 
 int bdb_idl_new_compare_dups(DB * db __attribute__((unused)), const DBT *a, const DBT *b);
+
+int bdb_delete_indices(ldbm_instance *inst);
+uint32_t bdb_get_optimal_block_size(struct ldbminfo *li);
+int bdb_copyfile(char *source, char *destination, int overwrite, int mode);
+int bdb_delete_instance_dir(backend *be);
+int bdb_database_size(struct ldbminfo *li, unsigned int *size);
+int bdb_set_batch_transactions(void *arg, void *value, char *errorbuf, int phase, int apply);
+int bdb_set_batch_txn_min_sleep(void *arg, void *value, char *errorbuf, int phase, int apply);
+int bdb_set_batch_txn_max_sleep(void *arg, void *value, char *errorbuf, int phase, int apply);
+void *bdb_get_batch_transactions(void *arg);
+void *bdb_get_batch_txn_min_sleep(void *arg);
+void *bdb_get_batch_txn_max_sleep(void *arg);
+int bdb_update_db_ext(ldbm_instance *inst, char *oldext, char *newext);
+int bdb_restore_file_init(struct ldbminfo *li);
+void bdb_restore_file_update(struct ldbminfo *li, const char *directory);
+int bdb_import_file_init(ldbm_instance *inst);
+void bdb_import_file_update(ldbm_instance *inst);
+int bdb_import_file_check(ldbm_instance *inst);
+int bdb_import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id, size_t count);
+int bdb_import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id);
+void bdb_import_configure_index_buffer_size(size_t size);
+size_t bdb_import_get_index_buffer_size(void);
+int bdb_ldbm_back_wire_import(Slapi_PBlock *pb);
+void *bdb_factory_constructor(void *object, void *parent);
+void bdb_factory_destructor(void *extension, void *object, void *parent);
+int bdb_check_db_version(struct ldbminfo *li, int *action);
+int bdb_check_db_inst_version(ldbm_instance *inst);
+int bdb_adjust_idl_switch(char *ldbmversion, struct ldbminfo *li);
+int bdb_ldbm_upgrade(ldbm_instance *inst, int action);
+int bdb_lookup_dbversion(char *dbversion, int flag);
+int bdb_dse_conf_backup(struct ldbminfo *li, char *destination_directory);
+int bdb_dse_conf_verify(struct ldbminfo *li, char *src_dir);
+int bdb_import_file_check_fn_t(ldbm_instance *inst);
+dbi_dbslist_t *bdb_list_dbs(const char *dbhome);
+int bdb_public_in_import(ldbm_instance *inst);
+
 
 /* dbimpl helpers */
 backend *bdb_be(void);
@@ -224,3 +263,21 @@ void bdb_perfctrs_init(struct ldbminfo *li, perfctrs_private **priv);
 void bdb_perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env);
 void bdb_perfctrs_as_entry(Slapi_Entry *e, perfctrs_private *priv, DB_ENV *db_env);
 
+
+/* bdb_import.c */
+int bdb_import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize);
+FifoItem *bdb_import_fifo_fetch(ImportJob *job, ID id, int worker);
+void bdb_import_free_job(ImportJob *job);
+int bdb_import_entry_belongs_here(Slapi_Entry *e, backend *be);
+int bdb_import_make_merge_filenames(char *directory, char *indexname, int pass, char **oldname, char **newname);
+void bdb_import_main(void *arg);
+
+/* bdb_import-merge.c */
+int bdb_import_mega_merge(ImportJob *job);
+
+/* bdb_import-threads.c */
+void bdb_import_producer(void *param);
+void bdb_index_producer(void *param);
+void bdb_upgradedn_producer(void *param);
+void bdb_import_foreman(void *param);
+void bdb_import_worker(void *param);

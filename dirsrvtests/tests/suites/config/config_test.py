@@ -109,7 +109,10 @@ def test_maxbersize_repl(topology_m2, big_file):
 
     log.info('Check if a big value was successfully replicated to supplier2')
     photo_m2 = user_m2.get_attr_vals('jpegphoto')
-
+    nbtries = 0;
+    while photo_m2 != photo_m1 and nbtries < 10:
+        nbtries = nbtries + 1
+        photo_m2 = user_m2.get_attr_vals('jpegphoto')
     assert photo_m2 == photo_m1
 
 def test_config_listen_backport_size(topology_m2):
@@ -143,6 +146,7 @@ def test_config_listen_backport_size(topology_m2):
     topology_m2.ms["supplier1"].config.replace('nsslapd-listen-backlog-size', default_val)
 
 
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_config_deadlock_policy(topology_m2):
     """Check that nsslapd-db-deadlock-policy acted as expected
 

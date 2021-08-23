@@ -110,7 +110,7 @@ typedef unsigned short u_int16_t;
 #define BDB_DNFORMAT_VERSION  "1"            /* DN format version */
 #define BDB_CL_FILENAME       "replication_changelog.db"
 
-#define LMDB_IMPL             "lmdb"
+#define LMDB_IMPL             "mdb"
 
 #define DBVERSION_NEWIDL 0x1
 #define DBVERSION_RDNFORMAT 0x2
@@ -176,6 +176,7 @@ extern int ldbm_warn_if_no_db;
 #define CONT_PREFIX   '\\' /* prefix for continuation keys */
 #define RULE_PREFIX   ':'  /* prefix for matchingRule keys */
 #define PRES_PREFIX   '+'
+#define HASH_PREFIX   '#'
 
 /* Values for "disposition" value in idl_insert_key() */
 #define IDL_INSERT_NORMAL     1
@@ -477,9 +478,9 @@ struct attrinfo
                                           If some special ordering is needed,
                                           special compare fn is set here.
                                           (e.g., for entryrdn)
-                                          Note: this callback is set and used by 
+                                          Note: this callback is set and used by
                                           the db implenentation plugins so its
-                                          prototype may vary 
+                                          prototype may vary
                              */
     int *ai_substr_lens;                 /* if the attribute nsSubStrXxx is specivied in
                              * an index instance (dse.ldif), the substr key
@@ -626,11 +627,12 @@ struct ldbminfo
     int li_reslimit_rangelookthrough_handle;
     int li_idl_update;
     int li_old_idl_maxids;
-    int li_online_import_encrypt; /* toggle attribute encryption during ldbm_back_wire_import */
+    int li_online_import_encrypt; /* toggle attribute encryption during bdb_ldbm_back_wire_import */
 #define BACKEND_OPT_NO_RUV_UPDATE              0x01
 #define BACKEND_OPT_DBLOCK_INSIDE_TXN          0x02
 #define BACKEND_OPT_MANAGE_ENTRY_BEFORE_DBLOCK 0x04
     int li_backend_opt_level;
+    size_t li_max_key_len;
 };
 
 
@@ -650,14 +652,33 @@ struct ldbminfo
 
 #define LI_DEFAULT_IMPL_FLAG  LI_BDB_IMPL /* the default is BDB for now */
 
+typedef enum {
+    BTXNACT_INDEX_ADD,            /* data is a index_update_t */
+    BTXNACT_INDEX_DEL,            /* data is a index_update_t */
+    BTXNACT_VLV_ADD,              /* data is an entry ID */
+    BTXNACT_VLV_DEL,              /* data is an entry ID */
+    BTXNACT_ID2ENTRY_ADD,         /* data is the entry */
+    BTXNACT_ENTRYRDN_ADD,         /* key is a srdn, data is an id */
+    BTXNACT_ENTRYRDN_DEL          /* key is a srdn, data is an id */
+} back_txn_action;
+
 /* Structure used to hold stuff for the lifetime of an LDAP transaction */
 /* If we do clever stuff like LDAP transactions, we'll need a stack of TXN ID's */
 typedef struct back_txn back_txn;
 struct back_txn
 {
     dbi_txn_t *back_txn_txn; /* Transaction ID for the database */
+                             /* Special handling - (used by mdb import to push updates in writing thread queue) */
+    int (*back_special_handling_fn)(backend *be, back_txn_action action, dbi_db_t *db, dbi_val_t *key, dbi_val_t *data, back_txn *txn);
 };
 typedef void *back_txnid;
+
+/* helper struct to pass index parameters towards db-mdb plugin */
+typedef struct {
+    ID id;
+    struct attrinfo *a;
+    int *disposition;
+} index_update_t;
 
 #define RETRY_TIMES 50
 
@@ -813,6 +834,7 @@ typedef struct _back_search_result_set
 #define LDBM_NUMSUBORDINATES_STR           "numsubordinates"
 #define LDBM_TOMBSTONE_NUMSUBORDINATES_STR "tombstonenumsubordinates"
 #define LDBM_PARENTID_STR                  SLAPI_ATTR_PARENTID
+#define LDBM_ENTRYID_STR                   "entryid"
 
 /* Name of psuedo attribute used to track default indexes */
 #define LDBM_PSEUDO_ATTR_DEFAULT ".default"
@@ -821,8 +843,9 @@ typedef struct _back_search_result_set
 #define LDBM_OS_ERR_IS_DISKFULL(err) ((err) == ENOSPC || (err) == EFBIG)
 
 /* flag: open_flag for dblayer_get_index_file -> dblayer_open_file */
-#define DBOPEN_CREATE   0x1 /* oprinary mode: create a db file if needed */
-#define DBOPEN_TRUNCATE 0x2 /* oprinary mode: truncate a db file if needed */
+#define DBOPEN_CREATE      0x1 /* oprinary mode: create a db file if needed */
+#define DBOPEN_TRUNCATE    0x2 /* oprinary mode: truncate a db file if needed */
+#define DBOPEN_ALLOW_DIRTY 0x4 /* oprinary mode: accept to open a dirty (i.e import/reindex is running) db file */
 
 /* whether we call fat lock or not [608146] */
 #define SERIALLOCK(li) (li->li_fat_lock)

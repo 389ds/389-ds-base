@@ -79,6 +79,7 @@ BuildRequires:    nspr-devel
 BuildRequires:    nss-devel >= 3.34
 BuildRequires:    openldap-devel
 BuildRequires:    libdb-devel
+BuildRequires:    lmdb-devel
 BuildRequires:    cyrus-sasl-devel
 BuildRequires:    icu
 BuildRequires:    libicu-devel
@@ -175,6 +176,7 @@ Requires:         cyrus-sasl-md5
 Requires:         cyrus-sasl-plain
 # this is needed for backldbm
 Requires:         libdb
+Requires:         lmdb
 # This picks up libperl.so as a Requires, so we add this versioned one
 Requires:         perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
 # Needed by logconv.pl

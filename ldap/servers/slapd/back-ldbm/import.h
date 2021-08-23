@@ -33,6 +33,8 @@
 #define IMPORT_MIN_INDEX_BUFFER_SIZE 5
 #define IMPORT_INDEX_BUFFER_SIZE_CONSTANT (20 * 20 * 20 * sizeof(ID))
 
+#define WORKER_NAME_LEN 50
+
 static const int import_sleep_time = 200; /* in millisecs */
 
 extern char *numsubordinates;
@@ -67,7 +69,7 @@ typedef struct
 typedef struct
 {
     FifoItem *item;
-    size_t size;    /* Queue size in entries (computed in import_fifo_init). */
+    size_t size;    /* Queue size in entries (computed in bdb_import_fifo_init). */
     size_t bsize;   /* Queue limitation in max bytes */
     size_t c_bsize; /* Current queue size in bytes */
 } Fifo;
@@ -88,7 +90,7 @@ typedef struct
 
 /* Structure holding stuff about the whole import job */
 #define IMPORT_JOB_PROG_HISTORY_SIZE 3
-typedef struct
+typedef struct _ImportJob
 {
     ldbm_instance *inst;           /* db instance we're importing to */
     Slapi_Task *task;              /* cn=tasks entry ptr */
@@ -132,11 +134,12 @@ typedef struct
     char *task_status;                  /* transient state info for the end-user */
     pthread_mutex_t wire_lock;          /* lock for serializing wire imports */
     pthread_cond_t wire_cv;             /* ... and ordering the startup */
-    PRThread *main_thread;              /* for FRI: import_main() thread id */
+    PRThread *main_thread;              /* for FRI: bdb_import_main() thread id */
     int encrypt;
     Slapi_Value *usn_value; /* entryusn for import */
     FILE *upgradefd;        /* used for the upgrade */
     int numsubordinates;
+    void *writer_ctx;        /* Context used to push data in worker thread */
 } ImportJob;
 
 #define FLAG_INDEX_ATTRS 0x01         /* should we index the attributes? */
@@ -167,12 +170,16 @@ struct _import_worker_info
     ImportJob *job;
     ImportWorkerInfo *next;
     size_t index_buffer_size; /* Size of index buffering for this index */
+    char name[WORKER_NAME_LEN]; /* For debug */
+    void *writer_ctx;        /* Context used to push data in worker thread */
+    dbi_txn_t *txn;        /* Thread txn */
 };
 
 /* Values for work_type */
 #define WORKER 1
 #define FOREMAN 2
 #define PRODUCER 3
+#define WRITER 4    /* For MDB */
 
 /* Values for command */
 #define RUN 1
@@ -201,27 +208,10 @@ struct _import_worker_info
 
 
 /* import.c */
-int import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize);
-FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker);
 void import_log_notice(ImportJob *job, int log_level, char *subsystem, char *format, ...);
-void import_free_job(ImportJob *job);
-void import_abort_all(ImportJob *job, int wait_for_them);
-int import_entry_belongs_here(Slapi_Entry *e, backend *be);
-int import_make_merge_filenames(char *directory, char *indexname, int pass, char **oldname, char **newname);
-void import_main(void *arg);
 int import_main_offline(void *arg);
-
-/* import-merge.c */
-int import_mega_merge(ImportJob *job);
 
 /* ldif2ldbm.c */
 void reset_progress(void);
 void report_progress(int count, int done);
-
-/* import-threads.c */
-void import_producer(void *param);
-void index_producer(void *param);
-void upgradedn_producer(void *param);
-void import_foreman(void *param);
-void import_worker(void *param);
 

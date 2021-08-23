@@ -48,7 +48,7 @@ REPLICATION_TRANSPORT = RA_TRANSPORT_PROT
 REPLICATION_TIMEOUT = RA_TIMEOUT
 
 BDB_CL_FILENAME = "replication_changelog.db"
-LMDB_CL_FILENAME = "replication_changelog.mdb"
+LMDB_CL_FILENAME = "replication_changelog.db"
 
 # Attributes that should be masked from logging output
 SENSITIVE_ATTRS = ['userpassword',
@@ -83,6 +83,7 @@ DN_CONFIG = "cn=config"
 DN_LDBM = "cn=ldbm database,cn=plugins,cn=config"
 DN_CONFIG_LDBM = "cn=config,cn=ldbm database,cn=plugins,cn=config"
 DN_CONFIG_LDBM_BDB = "cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config"
+DN_CONFIG_LDBM_LMDB = "cn=mdb,cn=config,cn=ldbm database,cn=plugins,cn=config"
 DN_USERROOT_LDBM = "cn=userRoot,cn=ldbm database,cn=plugins,cn=config"
 DN_SCHEMA = "cn=schema"
 DN_MONITOR = "cn=monitor"
@@ -119,6 +120,7 @@ DEFAULT_INST_HEAD = 'slapd-'
 DEFAULT_ENV_HEAD = 'dirsrv-'
 DEFAULT_CHANGELOG_NAME = "changelog5"
 DEFAULT_CHANGELOG_DB = 'changelogdb'
+DEFAULT_DB_LIB = 'bdb'
 
 # CONF_DIR = 'etc/dirsrv'
 # ENV_SYSCONFIG_DIR = '/etc/sysconfig'

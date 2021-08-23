@@ -50,6 +50,8 @@
 #define SHOWCOUNT 0x2
 #define SHOWDATA 0x4
 #define SHOWSUMMARY 0x8
+#define LISTDBS 0x10
+#define ASCIIDATA 0x20
 
 /* stolen from slapi-plugin.h */
 #define SLAPI_OPERATION_BIND 0x00000001UL
@@ -128,7 +130,7 @@ static Slapi_Backend *be = NULL; /* Pseudo backend used to interact with db */
 /** db_printf - functioning same as printf but a place for manipluating output.
 */
 void
-db_printf(char *fmt, ...)
+db_printf(const char *fmt, ...)
 {
     va_list ap;
 
@@ -138,7 +140,7 @@ db_printf(char *fmt, ...)
 }
 
 void
-db_printfln(char *fmt, ...)
+db_printfln(const char *fmt, ...)
 {
     va_list ap;
 
@@ -275,8 +277,10 @@ idl_format(IDL *idl, int isfirsttime, int *done)
 
     if (buf == NULL) {
         buf = (char *)malloc(MAX_BUFFER);
-        if (buf == NULL)
-            return "?";
+        if (buf == NULL) {
+            db_printf("Out of memory: Failed to alloc %d bytes.\n", MAX_BUFFER);
+            exit(1);
+        }
     }
 
     buf[0] = 0;
@@ -600,8 +604,7 @@ display_index_item(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data, unsign
     if (file_type & VLVINDEXTYPE) {         /* vlv index file */
         if (1 > min_display) {              /* recno is always 1 */
             if (display_mode & SHOWCOUNT) { /* key  size=1 */
-                printf("%-40s         1\n",
-                       format(key->data, key->size, buf, buflen));
+                printf("%-40s         1\n", format(key->data, key->size, buf, buflen));
             } else {
                 printf("%-40s\n", format(key->data, key->size, buf, buflen));
             }
@@ -793,6 +796,17 @@ _entryrdn_dump_rdn_elem(char *key, rdn_elem *elem, int indent)
     free(indentp);
 }
 
+static int
+move_to_key(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data)
+{
+    int rc = dblayer_cursor_op(cursor, DBI_OP_MOVE_TO_KEY,  key, data);
+    if (rc == DBI_RC_NOTFOUND) {
+        key->size++;
+        rc = dblayer_cursor_op(cursor, DBI_OP_MOVE_TO_KEY,  key, data);
+    }
+    return rc;
+}
+
 static void
 display_entryrdn_self(dbi_db_t *db, ID id, const char *nrdn __attribute__((unused)), int indent)
 {
@@ -811,7 +825,7 @@ display_entryrdn_self(dbi_db_t *db, ID id, const char *nrdn __attribute__((unuse
     dblayer_value_strdup(be, &key, buffer);
 
     /* Position cursor at the matching key */
-    rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY,  &key, &data);
+    rc = move_to_key(&cursor, &key, &data);
     if (rc) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
                         "(%d)\n",
@@ -849,7 +863,7 @@ display_entryrdn_parent(dbi_db_t *db, ID id, const char *nrdn __attribute__((unu
     dblayer_value_strdup(be, &key, buffer);
 
     /* Position cursor at the matching key */
-    rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY,  &key, &data);
+    rc = move_to_key(&cursor, &key, &data);
     if (rc) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
                         "(%d)\n",
@@ -884,8 +898,10 @@ display_entryrdn_children(dbi_db_t *db, ID id, const char *nrdn __attribute__((u
     dblayer_value_strdup(be, &key, buffer);
 
     /* Position cursor at the matching key */
-    rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY,  &key, &data);
-
+    rc = move_to_key(&cursor, &key, &data);
+    if (rc == DBI_RC_NOTFOUND) {
+        goto bail;
+    }
     if (rc) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
                         "(%d)\n",
@@ -908,7 +924,7 @@ display_entryrdn_children(dbi_db_t *db, ID id, const char *nrdn __attribute__((u
             break;
         }
     }
-    if (rc) {
+    if (rc && rc != DBI_RC_NOTFOUND) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
                      "(%d)\n", (char *)key.data, dblayer_strerror(rc), rc);
     }
@@ -1047,12 +1063,14 @@ usage(char *argv0)
     printf("  common options:\n");
     printf("    -D <dbimpl>     specify db implementaion (may be: bdb or mdb)\n");
     printf("    -f <filename>   specify db file\n");
+    printf("    -A              dump as ascii data\n");
     printf("    -R              dump as raw data\n");
     printf("    -t <size>       entry truncate size (bytes)\n");
     printf("  entry file options:\n");
     printf("    -K <entry_id>   lookup only a specific entry id\n");
     printf("  index file options:\n");
     printf("    -k <key>        lookup only a specific key\n");
+    printf("    -L <dbhome>     list all db files\n");
     printf("    -l <size>       max length of dumped id list\n");
     printf("                    (default %" PRIu32 "; 40 bytes <= size <= 1048576 bytes)\n", MAX_BUFFER);
     printf("    -G <n>          only display index entries with more than <n> ids\n");
@@ -1060,6 +1078,9 @@ usage(char *argv0)
     printf("    -r              display the conents of ID list\n");
     printf("    -s              Summary of index counts\n");
     printf("  sample usages:\n");
+    printf("    # list the db files\n");
+    printf("    %s -D mdb -L /var/lib/dirsrv/slapd-i/db/\n", p0);
+    printf("    %s -f id2entry.db\n", p0);
     printf("    # dump the entry file\n");
     printf("    %s -f id2entry.db\n", p0);
     printf("    # display index keys in cn.db4\n");
@@ -1072,6 +1093,56 @@ usage(char *argv0)
     printf("    %s -f objectclass.db4\n", p0);
     printf("\n");
     exit(1);
+}
+
+void dump_ascii_val(const char *str, dbi_val_t *val)
+{
+    unsigned char *v = val->data;
+    unsigned char *last = &v[val->size];
+
+    printf("%s: ",str);
+    while (v<last) {
+        switch (*v) {
+            case ' ':
+                printf("\\s");
+                break;
+            case '\\':
+                printf("\\\\");
+                break;
+            case '\t':
+                printf("\\t");
+                break;
+            case '\r':
+                printf("\\r");
+                break;
+            case '\n':
+                printf("\\n");
+                break;
+            default:
+                if (*v > 0x20 && *v < 0x7f) {
+                    printf("%c", *v);
+                } else {
+                    printf("\\%02x", *v);
+                }
+                break;
+        }
+        v++;
+    }
+}
+
+int dump_ascii(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data)
+{
+    int rc;
+    do {
+        dump_ascii_val("KEY", key);
+        dump_ascii_val("\tDATA", data);
+        putchar('\n');
+        rc = dblayer_cursor_op(cursor, DBI_OP_NEXT,  key, data);
+    } while (rc==0);
+    if (rc == DBI_RC_NOTFOUND) {
+        rc = 0;
+    }
+    return rc;
 }
 
 int
@@ -1088,13 +1159,20 @@ main(int argc, char **argv)
     char * dbimpl_name = "bdb";
     int c;
 
-    while ((c = getopt(argc, argv, "f:Rl:nG:srk:K:hvt:D:")) != EOF) {
+    while ((c = getopt(argc, argv, "Af:RL:l:nG:srk:K:hvt:D:")) != EOF) {
         switch (c) {
+        case 'A':
+            display_mode |= ASCIIDATA;
+            break;
         case 'f':
             filename = optarg;
             break;
         case 'R':
             display_mode |= RAWDATA;
+            break;
+        case 'L':
+            display_mode |= LISTDBS;
+            filename = optarg;
             break;
         case 'l': {
             uint32_t tmpmaxbufsz = atoi(optarg);
@@ -1142,6 +1220,20 @@ main(int argc, char **argv)
         }
     }
 
+    if (display_mode & LISTDBS) {
+        dbi_dbslist_t *dbs = dblayer_list_dbs(dbimpl_name, filename);
+        if (dbs) {
+            dbi_dbslist_t *ptdbs = dbs;
+            while (ptdbs->filename[0]) {
+                printf(" %s %s\n", ptdbs->filename, ptdbs->info);
+                ptdbs++;
+            }
+        }
+        slapi_ch_free((void**)&dbs);
+        ret = 0;
+        goto done;
+    }
+
     if (filename == NULL) {
         usage(argv[0]);
     }
@@ -1183,6 +1275,11 @@ main(int argc, char **argv)
     if (ret != 0) {
         printf("Can't get first cursor: %s\n", dblayer_strerror(ret));
         ret = 1;
+        goto done;
+    }
+
+    if (display_mode & ASCIIDATA) {
+        ret = dump_ascii(&cursor, &key, &data);
         goto done;
     }
 

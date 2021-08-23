@@ -145,7 +145,7 @@ retry:
             return_value = dblayer_cursor_op(&dbc, DBI_OP_MOVE_TO_KEY, &key, &data);
             if (0 == return_value) {
                 return_value = dblayer_cursor_op(&dbc, DBI_OP_NEXT, &key, &data);
-            } 
+            }
             break;
         case SLAPI_SEQ_PREV:
             /* seek to the indicated =value, then seek to the previous entry, */

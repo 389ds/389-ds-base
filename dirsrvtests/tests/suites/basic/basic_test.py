@@ -370,6 +370,7 @@ def test_basic_backup(topology_st, import_example_ldif):
     log.info('Running test_basic_backup...')
 
     backup_dir = topology_st.standalone.get_bak_dir() + '/backup_test'
+    log.info(f'Backup directory is {backup_dir}')
 
     # Test online backup
     try:

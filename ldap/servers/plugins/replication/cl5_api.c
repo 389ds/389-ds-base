@@ -3095,6 +3095,14 @@ cl5NotifyRUVChange(Replica *replica)
     cldb_Handle *cldb = replica_get_cl_info(replica);
     Object *ruv_obj = replica_get_ruv(replica);
 
+    /* In error condition, cldb may be NULL (typically after if on line
+     * initialization failed. (In which case the backend mapping tree is not
+     * mounted
+     */
+    if (!cldb) {
+        return -1;
+    }
+
     pthread_mutex_lock(&(cldb->clLock));
 
     slapi_ch_free_string(&cldb->ident);

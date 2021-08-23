@@ -1055,6 +1055,68 @@ attrcrypt_decrypt_index_key(backend *be,
     return rc;
 }
 
+/*
+ * Hash an index key if it is too large.
+ *
+ * return values:  0 - success
+ *              : -1 - error
+ *
+ * output value: out: non-NULL - hash successful
+ *                  :     NULL - no hash or failure
+ */
+int
+attrcrypt_hash_large_index_key(backend *be, char **prefix, struct attrinfo *ai, const struct berval *in, struct berval **out)
+{
+    int ret = 0;
+    struct berval *out_berval = NULL;
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    char *new_prefix;
+
+    /* If the index key is too long (i.e mdb case) we must hash it */
+    if (in->bv_len >=  li->li_max_key_len) {
+        PK11Context *c = PK11_CreateDigestContext(SEC_OID_MD5);
+        if (c != NULL) {
+            unsigned char hash[32];
+            unsigned int hashLen = 0;
+            char *hkey;
+            int i;
+
+            out_berval = (struct berval *)ber_alloc();
+            if (NULL == out_berval) {
+                PK11_DestroyContext(c, PR_TRUE);
+                return ENOMEM;
+            }
+            slapi_log_err(SLAPI_LOG_TRACE, "attrcrypt_hash_large_index_key",
+                          "Key lenght (%lu) >= max key lenght (%lu) so key must be hashed\n", in->bv_len, li->li_max_key_len);
+            slapi_be_set_flag(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
+            PK11_DigestBegin(c);
+            /* Compute hash for the key without the prefix */
+            PK11_DigestOp(c, (unsigned char *)in->bv_val, in->bv_len);
+            PK11_DigestFinal(c, hash, &hashLen, sizeof hash);
+            /* Add HASH_PREFIX before the prefix */
+            new_prefix = slapi_ch_smprintf("%c%s", HASH_PREFIX, *prefix);
+            index_free_prefix(*prefix);
+            *prefix = new_prefix;
+            /* Build the key: hash value in hexa */
+            hkey = slapi_ch_malloc(1+2*sizeof hash);
+            out_berval->bv_val = hkey;
+            out_berval->bv_len = 0;
+            for (i=0; i<hashLen; i++) {
+                sprintf(hkey, "%02X", hash[i]);
+                out_berval->bv_len += 2;
+                hkey += 2;
+            }
+            *out = out_berval;
+            PK11_DestroyContext(c, PR_TRUE);
+        } else {
+            return ENODEV;
+        }
+    }
+
+    return ret;
+}
+
+
 /******************************************************************************/
 static int _back_crypt_cipher_init(Slapi_Backend *be, attrcrypt_state_private **state_priv, attrcrypt_cipher_entry *ace, SECKEYPrivateKey *private_key, SECKEYPublicKey *public_key, attrcrypt_cipher_state *acs, const char *dn_string);
 static int _back_crypt_keymgmt_store_key(Slapi_Backend *be, attrcrypt_cipher_state *acs, SECKEYPublicKey *public_key, PK11SymKey *key_to_store, const char *dn_string);

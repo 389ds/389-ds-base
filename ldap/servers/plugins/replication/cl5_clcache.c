@@ -704,6 +704,7 @@ clcache_initial_anchorcsn(CLC_Buffer *buf, dbi_op_t *dbop)
     } else {
         csn_init_by_csn(buf->buf_current_csn, anchorcsn);
         buf->buf_key.data = csn_as_string(buf->buf_current_csn, 0, (char *)buf->buf_key.data);
+        buf->buf_key.size = CSN_STRSIZE;
         slapi_log_err(SLAPI_LOG_REPL, "clcache_initial_anchorcsn",
                       "anchor is now: %s\n", (char *)buf->buf_key.data);
     }
@@ -805,7 +806,7 @@ clcache_skip_change(CLC_Buffer *buf)
             if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
                 csn_as_string(buf->buf_current_csn, 0, buf_cur_csn_str);
                 slapi_log_err(SLAPI_LOG_REPL, buf->buf_agmt_name,
-                              "clcache_skip_change - Skipping update because the consumer with Rid: [%d] is ignored\n", rid);
+                              "clcache_skip_change - Skipping %s because the consumer with Rid: [%d] is ignored\n", buf_cur_csn_str, rid);
                 buf->buf_skipped_csn_gt_cons_maxcsn++;
             }
             break;

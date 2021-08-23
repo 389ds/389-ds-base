@@ -1225,6 +1225,8 @@ void get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_interna
 char *slapi_berval_get_string_copy(const struct berval *bval);
 char get_sep(char *path);
 int mkdir_p(char *dir, unsigned int mode);
+const char *ldif_getline_ro( const char **next);
+void dup_ldif_line(struct berval *copy, const char *line, const char *endline);
 
 /* lenstr stuff */
 

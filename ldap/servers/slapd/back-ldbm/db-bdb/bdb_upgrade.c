@@ -22,7 +22,7 @@
  * we display a warning message.
  */
 
-db_upgrade_info ldbm_version_suss[] = {
+db_upgrade_info bdb_ldbm_version_suss[] = {
     /*
      * char *old_version_string;
      * int   old_dbversion_major;
@@ -47,14 +47,14 @@ int ldbm_warn_if_no_db = 0;
 /* global LDBM version in the db home */
 
 int
-lookup_dbversion(char *dbversion, int flag)
+bdb_lookup_dbversion(char *dbversion, int flag)
 {
     int i, matched = 0;
     int rval = 0; /* == DBVERSION_NO_UPGRADE */
 
-    for (i = 0; ldbm_version_suss[i].old_version_string != NULL; ++i) {
-        if (PL_strncasecmp(dbversion, ldbm_version_suss[i].old_version_string,
-                           strlen(ldbm_version_suss[i].old_version_string)) == 0) {
+    for (i = 0; bdb_ldbm_version_suss[i].old_version_string != NULL; ++i) {
+        if (PL_strncasecmp(dbversion, bdb_ldbm_version_suss[i].old_version_string,
+                           strlen(bdb_ldbm_version_suss[i].old_version_string)) == 0) {
             matched = 1;
             break;
         }
@@ -62,7 +62,7 @@ lookup_dbversion(char *dbversion, int flag)
     if (matched) {
         if (flag & DBVERSION_TYPE) /* lookup request for type */
         {
-            rval |= ldbm_version_suss[i].type;
+            rval |= bdb_ldbm_version_suss[i].type;
             if (strstr(dbversion, BDB_RDNFORMAT)) {
                 /* dbversion contains rdn-format == subtree-rename format */
                 rval |= DBVERSION_RDN_FORMAT;
@@ -71,7 +71,7 @@ lookup_dbversion(char *dbversion, int flag)
         if (flag & DBVERSION_ACTION) /* lookup request for action */
         {
             int dbmajor = 0, dbminor = 0;
-            if (ldbm_version_suss[i].is_dbd) {
+            if (bdb_ldbm_version_suss[i].is_dbd) {
                 /* case of bdb/#.#/... */
                 char *p = strchr(dbversion, '/');
                 char *endp = dbversion + strlen(dbversion);
@@ -86,12 +86,12 @@ lookup_dbversion(char *dbversion, int flag)
                     }
                 }
             } else {
-                dbmajor = ldbm_version_suss[i].old_dbversion_major;
-                dbminor = ldbm_version_suss[i].old_dbversion_minor;
+                dbmajor = bdb_ldbm_version_suss[i].old_dbversion_major;
+                dbminor = bdb_ldbm_version_suss[i].old_dbversion_minor;
             }
             if (dbmajor < DB_VERSION_MAJOR) {
                 /* 3 -> 4 or 5 -> 6 */
-                rval |= ldbm_version_suss[i].action;
+                rval |= bdb_ldbm_version_suss[i].action;
             } else if (dbminor < DB_VERSION_MINOR) {
                 /* 4.low -> 4.high */
                 rval |= DBVERSION_UPGRADE_4_4;
@@ -115,7 +115,7 @@ lookup_dbversion(char *dbversion, int flag)
  *         DBVERSION_UPGRADE_4_5: db4->db  uprev is needed
  */
 int
-check_db_version(struct ldbminfo *li, int *action)
+bdb_check_db_version(struct ldbminfo *li, int *action)
 {
     int value = 0;
     int result = 0;
@@ -132,9 +132,9 @@ check_db_version(struct ldbminfo *li, int *action)
         return 0;
     }
 
-    value = lookup_dbversion(ldbmversion, DBVERSION_TYPE | DBVERSION_ACTION);
+    value = bdb_lookup_dbversion(ldbmversion, DBVERSION_TYPE | DBVERSION_ACTION);
     if (!value) {
-        slapi_log_err(SLAPI_LOG_ERR, "check_db_version",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_check_db_version",
                       "Database version mismatch (expecting "
                       "'%s' but found '%s' in directory %s)\n",
                       LDBM_VERSION, ldbmversion, li->li_directory);
@@ -191,7 +191,7 @@ check_db_version(struct ldbminfo *li, int *action)
  *         DBVERSION_UPGRADE_4_5: db4->db  uprev is needed
  */
 int
-check_db_inst_version(ldbm_instance *inst)
+bdb_check_db_inst_version(ldbm_instance *inst)
 {
     int value = 0;
     char *ldbmversion = NULL;
@@ -213,9 +213,9 @@ check_db_inst_version(ldbm_instance *inst)
         return rval;
     }
 
-    value = lookup_dbversion(ldbmversion, DBVERSION_TYPE | DBVERSION_ACTION);
+    value = bdb_lookup_dbversion(ldbmversion, DBVERSION_TYPE | DBVERSION_ACTION);
     if (!value) {
-        slapi_log_err(SLAPI_LOG_ERR, "check_db_inst_version",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_check_db_inst_version",
                       "Database version mismatch (expecting "
                       "'%s' but found '%s' in directory %s)\n",
                       LDBM_VERSION, ldbmversion, inst->inst_dir_name);
@@ -267,7 +267,7 @@ check_db_inst_version(ldbm_instance *inst)
  * update the value of nsslapd-idl-switch (in LDBM_CONFIG_ENTRY)
  */
 int
-adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
+bdb_adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
 {
     int rval = 0;
 
@@ -283,7 +283,7 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
         if (!idl_get_idl_new()) /* config: old idl */
         {
             replace_ldbm_config_value(CONFIG_IDL_SWITCH, "new", li);
-            slapi_log_err(SLAPI_LOG_WARNING, "adjust_idl_switch",
+            slapi_log_err(SLAPI_LOG_WARNING, "bdb_adjust_idl_switch",
                           "Dbversion %s does not meet nsslapd-idl-switch: \"old\"; "
                           "nsslapd-idl-switch is updated to \"new\"\n",
                           ldbmversion);
@@ -296,13 +296,13 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
         if (idl_get_idl_new()) /* config: new */
         {
             replace_ldbm_config_value(CONFIG_IDL_SWITCH, "old", li);
-            slapi_log_err(SLAPI_LOG_WARNING, "adjust_idl_switch",
+            slapi_log_err(SLAPI_LOG_WARNING, "bdb_adjust_idl_switch",
                           "Dbversion %s does not meet nsslapd-idl-switch: \"new\"; "
                           "nsslapd-idl-switch is updated to \"old\"\n",
                           ldbmversion);
         }
     } else {
-        slapi_log_err(SLAPI_LOG_ERR, "adjust_idl_switch",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_adjust_idl_switch",
                       "Dbversion %s is not supported\n",
                       ldbmversion);
         rval = -1;
@@ -317,7 +317,7 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
 /* When we're called, the database files have been opened, and any
 recovery needed has been performed. */
 int
-ldbm_upgrade(ldbm_instance *inst, int action)
+bdb_ldbm_upgrade(ldbm_instance *inst, int action)
 {
     int rval = 0;
 
@@ -327,15 +327,15 @@ ldbm_upgrade(ldbm_instance *inst, int action)
 
     /* upgrade from db3 to db4 or db4 to db5 */
     if (action & (DBVERSION_UPGRADE_3_4 | DBVERSION_UPGRADE_4_5)) {
-        rval = dblayer_update_db_ext(inst, LDBM_SUFFIX_OLD, LDBM_SUFFIX);
+        rval = bdb_update_db_ext(inst, LDBM_SUFFIX_OLD, LDBM_SUFFIX);
         if (0 == rval) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_upgrade",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_ldbm_upgrade",
                           "Upgrading instance %s supporting bdb %d.%d "
                           "was successfully done.\n",
                           inst->inst_name, DB_VERSION_MAJOR, DB_VERSION_MINOR);
         } else {
             /* recovery effort ... */
-            dblayer_update_db_ext(inst, LDBM_SUFFIX, LDBM_SUFFIX_OLD);
+            bdb_update_db_ext(inst, LDBM_SUFFIX, LDBM_SUFFIX_OLD);
         }
     }
 

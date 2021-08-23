@@ -68,20 +68,28 @@
 #define NEWDIR_MODE 0755
 #define DB_REGION_PREFIX "__db."
 
-static int locks_monitoring_threadmain(void *param);
-static int perf_threadmain(void *param);
-static int checkpoint_threadmain(void *param);
-static int trickle_threadmain(void *param);
-static int deadlock_threadmain(void *param);
-static int commit_good_database(bdb_config *priv, int mode);
-static int read_metadata(struct ldbminfo *li);
-static int count_dbfiles_in_dir(char *directory, int *count, int recurse);
-static int dblayer_override_libdb_functions(void);
+/* Context used when walking database files */
+typedef struct
+{
+    dbi_dbslist_t *list;
+    size_t nbdbs;                /* Number of files */
+    size_t pos;                  /* Current position in list */
+} dbi_dbslist_ctx_t;
+
+static int bdb_perf_threadmain(void *param);
+static int bdb_checkpoint_threadmain(void *param);
+static int bdb_trickle_threadmain(void *param);
+static int bdb_deadlock_threadmain(void *param);
+static int bdb_commit_good_database(bdb_config *priv, int mode);
+static int bdb_read_metadata(struct ldbminfo *li);
+static int bdb_count_dbfiles_in_dir(char *directory, int *count, int recurse);
+static int bdb_override_libdb_functions(void);
+static int bdb_locks_monitoring_threadmain(void *param);
 static int bdb_force_checkpoint(struct ldbminfo *li);
 static int bdb_force_logrenewal(struct ldbminfo *li);
-static int log_flush_threadmain(void *param);
-static int dblayer_delete_transaction_logs(const char *log_dir);
-static int dblayer_is_logfilename(const char *path);
+static int bdb_log_flush_threadmain(void *param);
+static int bdb_delete_transaction_logs(const char *log_dir);
+static int bdb_is_logfilename(const char *path);
 static int bdb_start_log_flush_thread(struct ldbminfo *li);
 static int bdb_start_deadlock_thread(struct ldbminfo *li);
 static int bdb_start_checkpoint_thread(struct ldbminfo *li);
@@ -307,7 +315,7 @@ bdb_get_batch_txn_max_sleep(void *arg __attribute__((unused)))
 */
 
 static int
-dblayer_txn_checkpoint(struct ldbminfo *li, bdb_db_env *env, PRBool busy_skip, PRBool db_force)
+bdb_txn_checkpoint(struct ldbminfo *li, bdb_db_env *env, PRBool busy_skip, PRBool db_force)
 {
     int ret = 0;
     if (busy_skip && is_anyinstance_busy(li)) {
@@ -359,7 +367,7 @@ bdb_get_db_dir(struct ldbminfo *li)
  * Stop press---libdb now does delete these files on recovery, so we don't call this any more.
  */
 static void
-dblayer_reset_env(struct ldbminfo *li)
+bdb_reset_env(struct ldbminfo *li)
 {
     /* Remove the memory regions */
     dblayer_private *priv = li->li_dblayer_private;
@@ -390,7 +398,7 @@ dblayer_reset_env(struct ldbminfo *li)
 
 /* helper function for open64 */
 static int
-dblayer_open_large(const char *path, int oflag, mode_t mode)
+bdb_open_large(const char *path, int oflag, mode_t mode)
 {
     int err;
 
@@ -412,12 +420,12 @@ dblayer_open_large(const char *path, int oflag, mode_t mode)
 int
 bdb_open_huge_file(const char *path, int oflag, int mode)
 {
-    return dblayer_open_large(path, oflag, (mode_t)mode);
+    return bdb_open_large(path, oflag, (mode_t)mode);
 }
 
 /* Helper function for large seeks, db4.3 */
 static int
-dblayer_seek43_large(int fd, off64_t offset, int whence)
+bdb_seek43_large(int fd, off64_t offset, int whence)
 {
     off64_t ret = 0;
 
@@ -432,7 +440,7 @@ dblayer_seek43_large(int fd, off64_t offset, int whence)
  *      long        st_blksize;
  */
 static int
-dblayer_ioinfo_large(const char *path __attribute__((unused)), int fd, u_int32_t *mbytesp, u_int32_t *bytesp, u_int32_t *iosizep)
+bdb_ioinfo_large(const char *path __attribute__((unused)), int fd, u_int32_t *mbytesp, u_int32_t *bytesp, u_int32_t *iosizep)
 {
     struct stat64 sb;
 
@@ -453,7 +461,7 @@ dblayer_ioinfo_large(const char *path __attribute__((unused)), int fd, u_int32_t
 /* On Solaris, if you use stat() on a file >4Gbytes, it fails with EOVERFLOW,
    causing us to think that the file does not exist when it in fact does */
 static int
-dblayer_exists_large(const char *path, int *isdirp)
+bdb_exists_large(const char *path, int *isdirp)
 {
     struct stat64 sb;
 
@@ -478,7 +486,7 @@ bdb_open_huge_file(const char *path, int oflag, int mode)
 
 
 static int
-dblayer_override_libdb_functions(void)
+bdb_override_libdb_functions(void)
 {
 #ifdef DB_USE_64LFS
     int major = 0;
@@ -489,11 +497,11 @@ dblayer_override_libdb_functions(void)
 
 #ifndef irix
     /* irix doesn't have open64() */
-    db_env_set_func_open((int (*)(const char *, int, ...))dblayer_open_large);
+    db_env_set_func_open((int (*)(const char *, int, ...))bdb_open_large);
 #endif /* !irix */
-    db_env_set_func_ioinfo(dblayer_ioinfo_large);
-    db_env_set_func_exists(dblayer_exists_large);
-    db_env_set_func_seek((int (*)(int, off_t, int))dblayer_seek43_large);
+    db_env_set_func_ioinfo(bdb_ioinfo_large);
+    db_env_set_func_exists(bdb_exists_large);
+    db_env_set_func_seek((int (*)(int, off_t, int))bdb_seek43_large);
 
     slapi_log_err(SLAPI_LOG_TRACE, "dblayer_override_libdb_function", "Enabled 64-bit files\n");
 #endif /* DB_USE_64LFS */
@@ -501,7 +509,7 @@ dblayer_override_libdb_functions(void)
 }
 
 static void
-dblayer_select_ncache(size_t cachesize, int *ncachep)
+bdb_select_ncache(size_t cachesize, int *ncachep)
 {
     /* First thing, if the user asked to use a particular ncache,
      * we let them, and don't override it here.
@@ -517,14 +525,14 @@ dblayer_select_ncache(size_t cachesize, int *ncachep)
 #if defined(__LP64__) || defined(_LP64)
     if ((sizeof(cachesize) > 4) && (cachesize > (4L * GIGABYTE))) {
         *ncachep = (cachesize / (4L * GIGABYTE)) + 1;
-        slapi_log_err(SLAPI_LOG_NOTICE, "dblayer_select_ncache", "Setting ncache to: %d to keep each chunk below 4Gbytes\n",
+        slapi_log_err(SLAPI_LOG_NOTICE, "bdb_select_ncache", "Setting ncache to: %d to keep each chunk below 4Gbytes\n",
                       *ncachep);
     }
 #endif
 }
 
 void
-dblayer_free(void *ptr)
+bdb_free(void *ptr)
 {
     slapi_ch_free(&ptr);
 }
@@ -537,7 +545,7 @@ bdb_init_dbenv(DB_ENV *pEnv, bdb_config *conf, dblayer_private *priv)
 
     mysize = conf->bdb_cachesize;
     myncache = conf->bdb_ncache;
-    dblayer_select_ncache(mysize, &myncache);
+    bdb_select_ncache(mysize, &myncache);
     conf->bdb_ncache = myncache;
 
     bdb_set_env_debugging(pEnv, conf);
@@ -554,7 +562,7 @@ bdb_init_dbenv(DB_ENV *pEnv, bdb_config *conf, dblayer_private *priv)
     /* increase max number of active transactions */
     pEnv->set_tx_max(pEnv, conf->bdb_tx_max);
 
-    pEnv->set_alloc(pEnv, (void *)slapi_ch_malloc, (void *)slapi_ch_realloc, dblayer_free);
+    pEnv->set_alloc(pEnv, (void *)slapi_ch_malloc, (void *)slapi_ch_realloc, bdb_free);
 
     /*
      * The log region is used to store filenames and so needs to be
@@ -565,46 +573,46 @@ bdb_init_dbenv(DB_ENV *pEnv, bdb_config *conf, dblayer_private *priv)
 
 
 static void
-dblayer_dump_config_tracing(struct ldbminfo *li)
+bdb_dump_config_tracing(struct ldbminfo *li)
 {
     bdb_config *conf =(bdb_config *)li->li_dblayer_config;
     dblayer_private *priv = li->li_dblayer_private;
     if (conf->bdb_home_directory) {
-        slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "home_directory=%s\n", conf->bdb_home_directory);
+        slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "home_directory=%s\n", conf->bdb_home_directory);
     }
     if (conf->bdb_log_directory) {
-        slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "log_directory=%s\n", conf->bdb_log_directory);
+        slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "log_directory=%s\n", conf->bdb_log_directory);
     }
     if (conf->bdb_dbhome_directory) {
-        slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "dbhome_directory=%s\n", conf->bdb_dbhome_directory);
+        slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "dbhome_directory=%s\n", conf->bdb_dbhome_directory);
     }
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "trickle_percentage=%d\n", conf->bdb_trickle_percentage);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "page_size=%" PRIu32 "\n", conf->bdb_page_size);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "index_page_size=%" PRIu32 "\n", conf->bdb_index_page_size);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "cachesize=%" PRIu64 "\n", conf->bdb_cachesize);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "previous_cachesize=%" PRIu64 "\n", conf->bdb_previous_cachesize);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "ncache=%d\n", conf->bdb_ncache);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "previous_ncache=%d\n", conf->bdb_previous_ncache);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "recovery_required=%d\n", conf->bdb_recovery_required);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "durable_transactions=%d\n", conf->bdb_durable_transactions);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "checkpoint_interval=%d\n", conf->bdb_checkpoint_interval);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "transaction_batch_val=%d\n", trans_batch_limit);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "circular_logging=%d\n", conf->bdb_circular_logging);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "idl_divisor=%d\n", priv->dblayer_idl_divisor);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "logfile_size=%" PRIu64 "\n", conf->bdb_logfile_size);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "logbuf_size=%" PRIu64 "\n", conf->bdb_logbuf_size);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "file_mode=%d\n", priv->dblayer_file_mode);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "cache_config=%d\n", conf->bdb_cache_config);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "lib_version=%d\n", conf->bdb_lib_version);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "spin_count=%d\n", conf->bdb_spin_count);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "named_regions=%d\n", conf->bdb_named_regions);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "private mem=%d\n", conf->bdb_private_mem);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "private import mem=%d\n", conf->bdb_private_import_mem);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "shm_key=%ld\n", conf->bdb_shm_key);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "lockdown=%d\n", conf->bdb_lockdown);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "locks=%d\n", conf->bdb_lock_config);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "previous_locks=%d\n", conf->bdb_previous_lock_config);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_dump_config_tracing", "tx_max=%d\n", conf->bdb_tx_max);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "trickle_percentage=%d\n", conf->bdb_trickle_percentage);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "page_size=%" PRIu32 "\n", conf->bdb_page_size);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "index_page_size=%" PRIu32 "\n", conf->bdb_index_page_size);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "cachesize=%" PRIu64 "\n", conf->bdb_cachesize);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "previous_cachesize=%" PRIu64 "\n", conf->bdb_previous_cachesize);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "ncache=%d\n", conf->bdb_ncache);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "previous_ncache=%d\n", conf->bdb_previous_ncache);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "recovery_required=%d\n", conf->bdb_recovery_required);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "durable_transactions=%d\n", conf->bdb_durable_transactions);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "checkpoint_interval=%d\n", conf->bdb_checkpoint_interval);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "transaction_batch_val=%d\n", trans_batch_limit);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "circular_logging=%d\n", conf->bdb_circular_logging);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "idl_divisor=%d\n", priv->dblayer_idl_divisor);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "logfile_size=%" PRIu64 "\n", conf->bdb_logfile_size);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "logbuf_size=%" PRIu64 "\n", conf->bdb_logbuf_size);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "file_mode=%d\n", priv->dblayer_file_mode);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "cache_config=%d\n", conf->bdb_cache_config);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "lib_version=%d\n", conf->bdb_lib_version);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "spin_count=%d\n", conf->bdb_spin_count);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "named_regions=%d\n", conf->bdb_named_regions);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "private mem=%d\n", conf->bdb_private_mem);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "private import mem=%d\n", conf->bdb_private_import_mem);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "shm_key=%ld\n", conf->bdb_shm_key);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "lockdown=%d\n", conf->bdb_lockdown);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "locks=%d\n", conf->bdb_lock_config);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "previous_locks=%d\n", conf->bdb_previous_lock_config);
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_dump_config_tracing", "tx_max=%d\n", conf->bdb_tx_max);
 }
 
 /* Check a given filesystem directory for access we need */
@@ -612,7 +620,7 @@ dblayer_dump_config_tracing(struct ldbminfo *li)
 #define DBLAYER_DIRECTORY_WRITE_ACCESS 2
 #define DBLAYER_DIRECTORY_READWRITE_ACCESS 3
 static int
-dblayer_grok_directory(char *directory, int flags)
+bdb_grok_directory(char *directory, int flags)
 {
     /* First try to open the directory using NSPR */
     /* If that fails, we can tell whether it's because it cannot be created or
@@ -645,7 +653,7 @@ dblayer_grok_directory(char *directory, int flags)
         if (PR_GetFileInfo64(filename, &info) == PR_SUCCESS &&
             info.type == PR_FILE_DIRECTORY) {
             /* go into it (instance dir) */
-            int retval = dblayer_grok_directory(filename, flags);
+            int retval = bdb_grok_directory(filename, flags);
             PR_CloseDir(dirhandle);
             return retval;
         }
@@ -679,7 +687,7 @@ dblayer_grok_directory(char *directory, int flags)
                 /* If we're here, it means that we did not have the requested
                  * permission on this file */
                 slapi_log_err(SLAPI_LOG_WARNING,
-                              "dblayer_grok_directory", "No %s permission to file %s\n",
+                              "bdb_grok_directory", "No %s permission to file %s\n",
                               access_string, filename);
             } else {
                 PR_Close(prfd); /* okay */
@@ -704,7 +712,7 @@ bdb_set_data_dir(bdb_db_env *pEnv, char **data_directories)
 }
 
 static int
-dblayer_inst_exists(ldbm_instance *inst, char *dbname)
+bdb_inst_exists(ldbm_instance *inst, char *dbname)
 {
     PRStatus prst;
     char id2entry_file[MAXPATHLEN];
@@ -773,7 +781,7 @@ bdb_make_env(bdb_db_env **env, struct ldbminfo *li)
     pEnv->bdb_DB_ENV->set_flags(pEnv->bdb_DB_ENV, DB_REGION_INIT, 1);
 
     /* Here we overide various system functions called by libdb */
-    ret = dblayer_override_libdb_functions();
+    ret = bdb_override_libdb_functions();
     if (ret != 0) {
         goto fail;
     }
@@ -783,7 +791,7 @@ bdb_make_env(bdb_db_env **env, struct ldbminfo *li)
                                                   conf->bdb_spin_count);
     }
 
-    dblayer_dump_config_tracing(li);
+    bdb_dump_config_tracing(li);
 
     /* set data dir to avoid having absolute paths in the transaction log */
     for (inst_obj = objset_first_obj(li->li_instance_set);
@@ -841,7 +849,7 @@ fail:
  *  Get the total size of all the __db files
  */
 static PRUint64
-dblayer_get_region_size(const char *dir)
+bdb_get_region_size(const char *dir)
 {
     PRFileInfo64 info;
     PRDir *dirhandle = NULL;
@@ -875,7 +883,7 @@ dblayer_get_region_size(const char *dir)
  *  We can ignore this check if using db_home_dir and shared/private memory.
  */
 static int
-no_diskspace(struct ldbminfo *li, int dbenv_flags)
+bdb_no_diskspace(struct ldbminfo *li, int dbenv_flags)
 {
     struct statvfs dbhome_buf;
     struct statvfs db_buf;
@@ -887,7 +895,7 @@ no_diskspace(struct ldbminfo *li, int dbenv_flags)
 
     if (statvfs(li->li_directory, &db_buf) < 0) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "no_diskspace", "Cannot get file system info for (%s); file system corrupted?\n",
+                      "bdb_no_diskspace", "Cannot get file system info for (%s); file system corrupted?\n",
                       li->li_directory);
         return 1;
     } else {
@@ -902,7 +910,7 @@ no_diskspace(struct ldbminfo *li, int dbenv_flags)
             if (using_region_files) {
                 if (statvfs(BDB_CONFIG(li)->bdb_dbhome_directory, &dbhome_buf) < 0) {
                     slapi_log_err(SLAPI_LOG_ERR,
-                                  "no_diskspace", "Cannot get file system info for (%s); file system corrupted?\n",
+                                  "bdb_no_diskspace", "Cannot get file system info for (%s); file system corrupted?\n",
                                   BDB_CONFIG(li)->bdb_dbhome_directory);
                     return 1;
                 }
@@ -918,12 +926,12 @@ no_diskspace(struct ldbminfo *li, int dbenv_flags)
             fsiz = ((PRUint64)db_buf.f_bavail) * ((PRUint64)db_buf.f_bsize);
         }
         /* Adjust the size for the region files */
-        fsiz += dblayer_get_region_size(region_dir);
+        fsiz += bdb_get_region_size(region_dir);
 
         /* Check if we have enough space */
         if (fsiz < expected_siz) {
             slapi_log_err(SLAPI_LOG_ERR,
-                          "no_diskspace", "No enough space left on device (%s) (%" PRIu64 " bytes); "
+                          "bdb_no_diskspace", "No enough space left on device (%s) (%" PRIu64 " bytes); "
                                           "at least %" PRIu64 " bytes space is needed for db region files\n",
                           region_dir, fsiz, expected_siz);
             return 1;
@@ -1011,7 +1019,7 @@ bdb_start(struct ldbminfo *li, int dbmode)
 
     /* Check here that the database directory both exists, and that we have
      * the appropriate access to it */
-    return_value = dblayer_grok_directory(region_dir,
+    return_value = bdb_grok_directory(region_dir,
                                           DBLAYER_DIRECTORY_READWRITE_ACCESS);
     if (0 != return_value) {
         slapi_log_err(SLAPI_LOG_CRIT, "bdb_start",
@@ -1023,7 +1031,7 @@ bdb_start(struct ldbminfo *li, int dbmode)
     log_dir = conf->bdb_log_directory; /* nsslapd-db-logdirectory */
     if (log_dir && *log_dir) {
         /* checking the user defined log dir's accessability */
-        return_value = dblayer_grok_directory(log_dir,
+        return_value = bdb_grok_directory(log_dir,
                                               DBLAYER_DIRECTORY_READWRITE_ACCESS);
         if (0 != return_value) {
             slapi_log_err(SLAPI_LOG_CRIT, "bdb_start",
@@ -1059,9 +1067,9 @@ bdb_start(struct ldbminfo *li, int dbmode)
 
     if ((DBLAYER_NORMAL_MODE | DBLAYER_CLEAN_RECOVER_MODE) & dbmode) {
         /* Now, we read our metadata */
-        return_value = read_metadata(li);
+        return_value = bdb_read_metadata(li);
         if (0 != return_value) {
-            /* The error message was output by read_metadata() */
+            /* The error message was output by bdb_read_metadata() */
             return -1;
         }
         if (bdb_restore_file_check(li)) {
@@ -1164,9 +1172,9 @@ bdb_start(struct ldbminfo *li, int dbmode)
                               conf->bdb_previous_lock_config, conf->bdb_lock_config);
             }
         }
-        dblayer_reset_env(li);
+        bdb_reset_env(li);
         /*
-         * Once pEnv->remove (via dblayer_reset_env) has been called,
+         * Once pEnv->remove (via bdb_reset_env) has been called,
          * the DB_ENV (pEnv) needs to be created again.
          */
         if ((return_value = bdb_make_env(&pEnv, li)) != 0) {
@@ -1190,7 +1198,7 @@ bdb_start(struct ldbminfo *li, int dbmode)
     }
 
     /* check if there's enough disk space to start */
-    if (no_diskspace(li, open_flags)) {
+    if (bdb_no_diskspace(li, open_flags)) {
         return ENOSPC;
     }
 
@@ -1470,7 +1478,7 @@ bdb_instance_start(backend *be, int mode)
 
     inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
     if (inst_dirp && *inst_dirp) {
-        return_value = dblayer_grok_directory(inst_dirp,
+        return_value = bdb_grok_directory(inst_dirp,
                                               DBLAYER_DIRECTORY_READWRITE_ACCESS);
     } else {
         slapi_log_err(SLAPI_LOG_ERR, "bdb_instance_start",
@@ -1506,13 +1514,13 @@ bdb_instance_start(backend *be, int mode)
                 /* check the DBVERSION and reset idl-switch if needed (DS6.2) */
                 /* from the next major rel, we won't do this and just upgrade */
                 if (!(li->li_flags & LI_FORCE_MOD_CONFIG)) {
-                    adjust_idl_switch(ldbmversion, li);
+                    bdb_adjust_idl_switch(ldbmversion, li);
                 }
                 slapi_ch_free_string(&ldbmversion);
 
                 /* check to make sure these instance was made with the correct
                  * version. */
-                rval = check_db_inst_version(inst);
+                rval = bdb_check_db_inst_version(inst);
                 if (rval & DBVERSION_NOT_SUPPORTED) {
                     slapi_log_err(SLAPI_LOG_ERR, "bdb_instance_start", " DB Instance %s does not have the "
                                                                            "expected version\n",
@@ -1546,7 +1554,7 @@ bdb_instance_start(backend *be, int mode)
                     slapi_ch_free_string(&dataversion);
                 }
 
-                rval = ldbm_upgrade(inst, rval);
+                rval = bdb_ldbm_upgrade(inst, rval);
                 if (0 != rval) {
                     slapi_log_err(SLAPI_LOG_ERR, "bdb_instance_start", "Upgrading instance %s failed\n",
                                   inst->inst_name);
@@ -1675,7 +1683,7 @@ bdb_instance_start(backend *be, int mode)
 
         if ((charray_get_index(conf->bdb_data_directories,
                                inst->inst_parent_dir_name) != 0) &&
-            !dblayer_inst_exists(inst, NULL)) {
+            !bdb_inst_exists(inst, NULL)) {
             char *abs_id2entry_file = NULL;
             /* create a file with abs path, then try again */
 
@@ -1929,7 +1937,7 @@ bdb_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv, char **path, in
                                           inst->inst_dir_name, ID2ENTRY LDBM_FILENAME_SUFFIX);
     }
 
-    PR_ASSERT(dblayer_inst_exists(inst, NULL));
+    PR_ASSERT(bdb_inst_exists(inst, NULL));
     DB_OPEN(envflags, dbp, NULL /* txnid */, id2entry_file, subname, DB_BTREE,
             dbflags, priv->dblayer_file_mode, rval);
     if (rval) {
@@ -2112,7 +2120,7 @@ bdb_post_close(struct ldbminfo *li, int dbmode)
     priv->dblayer_env = NULL;
 
     if (0 == return_value && !((DBLAYER_ARCHIVE_MODE | DBLAYER_EXPORT_MODE) & dbmode) && !priv->dblayer_bad_stuff_happened) {
-        commit_good_database(conf, priv->dblayer_file_mode);
+        bdb_commit_good_database(conf, priv->dblayer_file_mode);
     }
     if (conf->bdb_data_directories) {
         /* bdb_data_directories are set in bdb_make_env via
@@ -2394,7 +2402,7 @@ bdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, dbi
      * the index file does not exist */
     if ((charray_get_index(conf->bdb_data_directories,
                            inst->inst_parent_dir_name) > 0) &&
-        !dblayer_inst_exists(inst, file_name)) {
+        !bdb_inst_exists(inst, file_name)) {
         char *abs_file_name = NULL;
         /* create a file with abs path, then try again */
 
@@ -2933,7 +2941,7 @@ bdb_txn_abort(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
 }
 
 uint32_t
-dblayer_get_optimal_block_size(struct ldbminfo *li)
+bdb_get_optimal_block_size(struct ldbminfo *li)
 {
     uint32_t page_size = 0;
 
@@ -2959,7 +2967,7 @@ bdb_start_perf_thread(struct ldbminfo *li)
 {
     int return_value = 0;
     if (NULL == PR_CreateThread(PR_USER_THREAD,
-                                (VFP)(void *)perf_threadmain, li,
+                                (VFP)(void *)bdb_perf_threadmain, li,
                                 PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                                 PR_UNJOINABLE_THREAD,
                                 SLAPD_DEFAULT_THREAD_STACKSIZE)) {
@@ -2975,7 +2983,7 @@ bdb_start_perf_thread(struct ldbminfo *li)
 
 /* Performance thread */
 static int
-perf_threadmain(void *param)
+bdb_perf_threadmain(void *param)
 {
     struct ldbminfo *li = NULL;
 
@@ -2994,13 +3002,13 @@ perf_threadmain(void *param)
     }
 
     DECR_THREAD_COUNT(pEnv);
-    slapi_log_err(SLAPI_LOG_TRACE, "perf_threadmain", "Leaving perf_threadmain\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_perf_threadmain", "Leaving bdb_perf_threadmain\n");
     return 0;
 }
 
 
 /*
- * create a thread for locks_monitoring_threadmain
+ * create a thread for bdb_locks_monitoring_threadmain
  */
 static int
 bdb_start_locks_monitoring_thread(struct ldbminfo *li)
@@ -3008,7 +3016,7 @@ bdb_start_locks_monitoring_thread(struct ldbminfo *li)
     int return_value = 0;
     if (li->li_dblock_monitoring) {
         if (NULL == PR_CreateThread(PR_USER_THREAD,
-                                    (VFP)(void *)locks_monitoring_threadmain, li,
+                                    (VFP)(void *)bdb_locks_monitoring_threadmain, li,
                                     PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                                     PR_UNJOINABLE_THREAD,
                                     SLAPD_DEFAULT_THREAD_STACKSIZE)) {
@@ -3025,7 +3033,7 @@ bdb_start_locks_monitoring_thread(struct ldbminfo *li)
 
 /* DB Locks Monitoring thread */
 static int
-locks_monitoring_threadmain(void *param)
+bdb_locks_monitoring_threadmain(void *param)
 {
     int ret = 0;
     uint64_t current_locks = 0;
@@ -3069,7 +3077,7 @@ locks_monitoring_threadmain(void *param)
     }
 
     DECR_THREAD_COUNT(pEnv);
-    slapi_log_err(SLAPI_LOG_TRACE, "locks_monitoring_threadmain", "Leaving locks_monitoring_threadmain\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_locks_monitoring_threadmain", "Leaving bdb_locks_monitoring_threadmain\n");
     return 0;
 }
 
@@ -3082,7 +3090,7 @@ bdb_start_deadlock_thread(struct ldbminfo *li)
 {
     int return_value = 0;
     if (NULL == PR_CreateThread(PR_USER_THREAD,
-                                (VFP)(void *)deadlock_threadmain, li,
+                                (VFP)(void *)bdb_deadlock_threadmain, li,
                                 PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                                 PR_UNJOINABLE_THREAD,
                                 SLAPD_DEFAULT_THREAD_STACKSIZE)) {
@@ -3122,7 +3130,7 @@ typedef struct txn_test_iter
     const char *attr;
     uint32_t flags;
     backend *be;
-} txn_test_iter;
+} bdb_txn_test_iter;
 
 typedef struct txn_test_cfg
 {
@@ -3132,12 +3140,12 @@ typedef struct txn_test_cfg
     int use_txn;
     char **indexes;
     int verbose;
-} txn_test_cfg;
+} bdb_txn_test_cfg;
 
-static txn_test_iter *
-new_txn_test_iter(DB *db, const char *attr, backend *be, uint32_t flags)
+static bdb_txn_test_iter *
+bdb_new_bdb_txn_test_iter(DB *db, const char *attr, backend *be, uint32_t flags)
 {
-    txn_test_iter *tti = (txn_test_iter *)slapi_ch_malloc(sizeof(txn_test_iter));
+    bdb_txn_test_iter *tti = (bdb_txn_test_iter *)slapi_ch_malloc(sizeof(bdb_txn_test_iter));
     tti->db = db;
     tti->cur = NULL;
     tti->cnt = 0;
@@ -3148,7 +3156,7 @@ new_txn_test_iter(DB *db, const char *attr, backend *be, uint32_t flags)
 }
 
 static void
-init_txn_test_iter(txn_test_iter *tti)
+bdb_init_bdb_txn_test_iter(bdb_txn_test_iter *tti)
 {
     if (tti->cur) {
         if (tti->cur->dbp && (tti->cur->dbp->open_flags == 0x58585858)) {
@@ -3165,44 +3173,44 @@ init_txn_test_iter(txn_test_iter *tti)
 }
 
 static void
-free_txn_test_iter(txn_test_iter *tti)
+bdb_free_bdb_txn_test_iter(bdb_txn_test_iter *tti)
 {
-    init_txn_test_iter(tti);
+    bdb_init_bdb_txn_test_iter(tti);
     slapi_ch_free((void **)&tti);
 }
 
 static void
-free_ttilist(txn_test_iter ***ttilist, uint64_t *tticnt)
+bdb_free_ttilist(bdb_txn_test_iter ***ttilist, uint64_t *tticnt)
 {
     if (!ttilist || !*ttilist || !**ttilist) {
         return;
     }
     while (*tticnt > 0) {
         (*tticnt)--;
-        free_txn_test_iter((*ttilist)[*tticnt]);
+        bdb_free_bdb_txn_test_iter((*ttilist)[*tticnt]);
     }
     slapi_ch_free((void *)ttilist);
 }
 
 static void
-init_ttilist(txn_test_iter **ttilist, uint64_t tticnt)
+bdb_init_ttilist(bdb_txn_test_iter **ttilist, uint64_t tticnt)
 {
     if (!ttilist || !*ttilist) {
         return;
     }
     while (tticnt > 0) {
         tticnt--;
-        init_txn_test_iter(ttilist[tticnt]);
+        bdb_init_bdb_txn_test_iter(ttilist[tticnt]);
     }
 }
 
 static void
-print_ttilist(txn_test_iter **ttilist, uint64_t tticnt)
+bdb_print_ttilist(bdb_txn_test_iter **ttilist, uint64_t tticnt)
 {
     while (tticnt > 0) {
         tticnt--;
         slapi_log_err(SLAPI_LOG_ERR,
-                      "txn_test_threadmain", "attr [%s] cnt [%" PRIu64 "]\n",
+                      "bdb_txn_test_threadmain", "attr [%s] cnt [%" PRIu64 "]\n",
                       ttilist[tticnt]->attr, ttilist[tticnt]->cnt);
     }
 }
@@ -3210,7 +3218,7 @@ print_ttilist(txn_test_iter **ttilist, uint64_t tticnt)
 #define TXN_TEST_IDX_OK_IF_NULL "nscpEntryDN"
 
 static void
-txn_test_init_cfg(txn_test_cfg *cfg)
+bdb_txn_test_init_cfg(bdb_txn_test_cfg *cfg)
 {
     static char *indexlist = "aci,entryrdn,numsubordinates,uid,ancestorid,objectclass,uniquemember,cn,parentid,nsuniqueid,sn,id2entry," TXN_TEST_IDX_OK_IF_NULL;
     char *indexlist_copy = NULL;
@@ -3228,22 +3236,22 @@ txn_test_init_cfg(txn_test_cfg *cfg)
     slapi_ch_free_string(&indexlist_copy);
     cfg->verbose = getenv(TXN_TEST_VERBOSE) ? 1 : 0;
 
-    slapi_log_err(SLAPI_LOG_ERR, "txn_test_init_cfg",
+    slapi_log_err(SLAPI_LOG_ERR, "bdb_txn_test_init_cfg",
                   "Config hold_msec [%d] loop_msec [%d] rmw [%d] txn [%d] indexes [%s]\n",
                   cfg->hold_msec, cfg->loop_msec, cfg->flags, cfg->use_txn,
                   getenv(TXN_TEST_INDEXES) ? getenv(TXN_TEST_INDEXES) : indexlist);
 }
 
 static int
-txn_test_threadmain(void *param)
+bdb_txn_test_threadmain(void *param)
 {
     struct ldbminfo *li = NULL;
     Object *inst_obj;
     int rc = 0;
-    txn_test_iter **ttilist = NULL;
+    bdb_txn_test_iter **ttilist = NULL;
     uint64_t tticnt = 0;
     DB_TXN *txn = NULL;
-    txn_test_cfg cfg = {0};
+    bdb_txn_test_cfg cfg = {0};
     uint64_t counter = 0;
     char keybuf[8192];
     char databuf[8192];
@@ -3259,14 +3267,14 @@ txn_test_threadmain(void *param)
 
     INCR_THREAD_COUNT(pEnv);
 
-    txn_test_init_cfg(&cfg);
+    bdb_txn_test_init_cfg(&cfg);
 
     if(!BDB_CONFIG(li)->bdb_enable_transactions) {
         goto end;
     }
 
 wait_for_init:
-    free_ttilist(&ttilist, &tticnt);
+    bdb_free_ttilist(&ttilist, &tticnt);
     DS_Sleep(PR_MillisecondsToInterval(1000));
     if (BDB_CONFIG(li)->bdb_stop_threads) {
         goto end;
@@ -3280,7 +3288,7 @@ wait_for_init:
 
         if (be->be_state != BE_STATE_STARTED) {
             slapi_log_err(SLAPI_LOG_ERR,
-                          "txn_test_threadmain", "Backend not started, retrying\n");
+                          "bdb_txn_test_threadmain", "Backend not started, retrying\n");
             object_release(inst_obj);
             goto wait_for_init;
         }
@@ -3289,7 +3297,7 @@ wait_for_init:
             DB *db = NULL;
             if (be->be_state != BE_STATE_STARTED) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "txn_test_threadmain", "Backend not started, retrying\n");
+                              "bdb_txn_test_threadmain", "Backend not started, retrying\n");
                 object_release(inst_obj);
                 goto wait_for_init;
             }
@@ -3298,7 +3306,7 @@ wait_for_init:
                 dblayer_get_id2entry(be, (dbi_db_t**)&db);
                 if (db == NULL) {
                     slapi_log_err(SLAPI_LOG_ERR,
-                                  "txn_test_threadmain", "id2entry database not found or not ready yet, retrying\n");
+                                  "bdb_txn_test_threadmain", "id2entry database not found or not ready yet, retrying\n");
                     object_release(inst_obj);
                     goto wait_for_init;
                 }
@@ -3308,12 +3316,12 @@ wait_for_init:
                 if (NULL == ai) {
                     if (dbattempts >= dbmaxretries) {
                         slapi_log_err(SLAPI_LOG_ERR,
-                                      "txn_test_threadmain", "Index [%s] not found or not ready yet, skipping\n",
+                                      "bdb_txn_test_threadmain", "Index [%s] not found or not ready yet, skipping\n",
                                       *idx);
                         continue;
                     } else {
                         slapi_log_err(SLAPI_LOG_ERR,
-                                      "txn_test_threadmain", "Index [%s] not found or not ready yet, retrying\n",
+                                      "bdb_txn_test_threadmain", "Index [%s] not found or not ready yet, retrying\n",
                                       *idx);
                         object_release(inst_obj);
                         goto wait_for_init;
@@ -3323,12 +3331,12 @@ wait_for_init:
                     if ((NULL == db) && strcasecmp(*idx, TXN_TEST_IDX_OK_IF_NULL)) {
                         if (dbattempts >= dbmaxretries) {
                             slapi_log_err(SLAPI_LOG_ERR,
-                                          "txn_test_threadmain", "Database file for index [%s] not found or not ready yet, skipping\n",
+                                          "bdb_txn_test_threadmain", "Database file for index [%s] not found or not ready yet, skipping\n",
                                           *idx);
                             continue;
                         } else {
                             slapi_log_err(SLAPI_LOG_ERR,
-                                          "txn_test_threadmain", "Database file for index [%s] not found or not ready yet, retrying\n",
+                                          "bdb_txn_test_threadmain", "Database file for index [%s] not found or not ready yet, retrying\n",
                                           *idx);
                             object_release(inst_obj);
                             goto wait_for_init;
@@ -3337,18 +3345,18 @@ wait_for_init:
                 }
             }
             if (db) {
-                ttilist = (txn_test_iter **)slapi_ch_realloc((char *)ttilist, sizeof(txn_test_iter *) * (tticnt + 1));
-                ttilist[tticnt++] = new_txn_test_iter(db, *idx, be, cfg.flags);
+                ttilist = (bdb_txn_test_iter **)slapi_ch_realloc((char *)ttilist, sizeof(bdb_txn_test_iter *) * (tticnt + 1));
+                ttilist[tticnt++] = bdb_new_bdb_txn_test_iter(db, *idx, be, cfg.flags);
             }
         }
     }
 
-    slapi_log_err(SLAPI_LOG_ERR, "txn_test_threadmain", "Starting main txn stress loop\n");
-    print_ttilist(ttilist, tticnt);
+    slapi_log_err(SLAPI_LOG_ERR, "bdb_txn_test_threadmain", "Starting main txn stress loop\n");
+    bdb_print_ttilist(ttilist, tticnt);
 
     while (!BDB_CONFIG(li)->bdb_stop_threads) {
     retry_txn:
-        init_ttilist(ttilist, tticnt);
+        bdb_init_ttilist(ttilist, tticnt);
         if (txn) {
             TXN_ABORT(txn);
             txn = NULL;
@@ -3357,7 +3365,7 @@ wait_for_init:
             rc = TXN_BEGIN(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV, NULL, &txn, 0);
             if (rc || !txn) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "txn_test_threadmain", "Failed to create a new transaction, err=%d (%s)\n",
+                              "bdb_txn_test_threadmain", "Failed to create a new transaction, err=%d (%s)\n",
                               rc, dblayer_strerror(rc));
             }
         } else {
@@ -3373,10 +3381,10 @@ wait_for_init:
             /* phase 1 - open a cursor to each db */
             if (cfg.verbose) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "txn_test_threadmain", "Starting [%" PRIu64 "] indexes\n", tticnt);
+                              "bdb_txn_test_threadmain", "Starting [%" PRIu64 "] indexes\n", tticnt);
             }
             for (ii = 0; ii < tticnt; ++ii) {
-                txn_test_iter *tti = ttilist[ii];
+                bdb_txn_test_iter *tti = ttilist[ii];
 
             retry_cursor:
                 if (BDB_CONFIG(li)->bdb_stop_threads) {
@@ -3400,7 +3408,7 @@ wait_for_init:
                 if (DB_LOCK_DEADLOCK == rc) {
                     if (cfg.verbose) {
                         slapi_log_err(SLAPI_LOG_ERR,
-                                      "txn_test_threadmain", "Cursor create deadlock - retry\n");
+                                      "bdb_txn_test_threadmain", "Cursor create deadlock - retry\n");
                     }
                     if (cfg.use_txn) {
                         goto retry_txn;
@@ -3409,7 +3417,7 @@ wait_for_init:
                     }
                 } else if (rc) {
                     slapi_log_err(SLAPI_LOG_ERR,
-                                  "txn_test_threadmain", "Failed to create a new cursor, err=%d (%s)\n",
+                                  "bdb_txn_test_threadmain", "Failed to create a new cursor, err=%d (%s)\n",
                                   rc, dblayer_strerror(rc));
                 }
             }
@@ -3429,7 +3437,7 @@ wait_for_init:
             */
             while (donecnt < tticnt) {
                 for (ii = 0; ii < tticnt; ++ii) {
-                    txn_test_iter *tti = ttilist[ii];
+                    bdb_txn_test_iter *tti = ttilist[ii];
                     if (tti->cur) {
                     retry_get:
                         if (BDB_CONFIG(li)->bdb_stop_threads) {
@@ -3453,7 +3461,7 @@ wait_for_init:
                         if (DB_LOCK_DEADLOCK == rc) {
                             if (cfg.verbose) {
                                 slapi_log_err(SLAPI_LOG_ERR,
-                                              "txn_test_threadmain", "Cursor get deadlock - retry\n");
+                                              "bdb_txn_test_threadmain", "Cursor get deadlock - retry\n");
                             }
                             if (cfg.use_txn) {
                                 goto retry_txn;
@@ -3466,7 +3474,7 @@ wait_for_init:
                         } else if (rc) {
                             if ((DB_BUFFER_SMALL != rc) || cfg.verbose) {
                                 slapi_log_err(SLAPI_LOG_ERR,
-                                              "txn_test_threadmain", "Failed to read a cursor, err=%d (%s)\n",
+                                              "bdb_txn_test_threadmain", "Failed to read a cursor, err=%d (%s)\n",
                                               rc, dblayer_strerror(rc));
                             }
                             tti->cur->c_close(tti->cur);
@@ -3481,11 +3489,11 @@ wait_for_init:
                 }
             }
             TXN_TEST_PAGE_HOLD(cfg.hold_msec);
-            /*print_ttilist(ttilist, tticnt);*/
-            init_ttilist(ttilist, tticnt);
+            /*bdb_print_ttilist(ttilist, tticnt);*/
+            bdb_init_ttilist(ttilist, tticnt);
             if (cfg.verbose) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "txn_test_threadmain", "Finished [%" PRIu64 "] indexes [%" PRIu64 "] records\n", tticnt, cnt);
+                              "bdb_txn_test_threadmain", "Finished [%" PRIu64 "] indexes [%" PRIu64 "] records\n", tticnt, cnt);
             }
             TXN_TEST_LOOP_WAIT(cfg.loop_msec);
         } else {
@@ -3501,7 +3509,7 @@ wait_for_init:
 
 end:
     slapi_ch_array_free(cfg.indexes);
-    free_ttilist(&ttilist, &tticnt);
+    bdb_free_ttilist(&ttilist, &tticnt);
     if (txn) {
         TXN_ABORT(txn);
     }
@@ -3517,7 +3525,7 @@ bdb_start_txn_test_thread(struct ldbminfo *li)
 {
     int return_value = 0;
     if (NULL == PR_CreateThread(PR_USER_THREAD,
-                                (VFP)(void *)txn_test_threadmain, li,
+                                (VFP)(void *)bdb_txn_test_threadmain, li,
                                 PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                                 PR_UNJOINABLE_THREAD,
                                 SLAPD_DEFAULT_THREAD_STACKSIZE)) {
@@ -3533,7 +3541,7 @@ bdb_start_txn_test_thread(struct ldbminfo *li)
 /* deadlock thread main function */
 
 static int
-deadlock_threadmain(void *param)
+bdb_deadlock_threadmain(void *param)
 {
     int rval = -1;
     struct ldbminfo *li = NULL;
@@ -3561,10 +3569,10 @@ deadlock_threadmain(void *param)
                 rval = db_env->lock_detect(db_env, flags, deadlock_policy, &rejected);
                 if (rval != 0) {
                     slapi_log_err(SLAPI_LOG_CRIT,
-                                  "deadlock_threadmain", "Serious Error---Failed in deadlock detect (aborted at 0x%x), err=%d (%s)\n",
+                                  "bdb_deadlock_threadmain", "Serious Error---Failed in deadlock detect (aborted at 0x%x), err=%d (%s)\n",
                                   rejected, rval, dblayer_strerror(rval));
                 } else if (rejected) {
-                    slapi_log_err(SLAPI_LOG_TRACE, "deadlock_threadmain", "Found and rejected %d lock requests\n", rejected);
+                    slapi_log_err(SLAPI_LOG_TRACE, "bdb_deadlock_threadmain", "Found and rejected %d lock requests\n", rejected);
                 }
             }
         }
@@ -3572,11 +3580,11 @@ deadlock_threadmain(void *param)
     }
 
     DECR_THREAD_COUNT(pEnv);
-    slapi_log_err(SLAPI_LOG_TRACE, "deadlock_threadmain", "Leaving deadlock_threadmain\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_deadlock_threadmain", "Leaving bdb_deadlock_threadmain\n");
     return 0;
 }
 
-#define checkpoint_debug_message(debug, ...)                       \
+#define bdb_checkpoint_debug_message(debug, ...)                       \
     if (debug) {                                                   \
         slapi_log_err(SLAPI_LOG_DEBUG, "CHECKPOINT", __VA_ARGS__); \
     }
@@ -3609,7 +3617,7 @@ bdb_start_log_flush_thread(struct ldbminfo *li)
         txn_log_flush_pending = (int *)slapi_ch_malloc(max_threads * sizeof(int));
         log_flush_thread = PR_TRUE;
         if (NULL == PR_CreateThread(PR_USER_THREAD,
-                                    (VFP)(void *)log_flush_threadmain, li,
+                                    (VFP)(void *)bdb_log_flush_threadmain, li,
                                     PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                                     PR_UNJOINABLE_THREAD,
                                     SLAPD_DEFAULT_THREAD_STACKSIZE)) {
@@ -3630,7 +3638,7 @@ bdb_start_log_flush_thread(struct ldbminfo *li)
 */
 
 static int
-log_flush_threadmain(void *param)
+bdb_log_flush_threadmain(void *param)
 {
     PRIntervalTime interval_flush, interval_def;
     PRIntervalTime last_flush = 0;
@@ -3659,7 +3667,7 @@ log_flush_threadmain(void *param)
                     pthread_mutex_unlock(&sync_txn_log_flush);
                     break;
                 }
-                slapi_log_err(SLAPI_LOG_BACKLDBM, "log_flush_threadmain", "(in loop): batchcount: %d, "
+                slapi_log_err(SLAPI_LOG_BACKLDBM, "bdb_log_flush_threadmain", "(in loop): batchcount: %d, "
                                                                           "txn_in_progress: %d\n",
                               trans_batch_count, txn_in_progress_count);
                 /*
@@ -3669,7 +3677,7 @@ log_flush_threadmain(void *param)
                  * - do_flush indicate that the max waiting interval is exceeded
                  */
                 if (trans_batch_count >= trans_batch_limit || trans_batch_count >= txn_in_progress_count || do_flush) {
-                    slapi_log_err(SLAPI_LOG_BACKLDBM, "log_flush_threadmain", "(working): batchcount: %d, "
+                    slapi_log_err(SLAPI_LOG_BACKLDBM, "bdb_log_flush_threadmain", "(working): batchcount: %d, "
                                                                               "txn_in_progress: %d\n",
                                   trans_batch_count, txn_in_progress_count);
                     LOG_FLUSH(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV, 0);
@@ -3679,7 +3687,7 @@ log_flush_threadmain(void *param)
                     trans_batch_count = 0;
                     last_flush = PR_IntervalNow();
                     do_flush = 0;
-                    slapi_log_err(SLAPI_LOG_BACKLDBM, "log_flush_threadmain", "(before notify): batchcount: %d, "
+                    slapi_log_err(SLAPI_LOG_BACKLDBM, "bdb_log_flush_threadmain", "(before notify): batchcount: %d, "
                                                                               "txn_in_progress: %d\n",
                                   trans_batch_count, txn_in_progress_count);
                     pthread_cond_broadcast(&sync_txn_log_flush_done);
@@ -3707,7 +3715,7 @@ log_flush_threadmain(void *param)
                     pthread_cond_timedwait(&sync_txn_log_do_flush, &sync_txn_log_flush, &current_time);
                 }
                 pthread_mutex_unlock(&sync_txn_log_flush);
-                slapi_log_err(SLAPI_LOG_BACKLDBM, "log_flush_threadmain", "(wakeup): batchcount: %d, "
+                slapi_log_err(SLAPI_LOG_BACKLDBM, "bdb_log_flush_threadmain", "(wakeup): batchcount: %d, "
                                                                           "txn_in_progress: %d\n",
                               trans_batch_count, txn_in_progress_count);
             } else {
@@ -3719,7 +3727,7 @@ log_flush_threadmain(void *param)
     }
 
     DECR_THREAD_COUNT(pEnv);
-    slapi_log_err(SLAPI_LOG_TRACE, "log_flush_threadmain", "Leaving log_flush_threadmain\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_log_flush_threadmain", "Leaving bdb_log_flush_threadmain\n");
     return 0;
 }
 
@@ -3764,7 +3772,7 @@ bdb_start_checkpoint_thread(struct ldbminfo *li)
 {
     int return_value = 0;
     if (NULL == PR_CreateThread(PR_USER_THREAD,
-                                (VFP)(void *)checkpoint_threadmain, li,
+                                (VFP)(void *)bdb_checkpoint_threadmain, li,
                                 PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                                 PR_UNJOINABLE_THREAD,
                                 SLAPD_DEFAULT_THREAD_STACKSIZE)) {
@@ -3781,7 +3789,7 @@ bdb_start_checkpoint_thread(struct ldbminfo *li)
  * checkpoint thread -- borrow the timing for compacting id2entry, and eventually changelog, as well.
  */
 static int
-checkpoint_threadmain(void *param)
+bdb_checkpoint_threadmain(void *param)
 {
     PRIntervalTime interval;
     int rval = -1;
@@ -3813,7 +3821,7 @@ checkpoint_threadmain(void *param)
     home_dir = bdb_get_home_dir(li, NULL);
     if (NULL == home_dir || '\0' == *home_dir) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "checkpoint_threadmain", "Failed due to missing db home directory info\n");
+                      "bdb_checkpoint_threadmain", "Failed due to missing db home directory info\n");
         goto error_return;
     }
 
@@ -3878,16 +3886,16 @@ checkpoint_threadmain(void *param)
             }
 
             /* now checkpoint */
-            checkpoint_debug_message(debug_checkpointing,
-                                     "checkpoint_threadmain - Starting checkpoint\n");
-            rval = dblayer_txn_checkpoint(li, (bdb_db_env *)priv->dblayer_env,
+            bdb_checkpoint_debug_message(debug_checkpointing,
+                                     "bdb_checkpoint_threadmain - Starting checkpoint\n");
+            rval = bdb_txn_checkpoint(li, (bdb_db_env *)priv->dblayer_env,
                                           PR_TRUE, PR_FALSE);
-            checkpoint_debug_message(debug_checkpointing,
-                                     "checkpoint_threadmain - Checkpoint Done\n");
+            bdb_checkpoint_debug_message(debug_checkpointing,
+                                     "bdb_checkpoint_threadmain - Checkpoint Done\n");
             if (rval != 0) {
                 /* bad error */
                 slapi_log_err(SLAPI_LOG_CRIT,
-                              "checkpoint_threadmain", "Serious Error---Failed to checkpoint database, "
+                              "bdb_checkpoint_threadmain", "Serious Error---Failed to checkpoint database, "
                                                        "err=%d (%s)\n",
                               rval, dblayer_strerror(rval));
                 if (LDBM_OS_ERR_IS_DISKFULL(rval)) {
@@ -3899,23 +3907,23 @@ checkpoint_threadmain(void *param)
             rval = LOG_ARCHIVE(penv->bdb_DB_ENV, &list,
                                DB_ARCH_ABS, (void *)slapi_ch_malloc);
             if (rval) {
-                slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_checkpoint_threadmain",
                               "log archive failed - %s (%d)\n",
                               dblayer_strerror(rval), rval);
             } else {
                 for (listp = list; listp && *listp != NULL; ++listp) {
                     if (BDB_CONFIG(li)->bdb_circular_logging) {
-                        checkpoint_debug_message(debug_checkpointing,
+                        bdb_checkpoint_debug_message(debug_checkpointing,
                                                  "Deleting %s\n", *listp);
                         unlink(*listp);
                     } else {
                         char new_filename[MAXPATHLEN];
                         PR_snprintf(new_filename, sizeof(new_filename),
                                     "%s.old", *listp);
-                        checkpoint_debug_message(debug_checkpointing,
+                        bdb_checkpoint_debug_message(debug_checkpointing,
                                                  "Renaming %s -> %s\n", *listp, new_filename);
                         if (rename(*listp, new_filename) != 0) {
-                            slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain", "Failed to rename log (%s) to (%s)\n",
+                            slapi_log_err(SLAPI_LOG_ERR, "bdb_checkpoint_threadmain", "Failed to rename log (%s) to (%s)\n",
                                           *listp, new_filename);
                             rval = -1;
                             goto error_return;
@@ -3945,24 +3953,60 @@ checkpoint_threadmain(void *param)
                  * particular TOD to pass before compacting */
                 continue;
             }
+        }
 
-            /* Time to compact the DB's */
-            bdb_force_checkpoint(li);
-            bdb_compact(li, PR_FALSE);
-            bdb_force_checkpoint(li);
+        if (compactdb_interval_update != compactdb_interval ||
+            slapi_timespec_expire_check(&compactdb_expire) == TIMER_EXPIRED) {
+            int rc = 0;
+            Object *inst_obj;
+            ldbm_instance *inst;
+            DB *db = NULL;
 
-            /* Now reset the timer and compacting flag */
+            for (inst_obj = objset_first_obj(li->li_instance_set);
+                 inst_obj;
+                 inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+                inst = (ldbm_instance *)object_get_data(inst_obj);
+                rc = dblayer_get_id2entry(inst->inst_be, (dbi_db_t **)&db);
+                if (!db || rc) {
+                    continue;
+                }
+                slapi_log_err(SLAPI_LOG_NOTICE, "bdb_checkpoint_threadmain", "Compacting DB start: %s\n",
+                              inst->inst_name);
+
+                rc = bdb_db_compact_one_db(db, inst);
+                if (rc) {
+                    slapi_log_err(SLAPI_LOG_ERR, "bdb_checkpoint_threadmain",
+                                  "compactdb: failed to compact id2entry for %s; db error - %d %s\n",
+                                   inst->inst_name, rc, db_strerror(rc));
+                    break;
+                }
+
+                /* Time to compact the DB's */
+                bdb_force_checkpoint(li);
+                bdb_compact(li, PR_FALSE);
+                bdb_force_checkpoint(li);
+
+                /* Now reset the timer and compacting flag */
+                rc = bdb_db_compact_one_db(db, inst);
+                if (rc) {
+                    slapi_log_err(SLAPI_LOG_ERR, "bdb_checkpoint_threadmain",
+                                  "compactdb: failed to compact changelog for %s; db error - %d %s\n",
+                                   inst->inst_name, rc, db_strerror(rc));
+                    break;
+                }
+            }
+
             compactdb_interval = compactdb_interval_update;
             slapi_timespec_expire_at(compactdb_interval, &compactdb_expire);
             compacting = PR_FALSE;
         }
     }
-    slapi_log_err(SLAPI_LOG_HOUSE, "checkpoint_threadmain", "Check point before leaving\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_checkpoint_threadmain", "Check point before leaving\n");
     rval = bdb_force_checkpoint(li);
 error_return:
 
     DECR_THREAD_COUNT(pEnv);
-    slapi_log_err(SLAPI_LOG_HOUSE, "checkpoint_threadmain", "Leaving checkpoint_threadmain\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_checkpoint_threadmain", "Leaving bdb_checkpoint_threadmain\n");
     return rval;
 }
 
@@ -3979,7 +4023,7 @@ bdb_start_trickle_thread(struct ldbminfo *li)
         return return_value;
 
     if (NULL == PR_CreateThread(PR_USER_THREAD,
-                                (VFP)(void *)trickle_threadmain, li,
+                                (VFP)(void *)bdb_trickle_threadmain, li,
                                 PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                                 PR_UNJOINABLE_THREAD,
                                 SLAPD_DEFAULT_THREAD_STACKSIZE)) {
@@ -3993,7 +4037,7 @@ bdb_start_trickle_thread(struct ldbminfo *li)
 }
 
 static int
-trickle_threadmain(void *param)
+bdb_trickle_threadmain(void *param)
 {
     PRIntervalTime interval; /*NSPR timeout stuffy*/
     int rval = -1;
@@ -4021,11 +4065,11 @@ trickle_threadmain(void *param)
                 if ((rval = MEMP_TRICKLE(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV,
                                          BDB_CONFIG(li)->bdb_trickle_percentage,
                                          &pages_written)) != 0) {
-                    slapi_log_err(SLAPI_LOG_ERR, "trickle_threadmain", "Serious Error---Failed to trickle, err=%d (%s)\n",
+                    slapi_log_err(SLAPI_LOG_ERR, "bdb_trickle_threadmain", "Serious Error---Failed to trickle, err=%d (%s)\n",
                                   rval, dblayer_strerror(rval));
                 }
                 if (pages_written > 0) {
-                    checkpoint_debug_message(debug_checkpointing, "trickle_threadmain - Trickle thread wrote %d pages\n",
+                    bdb_checkpoint_debug_message(debug_checkpointing, "bdb_trickle_threadmain - Trickle thread wrote %d pages\n",
                                              pages_written);
                 }
             }
@@ -4033,7 +4077,7 @@ trickle_threadmain(void *param)
     }
 
     DECR_THREAD_COUNT(pEnv);
-    slapi_log_err(SLAPI_LOG_TRACE, "trickle_threadmain", "Leaving trickle_threadmain priv\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_trickle_threadmain", "Leaving bdb_trickle_threadmain priv\n");
     return 0;
 }
 
@@ -4081,7 +4125,7 @@ bdb_memp_stat_instance(ldbm_instance *inst, DB_MPOOL_STAT **gsp, DB_MPOOL_FSTAT 
 #define DB_LINE_LENGTH 80
 
 static int
-commit_good_database(bdb_config *conf, int mode)
+bdb_commit_good_database(bdb_config *conf, int mode)
 {
     /* Write out the guard file */
     char filename[MAXPATHLEN];
@@ -4094,7 +4138,7 @@ commit_good_database(bdb_config *conf, int mode)
 
     prfd = PR_Open(filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE, mode);
     if (NULL == prfd) {
-        slapi_log_err(SLAPI_LOG_CRIT, "commit_good_database", "Failed to write guardian file %s, database corruption possible" SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
+        slapi_log_err(SLAPI_LOG_CRIT, "bdb_commit_good_database", "Failed to write guardian file %s, database corruption possible" SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
                       filename, PR_GetError(), slapd_pr_strerror(PR_GetError()));
         return -1;
     }
@@ -4109,7 +4153,7 @@ commit_good_database(bdb_config *conf, int mode)
     if (PR_SUCCESS == return_value) {
         return 0;
     } else {
-        slapi_log_err(SLAPI_LOG_CRIT, "commit_good_database",
+        slapi_log_err(SLAPI_LOG_CRIT, "bdb_commit_good_database",
                       "Failed to write guardian file, database corruption possible\n");
         (void)PR_Delete(filename);
         return -1;
@@ -4122,7 +4166,7 @@ error:
 
 /* read the guardian file from db/ and possibly recover the database */
 static int
-read_metadata(struct ldbminfo *li)
+bdb_read_metadata(struct ldbminfo *li)
 {
     char filename[MAXPATHLEN];
     char *buf;
@@ -4140,7 +4184,7 @@ read_metadata(struct ldbminfo *li)
     dblayer_private *priv = li->li_dblayer_private;
 
     /* bdb_recovery_required is initialized in dblayer_init;
-     * and might be set 1 in check_db_version;
+     * and might be set 1 in bdb_check_db_version;
      * we don't want to override it
      * priv->bdb_recovery_required = 0; */
     conf->bdb_previous_cachesize = 0;
@@ -4158,7 +4202,7 @@ read_metadata(struct ldbminfo *li)
         /* Note count is correctly zerod! */
         int count = 0;
         for (dirp = conf->bdb_data_directories; dirp && *dirp; dirp++) {
-            count_dbfiles_in_dir(*dirp, &count, 1 /* recurse */);
+            bdb_count_dbfiles_in_dir(*dirp, &count, 1 /* recurse */);
             if (count > 0) {
                 conf->bdb_recovery_required = 1;
                 return 0;
@@ -4208,7 +4252,7 @@ read_metadata(struct ldbminfo *li)
     return_value = PR_Delete(filename); /* very important that this happen ! */
     if (PR_SUCCESS != return_value) {
         slapi_log_err(SLAPI_LOG_CRIT,
-                      "read_metadata", "Failed to delete guardian file, "
+                      "bdb_read_metadata", "Failed to delete guardian file, "
                                        "database corruption possible\n");
     }
     return return_value;
@@ -4241,7 +4285,7 @@ bdb_force_checkpoint(struct ldbminfo *li)
      */
 
         for (i = 0; i < 2; i++) {
-            ret = dblayer_txn_checkpoint(li, pEnv, PR_FALSE, PR_TRUE);
+            ret = bdb_txn_checkpoint(li, pEnv, PR_FALSE, PR_TRUE);
             if (ret != 0) {
                 slapi_log_err(SLAPI_LOG_ERR, "bdb_force_checkpoint", "Checkpoint FAILED, error %s (%d)\n",
                               dblayer_strerror(ret), ret);
@@ -4330,7 +4374,7 @@ _dblayer_delete_aux_dir(struct ldbminfo *li, char *path)
  * of a single backend (FRI).  If not set (0), the traditional remove is used.
  */
 static int
-_dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
+_bdb_delete_instance_dir(ldbm_instance *inst, int startdb)
 {
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
@@ -4344,7 +4388,7 @@ _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
 
     if (NULL == li) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "_dblayer_delete_instance_dir", "NULL LDBM info\n");
+                      "_bdb_delete_instance_dir", "NULL LDBM info\n");
         rval = -1;
         goto done;
     }
@@ -4353,7 +4397,7 @@ _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
         /* close immediately; no need to run db threads */
         rval = bdb_start(li, DBLAYER_NORMAL_MODE | DBLAYER_NO_DBTHREADS_MODE);
         if (rval) {
-            slapi_log_err(SLAPI_LOG_ERR, "_dblayer_delete_instance_dir", "bdb_start failed! %s (%d)\n",
+            slapi_log_err(SLAPI_LOG_ERR, "_bdb_delete_instance_dir", "bdb_start failed! %s (%d)\n",
                           dblayer_strerror(rval), rval);
             goto done;
         }
@@ -4379,10 +4423,10 @@ _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
         }
         if (inst_dirp && *inst_dirp) {
             slapi_log_err(SLAPI_LOG_ERR,
-                          "_dblayer_delete_instance_dir", "inst_dir is NULL\n");
+                          "_bdb_delete_instance_dir", "inst_dir is NULL\n");
         } else {
             slapi_log_err(SLAPI_LOG_ERR,
-                          "_dblayer_delete_instance_dir", "PR_OpenDir(%s) failed (%d): %s\n",
+                          "_bdb_delete_instance_dir", "PR_OpenDir(%s) failed (%d): %s\n",
                           inst_dirp, PR_GetError(), slapd_pr_strerror(PR_GetError()));
         }
         rval = -1;
@@ -4429,7 +4473,7 @@ _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
     if (pEnv && startdb) {
         rval = dblayer_close(li, DBLAYER_NORMAL_MODE);
         if (rval) {
-            slapi_log_err(SLAPI_LOG_ERR, "_dblayer_delete_instance_dir", "dblayer_close failed! %s (%d)\n",
+            slapi_log_err(SLAPI_LOG_ERR, "_bdb_delete_instance_dir", "dblayer_close failed! %s (%d)\n",
                           dblayer_strerror(rval), rval);
         }
     }
@@ -4449,7 +4493,7 @@ done:
  * assumption: dblayer is open, but the instance has been closed.
  */
 int
-dblayer_delete_instance_dir(backend *be)
+bdb_delete_instance_dir(backend *be)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int ret = bdb_force_checkpoint(li);
@@ -4458,7 +4502,7 @@ dblayer_delete_instance_dir(backend *be)
         return ret;
     } else {
         ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-        return _dblayer_delete_instance_dir(inst, 0);
+        return _bdb_delete_instance_dir(inst, 0);
     }
 }
 
@@ -4483,7 +4527,7 @@ bdb_delete_database_ex(struct ldbminfo *li, char *cldir)
         ldbm_instance *inst = (ldbm_instance *)object_get_data(inst_obj);
 
         if (inst->inst_be->be_instance_info != NULL) {
-            ret = _dblayer_delete_instance_dir(inst, 0 /* Do not start DB environment: traditional */);
+            ret = _bdb_delete_instance_dir(inst, 0 /* Do not start DB environment: traditional */);
             if (ret != 0) {
                 slapi_log_err(SLAPI_LOG_ERR,
                               "bdb_delete_database_ex", "Failed (%d)\n", ret);
@@ -4531,8 +4575,8 @@ bdb_delete_database_ex(struct ldbminfo *li, char *cldir)
         if (rval_tmp == PR_SUCCESS && fileinfo.type != PR_FILE_DIRECTORY) {
             /* Skip deleting log files; that should be handled below.
              * (Note, we don't want to use "filename," because that is qualified and would
-             * not be compatibile with what dblayer_is_logfilename expects.) */
-            if (!dblayer_is_logfilename(direntry->name)) {
+             * not be compatibile with what bdb_is_logfilename expects.) */
+            if (!bdb_is_logfilename(direntry->name)) {
                 PR_Delete(filename);
             }
         }
@@ -4547,10 +4591,10 @@ bdb_delete_database_ex(struct ldbminfo *li, char *cldir)
         log_dir = bdb_get_home_dir(li, NULL);
     }
     if (log_dir && *log_dir) {
-        ret = dblayer_delete_transaction_logs(log_dir);
+        ret = bdb_delete_transaction_logs(log_dir);
         if (ret) {
             slapi_log_err(SLAPI_LOG_ERR,
-                          "bdb_delete_database_ex", "dblayer_delete_transaction_logs failed (%d)\n", ret);
+                          "bdb_delete_database_ex", "bdb_delete_transaction_logs failed (%d)\n", ret);
             return -1;
         }
     }
@@ -4581,7 +4625,7 @@ bdb_delete_db(struct ldbminfo *li)
  *   will probably be way too small.
  */
 int
-dblayer_database_size(struct ldbminfo *li, unsigned int *size)
+bdb_database_size(struct ldbminfo *li, unsigned int *size)
 {
     bdb_config *priv = NULL;
     int return_value = 0;
@@ -4633,7 +4677,7 @@ dblayer_database_size(struct ldbminfo *li, unsigned int *size)
  * IMPORTANT: 'count' must be set to 0 by the caller before being passed.
  */
 static int
-count_dbfiles_in_dir(char *directory, int *count, int recurse)
+bdb_count_dbfiles_in_dir(char *directory, int *count, int recurse)
 {
     /* The new recurse argument was added to help with multiple backend
      * instances.  When recurse is true, this function will also look through
@@ -4658,7 +4702,7 @@ count_dbfiles_in_dir(char *directory, int *count, int recurse)
                  * because each instance gets its own directory, but in those
                  * directories there should be only .db3 files.  There should
                  * not be any more directories in an instance directory. */
-                count_dbfiles_in_dir(direntry_name, count, 0 /* don't recurse */);
+                bdb_count_dbfiles_in_dir(direntry_name, count, 0 /* don't recurse */);
             }
             if (direntry_name) {
                 PR_smprintf_free(direntry_name);
@@ -4700,10 +4744,10 @@ count_dbfiles_in_dir(char *directory, int *count, int recurse)
  */
 
 int
-dblayer_copyfile(char *source, char *destination, int overwrite __attribute__((unused)), int mode)
+bdb_copyfile(char *source, char *destination, int overwrite __attribute__((unused)), int mode)
 {
 #ifdef DB_USE_64LFS
-#define OPEN_FUNCTION dblayer_open_large
+#define OPEN_FUNCTION bdb_open_large
 #else
 #define OPEN_FUNCTION open
 #endif
@@ -4721,19 +4765,19 @@ dblayer_copyfile(char *source, char *destination, int overwrite __attribute__((u
     /* Open source file */
     source_fd = OPEN_FUNCTION(source, O_RDONLY, 0);
     if (-1 == source_fd) {
-        slapi_log_err(SLAPI_LOG_ERR, "dblayer_copyfile", "Failed to open source file %s by \"%s\"\n",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_copyfile", "Failed to open source file %s by \"%s\"\n",
                       source, strerror(errno));
         goto error;
     }
     /* Open destination file */
     dest_fd = OPEN_FUNCTION(destination, O_CREAT | O_WRONLY, mode);
     if (-1 == dest_fd) {
-        slapi_log_err(SLAPI_LOG_ERR, "dblayer_copyfile", "Failed to open dest file %s by \"%s\"\n",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_copyfile", "Failed to open dest file %s by \"%s\"\n",
                       destination, strerror(errno));
         goto error;
     }
     slapi_log_err(SLAPI_LOG_INFO,
-                  "dblayer_copyfile", "Copying %s to %s\n", source, destination);
+                  "bdb_copyfile", "Copying %s to %s\n", source, destination);
     /* Loop round reading data and writing it */
     while (1) {
         int i;
@@ -4742,7 +4786,7 @@ dblayer_copyfile(char *source, char *destination, int overwrite __attribute__((u
         if (return_value <= 0) {
             /* means error or EOF */
             if (return_value < 0) {
-                slapi_log_err(SLAPI_LOG_ERR, "dblayer_copyfile", "Failed to read by \"%s\": rval = %d\n",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_copyfile", "Failed to read by \"%s\": rval = %d\n",
                               strerror(errno), return_value);
             }
             break;
@@ -4756,12 +4800,12 @@ dblayer_copyfile(char *source, char *destination, int overwrite __attribute__((u
                 break;
             } else {
                 /* means error */
-                slapi_log_err(SLAPI_LOG_ERR, "dblayer_copyfile", "Failed to write by \"%s\"; real: %d bytes, exp: %d bytes\n",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_copyfile", "Failed to write by \"%s\"; real: %d bytes, exp: %d bytes\n",
                               strerror(errno), return_value, bytes_to_write);
                 if (return_value > 0) {
                     bytes_to_write -= return_value;
                     ptr += return_value;
-                    slapi_log_err(SLAPI_LOG_NOTICE, "dblayer_copyfile", "Retrying to write %d bytes\n", bytes_to_write);
+                    slapi_log_err(SLAPI_LOG_NOTICE, "bdb_copyfile", "Retrying to write %d bytes\n", bytes_to_write);
                 } else {
                     break;
                 }
@@ -4973,7 +5017,7 @@ bdb_copy_directory(struct ldbminfo *li,
 
             /* copy filename1 to filename2 */
             /* PL_strcmp takes NULL arg */
-            return_value = dblayer_copyfile(filename1, filename2,
+            return_value = bdb_copyfile(filename1, filename2,
                                                 0, priv->dblayer_file_mode);
             if (return_value < 0) {
                 slapi_log_err(SLAPI_LOG_ERR, "bdb_copy_directory", "Failed to copy file %s to %s\n",
@@ -5207,7 +5251,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                         slapi_task_log_status(task,
                                               "Backing up file %d (%s)", cnt, pathname2);
                     }
-                    return_value = dblayer_copyfile(pathname1, pathname2,
+                    return_value = bdb_copyfile(pathname1, pathname2,
                                                     0, priv->dblayer_file_mode);
                     if (0 > return_value) {
                         slapi_log_err(SLAPI_LOG_ERR, "dblayer_backup", "Error in copying file '%s' (err=%d)\n",
@@ -5246,7 +5290,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
         slapi_task_log_notice(task, "Backing up file %d (%s)", cnt, pathname2);
         slapi_task_log_status(task, "Backing up file %d (%s)", cnt, pathname2);
     }
-    return_value = dblayer_copyfile(pathname1, pathname2, 0, priv->dblayer_file_mode);
+    return_value = bdb_copyfile(pathname1, pathname2, 0, priv->dblayer_file_mode);
     if (0 > return_value) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "dblayer_backup", "Error in copying version file "
@@ -5265,7 +5309,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     /* Lastly we tell log file truncation to start again */
 
     if (0 == return_value) /* if everything went well, backup the index conf */
-        return_value = dse_conf_backup(li, dest_dir);
+        return_value = bdb_dse_conf_backup(li, dest_dir);
 bail:
     slapi_ch_free((void **)&listA);
     slapi_ch_free((void **)&listB);
@@ -5286,7 +5330,7 @@ bail:
 /* Helper function first */
 
 static int
-dblayer_is_logfilename(const char *path)
+bdb_is_logfilename(const char *path)
 {
     int ret = 0;
     /* Is the filename at least 4 characters long ? */
@@ -5309,7 +5353,7 @@ dblayer_is_logfilename(const char *path)
 
 /* remove log.xxx from log directory*/
 static int
-dblayer_delete_transaction_logs(const char *log_dir)
+bdb_delete_transaction_logs(const char *log_dir)
 {
     int rc = 0;
     char filename1[MAXPATHLEN];
@@ -5325,7 +5369,7 @@ dblayer_delete_transaction_logs(const char *log_dir)
                             PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
             if (NULL == direntry->name) {
                 /* NSPR doesn't behave like the docs say it should */
-                slapi_log_err(SLAPI_LOG_ERR, "dblayer_delete_transaction_logs", "PR_ReadDir failed (%d): %s\n",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_delete_transaction_logs", "PR_ReadDir failed (%d): %s\n",
                               PR_GetError(), slapd_pr_strerror(PR_GetError()));
                 break;
             }
@@ -5334,9 +5378,9 @@ dblayer_delete_transaction_logs(const char *log_dir)
             if (pre == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
                 continue;
             }
-            is_a_logfile = dblayer_is_logfilename(direntry->name);
+            is_a_logfile = bdb_is_logfilename(direntry->name);
             if (is_a_logfile && (NULL != log_dir) && (0 != strlen(log_dir))) {
-                slapi_log_err(SLAPI_LOG_INFO, "dblayer_delete_transaction_logs", "Deleting log file: (%s)\n",
+                slapi_log_err(SLAPI_LOG_INFO, "bdb_delete_transaction_logs", "Deleting log file: (%s)\n",
                               filename1);
                 unlink(filename1);
             }
@@ -5344,25 +5388,25 @@ dblayer_delete_transaction_logs(const char *log_dir)
         PR_CloseDir(dirhandle);
     } else if (PR_FILE_NOT_FOUND_ERROR != PR_GetError()) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_delete_transaction_logs", "PR_OpenDir(%s) failed (%d): %s\n",
+                      "bdb_delete_transaction_logs", "PR_OpenDir(%s) failed (%d): %s\n",
                       log_dir, PR_GetError(), slapd_pr_strerror(PR_GetError()));
         rc = 1;
     }
     return rc;
 }
 
-const char *skip_list[] =
+const char *bdb_skip_list[] =
     {
         ".ldif",
         NULL};
 
 static int
-doskip(const char *filename)
+bdb_doskip(const char *filename)
 {
     const char **p;
     int len = strlen(filename);
 
-    for (p = skip_list; p && *p; p++) {
+    for (p = bdb_skip_list; p && *p; p++) {
         int n = strlen(*p);
         if (0 == strncmp(filename + len - n, *p, n))
             return 1;
@@ -5588,7 +5632,7 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
                                 "/%s", DBVERSION_FILENAME);
                     PR_snprintf(filename2, sizeof(filename2), "%s/%s",
                                 changelogdir, DBVERSION_FILENAME);
-                    return_value = dblayer_copyfile(filename1, filename2,
+                    return_value = bdb_copyfile(filename1, filename2,
                                                     0, priv->dblayer_file_mode);
                     if (0 > return_value) {
                         slapi_log_err(SLAPI_LOG_ERR, "bdb_restore", "Failed to copy file %s\n", filename1);
@@ -5619,14 +5663,14 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
             }
         }
 
-        if (doskip(direntry->name))
+        if (bdb_doskip(direntry->name))
             continue;
 
         /* Is this a log file ? */
         /* Log files have names of the form "log.xxxxx" */
         /* We detect these by looking for the prefix "log." and
          * the lack of the ".db#" suffix */
-        is_a_logfile = dblayer_is_logfilename(direntry->name);
+        is_a_logfile = bdb_is_logfilename(direntry->name);
         if (is_a_logfile) {
             seen_logfiles = 1;
         }
@@ -5649,7 +5693,7 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
             slapi_task_log_status(task, "Restoring file %d (%s)",
                                   cnt, filename2);
         }
-        return_value = dblayer_copyfile(filename1, filename2, 0,
+        return_value = bdb_copyfile(filename1, filename2, 0,
                                         priv->dblayer_file_mode);
         if (0 > return_value) {
             slapi_log_err(SLAPI_LOG_ERR, "bdb_restore", "Failed to copy file %s\n", filename1);
@@ -5670,13 +5714,13 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
             slapi_log_err(SLAPI_LOG_WARNING, "bdb_restore", "Unable to read dbversion file in %s\n",
                           home_dir);
         } else {
-            adjust_idl_switch(ldbmversion, li);
+            bdb_adjust_idl_switch(ldbmversion, li);
             slapi_ch_free_string(&ldbmversion);
             slapi_ch_free_string(&dataversion);
         }
     }
 
-    return_value = check_db_version(li, &action);
+    return_value = bdb_check_db_version(li, &action);
     if (action &
         (DBVERSION_UPGRADE_3_4 | DBVERSION_UPGRADE_4_4 | DBVERSION_UPGRADE_4_5)) {
         dbmode = DBLAYER_CLEAN_RECOVER_MODE; /* upgrade: remove logs & recover */
@@ -5702,7 +5746,7 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
 
     /* now start the database code up, to prevent recovery next time the
      * server starts;
-     * dse_conf_verify may need to have db started, as well. */
+     * bdb_dse_conf_verify may need to have db started, as well. */
     /* If no logfiles were stored, then fatal recovery isn't required */
 
     if (li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
@@ -5726,7 +5770,7 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
 
     if (0 == return_value) { /* only when the copyfile succeeded */
         /* check the DSE_* files, if any */
-        tmp_rval = dse_conf_verify(li, real_src_dir);
+        tmp_rval = bdb_dse_conf_verify(li, real_src_dir);
         if (0 != tmp_rval)
             slapi_log_err(SLAPI_LOG_WARNING,
                           "bdb_restore", "Unable to verify the index configuration\n");
@@ -5789,7 +5833,7 @@ bdb_file_open(char *fname, int flags, int mode, PRFileDesc **prfd)
 }
 
 int
-dblayer_import_file_init(ldbm_instance *inst)
+bdb_import_file_init(ldbm_instance *inst)
 {
     int rc = -1;
     PRFileDesc *prfd = NULL;
@@ -5804,7 +5848,7 @@ dblayer_import_file_init(ldbm_instance *inst)
 }
 
 int
-dblayer_restore_file_init(struct ldbminfo *li)
+bdb_restore_file_init(struct ldbminfo *li)
 {
     int rc = -1;
     PRFileDesc *prfd;
@@ -5818,7 +5862,7 @@ dblayer_restore_file_init(struct ldbminfo *li)
     return rc;
 }
 void
-dblayer_import_file_update(ldbm_instance *inst)
+bdb_import_file_update(ldbm_instance *inst)
 {
     PRFileDesc *prfd;
     char *fname = bdb__import_file_name(inst);
@@ -5868,7 +5912,7 @@ bdb_file_check(char *fname, int mode)
     return rc;
 }
 int
-dblayer_import_file_check(ldbm_instance *inst)
+bdb_import_file_check(ldbm_instance *inst)
 {
     int rc;
     char *fname = bdb__import_file_name(inst);
@@ -5888,7 +5932,7 @@ bdb_restore_file_check(struct ldbminfo *li)
 }
 
 void
-dblayer_restore_file_update(struct ldbminfo *li, char *directory)
+bdb_restore_file_update(struct ldbminfo *li, const char *directory)
 {
     PRFileDesc *prfd;
     char *fname = bdb_restore_file_name(li);
@@ -5907,7 +5951,7 @@ dblayer_restore_file_update(struct ldbminfo *li, char *directory)
  * to change the db extention (e.g., .db3 -> .db4)
  */
 int
-dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
+bdb_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
 {
     struct attrinfo *a = NULL;
     struct ldbminfo *li = NULL;
@@ -5921,7 +5965,7 @@ dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
 
     if (NULL == inst) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_update_db_ext", "Null instance is passed\n");
+                      "bdb_update_db_ext", "Null instance is passed\n");
         return -1; /* non zero */
     }
     li = inst->inst_li;
@@ -5929,7 +5973,7 @@ dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
     inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
     if (NULL == inst_dirp || '\0' == *inst_dirp) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_update_db_ext", "Instance dir is NULL\n");
+                      "bdb_update_db_ext", "Instance dir is NULL\n");
         if (inst_dirp != inst_dir) {
             slapi_ch_free_string(&inst_dirp);
         }
@@ -5949,21 +5993,21 @@ dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
         /* db->rename disable DB in it; we need to create for each */
         rval = db_create(&thisdb, ((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV, 0);
         if (0 != rval) {
-            slapi_log_err(SLAPI_LOG_ERR, "dblayer_update_db_ext", "db_create returned %d (%s)\n",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_update_db_ext", "db_create returned %d (%s)\n",
                           rval, dblayer_strerror(rval));
             goto done;
         }
         nfile = slapi_ch_smprintf("%s/%s%s", inst_dirp, a->ai_type, newext);
-        slapi_log_err(SLAPI_LOG_TRACE, "dblayer_update_db_ext", "Rename %s -> %s\n",
+        slapi_log_err(SLAPI_LOG_TRACE, "bdb_update_db_ext", "Rename %s -> %s\n",
                       ofile, nfile);
 
         rval = thisdb->rename(thisdb, (const char *)ofile, NULL /* subdb */,
                               (const char *)nfile, 0);
         if (0 != rval) {
-            slapi_log_err(SLAPI_LOG_ERR, "dblayer_update_db_ext", "Rename returned %d (%s)\n",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_update_db_ext", "Rename returned %d (%s)\n",
                           rval, dblayer_strerror(rval));
             slapi_log_err(SLAPI_LOG_ERR,
-                          "dblayer_update_db_ext", "Index (%s) Failed to update index %s -> %s\n",
+                          "bdb_update_db_ext", "Index (%s) Failed to update index %s -> %s\n",
                           inst->inst_name, ofile, nfile);
             goto done;
         }
@@ -5973,21 +6017,21 @@ dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
 
     rval = db_create(&thisdb, ((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV, 0);
     if (0 != rval) {
-        slapi_log_err(SLAPI_LOG_ERR, "dblayer_update_db_ext", "db_create returned %d (%s)\n",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_update_db_ext", "db_create returned %d (%s)\n",
                       rval, dblayer_strerror(rval));
         goto done;
     }
     ofile = slapi_ch_smprintf("%s/%s%s", inst_dirp, ID2ENTRY, oldext);
     nfile = slapi_ch_smprintf("%s/%s%s", inst_dirp, ID2ENTRY, newext);
-    slapi_log_err(SLAPI_LOG_TRACE, "dblayer_update_db_ext", "Rename %s -> %s\n",
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_update_db_ext", "Rename %s -> %s\n",
                   ofile, nfile);
     rval = thisdb->rename(thisdb, (const char *)ofile, NULL /* subdb */,
                           (const char *)nfile, 0);
     if (0 != rval) {
-        slapi_log_err(SLAPI_LOG_ERR, "dblayer_update_db_ext", "Rename returned %d (%s)\n",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_update_db_ext", "Rename returned %d (%s)\n",
                       rval, dblayer_strerror(rval));
         slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_update_db_ext", "Index (%s) Failed to update index %s -> %s\n",
+                      "bdb_update_db_ext", "Index (%s) Failed to update index %s -> %s\n",
                       inst->inst_name, ofile, nfile);
     }
 done:
@@ -6004,7 +6048,7 @@ done:
  * delete the index files belonging to the instance
  */
 int
-dblayer_delete_indices(ldbm_instance *inst)
+bdb_delete_indices(ldbm_instance *inst)
 {
     int rval = -1;
     struct attrinfo *a = NULL;
@@ -6012,7 +6056,7 @@ dblayer_delete_indices(ldbm_instance *inst)
 
     if (NULL == inst) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_delete_indices", "NULL instance is passed\n");
+                      "bdb_delete_indices", "NULL instance is passed\n");
         return rval;
     }
     rval = 0;
@@ -6713,7 +6757,7 @@ int bdb_public_value_init(dbi_val_t *data)
 }
 
 static int
-db_uses_feature(DB_ENV *db_env, u_int32_t flags)
+bdb_db_uses_feature(DB_ENV *db_env, u_int32_t flags)
 {
     u_int32_t openflags = 0;
     PR_ASSERT(db_env);
@@ -6725,25 +6769,25 @@ db_uses_feature(DB_ENV *db_env, u_int32_t flags)
 int
 bdb_uses_locking(DB_ENV *db_env)
 {
-    return db_uses_feature(db_env, DB_INIT_LOCK);
+    return bdb_db_uses_feature(db_env, DB_INIT_LOCK);
 }
 
 int
 bdb_uses_transactions(DB_ENV *db_env)
 {
-    return db_uses_feature(db_env, DB_INIT_TXN);
+    return bdb_db_uses_feature(db_env, DB_INIT_TXN);
 }
 
 int
 bdb_uses_mpool(DB_ENV *db_env)
 {
-    return db_uses_feature(db_env, DB_INIT_MPOOL);
+    return bdb_db_uses_feature(db_env, DB_INIT_MPOOL);
 }
 
 int
 bdb_uses_logging(DB_ENV *db_env)
 {
-    return db_uses_feature(db_env, DB_INIT_LOG);
+    return bdb_db_uses_feature(db_env, DB_INIT_LOG);
 }
 
 /*
@@ -6830,7 +6874,7 @@ bdb_public_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count)
 }
 
 int
-bdb_public_private_open(const char *db_filename, dbi_env_t **env, dbi_db_t **db)
+bdb_public_private_open(backend *be, const char *db_filename, dbi_env_t **env, dbi_db_t **db)
 {
     int rc;
     DB_ENV *bdb_env = NULL;
@@ -6869,17 +6913,157 @@ bdb_public_private_close(dbi_env_t **env, dbi_db_t **db)
     return bdb_map_error(__FUNCTION__, rc);
 }
 
+/*
+ * Walk all database files of a backend (for dbscan)
+ *
+ * directory: The path to examine.
+ * subdir: subdirname(should be NULL when calling the function except for the recursion case)
+ * cb: context struct holding the data
+ * cbctx: cb user context
+ */
+static
+int bdb_walk_dbfiles (const char *directory, const char *subdir,
+                     void (*cb)(const char *dbname, void *cbctx), void *cbctx)
+{
+    int return_value = 0;
+    PRDir *dirhandle = NULL;
+    int len = strlen (DB_REGION_PREFIX);
+
+    dirhandle = PR_OpenDir (directory);
+    if (NULL != dirhandle) {
+        PRDirEntry *direntry = NULL;
+        char *direntry_name, *pt;
+        PRFileInfo64 info;
+
+        while (NULL != (direntry = PR_ReadDir (dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
+            if (NULL == direntry->name) {
+                break;
+            }
+            direntry_name = PR_smprintf ("%s/%s", directory, direntry->name);
+            if (PR_GetFileInfo64 (direntry_name, &info) != PR_SUCCESS) {
+                PR_smprintf_free (direntry_name);
+                continue;
+            }
+            if (PR_FILE_DIRECTORY == info.type) {
+                /* Recurse into this directory but not any further. This is
+                 * because each instance gets its own directory, but in those
+                 * directories there should be only .db3 files. There should
+                 * not be anymore directories in an instance directory.
+                 */
+                if (!subdir) {
+                    bdb_walk_dbfiles (direntry_name, direntry->name, cb, cbctx);
+                }
+                PR_smprintf_free (direntry_name);
+                continue;
+            }
+            PR_smprintf_free (direntry_name);
+            if (strncmp(DB_REGION_PREFIX, direntry->name, len) == 0) {
+                continue;
+            }
+            pt = strrchr (direntry->name, *LDBM_FILENAME_SUFFIX);
+            if (!pt || strcmp (pt, LDBM_FILENAME_SUFFIX)) {
+                continue;
+            }
+            if (subdir) {
+                pt = PR_smprintf ("%s/%s", subdir, direntry->name);
+                cb (pt, cbctx);
+                PR_smprintf_free (pt);
+            } else {
+                cb (direntry->name, cbctx);
+            }
+        }
+        PR_CloseDir (dirhandle);
+    } else {
+        return_value = -1;
+    }
+    return return_value;
+}
+
+static void
+dbslist_count_space_to_reserve(const char * dbname, void *cbctx)
+{
+    dbi_dbslist_ctx_t *ctx = cbctx;
+    ctx->nbdbs++;
+}
+
+static void
+dbslist_store_a_db(const char * dbname, void *cbctx)
+{
+    dbi_dbslist_ctx_t *ctx = cbctx;
+    ctx->nbdbs++;
+    if (ctx->pos < ctx->nbdbs)
+        {
+            strncpy (ctx->list[ctx->pos++].filename, dbname,
+                     MAXPATHLEN);
+        }
+}
+
+dbi_dbslist_t *
+bdb_list_dbs (const char * dbhome)
+{
+    dbi_dbslist_ctx_t cbctx = { 0 };
+    int rc = bdb_walk_dbfiles (dbhome, NULL,
+                          dbslist_count_space_to_reserve,
+                          &cbctx);
+    if (rc) {
+        return NULL;
+    }
+    cbctx.nbdbs++;              /* Reserve space for empty filename that marks end of list */
+    cbctx.list = (dbi_dbslist_t *) slapi_ch_calloc (cbctx.nbdbs, sizeof (dbi_dbslist_ctx_t));
+    bdb_walk_dbfiles (dbhome, NULL, dbslist_store_a_db, &cbctx);
+    if (rc) {
+        slapi_ch_free ((void **) &cbctx.list);
+    }
+    return cbctx.list;
+}
+
+/* [605974] check adb region file's existence to know whether import is executed by other process or not */
+int
+bdb_public_in_import (ldbm_instance * inst)
+{
+    PRDir *dirhandle = NULL;
+    PRDirEntry *direntry = NULL;
+    char inst_dir[MAXPATHLEN];
+    char *inst_dirp = NULL;
+    int rval = 0;
+
+    inst_dirp = dblayer_get_full_inst_dir (inst->inst_li, inst, inst_dir, MAXPATHLEN);
+    if (!inst_dirp || !*inst_dirp) {
+        rval = -1;
+       goto done;
+    }
+    dirhandle = PR_OpenDir (inst_dirp);
+    if (NULL == dirhandle)
+        goto done;
+
+    while (NULL != (direntry = PR_ReadDir (dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
+        if (NULL == direntry->name) {
+            break;
+        }
+        if (0 == strncmp (direntry->name, DB_REGION_PREFIX, 5)) {
+            rval = 1;
+            break;
+        }
+    }
+    PR_CloseDir (dirhandle);
+  done:
+    if (inst_dirp != inst_dir) {
+        slapi_ch_free_string (&inst_dirp);
+    }
+    return rval;
+}
+
 const char *
 bdb_public_get_db_suffix(void)
 {
     return LDBM_FILENAME_SUFFIX;
 }
 
-int32_t
-ldbm_back_compact(Slapi_Backend *be, PRBool just_changelog)
+int
+bdb_public_dblayer_compact(Slapi_Backend *be, PRBool just_changelog)
 {
     struct ldbminfo *li = NULL;
-    int32_t rc = -1;
+    int rc = -1;
 
     li = (struct ldbminfo *)be->be_database->plg_private;
     bdb_force_checkpoint(li);
@@ -6888,7 +7072,7 @@ ldbm_back_compact(Slapi_Backend *be, PRBool just_changelog)
     return rc;
 }
 
-int32_t
+int
 bdb_compact(struct ldbminfo *li, PRBool just_changelog)
 {
     Object *inst_obj;

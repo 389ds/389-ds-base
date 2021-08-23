@@ -9,7 +9,7 @@ from lib389.backend import Backend
 from lib389.tasks import BackupTask, RestoreTask
 from lib389.config import BDB_LDBMConfig
 from lib389 import DSEldif
-from lib389.utils import ds_is_older
+from lib389.utils import ds_is_older, get_default_db_lib
 import tempfile
 
 pytestmark = pytest.mark.tier1
@@ -73,6 +73,7 @@ def test_missing_backend(topo):
 @pytest.mark.bz1851967
 @pytest.mark.ds4112
 @pytest.mark.skipif(ds_is_older('1.4.1'), reason="Not implemented")
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_db_home_dir_online_backup(topo):
     """Test that if the dbhome directory is set causing an online backup to fail,
     the dblayer_backup function should go to error processing section.
