@@ -532,7 +532,7 @@ class RootDNAccessControl extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets what hosts, by fully-qualified domain name, the root user is not allowed to use to access the Directory Server.  Wildcards are accepted.  Any hosts not listed are implicitly allowed (rootdn-deny-host). If an host address is listed in both the rootdn-allow-host and rootdn-deny-host attributes, it is denied access.">
+                        <Grid title="Sets what hosts, by fully-qualified domain name, the root user is not allowed to use to access the Directory Server.  Wildcards are accepted.  Any hosts not listed are implicitly allowed (rootdn-deny-host). If a host address is listed in both the rootdn-allow-host and rootdn-deny-host attributes, it is denied access.">
                             <GridItem className="ds-label" span={2}>
                                 Deny Host
                             </GridItem>

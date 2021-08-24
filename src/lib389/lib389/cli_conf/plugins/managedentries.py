@@ -205,9 +205,9 @@ def create_parser(subparsers):
     subcommands = mep.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, ManagedEntriesPlugin)
 
-    edit = subcommands.add_parser('set', help='Edit the plugin')
+    edit = subcommands.add_parser('set', help='Edit the plugin settings')
     edit.set_defaults(func=mep_edit)
-    edit.add_argument('--config-area', help='The value to set as nsslapd-pluginConfigArea')
+    edit.add_argument('--config-area', help='Sets the value of the nsslapd-pluginConfigArea attribute')
 
     list = subcommands.add_parser('list', help='List Managed Entries Plugin configs and templates')
     subcommands_list = list.add_subparsers(help='action')
@@ -216,11 +216,11 @@ def create_parser(subparsers):
     list_configs.set_defaults(func=mep_config_list)
     list_templates = subcommands_list.add_parser('templates',
                                                help='List Managed Entries Plugin templates in the directory')
-    list_templates.add_argument('BASEDN', nargs='?', help='The base DN where to search the templates.')
+    list_templates.add_argument('BASEDN', nargs='?', help='The base DN where to search the templates')
     list_templates.set_defaults(func=mep_template_list)
 
     config = subcommands.add_parser('config', help='Handle Managed Entries Plugin configs')
-    config.add_argument('NAME', help='The config entry CN.')
+    config.add_argument('NAME', help='The config entry CN')
     config_subcommands = config.add_subparsers(help='action')
     add = config_subcommands.add_parser('add', help='Add the config entry')
     add.set_defaults(func=mep_config_add)

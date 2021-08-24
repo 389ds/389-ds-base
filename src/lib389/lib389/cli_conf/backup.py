@@ -42,14 +42,14 @@ def create_parser(subparsers):
     create_parser = subcommands.add_parser('create', help="Creates a backup of the database")
     create_parser.set_defaults(func=backup_create)
     create_parser.add_argument('archive', nargs='?', default=None,
-                               help="The directory where the backup files will be stored."
-                                    "The /var/lib/dirsrv/slapd-instance/bak directory is used by default."
-                                    "The backup file is named according to the year-month-day-hour format.")
+                               help="Sets the directory where to store the backup files. "
+                                    "Format: instance_name-year_month_date_hour_minutes_seconds. "
+                                    "Default: /var/lib/dirsrv/slapd-instance/bak/ ")
     create_parser.add_argument('-t', '--db-type', default="ldbm database",
-                               help="Database type (default: ldbm database).")
+                               help="Sets the database type. Default: ldbm database")
 
     restore_parser = subcommands.add_parser('restore', help="Restores a database from a backup")
     restore_parser.set_defaults(func=backup_restore)
-    restore_parser.add_argument('archive', help="The directory of the backup files.")
+    restore_parser.add_argument('archive', help="Set the directory that contains the backup files")
     restore_parser.add_argument('-t', '--db-type', default="ldbm database",
-                                help="Database type (default: ldbm database).")
+                                help="Sets the database type. Default: ldbm database")
