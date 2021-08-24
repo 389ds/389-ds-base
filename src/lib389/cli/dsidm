@@ -32,10 +32,10 @@ from lib389.cli_base import format_error_to_dict
 parser = argparse.ArgumentParser(allow_abbrev=True)
 # First, add the LDAP options
 parser.add_argument('instance',
-        help="The instance name OR the LDAP url to connect to, IE localhost, ldap://mai.example.com:389",
+        help="The name of the instance or its LDAP URL, such as ldap://server.example.com:389",
     )
 parser.add_argument('-b', '--basedn',
-        help="Basedn (root naming context) of the instance to manage",
+        help="Base DN (root naming context) of the instance to manage",
         default=None
     )
 parser.add_argument('-v', '--verbose',
@@ -47,15 +47,15 @@ parser.add_argument('-D', '--binddn',
         default=None
     )
 parser.add_argument('-w', '--bindpw',
-        help="Password for binddn",
+        help="Password for the bind DN",
         default=None
     )
 parser.add_argument('-W', '--prompt',
         action='store_true', default=False,
-        help="Prompt for password for binddn"
+        help="Prompt for password of the bind DN"
     )
 parser.add_argument('-y', '--pwdfile',
-        help="Specifies a file containing the password for the bind DN",
+        help="Specifies a file containing the password of the bind DN",
         default=None
     )
 parser.add_argument('-Z', '--starttls',

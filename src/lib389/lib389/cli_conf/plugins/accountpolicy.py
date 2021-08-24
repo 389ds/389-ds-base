@@ -102,27 +102,27 @@ def create_parser(subparsers):
     subcommands = accountpolicy.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, AccountPolicyPlugin)
 
-    edit = subcommands.add_parser('set', help='Edit the plugin')
+    edit = subcommands.add_parser('set', help='Edit the plugin settings')
     edit.set_defaults(func=accountpolicy_edit)
-    edit.add_argument('--config-entry', help='The value to set as nsslapd-pluginConfigArea')
+    edit.add_argument('--config-entry', help='Sets the nsslapd-pluginConfigArea attribute')
 
     config = subcommands.add_parser('config-entry', help='Manage the config entry')
     config_subcommands = config.add_subparsers(help='action')
 
     add_config = config_subcommands.add_parser('add', help='Add the config entry')
     add_config.set_defaults(func=accountpolicy_add_config)
-    add_config.add_argument('DN', help='The config entry full DN')
+    add_config.add_argument('DN', help='The full DN of the config entry')
     _add_parser_args(add_config)
 
     edit_config = config_subcommands.add_parser('set', help='Edit the config entry')
     edit_config.set_defaults(func=accountpolicy_edit_config)
-    edit_config.add_argument('DN', help='The config entry full DN')
+    edit_config.add_argument('DN', help='The full DN of the config entry')
     _add_parser_args(edit_config)
 
     show_config_parser = config_subcommands.add_parser('show', help='Display the config entry')
     show_config_parser.set_defaults(func=accountpolicy_show_config)
-    show_config_parser.add_argument('DN', help='The config entry full DN')
+    show_config_parser.add_argument('DN', help='The full DN of the config entry')
 
     del_config_parser = config_subcommands.add_parser('delete', help='Delete the config entry')
     del_config_parser.set_defaults(func=accountpolicy_del_config)
-    del_config_parser.add_argument('DN', help='The config entry full DN')
+    del_config_parser.add_argument('DN', help='The full DN of the config entry')

@@ -104,7 +104,7 @@ def create_parser(subparsers):
     add_generic_plugin_parsers(subcommands, LinkedAttributesPlugin)
 
     fixup_parser = subcommands.add_parser('fixup', help='Run the fix-up task for linked attributes plugin')
-    fixup_parser.add_argument('-l', '--linkdn', help="Base DN that contains entries to fix up")
+    fixup_parser.add_argument('-l', '--linkdn', help="Sets the base DN that contains entries to fix up")
     fixup_parser.set_defaults(func=fixup)
 
     list = subcommands.add_parser('list', help='List available plugin configs')
