@@ -19,11 +19,11 @@ def password_change(inst, basedn, log, args):
 
 
 def create_parsers(subparsers):
-    directory_manager_parser = subparsers.add_parser('directory_manager', help="Manage the directory manager account")
+    directory_manager_parser = subparsers.add_parser('directory_manager', help="Manage the Directory Manager account")
 
     subcommands = directory_manager_parser.add_subparsers(help='action')
 
-    password_change_parser = subcommands.add_parser('password_change', help="Change the directory manager password")
+    password_change_parser = subcommands.add_parser('password_change', help="Changes the password of the Directory Manager account")
     password_change_parser.set_defaults(func=password_change)
     # This is to put in a dummy attr that args can work with. We do this
     # because the actual test case will over-ride it, but it prevents

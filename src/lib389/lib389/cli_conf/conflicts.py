@@ -89,7 +89,7 @@ def create_parser(subparsers):
 
     # coinflict entry arguments
     list_parser = subcommands.add_parser('list', help="List conflict entries")
-    list_parser.add_argument('suffix', help='The backend name, or suffix, to look for conflict entries')
+    list_parser.add_argument('suffix', help='Sets the backend name, or suffix, to look for conflict entries')
     list_parser.set_defaults(func=list_conflicts)
 
     cmp_parser = subcommands.add_parser('compare', help="Compare the conflict entry with its valid counterpart")
@@ -109,7 +109,7 @@ def create_parser(subparsers):
                                                             "This requires that the converted conflict entry have "
                                                             "a new RDN value.  For example: \"cn=my_new_rdn_value\".")
     replace_parser.add_argument('DN', help='The DN of the conflict entry')
-    replace_parser.add_argument('--new-rdn', required=True, help="The new RDN for the converted conflict entry.  "
+    replace_parser.add_argument('--new-rdn', required=True, help="Sets the new RDN for the converted conflict entry.  "
                                                                  "For example: \"cn=my_new_rdn_value\"")
     replace_parser.set_defaults(func=convert_conflict)
 

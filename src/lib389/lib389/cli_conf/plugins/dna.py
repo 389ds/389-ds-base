@@ -178,7 +178,7 @@ def _add_parser_args(parser):
                         help='Sets which attributes have unique numbers being generated for them (dnaType)')
     parser.add_argument('--prefix', help='Defines a prefix that can be prepended to the generated '
                                          'number values for the attribute (dnaPrefix)')
-    parser.add_argument('--next-value', help='Gives the next available number which can be assigned (dnaNextValue)')
+    parser.add_argument('--next-value', help='Sets the next available number which can be assigned (dnaNextValue)')
     parser.add_argument('--max-value', help='Sets the maximum value that can be assigned for the range (dnaMaxValue)')
     parser.add_argument('--interval', help='Sets an interval to use to increment through numbers in a range (dnaInterval)')
     parser.add_argument('--magic-regen', help='Sets a user-defined value that instructs the plug-in '
@@ -196,7 +196,7 @@ def _add_parser_args(parser):
     parser.add_argument('--next-range',
                         help='Defines the next range to use when the current range is exhausted (dnaNextRange)')
     parser.add_argument('--range-request-timeout',
-                        help='sets a timeout period, in seconds, for range requests so that the server '
+                        help='Sets a timeout period, in seconds, for range requests so that the server '
                              'does not stall waiting on a new range from one server and '
                              'can request a range from a new server (dnaRangeRequestTimeout)')
 
