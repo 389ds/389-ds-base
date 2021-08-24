@@ -85,26 +85,26 @@ def sasl_get_supported(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    sasl_parser = subparsers.add_parser('sasl', help='Query and manipulate SASL mappings')
+    sasl_parser = subparsers.add_parser('sasl', help='Manage SASL mappings')
 
     subcommands = sasl_parser.add_subparsers(help='sasl')
 
-    list_mappings_parser = subcommands.add_parser('list', help='List available SASL mappings')
+    list_mappings_parser = subcommands.add_parser('list', help='Display available SASL mappings')
     list_mappings_parser.set_defaults(func=sasl_map_list)
     list_mappings_parser.add_argument('--details', action='store_true', default=False,
-        help="Get each SASL Mapping in detail.")
-    get_mech_parser= subcommands.add_parser('get-mechs', help='List available SASL mechanisms')
+        help="Displays each SASL mapping in detail")
+    get_mech_parser= subcommands.add_parser('get-mechs', help='Display available SASL mechanisms')
     get_mech_parser.set_defaults(func=sasl_get_supported)
 
-    get_parser = subcommands.add_parser('get', help='get')
+    get_parser = subcommands.add_parser('get', help='Displays SASL mappings')
     get_parser.set_defaults(func=sasl_map_get)
-    get_parser.add_argument('selector', nargs='?', help='SASL mapping name to get')
+    get_parser.add_argument('selector', nargs='?', help='The SASL mapping name to display')
 
-    create_parser = subcommands.add_parser('create', help='create')
+    create_parser = subcommands.add_parser('create', help='Create a SASL mapping ')
     create_parser.set_defaults(func=sasl_map_create)
     populate_attr_arguments(create_parser, SaslMapping._must_attributes)
 
-    delete_parser = subcommands.add_parser('delete', help='deletes the object')
+    delete_parser = subcommands.add_parser('delete', help='Deletes the SASL object')
     delete_parser.set_defaults(func=sasl_map_delete)
-    delete_parser.add_argument('map_name', help='The SASL Mapping name ("cn" value)')
+    delete_parser.add_argument('map_name', help='The SASL mapping name ("cn" value)')
 

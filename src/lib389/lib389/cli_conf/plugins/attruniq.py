@@ -113,7 +113,7 @@ def attruniq_status(inst, basedn, log, args):
 
 
 def _add_parser_args(parser):
-    parser.add_argument('NAME', help='Sets the name of the plug-in configuration record. (cn) You can use any string, '
+    parser.add_argument('NAME', help='The name of the plug-in configuration record. (cn) You can use any string, '
                                      'but "attribute_name Attribute Uniqueness" is recommended.')
     parser.add_argument('--enabled', choices=['on', 'off'],
                         help='Identifies whether or not the config is enabled.')
@@ -140,7 +140,7 @@ def create_parser(subparsers):
     subcommands = attruniq.add_subparsers(help='action')
     # We can't use the add_generic_plugin_parsers as we need named sub instances.
 
-    list = subcommands.add_parser('list', help='List available plugin configs')
+    list = subcommands.add_parser('list', help='Lists available plugin configs')
     list.set_defaults(func=attruniq_list)
 
     add = subcommands.add_parser('add', help='Add the config entry')
@@ -156,17 +156,17 @@ def create_parser(subparsers):
     show.set_defaults(func=attruniq_show)
 
     delete = subcommands.add_parser('delete', help='Delete the config entry')
-    delete.add_argument('NAME', help='Sets the name of the plug-in configuration record')
+    delete.add_argument('NAME', help='The name of the plug-in configuration record')
     delete.set_defaults(func=attruniq_del)
 
     enable = subcommands.add_parser('enable', help='enable plugin')
-    enable.add_argument('NAME', help='Sets the name of the plug-in configuration record')
+    enable.add_argument('NAME', help='The name of the plug-in configuration record')
     enable.set_defaults(func=attruniq_enable)
 
     disable = subcommands.add_parser('disable', help='disable plugin')
-    disable.add_argument('NAME', help='Sets the name of the plug-in configuration record')
+    disable.add_argument('NAME', help='The name of the plug-in configuration record')
     disable.set_defaults(func=attruniq_disable)
 
     status = subcommands.add_parser('status', help='display plugin status')
-    status.add_argument('NAME', help='Sets the name of the plug-in configuration record')
+    status.add_argument('NAME', help='The name of the plug-in configuration record')
     status.set_defaults(func=attruniq_status)

@@ -37,7 +37,7 @@ def config_del_attr(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    config_parser = subparsers.add_parser('config', help="Manage server configuration")
+    config_parser = subparsers.add_parser('config', help="Manage the server configuration")
 
     subcommands = config_parser.add_subparsers(help="action")
 

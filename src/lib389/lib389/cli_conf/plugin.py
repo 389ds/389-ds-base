@@ -96,7 +96,7 @@ def plugin_edit(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    plugin_parser = subparsers.add_parser('plugin', help="Manage plugins available on the server")
+    plugin_parser = subparsers.add_parser('plugin', help="Manage plug-ins available on the server")
 
     subcommands = plugin_parser.add_subparsers(help="Plugins")
 
@@ -121,7 +121,7 @@ def create_parser(subparsers):
     get_parser.set_defaults(func=plugin_get)
     get_parser.add_argument('selector', nargs='?', help='The plugin to search for')
 
-    edit_parser = subcommands.add_parser('set', help='Edit the plugin')
+    edit_parser = subcommands.add_parser('set', help='Edit the plugin settings')
     edit_parser.set_defaults(func=plugin_edit)
     edit_parser.add_argument('selector', nargs='?', help='The plugin to edit')
     edit_parser.add_argument('--type', help='The type of plugin.')

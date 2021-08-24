@@ -94,31 +94,31 @@ def rootdn_edit(inst, basedn, log, args):
 def _add_parser_args(parser):
     parser.add_argument('--allow-host', nargs='+',
                         help='Sets what hosts, by fully-qualified domain name, the root user is allowed to use '
-                             'to access the Directory Server. Any hosts not listed are implicitly denied '
+                             'to access Directory Server. Any hosts not listed are implicitly denied '
                              '(rootdn-allow-host)')
     parser.add_argument('--deny-host', nargs='+',
                         help='Sets what hosts, by fully-qualified domain name, the root user is not allowed to use '
-                             'to access the Directory Server Any hosts not listed are implicitly allowed '
-                             '(rootdn-deny-host). If an host address is listed in both the rootdn-allow-host and '
+                             'to access Directory Server. Any hosts not listed are implicitly allowed '
+                             '(rootdn-deny-host). If a host address is listed in both the rootdn-allow-host and '
                              'rootdn-deny-host attributes, it is denied access.')
     parser.add_argument('--allow-ip', nargs='+',
                         help='Sets what IP addresses, either IPv4 or IPv6, for machines the root user is allowed '
-                             'to use to access the Directory Server Any IP addresses not listed are implicitly '
+                             'to use to access Directory Server. Any IP addresses not listed are implicitly '
                              'denied (rootdn-allow-ip)')
     parser.add_argument('--deny-ip', nargs='+',
                         help='Sets what IP addresses, either IPv4 or IPv6, for machines the root user is not allowed '
-                             'to use to access the Directory Server. Any IP addresses not listed are implicitly '
-                             'allowed (rootdn-deny-ip) If an IP address is listed in both the rootdn-allow-ip and '
+                             'to use to access Directory Server. Any IP addresses not listed are implicitly '
+                             'allowed (rootdn-deny-ip). If an IP address is listed in both the rootdn-allow-ip and '
                              'rootdn-deny-ip attributes, it is denied access.')
     parser.add_argument('--open-time',
                         help='Sets part of a time period or range when the root user is allowed to access '
-                             'the Directory Server. This sets when the time-based access begins (rootdn-open-time)')
+                             'Directory Server. This sets when the time-based access begins (rootdn-open-time)')
     parser.add_argument('--close-time',
                         help='Sets part of a time period or range when the root user is allowed to access '
-                             'the Directory Server. This sets when the time-based access ends (rootdn-close-time)')
+                             'Directory Server. This sets when the time-based access ends (rootdn-close-time)')
     parser.add_argument('--days-allowed',
-                        help='Gives a comma-separated list of what days the root user is allowed to use to access '
-                             'the Directory Server. Any days listed are implicitly denied (rootdn-days-allowed)')
+                        help='Sets a comma-separated list of what days the root user is allowed to use to access '
+                             'Directory Server. Any days listed are implicitly denied (rootdn-days-allowed)')
 
 
 def create_parser(subparsers):
@@ -126,7 +126,7 @@ def create_parser(subparsers):
     subcommands = rootdnac_parser.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, RootDNAccessControlPlugin)
 
-    edit = subcommands.add_parser('set', help='Edit the plugin')
+    edit = subcommands.add_parser('set', help='Edit the plugin settings')
     edit.set_defaults(func=rootdn_edit)
     _add_parser_args(edit)
 

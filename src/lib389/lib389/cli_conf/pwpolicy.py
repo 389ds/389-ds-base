@@ -195,8 +195,8 @@ def del_local_policy(inst, basedn, log, args):
 
 def create_parser(subparsers):
     # Create our two parsers for local and global policies
-    globalpwp_parser = subparsers.add_parser('pwpolicy', help='Get and set the global password policy settings')
-    localpwp_parser = subparsers.add_parser('localpwp', help='Manage local (user/subtree) password policies')
+    globalpwp_parser = subparsers.add_parser('pwpolicy', help='Manage the global password policy settings')
+    localpwp_parser = subparsers.add_parser('localpwp', help='Manage the local user and subtree password policies')
 
     ############################################
     # Local password policies

@@ -96,7 +96,7 @@ def create_parser(subparsers):
 
     add_generic_plugin_parsers(subcommands, ReferentialIntegrityPlugin)
 
-    edit = subcommands.add_parser('set', help='Edit the plugin')
+    edit = subcommands.add_parser('set', help='Edit the plugin settings')
     edit.set_defaults(func=referint_edit)
     _add_parser_args(edit)
     edit.add_argument('--config-entry', help='The value to set as nsslapd-pluginConfigArea')
