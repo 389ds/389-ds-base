@@ -34,7 +34,7 @@ def create_parser(subparsers):
     subcommands = contentsync_parser.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, ContentSyncPlugin)
 
-    edit = subcommands.add_parser('set', help='Edit the plugin')
+    edit = subcommands.add_parser('set', help='Edit the plugin settings')
     edit.set_defaults(func=contentsync_edit)
     _add_parser_args(edit)
 

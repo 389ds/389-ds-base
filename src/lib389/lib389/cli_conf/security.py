@@ -20,59 +20,59 @@ onoff = ('on', 'off')
 protocol_versions = ('SSLv3', 'TLS1.0', 'TLSv1.1', 'TLSv1.2', 'TLSv1.3', '')
 SECURITY_ATTRS_MAP = OrderedDict([
     ('security', Props(Config, 'nsslapd-security',
-                       'Enable or disable security',
+                       'Enables or disables security',
                        onoff)),
     ('listen-host', Props(Config, 'nsslapd-securelistenhost',
-                          'Host/address to listen on for LDAPS',
+                          'Sets the host or IP address to listen on for LDAPS',
                           str)),
     ('secure-port', Props(Config, 'nsslapd-securePort',
-                          'Port for LDAPS to listen on',
+                          'Sets the port for LDAPS to listen on',
                           range(1, 65536))),
     ('tls-client-auth', Props(Encryption, 'nsSSLClientAuth',
-                              'Client authentication requirement',
+                              'Configures client authentication requirement',
                               ('off', 'allowed', 'required'))),
     ('tls-client-renegotiation', Props(Encryption, 'nsTLSAllowClientRenegotiation',
-                                       'Allow client TLS renegotiation',
+                                       'Allows client TLS renegotiation',
                                        onoff)),
     ('require-secure-authentication', Props(Config, 'nsslapd-require-secure-binds',
-                                            'Require binds over LDAPS, StartTLS, or SASL',
+                                            'Configures whether binds over LDAPS, StartTLS, or SASL are required',
                                             onoff)),
     ('check-hostname', Props(Config, 'nsslapd-ssl-check-hostname',
-                             'Check Subject of remote certificate against the hostname',
+                             'Checks the subject of remote certificate against the hostname',
                              onoff)),
     ('verify-cert-chain-on-startup', Props(Config, 'nsslapd-validate-cert',
-                                           'Validate server certificate during startup',
+                                           'Validates the server certificate during startup',
                                            ('warn', *onoff))),
     ('session-timeout', Props(Encryption, 'nsSSLSessionTimeout',
-                              'Secure session timeout',
+                              'Sets the secure session timeout',
                               int)),
     ('tls-protocol-min', Props(Encryption, 'sslVersionMin',
-                               'Secure protocol minimal allowed version',
+                               'Sets the minimal allowed secure protocol version',
                                protocol_versions)),
     ('tls-protocol-max', Props(Encryption, 'sslVersionMax',
-                               'Secure protocol maximal allowed version',
+                               'Sets the maximal allowed secure protocol version',
                                protocol_versions)),
     ('allow-insecure-ciphers', Props(Encryption, 'allowWeakCipher',
-                                     'Allow weak ciphers for legacy use',
+                                     'Allows weak ciphers for legacy use',
                                      onoff)),
     ('allow-weak-dh-param', Props(Encryption, 'allowWeakDHParam',
-                                  'Allow short DH params for legacy use',
+                                  'Allows short DH params for legacy use',
                                   onoff)),
     ('cipher-pref', Props(Encryption, 'nsSSL3Ciphers',
-                          'Use this command to directly set nsSSL3Ciphers attribute. It is a comma separated list '
+                          'Directly sets the nsSSL3Ciphers attribute. It is a comma-separated list '
                           'of cipher names (prefixed with + or -), optionally including +all or -all. The attribute '
-                          'may optionally be prefixed by keyword default. Please refer to documentation of '
+                          'may optionally be prefixed by keyword "default". Please refer to documentation of '
                           'the attribute for a more detailed description.',
                           onoff)),
 ])
 
 RSA_ATTRS_MAP = OrderedDict([
     ('tls-allow-rsa-certificates', Props(RSA, 'nsSSLActivation',
-                                         'Activate use of RSA certificates', onoff)),
+                                         'Activates the use of RSA certificates', onoff)),
     ('nss-cert-name', Props(RSA, 'nsSSLPersonalitySSL',
-                            'Server certificate name in NSS DB', str)),
+                            'Sets the server certificate name in NSS DB', str)),
     ('nss-token', Props(RSA, 'nsSSLToken',
-                        'Security token name (module of NSS DB)', str))
+                        'Sets the security token name (module of NSS DB)', str))
 ])
 
 
@@ -358,19 +358,19 @@ def cert_del(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    security = subparsers.add_parser('security', help='Query and manipulate security options')
+    security = subparsers.add_parser('security', help='Manage security settings')
     security_sub = security.add_subparsers(help='security')
 
     # Core security management
     _security_generic_set_parser(security_sub, SECURITY_ATTRS_MAP, 'Set general security options',
         ('Use this command for setting security related options located in cn=config and cn=encryption,cn=config.'
          '\n\nTo enable/disable security you can use enable and disable commands instead.'))
-    _security_generic_get_parser(security_sub, SECURITY_ATTRS_MAP, 'Get general security options')
+    _security_generic_get_parser(security_sub, SECURITY_ATTRS_MAP, 'Display general security options')
     security_enable_p = security_sub.add_parser('enable', help='Enable security', description=(
         'If missing, create security database, then turn on security functionality. Please note this is usually not'
         ' enough for TLS connections to work - proper setup of CA and server certificate is necessary.'))
     security_enable_p.add_argument('--cert-name', default=None,
-        help='The name of the certificate the server should use')
+        help='Sets the name of the certificate the server should use')
     security_enable_p.set_defaults(func=security_enable)
     security_disable_p = security_sub.add_parser('disable', help='Disable security', description=(
         'Turn off security functionality. The rest of the configuration will be left untouched.'))
@@ -386,18 +386,18 @@ def create_parser(subparsers):
     cert_add_parser = certs_sub.add_parser('add', help='Add a server certificate', description=(
         'Add a server certificate to the NSS database'))
     cert_add_parser.add_argument('--file', required=True,
-        help='The file name of the certificate')
+        help='Sets the file name of the certificate')
     cert_add_parser.add_argument('--name', required=True,
-        help='The name/nickname of the certificate')
+        help='Sets the name/nickname of the certificate')
     cert_add_parser.add_argument('--primary-cert', action='store_true',
-                                 help="Set this certificate as the server's certificate")
+                                 help="Sets this certificate as the server's certificate")
     cert_add_parser.set_defaults(func=cert_add)
 
     cert_edit_parser = certs_sub.add_parser('set-trust-flags', help='Set the Trust flags',
         description=('Change the trust flags of a server certificate'))
     cert_edit_parser.add_argument('name', help='The name/nickname of the certificate')
     cert_edit_parser.add_argument('--flags', required=True,
-        help='The trust flags for the server certificate')
+        help='Sets the trust flags for the server certificate')
     cert_edit_parser.set_defaults(func=cert_edit)
 
     cert_del_parser = certs_sub.add_parser('del', help='Delete a certificate',
@@ -405,31 +405,31 @@ def create_parser(subparsers):
     cert_del_parser.add_argument('name', help='The name/nickname of the certificate')
     cert_del_parser.set_defaults(func=cert_del)
 
-    cert_get_parser = certs_sub.add_parser('get', help="Get a server certificate's information",
-        description=('Get detailed information about a certificate, like trust attributes, expiration dates, Subject and Issuer DNs '))
-    cert_get_parser.add_argument('name', help='The name/nickname of the certificate')
+    cert_get_parser = certs_sub.add_parser('get', help="Display a server certificate's information",
+        description=('Displays detailed information about a certificate, such as trust attributes, expiration dates, Subject and Issuer DNs '))
+    cert_get_parser.add_argument('name', help='Set the name/nickname of the certificate')
     cert_get_parser.set_defaults(func=cert_get)
 
     cert_list_parser = certs_sub.add_parser('list', help='List the server certificates',
-        description=('List the server certificates in the NSS database'))
+        description=('Lists the server certificates in the NSS database'))
     cert_list_parser.set_defaults(func=cert_list)
 
     # CA certificate management
-    cacerts = security_sub.add_parser('ca-certificate', help='Manage TLS Certificate Authorities')
+    cacerts = security_sub.add_parser('ca-certificate', help='Manage TLS certificate authorities')
     cacerts_sub = cacerts.add_subparsers(help='ca-certificate')
     cacert_add_parser = cacerts_sub.add_parser('add', help='Add a Certificate Authority', description=(
         'Add a Certificate Authority to the NSS database'))
     cacert_add_parser.add_argument('--file', required=True,
-        help='The file name of the CA certificate')
+        help='Sets the file name of the CA certificate')
     cacert_add_parser.add_argument('--name', required=True,
-        help='The name/nickname of the CA certificate')
+        help='Sets the name/nickname of the CA certificate')
     cacert_add_parser.set_defaults(func=cacert_add)
 
     cacert_edit_parser = cacerts_sub.add_parser('set-trust-flags', help='Set the Trust flags',
         description=('Change the trust attributes of a CA certificate.  Certificate Authorities typically use "CT,,"'))
     cacert_edit_parser.add_argument('name', help='The name/nickname of the CA certificate')
     cacert_edit_parser.add_argument('--flags', required=True,
-        help='The trust flags for the CA certificate')
+        help='Sets the trust flags for the CA certificate')
     cacert_edit_parser.set_defaults(func=cert_edit)
 
     cacert_del_parser = cacerts_sub.add_parser('del', help='Delete a certificate',
@@ -437,7 +437,7 @@ def create_parser(subparsers):
     cacert_del_parser.add_argument('name', help='The name/nickname of the CA certificate')
     cacert_del_parser.set_defaults(func=cert_del)
 
-    cacert_get_parser = cacerts_sub.add_parser('get', help="Get a Certificate Authority's information",
+    cacert_get_parser = cacerts_sub.add_parser('get', help="Displays a Certificate Authority's information",
         description=('Get detailed information about a CA certificate, like trust attributes, expiration dates, Subject and Issuer DN'))
     cacert_get_parser.add_argument('name', help='The name/nickname of the CA certificate')
     cacert_get_parser.set_defaults(func=cert_get)
@@ -447,7 +447,7 @@ def create_parser(subparsers):
     cacert_list_parser.set_defaults(func=cacert_list)
 
     # RSA management
-    rsa = security_sub.add_parser('rsa', help='Query and manipulate RSA security options')
+    rsa = security_sub.add_parser('rsa', help='Query and update RSA security options')
     rsa_sub = rsa.add_subparsers(help='rsa')
     _security_generic_set_parser(rsa_sub, RSA_ATTRS_MAP, 'Set RSA security options',
         ('Use this command for setting RSA (private key) related options located in cn=RSA,cn=encryption,cn=config.'
@@ -486,8 +486,8 @@ def create_parser(subparsers):
     ciphers_list.set_defaults(func=security_ciphers_list)
     ciphers_list_group = ciphers_list.add_mutually_exclusive_group()
     ciphers_list_group.add_argument('--enabled', action='store_true',
-                                    help='Only enabled ciphers')
+                                    help='Lists only enabled ciphers')
     ciphers_list_group.add_argument('--supported', action='store_true',
-                                    help='Only supported ciphers')
+                                    help='Lists only supported ciphers')
     ciphers_list_group.add_argument('--disabled', action='store_true',
-                                    help='Only supported ciphers without enabled ciphers')
+                                    help='Lists only supported ciphers but without enabled ciphers')

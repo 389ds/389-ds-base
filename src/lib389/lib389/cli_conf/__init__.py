@@ -136,16 +136,16 @@ def generic_status(inst, basedn, log, args):
 
 
 def add_generic_plugin_parsers(subparser, plugin_cls):
-    show_parser = subparser.add_parser('show', help='display plugin configuration')
+    show_parser = subparser.add_parser('show', help='Displays the plugin configuration')
     show_parser.set_defaults(func=generic_show, plugin_cls=plugin_cls)
 
-    enable_parser = subparser.add_parser('enable', help='enable plugin')
+    enable_parser = subparser.add_parser('enable', help='Enables the plugin')
     enable_parser.set_defaults(func=generic_enable, plugin_cls=plugin_cls)
 
-    disable_parser = subparser.add_parser('disable', help='disable plugin')
+    disable_parser = subparser.add_parser('disable', help='Disables the plugin')
     disable_parser.set_defaults(func=generic_disable, plugin_cls=plugin_cls)
 
-    status_parser = subparser.add_parser('status', help='display plugin status')
+    status_parser = subparser.add_parser('status', help='Displays the plugin status')
     status_parser.set_defaults(func=generic_status, plugin_cls=plugin_cls)
 
 

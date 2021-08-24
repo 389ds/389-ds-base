@@ -203,7 +203,7 @@ def _add_parser_args_pam(parser):
     parser.add_argument('--id-attr', nargs='+',
                         help='Contains the attribute name which is used to hold the PAM user ID (pamIDAttr)')
     parser.add_argument('--id_map_method',
-                        help='Gives the method to use to map the LDAP bind DN to a PAM identity (pamIDMapMethod)')
+                        help='Sets the method to use to map the LDAP bind DN to a PAM identity (pamIDMapMethod)')
     parser.add_argument('--fallback', choices=['TRUE', 'FALSE'], type=str.upper,
                         help='Sets whether to fallback to regular LDAP authentication '
                              'if PAM authentication fails (pamFallback)')
@@ -220,14 +220,20 @@ def create_parser(subparsers):
     subcommands = passthroughauth_parser.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, PassThroughAuthenticationPlugin)
 
-    list = subcommands.add_parser('list', help='List pass-though plugin URLs or PAM configurations.')
+    enable = subcommands.add_parser('enable', help='Enable the pass through authentication plugins')
+    enable.set_defaults(func=enable_plugins)
+
+    disable = subcommands.add_parser('disable', help='Disable the pass through authentication plugins')
+    disable.set_defaults(func=disable_plugins)
+
+    list = subcommands.add_parser('list', help='List pass-though plugin URLs or PAM configurations')
     subcommands_list = list.add_subparsers(help='action')
-    list_urls = subcommands_list.add_parser('urls', help='List URLs.')
+    list_urls = subcommands_list.add_parser('urls', help='Lists URLs')
     list_urls.set_defaults(func=pta_list)
-    list_pam = subcommands_list.add_parser('pam-configs', help='List PAM configurations.')
+    list_pam = subcommands_list.add_parser('pam-configs', help='Lists PAM configurations')
     list_pam.set_defaults(func=pam_pta_list)
 
-    url = subcommands.add_parser('url', help='Manage PTA URL configurations.')
+    url = subcommands.add_parser('url', help='Manage PTA URL configurations')
     subcommands_url = url.add_subparsers(help='action')
 
     add_url = subcommands_url.add_parser('add', help='Add the config entry')
@@ -240,9 +246,9 @@ def create_parser(subparsers):
     edit_url = subcommands_url.add_parser('modify', help='Edit the config entry')
     edit_url.add_argument('OLD_URL', help='The full LDAP URL you get from the "list" command')
     edit_url.add_argument('NEW_URL',
-                          help='The full LDAP URL in format '
+                          help='Sets the full LDAP URL in format '
                                '"ldap|ldaps://authDS/subtree maxconns,maxops,timeout,ldver,connlifetime,startTLS". '
-                               'If one optional parameter is specified the rest should be specified too')
+                               'If one optional parameter is specified the rest should be specified too.')
     edit_url.set_defaults(func=pta_edit)
 
     delete_url = subcommands_url.add_parser('delete', help='Delete the config entry')

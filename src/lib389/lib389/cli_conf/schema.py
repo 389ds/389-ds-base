@@ -334,7 +334,7 @@ def _add_parser_args(parser, type):
 
 
 def create_parser(subparsers):
-    schema_parser = subparsers.add_parser('schema', help='Query and manipulate schema')
+    schema_parser = subparsers.add_parser('schema', help='Manage the directory schema')
 
     schema_subcommands = schema_parser.add_subparsers(help='schema')
     schema_list_parser = schema_subcommands.add_parser('list', help='List all schema objects on this system')
