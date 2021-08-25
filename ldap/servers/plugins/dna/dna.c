@@ -1025,7 +1025,14 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
 
     value = slapi_entry_attr_get_charptr(e, DNA_INTERVAL);
     if (value) {
+        errno = 0;
         entry->interval = strtoull(value, 0, 0);
+        if (entry->interval == 0 || errno == ERANGE) {
+            slapi_log_err(SLAPI_LOG_WARNING, DNA_PLUGIN_SUBSYSTEM,
+                          "dna_parse_config_entry - Invalid value for dnaInterval (%s), "
+                          "Using default value of 1\n", value);
+            entry->interval = 1;
+        }
         slapi_ch_free_string(&value);
     }
 
