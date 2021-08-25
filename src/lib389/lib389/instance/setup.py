@@ -540,7 +540,7 @@ class SetupDs(object):
         return True
 
     def _prepare_ds(self, general, slapd, backends):
-
+        self.log.info("Validate installation settings ...")
         assert_c(general['defaults'] is not None, "Configuration defaults in section [general] not found")
         self.log.debug("PASSED: using config settings %s" % general['defaults'])
         # Validate our arguments.
@@ -653,9 +653,9 @@ class SetupDs(object):
         Actually does the setup. this is what you want to call as an api.
         """
 
-        self.log.debug("START: Starting installation...")
+        self.log.debug("START: Starting installation ...")
         if not self.verbose:
-            self.log.info("Starting installation...")
+            self.log.info("Starting installation ...")
 
         # Check we have privs to run
         self.log.debug("READY: Preparing installation for %s...", slapd['instance_name'])
@@ -681,9 +681,9 @@ class SetupDs(object):
 
             # Call the child api to do anything it needs.
             self._install(extra)
-        self.log.debug("FINISH: Completed installation for %s", slapd['instance_name'])
+        self.log.debug("FINISH: Completed installation for instance: slapd-%s", slapd['instance_name'])
         if not self.verbose:
-            self.log.info("Completed installation for %s", slapd['instance_name'])
+            self.log.info("Completed installation for instance: slapd-%s", slapd['instance_name'])
 
         return True
 
@@ -761,6 +761,7 @@ class SetupDs(object):
             )
             file_dse.write(dse_fmt)
 
+        self.log.info("Create file system structures ...")
         # Create all the needed paths
         # we should only need to make bak_dir, cert_dir, config_dir, db_dir, ldif_dir, lock_dir, log_dir, run_dir?
         for path in ('backup_dir', 'cert_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
@@ -871,6 +872,7 @@ class SetupDs(object):
             tlsdb.reinit()
 
         if slapd['self_sign_cert']:
+            self.log.info("Create self-signed certificate database ...")
             etc_dirsrv_path = os.path.join(slapd['sysconf_dir'], 'dirsrv/')
             ssca_path = os.path.join(etc_dirsrv_path, 'ssca/')
             ssca = NssSsl(dbpath=ssca_path)
@@ -897,6 +899,7 @@ class SetupDs(object):
 
         # Do selinux fixups
         if general['selinux']:
+            self.log.info("Perform SELinux labeling ...")
             selinux_paths = ('backup_dir', 'cert_dir', 'config_dir', 'db_dir',
                              'ldif_dir', 'lock_dir', 'log_dir',
                              'run_dir', 'schema_dir', 'tmp_dir')
@@ -945,6 +948,7 @@ class SetupDs(object):
         # Create the backends as listed
         # Load example data if needed.
         for backend in backends:
+            self.log.info(f"Create database backend: {backend['nsslapd-suffix']} ...")
             is_sample_entries_in_props = "sample_entries" in backend
             create_suffix_entry_in_props = backend.pop('create_suffix_entry', False)
             ds_instance.backends.create(properties=backend)
@@ -999,6 +1003,7 @@ class SetupDs(object):
         else:
             self.log.debug("Skipping default SASL maps - no backend found!")
 
+        self.log.info("Perform post-installation tasks ...")
         # Change the root password finally
         ds_instance.config.set('nsslapd-rootpw', slapd['root_password'])
 
