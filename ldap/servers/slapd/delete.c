@@ -49,7 +49,7 @@ do_delete(Slapi_PBlock *pb)
     ber = operation->o_ber;
 
     /* count the delete request */
-    slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsRemoveEntryOps);
+    slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsRemoveEntryOps);
 
     /*
      * Parse the delete request.  It looks like this:

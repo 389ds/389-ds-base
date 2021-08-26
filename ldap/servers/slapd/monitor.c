@@ -62,11 +62,11 @@ monitor_info(Slapi_PBlock *pb __attribute__((unused)),
 
     connection_table_as_entry(the_connection_table, e);
 
-    val.bv_len = snprintf(buf, sizeof(buf), "%" PRIu64, slapi_counter_get_value(ops_initiated));
+    val.bv_len = snprintf(buf, sizeof(buf), "%" PRIu64, g_get_num_ops_initiated());
     val.bv_val = buf;
     attrlist_replace(&e->e_attrs, "opsinitiated", vals);
 
-    val.bv_len = snprintf(buf, sizeof(buf), "%" PRIu64, slapi_counter_get_value(ops_completed));
+    val.bv_len = snprintf(buf, sizeof(buf), "%" PRIu64, g_get_num_ops_completed());
     val.bv_val = buf;
     attrlist_replace(&e->e_attrs, "opscompleted", vals);
 
