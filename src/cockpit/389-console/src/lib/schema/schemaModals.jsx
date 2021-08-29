@@ -14,7 +14,6 @@ import {
     SelectOption,
     TextInput,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
@@ -52,7 +51,7 @@ class ObjectClassModal extends React.Component {
             saveBtnDisabled,
         } = this.props;
 
-        let modalTitle =
+        const modalTitle =
             ocModalViewOnly ? (
                 `View ObjectClass - ${ocName}`
             ) : (
@@ -62,14 +61,14 @@ class ObjectClassModal extends React.Component {
                 </div>
             );
 
-        let btnList = [
+        const btnList = [
             <Button key="cancel" variant="link" onClick={closeModal}>
                 Close
             </Button>
         ];
         if (!ocModalViewOnly) {
             let btnText = "Save";
-            let extraPrimaryProps = {};
+            const extraPrimaryProps = {};
 
             if (loading) {
                 btnText = "Saving...";
@@ -163,7 +162,7 @@ class ObjectClassModal extends React.Component {
                                 >
                                     {objectclasses.map((obj, index) => (
                                         <FormSelectOption key={index} value={obj} label={obj} />
-                                        ))}
+                                    ))}
                                 </FormSelect>
                             </GridItem>
                         </Grid>
@@ -206,13 +205,13 @@ class ObjectClassModal extends React.Component {
                                     onCreateOption={onRequiredAttrsCreateOption}
                                     direction="up"
                                     maxHeight="225px"
-                                    >
+                                >
                                     {attributes.map((attr, index) => (
                                         <SelectOption
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -237,13 +236,13 @@ class ObjectClassModal extends React.Component {
                                     onCreateOption={onAllowedAttrsCreateOption}
                                     direction="up"
                                     maxHeight="225px"
-                                    >
+                                >
                                     {attributes.map((attr, index) => (
                                         <SelectOption
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -276,12 +275,8 @@ ObjectClassModal.propTypes = {
 };
 
 ObjectClassModal.defaultProps = {
-    addHandler: noop,
-    editHandler: noop,
     newOcEntry: true,
     ocModalViewOnly: false,
-    handleTypeaheadChange: noop,
-    handleFieldChange: noop,
     objectclasses: [],
     attributes: [],
     ocName: "",
@@ -292,7 +287,6 @@ ObjectClassModal.defaultProps = {
     ocMust: [],
     ocMay: [],
     objectclassModalShow: false,
-    closeModal: noop,
     loading: false
 };
 
@@ -346,7 +340,7 @@ class AttributeTypeModal extends React.Component {
             error,
             saveBtnDisabled,
         } = this.props;
-        let modalTitle =
+        const modalTitle =
             atModalViewOnly ? (
                 `View Attribute - ${atName}`
             ) : (
@@ -356,14 +350,14 @@ class AttributeTypeModal extends React.Component {
                 </div>
             );
 
-        let btnList = [
+        const btnList = [
             <Button key="cancel" variant="link" onClick={closeModal}>
                 Close
             </Button>
         ];
         if (!atModalViewOnly) {
             let btnText = "Save";
-            let extraPrimaryProps = {};
+            const extraPrimaryProps = {};
 
             if (loading) {
                 btnText = "Saving...";
@@ -467,7 +461,7 @@ class AttributeTypeModal extends React.Component {
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -485,7 +479,7 @@ class AttributeTypeModal extends React.Component {
                                 >
                                     {syntaxes.map((syntax, index) => (
                                         <FormSelectOption key={index} value={syntax.id} label={syntax.label} />
-                                        ))}
+                                    ))}
                                 </FormSelect>
                             </GridItem>
                         </Grid>
@@ -558,13 +552,13 @@ class AttributeTypeModal extends React.Component {
                                     noResultsFoundText="There are no matching entries"
                                     isCreatable
                                     onCreateOption={onAliasNameCreateOption}
-                                    >
+                                >
                                     {atAlias.map((alias, index) => (
                                         <SelectOption
                                             key={index}
                                             value={alias}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -585,13 +579,13 @@ class AttributeTypeModal extends React.Component {
                                     aria-labelledby="typeAhead-equality-mr"
                                     placeholderText="Type an Equality matching rule..."
                                     noResultsFoundText="There are no matching entries"
-                                    >
+                                >
                                     {matchingrules.map((mr, index) => (
                                         <SelectOption
                                             key={index}
                                             value={mr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -611,13 +605,13 @@ class AttributeTypeModal extends React.Component {
                                     aria-labelledby="typeAhead-order-mr"
                                     placeholderText="Type an Ordering matching rule.."
                                     noResultsFoundText="There are no matching entries"
-                                    >
+                                >
                                     {matchingrules.map((mr, index) => (
                                         <SelectOption
                                             key={index}
                                             value={mr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -636,13 +630,13 @@ class AttributeTypeModal extends React.Component {
                                     isOpen={isSubstringMROpen}
                                     placeholderText="Type a Substring matching rule..."
                                     noResultsFoundText="There are no matching entries"
-                                    >
+                                >
                                     {matchingrules.map((mr, index) => (
                                         <SelectOption
                                             key={index}
                                             value={mr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -681,10 +675,6 @@ AttributeTypeModal.propTypes = {
 };
 
 AttributeTypeModal.defaultProps = {
-    addHandler: noop,
-    editHandler: noop,
-    handleTypeaheadChange: noop,
-    handleFieldChange: noop,
     attributes: [],
     matchingrules: [],
     syntaxes: [],
@@ -703,7 +693,6 @@ AttributeTypeModal.defaultProps = {
     atModalViewOnly: false,
     attributeModalShow: false,
     newAtEntry: true,
-    closeModal: noop,
     loading: false
 };
 

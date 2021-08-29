@@ -26,7 +26,6 @@ import {
     TextVariants,
     TimePicker,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import ExclamationTriangleIcon from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
@@ -51,7 +50,7 @@ export class WinsyncAgmtModal extends React.Component {
         const attrs = [
             'agmtName', 'agmtHost', 'agmtPort', 'agmtBindDN', 'agmtBindPW', 'agmtBindPWConfirm'
         ];
-        for (let attr of attrs) {
+        for (const attr of attrs) {
             if (attr in errors && errors[attr]) {
                 return true;
             }
@@ -63,7 +62,7 @@ export class WinsyncAgmtModal extends React.Component {
         const attrs = [
             'agmtWinDomain', 'agmtWinSubtree', 'agmtDSSubtree',
         ];
-        for (let attr of attrs) {
+        for (const attr of attrs) {
             if (attr in errors && errors[attr]) {
                 return true;
             }
@@ -75,7 +74,7 @@ export class WinsyncAgmtModal extends React.Component {
         const attrs = [
             'agmtStartTime', 'agmtEndTime',
         ];
-        for (let attr of attrs) {
+        for (const attr of attrs) {
             if (attr in errors && errors[attr]) {
                 return true;
             }
@@ -124,18 +123,18 @@ export class WinsyncAgmtModal extends React.Component {
             error,
             isExcludeAttrOpen,
         } = this.props;
-        let saveDisabled = !this.props.saveOK;
+        const saveDisabled = !this.props.saveOK;
         let title = "Create";
         let initRow = "";
         let name = "agmt-modal";
-        let startHour = agmtStartTime.substring(0, 2);
-        let startMin = agmtStartTime.substring(2, 4);
-        let startTime = startHour + ":" + startMin;
-        let endHour = agmtEndTime.substring(0, 2);
-        let endMin = agmtEndTime.substring(2, 4);
-        let endTime = endHour + ":" + endMin;
+        const startHour = agmtStartTime.substring(0, 2);
+        const startMin = agmtStartTime.substring(2, 4);
+        const startTime = startHour + ":" + startMin;
+        const endHour = agmtEndTime.substring(0, 2);
+        const endMin = agmtEndTime.substring(2, 4);
+        const endTime = endHour + ":" + endMin;
         let saveBtnName = "Save Agreement";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (spinning) {
             saveBtnName = "Saving Agreement ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -611,13 +610,13 @@ export class WinsyncAgmtModal extends React.Component {
                                         aria-labelledby="typeAhead-exclude-attrs"
                                         placeholderText="Start typing an attribute..."
                                         noResultsFoundText="There are no matching entries"
-                                        >
+                                    >
                                         {availAttrs.map((attr, index) => (
                                             <SelectOption
                                                 key={index}
                                                 value={attr}
                                             />
-                                            ))}
+                                        ))}
                                     </Select>
                                 </GridItem>
                             </Grid>
@@ -701,7 +700,7 @@ export class ReplAgmtModal extends React.Component {
         const attrs = [
             'agmtName', 'agmtHost', 'agmtPort', 'agmtBindDN', 'agmtBindPW', 'agmtBindPWConfirm'
         ];
-        for (let attr of attrs) {
+        for (const attr of attrs) {
             if (attr in errors && errors[attr]) {
                 return true;
             }
@@ -713,7 +712,7 @@ export class ReplAgmtModal extends React.Component {
         const attrs = [
             'agmtBootstrapBindDN', 'agmtBootstrapBindPW', 'agmtBootstrapBindPWConfirm'
         ];
-        for (let attr of attrs) {
+        for (const attr of attrs) {
             if (attr in errors && errors[attr]) {
                 return true;
             }
@@ -725,7 +724,7 @@ export class ReplAgmtModal extends React.Component {
         const attrs = [
             'agmtStartTime', 'agmtEndTime'
         ];
-        for (let attr of attrs) {
+        for (const attr of attrs) {
             if (attr in errors && errors[attr]) {
                 return true;
             }
@@ -786,22 +785,22 @@ export class ReplAgmtModal extends React.Component {
             availAttrs,
             error,
         } = this.props;
-        let saveDisabled = !this.props.saveOK;
+        const saveDisabled = !this.props.saveOK;
         let title = "Create";
         let initRow = "";
         let name = "agmt-modal";
-        let bootstrapTitle = "If you are using Bind Group's on the consumer " +
+        const bootstrapTitle = "If you are using Bind Group's on the consumer " +
             "replica you can configure bootstrap credentials that can be used " +
             "to do online initializations, or bootstrap a session if the bind " +
             "groups get out of synchronization";
-        let startHour = agmtStartTime.substring(0, 2);
-        let startMin = agmtStartTime.substring(2, 4);
-        let startTime = startHour + ":" + startMin;
-        let endHour = agmtEndTime.substring(0, 2);
-        let endMin = agmtEndTime.substring(2, 4);
-        let endTime = endHour + ":" + endMin;
+        const startHour = agmtStartTime.substring(0, 2);
+        const startMin = agmtStartTime.substring(2, 4);
+        const startTime = startHour + ":" + startMin;
+        const endHour = agmtEndTime.substring(0, 2);
+        const endMin = agmtEndTime.substring(2, 4);
+        const endTime = endHour + ":" + endMin;
         let saveBtnName = "Save Agreement";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (spinning) {
             saveBtnName = "Saving Agreement ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -1314,13 +1313,13 @@ export class ReplAgmtModal extends React.Component {
                                         isOpen={isExcludeAttrsOpen}
                                         aria-labelledby="typeAhead-exclude-attrs"
                                         placeholderText="Start typing an attribute..."
-                                        >
+                                    >
                                         {availAttrs.map((attr, index) => (
                                             <SelectOption
                                                 key={index}
                                                 value={attr}
                                             />
-                                            ))}
+                                        ))}
                                     </Select>
                                 </GridItem>
                             </Grid>
@@ -1340,13 +1339,13 @@ export class ReplAgmtModal extends React.Component {
                                         aria-labelledby="typeAhead-exclude-init-attrs"
                                         placeholderText="Start typing an attribute..."
                                         noResultsFoundText="There are no matching entries"
-                                        >
+                                    >
                                         {availAttrs.map((attr, index) => (
                                             <SelectOption
                                                 key={index}
                                                 value={attr}
                                             />
-                                            ))}
+                                        ))}
                                     </Select>
                                 </GridItem>
                             </Grid>
@@ -1366,13 +1365,13 @@ export class ReplAgmtModal extends React.Component {
                                         aria-labelledby="typeAhead-strip-attrs"
                                         placeholderText="Start typing an attribute..."
                                         noResultsFoundText="There are no matching entries"
-                                        >
+                                    >
                                         {availAttrs.map((attr, index) => (
                                             <SelectOption
                                                 key={index}
                                                 value={attr}
                                             />
-                                            ))}
+                                        ))}
                                     </Select>
                                 </GridItem>
                             </Grid>
@@ -1453,7 +1452,7 @@ export class ChangeReplRoleModal extends React.Component {
         let changeType = "";
         let roleOptions = [];
         let ridRow = "";
-        let newRole = this.props.newRole;
+        const newRole = this.props.newRole;
         let saveDisabled = !checked;
 
         // Set the change type
@@ -1588,7 +1587,7 @@ export class AddManagerModal extends React.Component {
             error
         } = this.props;
         let saveBtnName = "Add Replication Manager";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (spinning) {
             saveBtnName = "Adding Replication Manager ...";
         }
@@ -1705,7 +1704,7 @@ export class EnableReplModal extends React.Component {
             onNumberChange
         } = this.props;
         let saveBtnName = "Enable Replication";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (spinning) {
             saveBtnName = "Enabling Replication ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -1907,7 +1906,7 @@ export class ExportCLModal extends React.Component {
         } = this.props;
         let page = "";
         let saveBtnName = "Export Changelog";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (spinning) {
             saveBtnName = "Exporting ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -2040,9 +2039,6 @@ EnableReplModal.propTypes = {
 
 EnableReplModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     spinning: false,
     disabled: false,
     error: {},
@@ -2059,9 +2055,6 @@ AddManagerModal.propTypes = {
 
 AddManagerModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     spinning: false,
     error: {},
 };
@@ -2078,9 +2071,6 @@ ChangeReplRoleModal.propTypes = {
 
 ChangeReplRoleModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     spinning: false,
     role: "",
     newRole: "",
@@ -2130,12 +2120,6 @@ ReplAgmtModal.propTypes = {
 
 ReplAgmtModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    handleStripChange: noop,
-    handleFracChange: noop,
-    handleFracInitChange: noop,
-    saveHandler: noop,
     spinning: false,
     availAttrs: [],
     agmtName: "",
@@ -2210,10 +2194,6 @@ WinsyncAgmtModal.propTypes = {
 
 WinsyncAgmtModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    handleFracChange: noop,
-    saveHandler: noop,
     spinning: false,
     availAttrs: [],
     agmtName: "",

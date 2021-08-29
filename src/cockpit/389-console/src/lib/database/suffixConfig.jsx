@@ -7,7 +7,6 @@ import {
     Grid,
     GridItem,
     TextInput,
-    noop,
 } from "@patternfly/react-core";
 
 export class SuffixConfig extends React.Component {
@@ -124,7 +123,7 @@ export class SuffixConfig extends React.Component {
         }
 
         let saveBtnName = "Save Configuration";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.props.saving) {
             saveBtnName = "Saving ...";
             extraPrimaryProps.spinnerAriaValueText = "saving";
@@ -198,6 +197,4 @@ SuffixConfig.defaultProps = {
     readOnly: false,
     requireIndex: false,
     autoTuning: false,
-    handleChange: noop,
-    saveHandler: noop,
 };

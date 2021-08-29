@@ -7,7 +7,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -144,7 +143,6 @@ ChainingMonitor.defaultProps = {
     suffix: "",
     bename: "",
     data: {},
-    enableTree: noop,
 };
 
 export default ChainingMonitor;

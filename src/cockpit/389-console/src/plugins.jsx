@@ -13,7 +13,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import {
     CheckCircleIcon,
@@ -25,7 +24,7 @@ import { PluginTable } from "./lib/plugins/pluginTables.jsx";
 import AccountPolicy from "./lib/plugins/accountPolicy.jsx";
 import AttributeUniqueness from "./lib/plugins/attributeUniqueness.jsx";
 import AutoMembership from "./lib/plugins/autoMembership.jsx";
-import DNA from "./lib/plugins/dna.jsx";
+import DNAPlugin from "./lib/plugins/dna.jsx";
 import LinkedAttributes from "./lib/plugins/linkedAttributes.jsx";
 import ManagedEntries from "./lib/plugins/managedEntries.jsx";
 import MemberOf from "./lib/plugins/memberOf.jsx";
@@ -33,7 +32,7 @@ import PassthroughAuthentication from "./lib/plugins/passthroughAuthentication.j
 import ReferentialIntegrity from "./lib/plugins/referentialIntegrity.jsx";
 import RetroChangelog from "./lib/plugins/retroChangelog.jsx";
 import RootDNAccessControl from "./lib/plugins/rootDNAccessControl.jsx";
-import USN from "./lib/plugins/usn.jsx";
+import USNPlugin from "./lib/plugins/usn.jsx";
 import WinSync from "./lib/plugins/winsync.jsx";
 
 export class Plugins extends React.Component {
@@ -88,13 +87,13 @@ export class Plugins extends React.Component {
             currentPluginPrecedence: ""
         };
 
-        this.onSelect = result => {
+        this.handleSelect = result => {
             this.setState({
                 activePlugin: result.itemId
             });
         };
 
-        this.handleFieldChange = this.handleFieldChange.bind(this);
+        this.onFieldChange = this.onFieldChange.bind(this);
         this.pluginList = this.pluginList.bind(this);
         this.onChangeTab = this.onChangeTab.bind(this);
         this.savePlugin = this.savePlugin.bind(this);
@@ -120,8 +119,8 @@ export class Plugins extends React.Component {
                 .spawn(attr_cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const attrContent = JSON.parse(content);
-                    let attrs = [];
-                    for (let content of attrContent["items"]) {
+                    const attrs = [];
+                    for (const content of attrContent.items) {
                         attrs.push(content.name[0]);
                     }
 
@@ -138,8 +137,8 @@ export class Plugins extends React.Component {
                             .spawn(oc_cmd, { superuser: true, err: "message" })
                             .done(content => {
                                 const ocContent = JSON.parse(content);
-                                let ocs = [];
-                                for (let content of ocContent["items"]) {
+                                const ocs = [];
+                                for (const content of ocContent.items) {
                                     ocs.push(content.name[0]);
                                 }
                                 this.setState({
@@ -148,7 +147,7 @@ export class Plugins extends React.Component {
                                 });
                             })
                             .fail(err => {
-                                let errMsg = JSON.parse(err);
+                                const errMsg = JSON.parse(err);
                                 this.props.addNotification("error", `Failed to get objectClasses - ${errMsg.desc}`);
                             });
                 });
@@ -158,8 +157,8 @@ export class Plugins extends React.Component {
         this.setState({ currentPluginTab: event.target.value });
     }
 
-    handleFieldChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    onFieldChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
         });
@@ -172,7 +171,7 @@ export class Plugins extends React.Component {
     }
 
     pluginList() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -204,7 +203,7 @@ export class Plugins extends React.Component {
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `${errMsg.desc} error during plugin loading`
@@ -265,7 +264,7 @@ export class Plugins extends React.Component {
                     this.toggleLoading();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     if (errMsg.desc.indexOf("nothing to set") >= 0) {
                         nothingToSetErr = true;
                     } else {
@@ -278,7 +277,7 @@ export class Plugins extends React.Component {
                     this.toggleLoading();
                 })
                 .always(() => {
-                    if ("specificPluginCMD" in data && data.specificPluginCMD.length != 0) {
+                    if ("specificPluginCMD" in data && data.specificPluginCMD.length !== 0) {
                         this.toggleLoading();
                         log_cmd(
                             "savePlugin",
@@ -303,7 +302,7 @@ export class Plugins extends React.Component {
                                     console.info("savePlugin", "Result", content);
                                 })
                                 .fail(err => {
-                                    let errMsg = JSON.parse(err);
+                                    const errMsg = JSON.parse(err);
                                     if (
                                         (errMsg.desc.indexOf("nothing to set") >= 0 && nothingToSetErr) ||
                                 errMsg.desc.indexOf("nothing to set") < 0
@@ -376,7 +375,7 @@ export class Plugins extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during ${this.state.togglePluginName} plugin modification - ${errMsg.desc}`
@@ -392,7 +391,7 @@ export class Plugins extends React.Component {
     getIconAndName(name, plugin_name) {
         const pluginRow = this.state.rows.find(row => row.cn[0] === plugin_name);
         if (pluginRow) {
-            if (pluginRow['nsslapd-pluginEnabled'][0] == "on") {
+            if (pluginRow['nsslapd-pluginEnabled'][0] === "on") {
                 return <div className="ds-ok-icon"><CheckCircleIcon title="Plugin is enabled" className="ds-icon-sm" />{name}</div>;
             } else {
                 return <div className="ds-disabled-icon"><BanIcon title="Plugin is disabled" className="ds-icon-sm" />{name}</div>;
@@ -471,7 +470,7 @@ export class Plugins extends React.Component {
                 name: "DNA",
                 icon: this.getIconAndName("DNA", "Distributed Numeric Assignment Plugin"),
                 component: (
-                    <DNA
+                    <DNAPlugin
                         rows={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
@@ -619,7 +618,7 @@ export class Plugins extends React.Component {
                 name: "USN",
                 icon: this.getIconAndName("USN", "USN"),
                 component: (
-                    <USN
+                    <USNPlugin
                         rows={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
@@ -647,7 +646,7 @@ export class Plugins extends React.Component {
                     <Grid className="ds-margin-top-xlg" hasGutter>
                         <GridItem span={3}>
                             <div>
-                                <Nav key={this.state.pluginTableKey} theme="light" onSelect={this.onSelect}>
+                                <Nav key={this.state.pluginTableKey} theme="light" onSelect={this.handleSelect}>
                                     <NavList>
                                         {Object.entries(selectPlugins).map(([id, item]) => (
                                             <NavItem key={item.name} itemId={item.name} isActive={this.state.activePlugin === item.name}>
@@ -660,17 +659,17 @@ export class Plugins extends React.Component {
                         </GridItem>
                         <GridItem className="ds-indent-md" span={9}>
                             {Object.entries(selectPlugins).filter(plugin => plugin[1].name === this.state.activePlugin)
-                            .map(filteredPlugin => (
-                                <div key={filteredPlugin[1].name} className="ds-margin-top">
-                                    {filteredPlugin[1].component}
-                                </div>
-                            ))}
+                                    .map(filteredPlugin => (
+                                        <div key={filteredPlugin[1].name} className="ds-margin-top">
+                                            {filteredPlugin[1].component}
+                                        </div>
+                                    ))}
                         </GridItem>
                     </Grid>
                     <DoubleConfirmModal
                         showModal={this.state.showConfirmToggle}
                         closeHandler={this.closeConfirmToggle}
-                        handleChange={this.handleFieldChange}
+                        handleChange={this.onFieldChange}
                         actionHandler={this.togglePlugin}
                         spinning={this.state.modalSpinning}
                         item={this.state.togglePluginName}
@@ -696,6 +695,5 @@ Plugins.propTypes = {
 };
 
 Plugins.defaultProps = {
-    addNotification: noop,
     serverId: ""
 };

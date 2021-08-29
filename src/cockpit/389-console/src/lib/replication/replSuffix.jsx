@@ -18,7 +18,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -121,9 +120,9 @@ export class ReplSuffix extends React.Component {
     }
 
     handleChange (e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
         if (value == "") {
             valueErr = true;
         }
@@ -135,11 +134,11 @@ export class ReplSuffix extends React.Component {
     }
 
     validateEnable() {
-        let errObj = {};
+        const errObj = {};
         let all_good = true;
 
-        let dnAttrs = ['enableBindDN', 'enableBindGroupDN'];
-        for (let attr of dnAttrs) {
+        const dnAttrs = ['enableBindDN', 'enableBindGroupDN'];
+        for (const attr of dnAttrs) {
             if (this.state[attr] != "" && (!valid_dn(this.state[attr]) || !this.state[attr].includes(','))) {
                 all_good = false;
                 errObj[attr] = true;
@@ -161,8 +160,8 @@ export class ReplSuffix extends React.Component {
     }
 
     handleEnableChange (e) {
-        let value = e.target.value;
-        let attr = e.target.id;
+        const value = e.target.value;
+        const attr = e.target.id;
 
         this.setState({
             [attr]: value,
@@ -207,7 +206,7 @@ export class ReplSuffix extends React.Component {
         }
 
         // Now enable replication
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'enable', '--suffix=' + this.props.suffix,
             '--role=' + this.state.enableRole
@@ -238,7 +237,7 @@ export class ReplSuffix extends React.Component {
                 })
                 .fail(err => {
                     this.props.reload(1);
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to enable replication for "${this.props.suffix}" - ${errMsg.desc}`
@@ -254,7 +253,7 @@ export class ReplSuffix extends React.Component {
 
     disableReplication () {
         this.props.disableTree();
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', 'disable', '--suffix=' + this.props.suffix];
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', 'disable', '--suffix=' + this.props.suffix];
         log_cmd('disableReplication', 'Disable replication', cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -267,7 +266,7 @@ export class ReplSuffix extends React.Component {
                 })
                 .fail(err => {
                     this.props.reload(1);
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to disable replication for "${this.props.suffix}" - ${errMsg.desc}`
@@ -343,10 +342,10 @@ export class ReplSuffix extends React.Component {
                             suffix={this.props.suffix}
                             serverId={this.props.serverId}
                             addNotification={this.props.addNotification}
-                            clMaxEntries={this.props.data['clMaxEntries']}
-                            clMaxAge={this.props.data['clMaxAge']}
-                            clTrimInt={this.props.data['clTrimInt']}
-                            clEncrypt={this.props.data['clEncrypt']}
+                            clMaxEntries={this.props.data.clMaxEntries}
+                            clMaxAge={this.props.data.clMaxAge}
+                            clTrimInt={this.props.data.clTrimInt}
+                            clEncrypt={this.props.data.clEncrypt}
                             key={this.props.data}
                         />
                     </Tab>
@@ -470,19 +469,12 @@ ReplSuffix.defaultProps = {
     serverId: "",
     suffix: "",
     role: "",
-    addNotification: noop,
     agmtRows: [],
     winsyncRows: [],
     ruvRows: [],
     ldifRows: [],
-    reloadAgmts: noop,
-    reloadRUV: noop,
-    reloadConfig: noop,
-    reload: noop,
     replicated: false,
     attrs: [],
-    enableTree: noop,
-    disableTree: noop,
     spinning: false,
     disabled: false,
 };

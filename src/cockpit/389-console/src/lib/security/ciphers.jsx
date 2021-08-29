@@ -16,7 +16,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import { log_cmd } from "../../lib/tools.jsx";
 import PropTypes from "prop-types";
@@ -70,9 +69,9 @@ export class Ciphers extends React.Component {
 
     componentDidMount () {
         let cipherPref = "default";
-        let allowedCiphers = [];
-        let deniedCiphers = [];
-        let availableCiphers = this.props.supportedCiphers.slice(0); // Copy array
+        const allowedCiphers = [];
+        const deniedCiphers = [];
+        const availableCiphers = this.props.supportedCiphers.slice(0); // Copy array
 
         // Parse SSL cipher attributes (nsSSL3Ciphers)
         if (this.props.cipherPref != "") {
@@ -91,7 +90,7 @@ export class Ciphers extends React.Component {
 
             // Process the remaining ciphers
             rawCiphers = rawCiphers.map(function(x) { return x.toUpperCase() });
-            for (let cipher of rawCiphers) {
+            for (const cipher of rawCiphers) {
                 if (cipher.startsWith("+")) {
                     allowedCiphers.push(cipher.substring(1));
                 } else if (cipher.startsWith("-")) {
@@ -100,7 +99,7 @@ export class Ciphers extends React.Component {
             }
 
             // Remove all enabled ciphers from the list of available ciphers
-            for (let enabled_cipher of this.props.enabledCiphers) {
+            for (const enabled_cipher of this.props.enabledCiphers) {
                 if (availableCiphers.includes(enabled_cipher)) {
                     // Remove val from availableCiphers
                     const index = availableCiphers.indexOf(enabled_cipher);
@@ -110,7 +109,7 @@ export class Ciphers extends React.Component {
                 }
             }
             // Remove allowed ciphers from the list of available ciphers
-            for (let allow_cipher of allowedCiphers) {
+            for (const allow_cipher of allowedCiphers) {
                 if (availableCiphers.includes(allow_cipher)) {
                     // Remove val from availableCiphers
                     const index = availableCiphers.indexOf(allow_cipher);
@@ -120,7 +119,7 @@ export class Ciphers extends React.Component {
                 }
             }
             // Remove denied ciphers from the list of available ciphers
-            for (let deny_cipher of deniedCiphers) {
+            for (const deny_cipher of deniedCiphers) {
                 if (availableCiphers.includes(deny_cipher)) {
                     // Remove val from availableCiphers
                     const index = availableCiphers.indexOf(deny_cipher);
@@ -148,10 +147,10 @@ export class Ciphers extends React.Component {
             saving: true
         });
         let prefs = this.state.cipherPref;
-        for (let cipher of this.state.allowCiphers) {
+        for (const cipher of this.state.allowCiphers) {
             prefs += ",+" + cipher;
         }
-        for (let cipher of this.state.denyCiphers) {
+        for (const cipher of this.state.denyCiphers) {
             prefs += ",-" + cipher;
         }
 
@@ -177,7 +176,7 @@ export class Ciphers extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -212,7 +211,7 @@ export class Ciphers extends React.Component {
 
     handleAllowCipherChange(e, selection) {
         let disableSaveBtn = true;
-        let availableCiphers = [...this.state.availableCiphers];
+        const availableCiphers = [...this.state.availableCiphers];
 
         if (this.state.cipherPref != this.state._cipherPref) {
             disableSaveBtn = false;
@@ -225,7 +224,7 @@ export class Ciphers extends React.Component {
 
             // Buld a list of of waht the new cipher list will be, so we can
             // check if the value changed and the save button can be enabled/disabled
-            let copy_new_ciphers = [...this.state.allowCiphers];
+            const copy_new_ciphers = [...this.state.allowCiphers];
             const index = copy_new_ciphers.indexOf(selection);
             if (index > -1) {
                 copy_new_ciphers.splice(index, 1);
@@ -265,7 +264,7 @@ export class Ciphers extends React.Component {
 
     handleDenyCipherChange(e, selection) {
         let disableSaveBtn = true;
-        let availableCiphers = [...this.state.availableCiphers];
+        const availableCiphers = [...this.state.availableCiphers];
 
         if (this.state.cipherPref != this.state._cipherPref) {
             disableSaveBtn = false;
@@ -278,7 +277,7 @@ export class Ciphers extends React.Component {
 
             // Buld a list of of waht the new cipher list will be, so we can
             // check if the value changed and the save button can be enabled/disabled
-            let copy_new_ciphers = [...this.state.denyCiphers];
+            const copy_new_ciphers = [...this.state.denyCiphers];
             const index = copy_new_ciphers.indexOf(selection);
             if (index > -1) {
                 copy_new_ciphers.splice(index, 1);
@@ -318,23 +317,23 @@ export class Ciphers extends React.Component {
     }
 
     render () {
-        let supportedCiphers = [];
-        let enabledCiphers = [];
+        const supportedCiphers = [];
+        const enabledCiphers = [];
         let cipherPage;
         let saveBtnName = "Save Settings";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.state.saving) {
             saveBtnName = "Saving settings ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
-        for (let cipher of this.props.supportedCiphers) {
+        for (const cipher of this.props.supportedCiphers) {
             if (!this.props.enabledCiphers.includes(cipher)) {
                 // This cipher is not currently enabled, so list it as available
                 supportedCiphers.push(cipher);
             }
         }
-        for (let cipher of this.props.enabledCiphers) {
+        for (const cipher of this.props.enabledCiphers) {
             enabledCiphers.push(cipher);
         }
         let supportedList = supportedCiphers.map((name) =>
@@ -506,7 +505,6 @@ Ciphers.defaultProps = {
     supportedCiphers: [],
     enabledCiphers: [],
     cipherPref: "",
-    addNotification: noop,
 };
 
 export default Ciphers;

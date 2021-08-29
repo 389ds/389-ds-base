@@ -6,7 +6,6 @@ import {
     PaginationVariant,
     SearchInput,
     Switch,
-    noop
 } from "@patternfly/react-core";
 import {
     // cellWidth,
@@ -32,9 +31,10 @@ class PluginTable extends React.Component {
             rows: [],
             dropdownIsOpen: false,
             columns: [
-                { title: 'Plugin Name',
-                  transforms: [sortable],
-                  cellFormatters: [expandable]
+                {
+                    title: 'Plugin Name',
+                    transforms: [sortable],
+                    cellFormatters: [expandable]
                 },
                 { title: 'Plugin Type', transforms: [sortable] },
                 { title: 'Enabled', transforms: [sortable] },
@@ -69,17 +69,17 @@ class PluginTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_rows = [];
-        let rows = [];
+        const sorted_rows = [];
+        const rows = [];
         let count = 0;
 
         // Convert the rows pairings into a sortable array based on the column indexes
         for (let idx = 0; idx < this.state.rows.length; idx += 2) {
             sorted_rows.push({
-                'expandedRow': this.state.rows[idx + 1],
-                '1': this.state.rows[idx].cells[0],
-                '2': this.state.rows[idx].cells[1],
-                '3': this.state.rows[idx].cells[2],
+                expandedRow: this.state.rows[idx + 1],
+                1: this.state.rows[idx].cells[0],
+                2: this.state.rows[idx].cells[1],
+                3: this.state.rows[idx].cells[2],
             });
         }
 
@@ -88,7 +88,7 @@ class PluginTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_rows.reverse();
         }
-        for (let srow of sorted_rows) {
+        for (const srow of sorted_rows) {
             rows.push({
                 isOpen: false,
                 cells: [
@@ -111,11 +111,11 @@ class PluginTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
+        const rows = [];
         let count = 0;
 
-        for (let row of this.props.rows) {
-            let val = value.toLowerCase();
+        for (const row of this.props.rows) {
+            const val = value.toLowerCase();
 
             // Check for matches of all the parts
             if (val != "" && row.cn[0].toLowerCase().indexOf(val) == -1 &&
@@ -150,19 +150,19 @@ class PluginTable extends React.Component {
     }
 
     getExpandedRow(rowData) {
-        let dependsType = rowData["nsslapd-plugin-depends-on-type"] === undefined
+        const dependsType = rowData["nsslapd-plugin-depends-on-type"] === undefined
             ? ""
             : rowData["nsslapd-plugin-depends-on-type"].join(", ");
-        let dependsNamed = rowData["nsslapd-plugin-depends-on-named"] === undefined
+        const dependsNamed = rowData["nsslapd-plugin-depends-on-named"] === undefined
             ? ""
             : rowData["nsslapd-plugin-depends-on-named"].join(", ");
-        let precedence = rowData["nsslapd-pluginprecedence"] === undefined
+        const precedence = rowData["nsslapd-pluginprecedence"] === undefined
             ? ""
             : rowData["nsslapd-pluginprecedence"][0];
 
         const plugin_enabled = rowData["nsslapd-pluginEnabled"][0] == "on";
         // const plugin_name = (' ' + rowData["cn"][0]).slice(1);
-        const plugin_name = rowData["cn"][0];
+        const plugin_name = rowData.cn[0];
         const enabled = <i>Plugin is enabled</i>;
         const disabled = <i>Plugin is disabled</i>;
 
@@ -201,10 +201,10 @@ class PluginTable extends React.Component {
     }
 
     componentDidMount() {
-        let rows = [];
+        const rows = [];
         let count = 0;
 
-        for (let row of this.props.rows) {
+        for (const row of this.props.rows) {
             rows.push(
                 {
                     isOpen: false,
@@ -229,13 +229,13 @@ class PluginTable extends React.Component {
 
     render() {
         const { perPage, page, sortBy, rows, columns } = this.state;
-        let origRows = [...rows];
-        let startIdx = ((perPage * page) - perPage) * 2;
-        let tableRows = origRows.splice(startIdx, perPage * 2);
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
 
         for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
             // Rewrite parent index to match new spliced array
-            tableRows[idx]['parent'] = count;
+            tableRows[idx].parent = count;
         }
 
         return (
@@ -336,8 +336,8 @@ class AttrUniqConfigTable extends React.Component {
 
     componentDidMount () {
         // Copy the rows so we can handle sorting and searching
-        let rows = [];
-        for (let row of this.props.rows) {
+        const rows = [];
+        for (const row of this.props.rows) {
             rows.push([row.cn[0], row['uniqueness-attribute-name'].join(", "), row["nsslapd-pluginenabled"][0]]);
         }
         this.setState({
@@ -357,9 +357,9 @@ class AttrUniqConfigTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
-        let val = value.toLowerCase();
-        for (let row of this.state.rows) {
+        const rows = [];
+        const val = value.toLowerCase();
+        for (const row of this.state.rows) {
             if (val != "" &&
                 row[0].indexOf(val) == -1 &&
                 row[1].indexOf(val) == -1) {
@@ -370,7 +370,7 @@ class AttrUniqConfigTable extends React.Component {
         }
         if (val == "") {
             // reset rows
-            for (let row of this.props.rows) {
+            for (const row of this.props.rows) {
                 rows.push([row.cn[0], row['uniqueness-attribute-name'].join(", "), row["nsslapd-pluginenabled"][0]]);
             }
         }
@@ -382,16 +382,16 @@ class AttrUniqConfigTable extends React.Component {
     }
 
     render() {
-        let rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
+        const rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
         if (rows.length == 0) {
             has_rows = false;
-            columns = [{title: 'Attribute Uniqueness Configurations'}];
-            tableRows = [{cells: ['No Configurations']}];
+            columns = [{ title: 'Attribute Uniqueness Configurations' }];
+            tableRows = [{ cells: ['No Configurations'] }];
         } else {
-            let startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
         return (
@@ -443,8 +443,6 @@ AttrUniqConfigTable.propTypes = {
 
 AttrUniqConfigTable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 class LinkedAttributesTable extends React.Component {
@@ -498,12 +496,12 @@ class LinkedAttributesTable extends React.Component {
 
     componentDidMount () {
         // Copy the rows so we can handle sorting and searching
-        let rows = [];
-        for (let row of this.props.rows) {
-            let configName = row["cn"] === undefined ? "" : row["cn"][0];
-            let linkType = row["linktype"] === undefined ? "" : row["linktype"][0];
-            let managedType = row["managedtype"] === undefined ? "" : row["managedtype"][0];
-            let linkScope = row["linkscope"] === undefined ? "" : row["linkscope"][0];
+        const rows = [];
+        for (const row of this.props.rows) {
+            const configName = row.cn === undefined ? "" : row.cn[0];
+            const linkType = row.linktype === undefined ? "" : row.linktype[0];
+            const managedType = row.managedtype === undefined ? "" : row.managedtype[0];
+            const linkScope = row.linkscope === undefined ? "" : row.linkscope[0];
             rows.push([configName, linkType, managedType, linkScope]);
         }
         this.setState({
@@ -523,9 +521,9 @@ class LinkedAttributesTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
-        let val = value.toLowerCase();
-        for (let row of this.state.rows) {
+        const rows = [];
+        const val = value.toLowerCase();
+        for (const row of this.state.rows) {
             if (val != "" &&
                 row[0].indexOf(val) == -1 &&
                 row[1].indexOf(val) == -1 &&
@@ -538,11 +536,11 @@ class LinkedAttributesTable extends React.Component {
         }
         if (val == "") {
             // reset rows
-            for (let row of this.props.rows) {
-                let configName = row["cn"] === undefined ? "" : row["cn"][0];
-                let linkType = row["linktype"] === undefined ? "" : row["linktype"][0];
-                let managedType = row["managedtype"] === undefined ? "" : row["managedtype"][0];
-                let linkScope = row["linkscope"] === undefined ? "" : row["linkscope"][0];
+            for (const row of this.props.rows) {
+                const configName = row.cn === undefined ? "" : row.cn[0];
+                const linkType = row.linktype === undefined ? "" : row.linktype[0];
+                const managedType = row.managedtype === undefined ? "" : row.managedtype[0];
+                const linkScope = row.linkscope === undefined ? "" : row.linkscope[0];
                 rows.push([configName, linkType, managedType, linkScope]);
             }
         }
@@ -554,16 +552,16 @@ class LinkedAttributesTable extends React.Component {
     }
 
     render() {
-        let rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
+        const rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
         if (rows.length == 0) {
             has_rows = false;
-            columns = [{title: 'Linked Attributes Configurations'}];
-            tableRows = [{cells: ['No Configurations']}];
+            columns = [{ title: 'Linked Attributes Configurations' }];
+            tableRows = [{ cells: ['No Configurations'] }];
         } else {
-            let startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
         return (
@@ -615,8 +613,6 @@ LinkedAttributesTable.propTypes = {
 
 LinkedAttributesTable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 class DNATable extends React.Component {
@@ -654,12 +650,12 @@ class DNATable extends React.Component {
 
     componentDidMount () {
         // Copy the rows so we can handle sorting and searching
-        let rows = [];
-        for (let row of this.props.rows) {
-            let configName = row["cn"] === undefined ? "" : row["cn"][0];
-            let nextValue = row["dnanextvalue"] === undefined ? "" : row["dnanextvalue"][0];
-            let filter = row["dnafilter"] === undefined ? "" : row["dnafilter"][0];
-            let scope = row["dnascope"] === undefined ? "" : row["dnascope"][0];
+        const rows = [];
+        for (const row of this.props.rows) {
+            const configName = row.cn === undefined ? "" : row.cn[0];
+            const nextValue = row.dnanextvalue === undefined ? "" : row.dnanextvalue[0];
+            const filter = row.dnafilter === undefined ? "" : row.dnafilter[0];
+            const scope = row.dnascope === undefined ? "" : row.dnascope[0];
             rows.push([configName, scope, filter, nextValue]);
         }
         this.setState({
@@ -679,9 +675,9 @@ class DNATable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
-        let val = value.toLowerCase();
-        for (let row of this.state.rows) {
+        const rows = [];
+        const val = value.toLowerCase();
+        for (const row of this.state.rows) {
             if (val != "" &&
                 row[0].indexOf(val) == -1 &&
                 row[1].indexOf(val) == -1 &&
@@ -694,11 +690,11 @@ class DNATable extends React.Component {
         }
         if (val == "") {
             // reset rows
-            for (let row of this.props.rows) {
-                let configName = row["cn"] === undefined ? "" : row["cn"][0];
-                let nextValue = row["dnanextvalue"] === undefined ? "" : row["dnanextvalue"][0];
-                let filter = row["dnafilter"] === undefined ? "" : row["dnafilter"][0];
-                let scope = row["scope"] === undefined ? "" : row["scope"][0];
+            for (const row of this.props.rows) {
+                const configName = row.cn === undefined ? "" : row.cn[0];
+                const nextValue = row.dnanextvalue === undefined ? "" : row.dnanextvalue[0];
+                const filter = row.dnafilter === undefined ? "" : row.dnafilter[0];
+                const scope = row.scope === undefined ? "" : row.scope[0];
                 rows.push([configName, scope, filter, nextValue]);
             }
         }
@@ -725,16 +721,16 @@ class DNATable extends React.Component {
     }
 
     render() {
-        let rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
+        const rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
         if (rows.length == 0) {
             has_rows = false;
-            columns = [{title: 'DNA Configurations'}];
-            tableRows = [{cells: ['No Configurations']}];
+            columns = [{ title: 'DNA Configurations' }];
+            tableRows = [{ cells: ['No Configurations'] }];
         } else {
-            let startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
 
@@ -787,8 +783,6 @@ DNATable.propTypes = {
 
 DNATable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 class DNASharedTable extends React.Component {
@@ -824,12 +818,12 @@ class DNASharedTable extends React.Component {
     }
 
     componentDidMount () {
-        let rows = [];
-        for (let row of this.props.rows) {
+        const rows = [];
+        for (const row of this.props.rows) {
             rows.push([
-                row["dnahostname"][0],
-                row["dnaportnum"][0],
-                row["dnaremainingvalues"][0]
+                row.dnahostname[0],
+                row.dnaportnum[0],
+                row.dnaremainingvalues[0]
             ]);
         }
         this.setState({
@@ -849,9 +843,9 @@ class DNASharedTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
-        let val = value.toLowerCase();
-        for (let row of this.state.rows) {
+        const rows = [];
+        const val = value.toLowerCase();
+        for (const row of this.state.rows) {
             if (val != "" &&
                 row[0].indexOf(val) == -1 &&
                 row[1].indexOf(val) == -1 &&
@@ -863,11 +857,11 @@ class DNASharedTable extends React.Component {
         }
         if (val == "") {
             // reset rows
-            for (let row of this.props.rows) {
+            for (const row of this.props.rows) {
                 rows.push([
-                    row["dnahostname"][0],
-                    row["dnaportnum"][0],
-                    row["dnaremainingvalues"][0]
+                    row.dnahostname[0],
+                    row.dnaportnum[0],
+                    row.dnaremainingvalues[0]
                 ]);
             }
         }
@@ -894,16 +888,16 @@ class DNASharedTable extends React.Component {
     }
 
     render() {
-        let rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
+        const rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
         if (rows.length == 0) {
             has_rows = false;
-            columns = [{title: 'DNA Shared Configurations'}];
-            tableRows = [{cells: ['No Configurations']}];
+            columns = [{ title: 'DNA Shared Configurations' }];
+            tableRows = [{ cells: ['No Configurations'] }];
         } else {
-            let startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
 
@@ -956,8 +950,6 @@ DNASharedTable.propTypes = {
 
 DNASharedTable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 class AutoMembershipDefinitionTable extends React.Component {
@@ -994,13 +986,13 @@ class AutoMembershipDefinitionTable extends React.Component {
     }
 
     componentDidMount () {
-        let rows = [];
-        for (let row of this.props.rows) {
+        const rows = [];
+        for (const row of this.props.rows) {
             rows.push([
-                row["cn"][0],
-                "automemberdefaultgroup" in row ? row["automemberdefaultgroup"][0] : "",
-                row["automemberscope"][0],
-                row["automemberfilter"][0],
+                row.cn[0],
+                "automemberdefaultgroup" in row ? row.automemberdefaultgroup[0] : "",
+                row.automemberscope[0],
+                row.automemberfilter[0],
             ]);
         }
         this.setState({
@@ -1020,9 +1012,9 @@ class AutoMembershipDefinitionTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
-        let val = value.toLowerCase();
-        for (let row of this.state.rows) {
+        const rows = [];
+        const val = value.toLowerCase();
+        for (const row of this.state.rows) {
             if (val != "" &&
                 row[0].indexOf(val) == -1 &&
                 row[1].indexOf(val) == -1 &&
@@ -1035,12 +1027,12 @@ class AutoMembershipDefinitionTable extends React.Component {
         }
         if (val == "") {
             // reset rows
-            for (let row of this.props.rows) {
+            for (const row of this.props.rows) {
                 rows.push([
-                    row["cn"][0],
-                    row["automemberdefaultgroup"][0],
-                    row["automemberscope"][0],
-                    row["automemberfilter"][0],
+                    row.cn[0],
+                    row.automemberdefaultgroup[0],
+                    row.automemberscope[0],
+                    row.automemberfilter[0],
                 ]);
             }
         }
@@ -1067,16 +1059,16 @@ class AutoMembershipDefinitionTable extends React.Component {
     }
 
     render() {
-        let rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
+        const rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
         if (rows.length == 0) {
             has_rows = false;
-            columns = [{title: 'Automembership Definitions'}];
-            tableRows = [{cells: ['No Definitions']}];
+            columns = [{ title: 'Automembership Definitions' }];
+            tableRows = [{ cells: ['No Definitions'] }];
         } else {
-            let startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
         return (
@@ -1129,8 +1121,6 @@ AutoMembershipDefinitionTable.propTypes = {
 
 AutoMembershipDefinitionTable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 class AutoMembershipRegexTable extends React.Component {
@@ -1167,12 +1157,12 @@ class AutoMembershipRegexTable extends React.Component {
     }
 
     componentDidMount () {
-        let rows = [];
-        for (let row of this.props.rows) {
-            let includeReg = row["automemberinclusiveregex"] === undefined ? "" : row["automemberinclusiveregex"].join(", ");
-            let excludeReg = row["automemberexclusiveregex"] === undefined ? "" : row["automemberexclusiveregex"].join(", ");
-            let targetGrp = row["automembertargetgroup"] === undefined ? "" : row["automembertargetgroup"][0];
-            rows.push([row["cn"][0], excludeReg, includeReg, targetGrp]);
+        const rows = [];
+        for (const row of this.props.rows) {
+            const includeReg = row.automemberinclusiveregex === undefined ? "" : row.automemberinclusiveregex.join(", ");
+            const excludeReg = row.automemberexclusiveregex === undefined ? "" : row.automemberexclusiveregex.join(", ");
+            const targetGrp = row.automembertargetgroup === undefined ? "" : row.automembertargetgroup[0];
+            rows.push([row.cn[0], excludeReg, includeReg, targetGrp]);
         }
         this.setState({
             rows: rows
@@ -1191,9 +1181,9 @@ class AutoMembershipRegexTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
-        let val = value.toLowerCase();
-        for (let row of this.state.rows) {
+        const rows = [];
+        const val = value.toLowerCase();
+        for (const row of this.state.rows) {
             if (val != "" &&
                 row[0].indexOf(val) == -1 &&
                 row[1].indexOf(val) == -1 &&
@@ -1206,12 +1196,12 @@ class AutoMembershipRegexTable extends React.Component {
         }
         if (val == "") {
             // reset rows
-            for (let row of this.props.rows) {
-                let includeReg = row["automemberinclusiveregex"] === undefined ? "" : row["automemberinclusiveregex"][0];
-                let excludeReg = row["automemberexclusiveregex"] === undefined ? "" : row["automemberexclusiveregex"][0];
-                let targetGrp = row["automembertargetgroup"] === undefined ? "" : row["automembertargetgroup"][0];
+            for (const row of this.props.rows) {
+                const includeReg = row.automemberinclusiveregex === undefined ? "" : row.automemberinclusiveregex[0];
+                const excludeReg = row.automemberexclusiveregex === undefined ? "" : row.automemberexclusiveregex[0];
+                const targetGrp = row.automembertargetgroup === undefined ? "" : row.automembertargetgroup[0];
                 rows.push([
-                    row["cn"][0],
+                    row.cn[0],
                     excludeReg.join(", "),
                     includeReg.join(", "),
                     targetGrp,
@@ -1241,16 +1231,16 @@ class AutoMembershipRegexTable extends React.Component {
     }
 
     render() {
-        let rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
+        const rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
         if (rows.length == 0) {
             has_rows = false;
-            columns = [{title: 'Automembership Regular Expressions'}];
-            tableRows = [{cells: ['No regular expressions']}];
+            columns = [{ title: 'Automembership Regular Expressions' }];
+            tableRows = [{ cells: ['No regular expressions'] }];
         } else {
-            let startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
         return (
@@ -1303,8 +1293,6 @@ AutoMembershipRegexTable.propTypes = {
 
 AutoMembershipRegexTable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 class ManagedDefinitionTable extends React.Component {
@@ -1341,12 +1329,12 @@ class ManagedDefinitionTable extends React.Component {
     }
 
     componentDidMount () {
-        let rows = [];
-        for (let row of this.props.rows) {
-            let managedBase = row["managedbase"] === undefined ? "" : row["managedbase"][0];
-            let scope = row["originscope"] === undefined ? "" : row["originscope"][0];
-            let filter = row["originfilter"] === undefined ? "" : row["originfilter"][0];
-            rows.push([row["cn"][0], scope, filter, managedBase]);
+        const rows = [];
+        for (const row of this.props.rows) {
+            const managedBase = row.managedbase === undefined ? "" : row.managedbase[0];
+            const scope = row.originscope === undefined ? "" : row.originscope[0];
+            const filter = row.originfilter === undefined ? "" : row.originfilter[0];
+            rows.push([row.cn[0], scope, filter, managedBase]);
         }
         this.setState({
             rows: rows
@@ -1365,9 +1353,9 @@ class ManagedDefinitionTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
-        let val = value.toLowerCase();
-        for (let row of this.state.rows) {
+        const rows = [];
+        const val = value.toLowerCase();
+        for (const row of this.state.rows) {
             if (val != "" &&
                 row[0].indexOf(val) == -1 &&
                 row[1].indexOf(val) == -1 &&
@@ -1380,11 +1368,11 @@ class ManagedDefinitionTable extends React.Component {
         }
         if (val == "") {
             // reset rows
-            for (let row of this.props.rows) {
-                let managedBase = row["managedbase"] === undefined ? "" : row["managedbase"][0];
-                let scope = row["originscope"] === undefined ? "" : row["originscope"][0];
-                let filter = row["originfilter"] === undefined ? "" : row["originfilter"][0];
-                rows.push([row["cn"][0], scope, filter, managedBase]);
+            for (const row of this.props.rows) {
+                const managedBase = row.managedbase === undefined ? "" : row.managedbase[0];
+                const scope = row.originscope === undefined ? "" : row.originscope[0];
+                const filter = row.originfilter === undefined ? "" : row.originfilter[0];
+                rows.push([row.cn[0], scope, filter, managedBase]);
             }
         }
         this.setState({
@@ -1410,16 +1398,16 @@ class ManagedDefinitionTable extends React.Component {
     }
 
     render() {
-        let rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
+        const rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
         if (rows.length == 0) {
             has_rows = false;
-            columns = [{title: 'Managed Entry Definitions'}];
-            tableRows = [{cells: ['No definitions']}];
+            columns = [{ title: 'Managed Entry Definitions' }];
+            tableRows = [{ cells: ['No definitions'] }];
         } else {
-            let startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
         return (
@@ -1472,8 +1460,6 @@ ManagedDefinitionTable.propTypes = {
 
 ManagedDefinitionTable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 class ManagedTemplateTable extends React.Component {
@@ -1507,9 +1493,9 @@ class ManagedTemplateTable extends React.Component {
     }
 
     componentDidMount () {
-        let rows = [];
-        for (let row of this.props.rows) {
-            rows.push([row["entrydn"][0]]);
+        const rows = [];
+        for (const row of this.props.rows) {
+            rows.push([row.entrydn[0]]);
         }
         this.setState({
             rows: rows
@@ -1528,9 +1514,9 @@ class ManagedTemplateTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
-        let val = value.toLowerCase();
-        for (let row of this.state.rows) {
+        const rows = [];
+        const val = value.toLowerCase();
+        for (const row of this.state.rows) {
             if (val != "" && row[0].indexOf(val) == -1) {
                 // Not a match, skip it
                 continue;
@@ -1539,8 +1525,8 @@ class ManagedTemplateTable extends React.Component {
         }
         if (val == "") {
             // reset rows
-            for (let row of this.props.rows) {
-                rows.push([row["entrydn"][0]]);
+            for (const row of this.props.rows) {
+                rows.push([row.entrydn[0]]);
             }
         }
         this.setState({
@@ -1566,16 +1552,16 @@ class ManagedTemplateTable extends React.Component {
     }
 
     render() {
-        let rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
+        const rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
         if (rows.length == 0) {
             has_rows = false;
-            columns = [{title: 'Managed Entry Templates'}];
-            tableRows = [{cells: ['No templates']}];
+            columns = [{ title: 'Managed Entry Templates' }];
+            tableRows = [{ cells: ['No templates'] }];
         } else {
-            let startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
         return (
@@ -1628,8 +1614,6 @@ ManagedTemplateTable.propTypes = {
 
 ManagedTemplateTable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 class PassthroughAuthURLsTable extends React.Component {
@@ -1663,9 +1647,9 @@ class PassthroughAuthURLsTable extends React.Component {
     }
 
     componentDidMount () {
-        let rows = [];
-        for (let row of this.props.rows) {
-            rows.push([row["url"]]);
+        const rows = [];
+        for (const row of this.props.rows) {
+            rows.push([row.url]);
         }
         this.setState({
             rows: rows
@@ -1684,9 +1668,9 @@ class PassthroughAuthURLsTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
-        let val = value.toLowerCase();
-        for (let row of this.state.rows) {
+        const rows = [];
+        const val = value.toLowerCase();
+        for (const row of this.state.rows) {
             if (val != "" && row[0].indexOf(val) == -1) {
                 // Not a match, skip it
                 continue;
@@ -1695,8 +1679,8 @@ class PassthroughAuthURLsTable extends React.Component {
         }
         if (val == "") {
             // reset rows
-            for (let row of this.props.rows) {
-                rows.push([row["url"]]);
+            for (const row of this.props.rows) {
+                rows.push([row.url]);
             }
         }
         this.setState({
@@ -1722,16 +1706,16 @@ class PassthroughAuthURLsTable extends React.Component {
     }
 
     render() {
-        let rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
+        const rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
         if (rows.length == 0) {
             has_rows = false;
-            columns = [{title: 'Pass-Through Authentication URLs'}];
-            tableRows = [{cells: ['No URLs']}];
+            columns = [{ title: 'Pass-Through Authentication URLs' }];
+            tableRows = [{ cells: ['No URLs'] }];
         } else {
-            let startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
         return (
@@ -1784,8 +1768,6 @@ PassthroughAuthURLsTable.propTypes = {
 
 PassthroughAuthURLsTable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 class PassthroughAuthConfigsTable extends React.Component {
@@ -1822,12 +1804,12 @@ class PassthroughAuthConfigsTable extends React.Component {
     }
 
     componentDidMount () {
-        let rows = [];
-        for (let row of this.props.rows) {
-            let attr = row["pamidattr"] === undefined ? "" : row["pamidattr"][0];
-            let mapMethod = row["pamidmapmethod"] === undefined ? "" : row["pamidmapmethod"][0];
-            let filter = row["pamfilter"] === undefined ? "" : row["pamfilter"][0];
-            rows.push([row["cn"][0], attr, mapMethod, filter]);
+        const rows = [];
+        for (const row of this.props.rows) {
+            const attr = row.pamidattr === undefined ? "" : row.pamidattr[0];
+            const mapMethod = row.pamidmapmethod === undefined ? "" : row.pamidmapmethod[0];
+            const filter = row.pamfilter === undefined ? "" : row.pamfilter[0];
+            rows.push([row.cn[0], attr, mapMethod, filter]);
         }
         this.setState({
             rows: rows
@@ -1846,9 +1828,9 @@ class PassthroughAuthConfigsTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
-        let val = value.toLowerCase();
-        for (let row of this.state.rows) {
+        const rows = [];
+        const val = value.toLowerCase();
+        for (const row of this.state.rows) {
             if (val != "" &&
                 row[0].indexOf(val) == -1 &&
                 row[1].indexOf(val) == -1 &&
@@ -1861,11 +1843,11 @@ class PassthroughAuthConfigsTable extends React.Component {
         }
         if (val == "") {
             // reset rows
-            for (let row of this.props.rows) {
-                let attr = row["pamidattr"] === undefined ? "" : row["pamidattr"][0];
-                let mapMethod = row["pamidmapmethod"] === undefined ? "" : row["pamidmapmethod"][0];
-                let filter = row["pamfilter"] === undefined ? "" : row["pamfilter"][0];
-                rows.push([row["cn"][0], attr, mapMethod, filter]);
+            for (const row of this.props.rows) {
+                const attr = row.pamidattr === undefined ? "" : row.pamidattr[0];
+                const mapMethod = row.pamidmapmethod === undefined ? "" : row.pamidmapmethod[0];
+                const filter = row.pamfilter === undefined ? "" : row.pamfilter[0];
+                rows.push([row.cn[0], attr, mapMethod, filter]);
             }
         }
         this.setState({
@@ -1891,16 +1873,16 @@ class PassthroughAuthConfigsTable extends React.Component {
     }
 
     render() {
-        let rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
+        const rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
         if (rows.length == 0) {
             has_rows = false;
-            columns = [{title: 'PAM Configurations'}];
-            tableRows = [{cells: ['No PAM configurations']}];
+            columns = [{ title: 'PAM Configurations' }];
+            tableRows = [{ cells: ['No PAM configurations'] }];
         } else {
-            let startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
         return (
@@ -1953,8 +1935,6 @@ PassthroughAuthConfigsTable.propTypes = {
 
 PassthroughAuthConfigsTable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 export {

@@ -729,13 +729,13 @@ class CreatePolicy extends React.Component {
                                             placeholderText="Type attributes to check..."
                                             noResultsFoundText="There are no matching entries"
                                             isDisabled={!this.props.passwordchecksyntax}
-                                            >
+                                        >
                                             {this.props.attrs.map((attr, index) => (
                                                 <SelectOption
                                                     key={index}
                                                     value={attr}
                                                 />
-                                                ))}
+                                            ))}
                                         </Select>
                                     </GridItem>
                                 </Grid>
@@ -959,42 +959,42 @@ export class LocalPwPolicy extends React.Component {
             isUserAttrsEditOpen: false,
 
             attrMap: {
-                "passwordstoragescheme": "--pwdscheme",
-                "passwordtrackupdatetime": "--pwdtrack",
-                "passwordchange": "--pwdchange",
-                "passwordmustchange": "--pwdmustchange",
-                "passwordhistory": "--pwdhistory",
-                "passwordinhistory": "--pwdhistorycount",
-                "passwordminage": "--pwdminage",
-                "passwordexp": "--pwdexpire",
-                "passwordgracelimit": "--pwdgracelimit",
-                "passwordsendexpiringtime": "--pwdsendexpiring",
-                "passwordmaxage": "--pwdmaxage",
-                "passwordwarning": "--pwdwarning",
-                "passwordlockout": "--pwdlockout",
-                "passwordunlock": "--pwdunlock",
-                "passwordlockoutduration": "--pwdlockoutduration",
-                "passwordmaxfailure": "--pwdmaxfailures",
-                "passwordresetfailurecount": "--pwdresetfailcount",
-                "passwordchecksyntax": "--pwdchecksyntax",
-                "passwordminlength": "--pwdminlen",
-                "passwordmindigits": "--pwdmindigits",
-                "passwordminalphas": "--pwdminalphas",
-                "passwordminuppers": "--pwdminuppers",
-                "passwordminlowers": "--pwdminlowers",
-                "passwordminspecials": "--pwdminspecials",
-                "passwordmin8bit": "--pwdmin8bits",
-                "passwordmaxrepeats": "--pwdmaxrepeats",
-                "passwordpalindrome": "--pwdpalindrome",
-                "passwordmaxsequence": "--pwdmaxseq",
-                "passwordmaxseqsets": "--pwdmaxseqsets",
-                "passwordmaxclasschars": "--pwdmaxclasschars",
-                "passwordmincategories": "--pwdmincatagories",
-                "passwordmintokenlength": "--pwdmintokenlen",
-                "passwordbadwords": "--pwdbadwords",
-                "passworduserattributes": "--pwduserattrs",
-                "passworddictcheck": "--pwddictcheck",
-                "passwordadmindn": "--pwdadmin",
+                passwordstoragescheme: "--pwdscheme",
+                passwordtrackupdatetime: "--pwdtrack",
+                passwordchange: "--pwdchange",
+                passwordmustchange: "--pwdmustchange",
+                passwordhistory: "--pwdhistory",
+                passwordinhistory: "--pwdhistorycount",
+                passwordminage: "--pwdminage",
+                passwordexp: "--pwdexpire",
+                passwordgracelimit: "--pwdgracelimit",
+                passwordsendexpiringtime: "--pwdsendexpiring",
+                passwordmaxage: "--pwdmaxage",
+                passwordwarning: "--pwdwarning",
+                passwordlockout: "--pwdlockout",
+                passwordunlock: "--pwdunlock",
+                passwordlockoutduration: "--pwdlockoutduration",
+                passwordmaxfailure: "--pwdmaxfailures",
+                passwordresetfailurecount: "--pwdresetfailcount",
+                passwordchecksyntax: "--pwdchecksyntax",
+                passwordminlength: "--pwdminlen",
+                passwordmindigits: "--pwdmindigits",
+                passwordminalphas: "--pwdminalphas",
+                passwordminuppers: "--pwdminuppers",
+                passwordminlowers: "--pwdminlowers",
+                passwordminspecials: "--pwdminspecials",
+                passwordmin8bit: "--pwdmin8bits",
+                passwordmaxrepeats: "--pwdmaxrepeats",
+                passwordpalindrome: "--pwdpalindrome",
+                passwordmaxsequence: "--pwdmaxseq",
+                passwordmaxseqsets: "--pwdmaxseqsets",
+                passwordmaxclasschars: "--pwdmaxclasschars",
+                passwordmincategories: "--pwdmincatagories",
+                passwordmintokenlength: "--pwdmintokenlen",
+                passwordbadwords: "--pwdbadwords",
+                passworduserattributes: "--pwduserattrs",
+                passworddictcheck: "--pwddictcheck",
+                passwordadmindn: "--pwdadmin",
             },
         };
 
@@ -1087,8 +1087,8 @@ export class LocalPwPolicy extends React.Component {
     }
 
     handleModalChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
 
         this.setState({
             [attr]: value,
@@ -1106,7 +1106,7 @@ export class LocalPwPolicy extends React.Component {
         let value;
         let disableSaveBtn = true;
         let invalid_dn = false;
-        let all_attrs = general_attrs.concat(exp_attrs, lockout_attrs, syntax_attrs);
+        const all_attrs = general_attrs.concat(exp_attrs, lockout_attrs, syntax_attrs);
 
         if (selection) {
             attr = "create_passworduserattributes";
@@ -1117,9 +1117,9 @@ export class LocalPwPolicy extends React.Component {
         }
 
         // Check if a setting was changed, if so enable the save button
-        for (let all_attr of all_attrs) {
+        for (const all_attr of all_attrs) {
             if (all_attr == 'passworduserattributes' && attr == 'create_passworduserattributes') {
-                let orig_val = this.state['_' + all_attr].join(' ');
+                const orig_val = this.state['_' + all_attr].join(' ');
                 if (orig_val != value) {
                     value = selection; // restore value
                     disableSaveBtn = false;
@@ -1133,11 +1133,11 @@ export class LocalPwPolicy extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let all_attr of all_attrs) {
+        for (const all_attr of all_attrs) {
             if (all_attr == 'passworduserattributes' && attr != 'create_passworduserattributes') {
                 // Typeahead attribute needs special care
-                let orig_val = this.state['_' + all_attr].join(' ');
-                let new_val = this.state[all_attr].join(' ');
+                const orig_val = this.state['_' + all_attr].join(' ');
+                const new_val = this.state[all_attr].join(' ');
                 if (orig_val != new_val) {
                     disableSaveBtn = false;
                     break;
@@ -1197,7 +1197,7 @@ export class LocalPwPolicy extends React.Component {
     }
 
     createPolicy() {
-        let all_attrs = general_attrs.concat(exp_attrs, lockout_attrs, syntax_attrs);
+        const all_attrs = general_attrs.concat(exp_attrs, lockout_attrs, syntax_attrs);
         let action = "adduser";
 
         this.setState({
@@ -1207,12 +1207,12 @@ export class LocalPwPolicy extends React.Component {
         if (this.state.createPolicyType == "Subtree Policy") {
             action = "addsubtree";
         }
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', action, this.state.policyDN
         ];
 
-        for (let attr of all_attrs) {
+        for (const attr of all_attrs) {
             let old_val = this.state['_create_' + attr];
             let new_val = this.state['create_' + attr];
             if (new_val != old_val) {
@@ -1223,8 +1223,8 @@ export class LocalPwPolicy extends React.Component {
                         new_val = "off";
                     }
                 } else if (attr == 'passworduserattributes') {
-                    old_val = this.state['_create_passworduserattributes'].join(' ');
-                    new_val = this.state['create_passworduserattributes'].join(' ');
+                    old_val = this.state._create_passworduserattributes.join(' ');
+                    new_val = this.state.create_passworduserattributes.join(' ');
                     if (old_val == new_val) {
                         continue;
                     }
@@ -1235,7 +1235,7 @@ export class LocalPwPolicy extends React.Component {
 
         log_cmd("createPolicy", "Create a local password policy", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.loadPolicies();
                     this.setState({
@@ -1247,7 +1247,7 @@ export class LocalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.loadPolicies();
                     this.setState({
                         loading: false
@@ -1260,12 +1260,12 @@ export class LocalPwPolicy extends React.Component {
     }
 
     handleGeneralChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
 
         // Check if a setting was changed, if so enable the save button
-        for (let general_attr of general_attrs) {
+        for (const general_attr of general_attrs) {
             if (attr == general_attr && this.state['_' + general_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -1273,7 +1273,7 @@ export class LocalPwPolicy extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let general_attr of general_attrs) {
+        for (const general_attr of general_attrs) {
             if (attr != general_attr && this.state['_' + general_attr] != this.state[general_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -1291,12 +1291,12 @@ export class LocalPwPolicy extends React.Component {
             loading: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
 
-        for (let attr of general_attrs) {
+        for (const attr of general_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -1312,7 +1312,7 @@ export class LocalPwPolicy extends React.Component {
 
         log_cmd("saveGeneral", "Saving general pwpolicy settings", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.loadLocal(this.state.policyName);
                     this.setState({
@@ -1324,7 +1324,7 @@ export class LocalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.loadLocal(this.state.policyName);
                     this.setState({
                         loading: false
@@ -1337,12 +1337,12 @@ export class LocalPwPolicy extends React.Component {
     }
 
     handleExpChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
 
         // Check if a setting was changed, if so enable the save button
-        for (let exp_attr of exp_attrs) {
+        for (const exp_attr of exp_attrs) {
             if (attr == exp_attr && this.state['_' + exp_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -1350,7 +1350,7 @@ export class LocalPwPolicy extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let exp_attr of exp_attrs) {
+        for (const exp_attr of exp_attrs) {
             if (attr != exp_attr && this.state['_' + exp_attr] != this.state[exp_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -1368,12 +1368,12 @@ export class LocalPwPolicy extends React.Component {
             loading: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
 
-        for (let attr of exp_attrs) {
+        for (const attr of exp_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -1389,7 +1389,7 @@ export class LocalPwPolicy extends React.Component {
 
         log_cmd("saveExp", "Saving Expiration pwpolicy settings", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.loadLocal(this.state.policyName);
                     this.setState({
@@ -1401,7 +1401,7 @@ export class LocalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.loadLocal(this.state.policyName);
                     this.setState({
                         loading: false
@@ -1414,12 +1414,12 @@ export class LocalPwPolicy extends React.Component {
     }
 
     handleLockoutChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
 
         // Check if a setting was changed, if so enable the save button
-        for (let lockout_attr of lockout_attrs) {
+        for (const lockout_attr of lockout_attrs) {
             if (attr == lockout_attr && this.state['_' + lockout_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -1427,7 +1427,7 @@ export class LocalPwPolicy extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let lockout_attr of lockout_attrs) {
+        for (const lockout_attr of lockout_attrs) {
             if (attr != lockout_attr && this.state['_' + lockout_attr] != this.state[lockout_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -1445,12 +1445,12 @@ export class LocalPwPolicy extends React.Component {
             loading: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
 
-        for (let attr of lockout_attrs) {
+        for (const attr of lockout_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -1466,7 +1466,7 @@ export class LocalPwPolicy extends React.Component {
 
         log_cmd("saveLockout", "Saving lockout pwpolicy settings", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.loadLocal(this.state.policyName);
                     this.setState({
@@ -1478,7 +1478,7 @@ export class LocalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.loadLocal(this.state.policyName);
                     this.setState({
                         loading: false
@@ -1502,9 +1502,9 @@ export class LocalPwPolicy extends React.Component {
         }
         let disableSaveBtn = true;
         // Check if a setting was changed, if so enable the save button
-        for (let syntax_attr of syntax_attrs) {
+        for (const syntax_attr of syntax_attrs) {
             if (syntax_attr == 'passworduserattributes' && attr == 'passworduserattributes') {
-                let orig_val = this.state['_' + syntax_attr].join(' ');
+                const orig_val = this.state['_' + syntax_attr].join(' ');
                 if (orig_val != value) {
                     value = selection; // restore value
                     disableSaveBtn = false;
@@ -1518,11 +1518,11 @@ export class LocalPwPolicy extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let syntax_attr of syntax_attrs) {
+        for (const syntax_attr of syntax_attrs) {
             if (syntax_attr == 'passworduserattributes' && attr != 'passworduserattributes') {
                 // Typeahead attribute needs special care
-                let orig_val = this.state['_' + syntax_attr].join(' ');
-                let new_val = this.state[syntax_attr].join(' ');
+                const orig_val = this.state['_' + syntax_attr].join(' ');
+                const new_val = this.state[syntax_attr].join(' ');
                 if (orig_val != new_val) {
                     disableSaveBtn = false;
                     break;
@@ -1565,12 +1565,12 @@ export class LocalPwPolicy extends React.Component {
             loading: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
 
-        for (let attr of syntax_attrs) {
+        for (const attr of syntax_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -1586,7 +1586,7 @@ export class LocalPwPolicy extends React.Component {
 
         log_cmd("saveSyntax", "Saving syntax checking pwpolicy settings", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.loadLocal(this.state.policyName);
                     this.setState({
@@ -1598,7 +1598,7 @@ export class LocalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.loadLocal(this.state.policyName);
                     this.setState({
                         loading: false
@@ -1616,7 +1616,7 @@ export class LocalPwPolicy extends React.Component {
             editPolicy: false,
         });
 
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "localpwp", "remove", this.state.deleteName
         ];
@@ -1627,7 +1627,7 @@ export class LocalPwPolicy extends React.Component {
                     this.loadPolicies();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.loadPolicies();
                     this.props.addNotification(
                         "error",
@@ -1640,7 +1640,7 @@ export class LocalPwPolicy extends React.Component {
         this.setState({
             loading: true,
         });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "localpwp", "list"
         ];
@@ -1648,9 +1648,9 @@ export class LocalPwPolicy extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let policy_obj = JSON.parse(content);
-                    let pwpRows = [];
-                    for (let row of policy_obj.items) {
+                    const policy_obj = JSON.parse(content);
+                    const pwpRows = [];
+                    for (const row of policy_obj.items) {
                         pwpRows.push([row.targetdn, row.pwp_type, row.basedn]);
                     }
                     this.setState({
@@ -1816,7 +1816,7 @@ export class LocalPwPolicy extends React.Component {
                     }, this.props.enableTree);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         loaded: true,
                         loading: false,
@@ -1828,7 +1828,7 @@ export class LocalPwPolicy extends React.Component {
     }
 
     loadLocal(name) {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "localpwp", "get", name
         ];
@@ -1836,8 +1836,8 @@ export class LocalPwPolicy extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     // Handle the checkbox values
                     let pwChange = false;
                     let pwMustChange = false;
@@ -1876,123 +1876,123 @@ export class LocalPwPolicy extends React.Component {
                     let pwMinTokenLen = "0";
 
                     if ('passwordmintokenlength' in attrs) {
-                        pwMinTokenLen = attrs['passwordmintokenlength'][0];
+                        pwMinTokenLen = attrs.passwordmintokenlength[0];
                     }
                     if ('passwordmincategories' in attrs) {
-                        pwMinCat = attrs['passwordmincategories'][0];
+                        pwMinCat = attrs.passwordmincategories[0];
                     }
                     if ('passwordmaxclasschars' in attrs) {
-                        pwMaxClassChars = attrs['passwordmaxclasschars'][0];
+                        pwMaxClassChars = attrs.passwordmaxclasschars[0];
                     }
                     if ('passwordmaxseqsets' in attrs) {
-                        pwMaxSeqSets = attrs['passwordmaxseqsets'][0];
+                        pwMaxSeqSets = attrs.passwordmaxseqsets[0];
                     }
                     if ('passwordmaxsequence' in attrs) {
-                        pwMaxSeq = attrs['passwordmaxsequence'][0];
+                        pwMaxSeq = attrs.passwordmaxsequence[0];
                     }
                     if ('passwordmaxrepeats' in attrs) {
-                        pwMaxRepeats = attrs['passwordmaxrepeats'][0];
+                        pwMaxRepeats = attrs.passwordmaxrepeats[0];
                     }
                     if ('passwordmin8bit' in attrs) {
-                        pwMin8bit = attrs['passwordmin8bit'][0];
+                        pwMin8bit = attrs.passwordmin8bit[0];
                     }
                     if ('passwordminspecials' in attrs) {
-                        pwMinSpecials = attrs['passwordminspecials'][0];
+                        pwMinSpecials = attrs.passwordminspecials[0];
                     }
                     if ('passwordminlowers' in attrs) {
-                        pwMinLowers = attrs['passwordminlowers'][0];
+                        pwMinLowers = attrs.passwordminlowers[0];
                     }
                     if ('passwordminuppers' in attrs) {
-                        pwMinUppers = attrs['passwordminuppers'][0];
+                        pwMinUppers = attrs.passwordminuppers[0];
                     }
                     if ('passwordminalphas' in attrs) {
-                        pwMinAlphas = attrs['passwordminalphas'][0];
+                        pwMinAlphas = attrs.passwordminalphas[0];
                     }
                     if ('passwordmindigits' in attrs) {
-                        pwMinDigits = attrs['passwordmindigits'][0];
+                        pwMinDigits = attrs.passwordmindigits[0];
                     }
                     if ('passwordminlength' in attrs) {
-                        pwMinLen = attrs['passwordminlength'][0];
+                        pwMinLen = attrs.passwordminlength[0];
                     }
                     if ('passwordresetfailurecount' in attrs) {
-                        pwFailCount = attrs['passwordresetfailurecount'][0];
+                        pwFailCount = attrs.passwordresetfailurecount[0];
                     }
                     if ('passwordmaxfailure' in attrs) {
-                        pwMaxFailure = attrs['passwordmaxfailure'][0];
+                        pwMaxFailure = attrs.passwordmaxfailure[0];
                     }
                     if ('passwordlockoutduration' in attrs) {
-                        pwLockoutDur = attrs['passwordlockoutduration'][0];
+                        pwLockoutDur = attrs.passwordlockoutduration[0];
                     }
                     if ('passwordgracelimit' in attrs) {
-                        pwGraceLimit = attrs['passwordgracelimit'][0];
+                        pwGraceLimit = attrs.passwordgracelimit[0];
                     }
                     if ('passwordmaxage' in attrs) {
-                        pwMaxAge = attrs['passwordmaxage'][0];
+                        pwMaxAge = attrs.passwordmaxage[0];
                     }
                     if ('passwordminage' in attrs) {
-                        pwMinAge = attrs['passwordminage'][0];
+                        pwMinAge = attrs.passwordminage[0];
                     }
                     if ('passwordwarning' in attrs) {
-                        pwWarning = attrs['passwordwarning'][0];
+                        pwWarning = attrs.passwordwarning[0];
                     }
                     if ('passwordstoragescheme' in attrs) {
-                        pwScheme = attrs['passwordstoragescheme'][0];
+                        pwScheme = attrs.passwordstoragescheme[0];
                     }
                     if ('passwordinhistory' in attrs) {
-                        pwInHistory = attrs['passwordinhistory'][0];
+                        pwInHistory = attrs.passwordinhistory[0];
                     }
-                    if ('passwordchange' in attrs && attrs['passwordchange'][0] == "on") {
+                    if ('passwordchange' in attrs && attrs.passwordchange[0] == "on") {
                         pwChange = true;
                     }
-                    if ('passwordmustchange' in attrs && attrs['passwordmustchange'][0] == "on") {
+                    if ('passwordmustchange' in attrs && attrs.passwordmustchange[0] == "on") {
                         pwMustChange = true;
                     }
-                    if ('passwordhistory' in attrs && attrs['passwordhistory'][0] == "on") {
+                    if ('passwordhistory' in attrs && attrs.passwordhistory[0] == "on") {
                         pwHistory = true;
                     }
-                    if ('passwordtrackupdatetime' in attrs && attrs['passwordtrackupdatetime'][0] == "on") {
+                    if ('passwordtrackupdatetime' in attrs && attrs.passwordtrackupdatetime[0] == "on") {
                         pwTrackUpdate = true;
                     }
-                    if ('passwordsendexpiringtime' in attrs && attrs['passwordsendexpiringtime'][0] == "on") {
+                    if ('passwordsendexpiringtime' in attrs && attrs.passwordsendexpiringtime[0] == "on") {
                         pwSendExpire = true;
                     }
-                    if ('passwordlockout' in attrs && attrs['passwordlockout'][0] == "on") {
+                    if ('passwordlockout' in attrs && attrs.passwordlockout[0] == "on") {
                         pwLockout = true;
                     }
-                    if ('passwordunlock' in attrs && attrs['passwordunlock'][0] == "on") {
+                    if ('passwordunlock' in attrs && attrs.passwordunlock[0] == "on") {
                         pwUnlock = true;
                     }
-                    if ('passwordexp' in attrs && attrs['passwordexp'][0] == "on") {
+                    if ('passwordexp' in attrs && attrs.passwordexp[0] == "on") {
                         pwExpire = true;
                     }
-                    if ('passwordchecksyntax' in attrs && attrs['passwordchecksyntax'][0] == "on") {
+                    if ('passwordchecksyntax' in attrs && attrs.passwordchecksyntax[0] == "on") {
                         pwCheckSyntax = true;
                     }
-                    if ('passwordpalindrome' in attrs && attrs['passwordpalindrome'][0] == "on") {
+                    if ('passwordpalindrome' in attrs && attrs.passwordpalindrome[0] == "on") {
                         pwPalindrome = true;
                     }
-                    if ('passworddictcheck' in attrs && attrs['passworddictcheck'][0] == "on") {
+                    if ('passworddictcheck' in attrs && attrs.passworddictcheck[0] == "on") {
                         pwDictCheck = true;
                     }
-                    if ('passwordbadwords' in attrs && attrs['passwordbadwords'][0] != "") {
+                    if ('passwordbadwords' in attrs && attrs.passwordbadwords[0] != "") {
                         // Hack until this is fixed: https://github.com/389ds/389-ds-base/issues/3928
-                        if (attrs['passwordbadwords'].length > 1) {
-                            pwBadWords = attrs['passwordbadwords'].join(' ');
+                        if (attrs.passwordbadwords.length > 1) {
+                            pwBadWords = attrs.passwordbadwords.join(' ');
                         } else {
-                            pwBadWords = attrs['passwordbadwords'][0];
+                            pwBadWords = attrs.passwordbadwords[0];
                         }
                     }
-                    if ('passworduserattributes' in attrs && attrs['passworduserattributes'][0] != "") {
-                        if (attrs['passworduserattributes'].length > 1) {
+                    if ('passworduserattributes' in attrs && attrs.passworduserattributes[0] != "") {
+                        if (attrs.passworduserattributes.length > 1) {
                             // Hack until this is fixed: https://github.com/389ds/389-ds-base/issues/3928
-                            attrs['passworduserattributes'][0] = attrs['passworduserattributes'].join(' ');
+                            attrs.passworduserattributes[0] = attrs.passworduserattributes.join(' ');
                         }
                         // Could be space or comma separated list
-                        if (attrs['passworduserattributes'][0].indexOf(',') > -1) {
-                            pwUserAttrs = attrs['passworduserattributes'][0].trim();
+                        if (attrs.passworduserattributes[0].indexOf(',') > -1) {
+                            pwUserAttrs = attrs.passworduserattributes[0].trim();
                             pwUserAttrs = pwUserAttrs.split(',');
                         } else {
-                            pwUserAttrs = attrs['passworduserattributes'][0].split();
+                            pwUserAttrs = attrs.passworduserattributes[0].split();
                         }
                     }
 
@@ -2085,7 +2085,7 @@ export class LocalPwPolicy extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         loaded: true,
                         loading: false,
@@ -2104,7 +2104,7 @@ export class LocalPwPolicy extends React.Component {
         let pwSyntaxRows = "";
 
         let saveBtnName = "Save";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.state.saving) {
             saveBtnName = "Saving ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -2302,7 +2302,7 @@ export class LocalPwPolicy extends React.Component {
                         </GridItem>
                     </Grid>
                     <Grid className="ds-margin-top">
-                        <GridItem className="ds-label"span={3}>
+                        <GridItem className="ds-label" span={3}>
                             Prohibited Words
                         </GridItem>
                         <GridItem span={9}>
@@ -2335,7 +2335,7 @@ export class LocalPwPolicy extends React.Component {
                                 aria-labelledby="typeAhead-user-attr"
                                 placeholderText="Type attributes to check..."
                                 noResultsFoundText="There are no matching entries"
-                                >
+                            >
                                 {this.props.attrs.map((attr, index) => (
                                     <SelectOption
                                         key={index}

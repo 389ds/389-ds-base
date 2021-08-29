@@ -9,7 +9,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import { DoubleConfirmModal } from "../../lib/notifications.jsx";
 import {
@@ -77,7 +76,7 @@ export class CertificateManagement extends React.Component {
     showAddModal () {
         this.setState({
             showAddModal: true,
-            errObj: {certName: true, certFile: true}
+            errObj: { certName: true, certFile: true }
         });
     }
 
@@ -92,7 +91,7 @@ export class CertificateManagement extends React.Component {
     showAddCAModal () {
         this.setState({
             showAddCAModal: true,
-            errObj: {certName: true, certFile: true}
+            errObj: { certName: true, certFile: true }
         });
     }
 
@@ -144,7 +143,7 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -200,7 +199,7 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -250,7 +249,7 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -345,7 +344,7 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -367,7 +366,7 @@ export class CertificateManagement extends React.Component {
     handleChange (e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
 
         if (value == "") {
             valueErr = true;
@@ -382,7 +381,7 @@ export class CertificateManagement extends React.Component {
     handleFlagChange (e) {
         const checked = e.target.checked;
         const id = e.target.id;
-        let flags = this.state.flags;
+        const flags = this.state.flags;
         let SSLFlags = '';
         let EmailFlags = '';
         let OSFlags = '';
@@ -391,7 +390,7 @@ export class CertificateManagement extends React.Component {
         [SSLFlags, EmailFlags, OSFlags] = flags.split(',');
 
         if (id.endsWith('SSL')) {
-            for (let trustFlag of ['C', 'T', 'c', 'P', 'p']) {
+            for (const trustFlag of ['C', 'T', 'c', 'P', 'p']) {
                 if (id.startsWith(trustFlag)) {
                     if (checked) {
                         SSLFlags += trustFlag;
@@ -401,7 +400,7 @@ export class CertificateManagement extends React.Component {
                 }
             }
         } else if (id.endsWith('Email')) {
-            for (let trustFlag of ['C', 'T', 'c', 'P', 'p']) {
+            for (const trustFlag of ['C', 'T', 'c', 'P', 'p']) {
                 if (id.startsWith(trustFlag)) {
                     if (checked) {
                         EmailFlags += trustFlag;
@@ -412,7 +411,7 @@ export class CertificateManagement extends React.Component {
             }
         } else {
             // Object Signing (OS)
-            for (let trustFlag of ['C', 'T', 'c', 'P', 'p']) {
+            for (const trustFlag of ['C', 'T', 'c', 'P', 'p']) {
                 if (id.startsWith(trustFlag)) {
                     if (checked) {
                         OSFlags += trustFlag;
@@ -450,10 +449,10 @@ export class CertificateManagement extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const certs = JSON.parse(content);
-                    let key = this.state.tableKey + 1;
-                    let certNames = [];
-                    for (let cert of certs) {
-                        certNames.push(cert.attrs['nickname']);
+                    const key = this.state.tableKey + 1;
+                    const certNames = [];
+                    for (const cert of certs) {
+                        certNames.push(cert.attrs.nickname);
                     }
                     this.setState({
                         ServerCerts: certs,
@@ -463,7 +462,7 @@ export class CertificateManagement extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -484,14 +483,14 @@ export class CertificateManagement extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let certs = JSON.parse(content);
+                    const certs = JSON.parse(content);
                     this.setState({
                         CACerts: certs,
                         loading: false
                     }, this.reloadCerts);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -630,7 +629,6 @@ CertificateManagement.defaultProps = {
     serverId: "",
     CACerts: [],
     ServerCerts: [],
-    addNotification: noop,
 };
 
 export default CertificateManagement;

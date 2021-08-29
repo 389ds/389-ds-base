@@ -19,7 +19,6 @@ import {
     TabTitleText,
     TextInput,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import { PassthroughAuthURLsTable, PassthroughAuthConfigsTable } from "./pluginTables.jsx";
 import PluginBasicPAMConfig from "./pluginBasicConfig.jsx";
@@ -239,14 +238,14 @@ class PassthroughAuthentication extends React.Component {
     }
 
     validatePassthru() {
-        let errObj = {};
+        const errObj = {};
         let all_good = true;
 
-        let reqAttrs = ['urlAuthDS', 'urlSubtree'];
-        let dnAttrs = ['urlSubtree'];
+        const reqAttrs = ['urlAuthDS', 'urlSubtree'];
+        const dnAttrs = ['urlSubtree'];
 
         // Check we have our required attributes set
-        for (let attr of reqAttrs) {
+        for (const attr of reqAttrs) {
             if (this.state[attr] == "") {
                 errObj[attr] = true;
                 all_good = false;
@@ -255,7 +254,7 @@ class PassthroughAuthentication extends React.Component {
         }
 
         // Check the DN's of our lists
-        for (let attr of dnAttrs) {
+        for (const attr of dnAttrs) {
             if (!valid_dn(this.state[attr])) {
                 errObj[attr] = true;
                 all_good = false;
@@ -267,12 +266,12 @@ class PassthroughAuthentication extends React.Component {
             // Check for value differences to see if the save btn should be enabled
             all_good = false;
 
-            let configAttrs = [
+            const configAttrs = [
                 'urlSubtree', 'urlConnType', 'urlAuthDS', 'urlMaxConns',
                 'urlMaxOps', 'urlTimeout', 'urlLDVer', 'urlConnLifeTime',
                 'urlStartTLS'
             ];
-            for (let check_attr of configAttrs) {
+            for (const check_attr of configAttrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
@@ -286,14 +285,14 @@ class PassthroughAuthentication extends React.Component {
     }
 
     validatePAM() {
-        let errObj = {};
+        const errObj = {};
         let all_good = true;
 
-        let reqAttrs = ['pamConfigName', 'pamIDAttr'];
-        let dnAttrLists = ['pamExcludeSuffix', 'pamExcludeSuffix'];
+        const reqAttrs = ['pamConfigName', 'pamIDAttr'];
+        const dnAttrLists = ['pamExcludeSuffix', 'pamExcludeSuffix'];
 
         // Check we have our required attributes set
-        for (let attr of reqAttrs) {
+        for (const attr of reqAttrs) {
             if (this.state[attr] == "") {
                 errObj[attr] = true;
                 all_good = false;
@@ -302,8 +301,8 @@ class PassthroughAuthentication extends React.Component {
         }
 
         // Check the DN's of our lists
-        for (let attrList of dnAttrLists) {
-            for (let dn of this.state[attrList]) {
+        for (const attrList of dnAttrLists) {
+            for (const dn of this.state[attrList]) {
                 if (!valid_dn(dn)) {
                     errObj[attrList] = true;
                     all_good = false;
@@ -315,19 +314,19 @@ class PassthroughAuthentication extends React.Component {
         if (all_good) {
             // Check for value differences to see if the save btn should be enabled
             all_good = false;
-            let attrLists = ['pamExcludeSuffix', 'pamIncludeSuffix'];
-            for (let check_attr of attrLists) {
+            const attrLists = ['pamExcludeSuffix', 'pamIncludeSuffix'];
+            for (const check_attr of attrLists) {
                 if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
                     all_good = true;
                     break;
                 }
             }
 
-            let configAttrs = [
+            const configAttrs = [
                 'pamConfigName', 'pamFilter', 'pamMissingSuffix', 'pamIDMapMethod',
                 'pamIDAttr', 'pamFallback', 'pamSecure', 'pamService'
             ];
-            for (let check_attr of configAttrs) {
+            for (const check_attr of configAttrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
@@ -415,15 +414,15 @@ class PassthroughAuthentication extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
-                    let tableKey = this.state.tableKey + 1;
+                    const myObject = JSON.parse(content);
+                    const tableKey = this.state.tableKey + 1;
                     this.setState({
                         pamConfigRows: myObject.items.map(item => item.attrs),
                         tableKey: tableKey,
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadPAMConfigs failed", errMsg.desc);
                     }
@@ -445,8 +444,8 @@ class PassthroughAuthentication extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
-                    let tableKey = this.state.tableKey + 1;
+                    const myObject = JSON.parse(content);
+                    const tableKey = this.state.tableKey + 1;
                     this.setState({
                         urlRows: myObject.items,
                         tableKey: tableKey
@@ -454,7 +453,7 @@ class PassthroughAuthentication extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadURLs failed", errMsg.desc);
                     }
@@ -490,7 +489,7 @@ class PassthroughAuthentication extends React.Component {
         } else {
             let pamExcludeSuffixList = [];
             let pamIncludeSuffixList = [];
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -513,16 +512,16 @@ class PassthroughAuthentication extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let pamConfigEntry = JSON.parse(content).attrs;
-                        let tableKey = this.state.tableKey + 1;
+                        const pamConfigEntry = JSON.parse(content).attrs;
+                        const tableKey = this.state.tableKey + 1;
 
-                        if (pamConfigEntry["pamexcludesuffix"] !== undefined) {
-                            for (let value of pamConfigEntry["pamexcludesuffix"]) {
+                        if (pamConfigEntry.pamexcludesuffix !== undefined) {
+                            for (const value of pamConfigEntry.pamexcludesuffix) {
                                 pamExcludeSuffixList = [...pamExcludeSuffixList, value];
                             }
                         }
-                        if (pamConfigEntry["pamincludesuffix"] !== undefined) {
-                            for (let value of pamConfigEntry["pamincludesuffix"]) {
+                        if (pamConfigEntry.pamincludesuffix !== undefined) {
+                            for (const value of pamConfigEntry.pamincludesuffix) {
                                 pamIncludeSuffixList = [...pamIncludeSuffixList, value];
                             }
                         }
@@ -534,63 +533,63 @@ class PassthroughAuthentication extends React.Component {
                             newPAMConfigEntry: false,
                             pamExcludeSuffix: pamExcludeSuffixList,
                             pamIncludeSuffix: pamIncludeSuffixList,
-                            pamIDAttr: pamConfigEntry["pamidattr"][0],
+                            pamIDAttr: pamConfigEntry.pamidattr[0],
                             pamConfigName:
-                            pamConfigEntry["cn"] === undefined ? "" : pamConfigEntry["cn"][0],
+                            pamConfigEntry.cn === undefined ? "" : pamConfigEntry.cn[0],
                             pamMissingSuffix:
-                            pamConfigEntry["pammissingsuffix"] === undefined
+                            pamConfigEntry.pammissingsuffix === undefined
                                 ? ""
-                                : pamConfigEntry["pammissingsuffix"][0],
+                                : pamConfigEntry.pammissingsuffix[0],
                             pamFilter:
-                            pamConfigEntry["pamfilter"] === undefined
+                            pamConfigEntry.pamfilter === undefined
                                 ? ""
-                                : pamConfigEntry["pamfilter"][0],
+                                : pamConfigEntry.pamfilter[0],
                             pamIDMapMethod:
-                            pamConfigEntry["pamidmapmethod"] === undefined
+                            pamConfigEntry.pamidmapmethod === undefined
                                 ? "RDN"
-                                : pamConfigEntry["pamidmapmethod"][0],
+                                : pamConfigEntry.pamidmapmethod[0],
                             pamFallback: !(
-                                pamConfigEntry["pamfallback"] === undefined ||
-                            pamConfigEntry["pamfallback"][0] == "FALSE"
+                                pamConfigEntry.pamfallback === undefined ||
+                            pamConfigEntry.pamfallback[0] == "FALSE"
                             ),
                             pamSecure: !(
-                                pamConfigEntry["pamsecure"] === undefined ||
-                            pamConfigEntry["pamsecure"][0] == "FALSE"
+                                pamConfigEntry.pamsecure === undefined ||
+                            pamConfigEntry.pamsecure[0] == "FALSE"
                             ),
                             pamService:
-                            pamConfigEntry["pamservice"] === undefined
+                            pamConfigEntry.pamservice === undefined
                                 ? "ldapserver"
-                                : pamConfigEntry["pamservice"][0],
+                                : pamConfigEntry.pamservice[0],
                             // Backup values
                             _pamExcludeSuffix: [...pamExcludeSuffixList],
                             _pamIncludeSuffix: [...pamIncludeSuffixList],
-                            _pamIDAttr: pamConfigEntry["pamidattr"][0],
+                            _pamIDAttr: pamConfigEntry.pamidattr[0],
                             _pamConfigName:
-                            pamConfigEntry["cn"] === undefined ? "" : pamConfigEntry["cn"][0],
+                            pamConfigEntry.cn === undefined ? "" : pamConfigEntry.cn[0],
                             _pamMissingSuffix:
-                            pamConfigEntry["pammissingsuffix"] === undefined
+                            pamConfigEntry.pammissingsuffix === undefined
                                 ? ""
-                                : pamConfigEntry["pammissingsuffix"][0],
+                                : pamConfigEntry.pammissingsuffix[0],
                             _pamFilter:
-                            pamConfigEntry["pamfilter"] === undefined
+                            pamConfigEntry.pamfilter === undefined
                                 ? ""
-                                : pamConfigEntry["pamfilter"][0],
+                                : pamConfigEntry.pamfilter[0],
                             _pamIDMapMethod:
-                            pamConfigEntry["pamidmapmethod"] === undefined
+                            pamConfigEntry.pamidmapmethod === undefined
                                 ? "ldapserver"
-                                : pamConfigEntry["pamidmapmethod"][0],
+                                : pamConfigEntry.pamidmapmethod[0],
                             _pamFallback: !(
-                                pamConfigEntry["pamfallback"] === undefined ||
-                            pamConfigEntry["pamfallback"][0] == "FALSE"
+                                pamConfigEntry.pamfallback === undefined ||
+                            pamConfigEntry.pamfallback[0] == "FALSE"
                             ),
                             _pamSecure: !(
-                                pamConfigEntry["pamsecure"] === undefined ||
-                            pamConfigEntry["pamsecure"][0] == "FALSE"
+                                pamConfigEntry.pamsecure === undefined ||
+                            pamConfigEntry.pamsecure[0] == "FALSE"
                             ),
                             _pamService:
-                            pamConfigEntry["pamservice"] === undefined
+                            pamConfigEntry.pamservice === undefined
                                 ? "ldapserver"
-                                : pamConfigEntry["pamservice"][0],
+                                : pamConfigEntry.pamservice[0],
                         });
                         this.props.toggleLoadingHandler();
                     })
@@ -623,7 +622,7 @@ class PassthroughAuthentication extends React.Component {
     }
 
     deletePAMConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -660,7 +659,7 @@ class PassthroughAuthentication extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the pamConfig entry removal operation - ${errMsg.desc}`
@@ -719,7 +718,7 @@ class PassthroughAuthentication extends React.Component {
 
         cmd = [...cmd, "--exclude-suffix"];
         if (pamExcludeSuffix.length != 0) {
-            for (let value of pamExcludeSuffix) {
+            for (const value of pamExcludeSuffix) {
                 cmd = [...cmd, value];
             }
         } else if (action == "add") {
@@ -729,7 +728,7 @@ class PassthroughAuthentication extends React.Component {
         }
         cmd = [...cmd, "--include-suffix"];
         if (pamIncludeSuffix.length != 0) {
-            for (let value of pamIncludeSuffix) {
+            for (const value of pamIncludeSuffix) {
                 cmd = [...cmd, value];
             }
         } else if (action == "add") {
@@ -769,7 +768,7 @@ class PassthroughAuthentication extends React.Component {
                     this.closePAMModal();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the pamConfig entry ${action} operation - ${errMsg.desc}`
@@ -805,8 +804,8 @@ class PassthroughAuthentication extends React.Component {
                 saveBtnDisabledPassthru: true,
             });
         } else {
-            let link = url.split(" ")[0];
-            let params = url.split(" ")[1];
+            const link = url.split(" ")[0];
+            const params = url.split(" ")[1];
             this.setState({
                 urlEntryModalShow: true,
                 oldURL: url,
@@ -833,7 +832,7 @@ class PassthroughAuthentication extends React.Component {
     }
 
     deleteURL() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -861,7 +860,7 @@ class PassthroughAuthentication extends React.Component {
                     this.closeConfirmDeleteURL();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the URL removal operation - ${errMsg.desc}`
@@ -935,7 +934,7 @@ class PassthroughAuthentication extends React.Component {
                     this.closeURLModal();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the URL ${action} operation - ${errMsg.desc}`
@@ -1019,14 +1018,14 @@ class PassthroughAuthentication extends React.Component {
         };
 
         let saveBtnName = "Save Config";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.state.savingPassthru || this.state.savingPAM) {
             saveBtnName = "Saving Config ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
-        let title = (newPAMConfigEntry ? "Add" : "Edit") + " PAM Passthough Auth Plugin Config Entry";
-        let title_url = (newPAMConfigEntry ? "Add " : "Edit ") + "Pass-Though Authentication Plugin URL";
+        const title = (newPAMConfigEntry ? "Add" : "Edit") + " PAM Passthough Auth Plugin Config Entry";
+        const title_url = (newPAMConfigEntry ? "Add " : "Edit ") + "Pass-Though Authentication Plugin URL";
 
         return (
             <div className={savingPAM || savingPassthru ? "ds-disabled" : ""}>
@@ -1236,7 +1235,7 @@ class PassthroughAuthentication extends React.Component {
                                     id="pamFallback"
                                     isChecked={pamFallback}
                                     onChange={(checked, e) => { this.handlePAMChange(e) }}
-                                    title={`Sets whether to fallback to regular LDAP authentication if PAM authentication fails (pamFallback)`}
+                                    title="Sets whether to fallback to regular LDAP authentication if PAM authentication fails (pamFallback)"
                                 />
                             </GridItem>
                         </Grid>
@@ -1347,7 +1346,7 @@ class PassthroughAuthentication extends React.Component {
                             <GridItem
                                 className="ds-label"
                                 span={5}
-                                title={`The version of the LDAP protocol used to connect to the authenticating directory. Directory Server supports LDAP version 2 and 3. The default is version 3, and Red Hat strongly recommends against using LDAPv2, which is old and will be deprecated.`}
+                                title="The version of the LDAP protocol used to connect to the authenticating directory. Directory Server supports LDAP version 2 and 3. The default is version 3, and Red Hat strongly recommends against using LDAPv2, which is old and will be deprecated."
                             >
                                 Version
                             </GridItem>
@@ -1371,14 +1370,14 @@ class PassthroughAuthentication extends React.Component {
                                     id="urlStartTLS"
                                     isChecked={urlStartTLS}
                                     onChange={(checked, e) => { this.handlePassthruChange(e) }}
-                                    title={`A flag of whether to use Start TLS for the connection to the authenticating directory. Start TLS establishes a secure connection over the standard port, so it is useful for connecting using LDAP instead of LDAPS. The TLS server and CA certificates need to be available on both of the servers. To use Start TLS, the LDAP URL must use ldap:, not ldaps:.`}
+                                    title="A flag of whether to use Start TLS for the connection to the authenticating directory. Start TLS establishes a secure connection over the standard port, so it is useful for connecting using LDAP instead of LDAPS. The TLS server and CA certificates need to be available on both of the servers. To use Start TLS, the LDAP URL must use ldap:, not ldaps:."
                                     label="Enable StartTLS"
                                 />
                             </GridItem>
                         </Grid>
                         <hr />
                         <Grid title="The URL that will be added or modified after you click 'Save'">
-                            <GridItem className="ds-label" span={5} >
+                            <GridItem className="ds-label" span={5}>
                                 Result URL
                             </GridItem>
                             <GridItem span={7}>
@@ -1482,10 +1481,6 @@ PassthroughAuthentication.propTypes = {
 PassthroughAuthentication.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop
 };
 
 export default PassthroughAuthentication;

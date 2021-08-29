@@ -5,7 +5,6 @@ import {
     PaginationVariant,
     SearchInput,
     Spinner,
-    noop
 } from '@patternfly/react-core';
 import {
     Table,
@@ -51,7 +50,7 @@ class ReplAgmtTable extends React.Component {
 
     componentDidMount() {
         // Deep copy the rows so we can handle sorting and searching
-        this.setState({page: this.props.page});
+        this.setState({ page: this.props.page });
     }
 
     actions() {
@@ -112,23 +111,23 @@ class ReplAgmtTable extends React.Component {
 
     render() {
         // let rows = this.state.rows;
-        let rows = [];
+        const rows = [];
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
-        let rows_copy = JSON.parse(JSON.stringify(this.props.rows));
+        const rows_copy = JSON.parse(JSON.stringify(this.props.rows));
 
         // Refine rows to handle JSX objects
-        for (let row of rows_copy) {
-            rows.push({cells: [row[0], row[1], row[2], row[3], {title: this.convertStatus(row[5])}]});
+        for (const row of rows_copy) {
+            rows.push({ cells: [row[0], row[1], row[2], row[3], { title: this.convertStatus(row[5]) }] });
         }
 
         if (rows.length == 0) {
             has_rows = false;
-            columns = [{title: 'Replication Agreements'}];
-            tableRows = [{cells: ['No Agreements']}];
+            columns = [{ title: 'Replication Agreements' }];
+            tableRows = [{ cells: ['No Agreements'] }];
         } else {
-            let startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
         return (
@@ -186,14 +185,14 @@ class ManagerTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
-        for (let managerRow of this.props.rows) {
+        for (const managerRow of this.props.rows) {
             rows.push({
                 cells: [managerRow, { props: { textCenter: true }, title: this.getDeleteButton(managerRow) }]
             });
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Replication Managers']}];
-            columns = [{title: ''}];
+            rows = [{ cells: ['No Replication Managers'] }];
+            columns = [{ title: '' }];
         }
         this.setState({
             rows: rows,
@@ -202,8 +201,8 @@ class ManagerTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let rows = [];
-        let sortedManagers = [...this.state.rows];
+        const rows = [];
+        const sortedManagers = [...this.state.rows];
 
         // Sort the managers and build the new rows
         sortedManagers.sort();
@@ -211,7 +210,7 @@ class ManagerTable extends React.Component {
             sortedManagers.reverse();
         }
 
-        for (let managerRow of sortedManagers) {
+        for (const managerRow of sortedManagers) {
             rows.push({ cells: [managerRow.cells[0], { props: { textCenter: true }, title: this.getDeleteButton(managerRow.cells[0]) }] });
         }
 
@@ -276,14 +275,14 @@ class RUVTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
-        for (let row of this.props.rows) {
+        for (const row of this.props.rows) {
             rows.push({
                 cells: [row.rid, row.url, row.maxcsn, { props: { textCenter: true }, title: this.getCleanButton(row.rid) }]
             });
         }
         if (rows.length == 0) {
-            rows = [{cells: ["No RUV's"]}];
-            columns = [{title: "Remote RUV's"}];
+            rows = [{ cells: ["No RUV's"] }];
+            columns = [{ title: "Remote RUV's" }];
         }
         this.setState({
             rows: rows,
@@ -347,11 +346,6 @@ ReplAgmtTable.propTypes = {
 
 ReplAgmtTable.defaultProps = {
     rows: [],
-    edit: noop,
-    poke: noop,
-    init: noop,
-    enable: noop,
-    delete: noop,
 };
 
 ManagerTable.propTypes = {
@@ -361,7 +355,6 @@ ManagerTable.propTypes = {
 
 ManagerTable.defaultProps = {
     rows: [],
-    confirmDelete: noop
 };
 
 RUVTable.propTypes = {
@@ -371,7 +364,6 @@ RUVTable.propTypes = {
 
 RUVTable.defaultProps = {
     rows: [],
-    confirmDelete: noop
 };
 
 export {

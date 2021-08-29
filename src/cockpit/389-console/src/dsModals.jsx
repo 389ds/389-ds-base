@@ -20,7 +20,6 @@ import {
     TextInput,
     ValidatedOptions,
     Spinner,
-    noop
 } from "@patternfly/react-core";
 
 export class CreateInstanceModal extends React.Component {
@@ -64,7 +63,7 @@ export class CreateInstanceModal extends React.Component {
 
         this.handleFieldChange = this.handleFieldChange.bind(this);
         this.validate = this.validate.bind(this);
-        this.createInstance = this.createInstance.bind(this);
+        this.handleCreateInstance = this.handleCreateInstance.bind(this);
         this.validInstName = this.validInstName.bind(this);
         this.validRootDN = this.validRootDN.bind(this);
         this.resetModal = this.resetModal.bind(this);
@@ -113,16 +112,16 @@ export class CreateInstanceModal extends React.Component {
         // Check that the attr is only letters  [A-Za-z]+  and the value does not
         // start with a space (?=\\S) AND all the characters are standard
         // ascii ([ -~]+)
-        let dn_regex = new RegExp("^([A-Za-z]+=(?=\\S)([ -~]+)$)");
+        const dn_regex = new RegExp("^([A-Za-z]+=(?=\\S)([ -~]+)$)");
 
-        let result = dn_regex.test(dn);
+        const result = dn_regex.test(dn);
         return result;
     }
 
     validate() {
         let all_good = true;
         let createServerIdMsg = "";
-        let errObj = {};
+        const errObj = {};
 
         const reqAttrs = [
             'createServerId', 'createDM', 'createDMPassword', 'createDMPasswordConfirm'
@@ -137,33 +136,33 @@ export class CreateInstanceModal extends React.Component {
         ];
 
         // Handle server ID
-        if (this.state.createServerId != "") {
+        if (this.state.createServerId !== "") {
             if (this.state.createServerId.length > 80) {
                 all_good = false;
-                errObj['createServerId'] = true;
+                errObj.createServerId = true;
                 createServerIdMsg = "Instance name must be less than 80 characters";
             } else if (!this.validInstName(this.state.createServerId)) {
                 all_good = false;
-                errObj['createServerId'] = true;
+                errObj.createServerId = true;
                 createServerIdMsg = "Instance name can only contain letters, numbers, and these 4 characters:  - @ : _";
             }
         }
 
-        for (let attr of reqAttrs) {
-            if (this.state[attr] == "") {
+        for (const attr of reqAttrs) {
+            if (this.state[attr] === "") {
                 all_good = false;
                 errObj[attr] = true;
             }
         }
 
-        for (let attr of dnAttrs) {
-            if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
+        for (const attr of dnAttrs) {
+            if (this.state[attr] !== "" && !valid_dn(this.state[attr])) {
                 all_good = false;
                 errObj[attr] = true;
             }
         }
 
-        if (this.state.createDMPassword != this.state.createDMPasswordConfirm ||
+        if (this.state.createDMPassword !== this.state.createDMPasswordConfirm ||
             this.state.createDMPassword.length < 8) {
             all_good = false;
             errObj.createDMPassword = true;
@@ -171,8 +170,8 @@ export class CreateInstanceModal extends React.Component {
         }
 
         if (this.state.createDBCheckbox) {
-            for (let attr of optionalAttrs) {
-                if (this.state[attr] == "") {
+            for (const attr of optionalAttrs) {
+                if (this.state[attr] === "") {
                     all_good = false;
                     errObj[attr] = true;
                 }
@@ -191,13 +190,13 @@ export class CreateInstanceModal extends React.Component {
     }
 
     handleFieldChange(e) {
-        let value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value,
         }, () => { this.validate() });
     }
 
-    createInstance() {
+    handleCreateInstance() {
         const {
             createServerId,
             createPort,
@@ -264,12 +263,12 @@ export class CreateInstanceModal extends React.Component {
         this.setState({
             loadingCreate: true
         });
-        let hostname_cmd = ["hostnamectl", "status", "--static"];
-        log_cmd("createInstance", "Get FQDN ...", hostname_cmd);
+        const hostname_cmd = ["hostnamectl", "status", "--static"];
+        log_cmd("handleCreateInstance", "Get FQDN ...", hostname_cmd);
         cockpit
                 .spawn(hostname_cmd, { superuser: true, err: "message" })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         loadingCreate: false
                     });
@@ -279,14 +278,14 @@ export class CreateInstanceModal extends React.Component {
                     /*
                      * We have FQDN, so set the hostname in inf file, and create the setup file
                      */
-                    if (data.trim() == "") {
+                    if (data.trim() === "") {
                         data = "localhost.localdomain";
                     }
                     setup_inf = setup_inf.replace("FQDN", data);
-                    let setup_file = "/tmp/389-setup-" + new Date().getTime() + ".inf";
-                    let rm_cmd = ["rm", setup_file];
-                    let create_file_cmd = ["touch", setup_file];
-                    log_cmd("createInstance", "Setting FQDN...", create_file_cmd);
+                    const setup_file = "/tmp/389-setup-" + new Date().getTime() + ".inf";
+                    const rm_cmd = ["rm", setup_file];
+                    const create_file_cmd = ["touch", setup_file];
+                    log_cmd("handleCreateInstance", "Setting FQDN...", create_file_cmd);
                     cockpit
                             .spawn(create_file_cmd, { superuser: true, err: "message" })
                             .fail(err => {
@@ -302,8 +301,8 @@ export class CreateInstanceModal extends React.Component {
                                 /*
                                  * We have our new setup file, now set permissions on that setup file before we add sensitive data
                                  */
-                                let chmod_cmd = ["chmod", "600", setup_file];
-                                log_cmd("createInstance", "Setting initial INF file permissions...", chmod_cmd);
+                                const chmod_cmd = ["chmod", "600", setup_file];
+                                log_cmd("handleCreateInstance", "Setting initial INF file permissions...", chmod_cmd);
                                 cockpit
                                         .spawn(chmod_cmd, { superuser: true, err: "message" })
                                         .fail(err => {
@@ -321,13 +320,13 @@ export class CreateInstanceModal extends React.Component {
                                              * Success we have our setup file and it has the correct permissions.
                                              * Now populate the setup file...
                                              */
-                                            let cmd = [
+                                            const cmd = [
                                                 '/bin/sh', '-c',
                                                 '/usr/bin/echo -e "' + setup_inf + '" >> ' + setup_file
                                             ];
 
                                             // Do not log inf file as it contains the DM password
-                                            log_cmd("createInstance", "Apply changes to INF file...", "");
+                                            log_cmd("handleCreateInstance", "Apply changes to INF file...", "");
                                             cockpit
                                                     .spawn(cmd, { superuser: true, err: "message" })
                                                     .fail(err => {
@@ -343,15 +342,15 @@ export class CreateInstanceModal extends React.Component {
                                                         /*
                                                          * Next, create the instance...
                                                          */
-                                                        let cmd = ["dscreate", "-j", "from-file", setup_file];
-                                                        log_cmd("createInstance", "Creating instance...", cmd);
+                                                        const cmd = ["dscreate", "-j", "from-file", setup_file];
+                                                        log_cmd("handleCreateInstance", "Creating instance...", cmd);
                                                         cockpit
                                                                 .spawn(cmd, {
                                                                     superuser: true,
                                                                     err: "message"
                                                                 })
                                                                 .fail(err => {
-                                                                    let errMsg = JSON.parse(err.message);
+                                                                    const errMsg = JSON.parse(err.message);
                                                                     cockpit.spawn(rm_cmd, { superuser: true }); // Remove Inf file with clear text password
                                                                     this.setState({
                                                                         loadingCreate: false
@@ -363,7 +362,7 @@ export class CreateInstanceModal extends React.Component {
                                                                 })
                                                                 .done(_ => {
                                                                     // Success!!!  Now cleanup everything up...
-                                                                    log_cmd("createInstance", "Instance creation compelete, clean everything up...", rm_cmd);
+                                                                    log_cmd("handleCreateInstance", "Instance creation compelete, clean everything up...", rm_cmd);
                                                                     cockpit.spawn(rm_cmd, { superuser: true }); // Remove Inf file with clear text password
                                                                     this.setState({
                                                                         loadingCreate: false
@@ -404,7 +403,7 @@ export class CreateInstanceModal extends React.Component {
         } = this.state;
 
         let saveBtnName = "Create Instance";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (loadingCreate) {
             saveBtnName = "Creating Instance ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -421,7 +420,7 @@ export class CreateInstanceModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={this.createInstance}
+                        onClick={this.handleCreateInstance}
                         isDisabled={!createOK}
                         isLoading={loadingCreate}
                         spinnerAriaValueText={loadingCreate ? "Saving" : undefined}
@@ -666,7 +665,7 @@ export class SchemaReloadModal extends React.Component {
             loadingSchemaTask: false
         };
 
-        this.reloadSchema = this.reloadSchema.bind(this);
+        this.handleReloadSchema = this.handleReloadSchema.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
     }
 
@@ -676,7 +675,7 @@ export class SchemaReloadModal extends React.Component {
         });
     }
 
-    reloadSchema(e) {
+    handleReloadSchema(e) {
         const { addNotification, serverId, closeHandler } = this.props;
         const { reloadSchemaDir } = this.state;
 
@@ -688,7 +687,7 @@ export class SchemaReloadModal extends React.Component {
         if (reloadSchemaDir !== "") {
             cmd = [...cmd, "--schemadir", reloadSchemaDir];
         }
-        log_cmd("reloadSchemaDir", "Reload schema files", cmd);
+        log_cmd("handleReloadSchema", "Reload schema files", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(data => {
@@ -699,7 +698,7 @@ export class SchemaReloadModal extends React.Component {
                     closeHandler();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     addNotification("error", `Failed to reload schema files - ${errMsg.desc}`);
                     closeHandler();
                 });
@@ -729,7 +728,7 @@ export class SchemaReloadModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={this.reloadSchema}>
+                    <Button key="confirm" variant="primary" onClick={this.handleReloadSchema}>
                         Reload Schema
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
@@ -783,7 +782,7 @@ export class ManageBackupsModal extends React.Component {
         };
 
         this.handleNavSelect = this.handleNavSelect.bind(this);
-        this.handleChange = this.handleChange.bind(this);
+        this.onModalChange = this.onModalChange.bind(this);
 
         // Backups
         this.doBackup = this.doBackup.bind(this);
@@ -795,7 +794,7 @@ export class ManageBackupsModal extends React.Component {
         this.closeConfirmBackup = this.closeConfirmBackup.bind(this);
         this.showConfirmBackupDelete = this.showConfirmBackupDelete.bind(this);
         this.closeConfirmBackupDelete = this.closeConfirmBackupDelete.bind(this);
-        this.showBackupModal = this.showBackupModal.bind(this);
+        this.handleShowBackupModal = this.handleShowBackupModal.bind(this);
         this.closeBackupModal = this.closeBackupModal.bind(this);
         this.validateBackup = this.validateBackup.bind(this);
         this.closeConfirmRestoreReplace = this.closeConfirmRestoreReplace.bind(this);
@@ -807,7 +806,7 @@ export class ManageBackupsModal extends React.Component {
         });
     }
 
-    showBackupModal() {
+    handleShowBackupModal() {
         this.setState({
             showBackupModal: true,
             backupSpinning: false,
@@ -883,7 +882,7 @@ export class ManageBackupsModal extends React.Component {
 
     validateBackup() {
         for (let i = 0; i < this.props.backups.length; i++) {
-            if (this.state.backupName == this.props.backups[i]["name"]) {
+            if (this.state.backupName === this.props.backups[i].name) {
                 this.setState({
                     showConfirmRestoreReplace: true
                 });
@@ -898,20 +897,20 @@ export class ManageBackupsModal extends React.Component {
             backupSpinning: true
         });
 
-        let cmd = ["dsctl", "-j", this.props.serverId, "status"];
+        const cmd = ["dsctl", "-j", this.props.serverId, "status"];
         cockpit
                 .spawn(cmd, { superuser: true })
                 .done(status_data => {
-                    let status_json = JSON.parse(status_data);
-                    if (status_json.running == true) {
-                        let cmd = [
+                    const status_json = JSON.parse(status_data);
+                    if (status_json.running === true) {
+                        const cmd = [
                             "dsconf",
                             "-j",
                             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                             "backup",
                             "create"
                         ];
-                        if (this.state.backupName != "") {
+                        if (this.state.backupName !== "") {
                             if (bad_file_name(this.state.backupName)) {
                                 this.props.addNotification(
                                     "warning",
@@ -931,7 +930,7 @@ export class ManageBackupsModal extends React.Component {
                                     this.props.addNotification("success", `Server has been backed up`);
                                 })
                                 .fail(err => {
-                                    let errMsg = JSON.parse(err);
+                                    const errMsg = JSON.parse(err);
                                     this.props.reload();
                                     this.closeBackupModal();
                                     this.props.addNotification(
@@ -941,7 +940,7 @@ export class ManageBackupsModal extends React.Component {
                                 });
                     } else {
                         const cmd = ["dsctl", "-j", this.props.serverId, "db2bak"];
-                        if (this.state.backupName != "") {
+                        if (this.state.backupName !== "") {
                             if (bad_file_name(this.state.backupName)) {
                                 this.props.addNotification(
                                     "warning",
@@ -960,7 +959,7 @@ export class ManageBackupsModal extends React.Component {
                                     this.props.addNotification("success", `Server has been backed up`);
                                 })
                                 .fail(err => {
-                                    let errMsg = JSON.parse(err);
+                                    const errMsg = JSON.parse(err);
                                     this.props.reload();
                                     this.closeBackupModal();
                                     this.props.addNotification(
@@ -971,7 +970,7 @@ export class ManageBackupsModal extends React.Component {
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     console.log("Failed to check the server status", errMsg.desc);
                 });
     }
@@ -980,12 +979,12 @@ export class ManageBackupsModal extends React.Component {
         this.setState({
             modalSpinning: true
         });
-        let cmd = ["dsctl", "-j", this.props.serverId, "status"];
+        const cmd = ["dsctl", "-j", this.props.serverId, "status"];
         cockpit
                 .spawn(cmd, { superuser: true })
                 .done(status_data => {
-                    let status_json = JSON.parse(status_data);
-                    if (status_json.running == true) {
+                    const status_json = JSON.parse(status_data);
+                    if (status_json.running === true) {
                         const cmd = [
                             "dsconf",
                             "-j",
@@ -1002,7 +1001,7 @@ export class ManageBackupsModal extends React.Component {
                                     this.props.addNotification("success", `Server has been restored`);
                                 })
                                 .fail(err => {
-                                    let errMsg = JSON.parse(err);
+                                    const errMsg = JSON.parse(err);
                                     this.closeConfirmRestore();
                                     this.props.addNotification(
                                         "error",
@@ -1025,7 +1024,7 @@ export class ManageBackupsModal extends React.Component {
                                     this.props.addNotification("success", `Server has been restored`);
                                 })
                                 .fail(err => {
-                                    let errMsg = JSON.parse(err);
+                                    const errMsg = JSON.parse(err);
                                     this.closeRestoreSpinningModal();
                                     this.props.addNotification(
                                         "error",
@@ -1035,7 +1034,7 @@ export class ManageBackupsModal extends React.Component {
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     console.log("Failed to check the server status", errMsg.desc);
                 });
     }
@@ -1063,7 +1062,7 @@ export class ManageBackupsModal extends React.Component {
                     this.props.addNotification("success", `Backup was successfully deleted`);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload();
                     this.setState({
                         modalSpinning: false,
@@ -1076,11 +1075,11 @@ export class ManageBackupsModal extends React.Component {
         this.setState({ activeKey: key });
     }
 
-    handleChange(e) {
+    onModalChange(e) {
         const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
-        if (value == "") {
+        const errObj = this.state.errObj;
+        if (value === "") {
             valueErr = true;
         }
         errObj[e.target.id] = valueErr;
@@ -1102,7 +1101,7 @@ export class ManageBackupsModal extends React.Component {
                     isOpen={showModal}
                     onClose={closeHandler}
                     actions={[
-                        <Button key="confirm" variant="primary" onClick={this.showBackupModal}>
+                        <Button key="confirm" variant="primary" onClick={this.handleShowBackupModal}>
                             Create Backup
                         </Button>,
                     ]}
@@ -1118,7 +1117,7 @@ export class ManageBackupsModal extends React.Component {
                 <BackupModal
                     showModal={this.state.showBackupModal}
                     closeHandler={this.closeBackupModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.onModalChange}
                     saveHandler={this.validateBackup}
                     spinning={this.state.backupSpinning}
                     error={this.state.errObj}
@@ -1126,7 +1125,7 @@ export class ManageBackupsModal extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmRestore}
                     closeHandler={this.closeConfirmRestore}
-                    handleChange={this.handleChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.restoreBackup}
                     spinning={this.state.modalSpinning}
                     item={this.state.backupName}
@@ -1139,7 +1138,7 @@ export class ManageBackupsModal extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmBackupDelete}
                     closeHandler={this.closeConfirmBackupDelete}
-                    handleChange={this.handleChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.deleteBackup}
                     spinning={this.state.modalSpinning}
                     item={this.state.backupName}
@@ -1152,7 +1151,7 @@ export class ManageBackupsModal extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmRestoreReplace}
                     closeHandler={this.closeConfirmRestoreReplace}
-                    handleChange={this.handleChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.deleteBackup}
                     spinning={this.state.modalSpinning}
                     item={this.state.doBackup}
@@ -1178,9 +1177,6 @@ CreateInstanceModal.propTypes = {
 
 CreateInstanceModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    addNotification: noop,
-    loadInstanceList: noop
 };
 
 SchemaReloadModal.propTypes = {
@@ -1192,8 +1188,6 @@ SchemaReloadModal.propTypes = {
 
 SchemaReloadModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    addNotification: noop,
     serverId: ""
 };
 
@@ -1206,7 +1200,5 @@ ManageBackupsModal.propTypes = {
 
 ManageBackupsModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    addNotification: noop,
     serverId: ""
 };

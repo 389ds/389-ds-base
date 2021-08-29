@@ -11,7 +11,6 @@ import {
     SelectVariant,
     SelectOption,
     TimePicker,
-    noop,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -166,7 +165,8 @@ class RootDNAccessControl extends React.Component {
                 this.setState(
                     (prevState) => ({
                         allowIP: [...prevState.allowIP, selection],
-                        isAllowIPOpen: false}),
+                        isAllowIPOpen: false
+                    }),
                 );
             }
         };
@@ -236,14 +236,14 @@ class RootDNAccessControl extends React.Component {
     }
 
     validate() {
-        let errObj = {};
+        const errObj = {};
         let all_good = false;
 
         const dayAttrs = [
             'allowMon', 'allowTue', 'allowWed', 'allowThu', 'allowFri',
             'allowSat', 'allowSun'
         ];
-        for (let check_attr of dayAttrs) {
+        for (const check_attr of dayAttrs) {
             if (this.state[check_attr]) {
                 // At least one day must be set
                 all_good = true;
@@ -260,7 +260,7 @@ class RootDNAccessControl extends React.Component {
             const attrLists = [
                 'allowHost', 'denyHost', 'allowIP', 'denyIP'
             ];
-            for (let check_attr of attrLists) {
+            for (const check_attr of attrLists) {
                 if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
                     all_good = true;
                     break;
@@ -271,7 +271,7 @@ class RootDNAccessControl extends React.Component {
                 'openTime', 'closeTime', 'allowMon', 'allowTue', 'allowWed',
                 'allowThu', 'allowFri', 'allowSat', 'allowSun'
             ];
-            for (let check_attr of attrs) {
+            for (const check_attr of attrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
@@ -285,14 +285,14 @@ class RootDNAccessControl extends React.Component {
     }
 
     handleFieldChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
         }, () => { this.validate() });
     }
 
     handleTimeChange(id, time_str) {
-        let time_val = time_str.replace(":", "");
+        const time_val = time_str.replace(":", "");
         this.setState({
             [id]: time_val
         }, () => { this.validate() });
@@ -303,35 +303,35 @@ class RootDNAccessControl extends React.Component {
         let denyHostList = [];
         let allowIPList = [];
         let denyIPList = [];
-        let daysAllowed = {};
+        const daysAllowed = {};
 
         if (this.props.rows.length > 0) {
             const pluginRow = this.props.rows.find(row => row.cn[0] === "RootDN Access Control");
 
             if (pluginRow["rootdn-allow-host"] !== undefined) {
-                for (let value of pluginRow["rootdn-allow-host"]) {
+                for (const value of pluginRow["rootdn-allow-host"]) {
                     allowHostList = [...allowHostList, value];
                 }
             }
             if (pluginRow["rootdn-deny-host"] !== undefined) {
-                for (let value of pluginRow["rootdn-deny-host"]) {
+                for (const value of pluginRow["rootdn-deny-host"]) {
                     denyHostList = [...denyHostList, value];
                 }
             }
             if (pluginRow["rootdn-allow-ip"] !== undefined) {
-                for (let value of pluginRow["rootdn-allow-ip"]) {
+                for (const value of pluginRow["rootdn-allow-ip"]) {
                     allowIPList = [...allowIPList, value];
                 }
             }
             if (pluginRow["rootdn-deny-ip"] !== undefined) {
-                for (let value of pluginRow["rootdn-deny-ip"]) {
+                for (const value of pluginRow["rootdn-deny-ip"]) {
                     denyIPList = [...denyIPList, value];
                 }
             }
 
             if (pluginRow["rootdn-days-allowed"] !== undefined) {
-                let daysStr = pluginRow["rootdn-days-allowed"][0].toLowerCase();
-                for (let day of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) {
+                const daysStr = pluginRow["rootdn-days-allowed"][0].toLowerCase();
+                for (const day of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) {
                     if (daysStr.includes(day.toLowerCase())) {
                         daysAllowed['allow' + day] = true;
                         daysAllowed['_allow' + day] = true;
@@ -341,15 +341,15 @@ class RootDNAccessControl extends React.Component {
 
             let openTime = "00:00";
             if (pluginRow["rootdn-open-time"] !== undefined) {
-                let openHour = pluginRow["rootdn-open-time"][0].substring(0, 2);
-                let openMin = pluginRow["rootdn-open-time"][0].substring(2, 4);
+                const openHour = pluginRow["rootdn-open-time"][0].substring(0, 2);
+                const openMin = pluginRow["rootdn-open-time"][0].substring(2, 4);
                 openTime = openHour + ":" + openMin;
             }
 
             let closeTime = "11:59";
             if (pluginRow["rootdn-close-time"] !== undefined) {
-                let closeHour = pluginRow["rootdn-close-time"][0].substring(0, 2);
-                let closeMin = pluginRow["rootdn-close-time"][0].substring(2, 4);
+                const closeHour = pluginRow["rootdn-close-time"][0].substring(0, 2);
+                const closeMin = pluginRow["rootdn-close-time"][0].substring(2, 4);
                 closeTime = closeHour + ":" + closeMin;
             }
 
@@ -382,7 +382,7 @@ class RootDNAccessControl extends React.Component {
     savePlugin() {
         // First builds the days allowed
         let daysAllowed = "";
-        for (let day of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) {
+        for (const day of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) {
             if (this.state['allow' + day]) {
                 daysAllowed += day + ",";
             }
@@ -408,7 +408,7 @@ class RootDNAccessControl extends React.Component {
         // Delete attributes if the user set an empty value to the field
         cmd = [...cmd, "--allow-host"];
         if (this.state.allowHost.length != 0) {
-            for (let value of this.state.allowHost) {
+            for (const value of this.state.allowHost) {
                 cmd = [...cmd, value];
             }
         } else {
@@ -416,7 +416,7 @@ class RootDNAccessControl extends React.Component {
         }
         cmd = [...cmd, "--deny-host"];
         if (this.state.denyHost.length != 0) {
-            for (let value of this.state.denyHost) {
+            for (const value of this.state.denyHost) {
                 cmd = [...cmd, value];
             }
         } else {
@@ -424,7 +424,7 @@ class RootDNAccessControl extends React.Component {
         }
         cmd = [...cmd, "--allow-ip"];
         if (this.state.allowIP.length != 0) {
-            for (let value of this.state.allowIP) {
+            for (const value of this.state.allowIP) {
                 cmd = [...cmd, value];
             }
         } else {
@@ -432,7 +432,7 @@ class RootDNAccessControl extends React.Component {
         }
         cmd = [...cmd, "--allow-host"];
         if (this.state.allowHost.length != 0) {
-            for (let value of this.state.allowHost) {
+            for (const value of this.state.allowHost) {
                 cmd = [...cmd, value];
             }
         } else {
@@ -454,7 +454,7 @@ class RootDNAccessControl extends React.Component {
                     this.props.pluginListHandler();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to update Retro Changelog Plugin - ${errMsg.desc}`
@@ -484,7 +484,7 @@ class RootDNAccessControl extends React.Component {
         } = this.state;
 
         let saveBtnName = "Save";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (saving) {
             saveBtnName = "Saving ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -522,13 +522,13 @@ class RootDNAccessControl extends React.Component {
                                     noResultsFoundText="There are no matching entries"
                                     isCreatable
                                     onCreateOption={this.onAllowHostCreateOption}
-                                    >
+                                >
                                     {this.state.allowHostOptions.map((host, index) => (
                                         <SelectOption
                                             key={index}
                                             value={host}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -550,13 +550,13 @@ class RootDNAccessControl extends React.Component {
                                     noResultsFoundText="There are no matching entries"
                                     isCreatable
                                     onCreateOption={this.onDenyHostCreateOption}
-                                    >
+                                >
                                     {this.state.denyHostOptions.map((host, index) => (
                                         <SelectOption
                                             key={index}
                                             value={host}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -578,13 +578,13 @@ class RootDNAccessControl extends React.Component {
                                     noResultsFoundText="There are no matching entries"
                                     isCreatable
                                     onCreateOption={this.onAllowIPCreateOption}
-                                    >
+                                >
                                     {this.state.allowIPOptions.map((ip, index) => (
                                         <SelectOption
                                             key={index}
                                             value={ip}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -606,13 +606,13 @@ class RootDNAccessControl extends React.Component {
                                     noResultsFoundText="There are no matching entries"
                                     isCreatable
                                     onCreateOption={this.onDenyIPCreateOption}
-                                    >
+                                >
                                     {this.state.denyIPOptions.map((ip, index) => (
                                         <SelectOption
                                             key={index}
                                             value={ip}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -766,10 +766,6 @@ RootDNAccessControl.propTypes = {
 RootDNAccessControl.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop
 };
 
 export default RootDNAccessControl;

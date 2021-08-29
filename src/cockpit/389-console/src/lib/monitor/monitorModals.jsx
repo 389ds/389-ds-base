@@ -16,7 +16,6 @@ import {
     TextContent,
     TextVariants,
     Tooltip,
-    noop,
 } from "@patternfly/react-core";
 import {
     CopyIcon,
@@ -68,10 +67,10 @@ class AgmtDetailsModal extends React.Component {
         } = this.props;
 
         // Format status dates from agmt
-        let convertedDate = {};
-        let dateAttrs = ['last-update-start', 'last-update-end',
+        const convertedDate = {};
+        const dateAttrs = ['last-update-start', 'last-update-end',
             'last-init-start', 'last-init-end'];
-        for (let attr of dateAttrs) {
+        for (const attr of dateAttrs) {
             if (agmt[attr][0] == "19700101000000Z") {
                 convertedDate[attr] = "Unavailable";
             } else {
@@ -79,13 +78,13 @@ class AgmtDetailsModal extends React.Component {
             }
         }
 
-        let btnList = [
+        const btnList = [
             <Button key="cancel" variant="link" onClick={closeHandler}>
                 Cancel
             </Button>
         ];
 
-        let title = "Replication Agreement Details (" + agmt['agmt-name'] + ")";
+        const title = "Replication Agreement Details (" + agmt['agmt-name'] + ")";
 
         return (
             <Modal
@@ -101,7 +100,7 @@ class AgmtDetailsModal extends React.Component {
                             <b>Replica</b>
                         </GridItem>
                         <GridItem span={8}>
-                            <i>{agmt['replica']}</i>
+                            <i>{agmt.replica}</i>
                         </GridItem>
                     </Grid>
                     <Grid className="ds-margin-top">
@@ -208,7 +207,7 @@ class ConflictCompareModal extends React.Component {
             newRDN
         } = this.props;
 
-        let ignoreAttrs = ['createtimestamp', 'creatorsname', 'modifytimestamp',
+        const ignoreAttrs = ['createtimestamp', 'creatorsname', 'modifytimestamp',
             'modifiersname', 'entryid', 'entrydn', 'parentid', 'numsubordinates'];
         let conflict = "dn: " + conflictEntry.dn + "\n";
         let valid = "dn: " + validEntry.dn + "\n";
@@ -225,7 +224,7 @@ class ConflictCompareModal extends React.Component {
                 conflictChildren = conflictEntry.attrs[key];
             }
             if (!ignoreAttrs.includes(key)) {
-                for (let attr of conflictEntry.attrs[key]) {
+                for (const attr of conflictEntry.attrs[key]) {
                     conflict += key + ": " + attr + "\n";
                 }
             }
@@ -235,7 +234,7 @@ class ConflictCompareModal extends React.Component {
                 validChildren = <font color="red">{validEntry.attrs[key]}</font>;
             }
             if (!ignoreAttrs.includes(key)) {
-                for (let attr of validEntry.attrs[key]) {
+                for (const attr of validEntry.attrs[key]) {
                     valid += key + ": " + attr + "\n";
                 }
             }
@@ -401,7 +400,7 @@ class ReportCredentialsModal extends React.Component {
             onConfigChange,
         } = this.props;
 
-        let title = (newEntry ? "Add" : "Edit") + " Report Credentials";
+        const title = (newEntry ? "Add" : "Edit") + " Report Credentials";
 
         return (
             <Modal
@@ -537,7 +536,7 @@ class ReportAliasesModal extends React.Component {
             onConfigChange
         } = this.props;
 
-        let title = (newEntry ? "Add" : "Edit") + " Report Alias";
+        const title = (newEntry ? "Add" : "Edit") + " Report Alias";
 
         return (
             <Modal
@@ -637,7 +636,7 @@ class ReportLoginModal extends React.Component {
             loginBindpw
         } = this.props;
 
-        let title = "Replication Login Credentials for " + instanceName;
+        const title = "Replication Login Credentials for " + instanceName;
 
         return (
             <Modal
@@ -791,7 +790,7 @@ class FullReportContent extends React.Component {
                                     Refresh Report
                                 </Button>
                             </GridItem>
-                            <GridItem span={12} >
+                            <GridItem span={12}>
                                 <Checkbox
                                     isChecked={this.state.oneTableReport}
                                     onChange={(checked, e) => {
@@ -808,10 +807,10 @@ class FullReportContent extends React.Component {
             );
         }
         if (this.state.oneTableReport) {
-            for (let supplier of reportData) {
-                for (let replica of supplier.data) {
+            for (const supplier of reportData) {
+                for (const replica of supplier.data) {
                     let idx = replica.agmts_status.length;
-                    let agmts = JSON.parse(JSON.stringify(replica.agmts_status));
+                    const agmts = JSON.parse(JSON.stringify(replica.agmts_status));
                     while (idx--) {
                         if (!this.state.showDisabledAgreements &&
                             'replica-enabled' in agmts[idx] &&
@@ -832,8 +831,8 @@ class FullReportContent extends React.Component {
             </div>
             )];
         } else {
-            for (let supplier of reportData) {
-                let s_data = supplier.data;
+            for (const supplier of reportData) {
+                const s_data = supplier.data;
                 if (s_data.length === 1 &&
                     (s_data[0].replica_status.startsWith("Unavailable") ||
                      s_data[0].replica_status.startsWith("Unreachable"))) {
@@ -849,8 +848,8 @@ class FullReportContent extends React.Component {
                 } else {
                     // Create deep copy of supplier data, so we can filter it
                     // without changing the original data
-                    let supData = JSON.parse(JSON.stringify(supplier.data));
-                    for (let replica of supData) {
+                    const supData = JSON.parse(JSON.stringify(supplier.data));
+                    for (const replica of supData) {
                         let idx = replica.agmts_status.length;
                         while (idx--) {
                             if (!this.state.showDisabledAgreements &&
@@ -952,7 +951,6 @@ AgmtDetailsModal.propTypes = {
 
 AgmtDetailsModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
     agmt: {},
 };
 
@@ -964,7 +962,6 @@ TaskLogModal.propTypes = {
 
 TaskLogModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
     agreement: "",
 };
 
@@ -977,9 +974,8 @@ ConflictCompareModal.propTypes = {
 
 ConflictCompareModal.defaultProps = {
     showModal: false,
-    conflictEntry: {dn: "", attrs: []},
+    conflictEntry: { dn: "", attrs: [] },
     validEntry: {},
-    closeHandler: noop,
 };
 
 ReportCredentialsModal.propTypes = {
@@ -998,16 +994,12 @@ ReportCredentialsModal.propTypes = {
 
 ReportCredentialsModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleFieldChange: noop,
     hostname: "",
     port: "",
     binddn: "",
     bindpw: "",
     pwInputInterractive: false,
     newEntry: false,
-    addConfig: noop,
-    editConfig: noop,
 };
 
 ReportAliasesModal.propTypes = {
@@ -1024,14 +1016,10 @@ ReportAliasesModal.propTypes = {
 
 ReportAliasesModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleFieldChange: noop,
     hostname: "",
     port: 389,
     alias: "",
     newEntry: false,
-    addConfig: noop,
-    editConfig: noop,
 };
 
 ReportLoginModal.propTypes = {
@@ -1047,9 +1035,6 @@ ReportLoginModal.propTypes = {
 
 ReportLoginModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    processCredsInput: noop,
     instanceName: "",
     disableBinddn: false,
     loginBinddn: "",
@@ -1063,9 +1048,7 @@ FullReportContent.propTypes = {
 };
 
 FullReportContent.defaultProps = {
-    handleFieldChange: noop,
     reportData: [],
-    handleRefresh: noop,
     reportRefreshTimeout: 5,
     reportRefreshing: false
 };

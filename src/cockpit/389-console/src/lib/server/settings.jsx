@@ -18,7 +18,6 @@ import {
     TextContent,
     TextVariants,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -140,14 +139,14 @@ export class ServerSettings extends React.Component {
     }
 
     handleConfigChange(str, e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let valueErr = false;
-        let errObj = this.state.errObjConfig;
+        const errObj = this.state.errObjConfig;
 
         // Check if a setting was changed, if so enable the save button
-        for (let general_attr of general_attrs) {
+        for (const general_attr of general_attrs) {
             if (attr == general_attr && this.state['_' + general_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -155,7 +154,7 @@ export class ServerSettings extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let general_attr of general_attrs) {
+        for (const general_attr of general_attrs) {
             if (attr != general_attr && this.state['_' + general_attr] != this.state[general_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -176,14 +175,14 @@ export class ServerSettings extends React.Component {
     }
 
     handleRootDNChange(str, e) {
-        let value = e.target.value;
-        let attr = e.target.id;
+        const value = e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let valueErr = false;
-        let errObj = this.state.errObjRootDN;
+        const errObj = this.state.errObjRootDN;
 
         // Check if a setting was changed, if so enable the save button
-        for (let rootdn_attr of rootdn_attrs) {
+        for (const rootdn_attr of rootdn_attrs) {
             if (attr == rootdn_attr && this.state['_' + rootdn_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -191,7 +190,7 @@ export class ServerSettings extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let rootdn_attr of rootdn_attrs) {
+        for (const rootdn_attr of rootdn_attrs) {
             if (attr != rootdn_attr && this.state['_' + rootdn_attr] != this.state[rootdn_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -210,9 +209,9 @@ export class ServerSettings extends React.Component {
         if (attr == 'confirmRootpw') {
             if (value != this.state['nsslapd-rootpw']) {
                 disableSaveBtn = true;
-                errObj['confirmRootpw'] = true;
+                errObj.confirmRootpw = true;
             } else {
-                errObj['confirmRootpw'] = false;
+                errObj.confirmRootpw = false;
             }
         }
 
@@ -229,14 +228,14 @@ export class ServerSettings extends React.Component {
     }
 
     handleDiskMonChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let valueErr = false;
-        let errObj = this.state.errObjDiskMon;
+        const errObj = this.state.errObjDiskMon;
 
         // Check if a setting was changed, if so enable the save button
-        for (let disk_attr of disk_attrs) {
+        for (const disk_attr of disk_attrs) {
             if (attr == disk_attr && this.state['_' + disk_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -244,7 +243,7 @@ export class ServerSettings extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let disk_attr of disk_attrs) {
+        for (const disk_attr of disk_attrs) {
             if (attr != disk_attr && this.state['_' + disk_attr] != this.state[disk_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -264,14 +263,14 @@ export class ServerSettings extends React.Component {
     }
 
     handleAdvChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let valueErr = false;
-        let errObj = this.state.errObjAdv;
+        const errObj = this.state.errObjAdv;
 
         // Check if a setting was changed, if so enable the save button
-        for (let adv_attr of adv_attrs) {
+        for (const adv_attr of adv_attrs) {
             if (attr == adv_attr && this.state['_' + adv_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -279,7 +278,7 @@ export class ServerSettings extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let adv_attr of adv_attrs) {
+        for (const adv_attr of adv_attrs) {
             if (attr != adv_attr && this.state['_' + adv_attr] != this.state[adv_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -304,7 +303,7 @@ export class ServerSettings extends React.Component {
     }
 
     loadConfig() {
-        let attrs = this.state.attrs;
+        const attrs = this.state.attrs;
         // Handle the checkbox values
         let diskMonitoring = false;
         let diskLogCritical = false;
@@ -374,7 +373,7 @@ export class ServerSettings extends React.Component {
             'nsslapd-certdir': attrs['nsslapd-certdir'][0],
             'nsslapd-rootdn': attrs['nsslapd-rootdn'][0],
             'nsslapd-rootpw': attrs['nsslapd-rootpw'][0],
-            'confirmRootpw': attrs['nsslapd-rootpw'][0],
+            confirmRootpw: attrs['nsslapd-rootpw'][0],
             'nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
             'nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
             'nsslapd-disk-monitoring-threshold': attrs['nsslapd-disk-monitoring-threshold'][0],
@@ -403,7 +402,7 @@ export class ServerSettings extends React.Component {
             '_nsslapd-certdir': attrs['nsslapd-certdir'][0],
             '_nsslapd-rootdn': attrs['nsslapd-rootdn'][0],
             '_nsslapd-rootpw': attrs['nsslapd-rootpw'][0],
-            '_confirmRootpw': attrs['nsslapd-rootpw'][0],
+            _confirmRootpw: attrs['nsslapd-rootpw'][0],
             '_nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
             '_nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
             '_nsslapd-disk-monitoring-threshold': attrs['nsslapd-disk-monitoring-threshold'][0],
@@ -428,12 +427,12 @@ export class ServerSettings extends React.Component {
         this.setState({
             rootDNReloading: true,
         });
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
 
-        for (let attr of rootdn_attrs) {
+        for (const attr of rootdn_attrs) {
             if (attr != 'confirmRootpw' && this.state['_' + attr] != this.state[attr]) {
                 cmd.push(attr + "=" + this.state[attr]);
             }
@@ -441,7 +440,7 @@ export class ServerSettings extends React.Component {
 
         log_cmd("saveRootDN", "Saving changes to root DN", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.reloadRootDN();
                     this.props.addNotification(
@@ -450,7 +449,7 @@ export class ServerSettings extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.reloadRootDN();
                     this.props.addNotification(
                         "error",
@@ -460,7 +459,7 @@ export class ServerSettings extends React.Component {
     }
 
     reloadRootDN() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
@@ -468,26 +467,26 @@ export class ServerSettings extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     this.setState(() => (
                         {
                             rootDNReloading: false,
                             'nsslapd-rootdn': attrs['nsslapd-rootdn'][0],
                             'nsslapd-rootpw': attrs['nsslapd-rootpw'][0],
-                            'confirmRootpw': attrs['nsslapd-rootpw'][0],
+                            confirmRootpw: attrs['nsslapd-rootpw'][0],
                             'nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
                             // Record original values
                             '_nsslapd-rootdn': attrs['nsslapd-rootdn'][0],
                             '_nsslapd-rootpw': attrs['nsslapd-rootpw'][0],
-                            '_confirmRootpw': attrs['nsslapd-rootpw'][0],
+                            _confirmRootpw: attrs['nsslapd-rootpw'][0],
                             '_nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
                             rootDNSaveDisabled: true
                         })
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         rootDNReloading: false,
                     });
@@ -502,11 +501,11 @@ export class ServerSettings extends React.Component {
         this.setState({
             diskMonReloading: true,
         });
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
-        for (let attr of disk_attrs) {
+        for (const attr of disk_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -522,7 +521,7 @@ export class ServerSettings extends React.Component {
 
         log_cmd("saveRootDN", "Saving changes to Disk Monitoring", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.reloadDiskMonitoring();
                     this.props.addNotification(
@@ -531,7 +530,7 @@ export class ServerSettings extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.reloadDiskMonitoring();
                     this.props.addNotification(
                         "error",
@@ -541,7 +540,7 @@ export class ServerSettings extends React.Component {
     }
 
     reloadDiskMonitoring() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
@@ -549,8 +548,8 @@ export class ServerSettings extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     // Handle the checkbox values
                     let diskMonitoring = false;
                     let diskLogCritical = false;
@@ -578,7 +577,7 @@ export class ServerSettings extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         diskMonReloading: false,
                     });
@@ -593,11 +592,11 @@ export class ServerSettings extends React.Component {
         this.setState({
             advReloading: true,
         });
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
-        for (let attr of adv_attrs) {
+        for (const attr of adv_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -613,7 +612,7 @@ export class ServerSettings extends React.Component {
 
         log_cmd("saveAdvanced", "Saving Advanced configuration", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.reloadAdvanced();
                     this.props.addNotification(
@@ -622,7 +621,7 @@ export class ServerSettings extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.reloadAdvanced();
                     this.props.addNotification(
                         "error",
@@ -632,7 +631,7 @@ export class ServerSettings extends React.Component {
     }
 
     reloadAdvanced() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
@@ -640,8 +639,8 @@ export class ServerSettings extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     // Handle the checkbox values
                     let schemaCheck = false;
                     let syntaxCheck = false;
@@ -718,7 +717,7 @@ export class ServerSettings extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error loading Advanced configuration - ${errMsg.desc}`
@@ -734,12 +733,12 @@ export class ServerSettings extends React.Component {
         this.setState({
             configReloading: true,
         });
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
 
-        for (let attr of general_attrs) {
+        for (const attr of general_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 cmd.push(attr + "=" + this.state[attr]);
             }
@@ -747,7 +746,7 @@ export class ServerSettings extends React.Component {
 
         log_cmd("saveConfig", "Applying server config change", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     // Continue with the next mod
                     this.reloadConfig();
@@ -758,7 +757,7 @@ export class ServerSettings extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.reloadConfig();
                     this.props.addNotification(
                         "error",
@@ -768,7 +767,7 @@ export class ServerSettings extends React.Component {
     }
 
     reloadConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
@@ -776,8 +775,8 @@ export class ServerSettings extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     let listenhost = "";
 
                     if ('nsslapd-listenhost' in attrs) {
@@ -808,7 +807,7 @@ export class ServerSettings extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error reloading server configuration - ${errMsg.desc}`
@@ -824,7 +823,7 @@ export class ServerSettings extends React.Component {
         let diskMonitor = "";
 
         let saveBtnName = "Save Settings";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.state.configReloading || this.state.rootDNReloading ||
             this.state.diskMonReloading || this.state.advReloading) {
             saveBtnName = "Saving settings ...";
@@ -1399,8 +1398,10 @@ export class ServerSettings extends React.Component {
         }
 
         return (
-            <div id="server-settings-page" className={this.state.configReloading || this.state.rootDNReloading ||
-                this.state.diskMonReloading || this.state.advReloading ? "ds-disabled" : ""}>
+            <div
+                id="server-settings-page" className={this.state.configReloading || this.state.rootDNReloading ||
+                this.state.diskMonReloading || this.state.advReloading ? "ds-disabled" : ""}
+            >
                 {body}
             </div>
         );
@@ -1417,7 +1418,6 @@ ServerSettings.propTypes = {
 };
 
 ServerSettings.defaultProps = {
-    addNotification: noop,
     serverId: "",
     version: "",
     attrs: {},

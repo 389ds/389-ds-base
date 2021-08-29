@@ -32,7 +32,6 @@ import {
     TextContent,
     TextVariants,
     Tooltip,
-    noop
 } from "@patternfly/react-core";
 import {
     SortByDirection,
@@ -234,13 +233,13 @@ export class ReplMonitor extends React.Component {
 
     componentDidMount() {
         if (this.state.initCreds) {
-            let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                 "config", "get", "nsslapd-port", "nsslapd-localhost", "nsslapd-rootdn"];
             log_cmd("ReplMonitor", "add credentials during componentDidMount", cmd);
             cockpit
                     .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
-                        let config = JSON.parse(content);
+                        const config = JSON.parse(content);
                         this.setState(prevState => ({
                             credentialsList: [
                                 ...prevState.credentialsList,
@@ -252,7 +251,7 @@ export class ReplMonitor extends React.Component {
                                 }
                             ]
                         }));
-                        for (let agmt of this.props.data.replAgmts) {
+                        for (const agmt of this.props.data.replAgmts) {
                             this.setState(prevState => ({
                                 credentialsList: [
                                     ...prevState.credentialsList,
@@ -268,7 +267,7 @@ export class ReplMonitor extends React.Component {
                         }
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
                             `Failed to get config nsslapd-port, nsslapd-localhost and nasslapd-rootdn: ${errMsg.desc}`
@@ -299,17 +298,17 @@ export class ReplMonitor extends React.Component {
 
     handleRadioChange(value, evt) {
         // Handle the radio button changes
-        let radioID = {
-            'swapConflictRadio': false,
-            'deleteConflictRadio': false,
-            'convertConflictRadio': false,
+        const radioID = {
+            swapConflictRadio: false,
+            deleteConflictRadio: false,
+            convertConflictRadio: false,
         };
 
         radioID[evt.target.id] = value;
         this.setState({
-            'swapConflictRadio': radioID.swapConflictRadio,
-            'deleteConflictRadio': radioID.deleteConflictRadio,
-            'convertConflictRadio': radioID.convertConflictRadio,
+            swapConflictRadio: radioID.swapConflictRadio,
+            deleteConflictRadio: radioID.deleteConflictRadio,
+            convertConflictRadio: radioID.convertConflictRadio,
         });
     }
 
@@ -343,8 +342,8 @@ export class ReplMonitor extends React.Component {
     }
 
     convertConflict () {
-        this.setState({modalSpinning: true});
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        this.setState({ modalSpinning: true });
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-conflict", "convert", this.state.conflictEntry, "--new-rdn=" + this.state.convertRDN];
         log_cmd("convertConflict", "convert conflict entry", cmd);
         cockpit
@@ -361,7 +360,7 @@ export class ReplMonitor extends React.Component {
                     this.closeConfirmConvertConflict();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to convert conflict entry entry: ${this.state.conflictEntry} - ${errMsg.desc}`
@@ -371,8 +370,8 @@ export class ReplMonitor extends React.Component {
     }
 
     swapConflict () {
-        this.setState({modalSpinning: true});
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        this.setState({ modalSpinning: true });
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-conflict", "swap", this.state.conflictEntry];
         log_cmd("swapConflict", "swap in conflict entry", cmd);
         cockpit
@@ -389,7 +388,7 @@ export class ReplMonitor extends React.Component {
                     this.closeConfirmSwapConflict();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to swap in conflict entry: ${this.state.conflictEntry} - ${errMsg.desc}`
@@ -399,8 +398,8 @@ export class ReplMonitor extends React.Component {
     }
 
     deleteConflict () {
-        this.setState({modalSpinning: true});
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        this.setState({ modalSpinning: true });
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-conflict", "delete", this.state.conflictEntry];
 
         log_cmd("deleteConflict", "Delete conflict entry", cmd);
@@ -418,7 +417,7 @@ export class ReplMonitor extends React.Component {
                     this.closeConfirmConvertConflict();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to delete conflict entry: ${this.state.conflictEntry} - ${errMsg.desc}`
@@ -428,13 +427,13 @@ export class ReplMonitor extends React.Component {
     }
 
     resolveConflict (dn) {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-conflict", "compare", dn];
         log_cmd("resolveConflict", "Compare conflict entry with valid entry", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let entries = JSON.parse(content);
+                    const entries = JSON.parse(content);
                     this.setState({
                         cmpConflictEntry: entries.items[0],
                         cmpValidEntry: entries.items[1],
@@ -446,7 +445,7 @@ export class ReplMonitor extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to get conflict entries: ${dn} - ${errMsg.desc}`
@@ -473,7 +472,7 @@ export class ReplMonitor extends React.Component {
     }
 
     convertGlue () {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-conflict", "convert-glue", this.state.glueEntry];
         log_cmd("convertGlue", "Convert glue entry to normal entry", cmd);
         cockpit
@@ -487,7 +486,7 @@ export class ReplMonitor extends React.Component {
                     this.closeConfirmConvertGlue();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to convert glue entry: ${this.state.glueEntry} - ${errMsg.desc}`
@@ -506,7 +505,7 @@ export class ReplMonitor extends React.Component {
     }
 
     deleteGlue () {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-conflict", "delete-glue", this.state.glueEntry];
         log_cmd("deleteGlue", "Delete glue entry", cmd);
         cockpit
@@ -520,7 +519,7 @@ export class ReplMonitor extends React.Component {
                     this.closeConfirmDeleteGlue();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to delete glue entry: ${this.state.glueEntry} - ${errMsg.desc}`
@@ -639,7 +638,7 @@ export class ReplMonitor extends React.Component {
 
     viewCleanLog (name) {
         let logData = "";
-        for (let task of this.props.data.cleanTasks) {
+        for (const task of this.props.data.cleanTasks) {
             if (task.attrs.cn[0] == name) {
                 logData = task.attrs.nstasklog[0];
                 break;
@@ -653,7 +652,7 @@ export class ReplMonitor extends React.Component {
 
     viewAbortLog (name) {
         let logData = "";
-        for (let task of this.props.data.abortTasks) {
+        for (const task of this.props.data.abortTasks) {
             if (task.attrs.cn[0] == name) {
                 logData = task.attrs.nstasklog[0];
                 break;
@@ -666,8 +665,8 @@ export class ReplMonitor extends React.Component {
     }
 
     pokeAgmt (evt) {
-        let agmt_name = evt.target.id;
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const agmt_name = evt.target.id;
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-agmt", "poke", "--suffix=" + this.props.suffix, agmt_name];
         log_cmd("pokeAgmt", "Awaken the agreement", cmd);
         cockpit
@@ -679,7 +678,7 @@ export class ReplMonitor extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to poke replication agreement ${agmt_name} - ${errMsg.desc}`
@@ -688,7 +687,7 @@ export class ReplMonitor extends React.Component {
     }
 
     pokeWinsyncAgmt(name) {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-winsync-agmt", "poke", "--suffix=" + this.props.suffix, name];
         log_cmd("pokeAgmt", "Awaken the agreement", cmd);
         cockpit
@@ -700,7 +699,7 @@ export class ReplMonitor extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to poke replication winsync agreement ${name} - ${errMsg.desc}`
@@ -715,11 +714,11 @@ export class ReplMonitor extends React.Component {
                 `The agreement doesn't exist!`
             );
         } else {
-            for (let supplier of this.state.reportData) {
+            for (const supplier of this.state.reportData) {
                 if (supplier.name == supplierName) {
-                    for (let replica of supplier.data) {
+                    for (const replica of supplier.data) {
                         if (`${replica.replica_root}:${replica.replica_id}` == replicaName) {
-                            for (let agmt of replica.agmts_status) {
+                            for (const agmt of replica.agmts_status) {
                                 if (agmt['agmt-name'][0] == agmtName) {
                                     this.setState({
                                         showAgmtModal: true,
@@ -742,8 +741,10 @@ export class ReplMonitor extends React.Component {
     }
 
     changeCreds(action) {
-        const { credentialsList, oldCredsHostname, oldCredsPort, credsHostname,
-                credsPort, credsBinddn, credsBindpw, pwInputInterractive } = this.state;
+        const {
+            credentialsList, oldCredsHostname, oldCredsPort, credsHostname,
+            credsPort, credsBinddn, credsBindpw, pwInputInterractive
+        } = this.state;
 
         if (credsHostname === "" || credsPort === "" || credsBinddn === "") {
             this.props.addNotification("warning", "Host, Port, and Bind DN are required.");
@@ -841,16 +842,16 @@ export class ReplMonitor extends React.Component {
     }
 
     onCredSort(_event, index, direction) {
-        let sorted_creds = [];
-        let rows = [];
+        const sorted_creds = [];
+        const rows = [];
 
         // Convert the aliases into a sortable array based on the column indexes
-        for (let row of this.state.credentialsList) {
+        for (const row of this.state.credentialsList) {
             sorted_creds.push({
-                '1': row.connData,
-                '2': row.credsBinddn,
-                '3': row.credsBindpw,
-                '4': row.pwInputInterractive,
+                1: row.connData,
+                2: row.credsBinddn,
+                3: row.credsBindpw,
+                4: row.pwInputInterractive,
             });
         }
 
@@ -859,7 +860,7 @@ export class ReplMonitor extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_creds.reverse();
         }
-        for (let cred of sorted_creds) {
+        for (const cred of sorted_creds) {
             rows.push({
                 connData: cred['1'],
                 credsBinddn: cred['2'],
@@ -878,14 +879,14 @@ export class ReplMonitor extends React.Component {
     }
 
     onAliasSort(_event, index, direction) {
-        let sorted_alias = [];
-        let rows = [];
+        const sorted_alias = [];
+        const rows = [];
 
         // Convert the aliases into a sortable array based on the column indexes
-        for (let row of this.state.aliasesList) {
+        for (const row of this.state.aliasesList) {
             sorted_alias.push({
-                '1': row[0],
-                '2': row[1],
+                1: row[0],
+                2: row[1],
             });
         }
 
@@ -894,7 +895,7 @@ export class ReplMonitor extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_alias.reverse();
         }
-        for (let alias of sorted_alias) {
+        for (const alias of sorted_alias) {
             rows.push([alias['1'], alias['2']]);
         }
 
@@ -922,7 +923,7 @@ export class ReplMonitor extends React.Component {
             }
 
             if (!aliasExists) {
-                let connData = `${aliasHostname}:${aliasPort}`;
+                const connData = `${aliasHostname}:${aliasPort}`;
                 new_aliases.push([aliasName, connData]);
                 this.setState({
                     aliasesList: new_aliases
@@ -997,9 +998,9 @@ export class ReplMonitor extends React.Component {
         });
 
         let password = "";
-        let credentials = [];
-        let printCredentials = [];
-        for (let row of this.state.credentialsList) {
+        const credentials = [];
+        const printCredentials = [];
+        for (const row of this.state.credentialsList) {
             if (row.pwInputInterractive) {
                 password = "*";
             } else {
@@ -1009,8 +1010,8 @@ export class ReplMonitor extends React.Component {
             printCredentials.push(`${row.connData}:${row.credsBinddn}:********`);
         }
 
-        let aliases = [];
-        for (let row of this.state.aliasesList) {
+        const aliases = [];
+        for (const row of this.state.aliasesList) {
             aliases.push(`${row[0]}=${row[1]}`);
         }
 
@@ -1025,7 +1026,7 @@ export class ReplMonitor extends React.Component {
 
         if (aliases.length != 0) {
             cmd = [...cmd, "-a"];
-            for (let value of aliases) {
+            for (const value of aliases) {
                 cmd = [...cmd, value];
             }
         }
@@ -1034,18 +1035,18 @@ export class ReplMonitor extends React.Component {
         let printCmd = cmd;
         if (credentials.length != 0) {
             cmd = [...cmd, "-c"];
-            for (let value of credentials) {
+            for (const value of credentials) {
                 cmd = [...cmd, value];
             }
             printCmd = [...printCmd, "-c"];
-            for (let value of printCredentials) {
+            for (const value of printCredentials) {
                 printCmd = [...printCmd, value];
             }
         }
 
         log_cmd("doFullReport", "Get the report for the current instance topology", printCmd);
         // We need to set it here because 'input' will be run from inside
-        let proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message", directory: self.path });
+        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message", directory: self.path });
         // We use it in processCredsInput
         this.setState({
             fullReportProcess: proc
@@ -1053,44 +1054,44 @@ export class ReplMonitor extends React.Component {
         proc
                 .done(data => {
                     // Use the buffer from stream. 'data' is empty
-                    let report = JSON.parse(buffer);
+                    const report = JSON.parse(buffer);
                     // We need to reparse the report data because agmts json wasn't parsed correctly because it was too nested
                     let agmts_reparsed = [];
                     let replica_reparsed = [];
-                    let supplier_reparsed = [];
-                    for (let supplier of report.items) {
+                    const supplier_reparsed = [];
+                    for (const supplier of report.items) {
                         replica_reparsed = [];
-                        for (let replica of supplier.data) {
+                        for (const replica of supplier.data) {
                             agmts_reparsed = [];
                             let agmts_done = false;
                             if (replica.hasOwnProperty("agmts_status")) {
-                                for (let agmt of replica.agmts_status) {
+                                for (const agmt of replica.agmts_status) {
                                     // We need this for Agreement View Modal
-                                    agmt["supplierName"] = [supplier.name];
-                                    agmt["replicaName"] = [`${replica.replica_root}:${replica.replica_id}`];
-                                    agmt["replicaStatus"] = [`${replica.replica_status}`];
-                                    agmt["rowKey"] = [`${supplier.name}:${replica.replica_root}:${replica.replica_id}:${agmt["agmt-name"]}`];
+                                    agmt.supplierName = [supplier.name];
+                                    agmt.replicaName = [`${replica.replica_root}:${replica.replica_id}`];
+                                    agmt.replicaStatus = [`${replica.replica_status}`];
+                                    agmt.rowKey = [`${supplier.name}:${replica.replica_root}:${replica.replica_id}:${agmt["agmt-name"]}`];
                                     agmts_reparsed.push(agmt);
                                     agmts_done = true;
                                 }
                             }
                             if (!agmts_done) {
-                                let agmt_empty = {};
-                                agmt_empty["supplierName"] = [supplier.name];
+                                const agmt_empty = {};
+                                agmt_empty.supplierName = [supplier.name];
                                 if (replica.replica_root || replica.replica_id) {
-                                    agmt_empty["replicaName"] = [`${replica.replica_root || ""}:${replica.replica_id || ""}`];
+                                    agmt_empty.replicaName = [`${replica.replica_root || ""}:${replica.replica_id || ""}`];
                                 } else {
-                                    agmt_empty["replicaName"] = [""];
+                                    agmt_empty.replicaName = [""];
                                 }
-                                agmt_empty["replicaStatus"] = [`${replica.replica_status}`];
-                                agmt_empty["rowKey"] = [`${supplier.name}:${replica.replica_root}:${replica.replica_id}:None`];
+                                agmt_empty.replicaStatus = [`${replica.replica_status}`];
+                                agmt_empty.rowKey = [`${supplier.name}:${replica.replica_root}:${replica.replica_id}:None`];
                                 agmts_reparsed.push(agmt_empty);
                             }
-                            replica_reparsed.push({...replica, agmts_status: agmts_reparsed});
+                            replica_reparsed.push({ ...replica, agmts_status: agmts_reparsed });
                         }
-                        supplier_reparsed.push({...supplier, data: replica_reparsed});
+                        supplier_reparsed.push({ ...supplier, data: replica_reparsed });
                     }
-                    const report_reparsed = {...report, items: supplier_reparsed};
+                    const report_reparsed = { ...report, items: supplier_reparsed };
                     this.setState({
                         reportData: report_reparsed.items,
                         showFullReportModal: true,
@@ -1099,7 +1100,7 @@ export class ReplMonitor extends React.Component {
                     });
                 })
                 .fail(_ => {
-                    let errMsg = JSON.parse(buffer);
+                    const errMsg = JSON.parse(buffer);
                     this.props.addNotification(
                         "error",
                         `Sync report has failed - ${errMsg.desc}`
@@ -1114,8 +1115,8 @@ export class ReplMonitor extends React.Component {
                 // Stream is run each time as a new character arrives
                 .stream(data => {
                     buffer += data;
-                    let lines = buffer.split("\n");
-                    let last_line = lines[lines.length - 1];
+                    const lines = buffer.split("\n");
+                    const last_line = lines[lines.length - 1];
                     let found_creds = false;
                     // Interractive Input is required
                     // Check for Bind DN first
@@ -1126,7 +1127,7 @@ export class ReplMonitor extends React.Component {
                             credsInstanceName: data.split("a bind DN for ")[1].split(": ")[0]
                         });
                         // First check if DN is in the list already (either from previous run or during this execution)
-                        for (let creds of this.state.dynamicCredentialsList) {
+                        for (const creds of this.state.dynamicCredentialsList) {
                             if (creds.credsInstanceName == this.state.credsInstanceName) {
                                 found_creds = true;
                                 proc.input(`${creds.binddn}\n`, true);
@@ -1152,7 +1153,7 @@ export class ReplMonitor extends React.Component {
                         this.setState({
                             credsInstanceName: data.split(" on ")[1].split(": ")[0]
                         });
-                        for (let creds of this.state.dynamicCredentialsList) {
+                        for (const creds of this.state.dynamicCredentialsList) {
                             if (creds.credsInstanceName == this.state.credsInstanceName) {
                                 found_creds = true;
                                 proc.input(`${creds.bindpw}\n`, true);
@@ -1236,21 +1237,21 @@ export class ReplMonitor extends React.Component {
     }
 
     render() {
-        let reportData = this.state.reportData;
-        let credentialsList = this.state.credentialsList;
-        let aliasesList = this.state.aliasesList;
-        let replAgmts = this.props.data.replAgmts;
-        let replWinsyncAgmts = this.props.data.replWinsyncAgmts;
-        let cleanTasks = this.props.data.cleanTasks;
-        let abortTasks = this.props.data.abortTasks;
-        let conflictEntries = this.props.data.conflicts;
-        let glueEntries = this.props.data.glues;
-        let fullReportModal = "";
+        const reportData = this.state.reportData;
+        const credentialsList = this.state.credentialsList;
+        const aliasesList = this.state.aliasesList;
+        const replAgmts = this.props.data.replAgmts;
+        const replWinsyncAgmts = this.props.data.replWinsyncAgmts;
+        const cleanTasks = this.props.data.cleanTasks;
+        const abortTasks = this.props.data.abortTasks;
+        const conflictEntries = this.props.data.conflicts;
+        const glueEntries = this.props.data.glues;
+        const fullReportModal = "";
         let reportLoginModal = "";
         let reportCredentialsModal = "";
         let reportAliasesModal = "";
         let agmtDetailModal = "";
-        let winsyncAgmtDetailModal = "";
+        const winsyncAgmtDetailModal = "";
 
         if (this.state.showReportLoginModal) {
             reportLoginModal =
@@ -1311,13 +1312,13 @@ export class ReplMonitor extends React.Component {
         }
 
         let reportBtnName = "Generate Report";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.state.reportLoading) {
             reportBtnName = "Generating ...";
             extraPrimaryProps.spinnerAriaValueText = "Generating";
         }
 
-        let reportContent =
+        const reportContent =
             <div className="ds-margin-top-lg ds-indent">
                 <Tabs isBox activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>{_("Prepare Report")}</TabTitleText>}>
@@ -1338,10 +1339,12 @@ export class ReplMonitor extends React.Component {
                                         Update The <b>Replication Credentials</b>
                                         <ul>
                                             <li>• Initially, the table is populated with the local instance's replication
-                                                agreements, which includes the local instance.</li>
+                                                agreements, which includes the local instance.
+                                            </li>
                                             <li>• Add the remaining replica server credentials from your replication topology.</li>
                                             <li>• It is advised to use an <b>Interactive Input</b> option for the
-                                                password because it's more secure.</li>
+                                                password because it's more secure.
+                                            </li>
                                         </ul>
                                     </li>
                                     <li>
@@ -1349,9 +1352,11 @@ export class ReplMonitor extends React.Component {
                                         <ul>
                                             <li>• Adding aliases will make the report more readable.</li>
                                             <li>• Each Replica can have one alias. For example, you can give names like this:
-                                                <b> Alias</b>=Main Supplier, <b>Hostname</b>=192.168.122.01, <b>Port</b>=38901</li>
+                                                <b> Alias</b>=Main Supplier, <b>Hostname</b>=192.168.122.01, <b>Port</b>=38901
+                                            </li>
                                             <li>• In the report result, the report will have an entry like this:
-                                                <b> Supplier: Main Supplier (192.168.122.01:38901)</b>.</li>
+                                                <b> Supplier: Main Supplier (192.168.122.01:38901)</b>.
+                                            </li>
                                         </ul>
                                     </li>
                                     <li>
@@ -1421,7 +1426,7 @@ export class ReplMonitor extends React.Component {
                 </Tabs>
             </div>;
 
-        let taskContent =
+        const taskContent =
             <div className="ds-margin-top-lg">
                 <Tabs isBox activeKey={this.state.activeTabTaskKey} onSelect={this.handleNavTaskSelect}>
                     <Tab eventKey={0} title={<TabTitleText>CleanAllRUV Tasks <font size="2">({cleanTasks.length})</font></TabTitleText>}>
@@ -1443,7 +1448,7 @@ export class ReplMonitor extends React.Component {
                 </Tabs>
             </div>;
 
-        let conflictContent =
+        const conflictContent =
             <div className="ds-margin-top-lg">
                 <Tabs isBox activeKey={this.state.activeTabConflictKey} onSelect={this.handleNavConflictSelect}>
                     <Tab eventKey={0} title={<TabTitleText>Conflict Entries <font size="2">({conflictEntries.length})</font></TabTitleText>}>
@@ -1643,9 +1648,6 @@ ReplMonitor.defaultProps = {
     data: {},
     suffix: "",
     serverId: "",
-    addNotification: noop,
-    reloadConflicts: noop,
-    enableTree: noop,
 };
 
 export default ReplMonitor;

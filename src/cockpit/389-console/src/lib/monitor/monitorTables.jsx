@@ -9,7 +9,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from '@patternfly/react-core';
 import {
     cellWidth,
@@ -77,7 +76,7 @@ class AbortCleanALLRUVTable extends React.Component {
         let rows = [];
         let columns = [...this.state.columns];
         let count = 0;
-        for (let task of this.props.tasks) {
+        for (const task of this.props.tasks) {
             rows.push({
                 isOpen: false,
                 cells: [
@@ -95,8 +94,8 @@ class AbortCleanALLRUVTable extends React.Component {
             count += 2;
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Tasks']}];
-            columns = [{title: 'Abort CleanAllRUV Tasks'}];
+            rows = [{ cells: ['No Tasks'] }];
+            columns = [{ title: 'Abort CleanAllRUV Tasks' }];
         }
         this.setState({
             rows: rows,
@@ -114,18 +113,18 @@ class AbortCleanALLRUVTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_tasks = [];
-        let rows = [];
+        const sorted_tasks = [];
+        const rows = [];
         let count = 0;
 
         // Convert the conns into a sortable array based on the column indexes
-        for (let task of this.props.tasks) {
+        for (const task of this.props.tasks) {
             sorted_tasks.push({
-                'task': task,
-                '1': task.attrs.cn[0],
-                '2': get_date_string(task.attrs.nstaskcreated[0]),
-                '3': task.attrs['replica-id'][0],
-                '4': task.attrs.nstaskstatus[0]
+                task: task,
+                1: task.attrs.cn[0],
+                2: get_date_string(task.attrs.nstaskcreated[0]),
+                3: task.attrs['replica-id'][0],
+                4: task.attrs.nstaskstatus[0]
             });
         }
 
@@ -164,12 +163,12 @@ class AbortCleanALLRUVTable extends React.Component {
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
-        let origRows = [...rows];
-        let startIdx = ((perPage * page) - perPage) * 2;
-        let tableRows = origRows.splice(startIdx, perPage * 2);
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
         for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
             // Rewrite parent index to match new spliced array
-            tableRows[idx]['parent'] = count;
+            tableRows[idx].parent = count;
         }
 
         return (
@@ -252,7 +251,7 @@ class CleanALLRUVTable extends React.Component {
         let rows = [];
         let columns = [...this.state.columns];
         let count = 0;
-        for (let task of this.props.tasks) {
+        for (const task of this.props.tasks) {
             rows.push({
                 isOpen: false,
                 cells: [
@@ -270,8 +269,8 @@ class CleanALLRUVTable extends React.Component {
             count += 2;
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Tasks']}];
-            columns = [{title: 'CleanAllRUV Tasks'}];
+            rows = [{ cells: ['No Tasks'] }];
+            columns = [{ title: 'CleanAllRUV Tasks' }];
         }
         this.setState({
             rows: rows,
@@ -289,18 +288,18 @@ class CleanALLRUVTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_tasks = [];
-        let rows = [];
+        const sorted_tasks = [];
+        const rows = [];
         let count = 0;
 
         // Convert the conns into a sortable array based on the column indexes
-        for (let task of this.props.tasks) {
+        for (const task of this.props.tasks) {
             sorted_tasks.push({
-                'task': task,
-                '1': task.attrs.cn[0],
-                '2': get_date_string(task.attrs.nstaskcreated[0]),
-                '3': task.attrs['replica-id'][0],
-                '4': task.attrs.nstaskstatus[0]
+                task: task,
+                1: task.attrs.cn[0],
+                2: get_date_string(task.attrs.nstaskcreated[0]),
+                3: task.attrs['replica-id'][0],
+                4: task.attrs.nstaskstatus[0]
             });
         }
 
@@ -339,12 +338,12 @@ class CleanALLRUVTable extends React.Component {
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
-        let origRows = [...rows];
-        let startIdx = ((perPage * page) - perPage) * 2;
-        let tableRows = origRows.splice(startIdx, perPage * 2);
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
         for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
             // Rewrite parent index to match new spliced array
-            tableRows[idx]['parent'] = count;
+            tableRows[idx].parent = count;
         }
 
         return (
@@ -455,12 +454,12 @@ class WinsyncAgmtTable extends React.Component {
         let rows = [];
         let columns = [...this.state.columns];
         let count = 0;
-        for (let agmt of this.props.agmts) {
+        for (const agmt of this.props.agmts) {
             rows.push({
                 isOpen: false,
                 cells: [
                     agmt['agmt-name'][0],
-                    agmt['replica'][0],
+                    agmt.replica[0],
                     agmt['replica-enabled'][0],
                     { title: this.getWakeupButton(agmt['agmt-name'][0]) }
                 ]
@@ -473,8 +472,8 @@ class WinsyncAgmtTable extends React.Component {
             count += 2;
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Agreements']}];
-            columns = [{title: 'Winsync Agreements'}];
+            rows = [{ cells: ['No Agreements'] }];
+            columns = [{ title: 'Winsync Agreements' }];
         }
         this.setState({
             rows: rows,
@@ -492,17 +491,17 @@ class WinsyncAgmtTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_agmts = [];
-        let rows = [];
+        const sorted_agmts = [];
+        const rows = [];
         let count = 0;
 
         // Convert the conns into a sortable array based on the column indexes
-        for (let agmt of this.props.agmts) {
+        for (const agmt of this.props.agmts) {
             sorted_agmts.push({
-                'agmt': agmt,
-                '1': agmt['agmt-name'][0],
-                '2': agmt['replica'][0],
-                '3': agmt['replica-enabled'][0],
+                agmt: agmt,
+                1: agmt['agmt-name'][0],
+                2: agmt.replica[0],
+                3: agmt['replica-enabled'][0],
             });
         }
 
@@ -517,7 +516,7 @@ class WinsyncAgmtTable extends React.Component {
                 isOpen: false,
                 cells: [
                     agmt['agmt-name'][0],
-                    agmt['replica'][0],
+                    agmt.replica[0],
                     agmt['replica-enabled'][0],
                     { title: this.getWakeupButton(agmt['agmt-name'][0]) }
                 ]
@@ -547,12 +546,12 @@ class WinsyncAgmtTable extends React.Component {
         // pagination we have to treat each connection as two rows, and we need
         // to rewrite the child's parent index to point to the correct location
         // in the new spliced array
-        let origRows = [...rows];
-        let startIdx = ((perPage * page) - perPage) * 2;
-        let tableRows = origRows.splice(startIdx, perPage * 2);
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
         for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
             // Rewrite parent index to match new spliced array
-            tableRows[idx]['parent'] = count;
+            tableRows[idx].parent = count;
         }
 
         return (
@@ -667,12 +666,12 @@ class AgmtTable extends React.Component {
         let rows = [];
         let columns = [...this.state.columns];
         let count = 0;
-        for (let agmt of this.props.agmts) {
+        for (const agmt of this.props.agmts) {
             rows.push({
                 isOpen: false,
                 cells: [
                     agmt['agmt-name'][0],
-                    agmt['replica'][0],
+                    agmt.replica[0],
                     agmt['replica-enabled'][0],
                     { title: this.getWakeupButton(agmt['agmt-name'][0]) }
                 ]
@@ -685,8 +684,8 @@ class AgmtTable extends React.Component {
             count += 2;
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Agreements']}];
-            columns = [{title: 'Replication Agreements'}];
+            rows = [{ cells: ['No Agreements'] }];
+            columns = [{ title: 'Replication Agreements' }];
         }
         this.setState({
             rows: rows,
@@ -704,17 +703,17 @@ class AgmtTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_agmts = [];
-        let rows = [];
+        const sorted_agmts = [];
+        const rows = [];
         let count = 0;
 
         // Convert the conns into a sortable array based on the column indexes
-        for (let agmt of this.props.agmts) {
+        for (const agmt of this.props.agmts) {
             sorted_agmts.push({
-                'agmt': agmt,
-                '1': agmt['agmt-name'][0],
-                '2': agmt['replica'][0],
-                '3': agmt['replica-enabled'][0],
+                agmt: agmt,
+                1: agmt['agmt-name'][0],
+                2: agmt.replica[0],
+                3: agmt['replica-enabled'][0],
             });
         }
 
@@ -729,7 +728,7 @@ class AgmtTable extends React.Component {
                 isOpen: false,
                 cells: [
                     agmt['agmt-name'][0],
-                    agmt['replica'][0],
+                    agmt.replica[0],
                     agmt['replica-enabled'][0],
                     { title: this.getWakeupButton(agmt['agmt-name'][0]) }
                 ]
@@ -754,12 +753,12 @@ class AgmtTable extends React.Component {
     render() {
         // This is an expandable list
         const { columns, rows, perPage, page, sortBy } = this.state;
-        let origRows = [...rows];
-        let startIdx = ((perPage * page) - perPage) * 2;
-        let tableRows = origRows.splice(startIdx, perPage * 2);
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
         for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
             // Rewrite parent index to match new spliced array
-            tableRows[idx]['parent'] = count;
+            tableRows[idx].parent = count;
         }
 
         return (
@@ -889,17 +888,17 @@ class ConnectionTable extends React.Component {
         //
         // This is too many items to fit in the table, we have to pick and choose
         // what "we" think are the most useful stats...
-        let rows = [];
+        const rows = [];
         let count = 0;
-        for (let conn of this.props.conns) {
-            let ip_parts = conn.split(':ip=');
-            let parts = conn.split(':', 10);
+        for (const conn of this.props.conns) {
+            const ip_parts = conn.split(':ip=');
+            const parts = conn.split(':', 10);
             // Process the IP address
             let ip = ip_parts[1];
             if (ip == "local") {
                 ip = "LDAPI";
             }
-            let conn_date = get_date_string(parts[1]);
+            const conn_date = get_date_string(parts[1]);
             rows.push({
                 isOpen: false,
                 cells: [
@@ -928,19 +927,19 @@ class ConnectionTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
+        const rows = [];
         let count = 0;
-        for (let conn of this.props.conns) {
-            let ip_parts = conn.split(':ip=');
-            let parts = conn.split(':', 10);
+        for (const conn of this.props.conns) {
+            const ip_parts = conn.split(':ip=');
+            const parts = conn.split(':', 10);
             // Process the IP address
             let ip = ip_parts[1];
             if (ip == "local") {
                 ip = "LDAPI";
             }
-            let conn_date = get_date_string(parts[1]);
-            let val = value.toLowerCase();
-            let conn_raw = conn.toLowerCase();
+            const conn_date = get_date_string(parts[1]);
+            const val = value.toLowerCase();
+            const conn_raw = conn.toLowerCase();
             // Check for matches of all the parts
             if (val != "" && conn_raw.indexOf(val) == -1 &&
                 ip.toLowerCase().indexOf(val) == -1 &&
@@ -969,27 +968,27 @@ class ConnectionTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_conns = [];
-        let rows = [];
+        const sorted_conns = [];
+        const rows = [];
         let count = 0;
 
         // Convert the conns into a sortable array based on the column indexes
-        for (let conn of this.props.conns) {
-            let ip_parts = conn.split(':ip=');
-            let parts = conn.split(':', 10);
+        for (const conn of this.props.conns) {
+            const ip_parts = conn.split(':ip=');
+            const parts = conn.split(':', 10);
             let ip = ip_parts[1];
             if (ip == "local") {
                 ip = "LDAPI";
             }
-            let conn_date = get_date_string(parts[1]);
+            const conn_date = get_date_string(parts[1]);
 
             sorted_conns.push({
-                'raw': conn,
-                '1': conn_date,
-                '2': ip,
-                '3': parts[9],
-                '4': parts[5],
-                '5': parts[6]
+                raw: conn,
+                1: conn_date,
+                2: ip,
+                3: parts[9],
+                4: parts[5],
+                5: parts[6]
             });
         }
 
@@ -998,16 +997,16 @@ class ConnectionTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_conns.reverse();
         }
-        for (let conn of sorted_conns) {
-            let raw_conn = conn.raw;
-            let ip_parts = raw_conn.split(':ip=');
-            let parts = raw_conn.split(':', 10);
+        for (const conn of sorted_conns) {
+            const raw_conn = conn.raw;
+            const ip_parts = raw_conn.split(':ip=');
+            const parts = raw_conn.split(':', 10);
             // Process the IP address
             let ip = ip_parts[1];
             if (ip == "local") {
                 ip = "LDAPI";
             }
-            let conn_date = get_date_string(parts[1]);
+            const conn_date = get_date_string(parts[1]);
             rows.push({
                 isOpen: false,
                 cells: [
@@ -1034,12 +1033,12 @@ class ConnectionTable extends React.Component {
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
-        let origRows = [...rows];
-        let startIdx = ((perPage * page) - perPage) * 2;
-        let tableRows = origRows.splice(startIdx, perPage * 2);
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
         for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
             // Rewrite parent index to match new spliced array
-            tableRows[idx]['parent'] = count;
+            tableRows[idx].parent = count;
         }
 
         return (
@@ -1120,7 +1119,7 @@ class GlueTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
-        for (let glue of this.props.glues) {
+        for (const glue of this.props.glues) {
             rows.push({
                 cells: [
                     glue.dn, glue.attrs.nsds5replconflict[0], get_date_string(glue.attrs.createtimestamp[0])
@@ -1128,8 +1127,8 @@ class GlueTable extends React.Component {
             });
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Glue Entries']}];
-            columns = [{title: 'Replication Conflict Glue Entries'}];
+            rows = [{ cells: ['No Glue Entries'] }];
+            columns = [{ title: 'Replication Conflict Glue Entries' }];
         }
         this.setState({
             rows: rows,
@@ -1147,15 +1146,15 @@ class GlueTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_glues = [];
-        let rows = [];
+        const sorted_glues = [];
+        const rows = [];
 
         // Convert the conns into a sortable array
-        for (let glue of this.props.glues) {
+        for (const glue of this.props.glues) {
             sorted_glues.push({
-                '1': glue.dn,
-                '2': glue.attrs.nsds5replconflict[0],
-                '3': get_date_string(glue.attrs.createtimestamp[0]),
+                1: glue.dn,
+                2: glue.attrs.nsds5replconflict[0],
+                3: get_date_string(glue.attrs.createtimestamp[0]),
             });
         }
 
@@ -1164,7 +1163,7 @@ class GlueTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_glues.reverse();
         }
-        for (let glue of sorted_glues) {
+        for (const glue of sorted_glues) {
             rows.push({
                 isOpen: false,
                 cells: [
@@ -1205,8 +1204,8 @@ class GlueTable extends React.Component {
         let has_rows = true;
         if (rows.length == 0) {
             has_rows = false;
-            rows = [{cells: ['No Glue Entries']}];
-            columns = [{title: 'Glue Entries'}];
+            rows = [{ cells: ['No Glue Entries'] }];
+            columns = [{ title: 'Glue Entries' }];
         }
 
         return (
@@ -1292,18 +1291,18 @@ class ConflictTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
-        for (let conflict of this.props.conflicts) {
+        for (const conflict of this.props.conflicts) {
             rows.push({
                 isOpen: false,
                 cells: [
                     conflict.dn, conflict.attrs.nsds5replconflict[0], get_date_string(conflict.attrs.createtimestamp[0]),
-                    {title: this.getResolveButton(conflict.dn)}
+                    { title: this.getResolveButton(conflict.dn) }
                 ]
             });
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Conflict Entries']}];
-            columns = [{title: 'Replication Conflict Entries'}];
+            rows = [{ cells: ['No Conflict Entries'] }];
+            columns = [{ title: 'Replication Conflict Entries' }];
         }
         this.setState({
             rows: rows,
@@ -1312,15 +1311,15 @@ class ConflictTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_conflicts = [];
-        let rows = [];
+        const sorted_conflicts = [];
+        const rows = [];
 
         // Convert the conns into a sortable array
-        for (let conflict of this.props.conflicts) {
+        for (const conflict of this.props.conflicts) {
             sorted_conflicts.push({
-                '1': conflict.dn,
-                '2': conflict.attrs.nsds5replconflict[0],
-                '3': get_date_string(conflict.attrs.createtimestamp[0]),
+                1: conflict.dn,
+                2: conflict.attrs.nsds5replconflict[0],
+                3: get_date_string(conflict.attrs.createtimestamp[0]),
             });
         }
 
@@ -1329,12 +1328,12 @@ class ConflictTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_conflicts.reverse();
         }
-        for (let conflict of sorted_conflicts) {
+        for (const conflict of sorted_conflicts) {
             rows.push({
                 isOpen: false,
                 cells: [
                     conflict['1'], conflict['2'], conflict['3'],
-                    {title: this.getResolveButton(conflict['1'])}
+                    { title: this.getResolveButton(conflict['1']) }
                 ]
             });
         }
@@ -1455,8 +1454,8 @@ class ReportAliasesTable extends React.Component {
         let has_rows = true;
         if (rows.length == 0) {
             has_rows = false;
-            rows = [{cells: ['No Aliases']}];
-            columns = [{title: 'Instance Aliases'}];
+            rows = [{ cells: ['No Aliases'] }];
+            columns = [{ title: 'Instance Aliases' }];
         }
 
         return (
@@ -1516,12 +1515,12 @@ class ReportCredentialsTable extends React.Component {
         let has_rows = true;
         if (this.props.rows.length == 0) {
             has_rows = false;
-            rows = [{cells: ['No Credentials']}];
-            columns = [{title: 'Credentials Table'}];
+            rows = [{ cells: ['No Credentials'] }];
+            columns = [{ title: 'Credentials Table' }];
         } else {
             for (let row of this.props.rows) {
                 row = JSON.parse(JSON.stringify(row)); // Deep copy
-                let pwInteractive = row.pwInputInterractive;
+                const pwInteractive = row.pwInputInterractive;
                 let pwField = <i>Interactive Input is set</i>;
                 if (!pwInteractive) {
                     if (row.credsBindpw == "") {
@@ -1535,7 +1534,7 @@ class ReportCredentialsTable extends React.Component {
                         cells: [
                             row.connData,
                             row.credsBinddn,
-                            {title: pwField},
+                            { title: pwField },
                         ],
                         credsBindpw: row.credsBindpw,
                         pwInteractive: pwInteractive,
@@ -1648,7 +1647,7 @@ class ReportSingleTable extends React.Component {
         let columns = [...this.state.columns];
         let agmtName;
         let count = 0;
-        for (let replica of this.props.rows) {
+        for (const replica of this.props.rows) {
             if (!('agmt-name' in replica)) {
                 replica['agmt-name'] = ["-"];
             }
@@ -1691,8 +1690,8 @@ class ReportSingleTable extends React.Component {
             count += 2;
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Agreements']}];
-            columns = [{title: 'Replication Agreements'}];
+            rows = [{ cells: ['No Agreements'] }];
+            columns = [{ title: 'Replication Agreements' }];
         }
 
         this.setState({
@@ -1711,19 +1710,19 @@ class ReportSingleTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_agmts = [];
-        let rows = [];
+        const sorted_agmts = [];
+        const rows = [];
         let count = 0;
 
         // Convert the conns into a sortable array based on the column indexes
-        for (let agmt of this.props.rows) {
+        for (const agmt of this.props.rows) {
             sorted_agmts.push({
-                'agmt': agmt,
-                '1': agmt.supplierName[0],
-                '2': agmt['agmt-name'][0],
-                '3': ['replication-status'][0],
-                '4': agmt['replication-lag-time'][0],
-                'enabled': agmt['replica-enabled'] !== "off",
+                agmt: agmt,
+                1: agmt.supplierName[0],
+                2: agmt['agmt-name'][0],
+                3: ['replication-status'][0],
+                4: agmt['replication-lag-time'][0],
+                enabled: agmt['replica-enabled'] !== "off",
             });
         }
 
@@ -1871,7 +1870,7 @@ class ReportConsumersTable extends React.Component {
         let columns = [...this.state.columns];
         let count = 0;
 
-        for (let replica of this.props.rows) {
+        for (const replica of this.props.rows) {
             let replEnabled;
             if (!('agmt-name' in replica)) {
                 replica['agmt-name'] = ["-"];
@@ -1912,8 +1911,8 @@ class ReportConsumersTable extends React.Component {
             count += 2;
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Agreements']}];
-            columns = [{title: 'Replication Agreements'}];
+            rows = [{ cells: ['No Agreements'] }];
+            columns = [{ title: 'Replication Agreements' }];
         }
         this.setState({
             rows: rows,
@@ -1931,18 +1930,18 @@ class ReportConsumersTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_agmts = [];
-        let rows = [];
+        const sorted_agmts = [];
+        const rows = [];
         let count = 0;
 
         // Convert the conns into a sortable array based on the column indexes
-        for (let agmt of this.props.rows) {
+        for (const agmt of this.props.rows) {
             sorted_agmts.push({
-                'agmt': agmt,
-                '1': agmt['agmt-name'][0],
-                '2': agmt['agmt-enabled'][0],
-                '3': agmt['replication-status'][0],
-                '4': agmt['replication-lag-time'][0],
+                agmt: agmt,
+                1: agmt['agmt-name'][0],
+                2: agmt['agmt-enabled'][0],
+                3: agmt['replication-status'][0],
+                4: agmt['replication-lag-time'][0],
             });
         }
 
@@ -2019,7 +2018,6 @@ AgmtTable.propTypes = {
 
 AgmtTable.defaultProps = {
     agmts: [],
-    pokeAgmt: noop
 };
 
 WinsyncAgmtTable.propTypes = {
@@ -2029,7 +2027,6 @@ WinsyncAgmtTable.propTypes = {
 
 WinsyncAgmtTable.defaultProps = {
     agmts: [],
-    pokeAgmt: noop
 };
 
 ConnectionTable.propTypes = {
@@ -2063,7 +2060,6 @@ ConflictTable.propTypes = {
 
 ConflictTable.defaultProps = {
     conflicts: [],
-    resolveConflict: noop,
 };
 
 GlueTable.propTypes = {
@@ -2074,8 +2070,6 @@ GlueTable.propTypes = {
 
 GlueTable.defaultProps = {
     glues: PropTypes.array,
-    convertGlue: noop,
-    deleteGlue: noop,
 };
 
 ReportCredentialsTable.propTypes = {
@@ -2086,8 +2080,6 @@ ReportCredentialsTable.propTypes = {
 
 ReportCredentialsTable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 ReportAliasesTable.propTypes = {
@@ -2098,8 +2090,6 @@ ReportAliasesTable.propTypes = {
 
 ReportAliasesTable.defaultProps = {
     rows: [],
-    editConfig: noop,
-    deleteConfig: noop
 };
 
 ReportConsumersTable.propTypes = {

@@ -22,7 +22,6 @@ import {
     TextContent,
     TextVariants,
     Tooltip,
-    noop,
     ValidatedOptions,
 } from "@patternfly/react-core";
 import { DNATable, DNASharedTable } from "./pluginTables.jsx";
@@ -31,7 +30,7 @@ import PropTypes from "prop-types";
 import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
-class DNA extends React.Component {
+class DNAPlugin extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -239,8 +238,8 @@ class DNA extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
-                    let tableKey = this.state.tableKey + 1;
+                    const myObject = JSON.parse(content);
+                    const tableKey = this.state.tableKey + 1;
                     this.setState({
                         configRows: myObject.items.map(item => item.attrs),
                         tableKey: tableKey,
@@ -248,7 +247,7 @@ class DNA extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadConfigs failed", errMsg.desc);
                     }
@@ -282,7 +281,7 @@ class DNA extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
+                    const myObject = JSON.parse(content);
                     this.setState({
                         sharedConfigRows: myObject.items.map(item => item.attrs),
                         firstLoad: false,
@@ -290,7 +289,7 @@ class DNA extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadSharedConfigs failed", errMsg.desc);
                     }
@@ -332,7 +331,7 @@ class DNA extends React.Component {
             });
         } else {
             let dnaTypeList = [];
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -350,92 +349,92 @@ class DNA extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let configEntry = JSON.parse(content).attrs;
+                        const configEntry = JSON.parse(content).attrs;
                         let sharedCfgDN = "";
                         if ("dnasharedcfgdn" in configEntry) {
-                            sharedCfgDN = configEntry["dnasharedcfgdn"][0];
+                            sharedCfgDN = configEntry.dnasharedcfgdn[0];
                         }
 
                         // Initialize Settings
-                        configEntry["dnaprefix"] === undefined
-                            ? configEntry["dnaprefix"] = ""
-                            : configEntry["dnaprefix"] = configEntry["dnaprefix"][0];
-                        configEntry["dnanextvalue"] === undefined
-                            ? configEntry["dnanextvalue"] = ""
-                            : configEntry["dnanextvalue"] = configEntry["dnanextvalue"][0];
-                        configEntry["dnamaxvalue"] === undefined
-                            ? configEntry["dnamaxvalue"] = ""
-                            : configEntry["dnamaxvalue"] = configEntry["dnamaxvalue"][0];
-                        configEntry["dnainterval"] === undefined
-                            ? configEntry["dnainterval"] = ""
-                            : configEntry["dnainterval"] = configEntry["dnainterval"][0];
-                        configEntry["dnamagicregen"] === undefined
-                            ? configEntry["dnamagicregen"] = ""
-                            : configEntry["dnamagicregen"] = configEntry["dnamagicregen"][0];
-                        configEntry["dnafilter"] === undefined
-                            ? configEntry["dnafilter"] = ""
-                            : configEntry["dnafilter"] = configEntry["dnafilter"][0];
-                        configEntry["dnascope"] === undefined
-                            ? configEntry["dnascope"] = ""
-                            : configEntry["dnascope"] = configEntry["dnascope"][0];
-                        configEntry["dnaremotebinddn"] === undefined
-                            ? configEntry["dnaremotebinddn"] = ""
-                            : configEntry["dnaremotebinddn"] = configEntry["dnaremotebinddn"][0];
-                        configEntry["dnaremotebindcred"] === undefined
-                            ? configEntry["dnaremotebindcred"] = ""
-                            : configEntry["dnaremotebindcred"] = configEntry["dnaremotebindcred"][0];
-                        configEntry["dnasharedcfgdn"] === undefined
-                            ? configEntry["dnasharedcfgdn"] = ""
-                            : configEntry["dnasharedcfgdn"] = configEntry["dnasharedcfgdn"][0];
-                        configEntry["dnathreshold"] === undefined
-                            ? configEntry["dnathreshold"] = ""
-                            : configEntry["dnathreshold"] = configEntry["dnathreshold"][0];
-                        configEntry["dnanextrange"] === undefined
-                            ? configEntry["dnanextrange"] = ""
-                            : configEntry["dnanextrange"] = configEntry["dnanextrange"][0];
-                        configEntry["dnarangerequesttimeout"] === undefined
-                            ? configEntry["dnarangerequesttimeout"] = ""
-                            : configEntry["dnarangerequesttimeout"] = configEntry["dnarangerequesttimeout"][0];
+                        configEntry.dnaprefix === undefined
+                            ? configEntry.dnaprefix = ""
+                            : configEntry.dnaprefix = configEntry.dnaprefix[0];
+                        configEntry.dnanextvalue === undefined
+                            ? configEntry.dnanextvalue = ""
+                            : configEntry.dnanextvalue = configEntry.dnanextvalue[0];
+                        configEntry.dnamaxvalue === undefined
+                            ? configEntry.dnamaxvalue = ""
+                            : configEntry.dnamaxvalue = configEntry.dnamaxvalue[0];
+                        configEntry.dnainterval === undefined
+                            ? configEntry.dnainterval = ""
+                            : configEntry.dnainterval = configEntry.dnainterval[0];
+                        configEntry.dnamagicregen === undefined
+                            ? configEntry.dnamagicregen = ""
+                            : configEntry.dnamagicregen = configEntry.dnamagicregen[0];
+                        configEntry.dnafilter === undefined
+                            ? configEntry.dnafilter = ""
+                            : configEntry.dnafilter = configEntry.dnafilter[0];
+                        configEntry.dnascope === undefined
+                            ? configEntry.dnascope = ""
+                            : configEntry.dnascope = configEntry.dnascope[0];
+                        configEntry.dnaremotebinddn === undefined
+                            ? configEntry.dnaremotebinddn = ""
+                            : configEntry.dnaremotebinddn = configEntry.dnaremotebinddn[0];
+                        configEntry.dnaremotebindcred === undefined
+                            ? configEntry.dnaremotebindcred = ""
+                            : configEntry.dnaremotebindcred = configEntry.dnaremotebindcred[0];
+                        configEntry.dnasharedcfgdn === undefined
+                            ? configEntry.dnasharedcfgdn = ""
+                            : configEntry.dnasharedcfgdn = configEntry.dnasharedcfgdn[0];
+                        configEntry.dnathreshold === undefined
+                            ? configEntry.dnathreshold = ""
+                            : configEntry.dnathreshold = configEntry.dnathreshold[0];
+                        configEntry.dnanextrange === undefined
+                            ? configEntry.dnanextrange = ""
+                            : configEntry.dnanextrange = configEntry.dnanextrange[0];
+                        configEntry.dnarangerequesttimeout === undefined
+                            ? configEntry.dnarangerequesttimeout = ""
+                            : configEntry.dnarangerequesttimeout = configEntry.dnarangerequesttimeout[0];
 
                         this.setState({
                             configEntryModalShow: true,
                             newEntry: false,
                             activeTabKey: 1,
-                            configName: configEntry["cn"][0],
-                            prefix: configEntry["dnaprefix"],
-                            nextValue: Number(configEntry["dnanextvalue"]) == 0 ? 1 : Number(configEntry["dnanextvalue"]),
-                            maxValue: Number(configEntry["dnamaxvalue"]) == 0 ? -1 : Number(configEntry["dnamaxvalue"]),
-                            interval: Number(configEntry["dnainterval"]) == 0 ? 1 : Number(configEntry["dnainterval"]),
-                            magicRegen: configEntry["dnamagicregen"],
-                            filter: configEntry["dnafilter"],
-                            scope: configEntry["dnascope"],
-                            remoteBindDN: configEntry["dnaremotebinddn"],
-                            remoteBindCred: configEntry["dnaremotebindcred"],
-                            sharedConfigEntry: configEntry["dnasharedcfgdn"],
-                            threshold: Number(configEntry["dnathreshold"]) == 0 ? 1 : Number(configEntry["dnathreshold"]),
-                            nextRange: configEntry["dnanextrange"],
-                            rangeRequestTimeout: Number(configEntry["dnarangerequesttimeout"]) == 0 ? 600 : Number(configEntry["dnarangerequesttimeout"]),
+                            configName: configEntry.cn[0],
+                            prefix: configEntry.dnaprefix,
+                            nextValue: Number(configEntry.dnanextvalue) == 0 ? 1 : Number(configEntry.dnanextvalue),
+                            maxValue: Number(configEntry.dnamaxvalue) == 0 ? -1 : Number(configEntry.dnamaxvalue),
+                            interval: Number(configEntry.dnainterval) == 0 ? 1 : Number(configEntry.dnainterval),
+                            magicRegen: configEntry.dnamagicregen,
+                            filter: configEntry.dnafilter,
+                            scope: configEntry.dnascope,
+                            remoteBindDN: configEntry.dnaremotebinddn,
+                            remoteBindCred: configEntry.dnaremotebindcred,
+                            sharedConfigEntry: configEntry.dnasharedcfgdn,
+                            threshold: Number(configEntry.dnathreshold) == 0 ? 1 : Number(configEntry.dnathreshold),
+                            nextRange: configEntry.dnanextrange,
+                            rangeRequestTimeout: Number(configEntry.dnarangerequesttimeout) == 0 ? 600 : Number(configEntry.dnarangerequesttimeout),
                             // Preserve original values
-                            _prefix: configEntry["dnaprefix"],
-                            _nextValue: Number(configEntry["dnanextvalue"]) == 0 ? 1 : Number(configEntry["dnanextvalue"]),
-                            _maxValue: Number(configEntry["dnamaxvalue"]) == 0 ? -1 : Number(configEntry["dnamaxvalue"]),
-                            _interval: Number(configEntry["dnainterval"]) == 0 ? 1 : Number(configEntry["dnainterval"]),
-                            _magicRegen: configEntry["dnamagicregen"],
-                            _filter: configEntry["dnafilter"],
-                            _scope: configEntry["dnascope"],
-                            _remoteBindDN: configEntry["dnaremotebinddn"],
-                            _remoteBindCred: configEntry["dnaremotebindcred"],
-                            _sharedConfigEntry: configEntry["dnasharedcfgdn"],
-                            _threshold: Number(configEntry["dnathreshold"]) == 0 ? 1 : Number(configEntry["dnathreshold"]),
-                            _nextRange: configEntry["dnanextrange"],
-                            _rangeRequestTimeout: Number(configEntry["dnarangerequesttimeout"]) == 0 ? 600 : Number(configEntry["dnarangerequesttimeout"]),
+                            _prefix: configEntry.dnaprefix,
+                            _nextValue: Number(configEntry.dnanextvalue) == 0 ? 1 : Number(configEntry.dnanextvalue),
+                            _maxValue: Number(configEntry.dnamaxvalue) == 0 ? -1 : Number(configEntry.dnamaxvalue),
+                            _interval: Number(configEntry.dnainterval) == 0 ? 1 : Number(configEntry.dnainterval),
+                            _magicRegen: configEntry.dnamagicregen,
+                            _filter: configEntry.dnafilter,
+                            _scope: configEntry.dnascope,
+                            _remoteBindDN: configEntry.dnaremotebinddn,
+                            _remoteBindCred: configEntry.dnaremotebindcred,
+                            _sharedConfigEntry: configEntry.dnasharedcfgdn,
+                            _threshold: Number(configEntry.dnathreshold) == 0 ? 1 : Number(configEntry.dnathreshold),
+                            _nextRange: configEntry.dnanextrange,
+                            _rangeRequestTimeout: Number(configEntry.dnarangerequesttimeout) == 0 ? 600 : Number(configEntry.dnarangerequesttimeout),
                             saveBtnDisabled: true,
                             error: {},
                         }, () => { this.loadSharedConfigs(sharedCfgDN) });
-                        if (configEntry["dnatype"] === undefined) {
+                        if (configEntry.dnatype === undefined) {
                             this.setState({ selected: [], _selected: [] });
                         } else {
-                            for (let value of configEntry["dnatype"]) {
+                            for (const value of configEntry.dnatype) {
                                 dnaTypeList = [...dnaTypeList, value];
                             }
                             this.setState({ selected: dnaTypeList, _selected: [...dnaTypeList] });
@@ -534,7 +533,7 @@ class DNA extends React.Component {
         if (!(action == "add" && selected.length == 0)) {
             cmd = [...cmd, "--type"];
             if (selected.length != 0) {
-                for (let value of selected) {
+                for (const value of selected) {
                     cmd = [...cmd, value];
                 }
             } else if (action == "add") {
@@ -567,7 +566,7 @@ class DNA extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     if (muteError !== true) {
                         this.props.addNotification(
                             "error",
@@ -583,7 +582,7 @@ class DNA extends React.Component {
     }
 
     deleteConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -615,7 +614,7 @@ class DNA extends React.Component {
                     this.closeModal();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry removal operation - ${errMsg.desc}`
@@ -637,7 +636,7 @@ class DNA extends React.Component {
     openSharedModal(sharedName) {
         if (sharedName) {
             // Get all the attributes and matching rules now
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -657,43 +656,43 @@ class DNA extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let configEntry = JSON.parse(content).attrs;
+                        const configEntry = JSON.parse(content).attrs;
                         // Initialize settings
-                        configEntry["dnahostname"] === undefined
-                            ? configEntry["dnahostname"] = ""
-                            : configEntry["dnahostname"] = configEntry["dnahostname"][0];
+                        configEntry.dnahostname === undefined
+                            ? configEntry.dnahostname = ""
+                            : configEntry.dnahostname = configEntry.dnahostname[0];
 
-                        configEntry["dnaportnum"] === undefined
-                            ? configEntry["dnaportnum"] = ""
-                            : configEntry["dnaportnum"] = configEntry["dnaportnum"][0];
+                        configEntry.dnaportnum === undefined
+                            ? configEntry.dnaportnum = ""
+                            : configEntry.dnaportnum = configEntry.dnaportnum[0];
 
-                        configEntry["dnasecureportnum"] === undefined
-                            ? configEntry["dnasecureportnum"] = ""
-                            : configEntry["dnasecureportnum"] = configEntry["dnasecureportnum"][0];
+                        configEntry.dnasecureportnum === undefined
+                            ? configEntry.dnasecureportnum = ""
+                            : configEntry.dnasecureportnum = configEntry.dnasecureportnum[0];
 
-                        configEntry["dnaremainingvalues"] === undefined
-                            ? configEntry["dnaremainingvalues"] = ""
-                            : configEntry["dnaremainingvalues"] = configEntry["dnaremainingvalues"][0];
+                        configEntry.dnaremainingvalues === undefined
+                            ? configEntry.dnaremainingvalues = ""
+                            : configEntry.dnaremainingvalues = configEntry.dnaremainingvalues[0];
 
-                        configEntry["dnaremotebindmethod"] === undefined
-                            ? configEntry["dnaremotebindmethod"] = ""
-                            : configEntry["dnaremotebindmethod"] = configEntry["dnaremotebindmethod"][0];
+                        configEntry.dnaremotebindmethod === undefined
+                            ? configEntry.dnaremotebindmethod = ""
+                            : configEntry.dnaremotebindmethod = configEntry.dnaremotebindmethod[0];
 
-                        configEntry["dnaremoteconnprotocol"] === undefined
-                            ? configEntry["dnaremoteconnprotocol"] = ""
-                            : configEntry["dnaremoteconnprotocol"] = configEntry["dnaremoteconnprotocol"][0];
+                        configEntry.dnaremoteconnprotocol === undefined
+                            ? configEntry.dnaremoteconnprotocol = ""
+                            : configEntry.dnaremoteconnprotocol = configEntry.dnaremoteconnprotocol[0];
 
                         this.setState({
                             sharedConfigEntryModalShow: true,
-                            sharedHostname: configEntry["dnahostname"],
-                            sharedPort: configEntry["dnaportnum"],
-                            sharedSecurePort: configEntry["dnasecureportnum"],
-                            sharedRemainingValues: configEntry["dnaremainingvalues"],
-                            sharedRemoteBindMethod: configEntry["dnaremotebindmethod"],
-                            sharedRemoteConnProtocol: configEntry["dnaremoteconnprotocol"],
+                            sharedHostname: configEntry.dnahostname,
+                            sharedPort: configEntry.dnaportnum,
+                            sharedSecurePort: configEntry.dnasecureportnum,
+                            sharedRemainingValues: configEntry.dnaremainingvalues,
+                            sharedRemoteBindMethod: configEntry.dnaremotebindmethod,
+                            sharedRemoteConnProtocol: configEntry.dnaremoteconnprotocol,
                             // Preserve settings
-                            _sharedRemoteBindMethod: configEntry["dnaremotebindmethod"],
-                            _sharedRemoteConnProtocol: configEntry["dnaremoteconnprotocol"],
+                            _sharedRemoteBindMethod: configEntry.dnaremotebindmethod,
+                            _sharedRemoteConnProtocol: configEntry.dnaremoteconnprotocol,
                             saveBtnDisabled: true,
                         });
                     })
@@ -732,7 +731,7 @@ class DNA extends React.Component {
             sharedRemoteConnProtocol
         } = this.state;
 
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -774,7 +773,7 @@ class DNA extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry set operation - ${errMsg.desc}`
@@ -788,7 +787,7 @@ class DNA extends React.Component {
     }
 
     deleteSharedConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -821,7 +820,7 @@ class DNA extends React.Component {
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the shared config entry removal operation - ${errMsg.desc}`
@@ -886,13 +885,13 @@ class DNA extends React.Component {
     }
 
     validateConfig() {
-        let error = {};
+        const error = {};
         let all_good = true;
 
-        let dnAttrs = [
+        const dnAttrs = [
             'sharedConfigEntry', 'scope'
         ];
-        let reqAttrs = [
+        const reqAttrs = [
             'configName', 'nextValue', 'filter', 'scope',
         ];
 
@@ -900,14 +899,14 @@ class DNA extends React.Component {
             all_good = false;
         }
 
-        for (let attr of reqAttrs) {
+        for (const attr of reqAttrs) {
             if (this.state[attr] == "") {
                 error[attr] = true;
                 all_good = false;
             }
         }
 
-        for (let attr of dnAttrs) {
+        for (const attr of dnAttrs) {
             if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
                 error[attr] = true;
                 all_good = false;
@@ -917,12 +916,12 @@ class DNA extends React.Component {
         if (all_good) {
             // Check for value differences to see if the save btn should be enabled
             all_good = false;
-            let attrs = [
+            const attrs = [
                 'maxValue', 'interval', 'magicRegen', 'filter', 'scope',
                 'nextValue', 'remoteBindDN', 'remoteBindCred', 'sharedConfigEntry',
                 'threshold', 'nextRange', 'rangeRequestTimeout'
             ];
-            for (let check_attr of attrs) {
+            for (const check_attr of attrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
@@ -969,14 +968,14 @@ class DNA extends React.Component {
         } = this.state;
         let sharedResult = {};
 
-        let bindMethodOptions = [
+        const bindMethodOptions = [
             { value: '', label: 'None' },
             { value: 'SIMPLE', label: 'SIMPLE' },
             { value: 'SSL', label: 'SSL' },
             { value: 'SASL/GSSAPI', label: 'SASL/GSSAPI' },
             { value: 'SASL/DIGEST-MD5', label: 'SASL/DIGEST-MD5' },
         ];
-        let connProtocolOptions = [
+        const connProtocolOptions = [
             { value: '', label: 'None' },
             { value: 'LDAP', label: 'LDAP' },
             { value: 'TLS', label: 'TLS' },
@@ -1025,7 +1024,7 @@ class DNA extends React.Component {
         } else {
             saveBtnName = "Save Config";
         }
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (saving) {
             if (newEntry) {
                 saveBtnName = "Adding Config ...";
@@ -1490,7 +1489,7 @@ class DNA extends React.Component {
     }
 }
 
-DNA.propTypes = {
+DNAPlugin.propTypes = {
     rows: PropTypes.array,
     serverId: PropTypes.string,
     savePluginHandler: PropTypes.func,
@@ -1498,12 +1497,9 @@ DNA.propTypes = {
     addNotification: PropTypes.func,
 };
 
-DNA.defaultProps = {
+DNAPlugin.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
 };
 
-export default DNA;
+export default DNAPlugin;

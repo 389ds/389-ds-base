@@ -16,7 +16,6 @@ import {
     TextContent,
     TextVariants,
     Tooltip,
-    noop
 } from '@patternfly/react-core';
 import OutlinedQuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 
@@ -69,7 +68,7 @@ export class Changelog extends React.Component {
     }
 
     saveSettings () {
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'set-changelog', '--suffix', this.props.suffix
         ];
@@ -101,7 +100,7 @@ export class Changelog extends React.Component {
             });
             log_cmd("saveSettings", "Applying replication changelog changes", cmd);
             cockpit
-                    .spawn(cmd, {superuser: true, "err": "message"})
+                    .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
                         this.reloadChangelog();
                         this.props.addNotification(
@@ -114,7 +113,7 @@ export class Changelog extends React.Component {
                         });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.reloadChangelog();
                         this.setState({
                             saving: false
@@ -150,7 +149,7 @@ export class Changelog extends React.Component {
     handleChange(str, e) {
         // Update the state, then validate the values/save btn
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const attr = e.target.id;
 
         this.setState({
             [attr]: value,
@@ -161,7 +160,7 @@ export class Changelog extends React.Component {
         this.setState({
             loading: true,
         });
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'get-changelog', '--suffix', this.props.suffix];
         log_cmd("reloadChangelog", "Load the replication changelog info", cmd);
         cockpit
@@ -173,8 +172,8 @@ export class Changelog extends React.Component {
                     let clMaxAgeUnit = "s";
                     let clTrimInt = "";
                     let clEncrypt = false;
-                    for (let attr in config['attrs']) {
-                        let val = config['attrs'][attr][0];
+                    for (const attr in config.attrs) {
+                        const val = config.attrs[attr][0];
                         if (attr == "nsslapd-changelogmaxentries") {
                             clMaxEntries = val;
                         } else if (attr == "nsslapd-changelogmaxage") {
@@ -203,7 +202,7 @@ export class Changelog extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to reload changelog for "${this.props.suffix}" - ${errMsg.desc}`
@@ -218,7 +217,7 @@ export class Changelog extends React.Component {
     render() {
         let clPage;
         let saveBtnName = "Save Settings";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
 
         if (this.state.saving) {
             saveBtnName = "Saving settings ...";
@@ -391,6 +390,5 @@ Changelog.defaultProps = {
     clMaxAge: "",
     clTrimInt: "",
     clEncrypt: false,
-    addNotification: noop,
     suffix: "",
 };

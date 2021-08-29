@@ -12,7 +12,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -38,7 +37,7 @@ export class AccessLogMonitor extends React.Component {
 
     componentDidUpdate () {
         // Set the textarea to be scrolled down to the bottom
-        let textarea = document.getElementById('accesslog-area');
+        const textarea = document.getElementById('accesslog-area');
         textarea.scrollTop = textarea.scrollHeight;
     }
 
@@ -64,7 +63,7 @@ export class AccessLogMonitor extends React.Component {
     }
 
     handleAccessChange(e) {
-        let value = e.target.value;
+        const value = e.target.value;
         this.setState(() => (
             {
                 accessLines: value
@@ -76,7 +75,7 @@ export class AccessLogMonitor extends React.Component {
         this.setState({
             accessReloading: true
         });
-        let cmd = ["tail", "-" + this.state.accessLines, this.props.logLocation];
+        const cmd = ["tail", "-" + this.state.accessLines, this.props.logLocation];
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -178,7 +177,6 @@ AccessLogMonitor.propTypes = {
 
 AccessLogMonitor.defaultProps = {
     logLocation: "",
-    enableTree: noop,
 };
 
 export default AccessLogMonitor;

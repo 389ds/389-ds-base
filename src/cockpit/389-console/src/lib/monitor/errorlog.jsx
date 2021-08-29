@@ -12,7 +12,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -33,23 +32,23 @@ export class ErrorLogMonitor extends React.Component {
         };
 
         // Build the log severity sev_levels
-        let sev_emerg = " - EMERG - ";
-        let sev_crit = " - CRIT - ";
-        let sev_alert = " - ALERT - ";
-        let sev_err = " - ERR - ";
-        let sev_warn = " - WARN - ";
-        let sev_notice = " - NOTICE - ";
-        let sev_info = " - INFO - ";
-        let sev_debug = " - DEBUG - ";
+        const sev_emerg = " - EMERG - ";
+        const sev_crit = " - CRIT - ";
+        const sev_alert = " - ALERT - ";
+        const sev_err = " - ERR - ";
+        const sev_warn = " - WARN - ";
+        const sev_notice = " - NOTICE - ";
+        const sev_info = " - INFO - ";
+        const sev_debug = " - DEBUG - ";
         this.sev_levels = {
-            "Emergency": sev_emerg,
-            "Critical": sev_crit,
-            "Alert": sev_alert,
-            "Error": sev_err,
-            "Warning": sev_warn,
-            "Notice": sev_notice,
-            "Info": sev_info,
-            "Debug": sev_debug
+            Emergency: sev_emerg,
+            Critical: sev_crit,
+            Alert: sev_alert,
+            Error: sev_err,
+            Warning: sev_warn,
+            Notice: sev_notice,
+            Info: sev_info,
+            Debug: sev_debug
         };
         this.sev_all_errs = [sev_emerg, sev_crit, sev_alert, sev_err];
         this.sev_all_info = [sev_warn, sev_notice, sev_info, sev_debug];
@@ -62,7 +61,7 @@ export class ErrorLogMonitor extends React.Component {
 
     componentDidUpdate () {
         // Set the textarea to be scrolled down to the bottom
-        let textarea = document.getElementById('errorslog-area');
+        const textarea = document.getElementById('errorslog-area');
         textarea.scrollTop = textarea.scrollHeight;
     }
 
@@ -81,24 +80,24 @@ export class ErrorLogMonitor extends React.Component {
             errorReloading: true
         });
 
-        let cmd = ["tail", "-" + this.state.errorLines, this.props.logLocation];
+        const cmd = ["tail", "-" + this.state.errorLines, this.props.logLocation];
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(data => {
                     if (this.state.errorSevLevel != "Everything") {
                         // Filter Data
-                        let lines = data.split('\n');
+                        const lines = data.split('\n');
                         let new_data = "";
                         for (let i = 0; i < lines.length; i++) {
                             let line = "";
                             if (this.state.errorSevLevel == "Error Messages") {
-                                for (let lev of this.sev_all_errs) {
+                                for (const lev of this.sev_all_errs) {
                                     if (lines[i].indexOf(lev) != -1) {
                                         line = lines[i] + "\n";
                                     }
                                 }
                             } else if (this.state.errorSevLevel == "Info Messages") {
-                                for (let lev of this.sev_all_info) {
+                                for (const lev of this.sev_all_info) {
                                     if (lines[i].indexOf(lev) != -1) {
                                         line = lines[i] + "\n";
                                     }
@@ -131,7 +130,7 @@ export class ErrorLogMonitor extends React.Component {
     }
 
     handleErrorChange(e) {
-        let value = e.target.value;
+        const value = e.target.value;
         this.setState(() => (
             {
                 errorLines: value
@@ -259,7 +258,6 @@ ErrorLogMonitor.propTypes = {
 
 ErrorLogMonitor.defaultProps = {
     logLocation: "",
-    enableTree: noop,
 };
 
 export default ErrorLogMonitor;

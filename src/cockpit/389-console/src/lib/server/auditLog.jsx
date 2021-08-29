@@ -19,7 +19,6 @@ import {
     TextContent,
     TextVariants,
     TimePicker,
-    noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -97,8 +96,8 @@ export class ServerAuditLog extends React.Component {
     }
 
     handleChange(e, nav_tab) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let disableBtnName = "";
         let config_attrs = [];
@@ -114,7 +113,7 @@ export class ServerAuditLog extends React.Component {
         }
 
         // Check if a setting was changed, if so enable the save button
-        for (let config_attr of config_attrs) {
+        for (const config_attr of config_attrs) {
             if (attr == config_attr && this.state['_' + config_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -122,7 +121,7 @@ export class ServerAuditLog extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let config_attr of config_attrs) {
+        for (const config_attr of config_attrs) {
             if (attr != config_attr && this.state['_' + config_attr] != this.state[config_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -137,7 +136,7 @@ export class ServerAuditLog extends React.Component {
 
     handleTimeChange(time_str) {
         let disableSaveBtn = true;
-        let time_parts = time_str.split(":");
+        const time_parts = time_str.split(":");
         let hour = time_parts[0];
         let min = time_parts[1];
         if (hour.length == 2 && hour[0] == "0") {
@@ -148,7 +147,7 @@ export class ServerAuditLog extends React.Component {
         }
 
         // Start doing the Save button checking
-        for (let config_attr of rotation_attrs_no_time) {
+        for (const config_attr of rotation_attrs_no_time) {
             if (this.state[config_attr] != this.state['_' + config_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -180,12 +179,12 @@ export class ServerAuditLog extends React.Component {
             config_attrs = exp_attrs;
         }
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
 
-        for (let attr of config_attrs) {
+        for (const attr of config_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -206,7 +205,7 @@ export class ServerAuditLog extends React.Component {
 
         log_cmd("saveConfig", "Saving audit log settings", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.reloadConfig();
                     this.setState({
@@ -218,7 +217,7 @@ export class ServerAuditLog extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.reloadConfig();
                     this.setState({
                         loading: false
@@ -236,7 +235,7 @@ export class ServerAuditLog extends React.Component {
             loaded: !refresh,
         });
 
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
@@ -244,8 +243,8 @@ export class ServerAuditLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     let enabled = false;
 
                     if (attrs['nsslapd-auditlog-logging-enabled'][0] == "on") {
@@ -290,7 +289,7 @@ export class ServerAuditLog extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error loading Audit Log configuration - ${errMsg.desc}`
@@ -303,7 +302,7 @@ export class ServerAuditLog extends React.Component {
     }
 
     loadConfig() {
-        let attrs = this.state.attrs;
+        const attrs = this.state.attrs;
         let enabled = false;
 
         if (attrs['nsslapd-auditlog-logging-enabled'][0] == "on") {
@@ -350,7 +349,7 @@ export class ServerAuditLog extends React.Component {
         let saveSettingsName = "Save Log Settings";
         let saveRotationName = "Save Rotation Settings";
         let saveDeletionName = "Save Deletion Settings";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         let rotationTime = "";
         let hour = this.state['nsslapd-auditlog-logrotationsynchour'] ? this.state['nsslapd-auditlog-logrotationsynchour'] : "00";
         let min = this.state['nsslapd-auditlog-logrotationsyncmin'] ? this.state['nsslapd-auditlog-logrotationsyncmin'] : "00";
@@ -657,7 +656,6 @@ ServerAuditLog.propTypes = {
 };
 
 ServerAuditLog.defaultProps = {
-    addNotification: noop,
     serverId: "",
     attrs: {},
 };
