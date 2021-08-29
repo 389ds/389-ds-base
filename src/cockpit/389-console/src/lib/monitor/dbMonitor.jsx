@@ -13,7 +13,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import {
     Chart,
@@ -84,70 +83,70 @@ export class DatabaseMonitor extends React.Component {
                 normalizeddncachethreadslots: [0],
             },
             dbCacheList: [
-                {name: "", x: "1", y: 0},
-                {name: "", x: "2", y: 0},
-                {name: "", x: "3", y: 0},
-                {name: "", x: "4", y: 0},
-                {name: "", x: "5", y: 0},
-                {name: "", x: "6", y: 0},
-                {name: "", x: "7", y: 0},
-                {name: "", x: "8", y: 0},
-                {name: "", x: "9", y: 0},
-                {name: "", x: "10", y: 0},
+                { name: "", x: "1", y: 0 },
+                { name: "", x: "2", y: 0 },
+                { name: "", x: "3", y: 0 },
+                { name: "", x: "4", y: 0 },
+                { name: "", x: "5", y: 0 },
+                { name: "", x: "6", y: 0 },
+                { name: "", x: "7", y: 0 },
+                { name: "", x: "8", y: 0 },
+                { name: "", x: "9", y: 0 },
+                { name: "", x: "10", y: 0 },
             ],
             ndnCacheList: [
-                {name: "", x: "1", y: 0},
-                {name: "", x: "2", y: 0},
-                {name: "", x: "3", y: 0},
-                {name: "", x: "4", y: 0},
-                {name: "", x: "5", y: 0},
+                { name: "", x: "1", y: 0 },
+                { name: "", x: "2", y: 0 },
+                { name: "", x: "3", y: 0 },
+                { name: "", x: "4", y: 0 },
+                { name: "", x: "5", y: 0 },
             ],
             ndnCacheUtilList: [
-                {name: "", x: "1", y: 0},
-                {name: "", x: "2", y: 0},
-                {name: "", x: "3", y: 0},
-                {name: "", x: "4", y: 0},
-                {name: "", x: "5", y: 0},
+                { name: "", x: "1", y: 0 },
+                { name: "", x: "2", y: 0 },
+                { name: "", x: "3", y: 0 },
+                { name: "", x: "4", y: 0 },
+                { name: "", x: "5", y: 0 },
             ],
         });
     }
 
     refreshCache() {
         // Search for db cache stat and update state
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "ldbm"
         ];
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     let count = this.state.count + 1;
-                    let ndnCount = this.state.ndnCount + 1;
+                    const ndnCount = this.state.ndnCount + 1;
                     if (count > 100) {
                         // Keep progress count in check
                         count = 1;
                     }
 
                     // Build up the DB Cache chart data
-                    let dbratio = config.attrs.dbcachehitratio[0];
-                    let chart_data = this.state.dbCacheList;
+                    const dbratio = config.attrs.dbcachehitratio[0];
+                    const chart_data = this.state.dbCacheList;
                     chart_data.shift();
-                    chart_data.push({name: "Cache Hit Ratio", x: count.toString(), y: parseInt(dbratio)});
+                    chart_data.push({ name: "Cache Hit Ratio", x: count.toString(), y: parseInt(dbratio) });
 
                     // Build up the NDN Cache chart data
-                    let ndnratio = config.attrs.normalizeddncachehitratio[0];
-                    let ndn_chart_data = this.state.ndnCacheList;
+                    const ndnratio = config.attrs.normalizeddncachehitratio[0];
+                    const ndn_chart_data = this.state.ndnCacheList;
                     ndn_chart_data.shift();
-                    ndn_chart_data.push({name: "Cache Hit Ratio", x: count.toString(), y: parseInt(ndnratio)});
+                    ndn_chart_data.push({ name: "Cache Hit Ratio", x: count.toString(), y: parseInt(ndnratio) });
 
                     // Build up the DB Cache Util chart data
-                    let ndn_util_chart_data = this.state.ndnCacheUtilList;
-                    let currNDNSize = parseInt(config.attrs.currentnormalizeddncachesize[0]);
-                    let maxNDNSize = parseInt(config.attrs.maxnormalizeddncachesize[0]);
-                    let ndn_utilization = (currNDNSize / maxNDNSize) * 100;
+                    const ndn_util_chart_data = this.state.ndnCacheUtilList;
+                    const currNDNSize = parseInt(config.attrs.currentnormalizeddncachesize[0]);
+                    const maxNDNSize = parseInt(config.attrs.maxnormalizeddncachesize[0]);
+                    const ndn_utilization = (currNDNSize / maxNDNSize) * 100;
                     ndn_util_chart_data.shift();
-                    ndn_util_chart_data.push({name: "Cache Utilization", x: ndnCount.toString(), y: parseInt(ndn_utilization)});
+                    ndn_util_chart_data.push({ name: "Cache Utilization", x: ndnCount.toString(), y: parseInt(ndn_utilization) });
 
                     this.setState({
                         data: config.attrs,
@@ -252,8 +251,8 @@ export class DatabaseMonitor extends React.Component {
                                                 ariaTitle="Live Database Cache Statistics"
                                                 containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                 height={200}
-                                                maxDomain={{y: 100}}
-                                                minDomain={{y: 0}}
+                                                maxDomain={{ y: 100 }}
+                                                minDomain={{ y: 0 }}
                                                 padding={{
                                                     bottom: 30,
                                                     left: 40,
@@ -348,8 +347,8 @@ export class DatabaseMonitor extends React.Component {
                                                         ariaTitle="Live Normalized DN Cache Statistics"
                                                         containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                         height={200}
-                                                        maxDomain={{y: 100}}
-                                                        minDomain={{y: 0}}
+                                                        maxDomain={{ y: 100 }}
+                                                        minDomain={{ y: 0 }}
                                                         padding={{
                                                             bottom: 40,
                                                             left: 60,
@@ -400,8 +399,8 @@ export class DatabaseMonitor extends React.Component {
                                                         ariaTitle="Live Normalized DN Cache Utilization Statistics"
                                                         containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                         height={200}
-                                                        maxDomain={{y: 100}}
-                                                        minDomain={{y: 0}}
+                                                        maxDomain={{ y: 100 }}
+                                                        minDomain={{ y: 0 }}
                                                         padding={{
                                                             bottom: 40,
                                                             left: 60,
@@ -512,7 +511,6 @@ DatabaseMonitor.propTypes = {
 
 DatabaseMonitor.defaultProps = {
     serverId: "",
-    enableTree: noop,
 };
 
 export default DatabaseMonitor;

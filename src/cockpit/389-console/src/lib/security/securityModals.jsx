@@ -14,7 +14,6 @@ import {
     TextVariants,
     TextInput,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
@@ -29,7 +28,7 @@ export class SecurityAddCACertModal extends React.Component {
             error
         } = this.props;
         let saveBtnName = "Add Certificate";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (spinning) {
             saveBtnName = "Adding Certificate ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -121,7 +120,7 @@ export class SecurityAddCertModal extends React.Component {
         } = this.props;
 
         let saveBtnName = "Add Certificate";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (spinning) {
             saveBtnName = "Adding Certificate ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -214,13 +213,13 @@ export class SecurityEnableModal extends React.Component {
         } = this.props;
 
         // Build list of cert names for the select list
-        let certNames = [];
-        for (let cert of certs) {
-            certNames.push(cert.attrs['nickname']);
+        const certNames = [];
+        for (const cert of certs) {
+            certNames.push(cert.attrs.nickname);
         }
 
         let saveBtnName = "Enable Security";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (spinning) {
             saveBtnName = "Enabling Security ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -295,7 +294,7 @@ export class EditCertModal extends React.Component {
         } = this.props;
 
         let saveBtnName = "Save Flags";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (spinning) {
             saveBtnName = "Saving flags ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -617,9 +616,6 @@ SecurityEnableModal.propTypes = {
 
 SecurityEnableModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     primaryName: "",
     certs: [],
     spinning: false,
@@ -636,9 +632,6 @@ EditCertModal.propTypes = {
 
 EditCertModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     flags: "",
     spinning: false,
 };
@@ -654,9 +647,6 @@ SecurityAddCertModal.propTypes = {
 
 SecurityAddCertModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     spinning: false,
     error: {},
 };
@@ -672,9 +662,6 @@ SecurityAddCACertModal.propTypes = {
 
 SecurityAddCACertModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     spinning: false,
     error: {},
 };

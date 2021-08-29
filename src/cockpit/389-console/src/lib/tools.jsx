@@ -1,6 +1,6 @@
 export function searchFilter(searchFilterValue, columnsToSearch, rows) {
     if (searchFilterValue && rows && rows.length) {
-        let filteredRows = [];
+        const filteredRows = [];
         rows.forEach(row => {
             let rowToSearch = [];
             if (columnsToSearch && columnsToSearch.length) {
@@ -31,18 +31,18 @@ export function searchFilter(searchFilterValue, columnsToSearch, rows) {
 
 export function log_cmd(js_func, desc, cmd_array) {
     if (console) {
-        let pw_args = ["--passwd", "--bind-pw", "--nsslapd-rootpw"];
-        let cmd_list = [];
+        const pw_args = ["--passwd", "--bind-pw", "--nsslapd-rootpw"];
+        const cmd_list = [];
         let converted_pw = false;
 
-        for (let idx in cmd_array) {
-            let cmd = cmd_array[idx];
+        for (const idx in cmd_array) {
+            const cmd = cmd_array[idx];
             converted_pw = false;
             for (var arg_idx in pw_args) {
                 if (cmd.startsWith(pw_args[arg_idx])) {
                     // We are setting a password, if it has a value we need to hide it
-                    let arg_len = cmd.indexOf("=");
-                    let arg = cmd.substring(0, arg_len);
+                    const arg_len = cmd.indexOf("=");
+                    const arg = cmd.substring(0, arg_len);
                     if (cmd.length != arg_len + 1) {
                         // We are setting a password value...
                         cmd_list.push(arg + "=**********");
@@ -61,13 +61,13 @@ export function log_cmd(js_func, desc, cmd_array) {
 
 // Convert DS timestamp to a friendly string: 20180921142257Z -> 10/21/2018, 2:22:57 PM
 export function get_date_string(timestamp) {
-    let year = timestamp.substr(0, 4);
-    let month = timestamp.substr(4, 2);
-    let day = timestamp.substr(6, 2);
-    let hour = timestamp.substr(8, 2);
-    let minute = timestamp.substr(10, 2);
-    let sec = timestamp.substr(12, 2);
-    let date = new Date(
+    const year = timestamp.substr(0, 4);
+    const month = timestamp.substr(4, 2);
+    const day = timestamp.substr(6, 2);
+    const hour = timestamp.substr(8, 2);
+    const minute = timestamp.substr(10, 2);
+    const sec = timestamp.substr(12, 2);
+    const date = new Date(
         parseInt(year),
         parseInt(month) - 1,
         parseInt(day),
@@ -87,7 +87,7 @@ export function get_date_diff(start, end) {
     let hour = start.substr(8, 2);
     let minute = start.substr(10, 2);
     let sec = start.substr(12, 2);
-    let startDate = new Date(
+    const startDate = new Date(
         parseInt(year),
         parseInt(month),
         parseInt(day),
@@ -103,7 +103,7 @@ export function get_date_diff(start, end) {
     hour = end.substr(8, 2);
     minute = end.substr(10, 2);
     sec = end.substr(12, 2);
-    let currDate = new Date(
+    const currDate = new Date(
         parseInt(year),
         parseInt(month),
         parseInt(day),
@@ -116,7 +116,7 @@ export function get_date_diff(start, end) {
     let seconds = Math.floor((currDate - startDate) / 1000);
     let minutes = Math.floor(seconds / 60);
     let hours = Math.floor(minutes / 60);
-    let days = Math.floor(hours / 24);
+    const days = Math.floor(hours / 24);
     hours = hours - days * 24;
     minutes = minutes - days * 24 * 60 - hours * 60;
     seconds = seconds - days * 24 * 60 * 60 - hours * 60 * 60 - minutes * 60;
@@ -179,8 +179,8 @@ export function valid_dn(dn) {
     if (dn == "" || dn.endsWith(",")) {
         return false;
     }
-    let dn_regex = new RegExp("^([A-Za-z])+=\\S.*");
-    let result = dn_regex.test(dn);
+    const dn_regex = new RegExp("^([A-Za-z])+=\\S.*");
+    const result = dn_regex.test(dn);
     return result;
 }
 

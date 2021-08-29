@@ -17,7 +17,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -54,7 +53,7 @@ export class Server extends React.Component {
 
         this.loadTree = this.loadTree.bind(this);
         this.enableTree = this.enableTree.bind(this);
-        this.onTreeClick = this.onTreeClick.bind(this);
+        this.handleTreeClick = this.handleTreeClick.bind(this);
     }
 
     componentDidUpdate() {
@@ -76,7 +75,7 @@ export class Server extends React.Component {
             loaded: false,
             firstLoad: false
         });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
@@ -84,8 +83,8 @@ export class Server extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     this.setState(
                         {
                             loaded: true,
@@ -95,7 +94,7 @@ export class Server extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         loaded: true
                     });
@@ -107,7 +106,7 @@ export class Server extends React.Component {
     }
 
     loadTree() {
-        let basicData = [
+        const basicData = [
             {
                 name: "Server Settings",
                 id: "settings-config",
@@ -169,8 +168,8 @@ export class Server extends React.Component {
         });
     }
 
-    onTreeClick(evt, treeViewItem, parentItem) {
-        if (treeViewItem.id != "logging-config" && treeViewItem.id != this.state.node_name) {
+    handleTreeClick(evt, treeViewItem, parentItem) {
+        if (treeViewItem.id !== "logging-config" && treeViewItem.id !== this.state.node_name) {
             this.setState({
                 activeItems: [treeViewItem, parentItem],
                 node_name: treeViewItem.id,
@@ -199,7 +198,7 @@ export class Server extends React.Component {
         }
 
         if (this.state.loaded) {
-            if (this.state.node_name == "settings-config" || this.state.node_name == "") {
+            if (this.state.node_name === "settings-config" || this.state.node_name === "") {
                 server_element = (
                     <ServerSettings
                         serverId={this.props.serverId}
@@ -209,7 +208,7 @@ export class Server extends React.Component {
                         addNotification={this.props.addNotification}
                     />
                 );
-            } else if (this.state.node_name == "tuning-config") {
+            } else if (this.state.node_name === "tuning-config") {
                 server_element = (
                     <ServerTuning
                         serverId={this.props.serverId}
@@ -218,7 +217,7 @@ export class Server extends React.Component {
                         addNotification={this.props.addNotification}
                     />
                 );
-            } else if (this.state.node_name == "sasl-config") {
+            } else if (this.state.node_name === "sasl-config") {
                 server_element = (
                     <ServerSASL
                         serverId={this.props.serverId}
@@ -226,7 +225,7 @@ export class Server extends React.Component {
                         addNotification={this.props.addNotification}
                     />
                 );
-            } else if (this.state.node_name == "security-config") {
+            } else if (this.state.node_name === "security-config") {
                 server_element = (
                     <Security
                         addNotification={this.props.addNotification}
@@ -234,7 +233,7 @@ export class Server extends React.Component {
                         enableTree={this.enableTree}
                     />
                 );
-            } else if (this.state.node_name == "ldapi-config") {
+            } else if (this.state.node_name === "ldapi-config") {
                 server_element = (
                     <ServerLDAPI
                         serverId={this.props.serverId}
@@ -243,7 +242,7 @@ export class Server extends React.Component {
                         addNotification={this.props.addNotification}
                     />
                 );
-            } else if (this.state.node_name == "access-log-config") {
+            } else if (this.state.node_name === "access-log-config") {
                 server_element = (
                     <ServerAccessLog
                         serverId={this.props.serverId}
@@ -252,7 +251,7 @@ export class Server extends React.Component {
                         addNotification={this.props.addNotification}
                     />
                 );
-            } else if (this.state.node_name == "audit-log-config") {
+            } else if (this.state.node_name === "audit-log-config") {
                 server_element = (
                     <ServerAuditLog
                         serverId={this.props.serverId}
@@ -261,7 +260,7 @@ export class Server extends React.Component {
                         addNotification={this.props.addNotification}
                     />
                 );
-            } else if (this.state.node_name == "auditfail-log-config") {
+            } else if (this.state.node_name === "auditfail-log-config") {
                 server_element = (
                     <ServerAuditFailLog
                         serverId={this.props.serverId}
@@ -270,7 +269,7 @@ export class Server extends React.Component {
                         addNotification={this.props.addNotification}
                     />
                 );
-            } else if (this.state.node_name == "error-log-config") {
+            } else if (this.state.node_name === "error-log-config") {
                 server_element = (
                     <ServerErrorLog
                         serverId={this.props.serverId}
@@ -292,7 +291,7 @@ export class Server extends React.Component {
                                 <TreeView
                                     data={nodes}
                                     activeItems={this.state.activeItems}
-                                    onSelect={this.onTreeClick}
+                                    onSelect={this.handleTreeClick}
                                 />
                             </div>
                         </div>
@@ -316,6 +315,5 @@ Server.propTypes = {
 };
 
 Server.defaultProps = {
-    addNotification: noop,
     serverId: ""
 };

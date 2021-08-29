@@ -21,7 +21,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -84,7 +83,7 @@ export class Monitor extends React.Component {
         this.loadSuffixTree = this.loadSuffixTree.bind(this);
         this.enableTree = this.enableTree.bind(this);
         this.update_tree_nodes = this.update_tree_nodes.bind(this);
-        this.onTreeClick = this.onTreeClick.bind(this);
+        this.handleTreeClick = this.handleTreeClick.bind(this);
         this.disableSuffixLoading = this.disableSuffixLoading.bind(this);
         this.loadMonitorLDBM = this.loadMonitorLDBM.bind(this);
         this.loadMonitorSNMP = this.loadMonitorSNMP.bind(this);
@@ -95,7 +94,7 @@ export class Monitor extends React.Component {
         this.loadDiskSpace = this.loadDiskSpace.bind(this);
         this.reloadDisks = this.reloadDisks.bind(this);
         // Replication
-        this.loadMonitorReplication = this.loadMonitorReplication.bind(this);
+        this.handleLoadMonitorReplication = this.handleLoadMonitorReplication.bind(this);
         this.loadCleanTasks = this.loadCleanTasks.bind(this);
         this.loadAbortTasks = this.loadAbortTasks.bind(this);
         this.loadReplicatedSuffixes = this.loadReplicatedSuffixes.bind(this);
@@ -122,15 +121,15 @@ export class Monitor extends React.Component {
     }
 
     processTree(suffixData) {
-        for (let suffix of suffixData) {
-            if (suffix['type'] == "suffix") {
-                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faTree} />;
-            } else if (suffix['type'] == "subsuffix") {
-                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faLeaf} />;
+        for (const suffix of suffixData) {
+            if (suffix.type === "suffix") {
+                suffix.icon = <FontAwesomeIcon size="sm" icon={faTree} />;
+            } else if (suffix.type === "subsuffix") {
+                suffix.icon = <FontAwesomeIcon size="sm" icon={faLeaf} />;
             } else {
-                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faLink} />;
+                suffix.icon = <FontAwesomeIcon size="sm" icon={faLink} />;
             }
-            if (suffix['children'].length == 0) {
+            if (suffix.children.length === 0) {
                 delete suffix.children;
             } else {
                 this.processTree(suffix.children);
@@ -147,9 +146,9 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let treeData = JSON.parse(content);
+                    const treeData = JSON.parse(content);
                     this.processTree(treeData);
-                    let basicData = [
+                    const basicData = [
                         {
                             name: "Server Statistics",
                             icon: <ClusterIcon />,
@@ -218,11 +217,11 @@ export class Monitor extends React.Component {
                 });
     }
 
-    onTreeClick(evt, treeViewItem, parentItem) {
-        if (treeViewItem.id == "log-monitor") {
+    handleTreeClick(evt, treeViewItem, parentItem) {
+        if (treeViewItem.id === "log-monitor") {
             return;
         }
-        if (this.state.activeItems.length == 0 || treeViewItem == this.state.activeItems[0]) {
+        if (this.state.activeItems.length === 0 || treeViewItem === this.state.activeItems[0]) {
             this.setState({
                 activeItems: [treeViewItem, parentItem]
             });
@@ -232,8 +231,8 @@ export class Monitor extends React.Component {
             disableTree: true, // Disable the tree to allow node to be fully loaded
         });
 
-        if (treeViewItem.id == "database-monitor" ||
-            treeViewItem.id == "server-monitor") {
+        if (treeViewItem.id === "database-monitor" ||
+            treeViewItem.id === "server-monitor") {
             // Nothing special to do, these configurations have already been loaded
             this.setState(prevState => {
                 return {
@@ -245,7 +244,7 @@ export class Monitor extends React.Component {
                     bename: "",
                 };
             });
-        } else if (treeViewItem.id == "access-log-monitor") {
+        } else if (treeViewItem.id === "access-log-monitor") {
             this.setState(prevState => {
                 return {
                     activeItems: [treeViewItem, parentItem],
@@ -255,7 +254,7 @@ export class Monitor extends React.Component {
                     bename: "",
                 };
             });
-        } else if (treeViewItem.id == "audit-log-monitor") {
+        } else if (treeViewItem.id === "audit-log-monitor") {
             this.setState(prevState => {
                 return {
                     activeItems: [treeViewItem, parentItem],
@@ -265,7 +264,7 @@ export class Monitor extends React.Component {
                     bename: "",
                 };
             });
-        } else if (treeViewItem.id == "auditfail-log-monitor") {
+        } else if (treeViewItem.id === "auditfail-log-monitor") {
             this.setState(prevState => {
                 return {
                     activeItems: [treeViewItem, parentItem],
@@ -275,7 +274,7 @@ export class Monitor extends React.Component {
                     bename: "",
                 };
             });
-        } else if (treeViewItem.id == "error-log-monitor") {
+        } else if (treeViewItem.id === "error-log-monitor") {
             this.setState(prevState => {
                 return {
                     activeItems: [treeViewItem, parentItem],
@@ -285,9 +284,9 @@ export class Monitor extends React.Component {
                     bename: "",
                 };
             });
-        } else if (treeViewItem.id == "replication-monitor") {
+        } else if (treeViewItem.id === "replication-monitor") {
             if (!this.state.replInitLoaded) {
-                this.loadMonitorReplication();
+                this.handleLoadMonitorReplication();
             }
             this.setState(prevState => {
                 return {
@@ -316,7 +315,7 @@ export class Monitor extends React.Component {
                 });
             } else {
                 // Load this suffix (db, chaining & replication)
-                if (treeViewItem.type == "dblink") {
+                if (treeViewItem.type === "dblink") {
                     // Chaining
                     this.loadMonitorChaining(treeViewItem.id);
                 }
@@ -339,11 +338,11 @@ export class Monitor extends React.Component {
             loaded: true,
             disableTree: false,
         }, () => {
-            let className = 'pf-c-tree-view__list-item';
-            let element = document.getElementById("monitor-tree");
+            const className = 'pf-c-tree-view__list-item';
+            const element = document.getElementById("monitor-tree");
             if (element) {
-                let elements = element.getElementsByClassName(className);
-                for (let el of elements) {
+                const elements = element.getElementsByClassName(className);
+                for (const el of elements) {
                     el.setAttribute('title', el.innerText);
                 }
             }
@@ -363,7 +362,7 @@ export class Monitor extends React.Component {
                 firstLoad: false
             });
         }
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get", "nsslapd-auditlog", "nsslapd-accesslog", "nsslapd-errorlog", "nsslapd-auditfaillog"
         ];
@@ -371,7 +370,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         accesslogLocation: config.attrs['nsslapd-accesslog'][0],
                         auditlogLocation: config.attrs['nsslapd-auditlog'][0],
@@ -383,7 +382,7 @@ export class Monitor extends React.Component {
 
     loadReplicatedSuffixes() {
         // Load replicated suffix to populate the dropdown select list
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "list"
         ];
@@ -391,7 +390,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     let replSuffix = "";
                     if (config.items.length > 0) {
                         replSuffix = config.items[0];
@@ -404,7 +403,7 @@ export class Monitor extends React.Component {
     }
 
     loadMonitorLDBM() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "ldbm"
         ];
@@ -412,7 +411,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         ldbmData: config.attrs
                     });
@@ -420,7 +419,7 @@ export class Monitor extends React.Component {
     }
 
     loadMonitorServer() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "server"
         ];
@@ -428,7 +427,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         serverData: config.attrs
                     });
@@ -439,7 +438,7 @@ export class Monitor extends React.Component {
         this.setState({
             serverLoading: true
         });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "server"
         ];
@@ -447,7 +446,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         serverLoading: false,
                         serverData: config.attrs
@@ -456,7 +455,7 @@ export class Monitor extends React.Component {
     }
 
     loadMonitorSNMP() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "snmp"
         ];
@@ -464,7 +463,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         snmpData: config.attrs,
                     }, this.loadSuffixTree(true));
@@ -472,7 +471,7 @@ export class Monitor extends React.Component {
     }
 
     loadDiskSpace() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "disk"
         ];
@@ -480,9 +479,9 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let disks = JSON.parse(content);
-                    let rows = [];
-                    for (let disk of disks.items) {
+                    const disks = JSON.parse(content);
+                    const rows = [];
+                    for (const disk of disks.items) {
                         rows.push([disk.mount, disk.size, disk.used + " (" + disk.percent + "%)", disk.avail]);
                     }
                     this.setState({
@@ -492,7 +491,7 @@ export class Monitor extends React.Component {
     }
 
     reloadDisks () {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "disk"
         ];
@@ -500,9 +499,9 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let disks = JSON.parse(content);
-                    let rows = [];
-                    for (let disk of disks.items) {
+                    const disks = JSON.parse(content);
+                    const rows = [];
+                    for (const disk of disks.items) {
                         rows.push([disk.mount, disk.size, disk.used + " (" + disk.percent + "%)", disk.avail]);
                     }
                     this.setState({
@@ -512,7 +511,7 @@ export class Monitor extends React.Component {
     }
 
     reloadSNMP() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "snmp"
         ];
@@ -520,7 +519,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         snmpData: config.attrs,
                     });
@@ -532,7 +531,7 @@ export class Monitor extends React.Component {
             chainingLoading: true
         });
 
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "chaining", suffix
         ];
@@ -540,7 +539,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [suffix]: {
                             ...this.state[suffix],
@@ -564,13 +563,13 @@ export class Monitor extends React.Component {
     }
 
     loadCleanTasks() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-tasks", "list-cleanruv-tasks", "--suffix=" + this.state.replSuffix];
         log_cmd("loadCleanTasks", "Load clean tasks", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -587,13 +586,13 @@ export class Monitor extends React.Component {
     }
 
     loadAbortTasks() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-tasks", "list-abortruv-tasks", "--suffix=" + this.state.replSuffix];
         log_cmd("loadAbortCleanTasks", "Load abort tasks", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -610,13 +609,13 @@ export class Monitor extends React.Component {
     }
 
     loadConflicts() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-conflict", "list", this.state.replSuffix];
         log_cmd("loadConflicts", "Load conflict entries", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -634,13 +633,13 @@ export class Monitor extends React.Component {
     }
 
     loadGlues() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-conflict", "list-glue", this.state.replSuffix];
         log_cmd("loadGlues", "Load glue entries", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -661,13 +660,13 @@ export class Monitor extends React.Component {
     }
 
     loadWinsyncAgmts() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "winsync-status", "--suffix=" + this.state.replSuffix];
         log_cmd("loadWinsyncAgmts", "Load winsync agmt status", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -683,21 +682,21 @@ export class Monitor extends React.Component {
                 });
     }
 
-    loadMonitorReplication() {
-        let replSuffix = this.state.replSuffix;
-        if (replSuffix != "") {
+    handleLoadMonitorReplication() {
+        const replSuffix = this.state.replSuffix;
+        if (replSuffix !== "") {
             this.setState({
                 replLoading: true
             });
 
             // Now load the agmts
-            let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                 "replication", "status", "--suffix=" + replSuffix];
-            log_cmd("loadMonitorReplication", "Load replication agmts", cmd);
+            log_cmd("handleLoadMonitorReplication", "Load replication agmts", cmd);
             cockpit
                     .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
-                        let config = JSON.parse(content);
+                        const config = JSON.parse(content);
                         this.setState({
                             [replSuffix]: {
                                 ...this.state[replSuffix],
@@ -721,13 +720,13 @@ export class Monitor extends React.Component {
     }
 
     reloadReplAgmts() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "status", "--suffix=" + this.state.replSuffix];
         log_cmd("reloadReplAgmts", "Load replication agmts", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -738,13 +737,13 @@ export class Monitor extends React.Component {
     }
 
     reloadReplWinsyncAgmts() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "winsync-status", "--suffix=" + this.state.replSuffix];
         log_cmd("reloadReplWinsyncAgmts", "Load winysnc agmts", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -755,13 +754,13 @@ export class Monitor extends React.Component {
     }
 
     replSuffixChange(e) {
-        let value = e.target.value;
+        const value = e.target.value;
         this.setState(() => (
             {
                 replSuffix: value,
                 replLoading: true
             }
-        ), this.loadMonitorReplication);
+        ), this.handleLoadMonitorReplication);
     }
 
     enableTree () {
@@ -780,7 +779,7 @@ export class Monitor extends React.Component {
         }
 
         if (this.state.loaded) {
-            if (this.state.node_name == "database-monitor" || this.state.node_name == "") {
+            if (this.state.node_name === "database-monitor" || this.state.node_name === "") {
                 if (this.state.ldbmLoading) {
                     monitor_element =
                         <div className="ds-margin-top-xlg ds-center">
@@ -799,7 +798,7 @@ export class Monitor extends React.Component {
                             serverId={this.props.serverId}
                         />;
                 }
-            } else if (this.state.node_name == "server-monitor") {
+            } else if (this.state.node_name === "server-monitor") {
                 if (this.state.serverLoading) {
                     monitor_element =
                         <div className="ds-margin-top-xlg ds-center">
@@ -823,31 +822,31 @@ export class Monitor extends React.Component {
                             enableTree={this.enableTree}
                         />;
                 }
-            } else if (this.state.node_name == "access-log-monitor") {
+            } else if (this.state.node_name === "access-log-monitor") {
                 monitor_element =
                     <AccessLogMonitor
                         logLocation={this.state.accesslogLocation}
                         enableTree={this.enableTree}
                     />;
-            } else if (this.state.node_name == "audit-log-monitor") {
+            } else if (this.state.node_name === "audit-log-monitor") {
                 monitor_element =
                     <AuditLogMonitor
                         logLocation={this.state.auditlogLocation}
                         enableTree={this.enableTree}
                     />;
-            } else if (this.state.node_name == "auditfail-log-monitor") {
+            } else if (this.state.node_name === "auditfail-log-monitor") {
                 monitor_element =
                     <AuditFailLogMonitor
                         logLocation={this.state.auditfaillogLocation}
                         enableTree={this.enableTree}
                     />;
-            } else if (this.state.node_name == "error-log-monitor") {
+            } else if (this.state.node_name === "error-log-monitor") {
                 monitor_element =
                     <ErrorLogMonitor
                         logLocation={this.state.errorlogLocation}
                         enableTree={this.enableTree}
                     />;
-            } else if (this.state.node_name == "replication-monitor") {
+            } else if (this.state.node_name === "replication-monitor") {
                 if (this.state.replLoading) {
                     monitor_element =
                         <div className="ds-margin-top-xlg ds-center">
@@ -865,7 +864,7 @@ export class Monitor extends React.Component {
                                 <p>There are no suffixes that have been configured for replication</p>
                             </div>;
                     } else {
-                        let suffixList = this.state.replicatedSuffixes.map((suffix) =>
+                        const suffixList = this.state.replicatedSuffixes.map((suffix) =>
                             <FormSelectOption key={suffix} value={suffix} label={suffix} />
                         );
                         monitor_element =
@@ -873,12 +872,13 @@ export class Monitor extends React.Component {
                                 <div className="ds-container">
                                     <TextContent>
                                         <Text component={TextVariants.h3}>
-                                            Replication Monitoring <FontAwesomeIcon
+                                            Replication Monitoring
+                                            <FontAwesomeIcon
                                                 size="lg"
                                                 className="ds-left-margin ds-refresh"
                                                 icon={faSyncAlt}
                                                 title="Refresh replication monitor"
-                                                onClick={this.loadMonitorReplication}
+                                                onClick={this.handleLoadMonitorReplication}
                                             />
                                         </Text>
                                     </TextContent>
@@ -912,7 +912,7 @@ export class Monitor extends React.Component {
                             </div>;
                     }
                 }
-            } else if (this.state.node_name != "") {
+            } else if (this.state.node_name !== "") {
                 // suffixes (example)
                 if (this.state.chainingLoading) {
                     monitor_element =
@@ -925,7 +925,7 @@ export class Monitor extends React.Component {
                             <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
-                    if (this.state.node_type == "dblink") {
+                    if (this.state.node_type === "dblink") {
                         monitor_element =
                             <ChainingMonitor
                                 suffix={this.state.node_text}
@@ -957,7 +957,7 @@ export class Monitor extends React.Component {
                                     <TreeView
                                         data={nodes}
                                         activeItems={this.state.activeItems}
-                                        onSelect={this.onTreeClick}
+                                        onSelect={this.handleTreeClick}
                                     />
                                 </div>
                             </div>
@@ -995,6 +995,5 @@ Monitor.propTypes = {
 };
 
 Monitor.defaultProps = {
-    addNotification: noop,
     serverId: ""
 };

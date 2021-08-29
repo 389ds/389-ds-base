@@ -18,7 +18,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
@@ -107,21 +106,21 @@ export class Schema extends React.Component {
         };
 
         // Substring Matching Rule
-        this.onSubstringMRToggle = isSubstringMROpen => {
+        this.handleSubstringMRToggle = isSubstringMROpen => {
             this.setState({
                 isSubstringMROpen
             });
         };
-        this.onSubstringMRClear = () => {
-            let e = {target: {id: 'dummy', value: "", type: 'input'}};
+        this.handleSubstringMRClear = () => {
+            const e = { target: { id: 'dummy', value: "", type: 'input' } };
             this.setState({
                 atSubMr: "",
                 isSubstringMROpen: false
             }, () => { this.handleAttrChange(e) });
         };
-        this.onSubstringMRSelect = (event, selection) => {
-            let e = {target: {id: 'dummy', value: "", type: 'input'}};
-            if (this.state.atSubMr == selection) {
+        this.handleSubstringMRSelect = (event, selection) => {
+            const e = { target: { id: 'dummy', value: "", type: 'input' } };
+            if (this.state.atSubMr === selection) {
                 this.setState({
                     atSubMr: selection,
                     isSubstringMROpen: false
@@ -135,21 +134,21 @@ export class Schema extends React.Component {
         };
 
         // Order Matching Rule
-        this.onOrderMRToggle = isOrderMROpen => {
+        this.handleOrderMRToggle = isOrderMROpen => {
             this.setState({
                 isOrderMROpen
             });
         };
-        this.onOrderMRClear = () => {
-            let e = {target: {id: 'dummy', value: "", type: 'input'}};
+        this.handleOrderMRClear = () => {
+            const e = { target: { id: 'dummy', value: "", type: 'input' } };
             this.setState({
                 atOrder: "",
                 isOrderMROpen: false
             }, () => { this.handleAttrChange(e) });
         };
-        this.onOrderMRSelect = (event, selection) => {
-            let e = {target: {id: 'dummy', value: "", type: 'input'}};
-            if (this.state.atOrder == selection) {
+        this.handleOrderMRSelect = (event, selection) => {
+            const e = { target: { id: 'dummy', value: "", type: 'input' } };
+            if (this.state.atOrder === selection) {
                 this.setState({
                     atOrder: "",
                     isOrderMROpen: false
@@ -163,21 +162,21 @@ export class Schema extends React.Component {
         };
 
         // Equaliry Matching Rule
-        this.onEqualityMRToggle = isEqualityMROpen => {
+        this.handleEqualityMRToggle = isEqualityMROpen => {
             this.setState({
                 isEqualityMROpen
             });
         };
-        this.onEqualityMRClear = () => {
-            let e = {target: {id: 'dummy', value: "", type: 'input'}};
+        this.handleEqualityMRClear = () => {
+            const e = { target: { id: 'dummy', value: "", type: 'input' } };
             this.setState({
                 atEqMr: "",
                 isEqualityMROpen: false
             }, () => { this.handleAttrChange(e) });
         };
-        this.onEqualityMRSelect = (event, selection) => {
-            let e = {target: {id: 'dummy', value: "", type: 'input'}};
-            if (this.state.atEqMr == selection) {
+        this.handleEqualityMRSelect = (event, selection) => {
+            const e = { target: { id: 'dummy', value: "", type: 'input' } };
+            if (this.state.atEqMr === selection) {
                 this.setState({
                     atEqMr: "",
                     isEqualityMROpen: false
@@ -191,20 +190,20 @@ export class Schema extends React.Component {
         };
 
         // Alias Name
-        this.onAliasNameToggle = isAliasNameOpen => {
+        this.handleAliasNameToggle = isAliasNameOpen => {
             this.setState({
                 isAliasNameOpen
             });
         };
-        this.onAliasNameClear = () => {
-            let e = {target: {id: 'dummy', value: "", type: 'input'}};
+        this.handleAliasNameClear = () => {
+            const e = { target: { id: 'dummy', value: "", type: 'input' } };
             this.setState({
                 atAlias: [],
                 isAliasNameOpen: false
             }, () => { this.handleAttrChange(e) });
         };
-        this.onAliasNameSelect = (event, selection) => {
-            let e = {target: {id: 'dummy', value: "", type: 'input'}};
+        this.handleAliasNameSelect = (event, selection) => {
+            const e = { target: { id: 'dummy', value: "", type: 'input' } };
             if (this.state.atAlias.includes(selection)) {
                 this.setState(
                     prevState => ({
@@ -221,7 +220,7 @@ export class Schema extends React.Component {
                 );
             }
         };
-        this.onAliasNameCreateOption = newValue => {
+        this.handleAliasNameCreateOption = newValue => {
             if (!this.state.atAliasOptions.includes(newValue)) {
                 this.setState({
                     atAliasOptions: [...this.state.atAliasOptions, { value: newValue }]
@@ -230,21 +229,21 @@ export class Schema extends React.Component {
         };
 
         // Parent Attribute
-        this.onParentAttrToggle = isParentAttrOpen => {
+        this.handleParentAttrToggle = isParentAttrOpen => {
             this.setState({
                 isParentAttrOpen
             });
         };
-        this.onParentAttrClear = () => {
-            let e = {target: {id: 'dummy', value: "", type: 'input'}};
+        this.handleParentAttrClear = () => {
+            const e = { target: { id: 'dummy', value: "", type: 'input' } };
             this.setState({
                 atParent: "",
                 isParentAttrOpen: false
             }, () => { this.handleAttrChange(e) });
         };
-        this.onParentAttrSelect = (event, selection) => {
-            let e = {target: {id: 'dummy', value: "", type: 'input'}};
-            if (this.state.atParent == selection) {
+        this.handleParentAttrSelect = (event, selection) => {
+            const e = { target: { id: 'dummy', value: "", type: 'input' } };
+            if (this.state.atParent === selection) {
                 this.setState({
                     atParent: "",
                     isParentAttrOpen: false
@@ -260,19 +259,19 @@ export class Schema extends React.Component {
         };
 
         // Required Attributes
-        this.onRequiredAttrsToggle = isRequiredAttrsOpen => {
+        this.handleRequiredAttrsToggle = isRequiredAttrsOpen => {
             this.setState({
                 isRequiredAttrsOpen
             });
         };
-        this.onRequiredAttrsClear = () => {
+        this.handleRequiredAttrsClear = () => {
             this.setState({
                 ocMust: [],
                 isRequiredAttrsOpen: false
             });
         };
-        this.onRequiredAttrsSelect = (event, selection) => {
-            let e = {target: {id: 'dummy', value: "", type: 'input'}};
+        this.handleRequiredAttrsSelect = (event, selection) => {
+            const e = { target: { id: 'dummy', value: "", type: 'input' } };
             if (this.state.ocMust.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -289,7 +288,7 @@ export class Schema extends React.Component {
                 );
             }
         };
-        this.onRequiredAttrsCreateOption = newValue => {
+        this.handleRequiredAttrsCreateOption = newValue => {
             if (!this.state.ocMustOptions.includes(newValue)) {
                 this.setState({
                     ocMustOptions: [...this.state.ocParentocMustOptionsOptions, { value: newValue }]
@@ -298,19 +297,19 @@ export class Schema extends React.Component {
         };
 
         // Allowed Attributes
-        this.onAllowedAttrsToggle = isAllowedAttrsOpen => {
+        this.handleAllowedAttrsToggle = isAllowedAttrsOpen => {
             this.setState({
                 isAllowedAttrsOpen
             });
         };
-        this.onAllowedAttrsClear = () => {
+        this.handleAllowedAttrsClear = () => {
             this.setState({
                 ocMay: [],
                 isAllowedAttrsOpen: false
             });
         };
-        this.onAllowedAttrsSelect = (event, selection) => {
-            let e = {target: {id: 'dummy', value: "", type: 'input'}};
+        this.handleAllowedAttrsSelect = (event, selection) => {
+            const e = { target: { id: 'dummy', value: "", type: 'input' } };
             if (this.state.ocMay.includes(selection)) {
                 this.setState(
                     prevState => ({
@@ -327,7 +326,7 @@ export class Schema extends React.Component {
                 );
             }
         };
-        this.onAllowedAttrsCreateOption = newValue => {
+        this.handleAllowedAttrsCreateOption = newValue => {
             if (!this.state.ocMayOptions.includes(newValue)) {
                 this.setState({
                     ocMayOptions: [...this.state.ocMayOptions, { value: newValue }]
@@ -346,13 +345,13 @@ export class Schema extends React.Component {
         this.validateForm = this.validateForm.bind(this);
         this.handleAttrChange = this.handleAttrChange.bind(this);
         this.handleOCChange = this.handleOCChange.bind(this);
-        this.handleFieldChange = this.handleFieldChange.bind(this);
+        this.onFieldChange = this.onFieldChange.bind(this);
         this.loadSchemaData = this.loadSchemaData.bind(this);
         this.loadSyntaxesFirst = this.loadSyntaxesFirst.bind(this);
         this.toggleLoading = this.toggleLoading.bind(this);
 
         this.showEditObjectclassModal = this.showEditObjectclassModal.bind(this);
-        this.showAddObjectclassModal = this.showAddObjectclassModal.bind(this);
+        this.handleShowAddObjectclassModal = this.handleShowAddObjectclassModal.bind(this);
         this.openObjectclassModal = this.openObjectclassModal.bind(this);
         this.closeObjectclassModal = this.closeObjectclassModal.bind(this);
         this.doDeleteOC = this.doDeleteOC.bind(this);
@@ -363,7 +362,7 @@ export class Schema extends React.Component {
         this.closeConfirmOCDelete = this.closeConfirmOCDelete.bind(this);
 
         this.showEditAttributeModal = this.showEditAttributeModal.bind(this);
-        this.showAddAttributeModal = this.showAddAttributeModal.bind(this);
+        this.handleShowAddAttributeModal = this.handleShowAddAttributeModal.bind(this);
         this.openAttributeModal = this.openAttributeModal.bind(this);
         this.closeAttributeModal = this.closeAttributeModal.bind(this);
         this.doDeleteAttr = this.doDeleteAttr.bind(this);
@@ -374,23 +373,23 @@ export class Schema extends React.Component {
     }
 
     toggleLoading(item) {
-        if (item == "allSchema") {
+        if (item === "allSchema") {
             this.setState(prevState => ({
                 loading: !prevState.loading
             }));
-        } else if (item == "ocTable") {
+        } else if (item === "ocTable") {
             this.setState(prevState => ({
                 ocTableLoading: !prevState.ocTableLoading
             }));
-        } else if (item == "ocModal") {
+        } else if (item === "ocModal") {
             this.setState(prevState => ({
                 ocModalLoading: !prevState.ocModalLoading
             }));
-        } else if (item == "atTable") {
+        } else if (item === "atTable") {
             this.setState(prevState => ({
                 atTableLoading: !prevState.atTableLoading
             }));
-        } else if (item == "atModal") {
+        } else if (item === "atModal") {
             this.setState(prevState => ({
                 atModalLoading: !prevState.atModalLoading
             }));
@@ -404,7 +403,7 @@ export class Schema extends React.Component {
             });
         }
         this.toggleLoading("allSchema");
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -416,22 +415,22 @@ export class Schema extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
+                    const myObject = JSON.parse(content);
                     this.setState({
                         syntaxes: myObject.items
                     });
                     this.loadSchemaData(true);
                 })
                 .fail(err => {
-                    if (err != 0) {
-                        let errMsg = JSON.parse(err);
+                    if (err !== 0) {
+                        const errMsg = JSON.parse(err);
                         console.log("loadSyntaxes failed: ", errMsg.desc);
                     }
                 });
     }
 
     loadSchemaData(initialLoading) {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -442,20 +441,20 @@ export class Schema extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
-                    let attrs = [];
-                    let ocs = [];
-                    let mrs = [];
-                    let ocKey = this.state.ocTableKey + 1;
-                    let attrKey = this.state.attrTableKey + 1;
-                    for (let content of myObject.attributetypes.items) {
+                    const myObject = JSON.parse(content);
+                    const attrs = [];
+                    const ocs = [];
+                    const mrs = [];
+                    const ocKey = this.state.ocTableKey + 1;
+                    const attrKey = this.state.attrTableKey + 1;
+                    for (const content of myObject.attributetypes.items) {
                         attrs.push(content.name[0]);
                     }
-                    for (let content of myObject.objectclasses.items) {
+                    for (const content of myObject.objectclasses.items) {
                         ocs.push(content.name[0]);
                     }
-                    for (let content of myObject.matchingrules.items) {
-                        if (content.name[0] != "") {
+                    for (const content of myObject.matchingrules.items) {
+                        if (content.name[0] !== "") {
                             mrs.push(content.name[0]);
                         } else {
                             content.name[0] = <i>&lt;No Name&gt;</i>;
@@ -510,8 +509,8 @@ export class Schema extends React.Component {
                     }
                 })
                 .fail(err => {
-                    if (err != 0) {
-                        let errMsg = JSON.parse(err);
+                    if (err !== 0) {
+                        const errMsg = JSON.parse(err);
                         console.log("loadSchemaData failed: ", errMsg.desc);
                     }
                     if (initialLoading) {
@@ -534,11 +533,11 @@ export class Schema extends React.Component {
         this.openObjectclassModal(name);
     }
 
-    showAddObjectclassModal(rowData) {
+    handleShowAddObjectclassModal(rowData) {
         this.setState({
             ocModalViewOnly: false,
             saveBtnDisabled: true,
-            errObj: {'ocName': true, 'ocDesc': true},
+            errObj: { ocName: true, ocDesc: true },
         });
         this.openObjectclassModal();
     }
@@ -557,7 +556,7 @@ export class Schema extends React.Component {
                 newOcEntry: true,
             });
         } else {
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -574,36 +573,36 @@ export class Schema extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let obj = JSON.parse(content);
-                        let item = obj.oc;
+                        const obj = JSON.parse(content);
+                        const item = obj.oc;
                         let ocMustList = [];
                         let ocMayList = [];
                         const kindOpts = ["STRUCTURAL", "ABSTRACT", "AUXILIARY"];
                         this.setState({
                             objectclassModalShow: true,
                             newOcEntry: false,
-                            ocName: item["name"] === undefined ? "" : item["name"][0],
-                            ocDesc: item["desc"] === null ? "" : item["desc"][0],
-                            ocOID: item["oid"] === undefined ? "" : item["oid"][0],
-                            ocKind: item["kind"] === undefined ? "" : kindOpts[item["kind"]],
+                            ocName: item.name === undefined ? "" : item.name[0],
+                            ocDesc: item.desc === null ? "" : item.desc[0],
+                            ocOID: item.oid === undefined ? "" : item.oid[0],
+                            ocKind: item.kind === undefined ? "" : kindOpts[item.kind],
                             ocParent:
-                            item["sup"] === undefined
+                            item.sup === undefined
                                 ? []
-                                : item["sup"][0],
+                                : item.sup[0],
                             // Store original values
-                            _ocName: item["name"] === undefined ? "" : item["name"][0],
-                            _ocDesc: item["desc"] === null ? "" : item["desc"][0],
-                            _ocOID: item["oid"] === undefined ? "" : item["oid"][0],
-                            _ocKind: item["kind"] === undefined ? "" : kindOpts[item["kind"]],
+                            _ocName: item.name === undefined ? "" : item.name[0],
+                            _ocDesc: item.desc === null ? "" : item.desc[0],
+                            _ocOID: item.oid === undefined ? "" : item.oid[0],
+                            _ocKind: item.kind === undefined ? "" : kindOpts[item.kind],
                             _ocParent:
-                            item["sup"] === undefined
+                            item.sup === undefined
                                 ? []
-                                : item["sup"][0]
+                                : item.sup[0]
                         });
-                        if (item["must"] === undefined) {
+                        if (item.must === undefined) {
                             this.setState({ ocMust: [], _ocMust: [] });
                         } else {
-                            for (let value of item["must"]) {
+                            for (const value of item.must) {
                                 ocMustList = [...ocMustList, value];
                             }
                             this.setState({
@@ -611,10 +610,10 @@ export class Schema extends React.Component {
                                 _ocMust: ocMustList
                             });
                         }
-                        if (item["may"] === undefined) {
+                        if (item.may === undefined) {
                             this.setState({ ocMay: [], _ocMay: [] });
                         } else {
-                            for (let value of item["may"]) {
+                            for (const value of item.may) {
                                 ocMayList = [...ocMayList, value];
                             }
                             this.setState({
@@ -662,7 +661,7 @@ export class Schema extends React.Component {
     }
 
     doDeleteOC() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -690,7 +689,7 @@ export class Schema extends React.Component {
                     this.closeConfirmOCDelete();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during ObjectClass removal operation - ${errMsg.desc}`
@@ -710,7 +709,7 @@ export class Schema extends React.Component {
 
     cmdOperationObjectclass(action) {
         const { ocName, ocDesc, ocOID, ocParent, ocKind, ocMust, ocMay } = this.state;
-        if (ocName == "") {
+        if (ocName === "") {
             this.props.addNotification("warning", "ObjectClass Name is required.");
         } else {
             let cmd = [
@@ -723,27 +722,27 @@ export class Schema extends React.Component {
                 ocName
             ];
             // Process and validate parameters
-            if (ocOID != "") {
+            if (ocOID !== "") {
                 cmd = [...cmd, "--oid", ocOID];
             }
-            if (ocParent != "") {
+            if (ocParent !== "") {
                 cmd = [...cmd, "--sup", ocParent];
             }
-            if (ocKind != "") {
+            if (ocKind !== "") {
                 cmd = [...cmd, "--kind", ocKind];
             }
-            if (ocDesc != "") {
+            if (ocDesc !== "") {
                 cmd = [...cmd, "--desc", ocDesc];
             }
-            if (ocMust.length != 0) {
+            if (ocMust.length !== 0) {
                 cmd = [...cmd, "--must"];
-                for (let value of ocMust) {
+                for (const value of ocMust) {
                     cmd = [...cmd, value];
                 }
             }
-            if (ocMay.length != 0) {
+            if (ocMay.length !== 0) {
                 cmd = [...cmd, "--may"];
-                for (let value of ocMay) {
+                for (const value of ocMay) {
                     cmd = [...cmd, value];
                 }
             }
@@ -793,11 +792,11 @@ export class Schema extends React.Component {
         this.openAttributeModal(name);
     }
 
-    showAddAttributeModal(rowData) {
+    handleShowAddAttributeModal(rowData) {
         this.setState({
             atModalViewOnly: false,
             saveBtnDisabled: true,
-            errObj: {'atName': true, 'atDesc': true},
+            errObj: { atName: true, atDesc: true },
         });
         this.openAttributeModal();
     }
@@ -821,7 +820,7 @@ export class Schema extends React.Component {
                 newAtEntry: true
             });
         } else {
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -838,8 +837,8 @@ export class Schema extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let obj = JSON.parse(content);
-                        let item = obj.at;
+                        const obj = JSON.parse(content);
+                        const item = obj.at;
                         let atAliasList = [];
                         const atUsageOpts = [
                             "userApplications",
@@ -850,59 +849,59 @@ export class Schema extends React.Component {
                         this.setState({
                             attributeModalShow: true,
                             newAtEntry: false,
-                            atName: item["name"] === undefined ? "" : item["name"][0],
-                            atDesc: item["desc"] === null ? "" : item["desc"][0],
-                            atOID: item["oid"] === undefined ? "" : item["oid"][0],
-                            atParent: item["sup"].length == 0 ? "" : item["sup"][0],
+                            atName: item.name === undefined ? "" : item.name[0],
+                            atDesc: item.desc === null ? "" : item.desc[0],
+                            atOID: item.oid === undefined ? "" : item.oid[0],
+                            atParent: item.sup.length === 0 ? "" : item.sup[0],
                             atSyntax:
-                            item["syntax"] === undefined
+                            item.syntax === undefined
                                 ? ""
-                                : item["syntax"][0],
-                            atUsage: item["usage"] === undefined ? "" : atUsageOpts[item["usage"]],
-                            atMultivalued: !item["single_value"],
-                            atNoUserMod: item["no_user_mod"],
+                                : item.syntax[0],
+                            atUsage: item.usage === undefined ? "" : atUsageOpts[item.usage],
+                            atMultivalued: !item.single_value,
+                            atNoUserMod: item.no_user_mod,
                             atEqMr:
-                            item["equality"] === null
+                            item.equality === null
                                 ? ""
-                                : item["equality"][0],
+                                : item.equality[0],
                             atOrder:
-                            item["ordering"] === null
+                            item.ordering === null
                                 ? ""
-                                : item["ordering"][0],
+                                : item.ordering[0],
                             atSubMr:
-                            item["substr"] === null
+                            item.substr === null
                                 ? ""
-                                : item["substr"][0],
+                                : item.substr[0],
 
                             // store orig valuses
-                            _atName: item["name"] === undefined ? "" : item["name"][0],
-                            _atDesc: item["desc"] === null ? "" : item["desc"][0],
-                            _atOID: item["oid"] === undefined ? "" : item["oid"][0],
-                            _atParent: item["sup"][0],
+                            _atName: item.name === undefined ? "" : item.name[0],
+                            _atDesc: item.desc === null ? "" : item.desc[0],
+                            _atOID: item.oid === undefined ? "" : item.oid[0],
+                            _atParent: item.sup[0],
                             _atSyntax:
-                            item["syntax"] === undefined
+                            item.syntax === undefined
                                 ? ""
-                                : item["syntax"][0],
-                            _atUsage: item["usage"] === undefined ? "" : atUsageOpts[item["usage"]],
-                            _atMultivalued: !item["single_value"],
-                            _atNoUserMod: item["no_user_mod"],
+                                : item.syntax[0],
+                            _atUsage: item.usage === undefined ? "" : atUsageOpts[item.usage],
+                            _atMultivalued: !item.single_value,
+                            _atNoUserMod: item.no_user_mod,
                             _atEqMr:
-                            item["equality"] === null
+                            item.equality === null
                                 ? ""
-                                : item["equality"][0],
+                                : item.equality[0],
                             _atOrder:
-                            item["ordering"] === null
+                            item.ordering === null
                                 ? ""
-                                : item["ordering"][0],
+                                : item.ordering[0],
                             _atSubMr:
-                            item["substr"] === null
+                            item.substr === null
                                 ? ""
-                                : item["substr"][0],
+                                : item.substr[0],
                         });
-                        if (item["aliases"] === null) {
+                        if (item.aliases === null) {
                             this.setState({ atAlias: [], _atAlias: [] });
                         } else {
-                            for (let value of item["aliases"]) {
+                            for (const value of item.aliases) {
                                 atAliasList = [...atAliasList, value];
                             }
                             this.setState({
@@ -956,7 +955,7 @@ export class Schema extends React.Component {
     }
 
     doDeleteAttr() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -984,7 +983,7 @@ export class Schema extends React.Component {
                     this.closeConfirmAttrDelete();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during Attribute removal operation - ${errMsg.desc}`
@@ -1010,9 +1009,9 @@ export class Schema extends React.Component {
             atSubMr
         } = this.state;
 
-        let eqMR = atEqMr;
-        let orderMR = atOrder;
-        let subMR = atSubMr;
+        const eqMR = atEqMr;
+        const orderMR = atOrder;
+        const subMR = atSubMr;
 
         let cmd = [
             "dsconf",
@@ -1025,24 +1024,24 @@ export class Schema extends React.Component {
         ];
 
         cmd = [...cmd, "--syntax", atSyntax];
-        if (atAlias.length != 0) {
+        if (atAlias.length !== 0) {
             cmd = [...cmd, "--aliases"];
-            for (let value of atAlias) {
+            for (const value of atAlias) {
                 cmd = [...cmd, value];
             }
         }
 
-        if (atParent != "") {
+        if (atParent !== "") {
             cmd = [...cmd, "--sup", atParent];
         }
 
-        if (eqMR != "") {
+        if (eqMR !== "") {
             cmd = [...cmd, "--equality", eqMR];
         }
-        if (subMR != "") {
+        if (subMR !== "") {
             cmd = [...cmd, "--substr", subMR];
         }
-        if (orderMR != "") {
+        if (orderMR !== "") {
             cmd = [...cmd, "--ordering", orderMR];
         }
         if (atMultivalued) {
@@ -1055,13 +1054,13 @@ export class Schema extends React.Component {
         } else {
             cmd = [...cmd, "--user-mod"];
         }
-        if (atOID != "") {
+        if (atOID !== "") {
             cmd = [...cmd, "--oid", atOID];
         }
-        if (atUsage != "") {
+        if (atUsage !== "") {
             cmd = [...cmd, "--usage", atUsage];
         }
-        if (atDesc != "") {
+        if (atDesc !== "") {
             cmd = [...cmd, "--desc", atDesc];
         }
 
@@ -1133,27 +1132,27 @@ export class Schema extends React.Component {
         cmd = [...cmd, "--syntax", atSyntax];
         if (!listsEqual(atAlias, this.state._atAlias)) {
             cmd = [...cmd, "--aliases"];
-            for (let value of atAlias) {
+            for (const value of atAlias) {
                 cmd = [...cmd, value];
             }
         }
 
-        if (atParent != "") {
+        if (atParent !== "") {
             cmd = [...cmd, "--sup", atParent];
-        } else if (this.state._atParent != "") {
+        } else if (this.state._atParent !== "") {
             // Removed the parent attribute, so we need to remove the matching rules
             eqMR = "";
             orderMR = "";
             subMR = "";
         }
 
-        if (eqMR != this.state._atEqMr) {
+        if (eqMR !== this.state._atEqMr) {
             cmd = [...cmd, "--equality", eqMR];
         }
-        if (subMR != this.state._atSubMr) {
+        if (subMR !== this.state._atSubMr) {
             cmd = [...cmd, "--substr", subMR];
         }
-        if (orderMR != this.state._atOrder) {
+        if (orderMR !== this.state._atOrder) {
             cmd = [...cmd, "--ordering", orderMR];
         }
         if (atMultivalued) {
@@ -1166,13 +1165,13 @@ export class Schema extends React.Component {
         } else {
             cmd = [...cmd, "--user-mod"];
         }
-        if (atOID != this.state._atOID) {
+        if (atOID !== this.state._atOID) {
             cmd = [...cmd, "--oid", atOID];
         }
-        if (atUsage != this.state._atUsage) {
+        if (atUsage !== this.state._atUsage) {
             cmd = [...cmd, "--usage", atUsage];
         }
-        if (atDesc != this.state._atDesc) {
+        if (atDesc !== this.state._atDesc) {
             cmd = [...cmd, "--desc", atDesc];
         }
 
@@ -1213,14 +1212,14 @@ export class Schema extends React.Component {
 
     validateForm(attr, value, attrs, errObj) {
         let all_good = true;
-        for (let check_attr of attrs) {
+        for (const check_attr of attrs) {
             errObj[check_attr] = false;
-            if (attr != check_attr) {
-                if (this.state[check_attr] == "") {
+            if (attr !== check_attr) {
+                if (this.state[check_attr] === "") {
                     errObj[check_attr] = true;
                     all_good = false;
                 }
-            } else if (value == "") {
+            } else if (value === "") {
                 errObj[check_attr] = true;
                 all_good = false;
             }
@@ -1230,10 +1229,10 @@ export class Schema extends React.Component {
     }
 
     handleAttrChange (e) {
-        let value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let saveBtnDisabled = true;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
         let all_good;
 
         const attrs = [
@@ -1255,18 +1254,18 @@ export class Schema extends React.Component {
             all_good = this.validateForm(attr, value, ['atName', 'atDesc', 'atSyntax'], errObj);
             if (all_good) {
                 // Check for difference before enabling save btn
-                for (let check_attr of attrs) {
-                    if (attr != check_attr) {
-                        if (this.state[check_attr] != this.state['_' + check_attr]) {
+                for (const check_attr of attrs) {
+                    if (attr !== check_attr) {
+                        if (this.state[check_attr] !== this.state['_' + check_attr]) {
                             saveBtnDisabled = false;
                             break;
                         }
-                    } else if (value != this.state['_' + check_attr]) {
+                    } else if (value !== this.state['_' + check_attr]) {
                         saveBtnDisabled = false;
                         break;
                     }
                 }
-                for (let check_attr of attrLists) {
+                for (const check_attr of attrLists) {
                     if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
                         saveBtnDisabled = false;
                         break;
@@ -1283,10 +1282,10 @@ export class Schema extends React.Component {
     }
 
     handleOCChange (e) {
-        let value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let saveBtnDisabled = true;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
         let all_good;
 
         const attrs = [
@@ -1307,18 +1306,18 @@ export class Schema extends React.Component {
             all_good = this.validateForm(attr, value, ['ocName', 'ocDesc', 'ocParent'], errObj);
             if (all_good) {
                 // Check for difference before enabling save btn
-                for (let check_attr of attrs) {
-                    if (attr != check_attr) {
-                        if (this.state[check_attr] != this.state['_' + check_attr]) {
+                for (const check_attr of attrs) {
+                    if (attr !== check_attr) {
+                        if (this.state[check_attr] !== this.state['_' + check_attr]) {
                             saveBtnDisabled = false;
                             break;
                         }
-                    } else if (value != this.state['_' + check_attr]) {
+                    } else if (value !== this.state['_' + check_attr]) {
                         saveBtnDisabled = false;
                         break;
                     }
                 }
-                for (let check_attr of attrLists) {
+                for (const check_attr of attrLists) {
                     if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
                         saveBtnDisabled = false;
                         break;
@@ -1334,11 +1333,11 @@ export class Schema extends React.Component {
         });
     }
 
-    handleFieldChange(e) {
-        let value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-        let ocKey = this.state.ocTableKey + 1;
-        let attrKey = this.state.attrTableKey + 1;
-        if (e.target.id == "ocUserDefined") {
+    onFieldChange(e) {
+        const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        const ocKey = this.state.ocTableKey + 1;
+        const attrKey = this.state.attrTableKey + 1;
+        if (e.target.id === "ocUserDefined") {
             if (value) {
                 this.setState({
                     filteredObjectclassRows: searchFilter(
@@ -1354,7 +1353,7 @@ export class Schema extends React.Component {
                     ocTableKey: ocKey
                 });
             }
-        } else if (e.target.id == "atUserDefined") {
+        } else if (e.target.id === "atUserDefined") {
             if (value) {
                 this.setState({
                     filteredAttributesRows: searchFilter(
@@ -1399,7 +1398,7 @@ export class Schema extends React.Component {
                                     isChecked={this.state.ocUserDefined}
                                     title="Show only the objectclasses that are defined by a user and have the X-ORIGIN set to 'user defined'"
                                     onChange={(checked, e) => {
-                                        this.handleFieldChange(e);
+                                        this.onFieldChange(e);
                                     }}
                                     label="Only Show Non-standard/Custom Schema"
                                 />
@@ -1413,7 +1412,7 @@ export class Schema extends React.Component {
                                 />
                                 <Button
                                     variant="primary"
-                                    onClick={this.showAddObjectclassModal}
+                                    onClick={this.handleShowAddObjectclassModal}
                                 >
                                     Add ObjectClass
                                 </Button>
@@ -1423,7 +1422,7 @@ export class Schema extends React.Component {
                                     editHandler={this.editObjectclass}
                                     newOcEntry={this.state.newOcEntry}
                                     ocModalViewOnly={this.state.ocModalViewOnly}
-                                    handleFieldChange={this.handleOCChange}
+                                    onFieldChange={this.handleOCChange}
                                     objectclasses={this.state.objectclasses}
                                     attributes={this.state.attributes}
                                     ocName={this.state.ocName}
@@ -1441,14 +1440,14 @@ export class Schema extends React.Component {
                                     isParentObjOpen={this.state.isParentObjOpen}
                                     isRequiredAttrsOpen={this.state.isRequiredAttrsOpen}
                                     isAllowedAttrsOpen={this.state.isAllowedAttrsOpen}
-                                    onRequiredAttrsToggle={this.onRequiredAttrsToggle}
-                                    onRequiredAttrsClear={this.onRequiredAttrsClear}
-                                    onRequiredAttrsSelect={this.onRequiredAttrsSelect}
-                                    onRequiredAttrsCreateOption={this.onRequiredAttrsCreateOption}
-                                    onAllowedAttrsToggle={this.onAllowedAttrsToggle}
-                                    onAllowedAttrsClear={this.onAllowedAttrsClear}
-                                    onAllowedAttrsSelect={this.onAllowedAttrsSelect}
-                                    onAllowedAttrsCreateOption={this.onAllowedAttrsCreateOption}
+                                    onRequiredAttrsToggle={this.handleRequiredAttrsToggle}
+                                    onRequiredAttrsClear={this.handleRequiredAttrsClear}
+                                    onRequiredAttrsSelect={this.handleRequiredAttrsSelect}
+                                    onRequiredAttrsCreateOption={this.handleRequiredAttrsCreateOption}
+                                    onAllowedAttrsToggle={this.handleAllowedAttrsToggle}
+                                    onAllowedAttrsClear={this.handleAllowedAttrsClear}
+                                    onAllowedAttrsSelect={this.handleAllowedAttrsSelect}
+                                    onAllowedAttrsCreateOption={this.handleAllowedAttrsCreateOption}
                                     saveBtnDisabled={this.state.saveBtnDisabled}
                                     error={this.state.errObj}
                                 />
@@ -1461,7 +1460,7 @@ export class Schema extends React.Component {
                                     isChecked={this.state.atUserDefined}
                                     title="Show only the attributes that are defined by a user, and have the X-ORIGIN set to 'user defined'"
                                     onChange={(checked, e) => {
-                                        this.handleFieldChange(e);
+                                        this.onFieldChange(e);
                                     }}
                                     label="Only Show Non-standard/Custom Schema"
                                 />
@@ -1476,7 +1475,7 @@ export class Schema extends React.Component {
                                 />
                                 <Button
                                     variant="primary"
-                                    onClick={this.showAddAttributeModal}
+                                    onClick={this.handleShowAddAttributeModal}
                                 >
                                     Add Attribute
                                 </Button>
@@ -1486,7 +1485,7 @@ export class Schema extends React.Component {
                                     editHandler={this.editAttribute}
                                     newAtEntry={this.state.newAtEntry}
                                     atModalViewOnly={this.state.atModalViewOnly}
-                                    handleFieldChange={this.handleAttrChange}
+                                    onFieldChange={this.handleAttrChange}
                                     objectclasses={this.state.objectclasses}
                                     attributes={this.state.attributes}
                                     matchingrules={this.state.matchingrules}
@@ -1511,22 +1510,22 @@ export class Schema extends React.Component {
                                     isEqualityMROpen={this.state.isEqualityMROpen}
                                     isOrderMROpen={this.state.isOrderMROpen}
                                     isSubstringMROpen={this.state.isSubstringMROpen}
-                                    onParentAttrToggle={this.onParentAttrToggle}
-                                    onParentAttrClear={this.onParentAttrClear}
-                                    onParentAttrSelect={this.onParentAttrSelect}
-                                    onAliasNameToggle={this.onAliasNameToggle}
-                                    onAliasNameClear={this.onAliasNameClear}
-                                    onAliasNameSelect={this.onAliasNameSelect}
-                                    onAliasNameCreateOption={this.onAliasNameCreateOption}
-                                    onEqualityMRToggle={this.onEqualityMRToggle}
-                                    onEqualityMRClear={this.onEqualityMRClear}
-                                    onEqualityMRSelect={this.onEqualityMRSelect}
-                                    onOrderMRToggle={this.onOrderMRToggle}
-                                    onOrderMRClear={this.onOrderMRClear}
-                                    onOrderMRSelect={this.onOrderMRSelect}
-                                    onSubstringMRToggle={this.onSubstringMRToggle}
-                                    onSubstringMRClear={this.onSubstringMRClear}
-                                    onSubstringMRSelect={this.onSubstringMRSelect}
+                                    onParentAttrToggle={this.handleParentAttrToggle}
+                                    onParentAttrClear={this.handleParentAttrClear}
+                                    onParentAttrSelect={this.handleParentAttrSelect}
+                                    onAliasNameToggle={this.handleAliasNameToggle}
+                                    onAliasNameClear={this.handleAliasNameClear}
+                                    onAliasNameSelect={this.handleAliasNameSelect}
+                                    onAliasNameCreateOption={this.handleAliasNameCreateOption}
+                                    onEqualityMRToggle={this.handleEqualityMRToggle}
+                                    onEqualityMRClear={this.handleEqualityMRClear}
+                                    onEqualityMRSelect={this.handleEqualityMRSelect}
+                                    onOrderMRToggle={this.handleOrderMRToggle}
+                                    onOrderMRClear={this.handleOrderMRClear}
+                                    onOrderMRSelect={this.handleOrderMRSelect}
+                                    onSubstringMRToggle={this.handleSubstringMRToggle}
+                                    onSubstringMRClear={this.handleSubstringMRClear}
+                                    onSubstringMRSelect={this.handleSubstringMRSelect}
                                     saveBtnDisabled={this.state.saveBtnDisabled}
                                     error={this.state.errObj}
                                 />
@@ -1543,7 +1542,7 @@ export class Schema extends React.Component {
                     <DoubleConfirmModal
                         showModal={this.state.showConfirmDeleteOC}
                         closeHandler={this.closeConfirmOCDelete}
-                        handleChange={this.handleFieldChange}
+                        handleChange={this.onFieldChange}
                         actionHandler={this.doDeleteOC}
                         spinning={this.state.modalSpinning}
                         item={this.state.deleteName}
@@ -1556,7 +1555,7 @@ export class Schema extends React.Component {
                     <DoubleConfirmModal
                         showModal={this.state.showConfirmAttrDelete}
                         closeHandler={this.closeConfirmAttrDelete}
-                        handleChange={this.handleFieldChange}
+                        handleChange={this.onFieldChange}
                         actionHandler={this.doDeleteAttr}
                         spinning={this.state.modalSpinning}
                         item={this.state.deleteName}
@@ -1581,7 +1580,6 @@ Schema.propTypes = {
 };
 
 Schema.defaultProps = {
-    addNotification: noop,
     serverId: ""
 };
 

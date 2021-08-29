@@ -20,7 +20,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
@@ -108,7 +107,7 @@ export class SuffixIndexes extends React.Component {
         // Add Matching Rule
         this.onMatchingruleAddSelect = (event, selection) => {
             let saveBtnDisabled = true;
-            let new_mrs = this.state.mrs;
+            const new_mrs = this.state.mrs;
             if (new_mrs.includes(selection)) {
                 const index = new_mrs.indexOf(selection);
                 new_mrs.splice(index, 1);
@@ -223,10 +222,10 @@ export class SuffixIndexes extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const mrContent = JSON.parse(content);
-                    let mrs = [];
-                    for (let i = 0; i < mrContent['items'].length; i++) {
-                        if (mrContent['items'][i].name[0] != "") {
-                            mrs.push(mrContent['items'][i].name[0]);
+                    const mrs = [];
+                    for (let i = 0; i < mrContent.items.length; i++) {
+                        if (mrContent.items[i].name[0] != "") {
+                            mrs.push(mrContent.items[i].name[0]);
                         }
                     }
 
@@ -238,8 +237,8 @@ export class SuffixIndexes extends React.Component {
                     cockpit
                             .spawn(idx_cmd, { superuser: true, err: "message" })
                             .done(content => {
-                                let idxContent = JSON.parse(content);
-                                let indexList = idxContent['items'];
+                                const idxContent = JSON.parse(content);
+                                const indexList = idxContent.items;
                                 const attr_cmd = [
                                     "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                                     "schema", "attributetypes", "list"
@@ -249,8 +248,8 @@ export class SuffixIndexes extends React.Component {
                                         .spawn(attr_cmd, { superuser: true, err: "message" })
                                         .done(content => {
                                             const attrContent = JSON.parse(content);
-                                            let attrs = [];
-                                            for (let content of attrContent['items']) {
+                                            const attrs = [];
+                                            for (const content of attrContent.items) {
                                                 if (indexList.indexOf(content.name[0]) == -1) {
                                                     // Attribute is not a current index, add it to the list
                                                     // of available attributes to index
@@ -266,7 +265,7 @@ export class SuffixIndexes extends React.Component {
                                             }
                                         })
                                         .fail(err => {
-                                            let errMsg = JSON.parse(err);
+                                            const errMsg = JSON.parse(err);
                                             this.props.addNotification(
                                                 "error",
                                                 `Failed to get attributes - ${errMsg.desc}`
@@ -275,7 +274,7 @@ export class SuffixIndexes extends React.Component {
                             });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to get matching rules - ${errMsg.desc}`
@@ -325,12 +324,12 @@ export class SuffixIndexes extends React.Component {
     handleAddChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let saveBtnDisabled = true;
-        let attr = e.target.id;
+        const attr = e.target.id;
 
         // We must have at least one index type set
         const index_types = ['addIndexTypeEq', 'addIndexTypeSub',
             'addIndexTypePres', 'addIndexTypeApprox'];
-        for (let index_type of index_types) {
+        for (const index_type of index_types) {
             if (attr != index_type && this.state[index_type]) {
                 saveBtnDisabled = false;
             }
@@ -357,18 +356,18 @@ export class SuffixIndexes extends React.Component {
 
     handleEditChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const attr = e.target.id;
         let saveBtnDisabled = true;
 
         // Check if a setting was changed, if so enable the save button
-        for (let edit_attr of edit_attrs) {
+        for (const edit_attr of edit_attrs) {
             if (attr == edit_attr && this.state['_' + edit_attr] != value) {
                 saveBtnDisabled = false;
                 break;
             }
         }
         // Now check for differences in values that we did not touch
-        for (let edit_attr of edit_attrs) {
+        for (const edit_attr of edit_attrs) {
             if (attr != edit_attr && this.state['_' + edit_attr] != this.state[edit_attr]) {
                 saveBtnDisabled = false;
                 break;
@@ -380,14 +379,14 @@ export class SuffixIndexes extends React.Component {
         }
 
         // We must have at least one index type set
-        let index_types = ['editIndexTypeEq', 'editIndexTypeSub',
+        const index_types = ['editIndexTypeEq', 'editIndexTypeSub',
             'editIndexTypePres', 'editIndexTypeApprox'];
         if (index_types.includes(attr)) {
             const index = index_types.indexOf(attr);
             index_types.splice(index, 1);
             let type_set = false;
             // Check the old values
-            for (let index_type of index_types) {
+            for (const index_type of index_types) {
                 if (this.state[index_type]) {
                     type_set = true;
                     break;
@@ -415,7 +414,7 @@ export class SuffixIndexes extends React.Component {
     }
 
     saveIndex() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "index", "add", "--attr=" + this.state.addIndexName[0],
             this.props.suffix,
@@ -464,7 +463,7 @@ export class SuffixIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.closeIndexModal();
                     this.props.addNotification(
@@ -480,12 +479,12 @@ export class SuffixIndexes extends React.Component {
 
     showEditIndexModal(item) {
         // Set the state types and matching Rules
-        let currentMRS = [];
+        const currentMRS = [];
         if (item[2] !== undefined &&
             item[2].length > 0 &&
             item[2].length > 0) {
-            let parts = item[2].split(",").map(item => item.trim());
-            for (let part of parts) {
+            const parts = item[2].split(",").map(item => item.trim());
+            for (const part of parts) {
                 currentMRS.push(part);
             }
         }
@@ -565,7 +564,7 @@ export class SuffixIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error indexing attribute ${attr} - ${errMsg.desc}`
@@ -588,9 +587,9 @@ export class SuffixIndexes extends React.Component {
         ];
 
         // Check if we have to add mrs
-        for (let newMR of newMRS) {
+        for (const newMR of newMRS) {
             let found = false;
-            for (let origMR of origMRS) {
+            for (const origMR of origMRS) {
                 if (origMR == newMR) {
                     found = true;
                     break;
@@ -601,9 +600,9 @@ export class SuffixIndexes extends React.Component {
             }
         }
         // Check if we have to remove mrs
-        for (let origMR of origMRS) {
+        for (const origMR of origMRS) {
             let found = false;
-            for (let newMR of newMRS) {
+            for (const newMR of newMRS) {
                 if (newMR == origMR) {
                     console.log("Found mr no need to delete");
                     found = true;
@@ -661,7 +660,7 @@ export class SuffixIndexes extends React.Component {
                         }
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.reload(this.props.suffix);
                         this.closeEditIndexModal();
                         this.props.addNotification(
@@ -735,7 +734,7 @@ export class SuffixIndexes extends React.Component {
                     this.closeConfirmDeleteIndex();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
@@ -911,16 +910,16 @@ class AddIndexModal extends React.Component {
             saveBtnDisabled
         } = this.props;
 
-        let availMR = [];
-        for (let mr of matchingRules) {
+        const availMR = [];
+        for (const mr of matchingRules) {
             availMR.push(mr);
         }
-        let availAttrs = [];
-        for (let attr of attributes) {
+        const availAttrs = [];
+        for (const attr of attributes) {
             availAttrs.push(attr);
         }
         let saveBtnName = "Create Index";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (saving) {
             saveBtnName = "Creating ...";
             extraPrimaryProps.spinnerAriaValueText = "Creating";
@@ -1026,7 +1025,8 @@ class AddIndexModal extends React.Component {
                                     onChange={(checked, e) => {
                                         handleChange(e);
                                     }}
-                                    label="Approximate Indexing" />
+                                    label="Approximate Indexing"
+                                />
                             </GridItem>
                         </Grid>
                     </div>
@@ -1050,13 +1050,13 @@ class AddIndexModal extends React.Component {
                                     aria-labelledby="typeAhead-mr-add"
                                     placeholderText="Type a matching rule name..."
                                     noResultsFoundText="There are no matching entries"
-                                    >
+                                >
                                     {availMR.map((mrs, index) => (
                                         <SelectOption
                                            key={index}
                                            value={mrs}
-                                       />
-                                   ))}
+                                        />
+                                    ))}
                                 </Select>
                             </div>
                         </GridItem>
@@ -1107,7 +1107,7 @@ class EditIndexModal extends React.Component {
         } = this.props;
 
         let saveBtnName = "Save Index";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (saving) {
             saveBtnName = "Saving index ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -1119,7 +1119,7 @@ class EditIndexModal extends React.Component {
         }
 
         const currentMrs = mrs;
-        let availMR = matchingRules;
+        const availMR = matchingRules;
 
         // Default settings
         let eq = <div>
@@ -1212,7 +1212,7 @@ class EditIndexModal extends React.Component {
             </div>;
         }
 
-        let title = <div>Edit Database Index (<b>{indexName}</b>)</div>;
+        const title = <div>Edit Database Index (<b>{indexName}</b>)</div>;
 
         return (
             <Modal
@@ -1285,7 +1285,7 @@ class EditIndexModal extends React.Component {
                                     aria-labelledby="typeAhead-mr-edit"
                                     placeholderText="Type a matching rule name..."
                                     noResultsFoundText="There are no matching entries"
-                                    >
+                                >
                                     {availMR.map((mr, index) => (
                                         <SelectOption
                                             key={index}
@@ -1331,8 +1331,6 @@ SuffixIndexes.defaultProps = {
     indexRows: [],
     serverId: "",
     suffix: "",
-    addNotification: noop,
-    reload: noop,
 };
 
 AddIndexModal.propTypes = {
@@ -1353,14 +1351,10 @@ AddIndexModal.propTypes = {
 
 AddIndexModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     matchingRules: [],
     attributes: [],
     mrs: [],
     attributeName: [],
-    handleTypeaheadChange: noop,
     addIndexTypeEq:  false,
     addIndexTypePres:  false,
     addIndexTypeSub:  false,
@@ -1386,14 +1380,10 @@ EditIndexModal.propTypes = {
 
 EditIndexModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     matchingRules: [],
     types: "",
     mrs: [],
     indexName: "",
-    handleTypeaheadChange: noop,
     editIndexTypeEq:  false,
     editIndexTypePres:  false,
     editIndexTypeSub:  false,

@@ -14,7 +14,6 @@ import {
     SelectOption,
     TextInput,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -229,7 +228,7 @@ class AccountPolicy extends React.Component {
 
     sharedConfigExists() {
         if (this.state.configArea) {
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -281,7 +280,7 @@ class AccountPolicy extends React.Component {
                 saveBtnDisabledModal: true,
             });
         } else {
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -299,7 +298,7 @@ class AccountPolicy extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let configEntry = JSON.parse(content).attrs;
+                        const configEntry = JSON.parse(content).attrs;
                         this.setState({
                             configEntryModalShow: true,
                             newEntry: false,
@@ -308,54 +307,54 @@ class AccountPolicy extends React.Component {
                             configDN: this.state.configArea,
                             _configDN: this.state.configArea,
                             altStateAttrName:
-                            configEntry["altstateattrname"] === undefined
+                            configEntry.altstateattrname === undefined
                                 ? "createTimestamp"
-                                : configEntry["altstateattrname"][0],
+                                : configEntry.altstateattrname[0],
                             alwaysRecordLogin: !(
-                                configEntry["alwaysrecordlogin"] === undefined ||
-                            configEntry["alwaysrecordlogin"][0] == "no"
+                                configEntry.alwaysrecordlogin === undefined ||
+                            configEntry.alwaysrecordlogin[0] == "no"
                             ),
                             alwaysRecordLoginAttr:
-                            configEntry["alwaysrecordloginattr"] === undefined
+                            configEntry.alwaysrecordloginattr === undefined
                                 ? "lastLoginTime"
-                                : configEntry["alwaysrecordloginattr"][0],
+                                : configEntry.alwaysrecordloginattr[0],
                             limitAttrName:
-                            configEntry["limitattrname"] === undefined
+                            configEntry.limitattrname === undefined
                                 ? "accountInactivityLimit"
-                                : configEntry["limitattrname"][0],
+                                : configEntry.limitattrname[0],
                             specAttrName:
-                            configEntry["specattrname"] === undefined
+                            configEntry.specattrname === undefined
                                 ? "acctPolicySubentry"
-                                : configEntry["specattrname"][0],
+                                : configEntry.specattrname[0],
                             stateAttrName:
-                            configEntry["stateattrname"] === undefined
+                            configEntry.stateattrname === undefined
                                 ? "lastLoginTime"
-                                : configEntry["stateattrname"][0],
+                                : configEntry.stateattrname[0],
                             // original values
                             _altStateAttrName:
-                            configEntry["altstateattrname"] === undefined
+                            configEntry.altstateattrname === undefined
                                 ? "createTimestamp"
-                                : configEntry["altstateattrname"][0],
+                                : configEntry.altstateattrname[0],
                             _alwaysRecordLogin: !(
-                                configEntry["alwaysrecordlogin"] === undefined ||
-                            configEntry["alwaysrecordlogin"][0] == "no"
+                                configEntry.alwaysrecordlogin === undefined ||
+                            configEntry.alwaysrecordlogin[0] == "no"
                             ),
                             _alwaysRecordLoginAttr:
-                            configEntry["alwaysrecordloginattr"] === undefined
+                            configEntry.alwaysrecordloginattr === undefined
                                 ? "lastLoginTime"
-                                : configEntry["alwaysrecordloginattr"][0],
+                                : configEntry.alwaysrecordloginattr[0],
                             _limitAttrName:
-                            configEntry["limitattrname"] === undefined
+                            configEntry.limitattrname === undefined
                                 ? "accountInactivityLimit"
-                                : configEntry["limitattrname"][0],
+                                : configEntry.limitattrname[0],
                             _specAttrName:
-                            configEntry["specattrname"] === undefined
+                            configEntry.specattrname === undefined
                                 ? "acctPolicySubentry"
-                                : configEntry["specattrname"][0],
+                                : configEntry.specattrname[0],
                             _stateAttrName:
-                            configEntry["stateattrname"] === undefined
+                            configEntry.stateattrname === undefined
                                 ? "lastLoginTime"
-                                : configEntry["stateattrname"][0],
+                                : configEntry.stateattrname[0],
                         });
                     })
                     .fail(_ => {
@@ -492,7 +491,7 @@ class AccountPolicy extends React.Component {
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry ${action} operation - ${errMsg.desc}`
@@ -512,7 +511,7 @@ class AccountPolicy extends React.Component {
     }
 
     deleteConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -543,7 +542,7 @@ class AccountPolicy extends React.Component {
                     this.closeModal();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry removal operation - ${errMsg.desc}`
@@ -569,13 +568,13 @@ class AccountPolicy extends React.Component {
     }
 
     validateConfig() {
-        let errObj = {};
+        const errObj = {};
         let all_good = true;
-        let dnAttrs = [
+        const dnAttrs = [
             'configDN'
         ];
 
-        for (let attr of dnAttrs) {
+        for (const attr of dnAttrs) {
             if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
                 errObj[attr] = true;
                 all_good = false;
@@ -585,11 +584,11 @@ class AccountPolicy extends React.Component {
         if (all_good) {
             // Check for value differences to see if the save btn should be enabled
             all_good = false;
-            let attrs = [
+            const attrs = [
                 'configDN', 'altStateAttrName', 'alwaysRecordLogin',
                 'alwaysRecordLoginAttr', 'limitAttrName', 'stateAttrName'
             ];
-            for (let check_attr of attrs) {
+            for (const check_attr of attrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
@@ -603,10 +602,10 @@ class AccountPolicy extends React.Component {
     }
 
     handleFieldChange(e) {
-        let attr = e.target.id; // always configArea
-        let value = e.target.value;
+        const attr = e.target.id; // always configArea
+        const value = e.target.value;
         let saveBtnDisabled = true;
-        let errObj = {};
+        const errObj = {};
 
         errObj[attr] = false;
         if (value != "") {
@@ -636,7 +635,7 @@ class AccountPolicy extends React.Component {
 
     handleChange(e) {
         // Generic handler for things that don't need validating
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value,
         });
@@ -647,15 +646,15 @@ class AccountPolicy extends React.Component {
             const pluginRow = this.props.rows.find(row => row.cn[0] === "Account Policy Plugin");
             this.setState({
                 configArea:
-                    pluginRow["nsslapd_pluginconfigarea"] === undefined
+                    pluginRow.nsslapd_pluginconfigarea === undefined
                         ? ""
-                        : pluginRow["nsslapd_pluginconfigarea"][0]
+                        : pluginRow.nsslapd_pluginconfigarea[0]
             }, () => { this.sharedConfigExists() });
         }
     }
 
     saveConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -728,7 +727,7 @@ class AccountPolicy extends React.Component {
             addingModal,
         } = this.state;
 
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         let saveBtnText = "Save Config";
         if (saving) {
             // Main plugin config
@@ -737,7 +736,7 @@ class AccountPolicy extends React.Component {
         let modalButtons = [];
         if (!newEntry) {
             modalButtons = [
-                <Button key="del" variant="primary" onClick={this.showConfirmDelete} >
+                <Button key="del" variant="primary" onClick={this.showConfirmDelete}>
                     Delete Config
                 </Button>,
                 <Button
@@ -827,7 +826,7 @@ class AccountPolicy extends React.Component {
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                             <GridItem span={4}>
@@ -863,7 +862,7 @@ class AccountPolicy extends React.Component {
                                             key={attr}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -889,7 +888,7 @@ class AccountPolicy extends React.Component {
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -915,7 +914,7 @@ class AccountPolicy extends React.Component {
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -941,7 +940,7 @@ class AccountPolicy extends React.Component {
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -1033,10 +1032,6 @@ AccountPolicy.propTypes = {
 AccountPolicy.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop
 };
 
 export default AccountPolicy;

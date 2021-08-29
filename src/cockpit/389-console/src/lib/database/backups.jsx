@@ -21,7 +21,6 @@ import {
     TextContent,
     TextVariants,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import { log_cmd, bad_file_name } from "../tools.jsx";
 import PropTypes from "prop-types";
@@ -259,7 +258,7 @@ export class Backups extends React.Component {
             modalSpinning: true
         });
 
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "import", this.state.ldifSuffix, this.state.ldifName, "--encrypted"
         ];
@@ -274,7 +273,7 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.closeConfirmLDIFImport();
                     this.props.addNotification(
                         "error",
@@ -287,7 +286,7 @@ export class Backups extends React.Component {
         this.setState({
             modalSpinning: true
         });
-        let cmd = [
+        const cmd = [
             "dsctl", this.props.serverId,
             "ldifs", "--delete", this.state.ldifName
         ];
@@ -303,7 +302,7 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload();
                     this.closeConfirmLDIFDelete();
                     this.props.addNotification(
@@ -315,7 +314,7 @@ export class Backups extends React.Component {
 
     validateBackup() {
         for (let i = 0; i < this.props.backups.length; i++) {
-            if (this.state.backupName == this.props.backups[i]['name']) {
+            if (this.state.backupName == this.props.backups[i].name) {
                 this.setState({
                     showConfirmRestoreReplace: true
                 });
@@ -326,7 +325,7 @@ export class Backups extends React.Component {
     }
 
     doBackup () {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backup", "create"
         ];
@@ -357,7 +356,7 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload();
                     this.closeBackupModal();
                     this.props.addNotification(
@@ -394,7 +393,7 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.closeRestoreSpinningModal();
                     this.props.addNotification(
                         "error",
@@ -422,7 +421,7 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload();
                     this.closeConfirmBackupDelete();
                     this.props.addNotification(
@@ -435,7 +434,7 @@ export class Backups extends React.Component {
     handleChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
         if (value == "") {
             valueErr = true;
         }
@@ -453,7 +452,7 @@ export class Backups extends React.Component {
             ldifname = ldifname + ".ldif";
         }
         for (let i = 0; i < this.props.ldifs.length; i++) {
-            if (ldifname == this.props.ldifs[i]['name']) {
+            if (ldifname == this.props.ldifs[i].name) {
                 this.setState({
                     showConfirmLDIFReplace: true
                 });
@@ -464,7 +463,7 @@ export class Backups extends React.Component {
     }
 
     doExport() {
-        let missingArgs = {ldifName: false};
+        const missingArgs = { ldifName: false };
         if (this.state.ldifName == "") {
             this.props.addNotification(
                 "warning",
@@ -491,7 +490,7 @@ export class Backups extends React.Component {
         }
 
         // Do import
-        let export_cmd = [
+        const export_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "export", this.state.ldifSuffix, "--encrypted", "--ldif=" + this.state.ldifName
         ];
@@ -519,7 +518,7 @@ export class Backups extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload();
                     this.closeExportModal();
                     this.props.addNotification(
@@ -534,7 +533,7 @@ export class Backups extends React.Component {
 
     render() {
         let refreshBtnName = "Refresh";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.props.refreshing) {
             refreshBtnName = "Refreshing ...";
             extraPrimaryProps.spinnerAriaValueText = "Refreshing";
@@ -732,7 +731,7 @@ class ExportModal extends React.Component {
             error,
         } = this.props;
         let createBtnName = "Create LDIF";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         let exportMsg = "";
         if (spinning) {
             createBtnName = "Creating ...";
@@ -745,7 +744,7 @@ class ExportModal extends React.Component {
                 </div>;
         }
 
-        let suffixList = suffixes.map((suffix) => (
+        const suffixList = suffixes.map((suffix) => (
             <FormSelectOption key={suffix} value={suffix} label={suffix} />
         ));
 
@@ -834,7 +833,7 @@ export class BackupModal extends React.Component {
             error
         } = this.props;
         let createBtnName = "Create Backup";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         let exportMsg = "";
         if (spinning) {
             createBtnName = "Backing up ...";
@@ -965,6 +964,4 @@ Backups.propTypes = {
 Backups.defaultProps = {
     backups: [],
     ldifs: [],
-    reload: noop,
-    enableTree: noop,
 };

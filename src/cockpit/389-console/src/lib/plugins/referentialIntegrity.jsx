@@ -14,7 +14,6 @@ import {
     TextInput,
     NumberInput,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -132,7 +131,8 @@ class ReferentialIntegrity extends React.Component {
                 this.setState(
                     (prevState) => ({
                         membershipAttr: [...prevState.membershipAttr, selection],
-                        isMembershipAttrOpen: false }),
+                        isMembershipAttrOpen: false
+                    }),
                     () => { this.validateConfig() }
                 );
             }
@@ -201,21 +201,21 @@ class ReferentialIntegrity extends React.Component {
     }
 
     validateConfig() {
-        let errObj = {};
+        const errObj = {};
         let all_good = true;
-        let dnAttrs = [
+        const dnAttrs = [
             'entryScope', 'excludeEntryScope', 'containerScope', 'referintConfigEntry'
         ];
-        let reqAttrs = ['logFile'];
+        const reqAttrs = ['logFile'];
 
-        for (let attr of dnAttrs) {
+        for (const attr of dnAttrs) {
             errObj[attr] = false;
             if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
                 errObj[attr] = true;
                 all_good = false;
             }
         }
-        for (let attr of reqAttrs) {
+        for (const attr of reqAttrs) {
             if (this.state[attr] == "") {
                 errObj[attr] = true;
                 all_good = false;
@@ -235,11 +235,11 @@ class ReferentialIntegrity extends React.Component {
         if (all_good) {
             // Check for value differences to see if the save btn should be enabled
             all_good = false;
-            let attrs = [
+            const attrs = [
                 'entryScope', 'excludeEntryScope', 'containerScope',
                 'referintConfigEntry', 'updateDelay', 'logFile'
             ];
-            for (let check_attr of attrs) {
+            for (const check_attr of attrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
@@ -257,21 +257,21 @@ class ReferentialIntegrity extends React.Component {
     }
 
     validateModal() {
-        let errObj = {};
+        const errObj = {};
         let all_good = true;
-        let dnAttrs = [
+        const dnAttrs = [
             'configDN', 'configEntryScope', 'configExcludeEntryScope',
             'configContainerScope'
         ];
-        let reqAttrs = ['configDN', 'configLogFile'];
+        const reqAttrs = ['configDN', 'configLogFile'];
 
-        for (let attr of dnAttrs) {
+        for (const attr of dnAttrs) {
             if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
                 errObj[attr] = true;
                 all_good = false;
             }
         }
-        for (let attr of reqAttrs) {
+        for (const attr of reqAttrs) {
             if (this.state[attr] == "") {
                 errObj[attr] = true;
                 all_good = false;
@@ -290,11 +290,11 @@ class ReferentialIntegrity extends React.Component {
         if (all_good) {
             // Check for value differences to see if the save btn should be enabled
             all_good = false;
-            let attrs = [
+            const attrs = [
                 'configDN', 'configEntryScope', 'configExcludeEntryScope',
                 'configContainerScope', 'configUpdateDelay'
             ];
-            for (let check_attr of attrs) {
+            for (const check_attr of attrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
@@ -312,7 +312,7 @@ class ReferentialIntegrity extends React.Component {
 
     handleChange(e) {
         // Generic handler for things that don't need validating
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value,
         });
@@ -365,7 +365,7 @@ class ReferentialIntegrity extends React.Component {
         // Delete attributes if the user set an empty value to the field
         cmd = [...cmd, "--membership-attr"];
         if (membershipAttr.length != 0) {
-            for (let value of membershipAttr) {
+            for (const value of membershipAttr) {
                 cmd = [...cmd, value];
             }
         } else {
@@ -438,7 +438,7 @@ class ReferentialIntegrity extends React.Component {
             });
         } else {
             let membershipAttrList = [];
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -456,7 +456,7 @@ class ReferentialIntegrity extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let pluginRow = JSON.parse(content).attrs;
+                        const pluginRow = JSON.parse(content).attrs;
                         this.setState({
                             configEntryModalShow: true,
                             newEntry: false,
@@ -509,7 +509,7 @@ class ReferentialIntegrity extends React.Component {
                                 _configMembershipAttr: [],
                             });
                         } else {
-                            for (let value of pluginRow["referint-membership-attr"]) {
+                            for (const value of pluginRow["referint-membership-attr"]) {
                                 membershipAttrList = [...membershipAttrList, value];
                             }
                             this.setState({
@@ -586,7 +586,7 @@ class ReferentialIntegrity extends React.Component {
         // Delete attributes if the user set an empty value to the field
         cmd = [...cmd, "--membership-attr"];
         if (configMembershipAttr.length != 0) {
-            for (let value of configMembershipAttr) {
+            for (const value of configMembershipAttr) {
                 cmd = [...cmd, value];
             }
         } else if (action == "add") {
@@ -624,7 +624,7 @@ class ReferentialIntegrity extends React.Component {
                     this.closeModal();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry ${action} operation - ${errMsg.desc}`
@@ -635,7 +635,7 @@ class ReferentialIntegrity extends React.Component {
     }
 
     deleteConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -665,7 +665,7 @@ class ReferentialIntegrity extends React.Component {
                     this.closeModal();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry removal operation - ${errMsg.desc}`
@@ -749,7 +749,7 @@ class ReferentialIntegrity extends React.Component {
                     _membershipAttr: [],
                 });
             } else {
-                for (let value of pluginRow["referint-membership-attr"]) {
+                for (const value of pluginRow["referint-membership-attr"]) {
                     membershipAttrList = [...membershipAttrList, value];
                 }
                 this.setState({
@@ -790,7 +790,7 @@ class ReferentialIntegrity extends React.Component {
 
         let saveBtnText = "Save Config";
         let addBtnText = "Add Config";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (savingModal) {
             saveBtnText = "Saving ...";
             addBtnText = "Adding ...";
@@ -889,13 +889,13 @@ class ReferentialIntegrity extends React.Component {
                                     placeholderText="Type an attribute..."
                                     noResultsFoundText="There are no matching entries"
                                     validated={errorModal.configMembershipAttr ? 'error' : 'default'}
-                                    >
+                                >
                                     {this.props.attributes.map((attr, index) => (
                                         <SelectOption
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                                 <FormHelperText isError isHidden={!errorModal.configMembershipAttr}>
                                     At least one attribute must be specified
@@ -963,7 +963,7 @@ class ReferentialIntegrity extends React.Component {
                         </Grid>
                         <Grid
                             title={`Specifies a path to the Referential integrity logfile. For example: /var/log/dirsrv/slapd-${
-                            this.props.serverId
+                                this.props.serverId
                             }/referint`}
                         >
                             <GridItem className="ds-label" span={3}>
@@ -1039,13 +1039,13 @@ class ReferentialIntegrity extends React.Component {
                                     placeholderText="Type an attribute..."
                                     noResultsFoundText="There are no matching entries"
                                     validated={error.membershipAttr ? 'error' : 'default'}
-                                    >
+                                >
                                     {this.props.attributes.map((attr, index) => (
                                         <SelectOption
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                                 <FormHelperText isError isHidden={!error.membershipAttr}>
                                     At least one attribute needs to be specified
@@ -1112,7 +1112,7 @@ class ReferentialIntegrity extends React.Component {
                         </Grid>
                         <Grid title={`Specifies a path to the Referential integrity logfile. For example: /var/log/dirsrv/slapd-${
                             this.props.serverId
-                            }/referint`}
+                        }/referint`}
                         >
                             <GridItem className="ds-label" span={3}>
                                 Logfile
@@ -1225,10 +1225,6 @@ ReferentialIntegrity.propTypes = {
 ReferentialIntegrity.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop
 };
 
 export default ReferentialIntegrity;

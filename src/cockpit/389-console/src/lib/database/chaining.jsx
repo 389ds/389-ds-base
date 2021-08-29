@@ -24,7 +24,6 @@ import {
     TextContent,
     TextVariants,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -145,7 +144,7 @@ export class ChainingDatabaseConfig extends React.Component {
     }
 
     handleModalChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
         });
@@ -164,7 +163,7 @@ export class ChainingDatabaseConfig extends React.Component {
             "defCheckAci", "defUseStartTLS",
         ];
 
-        for (let check_attr of check_attrs) {
+        for (const check_attr of check_attrs) {
             if (attr != check_attr) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     saveBtnDisabled = false;
@@ -182,7 +181,7 @@ export class ChainingDatabaseConfig extends React.Component {
 
     save_chaining_config () {
         // Build up the command list
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'chaining', 'config-set-def'
         ];
@@ -262,7 +261,7 @@ export class ChainingDatabaseConfig extends React.Component {
             });
             log_cmd("save_chaining_config", "Applying default chaining config change", cmd);
             cockpit
-                    .spawn(cmd, {superuser: true, "err": "message"})
+                    .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
                         // Continue with the next mod
                         this.props.reload();
@@ -275,7 +274,7 @@ export class ChainingDatabaseConfig extends React.Component {
                         });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.reload();
                         this.props.addNotification(
                             "error",
@@ -305,7 +304,7 @@ export class ChainingDatabaseConfig extends React.Component {
     }
 
     handleOidChange (selectedItem, selectedItemProps) {
-        let oid = selectedItemProps.children;
+        const oid = selectedItemProps.children;
         if (oid != this.state.selectedOid) {
             this.setState({
                 selectedOid: oid
@@ -318,7 +317,7 @@ export class ChainingDatabaseConfig extends React.Component {
         if (this.state.selectedOid == "") {
             return;
         }
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "config-set", "--add-control=" + this.state.selectedOid
         ];
@@ -342,7 +341,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         modalSpinning: false,
                     });
@@ -356,7 +355,7 @@ export class ChainingDatabaseConfig extends React.Component {
     }
 
     handleSelectOids (selectedItem, selectedItemProps) {
-        let oid = selectedItemProps.children;
+        const oid = selectedItemProps.children;
         if (oid != this.state.removeOid) {
             this.setState({
                 removeOid: oid
@@ -369,7 +368,7 @@ export class ChainingDatabaseConfig extends React.Component {
         if (this.state.removeOid == "") {
             return;
         }
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "config-set", "--del-control=" + this.state.removeOid
         ];
@@ -388,7 +387,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload();
                     this.props.addNotification(
                         "error",
@@ -414,7 +413,7 @@ export class ChainingDatabaseConfig extends React.Component {
     }
 
     handleCompsChange (selectedItem, selectedItemProps) {
-        let comp = selectedItemProps.children;
+        const comp = selectedItemProps.children;
         if (comp != this.state.selectedComp) {
             this.setState({
                 selectedComp: comp
@@ -423,7 +422,7 @@ export class ChainingDatabaseConfig extends React.Component {
     }
 
     handleSelectComps (selectedItem, selectedItemProps) {
-        let comp = selectedItemProps.children;
+        const comp = selectedItemProps.children;
         if (comp != this.state.removeComp) {
             this.setState({
                 removeComp: comp
@@ -436,7 +435,7 @@ export class ChainingDatabaseConfig extends React.Component {
         if (this.state.selectedComp == "") {
             return;
         }
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "config-set", "--add-comp=" + this.state.selectedComp
         ];
@@ -461,7 +460,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.closeCompsModal();
                     this.props.reload();
                     this.setState({
@@ -479,7 +478,7 @@ export class ChainingDatabaseConfig extends React.Component {
             return;
         }
         // Remove chaining comps
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "config-set", "--del-comp=" + this.state.removeComp
         ];
@@ -498,7 +497,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload();
                     this.props.addNotification(
                         "error",
@@ -553,7 +552,7 @@ export class ChainingDatabaseConfig extends React.Component {
             comps = "";
         }
         let saveBtnName = "Save Settings";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.props.refreshing) {
             saveBtnName = "Saving settings ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -1072,12 +1071,12 @@ export class ChainingConfig extends React.Component {
                 "nsreferralonscopedsearch", "nsproxiedauthorization", "nschecklocalaci"
             ];
 
-            for (let check_attr of check_attrs) {
+            for (const check_attr of check_attrs) {
                 if (check_attr != "nsbindmechanism" && this.state[check_attr] !== this.state['_' + check_attr]) {
                     saveBtnDisabled = false;
                 }
             }
-            if (selection != this.state['_nsbindmechanism']) {
+            if (selection != this.state._nsbindmechanism) {
                 saveBtnDisabled = false;
             }
             this.setState({
@@ -1128,8 +1127,8 @@ export class ChainingConfig extends React.Component {
     handleChange (e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let attr = e.target.id;
-        let errObj = this.state.errObj;
+        const attr = e.target.id;
+        const errObj = this.state.errObj;
         let saveBtnDisabled = true;
 
         const check_attrs = [
@@ -1141,7 +1140,7 @@ export class ChainingConfig extends React.Component {
             "nsbindmechanism", "nsusestarttls", "nsusestarttls",
             "nsreferralonscopedsearch", "nsproxiedauthorization", "nschecklocalaci"
         ];
-        for (let check_attr of check_attrs) {
+        for (const check_attr of check_attrs) {
             if (attr != check_attr) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     saveBtnDisabled = false;
@@ -1163,7 +1162,7 @@ export class ChainingConfig extends React.Component {
     }
 
     saveLink() {
-        let missingArgs = {};
+        const missingArgs = {};
         let errors = false;
 
         if (this.state.nsfarmserverurl == "") {
@@ -1215,7 +1214,7 @@ export class ChainingConfig extends React.Component {
         }
 
         // Build up the command of all the changes we need to make
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "link-set", this.props.suffix
         ];
@@ -1314,7 +1313,7 @@ export class ChainingConfig extends React.Component {
                         });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.reload(this.props.suffix);
                         this.props.addNotification(
                             "error",
@@ -1343,7 +1342,7 @@ export class ChainingConfig extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.loadSuffixTree(true);
                     this.props.addNotification(
                         "error",
@@ -1354,7 +1353,7 @@ export class ChainingConfig extends React.Component {
 
     render () {
         const error = this.state.errObj;
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         let saveBtnName = "Save Settings";
         if (this.state.loading) {
             saveBtnName = "Saving settings ...";
@@ -1445,7 +1444,7 @@ export class ChainingConfig extends React.Component {
                             onChange={(str, e) => {
                                 this.handleChange(e);
                             }}
-                            validated={(error['nsmultiplexorcredentials'] || !this.state.linkPwdMatch) ? ValidatedOptions.error : ValidatedOptions.default}
+                            validated={(error.nsmultiplexorcredentials || !this.state.linkPwdMatch) ? ValidatedOptions.error : ValidatedOptions.default}
                         />
                     </GridItem>
                 </Grid>
@@ -1466,7 +1465,7 @@ export class ChainingConfig extends React.Component {
                             onChange={(str, e) => {
                                 this.handleChange(e);
                             }}
-                            validated={(error['nsmultiplexorcredentials_confirm'] || !this.state.linkPwdMatch) ? ValidatedOptions.error : ValidatedOptions.default}
+                            validated={(error.nsmultiplexorcredentials_confirm || !this.state.linkPwdMatch) ? ValidatedOptions.error : ValidatedOptions.default}
                         />
                     </GridItem>
                 </Grid>
@@ -1836,7 +1835,7 @@ export class ChainControlsModal extends React.Component {
             <SimpleListItem key={oid}>{oid}</SimpleListItem>
         );
         let btnName = "Add New Controls";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (spinning) {
             btnName = "Saving Controls ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -1896,7 +1895,7 @@ export class ChainCompsModal extends React.Component {
             <SimpleListItem key={comp}>{comp}</SimpleListItem>
         );
         let btnName = "Add New Components";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (spinning) {
             btnName = "Saving Components ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -1954,9 +1953,6 @@ ChainCompsModal.propTypes = {
 
 ChainCompsModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     compList: [],
 };
 
@@ -1970,9 +1966,6 @@ ChainControlsModal.propTypes = {
 
 ChainControlsModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     oidList: [],
 };
 
@@ -1986,10 +1979,7 @@ ChainingDatabaseConfig.propTypes = {
 
 ChainingDatabaseConfig.defaultProps = {
     serverId: "",
-    addNotification: noop,
-    reload: noop,
     data: {},
-    enableTree: PropTypes.noop,
 };
 
 ChainingConfig.propTypes = {
@@ -2007,9 +1997,5 @@ ChainingConfig.defaultProps = {
     serverId: "",
     suffix: "",
     bename: "",
-    loadSuffixTree: noop,
-    addNotification: noop,
     data: {},
-    reload: noop,
-    enableTree: noop,
 };

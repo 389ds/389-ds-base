@@ -18,7 +18,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from '@patternfly/react-core';
 import {
     Chart,
@@ -37,9 +36,9 @@ export class ServerMonitor extends React.Component {
     constructor (props) {
         super(props);
 
-        let initChart = [];
+        const initChart = [];
         for (let idx = 1; idx <= 10; idx++) {
-            initChart.push({name: '', x: idx.toString(), y: 0});
+            initChart.push({ name: '', x: idx.toString(), y: 0 });
         }
 
         this.state = {
@@ -82,7 +81,7 @@ export class ServerMonitor extends React.Component {
     }
 
     getPorts() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get", "nsslapd-port", "nsslapd-secureport"
         ];
@@ -90,7 +89,7 @@ export class ServerMonitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         port: config.attrs['nsslapd-port'][0],
                         secure_port:  config.attrs['nsslapd-secureport'] === undefined
@@ -114,7 +113,7 @@ export class ServerMonitor extends React.Component {
     }
 
     refreshCharts() {
-        let cmd = "ps -ef | grep -v grep | grep dirsrv/slapd-" + this.props.serverId;
+        const cmd = "ps -ef | grep -v grep | grep dirsrv/slapd-" + this.props.serverId;
         let cpu = 0;
         let pid = 0;
         let max_mem = 0;
@@ -130,22 +129,22 @@ export class ServerMonitor extends React.Component {
                 .script(cmd, [], { superuser: true, err: "message" })
                 .done(output => {
                     pid = output.split(/\s+/)[1];
-                    let cpu_cmd = "top -n 1 -b -p " + pid + " | tail -1";
+                    const cpu_cmd = "top -n 1 -b -p " + pid + " | tail -1";
                     log_cmd("refreshCharts", "Get cpu and memory stats", [cpu_cmd]);
                     cockpit
                             .script(cpu_cmd, [], { superuser: true, err: "message" })
                             .done(top_output => {
-                                let top_parts = top_output.trim().split(/\s+/);
+                                const top_parts = top_output.trim().split(/\s+/);
                                 virt_mem = top_parts[4];
                                 res_mem = top_parts[5];
                                 cpu = parseInt(top_parts[8]);
-                                let mem_cmd = "awk '/MemTotal/{print $2}' /proc/meminfo";
+                                const mem_cmd = "awk '/MemTotal/{print $2}' /proc/meminfo";
                                 log_cmd("refreshCharts", "Get total memory", [mem_cmd]);
                                 cockpit
                                         .script(mem_cmd, [], { superuser: true, err: "message" })
                                         .done(mem_output => {
                                             max_mem = parseInt(mem_output);
-                                            let conn_cmd = "netstat -anp | grep ':" + this.state.port + "\\|:" + this.state.secure_port +
+                                            const conn_cmd = "netstat -anp | grep ':" + this.state.port + "\\|:" + this.state.secure_port +
                                                 "' | grep ESTABLISHED | grep ns-slapd | wc -l";
                                             log_cmd("refreshCharts", "Get current count", [conn_cmd]);
                                             cockpit
@@ -161,7 +160,7 @@ export class ServerMonitor extends React.Component {
                                                         // Adjust CPU chart ticks if CPU goes above 100%
                                                         if (cpu > 100) {
                                                             let resize = true;
-                                                            for (let stat of this.state.cpuChart) {
+                                                            for (const stat of this.state.cpuChart) {
                                                                 if (stat.y > cpu) {
                                                                     // There is already a higher CPU in the data
                                                                     resize = false;
@@ -174,7 +173,7 @@ export class ServerMonitor extends React.Component {
                                                             }
                                                         } else {
                                                             let okToReset = true;
-                                                            for (let stat of this.state.cpuChart) {
+                                                            for (const stat of this.state.cpuChart) {
                                                                 if (stat.y > 100) {
                                                                     okToReset = false;
                                                                     break;
@@ -188,7 +187,7 @@ export class ServerMonitor extends React.Component {
                                                         // Set conn tick values
                                                         if (current_conns > conn_highmark) {
                                                             conn_highmark = Math.ceil(current_conns / 1000) * 1000;
-                                                            let conn_incr = Math.ceil(conn_highmark / 4);
+                                                            const conn_incr = Math.ceil(conn_highmark / 4);
                                                             let tick = conn_incr;
                                                             conn_tick_values = [
                                                                 tick,
@@ -198,21 +197,21 @@ export class ServerMonitor extends React.Component {
                                                             ];
                                                         }
 
-                                                        let cpuChart = this.state.cpuChart;
+                                                        const cpuChart = this.state.cpuChart;
                                                         cpuChart.shift();
-                                                        cpuChart.push({name: "CPU", x: count.toString(), y: parseInt(cpu)});
+                                                        cpuChart.push({ name: "CPU", x: count.toString(), y: parseInt(cpu) });
 
-                                                        let memVirtChart = this.state.memVirtChart;
+                                                        const memVirtChart = this.state.memVirtChart;
                                                         memVirtChart.shift();
-                                                        memVirtChart.push({name: "Virtual Memory", x: count.toString(), y: parseInt(Math.round((virt_mem / max_mem) * 100))});
+                                                        memVirtChart.push({ name: "Virtual Memory", x: count.toString(), y: parseInt(Math.round((virt_mem / max_mem) * 100)) });
 
-                                                        let memResChart = this.state.memResChart;
+                                                        const memResChart = this.state.memResChart;
                                                         memResChart.shift();
-                                                        memResChart.push({name: "Resident Memory", x: count.toString(), y: parseInt(Math.round((res_mem / max_mem) * 100))});
+                                                        memResChart.push({ name: "Resident Memory", x: count.toString(), y: parseInt(Math.round((res_mem / max_mem) * 100)) });
 
-                                                        let connChart = this.state.connChart;
+                                                        const connChart = this.state.connChart;
                                                         connChart.shift();
-                                                        connChart.push({name: "Connections", x: count.toString(), y: parseInt(current_conns)});
+                                                        connChart.push({ name: "Connections", x: count.toString(), y: parseInt(current_conns) });
 
                                                         this.setState({
                                                             count: count,
@@ -269,13 +268,13 @@ export class ServerMonitor extends React.Component {
         } = this.state;
 
         // Generate start time and uptime
-        let startTime = this.props.data.starttime[0];
-        let currTime = this.props.data.currenttime[0];
-        let startDate = get_date_string(this.props.data.starttime[0]);
-        let uptime = get_date_diff(startTime, currTime);
-        let conn_tick_values = this.state.conn_tick_values;
+        const startTime = this.props.data.starttime[0];
+        const currTime = this.props.data.currenttime[0];
+        const startDate = get_date_string(this.props.data.starttime[0]);
+        const uptime = get_date_diff(startTime, currTime);
+        const conn_tick_values = this.state.conn_tick_values;
         let cpu_tick_values = this.state.cpu_tick_values;
-        let mem_tick_values = this.state.mem_tick_values;
+        const mem_tick_values = this.state.mem_tick_values;
 
         // Adjust chart if CPU goes above 100%
         if (cpu > 100) {
@@ -283,7 +282,7 @@ export class ServerMonitor extends React.Component {
             cpu_tick_values = [incr, incr += incr, incr += incr, incr += incr];
         } else {
             let okToReset = true;
-            for (let stat of cpuChart) {
+            for (const stat of cpuChart) {
                 if (stat.y > 100) {
                     okToReset = false;
                     break;
@@ -334,7 +333,7 @@ export class ServerMonitor extends React.Component {
                                             ariaTitle="Live Connection Statistics"
                                             containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                             height={175}
-                                            minDomain={{y: 0}}
+                                            minDomain={{ y: 0 }}
                                             padding={{
                                                 bottom: 30,
                                                 left: 50,
@@ -398,7 +397,7 @@ export class ServerMonitor extends React.Component {
                                                     ariaTitle="Live Server Memory Statistics"
                                                     containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                     height={225}
-                                                    minDomain={{y: 0}}
+                                                    minDomain={{ y: 0 }}
                                                     padding={{
                                                         bottom: 30,
                                                         left: 40,
@@ -447,7 +446,7 @@ export class ServerMonitor extends React.Component {
                                                     ariaTitle="Server CPU Usage"
                                                     containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                     height={225}
-                                                    minDomain={{y: 0}}
+                                                    minDomain={{ y: 0 }}
                                                     padding={{
                                                         bottom: 30,
                                                         left: 40,
@@ -745,8 +744,6 @@ ServerMonitor.propTypes = {
 ServerMonitor.defaultProps = {
     serverId: "",
     data: {},
-    reload: noop,
-    enableTree: noop,
 };
 
 export default ServerMonitor;

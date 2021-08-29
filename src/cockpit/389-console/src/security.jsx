@@ -23,7 +23,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -105,7 +104,7 @@ export class Security extends React.Component {
         };
 
         // Server Cert
-        this.onServerCertSelect = (event, selection) => {
+        this.handleServerCertSelect = (event, selection) => {
             if (this.state.nssslpersonalityssl.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -122,12 +121,12 @@ export class Security extends React.Component {
                 );
             }
         };
-        this.onServerCertToggle = isServerCertOpen => {
+        this.handleServerCertToggle = isServerCertOpen => {
             this.setState({
                 isServerCertOpen
             });
         };
-        this.onServerCertClear = () => {
+        this.handleServerCertClear = () => {
             this.setState({
                 nssslpersonalityssl: [],
                 isServerCertOpen: false
@@ -144,24 +143,24 @@ export class Security extends React.Component {
         // Select handlers
         this.configChanged = () => {
             // Check if a core/non-select setting was changed
-            for (let config_attr of configCoreAttrs) {
-                if (this.state[config_attr] != this.state['_' + config_attr]) {
+            for (const config_attr of configCoreAttrs) {
+                if (this.state[config_attr] !== this.state['_' + config_attr]) {
                     return true;
                 }
             }
             return false;
         };
 
-        this.onMinSSLToggle = isMinSSLOpen => {
+        this.handleMinSSLToggle = isMinSSLOpen => {
             this.setState({
                 isMinSSLOpen
             });
         };
-        this.onMinSSLSelect = (event, selection, isPlaceholder) => {
+        this.handleMinSSLSelect = (event, selection, isPlaceholder) => {
             let disableSaveBtn = !this.configChanged();
 
             // Check if a setting was changed, if so enable the save button
-            if (this.state._sslVersionMin != selection) {
+            if (this.state._sslVersionMin !== selection) {
                 disableSaveBtn = false;
             }
             this.setState({
@@ -171,16 +170,16 @@ export class Security extends React.Component {
             });
         };
 
-        this.onMaxSSLToggle = isMaxSSLOpen => {
+        this.handleMaxSSLToggle = isMaxSSLOpen => {
             this.setState({
                 isMaxSSLOpen
             });
         };
-        this.onMaxSSLSelect = (event, selection, isPlaceholder) => {
+        this.handleMaxSSLSelect = (event, selection, isPlaceholder) => {
             let disableSaveBtn = !this.configChanged();
 
             // Check if a setting was changed, if so enable the save button
-            if (this.state._sslVersionMax != selection) {
+            if (this.state._sslVersionMax !== selection) {
                 disableSaveBtn = false;
             }
             this.setState({
@@ -190,16 +189,16 @@ export class Security extends React.Component {
             });
         };
 
-        this.onClientAuthToggle = isClientAuthOpen => {
+        this.handleClientAuthToggle = isClientAuthOpen => {
             this.setState({
                 isClientAuthOpen
             });
         };
-        this.onClientAuthSelect = (event, selection, isPlaceholder) => {
+        this.handleClientAuthSelect = (event, selection, isPlaceholder) => {
             let disableSaveBtn = !this.configChanged();
 
             // Check if a setting was changed, if so enable the save button
-            if (this.state._clientAuth != selection) {
+            if (this.state._clientAuth !== selection) {
                 disableSaveBtn = false;
             }
 
@@ -210,16 +209,16 @@ export class Security extends React.Component {
             });
         };
 
-        this.onValidateCertToggle = isValidateCertOpen => {
+        this.handleValidateCertToggle = isValidateCertOpen => {
             this.setState({
                 isValidateCertOpen
             });
         };
-        this.onValidateCertSelect = (event, selection, isPlaceholder) => {
+        this.handleValidateCertSelect = (event, selection, isPlaceholder) => {
             let disableSaveBtn = !this.configChanged();
 
             // Check if a setting was changed, if so enable the save button
-            if (this.state._validateCert != selection) {
+            if (this.state._validateCert !== selection) {
                 disableSaveBtn = false;
             }
             this.setState({
@@ -230,7 +229,7 @@ export class Security extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
-        this.handleModalChange = this.handleModalChange.bind(this);
+        this.onModalChange = this.onModalChange.bind(this);
         this.handleSwitchChange = this.handleSwitchChange.bind(this);
         this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
         this.loadSecurityConfig = this.loadSecurityConfig.bind(this);
@@ -243,7 +242,7 @@ export class Security extends React.Component {
         this.disableSecurity = this.disableSecurity.bind(this);
         this.saveSecurityConfig = this.saveSecurityConfig.bind(this);
         this.closeSecurityEnableModal = this.closeSecurityEnableModal.bind(this);
-        this.reloadConfig = this.reloadConfig.bind(this);
+        this.handleReloadConfig = this.handleReloadConfig.bind(this);
         this.onSelectToggle = this.onSelectToggle.bind(this);
         this.onSelectClear = this.onSelectClear.bind(this);
         this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
@@ -251,21 +250,21 @@ export class Security extends React.Component {
 
     componentDidMount () {
         if (!this.state.loaded) {
-            this.setState({securityEnabled: true}, this.setState({securityEnabled: false}));
+            this.setState({ securityEnabled: true }, this.setState({ securityEnabled: false }));
             this.loadSecurityConfig();
         } else {
             this.props.enableTree();
         }
     }
 
-    handleModalChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    onModalChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
         });
     }
 
-    reloadConfig () {
+    handleReloadConfig () {
         this.setState({
             loaded: false
         }, this.loadSecurityConfig);
@@ -286,7 +285,7 @@ export class Security extends React.Component {
                     }, this.loadEnabledCiphers);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -313,7 +312,7 @@ export class Security extends React.Component {
                     }, this.loadCerts);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -334,7 +333,7 @@ export class Security extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let certs = JSON.parse(content);
+                    const certs = JSON.parse(content);
                     this.setState(() => (
                         {
                             CACerts: certs,
@@ -343,7 +342,7 @@ export class Security extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -366,9 +365,9 @@ export class Security extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const certs = JSON.parse(content);
-                    let certNames = [];
-                    for (let cert of certs) {
-                        certNames.push(cert.attrs['nickname']);
+                    const certNames = [];
+                    for (const cert of certs) {
+                        certNames.push(cert.attrs.nickname);
                     }
                     this.setState(() => (
                         {
@@ -378,7 +377,7 @@ export class Security extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -400,7 +399,7 @@ export class Security extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
-                    const nickname = config.items['nssslpersonalityssl'];
+                    const nickname = config.items.nssslpersonalityssl;
                     this.setState(() => (
                         {
                             nssslpersonalityssl: nickname,
@@ -409,7 +408,7 @@ export class Security extends React.Component {
                     ), this.loadSupportedCiphers);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -441,38 +440,38 @@ export class Security extends React.Component {
                     let renegot = true;
 
                     if ('nstlsallowclientrenegotiation' in config.items) {
-                        if (config.items['nstlsallowclientrenegotiation'] == "off") {
+                        if (config.items.nstlsallowclientrenegotiation === "off") {
                             renegot = false;
                         }
                     }
                     if ('nsslapd-security' in attrs) {
-                        if (attrs['nsslapd-security'].toLowerCase() == "on") {
+                        if (attrs['nsslapd-security'].toLowerCase() === "on") {
                             secEnabled = true;
                         }
                     }
                     if ('nsslapd-require-secure-binds' in attrs) {
-                        if (attrs['nsslapd-require-secure-binds'].toLowerCase() == "on") {
+                        if (attrs['nsslapd-require-secure-binds'].toLowerCase() === "on") {
                             secReqSecBinds = true;
                         }
                     }
                     if ('nssslclientauth' in attrs) {
-                        if (attrs['nssslclientauth'] != "") {
-                            clientAuth = attrs['nssslclientauth'];
+                        if (attrs.nssslclientauth !== "") {
+                            clientAuth = attrs.nssslclientauth;
                         }
                     }
                     if ('nsslapd-validate-cert' in attrs) {
-                        if (attrs['nsslapd-validate-cert'] != "") {
+                        if (attrs['nsslapd-validate-cert'] !== "") {
                             validateCert = attrs['nsslapd-validate-cert'].toLowerCase();
                         }
                     }
                     if ('allowweakcipher' in attrs) {
-                        if (attrs['allowweakcipher'].toLowerCase() == "on") {
+                        if (attrs.allowweakcipher.toLowerCase() === "on") {
                             allowWeak = true;
                         }
                     }
                     if ('nsssl3ciphers' in attrs) {
-                        if (attrs['nsssl3ciphers'] != "") {
-                            cipherPref = attrs['nsssl3ciphers'];
+                        if (attrs.nsssl3ciphers !== "") {
+                            cipherPref = attrs.nsssl3ciphers;
                         }
                     }
 
@@ -484,8 +483,8 @@ export class Security extends React.Component {
                             clientAuth: clientAuth,
                             checkHostname: attrs['nsslapd-ssl-check-hostname'],
                             validateCert: validateCert,
-                            sslVersionMin: attrs['sslversionmin'],
-                            sslVersionMax: attrs['sslversionmax'],
+                            sslVersionMin: attrs.sslversionmin,
+                            sslVersionMax: attrs.sslversionmax,
                             allowWeakCipher: allowWeak,
                             cipherPref: cipherPref,
                             nstlsallowclientrenegotiation: renegot,
@@ -496,8 +495,8 @@ export class Security extends React.Component {
                             _clientAuth: clientAuth,
                             _checkHostname: attrs['nsslapd-ssl-check-hostname'],
                             _validateCert: validateCert,
-                            _sslVersionMin: attrs['sslversionmin'],
-                            _sslVersionMax: attrs['sslversionmax'],
+                            _sslVersionMin: attrs.sslversionmin,
+                            _sslVersionMax: attrs.sslversionmax,
                             _allowWeakCipher: allowWeak,
                         }
                     ), function() {
@@ -507,7 +506,7 @@ export class Security extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -522,7 +521,7 @@ export class Security extends React.Component {
     handleSwitchChange(value) {
         if (!value) {
             // We are disabling security, ask for confirmation
-            this.setState({showConfirmDisable: true});
+            this.setState({ showConfirmDisable: true });
         } else {
             // Check if we have certs, if we do make the user choose one from dropdown list, otherwise reject the
             // enablement
@@ -546,7 +545,7 @@ export class Security extends React.Component {
         });
     }
 
-    handleSecEnableChange (e) {
+    onSecEnableChange (e) {
         const value = e.target.value.trim();
         this.setState({
             primaryCertName: value,
@@ -588,7 +587,7 @@ export class Security extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -630,7 +629,7 @@ export class Security extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -649,10 +648,10 @@ export class Security extends React.Component {
         // Validate some setting first
         let sslMin = this.state._sslVersionMin;
         let sslMax = this.state._sslVersionMax;
-        if (this.state._sslVersionMin != this.state.sslVersionMin) {
+        if (this.state._sslVersionMin !== this.state.sslVersionMin) {
             sslMin = this.state.sslVersionMin;
         }
-        if (this.state._sslVersionMax != this.state.sslVersionMax) {
+        if (this.state._sslVersionMax !== this.state.sslVersionMax) {
             sslMax = this.state.sslVersionMax;
         }
 
@@ -666,41 +665,41 @@ export class Security extends React.Component {
             return;
         }
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'security', 'set'
         ];
 
-        if (this.state._validateCert != this.state.validateCert) {
+        if (this.state._validateCert !== this.state.validateCert) {
             cmd.push("--verify-cert-chain-on-startup=" + this.state.validateCert);
         }
-        if (this.state._sslVersionMin != this.state.sslVersionMin) {
+        if (this.state._sslVersionMin !== this.state.sslVersionMin) {
             cmd.push("--tls-protocol-min=" + this.state.sslVersionMin);
         }
-        if (this.state._sslVersionMax != this.state.sslVersionMax) {
+        if (this.state._sslVersionMax !== this.state.sslVersionMax) {
             cmd.push("--tls-protocol-max=" + this.state.sslVersionMax);
         }
-        if (this.state._clientAuth != this.state.clientAuth) {
+        if (this.state._clientAuth !== this.state.clientAuth) {
             cmd.push("--tls-client-auth=" + this.state.clientAuth);
         }
-        if (this.state._secureListenhost != this.state.secureListenhost) {
+        if (this.state._secureListenhost !== this.state.secureListenhost) {
             cmd.push("--listen-host=" + this.state.secureListenhost);
         }
-        if (this.state._allowWeakCipher != this.state.allowWeakCipher) {
+        if (this.state._allowWeakCipher !== this.state.allowWeakCipher) {
             let val = "off";
             if (this.state.allowWeakCipher) {
                 val = "on";
             }
             cmd.push("--allow-insecure-ciphers=" + val);
         }
-        if (this.state._checkHostname != this.state.checkHostname) {
+        if (this.state._checkHostname !== this.state.checkHostname) {
             let val = "off";
             if (this.state.checkHostname) {
                 val = "on";
             }
             cmd.push("--check-hostname=" + val);
         }
-        if (this.state._requireSecureBinds != this.state.requireSecureBinds) {
+        if (this.state._requireSecureBinds !== this.state.requireSecureBinds) {
             let val = "off";
             if (this.state.requireSecureBinds) {
                 val = "on";
@@ -708,7 +707,7 @@ export class Security extends React.Component {
             cmd.push("--require-secure-authentication=" + val);
         }
 
-        if (this.state._nstlsallowclientrenegotiation != this.state.nstlsallowclientrenegotiation) {
+        if (this.state._nstlsallowclientrenegotiation !== this.state.nstlsallowclientrenegotiation) {
             let val = "off";
             if (this.state.nstlsallowclientrenegotiation) {
                 val = "on";
@@ -718,7 +717,7 @@ export class Security extends React.Component {
 
         if (cmd.length > 5) {
             log_cmd("saveSecurityConfig", "Applying security config change", cmd);
-            let msg = "Successfully updated security configuration.";
+            const msg = "Successfully updated security configuration.";
 
             this.setState({
                 // Start the spinner
@@ -726,7 +725,7 @@ export class Security extends React.Component {
             });
 
             cockpit
-                    .spawn(cmd, {superuser: true, "err": "message"})
+                    .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
                         this.loadSecurityConfig(1);
                         this.props.addNotification(
@@ -742,7 +741,7 @@ export class Security extends React.Component {
                         });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.loadSecurityConfig();
                         this.setState({
                             saving: false
@@ -771,16 +770,16 @@ export class Security extends React.Component {
         let disableSaveBtn = true;
 
         // Check if a setting was changed, if so enable the save button
-        for (let config_attr of configAttrs) {
-            if (attr == config_attr && this.state['_' + config_attr] != value) {
+        for (const config_attr of configAttrs) {
+            if (attr === config_attr && this.state['_' + config_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
         }
 
         // Now check for differences in values that we did not touch
-        for (let config_attr of configAttrs) {
-            if (attr != config_attr && this.state['_' + config_attr] != this.state[config_attr]) {
+        for (const config_attr of configAttrs) {
+            if (attr !== config_attr && this.state['_' + config_attr] !== this.state[config_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -807,9 +806,9 @@ export class Security extends React.Component {
 
     render() {
         let securityPage = "";
-        let serverCert = [this.state.nssslpersonalityssl];
+        const serverCert = [this.state.nssslpersonalityssl];
         let saveBtnName = "Save Settings";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.state.saving) {
             saveBtnName = "Saving settings ...";
             extraPrimaryProps.spinnerAriaValueText = "Loading";
@@ -850,9 +849,9 @@ export class Security extends React.Component {
                                     <Select
                                         variant={SelectVariant.typeahead}
                                         typeAheadAriaLabel="Type a server certificate nickname"
-                                        onToggle={this.onServerCertToggle}
-                                        onSelect={this.onServerCertSelect}
-                                        onClear={this.onServerCertClear}
+                                        onToggle={this.handleServerCertToggle}
+                                        onSelect={this.handleServerCertSelect}
+                                        onClear={this.handleServerCertClear}
                                         selections={serverCert}
                                         isOpen={this.state.isServerCertOpen}
                                         aria-labelledby="typeAhead-server-cert"
@@ -878,8 +877,8 @@ export class Security extends React.Component {
                                     <Select
                                         variant={SelectVariant.single}
                                         aria-label="Select Input"
-                                        onToggle={this.onMinSSLToggle}
-                                        onSelect={this.onMinSSLSelect}
+                                        onToggle={this.handleMinSSLToggle}
+                                        onSelect={this.handleMinSSLSelect}
                                         selections={this.state.sslVersionMin}
                                         isOpen={this.state.isMinSSLOpen}
                                         aria-labelledby="minssl"
@@ -902,8 +901,8 @@ export class Security extends React.Component {
                                     <Select
                                         variant={SelectVariant.single}
                                         aria-label="Select Input"
-                                        onToggle={this.onMaxSSLToggle}
-                                        onSelect={this.onMaxSSLSelect}
+                                        onToggle={this.handleMaxSSLToggle}
+                                        onSelect={this.handleMaxSSLSelect}
                                         selections={this.state.sslVersionMax}
                                         isOpen={this.state.isMaxSSLOpen}
                                         aria-labelledby="maxssl"
@@ -926,8 +925,8 @@ export class Security extends React.Component {
                                     <Select
                                         variant={SelectVariant.single}
                                         aria-label="Select Input"
-                                        onToggle={this.onClientAuthToggle}
-                                        onSelect={this.onClientAuthSelect}
+                                        onToggle={this.handleClientAuthToggle}
+                                        onSelect={this.handleClientAuthSelect}
                                         selections={this.state.clientAuth}
                                         isOpen={this.state.isClientAuthOpen}
                                         aria-labelledby="clientAuth"
@@ -948,8 +947,8 @@ export class Security extends React.Component {
                                     <Select
                                         variant={SelectVariant.single}
                                         aria-label="Select Input"
-                                        onToggle={this.onValidateCertToggle}
-                                        onSelect={this.onValidateCertSelect}
+                                        onToggle={this.handleValidateCertToggle}
+                                        onSelect={this.handleValidateCertSelect}
                                         selections={this.state.validateCert}
                                         isOpen={this.state.isValidateCertOpen}
                                         aria-labelledby="validateCert"
@@ -1042,12 +1041,13 @@ export class Security extends React.Component {
                         <GridItem span={6}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Security Settings <FontAwesomeIcon
+                                    Security Settings
+                                    <FontAwesomeIcon
                                         size="lg"
                                         className="ds-left-margin ds-refresh"
                                         icon={faSyncAlt}
                                         title="Refresh settings"
-                                        onClick={this.reloadConfig}
+                                        onClick={this.handleReloadConfig}
                                     />
                                 </Text>
                             </TextContent>
@@ -1109,7 +1109,7 @@ export class Security extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDisable}
                     closeHandler={this.closeConfirmDisable}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.disableSecurity}
                     spinning={this.state.modalSpinning}
                     item="Requires server restart to take effect."
@@ -1123,7 +1123,7 @@ export class Security extends React.Component {
                 <SecurityEnableModal
                     showModal={this.state.showSecurityEnableModal}
                     closeHandler={this.closeSecurityEnableModal}
-                    handleChange={this.handleSecEnableChange}
+                    handleChange={this.onSecEnableChange}
                     saveHandler={this.enableSecurity}
                     primaryName={this.state.primaryCertName}
                     certs={this.state.serverCerts}
@@ -1142,7 +1142,6 @@ Security.propTypes = {
 };
 
 Security.defaultProps = {
-    addNotification: noop,
     serverId: "",
 };
 

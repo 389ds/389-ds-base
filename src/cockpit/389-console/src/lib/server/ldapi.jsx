@@ -15,7 +15,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -102,8 +101,8 @@ export class ServerLDAPI extends React.Component {
                 .spawn(attr_cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const attrContent = JSON.parse(content);
-                    let attrs = [];
-                    for (let content of attrContent["items"]) {
+                    const attrs = [];
+                    for (const content of attrContent.items) {
                         attrs.push(content.name[0]);
                     }
 
@@ -114,12 +113,12 @@ export class ServerLDAPI extends React.Component {
     }
 
     handleChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
 
         // Check if a setting was changed, if so enable the save button
-        for (let ldapi_attr of ldapi_attrs) {
+        for (const ldapi_attr of ldapi_attrs) {
             if (attr == ldapi_attr && this.state['_' + ldapi_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -127,7 +126,7 @@ export class ServerLDAPI extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let ldapi_attr of ldapi_attrs) {
+        for (const ldapi_attr of ldapi_attrs) {
             if (attr != ldapi_attr && this.state['_' + ldapi_attr] != this.state[ldapi_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -141,7 +140,7 @@ export class ServerLDAPI extends React.Component {
     }
 
     loadConfig() {
-        let attrs = this.state.attrs;
+        const attrs = this.state.attrs;
         let mapToEntries = false;
 
         if ('nsslapd-ldapimaptoentries' in attrs) {
@@ -170,7 +169,7 @@ export class ServerLDAPI extends React.Component {
     }
 
     reloadConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
@@ -178,14 +177,14 @@ export class ServerLDAPI extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     this.setState({
                         attrs: attrs
                     }, this.loadConfig);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         loading: false
                     });
@@ -201,12 +200,12 @@ export class ServerLDAPI extends React.Component {
             loading: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
 
-        for (let attr of ldapi_attrs) {
+        for (const attr of ldapi_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -222,7 +221,7 @@ export class ServerLDAPI extends React.Component {
 
         log_cmd("saveConfig", "Saving LDAPI settings", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.setState({
                         loading: false
@@ -233,7 +232,7 @@ export class ServerLDAPI extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         loading: false
                     }, this.reloadConfig);
@@ -246,7 +245,7 @@ export class ServerLDAPI extends React.Component {
 
     render() {
         let mapUserAttrs = "";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         let saveBtnName = "Save Settings";
         if (this.state.loading) {
             saveBtnName = "Saving settings ...";
@@ -254,7 +253,7 @@ export class ServerLDAPI extends React.Component {
         }
 
         if (this.state['nsslapd-ldapimaptoentries']) {
-            let attributes = this.state.attributes.map((option, index) => (
+            const attributes = this.state.attributes.map((option, index) => (
                 <SelectOption key={index} value={option} />
             ));
             mapUserAttrs =
@@ -427,7 +426,6 @@ ServerLDAPI.propTypes = {
 };
 
 ServerLDAPI.defaultProps = {
-    addNotification: noop,
     serverId: "",
     attrs: {},
 };

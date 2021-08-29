@@ -12,7 +12,6 @@ import {
     TextInput,
     NumberInput,
     ValidatedOptions,
-    noop,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -96,7 +95,7 @@ class RetroChangelog extends React.Component {
     }
 
     validate() {
-        let errObj = {};
+        const errObj = {};
         let all_good = true;
 
         const dnAttrs = [
@@ -104,7 +103,7 @@ class RetroChangelog extends React.Component {
         ];
 
         // Check DN attrs
-        for (let attr of dnAttrs) {
+        for (const attr of dnAttrs) {
             if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
                 errObj[attr] = true;
                 all_good = false;
@@ -119,7 +118,7 @@ class RetroChangelog extends React.Component {
                 'isReplicated', 'maxAge', 'maxAgeUnit',
                 'trimInterval', 'excludeSuffix',
             ];
-            for (let check_attr of attrs) {
+            for (const check_attr of attrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
@@ -133,7 +132,7 @@ class RetroChangelog extends React.Component {
     }
 
     handleFieldChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
         }, () => { this.validate() });
@@ -150,8 +149,8 @@ class RetroChangelog extends React.Component {
             }
             this.setState({
                 isReplicated: !(
-                    pluginRow["isReplicated"] === undefined ||
-                    pluginRow["isReplicated"][0] == "FALSE"
+                    pluginRow.isReplicated === undefined ||
+                    pluginRow.isReplicated[0] == "FALSE"
                 ),
                 excludeSuffix:
                     pluginRow["nsslapd-exclude-suffix"] === undefined
@@ -163,8 +162,8 @@ class RetroChangelog extends React.Component {
                     ? 300
                     : pluginRow["nsslapd-changelog-trim-interval"][0],
                 _isReplicated: !(
-                    pluginRow["isReplicated"] === undefined ||
-                    pluginRow["isReplicated"][0] == "FALSE"
+                    pluginRow.isReplicated === undefined ||
+                    pluginRow.isReplicated[0] == "FALSE"
                 ),
                 _excludeSuffix:
                     pluginRow["nsslapd-exclude-suffix"] === undefined
@@ -180,8 +179,8 @@ class RetroChangelog extends React.Component {
     }
 
     savePlugin () {
-        let maxAge = this.state.maxAge.toString() + this.state.maxAgeUnit;
-        let cmd = [
+        const maxAge = this.state.maxAge.toString() + this.state.maxAgeUnit;
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -213,7 +212,7 @@ class RetroChangelog extends React.Component {
                     this.props.pluginListHandler();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to update Retro Changelog Plugin - ${errMsg.desc}`
@@ -234,7 +233,7 @@ class RetroChangelog extends React.Component {
         } = this.state;
 
         let saveBtnName = "Save";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (saving) {
             saveBtnName = "Saving ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -371,10 +370,6 @@ RetroChangelog.propTypes = {
 RetroChangelog.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop
 };
 
 export default RetroChangelog;

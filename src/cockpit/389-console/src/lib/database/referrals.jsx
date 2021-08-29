@@ -13,7 +13,6 @@ import {
     ModalVariant,
     TextInput,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import { log_cmd, valid_port, valid_dn } from "../tools.jsx";
 import PropTypes from "prop-types";
@@ -122,7 +121,7 @@ export class SuffixReferrals extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
@@ -161,7 +160,7 @@ export class SuffixReferrals extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.closeRefModal();
                     this.props.addNotification(
@@ -176,11 +175,11 @@ export class SuffixReferrals extends React.Component {
 
     buildRef() {
         let previewRef = this.state.refProtocol + this.state.refHost;
-        let ref_port = this.state.refPort;
-        let ref_suffix = this.state.refSuffix;
-        let ref_attrs = this.state.refAttrs;
-        let ref_filter = this.state.refFilter;
-        let ref_scope = this.state.refScope;
+        const ref_port = this.state.refPort;
+        const ref_suffix = this.state.refSuffix;
+        const ref_attrs = this.state.refAttrs;
+        const ref_filter = this.state.refFilter;
+        const ref_scope = this.state.refScope;
 
         if (ref_port != "") {
             previewRef += ":" + ref_port;
@@ -211,13 +210,13 @@ export class SuffixReferrals extends React.Component {
     handleRefChange(e) {
         const value = e.target.value;
         const attr = e.target.id;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
         let valueErr = false;
         let saveBtnDisabled = false;
 
         // Check previously set values
         const check_attrs = ['refHost', 'refPort'];
-        for (let check_attr of check_attrs) {
+        for (const check_attr of check_attrs) {
             if (attr != check_attr) {
                 if (this.state[check_attr] == "") {
                     saveBtnDisabled = true;
@@ -248,7 +247,7 @@ export class SuffixReferrals extends React.Component {
 
     handleChange(e) {
         // Basic handler, no error checking
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value,
         });
@@ -318,7 +317,7 @@ class AddReferralModal extends React.Component {
             previewValue = "ldap://";
         }
         let saveBtnName = "Create Referral";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (saving) {
             saveBtnName = "Creating ...";
             extraPrimaryProps.spinnerAriaValueText = "Creating";
@@ -482,8 +481,6 @@ SuffixReferrals.propTypes = {
 SuffixReferrals.defaultProps = {
     rows: [],
     suffix: "",
-    reload: noop,
-    addNotification: noop,
     serverId: "",
 };
 
@@ -497,10 +494,7 @@ AddReferralModal.propTypes = {
 };
 
 AddReferralModal.defaultProps = {
-    showModal: noop,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
+    showModal: false,
     previewValue: "",
     error: {},
 };

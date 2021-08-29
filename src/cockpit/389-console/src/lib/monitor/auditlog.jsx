@@ -12,7 +12,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -42,7 +41,7 @@ export class AuditLogMonitor extends React.Component {
 
     componentDidUpdate () {
         // Set the textarea to be scrolled down to the bottom
-        let textarea = document.getElementById('auditlog-area');
+        const textarea = document.getElementById('auditlog-area');
         textarea.scrollTop = textarea.scrollHeight;
     }
 
@@ -55,7 +54,7 @@ export class AuditLogMonitor extends React.Component {
         this.setState({
             auditReloading: true
         });
-        let cmd = ["tail", "-" + this.state.auditLines, this.props.logLocation];
+        const cmd = ["tail", "-" + this.state.auditLines, this.props.logLocation];
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -78,7 +77,7 @@ export class AuditLogMonitor extends React.Component {
     }
 
     handleAuditChange(e) {
-        let value = e.target.value;
+        const value = e.target.value;
         this.setState(() => (
             {
                 auditLines: value
@@ -171,7 +170,6 @@ AuditLogMonitor.propTypes = {
 
 AuditLogMonitor.defaultProps = {
     logLocation: "",
-    enableTree: noop,
 };
 
 export default AuditLogMonitor;

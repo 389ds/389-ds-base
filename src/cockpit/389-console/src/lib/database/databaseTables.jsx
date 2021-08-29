@@ -6,7 +6,6 @@ import {
     Pagination,
     PaginationVariant,
     SearchInput,
-    noop
 } from '@patternfly/react-core';
 import {
     expandable,
@@ -68,14 +67,14 @@ class ReferralTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
-        for (let refRow of this.props.rows) {
+        for (const refRow of this.props.rows) {
             rows.push({
                 cells: [refRow, { props: { textCenter: true }, title: this.getDeleteButton(refRow) }]
             });
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Referrals']}];
-            columns = [{title: 'Referrals'}];
+            rows = [{ cells: ['No Referrals'] }];
+            columns = [{ title: 'Referrals' }];
         }
         this.setState({
             rows: rows,
@@ -84,15 +83,15 @@ class ReferralTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let rows = [];
-        let sortedRefs = [...this.props.rows];
+        const rows = [];
+        const sortedRefs = [...this.props.rows];
 
         // Sort the referrals and build the new rows
         sortedRefs.sort();
         if (direction !== SortByDirection.asc) {
             sortedRefs.reverse();
         }
-        for (let refRow of sortedRefs) {
+        for (const refRow of sortedRefs) {
             rows.push({ cells: [refRow, { props: { textCenter: true }, title: this.getDeleteButton(refRow) }] });
         }
 
@@ -172,7 +171,7 @@ class IndexTable extends React.Component {
 
     componentDidMount () {
         // Copy the rows so we can handle sorting and searching
-        this.setState({rows: [...this.props.rows]});
+        this.setState({ rows: [...this.props.rows] });
     }
 
     actions() {
@@ -211,8 +210,8 @@ class IndexTable extends React.Component {
 
     onSearchChange(value, event) {
         let rows = [];
-        let val = value.toLowerCase();
-        for (let row of this.props.rows) {
+        const val = value.toLowerCase();
+        for (const row of this.props.rows) {
             if (val != "" &&
                 row[0].indexOf(val) == -1 &&
                 row[1].indexOf(val) == -1 &&
@@ -234,16 +233,16 @@ class IndexTable extends React.Component {
     }
 
     render() {
-        let rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
+        const rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
         if (rows.length == 0) {
             has_rows = false;
-            columns = [{title: 'Indexes'}];
-            tableRows = [{cells: ['No Indexes']}];
+            columns = [{ title: 'Indexes' }];
+            tableRows = [{ cells: ['No Indexes'] }];
         } else {
-            let startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
         return (
@@ -331,14 +330,14 @@ class EncryptedAttrTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
-        for (let attrRow of this.props.rows) {
+        for (const attrRow of this.props.rows) {
             rows.push({
                 cells: [attrRow, { props: { textCenter: true }, title: this.getDeleteButton(attrRow) }]
             });
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Attributes']}];
-            columns = [{title: 'Encrypted Attribute'}];
+            rows = [{ cells: ['No Attributes'] }];
+            columns = [{ title: 'Encrypted Attribute' }];
         }
         this.setState({
             rows: rows,
@@ -347,15 +346,15 @@ class EncryptedAttrTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let rows = [];
-        let sortedAttrs = [...this.props.rows];
+        const rows = [];
+        const sortedAttrs = [...this.props.rows];
 
         // Sort the referrals and build the new rows
         sortedAttrs.sort();
         if (direction !== SortByDirection.asc) {
             sortedAttrs.reverse();
         }
-        for (let attrRow of sortedAttrs) {
+        for (const attrRow of sortedAttrs) {
             rows.push({ cells: [attrRow, { props: { textCenter: true }, title: this.getDeleteButton(attrRow) }] });
         }
 
@@ -451,7 +450,7 @@ class LDIFTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
-        for (let ldifRow of this.props.rows) {
+        for (const ldifRow of this.props.rows) {
             rows.push({
                 cells: [
                     ldifRow[0], ldifRow[1], ldifRow[2]
@@ -459,8 +458,8 @@ class LDIFTable extends React.Component {
             });
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No LDIF files']}];
-            columns = [{title: 'LDIF File'}];
+            rows = [{ cells: ['No LDIF files'] }];
+            columns = [{ title: 'LDIF File' }];
         }
         this.setState({
             rows: rows,
@@ -469,16 +468,17 @@ class LDIFTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let rows = [];
-        let sortedLDIF = [...this.props.rows];
+        const rows = [];
+        const sortedLDIF = [...this.props.rows];
 
         // Sort the referrals and build the new rows
         sortedLDIF.sort();
         if (direction !== SortByDirection.asc) {
             sortedLDIF.reverse();
         }
-        for (let ldifRow of sortedLDIF) {
-            rows.push({ cells:
+        for (const ldifRow of sortedLDIF) {
+            rows.push({
+                cells:
                 [
                     ldifRow[0], ldifRow[1], ldifRow[2]
                 ]
@@ -575,14 +575,14 @@ class LDIFManageTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
-        for (let ldifRow of this.props.rows) {
+        for (const ldifRow of this.props.rows) {
             rows.push({
                 cells: [ldifRow[0], ldifRow[3], ldifRow[1], ldifRow[2]]
             });
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No LDIF files']}];
-            columns = [{title: 'LDIF File'}];
+            rows = [{ cells: ['No LDIF files'] }];
+            columns = [{ title: 'LDIF File' }];
         }
         this.setState({
             rows: rows,
@@ -591,15 +591,15 @@ class LDIFManageTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let rows = [];
-        let sortedLDIF = [...this.props.rows];
+        const rows = [];
+        const sortedLDIF = [...this.props.rows];
 
         // Sort the referrals and build the new rows
         sortedLDIF.sort();
         if (direction !== SortByDirection.asc) {
             sortedLDIF.reverse();
         }
-        for (let ldifRow of sortedLDIF) {
+        for (const ldifRow of sortedLDIF) {
             rows.push({
                 cells: [ldifRow[0], ldifRow[3], ldifRow[1], ldifRow[2]]
             });
@@ -702,14 +702,14 @@ class BackupTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
-        for (let bakRow of this.props.rows) {
+        for (const bakRow of this.props.rows) {
             rows.push({
                 cells: [bakRow[0], bakRow[1], bakRow[2]]
             });
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Backups']}];
-            columns = [{title: 'Backups'}];
+            rows = [{ cells: ['No Backups'] }];
+            columns = [{ title: 'Backups' }];
         }
         this.setState({
             rows: rows,
@@ -718,15 +718,15 @@ class BackupTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let rows = [];
-        let sortedBaks = [...this.props.rows];
+        const rows = [];
+        const sortedBaks = [...this.props.rows];
 
         // Sort the referrals and build the new rows
         sortedBaks.sort();
         if (direction !== SortByDirection.asc) {
             sortedBaks.reverse();
         }
-        for (let bakRow of sortedBaks) {
+        for (const bakRow of sortedBaks) {
             rows.push({
                 cells: [bakRow[0], bakRow[1], bakRow[2]]
             });
@@ -829,14 +829,14 @@ class PwpTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
-        for (let pwpRow of this.props.rows) {
+        for (const pwpRow of this.props.rows) {
             rows.push({
                 cells: [pwpRow[0], pwpRow[1], pwpRow[2]]
             });
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Local Policies']}];
-            columns = [{title: 'Local Password Policies'}];
+            rows = [{ cells: ['No Local Policies'] }];
+            columns = [{ title: 'Local Password Policies' }];
         }
         this.setState({
             rows: rows,
@@ -845,15 +845,15 @@ class PwpTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let rows = [];
-        let sortedPwp = [...this.props.rows];
+        const rows = [];
+        const sortedPwp = [...this.props.rows];
 
         // Sort the referrals and build the new rows
         sortedPwp.sort();
         if (direction !== SortByDirection.asc) {
             sortedPwp.reverse();
         }
-        for (let pwpRow of sortedPwp) {
+        for (const pwpRow of sortedPwp) {
             rows.push({
                 cells: [pwpRow[0], pwpRow[1], pwpRow[2]]
             });
@@ -933,12 +933,14 @@ class VLVTable extends React.Component {
             rows: [],
             noRows: true,
             columns: [
-                { title: 'Name',
-                  transforms: [sortable],
-                  cellFormatters: [expandable]
+                {
+                    title: 'Name',
+                    transforms: [sortable],
+                    cellFormatters: [expandable]
                 },
-                { title: 'Search Base',
-                  transforms: [sortable],
+                {
+                    title: 'Search Base',
+                    transforms: [sortable],
                 },
             ],
         };
@@ -960,16 +962,16 @@ class VLVTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_rows = [];
-        let rows = [];
+        const sorted_rows = [];
+        const rows = [];
         let count = 0;
 
         // Convert the rows pairings into a sortable array based on the column indexes
         for (let idx = 0; idx < this.state.rows.length; idx += 2) {
             sorted_rows.push({
-                'expandedRow': this.state.rows[idx + 1],
-                '1': this.state.rows[idx].cells[0],
-                '2': this.state.rows[idx].cells[1],
+                expandedRow: this.state.rows[idx + 1],
+                1: this.state.rows[idx].cells[0],
+                2: this.state.rows[idx].cells[1],
             });
         }
 
@@ -978,7 +980,7 @@ class VLVTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_rows.reverse();
         }
-        for (let srow of sorted_rows) {
+        for (const srow of sorted_rows) {
             rows.push({
                 isOpen: false,
                 cells: [
@@ -1002,16 +1004,16 @@ class VLVTable extends React.Component {
     }
 
     getScopeKey(scope) {
-        let mapping = {
-            '2': 'subtree',
-            '1': 'one',
-            '0': 'base'
+        const mapping = {
+            2: 'subtree',
+            1: 'one',
+            0: 'base'
         };
         return mapping[scope];
     }
 
     getExpandedRow(row) {
-        let sort_indexes = row.sorts.map((sort) => {
+        const sort_indexes = row.sorts.map((sort) => {
             let indexState;
             if (sort.attrs.vlvenabled[0] == "0") {
                 // html 5 deprecated font ...
@@ -1028,9 +1030,9 @@ class VLVTable extends React.Component {
                         <Button
                             className="ds-left-margin"
                             onClick={() => {
-                                this.props.deleteSortFunc(row.attrs['cn'][0], sort.attrs.vlvsort[0]);
+                                this.props.deleteSortFunc(row.attrs.cn[0], sort.attrs.vlvsort[0]);
                             }}
-                            id={row.attrs['cn'][0]}
+                            id={row.attrs.cn[0]}
                             icon={<TrashAltIcon />}
                             variant="link"
                         >
@@ -1071,7 +1073,7 @@ class VLVTable extends React.Component {
                     <Button
                         className="ds-margin-top"
                         onClick={() => {
-                            this.props.addSortFunc(row.attrs['cn'][0]);
+                            this.props.addSortFunc(row.attrs.cn[0]);
                         }}
                         variant="primary"
                     >
@@ -1088,11 +1090,11 @@ class VLVTable extends React.Component {
         let count = 0;
         let noRows = true;
 
-        for (let row of this.props.rows) {
+        for (const row of this.props.rows) {
             rows.push(
                 {
                     isOpen: false,
-                    cells: [row.attrs['cn'][0], row.attrs.vlvbase[0]],
+                    cells: [row.attrs.cn[0], row.attrs.vlvbase[0]],
                 },
                 {
                     parent: count,
@@ -1103,8 +1105,8 @@ class VLVTable extends React.Component {
             count += 2;
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No VLV Indexes']}];
-            columns = [{title: 'VLV Indexes'}];
+            rows = [{ cells: ['No VLV Indexes'] }];
+            columns = [{ title: 'VLV Indexes' }];
         } else {
             noRows = false;
         }
@@ -1142,13 +1144,13 @@ class VLVTable extends React.Component {
 
     render() {
         const { perPage, page, sortBy, rows, columns } = this.state;
-        let origRows = [...rows];
-        let startIdx = ((perPage * page) - perPage) * 2;
-        let tableRows = origRows.splice(startIdx, perPage * 2);
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
 
         for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
             // Rewrite parent index to match new spliced array
-            tableRows[idx]['parent'] = count;
+            tableRows[idx].parent = count;
         }
 
         return (
@@ -1193,8 +1195,6 @@ VLVTable.propTypes = {
 
 VLVTable.defaultProps = {
     rows: [],
-    deletedeleteFunc: noop,
-    reindexFunc: noop,
 };
 
 PwpTable.propTypes = {
@@ -1205,8 +1205,6 @@ PwpTable.propTypes = {
 
 PwpTable.defaultProps = {
     rows: [],
-    editPolicy: noop,
-    deletePolicy: noop
 };
 
 BackupTable.propTypes = {
@@ -1217,8 +1215,6 @@ BackupTable.propTypes = {
 
 BackupTable.defaultProps = {
     rows: [],
-    confirmRestore: noop,
-    confirmDelete: noop
 };
 
 LDIFTable.propTypes = {
@@ -1228,7 +1224,6 @@ LDIFTable.propTypes = {
 
 LDIFTable.defaultProps = {
     rows: [],
-    confirmImport: noop
 };
 
 LDIFManageTable.propTypes = {
@@ -1239,8 +1234,6 @@ LDIFManageTable.propTypes = {
 
 LDIFManageTable.defaultProps = {
     rows: [],
-    confirmImport: noop,
-    confirmDelete: noop
 };
 
 ReferralTable.propTypes = {
@@ -1250,7 +1243,6 @@ ReferralTable.propTypes = {
 
 ReferralTable.defaultProps = {
     rows: [],
-    deleteRef: noop
 };
 
 IndexTable.propTypes = {
@@ -1264,9 +1256,6 @@ IndexTable.propTypes = {
 IndexTable.defaultProps = {
     editable: false,
     rows: [],
-    editIndex: noop,
-    reindexIndex: noop,
-    deleteIndex: noop,
 };
 
 EncryptedAttrTable.propTypes = {
@@ -1275,7 +1264,6 @@ EncryptedAttrTable.propTypes = {
 };
 
 EncryptedAttrTable.defaultProps = {
-    deleteAttr: noop,
     rows: [],
 };
 

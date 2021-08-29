@@ -17,7 +17,6 @@ import {
     TextContent,
     TextVariants,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import {
     ArrowRightIcon,
@@ -200,24 +199,24 @@ class AutoMembership extends React.Component {
     }
 
     validateModal () {
-        let error = {};
+        const error = {};
         let all_good = true;
-        let dnAttrs = [
+        const dnAttrs = [
             'defaultGroup', 'scope',
         ];
-        let reqAttrs = [
+        const reqAttrs = [
             'definitionName', 'scope', 'filter', 'groupingAttrMember',
             'groupingAttrEntry'
         ];
 
-        for (let attr of reqAttrs) {
+        for (const attr of reqAttrs) {
             if (this.state[attr] == "") {
                 error[attr] = true;
                 all_good = false;
             }
         }
 
-        for (let attr of dnAttrs) {
+        for (const attr of dnAttrs) {
             if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
                 error[attr] = true;
                 all_good = false;
@@ -227,11 +226,11 @@ class AutoMembership extends React.Component {
         if (all_good) {
             // Check for value differences to see if the save btn should be enabled
             all_good = false;
-            let attrs = [
+            const attrs = [
                 'definitionName', 'defaultGroup', 'filter',
                 'groupingAttrMember', 'groupingAttrEntry', 'scope'
             ];
-            for (let check_attr of attrs) {
+            for (const check_attr of attrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
@@ -242,16 +241,16 @@ class AutoMembership extends React.Component {
                 all_good = true;
             }
             if (!all_good) {
-                for (let row of this.state.regexRows) {
+                for (const row of this.state.regexRows) {
                     let found = false;
-                    for (let orig_row of this.state._regexRows) {
+                    for (const orig_row of this.state._regexRows) {
                         if (orig_row.cn[0] == row.cn[0]) {
                             found = true;
                             if (orig_row.automembertargetgroup[0] != row.automembertargetgroup[0]) {
                                 all_good = true;
                                 break;
                             }
-                            for (let attr of ['automemberinclusiveregex', 'automemberexclusiveregex']) {
+                            for (const attr of ['automemberinclusiveregex', 'automemberexclusiveregex']) {
                                 if (!listsEqual(orig_row[attr], row[attr])) {
                                     all_good = true;
                                     break;
@@ -266,9 +265,9 @@ class AutoMembership extends React.Component {
                 }
                 if (!all_good) {
                     // Go backwards and check if original rows is different
-                    for (let orig_row of this.state._regexRows) {
+                    for (const orig_row of this.state._regexRows) {
                         let found = false;
-                        for (let row of this.state.regexRows) {
+                        for (const row of this.state.regexRows) {
                             if (orig_row.cn[0] == row.cn[0]) {
                                 found = true;
                             }
@@ -289,23 +288,23 @@ class AutoMembership extends React.Component {
     }
 
     validateRegex () {
-        let error = {};
+        const error = {};
         let all_good = true;
-        let dnAttrs = [
+        const dnAttrs = [
             'regexTargetGroup',
         ];
-        let reqAttrs = [
+        const reqAttrs = [
             'regexName', 'regexTargetGroup'
         ];
 
-        for (let attr of reqAttrs) {
+        for (const attr of reqAttrs) {
             if (this.state[attr] == "") {
                 error[attr] = true;
                 all_good = false;
             }
         }
 
-        for (let attr of dnAttrs) {
+        for (const attr of dnAttrs) {
             if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
                 error[attr] = true;
                 all_good = false;
@@ -315,20 +314,20 @@ class AutoMembership extends React.Component {
         if (all_good) {
             // Check for value differences to see if the save btn should be enabled
             all_good = false;
-            let attrs = [
+            const attrs = [
                 'regexTargetGroup'
             ];
-            let attrsList = [
+            const attrsList = [
                 'regexExclusive', 'regexInclusive'
             ];
-            for (let check_attr of attrs) {
+            for (const check_attr of attrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
                 }
             }
 
-            for (let check_attr of attrsList) {
+            for (const check_attr of attrsList) {
                 if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
                     all_good = true;
                     break;
@@ -377,14 +376,14 @@ class AutoMembership extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
+                    const myObject = JSON.parse(content);
                     this.setState({
                         definitionRows: myObject.items.map(item => item.attrs),
                         firstLoad: false
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadDefinitions failed", errMsg.desc);
                     }
@@ -392,7 +391,7 @@ class AutoMembership extends React.Component {
     }
 
     initRegexRows(rows) {
-        for (let row of rows) {
+        for (const row of rows) {
             if (row.automembertargetgroup === undefined) {
                 row.automembertargetgroup = "";
             }
@@ -420,9 +419,9 @@ class AutoMembership extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
-                    let regexTableKey = this.state.regexTableKey + 1;
-                    let rows = myObject.items.map(item => item.attrs);
+                    const myObject = JSON.parse(content);
+                    const regexTableKey = this.state.regexTableKey + 1;
+                    const rows = myObject.items.map(item => item.attrs);
                     this.initRegexRows(rows);
                     this.setState({
                         regexRows: rows,
@@ -431,7 +430,7 @@ class AutoMembership extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadRegexes failed", errMsg.desc);
                     }
@@ -462,7 +461,7 @@ class AutoMembership extends React.Component {
             });
         } else {
             this.loadRegexes(name);
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -481,42 +480,42 @@ class AutoMembership extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let definitionEntry = JSON.parse(content).attrs;
+                        const definitionEntry = JSON.parse(content).attrs;
                         this.setState({
                             saveBtnDisabled: true,
                             definitionEntryModalShow: true,
                             newDefinitionEntry: false,
                             definitionName:
-                            definitionEntry["cn"] === undefined ? "" : definitionEntry["cn"][0],
+                            definitionEntry.cn === undefined ? "" : definitionEntry.cn[0],
                             defaultGroup:
-                            definitionEntry["automemberdefaultgroup"] === undefined
+                            definitionEntry.automemberdefaultgroup === undefined
                                 ? ""
-                                : definitionEntry["automemberdefaultgroup"][0],
+                                : definitionEntry.automemberdefaultgroup[0],
                             filter:
-                            definitionEntry["automemberfilter"] === undefined
+                            definitionEntry.automemberfilter === undefined
                                 ? ""
-                                : definitionEntry["automemberfilter"][0],
+                                : definitionEntry.automemberfilter[0],
                             scope:
-                            definitionEntry["automemberscope"] === undefined
+                            definitionEntry.automemberscope === undefined
                                 ? ""
-                                : definitionEntry["automemberscope"][0],
+                                : definitionEntry.automemberscope[0],
                             _definitionName:
-                            definitionEntry["cn"] === undefined ? "" : definitionEntry["cn"][0],
+                            definitionEntry.cn === undefined ? "" : definitionEntry.cn[0],
                             _defaultGroup:
-                            definitionEntry["automemberdefaultgroup"] === undefined
+                            definitionEntry.automemberdefaultgroup === undefined
                                 ? ""
-                                : definitionEntry["automemberdefaultgroup"][0],
+                                : definitionEntry.automemberdefaultgroup[0],
                             _filter:
-                            definitionEntry["automemberfilter"] === undefined
+                            definitionEntry.automemberfilter === undefined
                                 ? ""
-                                : definitionEntry["automemberfilter"][0],
+                                : definitionEntry.automemberfilter[0],
                             _scope:
-                            definitionEntry["automemberscope"] === undefined
+                            definitionEntry.automemberscope === undefined
                                 ? ""
-                                : definitionEntry["automemberscope"][0]
+                                : definitionEntry.automemberscope[0]
                         });
 
-                        if (definitionEntry["automembergroupingattr"] === undefined) {
+                        if (definitionEntry.automembergroupingattr === undefined) {
                             this.setState({
                                 groupingAttrMember: "",
                                 groupingAttrEntry: "",
@@ -524,7 +523,7 @@ class AutoMembership extends React.Component {
                                 _groupingAttrEntry: ""
                             });
                         } else {
-                            let groupingAttr = definitionEntry["automembergroupingattr"][0];
+                            const groupingAttr = definitionEntry.automembergroupingattr[0];
                             this.setState({
                                 groupingAttrMember: groupingAttr.split(":")[0],
                                 groupingAttrEntry: groupingAttr.split(":")[1],
@@ -652,7 +651,7 @@ class AutoMembership extends React.Component {
                         this.props.toggleLoadingHandler();
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         if (errMsg.desc.indexOf("nothing to set") === 0) {
                             this.props.addNotification(
                                 "error",
@@ -671,8 +670,8 @@ class AutoMembership extends React.Component {
     purgeRegexUpdate() {
         const { definitionName, regexesToDelete, regexRows } = this.state;
 
-        for (let regexToDelete of regexesToDelete) {
-            let cmd = [
+        for (const regexToDelete of regexesToDelete) {
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -703,7 +702,7 @@ class AutoMembership extends React.Component {
                         );
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
                             `Error during the regex "${regexToDelete}" entry delete operation - ${
@@ -713,7 +712,7 @@ class AutoMembership extends React.Component {
                     });
         }
 
-        for (let row of regexRows) {
+        for (const row of regexRows) {
             let action = "";
             let regexName = "";
             if (row.needsadd !== undefined) {
@@ -739,9 +738,9 @@ class AutoMembership extends React.Component {
                 action
             ];
 
-            let regexTargetGroup = row.automembertargetgroup[0];
-            let regexExclusive = row.automemberexclusiveregex === undefined ? [] : row.automemberexclusiveregex;
-            let regexInclusive = row.automemberinclusiveregex === undefined ? [] : row.automemberinclusiveregex;
+            const regexTargetGroup = row.automembertargetgroup[0];
+            const regexExclusive = row.automemberexclusiveregex === undefined ? [] : row.automemberexclusiveregex;
+            const regexInclusive = row.automemberinclusiveregex === undefined ? [] : row.automemberinclusiveregex;
 
             if (!(action == "add" && regexTargetGroup == 0)) {
                 cmd = [...cmd, "--target-group"];
@@ -757,7 +756,7 @@ class AutoMembership extends React.Component {
             if (!(action == "add" && regexExclusive.length == 0)) {
                 cmd = [...cmd, "--exclusive"];
                 if (regexExclusive.length != 0) {
-                    for (let regex of regexExclusive) {
+                    for (const regex of regexExclusive) {
                         cmd = [...cmd, regex];
                     }
                 } else if (action == "add") {
@@ -769,7 +768,7 @@ class AutoMembership extends React.Component {
             if (!(action == "add" && regexInclusive.length == 0)) {
                 cmd = [...cmd, "--inclusive"];
                 if (regexInclusive.length != 0) {
-                    for (let regex of regexInclusive) {
+                    for (const regex of regexInclusive) {
                         cmd = [...cmd, regex];
                     }
                 } else if (action == "add") {
@@ -797,7 +796,7 @@ class AutoMembership extends React.Component {
                         );
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
                             `Error during the regex "${regexName}" entry ${action} operation - ${
@@ -826,7 +825,7 @@ class AutoMembership extends React.Component {
     }
 
     deleteDefinition() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -856,7 +855,7 @@ class AutoMembership extends React.Component {
                     this.closeConfirmDelete();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the definition entry removal operation - ${errMsg.desc}`
@@ -876,15 +875,15 @@ class AutoMembership extends React.Component {
 
     openRegexModal(name) {
         if (name) {
-            let regexEntry = this.state.regexRows.filter(row => row.cn[0] === name)[0];
+            const regexEntry = this.state.regexRows.filter(row => row.cn[0] === name)[0];
 
             let exclusiveRegexList = [];
             let inclusiveRegexList = [];
             // Get all the attributes and matching rules now
-            if (regexEntry["automemberexclusiveregex"] === undefined) {
+            if (regexEntry.automemberexclusiveregex === undefined) {
                 this.setState({ regexExclusive: [], _regexExclusive: [] });
             } else {
-                for (let value of regexEntry["automemberexclusiveregex"]) {
+                for (const value of regexEntry.automemberexclusiveregex) {
                     exclusiveRegexList = [...exclusiveRegexList, value];
                 }
                 this.setState({
@@ -892,10 +891,10 @@ class AutoMembership extends React.Component {
                     _regexExclusive: [...exclusiveRegexList],
                 });
             }
-            if (regexEntry["automemberinclusiveregex"] === undefined) {
+            if (regexEntry.automemberinclusiveregex === undefined) {
                 this.setState({ regexInclusive: [], _regexInclusive: [] });
             } else {
-                for (let value of regexEntry["automemberinclusiveregex"]) {
+                for (const value of regexEntry.automemberinclusiveregex) {
                     inclusiveRegexList = [...inclusiveRegexList, value];
                 }
                 this.setState({
@@ -906,16 +905,16 @@ class AutoMembership extends React.Component {
             this.setState({
                 regexEntryModalShow: true,
                 newRegexEntry: false,
-                regexName: regexEntry["cn"][0],
+                regexName: regexEntry.cn[0],
                 regexTargetGroup:
-                    regexEntry["automembertargetgroup"] === undefined
+                    regexEntry.automembertargetgroup === undefined
                         ? ""
-                        : regexEntry["automembertargetgroup"][0],
-                _regexName: regexEntry["cn"][0],
+                        : regexEntry.automembertargetgroup[0],
+                _regexName: regexEntry.cn[0],
                 _regexTargetGroup:
-                    regexEntry["automembertargetgroup"] === undefined
+                    regexEntry.automembertargetgroup === undefined
                         ? ""
-                        : regexEntry["automembertargetgroup"][0],
+                        : regexEntry.automembertargetgroup[0],
                 saveRegexBtnDisabled: true
             });
         } else {
@@ -952,7 +951,7 @@ class AutoMembership extends React.Component {
         if (regexName === "" || regexTargetGroup === "") {
             this.props.addNotification("warning", "Name and Target Group are required.");
         } else {
-            let regexTableKey = this.state.regexTableKey + 1;
+            const regexTableKey = this.state.regexTableKey + 1;
             if (action == "add") {
                 if (!regexExists) {
                     this.setState(prevState => ({
@@ -1014,7 +1013,7 @@ class AutoMembership extends React.Component {
 
     deleteRegex(regexName) {
         const { regexRows } = this.state;
-        let regexTableKey = this.state.regexTableKey + 1;
+        const regexTableKey = this.state.regexTableKey + 1;
         if (regexRows.some(row => row.cn[0] === regexName)) {
             this.setState({
                 regexRows: regexRows.filter(row => row.cn[0] !== regexName),
@@ -1062,8 +1061,8 @@ class AutoMembership extends React.Component {
             firstLoad,
         } = this.state;
 
-        let title = (newDefinitionEntry ? "Add" : "Edit") + " Auto Membership Plugin Definition Entry";
-        let extraPrimaryProps = {};
+        const title = (newDefinitionEntry ? "Add" : "Edit") + " Auto Membership Plugin Definition Entry";
+        const extraPrimaryProps = {};
         let saveBtnText = newDefinitionEntry ? "Add Definition" : "Save Definition";
         if (saving) {
             // Main plugin config
@@ -1152,7 +1151,7 @@ class AutoMembership extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid title="Specifies the name of the member attribute in the group entry and the attribute in the object entry that supplies the member attribute value, in the format group_member_attr:entry_attr (autoMemberGroupingAttr)">
-                            <GridItem className="ds-label" span={3} >
+                            <GridItem className="ds-label" span={3}>
                                 Grouping Attribute
                             </GridItem>
                             <GridItem span={4}>
@@ -1298,12 +1297,12 @@ class AutoMembership extends React.Component {
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
                         <Grid title="Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)">
-                            <GridItem className="ds-label" span={3} >
+                            <GridItem className="ds-label" span={3}>
                                 Inclusive Regex
                             </GridItem>
                             <GridItem span={9}>
@@ -1408,10 +1407,6 @@ AutoMembership.propTypes = {
 AutoMembership.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop
 };
 
 export default AutoMembership;

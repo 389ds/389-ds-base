@@ -13,7 +13,6 @@ import {
     TextContent,
     TextVariants,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 
 import PropTypes from "prop-types";
@@ -105,7 +104,7 @@ export class GlobalDatabaseConfig extends React.Component {
             "dblocksMonitoringPause", "chxpoint", "compactinterval",
             "compacttime", "importcachesize", "importcacheauto",
         ];
-        for (let check_attr of check_attrs) {
+        for (const check_attr of check_attrs) {
             if (attr != check_attr) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     saveBtnDisabled = false;
@@ -123,7 +122,7 @@ export class GlobalDatabaseConfig extends React.Component {
 
     save_db_config() {
         // Build up the command list
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'backend', 'config', 'set'
         ];
@@ -242,9 +241,9 @@ export class GlobalDatabaseConfig extends React.Component {
                 saving: true
             });
             log_cmd("save_db_config", "Applying config change", cmd);
-            let msg = "Successfully updated database configuration";
+            const msg = "Successfully updated database configuration";
             cockpit
-                    .spawn(cmd, {superuser: true, "err": "message"})
+                    .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
                         // Continue with the next mod
                         this.props.reload();
@@ -259,7 +258,7 @@ export class GlobalDatabaseConfig extends React.Component {
                         }
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.reload();
                         this.setState({
                             saving: false
@@ -278,8 +277,8 @@ export class GlobalDatabaseConfig extends React.Component {
         let db_auto_checked = false;
         let import_auto_checked = false;
         let dblocksMonitor = "";
-        let dblocksThreshold = this.state.dblocksMonitoringThreshold;
-        let dblocksPause = this.state.dblocksMonitoringPause;
+        const dblocksThreshold = this.state.dblocksMonitoringThreshold;
+        const dblocksPause = this.state.dblocksMonitoringPause;
 
         if (this.state.dblocksMonitoring) {
             dblocksMonitor =
@@ -452,7 +451,7 @@ export class GlobalDatabaseConfig extends React.Component {
         }
 
         let saveBtnName = "Save Config";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.props.refreshing) {
             saveBtnName = "Saving config ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -773,8 +772,5 @@ GlobalDatabaseConfig.propTypes = {
 
 GlobalDatabaseConfig.defaultProps = {
     serverId: "",
-    addNotification: noop,
     data: {},
-    reload: noop,
-    enableTree: noop,
 };

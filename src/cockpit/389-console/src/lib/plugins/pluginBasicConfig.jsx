@@ -9,7 +9,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
@@ -98,7 +97,7 @@ class PluginBasicConfig extends React.Component {
                     toggleLoadingHandler();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     addNotification(
                         "error",
                         `Error during ${pluginName} plugin modification - ${errMsg.desc}`
@@ -317,9 +316,6 @@ PluginBasicConfig.defaultProps = {
     pluginName: "",
     cmdName: "",
     removeSwitch: false,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop,
 };
 
 export default PluginBasicConfig;

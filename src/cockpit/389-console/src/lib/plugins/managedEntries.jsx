@@ -23,7 +23,6 @@ import {
     TextContent,
     TextVariants,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 
 import { ManagedDefinitionTable, ManagedTemplateTable } from "./pluginTables.jsx";
@@ -88,7 +87,7 @@ class ManagedEntries extends React.Component {
         this.handleNavSelect = (event, tabIndex) => {
             const { wasActiveList } = this.state;
             if (!wasActiveList.includes(tabIndex)) {
-                let newList = wasActiveList.concat(tabIndex);
+                const newList = wasActiveList.concat(tabIndex);
                 this.setState({
                     wasActiveList: newList,
                     activeTabKey: tabIndex
@@ -229,8 +228,8 @@ class ManagedEntries extends React.Component {
     }
 
     handleFieldChange(str, e) {
-        let value = e.target.value;
-        let id = e.target.id;
+        const value = e.target.value;
+        const id = e.target.id;
         this.setState({
             [id]: value
         });
@@ -279,16 +278,16 @@ class ManagedEntries extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
+                    const myObject = JSON.parse(content);
                     let defCreateDisabled = false;
-                    let templateOptions = [];
+                    const templateOptions = [];
                     if (myObject.items.length == 0) {
                         // We loaded the templates first to set the definition's
                         // save btn.  You must have templates before you can
                         // create the definition.
                         defCreateDisabled = true;
                     } else {
-                        for (let temp of myObject.items) {
+                        for (const temp of myObject.items) {
                             templateOptions.push({
                                 value: temp.dn,
                                 label: temp.dn
@@ -318,8 +317,8 @@ class ManagedEntries extends React.Component {
                     cockpit
                             .spawn(cmd, { superuser: true, err: "message" })
                             .done(content => {
-                                let myObject = JSON.parse(content);
-                                let tableKey = this.state.tableKey + 1;
+                                const myObject = JSON.parse(content);
+                                const tableKey = this.state.tableKey + 1;
                                 this.setState({
                                     configRows: myObject.items.map(item => item.attrs),
                                     tableKey: tableKey,
@@ -327,7 +326,7 @@ class ManagedEntries extends React.Component {
                                 });
                             })
                             .fail(err => {
-                                let errMsg = JSON.parse(err);
+                                const errMsg = JSON.parse(err);
                                 if (err != 0) {
                                     console.log("loadConfigs failed getting definitions", errMsg.desc);
                                 }
@@ -337,7 +336,7 @@ class ManagedEntries extends React.Component {
                             });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadConfigs failed getting templates", errMsg.desc);
                     }
@@ -368,7 +367,7 @@ class ManagedEntries extends React.Component {
                 templateModalShow: true,
             });
         } else {
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -387,16 +386,16 @@ class ManagedEntries extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let configEntry = JSON.parse(content).attrs;
+                        const configEntry = JSON.parse(content).attrs;
 
-                        configEntry["meprdnattr"] === undefined
-                            ? configEntry["meprdnattr"] = ""
-                            : configEntry["meprdnattr"] = configEntry["meprdnattr"][0];
-                        if (configEntry["mepstaticattr"] === undefined) {
-                            configEntry["mepstaticattr"] = [];
+                        configEntry.meprdnattr === undefined
+                            ? configEntry.meprdnattr = ""
+                            : configEntry.meprdnattr = configEntry.meprdnattr[0];
+                        if (configEntry.mepstaticattr === undefined) {
+                            configEntry.mepstaticattr = [];
                         }
-                        if (configEntry["mepmappedattr"] === undefined) {
-                            configEntry["mepmappedattr"] = [];
+                        if (configEntry.mepmappedattr === undefined) {
+                            configEntry.mepmappedattr = [];
                         }
 
                         this.setState({
@@ -404,14 +403,14 @@ class ManagedEntries extends React.Component {
                             templateModalShow: true,
                             saveTempOK: false,
                             templateDN: entrydn,
-                            templateRDNAttr: configEntry["meprdnattr"],
-                            templateStaticAttr: configEntry["mepstaticattr"],
-                            templateMappedAttr: configEntry["mepmappedattr"],
+                            templateRDNAttr: configEntry.meprdnattr,
+                            templateStaticAttr: configEntry.mepstaticattr,
+                            templateMappedAttr: configEntry.mepmappedattr,
                             // Preserve original Settings
                             _templateDN: entrydn,
-                            _templateRDNAttr: configEntry["meprdnattr"],
-                            _templateStaticAttr: [...configEntry["mepstaticattr"]],
-                            _templateMappedAttr: [...configEntry["mepmappedattr"]]
+                            _templateRDNAttr: configEntry.meprdnattr,
+                            _templateStaticAttr: [...configEntry.mepstaticattr],
+                            _templateMappedAttr: [...configEntry.mepmappedattr]
                         }, this.toggleLoading());
                     })
                     .fail(_ => {
@@ -428,8 +427,8 @@ class ManagedEntries extends React.Component {
 
     addStaticAttrToList() {
         // Add the selected static attribute to the state list
-        let value = this.state.staticAttr + ": " + this.state.staticValue;
-        let values = this.state.templateStaticAttr;
+        const value = this.state.staticAttr + ": " + this.state.staticValue;
+        const values = this.state.templateStaticAttr;
         values.push(value);
         this.setState({
             templateStaticAttr: values,
@@ -439,7 +438,7 @@ class ManagedEntries extends React.Component {
 
     deleteStaticAttribute () {
         // delete the selected static attribute from the state list
-        let attrList = this.state.templateStaticAttr;
+        const attrList = this.state.templateStaticAttr;
         for (let i = 0; i < attrList.length; i++) {
             if (attrList[i] === this.state.selectedStaticAttr) {
                 attrList.splice(i, 1);
@@ -455,7 +454,7 @@ class ManagedEntries extends React.Component {
 
     addMappedAttrToList() {
         // Add the selected mapped attribute to the state list
-        let values = this.state.templateMappedAttr;
+        const values = this.state.templateMappedAttr;
         values.push(this.state.mappedAttr + ": " + this.state.mappedValue);
         this.setState(prevState => ({
             templateMappedAttr: values,
@@ -495,7 +494,7 @@ class ManagedEntries extends React.Component {
 
     deleteMappedAttribute () {
         // delete the selected static attribute from the state list
-        let attrList = this.state.templateMappedAttr;
+        const attrList = this.state.templateMappedAttr;
         for (let i = 0; i < attrList.length; i++) {
             if (attrList[i] === this.state.selectedMappedAttr) {
                 attrList.splice(i, 1);
@@ -564,7 +563,7 @@ class ManagedEntries extends React.Component {
                 managedBase: "",
             });
         } else {
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -583,34 +582,34 @@ class ManagedEntries extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let configEntry = JSON.parse(content).attrs;
+                        const configEntry = JSON.parse(content).attrs;
                         // Initialize settings
-                        configEntry["originscope"] === undefined
-                            ? configEntry["originscope"] = ""
-                            : configEntry["originscope"] = configEntry["originscope"][0];
-                        configEntry["originfilter"] === undefined
-                            ? configEntry["originfilter"] = ""
-                            : configEntry["originfilter"] = configEntry["originfilter"][0];
-                        configEntry["managedbase"] === undefined
-                            ? configEntry["managedbase"] = ""
-                            : configEntry["managedbase"] = configEntry["managedbase"][0];
-                        configEntry["managedtemplate"] === undefined
-                            ? configEntry["managedtemplate"] = ""
-                            : configEntry["managedtemplate"] = configEntry["managedtemplate"][0];
+                        configEntry.originscope === undefined
+                            ? configEntry.originscope = ""
+                            : configEntry.originscope = configEntry.originscope[0];
+                        configEntry.originfilter === undefined
+                            ? configEntry.originfilter = ""
+                            : configEntry.originfilter = configEntry.originfilter[0];
+                        configEntry.managedbase === undefined
+                            ? configEntry.managedbase = ""
+                            : configEntry.managedbase = configEntry.managedbase[0];
+                        configEntry.managedtemplate === undefined
+                            ? configEntry.managedtemplate = ""
+                            : configEntry.managedtemplate = configEntry.managedtemplate[0];
 
                         this.setState({
                             configEntryModalShow: true,
                             newDefEntry: false,
-                            configName: configEntry["cn"][0],
-                            originScope: configEntry["originscope"],
-                            originFilter: configEntry["originfilter"],
-                            managedBase: configEntry["managedbase"],
-                            managedTemplate: configEntry["managedtemplate"],
+                            configName: configEntry.cn[0],
+                            originScope: configEntry.originscope,
+                            originFilter: configEntry.originfilter,
+                            managedBase: configEntry.managedbase,
+                            managedTemplate: configEntry.managedtemplate,
                             // Preserve original settings
-                            _originScope: configEntry["originscope"],
-                            _originFilter: configEntry["originfilter"],
-                            _managedBase: configEntry["managedbase"],
-                            _managedTemplate: configEntry["managedtemplate"],
+                            _originScope: configEntry.originscope,
+                            _originFilter: configEntry.originfilter,
+                            _managedBase: configEntry.managedbase,
+                            _managedTemplate: configEntry.managedtemplate,
                         }, this.toggleLoading());
                     })
                     .fail(_ => {
@@ -631,7 +630,7 @@ class ManagedEntries extends React.Component {
     }
 
     deleteDefConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -658,7 +657,7 @@ class ManagedEntries extends React.Component {
                     this.loadConfigs();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the definition entry removal operation - ${errMsg.desc}`
@@ -679,7 +678,7 @@ class ManagedEntries extends React.Component {
         // Update definition
         const { configName, originScope, originFilter, managedBase, managedTemplate } = this.state;
 
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -715,7 +714,7 @@ class ManagedEntries extends React.Component {
                     this.closeDefModal();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry ${action} operation - ${errMsg.desc}`
@@ -763,7 +762,7 @@ class ManagedEntries extends React.Component {
 
         if (templateStaticAttr.length != 0) {
             cmd = [...cmd, "--static-attr"];
-            for (let value of templateStaticAttr) {
+            for (const value of templateStaticAttr) {
                 cmd = [...cmd, value];
             }
         } else if (action != "add") {
@@ -772,7 +771,7 @@ class ManagedEntries extends React.Component {
 
         if (templateMappedAttr.length != 0) {
             cmd = [...cmd, "--mapped-attr"];
-            for (let value of templateMappedAttr) {
+            for (const value of templateMappedAttr) {
                 cmd = [...cmd, value];
             }
         } else if (action != "add") {
@@ -799,7 +798,7 @@ class ManagedEntries extends React.Component {
                     this.closeTempModal();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.closeTempModal();
                     this.props.addNotification(
                         "error",
@@ -812,7 +811,7 @@ class ManagedEntries extends React.Component {
     deleteTemplate() {
         const { templateDN } = this.state;
 
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -839,7 +838,7 @@ class ManagedEntries extends React.Component {
                     this.closeTempDeleteConfirm();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the template entry removal operation - ${errMsg.desc}`
@@ -871,8 +870,8 @@ class ManagedEntries extends React.Component {
                 .spawn(attr_cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const attrContent = JSON.parse(content);
-                    let attrs = [];
-                    for (let content of attrContent["items"]) {
+                    const attrs = [];
+                    for (const content of attrContent.items) {
                         attrs.push(content.name[0]);
                     }
                     this.setState({
@@ -880,7 +879,7 @@ class ManagedEntries extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification("error", `Failed to get attributes - ${errMsg.desc}`);
                 });
     }
@@ -917,7 +916,7 @@ class ManagedEntries extends React.Component {
     validateTempRdnToAttrMapping() {
         // The template RDN must have a mapped attribute
         let mappedMatchesRDN = false;
-        for (let mAttr of this.state.templateMappedAttr) {
+        for (const mAttr of this.state.templateMappedAttr) {
             if (mAttr.startsWith(this.state.templateRDNAttr + ":")) {
                 mappedMatchesRDN = true;
                 break;
@@ -975,7 +974,7 @@ class ManagedEntries extends React.Component {
             templateAddMappedShow,
         } = this.state;
 
-        let specificPluginCMD = [
+        const specificPluginCMD = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -986,11 +985,11 @@ class ManagedEntries extends React.Component {
             configArea || "delete"
         ];
 
-        let templateTitle = (newTemplateEntry ? "Add" : "Edit") + " Managed Entries Template Entry";
-        let title = (newDefEntry ? "Add" : "Edit") + " Managed Entries Definition Entry";
-        let defSaveDisabled = this.validateDef(newDefEntry);
-        let tempSaveDisabled = this.validateTemp(newTemplateEntry);
-        let templateRdnMappingOK = this.validateTempRdnToAttrMapping();
+        const templateTitle = (newTemplateEntry ? "Add" : "Edit") + " Managed Entries Template Entry";
+        const title = (newDefEntry ? "Add" : "Edit") + " Managed Entries Definition Entry";
+        const defSaveDisabled = this.validateDef(newDefEntry);
+        const tempSaveDisabled = this.validateTemp(newTemplateEntry);
+        const templateRdnMappingOK = this.validateTempRdnToAttrMapping();
 
         return (
             <div>
@@ -1037,8 +1036,8 @@ class ManagedEntries extends React.Component {
                             helperTextInvalid="A valid DN must be provided"
                             validated={
                                 originScope != "" && !valid_dn(originScope)
-                                ? ValidatedOptions.error
-                                : ValidatedOptions.default
+                                    ? ValidatedOptions.error
+                                    : ValidatedOptions.default
                             }
                             title="Sets the search base DN to use to find candidate entries (originScope)"
                             isRequired
@@ -1052,8 +1051,8 @@ class ManagedEntries extends React.Component {
                                 onChange={this.handleFieldChange}
                                 validated={
                                     originScope != "" && !valid_dn(originScope)
-                                    ? ValidatedOptions.error
-                                    : ValidatedOptions.default
+                                        ? ValidatedOptions.error
+                                        : ValidatedOptions.default
                                 }
                                 isRequired
                             />
@@ -1080,8 +1079,8 @@ class ManagedEntries extends React.Component {
                             helperTextInvalid="A valid DN must be provided"
                             validated={
                                 managedBase != "" && !valid_dn(managedBase)
-                                ? ValidatedOptions.error
-                                : ValidatedOptions.default
+                                    ? ValidatedOptions.error
+                                    : ValidatedOptions.default
                             }
                             title="Sets the subtree where the managed entries are created (managedBase)"
                             isRequired
@@ -1095,8 +1094,8 @@ class ManagedEntries extends React.Component {
                                 onChange={this.handleFieldChange}
                                 validated={
                                     managedBase != "" && !valid_dn(managedBase)
-                                    ? ValidatedOptions.error
-                                    : ValidatedOptions.default
+                                        ? ValidatedOptions.error
+                                        : ValidatedOptions.default
                                 }
                                 isRequired
                             />
@@ -1148,8 +1147,8 @@ class ManagedEntries extends React.Component {
                             helperTextInvalid="The template DN must be set to a valid DN"
                             validated={
                                 templateDN != "" && !valid_dn(templateDN)
-                                ? ValidatedOptions.error
-                                : ValidatedOptions.default
+                                    ? ValidatedOptions.error
+                                    : ValidatedOptions.default
                             }
                             title="DN of the template entry"
                             isRequired
@@ -1164,8 +1163,8 @@ class ManagedEntries extends React.Component {
                                 isDisabled={!newTemplateEntry}
                                 validated={
                                     templateDN != "" && !valid_dn(templateDN)
-                                    ? ValidatedOptions.error
-                                    : ValidatedOptions.default
+                                        ? ValidatedOptions.error
+                                        : ValidatedOptions.default
                                 }
                             />
                         </FormGroup>
@@ -1249,7 +1248,7 @@ class ManagedEntries extends React.Component {
                                 className="ds-modal-list"
                                 onSelect={this.onStaticListSelect}
                                 aria-label="Simple List Example"
-                        >
+                            >
                                 {templateStaticAttr.length ? templateStaticAttr.map((attr) => (
                                     <SimpleListItem id={attr} key={attr}>
                                         {attr}
@@ -1432,10 +1431,12 @@ class ManagedEntries extends React.Component {
                     >
                         <div className="ds-margin-top-lg">
                             <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                                <Tab eventKey={1} title={
-                                    <TabTitleText>
-                                        <b>Templates</b>
-                                    </TabTitleText>}
+                                <Tab
+eventKey={1} title={
+    <TabTitleText>
+        <b>Templates</b>
+    </TabTitleText>
+}
                                 >
                                     <div className="ds-margin-top-lg">
                                         <Tooltip
@@ -1464,10 +1465,12 @@ class ManagedEntries extends React.Component {
                                         Create Template
                                     </Button>
                                 </Tab>
-                                <Tab eventKey={2} title={
-                                    <TabTitleText>
-                                        <b>Definitions</b>
-                                    </TabTitleText>}
+                                <Tab
+eventKey={2} title={
+    <TabTitleText>
+        <b>Definitions</b>
+    </TabTitleText>
+}
                                 >
                                     <div className="ds-margin-top-lg">
                                         <Tooltip
@@ -1509,8 +1512,8 @@ class ManagedEntries extends React.Component {
                                     helperTextInvalid="The DN for the shared conifig area is invalid"
                                     validated={
                                         configArea != "" && !valid_dn(configArea)
-                                        ? ValidatedOptions.error
-                                        : ValidatedOptions.default
+                                            ? ValidatedOptions.error
+                                            : ValidatedOptions.default
                                     }
                                 >
                                     <TextInput
@@ -1594,9 +1597,6 @@ ManagedEntries.propTypes = {
 ManagedEntries.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
 };
 
 export default ManagedEntries;

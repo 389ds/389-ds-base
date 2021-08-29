@@ -21,7 +21,6 @@ import {
     TextContent,
     TextVariants,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
@@ -105,14 +104,14 @@ export class VLVIndexes extends React.Component {
     }
 
     handleVLVChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
-        let attr = e.target.id;
+        const errObj = this.state.errObj;
+        const attr = e.target.id;
         let saveBtnDisabled = false;
-        let vlvCreateAttrs = ['vlvName', 'vlvBase', 'vlvFilter'];
+        const vlvCreateAttrs = ['vlvName', 'vlvBase', 'vlvFilter'];
 
-        for (let createAttr of vlvCreateAttrs) {
+        for (const createAttr of vlvCreateAttrs) {
             if (attr != createAttr && this.state[createAttr] == "") {
                 saveBtnDisabled = true;
             }
@@ -132,17 +131,17 @@ export class VLVIndexes extends React.Component {
 
     handleModalChange(e) {
         // Basic handler, no error checking
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value,
         });
     }
 
     getScopeVal(scope) {
-        let mapping = {
-            'subtree': '2',
-            'one': '1',
-            'base': '0'
+        const mapping = {
+            subtree: '2',
+            one: '1',
+            base: '0'
         };
         return mapping[scope];
     }
@@ -162,8 +161,8 @@ export class VLVIndexes extends React.Component {
     }
 
     createSortIndex(index) {
-        let index_value = index.join(' ');
-        let cmd = [
+        const index_value = index.join(' ');
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "vlv-index", "add-index", "--parent-name=" + this.state.createIndexParent,
             "--index-name=" + this.state.createIndexParent + " - " + index_value,
@@ -192,7 +191,7 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.closeCreateSortIndex();
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -222,7 +221,7 @@ export class VLVIndexes extends React.Component {
     }
 
     deleteSortIndex() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "vlv-index", "del-index", "--parent-name=" + this.state.deleteIndexParent,
             "--sort=" + this.state.deleteIndexName, this.props.suffix
@@ -247,7 +246,7 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.closeDeleteSortIndexConfirm();
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -266,7 +265,7 @@ export class VLVIndexes extends React.Component {
             saving: true
         });
 
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "vlv-index", "add-search",
             "--name=" + this.state.vlvName,
@@ -290,7 +289,7 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.closeVLVModal();
                     this.props.addNotification(
                         "error",
@@ -319,7 +318,7 @@ export class VLVIndexes extends React.Component {
         this.setState({
             modalSpinning: true
         });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "vlv-index", "del-search", "--name=" + this.state.deleteVLVName, this.props.suffix
         ];
@@ -337,7 +336,7 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
@@ -366,7 +365,7 @@ export class VLVIndexes extends React.Component {
         this.setState({
             modalSpinning: true
         });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "vlv-index", "reindex", "--parent-name=" + this.state.reindexVLVName, this.props.suffix
         ];
@@ -384,7 +383,7 @@ export class VLVIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
@@ -551,7 +550,7 @@ class AddVLVIndexModal extends React.Component {
             saving,
         } = this.props;
         let saveBtnName = "Create Sort Index";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.props.saving) {
             saveBtnName = "Creating Index ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -608,7 +607,7 @@ class AddVLVIndexModal extends React.Component {
                                     key={index}
                                     value={attr}
                                 />
-                                ))}
+                            ))}
                         </Select>
                         <GridItem className="ds-margin-top-xlg" span={12}>
                             <Checkbox
@@ -639,7 +638,7 @@ class AddVLVModal extends React.Component {
             saving
         } = this.props;
         let saveBtnName = "Save VLV Index";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (saving) {
             saveBtnName = "Saving Index ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -777,9 +776,7 @@ VLVIndexes.defaultProps = {
     suffix: "",
     serverId: "",
     vlvItems: [],
-    addNotification: noop,
     attrs: [],
-    reload: noop,
 };
 
 AddVLVModal.propTypes = {
@@ -799,10 +796,6 @@ AddVLVModal.propTypes = {
 
 AddVLVModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    handleSortChange: noop,
-    saveHandler: noop,
     error: {},
     attrs: [],
     vlvName: "",

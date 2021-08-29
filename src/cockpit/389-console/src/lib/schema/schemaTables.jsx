@@ -9,7 +9,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from '@patternfly/react-core';
 import {
     // cellWidth,
@@ -35,9 +34,10 @@ class ObjectClassesTable extends React.Component {
             rows: [],
             noRows: true,
             columns: [
-                { title: 'Objectclass Name',
-                  transforms: [sortable],
-                  cellFormatters: [expandable]
+                {
+                    title: 'Objectclass Name',
+                    transforms: [sortable],
+                    cellFormatters: [expandable]
                 },
                 { title: 'OID', transforms: [sortable] },
             ],
@@ -62,17 +62,17 @@ class ObjectClassesTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_rows = [];
-        let rows = [];
+        const sorted_rows = [];
+        const rows = [];
         let count = 0;
 
         // Convert the rows pairings into a sortable array based on the column indexes
         for (let idx = 0; idx < this.state.rows.length; idx += 2) {
             sorted_rows.push({
-                'expandedRow': this.state.rows[idx + 1],
-                '1': this.state.rows[idx].cells[0],
-                '2': this.state.rows[idx].cells[1],
-                'not_user_defined': this.state.rows[idx].disableActions
+                expandedRow: this.state.rows[idx + 1],
+                1: this.state.rows[idx].cells[0],
+                2: this.state.rows[idx].cells[1],
+                not_user_defined: this.state.rows[idx].disableActions
             });
         }
 
@@ -81,7 +81,7 @@ class ObjectClassesTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_rows.reverse();
         }
-        for (let srow of sorted_rows) {
+        for (const srow of sorted_rows) {
             rows.push({
                 isOpen: false,
                 cells: [
@@ -105,9 +105,9 @@ class ObjectClassesTable extends React.Component {
     }
 
     getExpandedRow(row) {
-        let kinds = ['STRUCTURAL', 'ABSTRACT', 'AUXILIARY'];
-        let desc = row.desc ? row.desc[0] : <i>No description</i>;
-        let x_org = row['x_origin'].join(" ");
+        const kinds = ['STRUCTURAL', 'ABSTRACT', 'AUXILIARY'];
+        const desc = row.desc ? row.desc[0] : <i>No description</i>;
+        const x_org = row.x_origin.join(" ");
 
         return (
             <Grid className="ds-left-indent-lg">
@@ -133,10 +133,10 @@ class ObjectClassesTable extends React.Component {
         let count = 0;
         let noRows = false;
 
-        for (let row of this.props.rows) {
+        for (const row of this.props.rows) {
             let user_defined = false;
-            if (row['x_origin'].length > 0 &&
-                row['x_origin'].indexOf("user defined") !== -1) {
+            if (row.x_origin.length > 0 &&
+                row.x_origin.indexOf("user defined") !== -1) {
                 user_defined = true;
             }
             rows.push(
@@ -155,8 +155,8 @@ class ObjectClassesTable extends React.Component {
         }
         if (rows.length == 0) {
             noRows = true;
-            rows = [{cells: ['No Objectclasses']}];
-            columns = [{title: 'Objectclasses'}];
+            rows = [{ cells: ['No Objectclasses'] }];
+            columns = [{ title: 'Objectclasses' }];
         }
         this.setState({
             rows: rows,
@@ -175,12 +175,12 @@ class ObjectClassesTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
+        const rows = [];
         let count = 0;
 
-        for (let row of this.props.rows) {
+        for (const row of this.props.rows) {
             let user_defined = false;
-            let val = value.toLowerCase();
+            const val = value.toLowerCase();
 
             // Check for matches of all the parts
             if (val != "" && row.name[0].toLowerCase().indexOf(val) == -1 &&
@@ -189,8 +189,8 @@ class ObjectClassesTable extends React.Component {
                 continue;
             }
 
-            if (row['x_origin'].length > 0 &&
-                row['x_origin'].indexOf("user defined") !== -1) {
+            if (row.x_origin.length > 0 &&
+                row.x_origin.indexOf("user defined") !== -1) {
                 user_defined = true;
             }
             rows.push(
@@ -232,13 +232,13 @@ class ObjectClassesTable extends React.Component {
 
     render() {
         const { perPage, page, sortBy, rows, noRows, columns } = this.state;
-        let origRows = [...rows];
-        let startIdx = ((perPage * page) - perPage) * 2;
-        let tableRows = origRows.splice(startIdx, perPage * 2);
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
 
         for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
             // Rewrite parent index to match new spliced array
-            tableRows[idx]['parent'] = count;
+            tableRows[idx].parent = count;
         }
 
         let content =
@@ -308,8 +308,6 @@ ObjectClassesTable.propTypes = {
 
 ObjectClassesTable.defaultProps = {
     rows: [],
-    editModalHandler: noop,
-    deleteHandler: noop,
 };
 
 class AttributesTable extends React.Component {
@@ -324,9 +322,10 @@ class AttributesTable extends React.Component {
             rows: [],
             noRows: true,
             columns: [
-                { title: 'Attribute Name',
-                  transforms: [sortable],
-                  cellFormatters: [expandable]
+                {
+                    title: 'Attribute Name',
+                    transforms: [sortable],
+                    cellFormatters: [expandable]
                 },
                 { title: 'OID', transforms: [sortable] },
                 { title: 'Syntax', transforms: [sortable] },
@@ -352,18 +351,18 @@ class AttributesTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_rows = [];
-        let rows = [];
+        const sorted_rows = [];
+        const rows = [];
         let count = 0;
 
         // Convert the rows pairings into a sortable array based on the column indexes
         for (let idx = 0; idx < this.state.rows.length; idx += 2) {
             sorted_rows.push({
-                'expandedRow': this.state.rows[idx + 1],
-                '1': this.state.rows[idx].cells[0],
-                '2': this.state.rows[idx].cells[1],
-                '3': this.state.rows[idx].cells[2],
-                'not_user_defined': this.state.rows[idx].disableActions
+                expandedRow: this.state.rows[idx + 1],
+                1: this.state.rows[idx].cells[0],
+                2: this.state.rows[idx].cells[1],
+                3: this.state.rows[idx].cells[2],
+                not_user_defined: this.state.rows[idx].disableActions
             });
         }
 
@@ -372,7 +371,7 @@ class AttributesTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_rows.reverse();
         }
-        for (let srow of sorted_rows) {
+        for (const srow of sorted_rows) {
             rows.push({
                 isOpen: false,
                 cells: [
@@ -396,9 +395,9 @@ class AttributesTable extends React.Component {
     }
 
     getExpandedRow(row) {
-        let desc = row.desc ? row.desc[0] : <i>No description</i>;
-        let x_org = row['x_origin'].join(", ");
-        let usage = ["userApplications", "directoryOperation", "distributedOperation", "dSAOperation"];
+        const desc = row.desc ? row.desc[0] : <i>No description</i>;
+        const x_org = row.x_origin.join(", ");
+        const usage = ["userApplications", "directoryOperation", "distributedOperation", "dSAOperation"];
         return (
             <Grid className="ds-left-indent-lg">
                 <GridItem span={3}>Description:</GridItem>
@@ -406,21 +405,21 @@ class AttributesTable extends React.Component {
                 <GridItem span={3}>X-Origin:</GridItem>
                 <GridItem span={9}><b>{x_org}</b></GridItem>
                 <GridItem span={3}>Aliases:</GridItem>
-                <GridItem span={9}><b>{row['aliases'] ? row['aliases'].join(", ") : ""}</b></GridItem>
+                <GridItem span={9}><b>{row.aliases ? row.aliases.join(", ") : ""}</b></GridItem>
                 <GridItem span={3}>Parent Attribute:</GridItem>
-                <GridItem span={9}><b>{row['sup'].join(", ")}</b></GridItem>
+                <GridItem span={9}><b>{row.sup.join(", ")}</b></GridItem>
                 <GridItem span={3}>Read Only:</GridItem>
-                <GridItem span={9}><b>{row['no_user_mod'] ? "Yes" : "No"}</b></GridItem>
+                <GridItem span={9}><b>{row.no_user_mod ? "Yes" : "No"}</b></GridItem>
                 <GridItem span={3}>Multivalued:</GridItem>
-                <GridItem span={9}><b>{row['single_value'] ? "No" : "Yes"}</b></GridItem>
+                <GridItem span={9}><b>{row.single_value ? "No" : "Yes"}</b></GridItem>
                 <GridItem span={3}>Usage:</GridItem>
-                <GridItem span={9}><b>{usage[row['usage']]}</b></GridItem>
+                <GridItem span={9}><b>{usage[row.usage]}</b></GridItem>
                 <GridItem span={3}>Equality Matching Rules:</GridItem>
-                <GridItem span={9}><b>{row['equality'] ? row['equality'].join(", ") : ""}</b></GridItem>
+                <GridItem span={9}><b>{row.equality ? row.equality.join(", ") : ""}</b></GridItem>
                 <GridItem span={3}>Substring Matching Rules:</GridItem>
-                <GridItem span={9}><b>{row['substr'] ? row['substr'].join(", ") : ""}</b></GridItem>
+                <GridItem span={9}><b>{row.substr ? row.substr.join(", ") : ""}</b></GridItem>
                 <GridItem span={3}>Ordering Matching Rules:</GridItem>
-                <GridItem span={9}><b>{row['ordering'] ? row['ordering'].join(", ") : ""}</b></GridItem>
+                <GridItem span={9}><b>{row.ordering ? row.ordering.join(", ") : ""}</b></GridItem>
             </Grid>
         );
     }
@@ -431,10 +430,10 @@ class AttributesTable extends React.Component {
         let count = 0;
         let noRows = false;
 
-        for (let row of this.props.rows) {
+        for (const row of this.props.rows) {
             let user_defined = false;
-            if (row['x_origin'].length > 0 &&
-                row['x_origin'].indexOf("user defined") !== -1) {
+            if (row.x_origin.length > 0 &&
+                row.x_origin.indexOf("user defined") !== -1) {
                 user_defined = true;
             }
             rows.push(
@@ -453,8 +452,8 @@ class AttributesTable extends React.Component {
         }
         if (rows.length == 0) {
             noRows = true;
-            rows = [{cells: ['No Attributes']}];
-            columns = [{title: 'Attributes'}];
+            rows = [{ cells: ['No Attributes'] }];
+            columns = [{ title: 'Attributes' }];
         }
         this.setState({
             rows: rows,
@@ -473,12 +472,12 @@ class AttributesTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
+        const rows = [];
         let count = 0;
 
-        for (let row of this.props.rows) {
+        for (const row of this.props.rows) {
             let user_defined = false;
-            let val = value.toLowerCase();
+            const val = value.toLowerCase();
 
             // Check for matches of all the parts
             if (val != "" && row.name[0].toLowerCase().indexOf(val) == -1 &&
@@ -488,8 +487,8 @@ class AttributesTable extends React.Component {
                 continue;
             }
 
-            if (row['x_origin'].length > 0 &&
-                row['x_origin'].indexOf("user defined") !== -1) {
+            if (row.x_origin.length > 0 &&
+                row.x_origin.indexOf("user defined") !== -1) {
                 user_defined = true;
             }
             rows.push(
@@ -530,13 +529,13 @@ class AttributesTable extends React.Component {
 
     render() {
         const { perPage, page, sortBy, rows, noRows, columns } = this.state;
-        let origRows = [...rows];
-        let startIdx = ((perPage * page) - perPage) * 2;
-        let tableRows = origRows.splice(startIdx, perPage * 2);
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
 
         for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
             // Rewrite parent index to match new spliced array
-            tableRows[idx]['parent'] = count;
+            tableRows[idx].parent = count;
         }
 
         let content =
@@ -607,8 +606,6 @@ AttributesTable.propTypes = {
 
 AttributesTable.defaultProps = {
     rows: [],
-    editModalHandler: noop,
-    deleteHandler: noop,
     syntaxes: [],
     loading: false
 };
@@ -624,9 +621,10 @@ class MatchingRulesTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Matching Rule',
-                  transforms: [sortable],
-                  cellFormatters: [expandable]
+                {
+                    title: 'Matching Rule',
+                    transforms: [sortable],
+                    cellFormatters: [expandable]
                 },
                 { title: 'OID', transforms: [sortable] },
                 { title: 'Syntax', transforms: [sortable] },
@@ -652,17 +650,17 @@ class MatchingRulesTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_rows = [];
-        let rows = [];
+        const sorted_rows = [];
+        const rows = [];
         let count = 0;
 
         // Convert the rows pairings into a sortable array based on the column indexes
         for (let idx = 0; idx < this.state.rows.length; idx += 2) {
             sorted_rows.push({
-                'expandedRow': this.state.rows[idx + 1],
-                '1': this.state.rows[idx].cells[0],
-                '2': this.state.rows[idx].cells[1],
-                '3': this.state.rows[idx].cells[2],
+                expandedRow: this.state.rows[idx + 1],
+                1: this.state.rows[idx].cells[0],
+                2: this.state.rows[idx].cells[1],
+                3: this.state.rows[idx].cells[2],
             });
         }
 
@@ -671,7 +669,7 @@ class MatchingRulesTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_rows.reverse();
         }
-        for (let srow of sorted_rows) {
+        for (const srow of sorted_rows) {
             rows.push({
                 isOpen: false,
                 cells: [
@@ -712,11 +710,11 @@ class MatchingRulesTable extends React.Component {
         let columns = this.state.columns;
         let count = 0;
 
-        for (let row of this.props.rows) {
+        for (const row of this.props.rows) {
             rows.push(
                 {
                     isOpen: false,
-                    cells: [{title: row.name[0]}, row.oid[0], row.syntax[0]],
+                    cells: [{ title: row.name[0] }, row.oid[0], row.syntax[0]],
                 },
                 {
                     parent: count,
@@ -727,8 +725,8 @@ class MatchingRulesTable extends React.Component {
             count += 2;
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Matching Rules']}];
-            columns = [{title: 'Matching Rules'}];
+            rows = [{ cells: ['No Matching Rules'] }];
+            columns = [{ title: 'Matching Rules' }];
         }
         this.setState({
             rows: rows,
@@ -746,11 +744,11 @@ class MatchingRulesTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
+        const rows = [];
         let count = 0;
 
-        for (let row of this.props.rows) {
-            let val = value.toLowerCase();
+        for (const row of this.props.rows) {
+            const val = value.toLowerCase();
             // Check for matches of all the parts
             if (val != "" && row.name[0].toLowerCase().indexOf(val) == -1 &&
                 row.oid[0].toLowerCase().indexOf(val) == -1 &&
@@ -780,13 +778,13 @@ class MatchingRulesTable extends React.Component {
 
     render() {
         const { perPage, page, sortBy, rows, columns } = this.state;
-        let origRows = [...rows];
-        let startIdx = ((perPage * page) - perPage) * 2;
-        let tableRows = origRows.splice(startIdx, perPage * 2);
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
 
         for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
             // Rewrite parent index to match new spliced array
-            tableRows[idx]['parent'] = count;
+            tableRows[idx].parent = count;
         }
 
         return (

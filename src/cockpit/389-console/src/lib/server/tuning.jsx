@@ -14,7 +14,6 @@ import {
     TextContent,
     TextVariants,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -76,14 +75,14 @@ export class ServerTuning extends React.Component {
     }
 
     handleChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
 
         // Check if a setting was changed, if so enable the save button
-        for (let tuning_attr of tuning_attrs) {
+        for (const tuning_attr of tuning_attrs) {
             if (attr == tuning_attr && this.state['_' + tuning_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -91,7 +90,7 @@ export class ServerTuning extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let tuning_attr of tuning_attrs) {
+        for (const tuning_attr of tuning_attrs) {
             if (attr != tuning_attr && this.state['_' + tuning_attr] != this.state[tuning_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -117,7 +116,7 @@ export class ServerTuning extends React.Component {
             });
         }
 
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
@@ -125,8 +124,8 @@ export class ServerTuning extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     let ndnEnabled = false;
                     let ignoreVirtAttrs = false;
                     let connNoCannon = false;
@@ -187,7 +186,7 @@ export class ServerTuning extends React.Component {
                     }, this.props.enableTree());
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         loaded: true
                     });
@@ -199,7 +198,7 @@ export class ServerTuning extends React.Component {
     }
 
     saveConfig() {
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
@@ -208,7 +207,7 @@ export class ServerTuning extends React.Component {
             loading: true
         });
 
-        for (let attr of tuning_attrs) {
+        for (const attr of tuning_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -224,7 +223,7 @@ export class ServerTuning extends React.Component {
 
         log_cmd("saveConfig", "Saving Tuning configuration", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.loadConfig();
                     this.props.addNotification(
@@ -233,7 +232,7 @@ export class ServerTuning extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.loadConfig();
                     this.props.addNotification(
                         "error",
@@ -245,7 +244,7 @@ export class ServerTuning extends React.Component {
     render () {
         let body = "";
         let saveBtnName = "Save Settings";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.state.loading) {
             saveBtnName = "Saving settings ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -624,7 +623,6 @@ ServerTuning.propTypes = {
 };
 
 ServerTuning.defaultProps = {
-    addNotification: noop,
     serverId: "",
     attrs: {},
 };
