@@ -16,7 +16,6 @@ import {
     TextInput,
     Switch,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import { AttrUniqConfigTable } from "./pluginTables.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
@@ -156,11 +155,11 @@ class AttributeUniqueness extends React.Component {
     }
 
     validateConfig() {
-        let errObj = {};
+        const errObj = {};
         let all_good = true;
 
         // Must have a subtree and attribute set
-        for (let attrList of ['attrNames', 'subtrees']) {
+        for (const attrList of ['attrNames', 'subtrees']) {
             if (this.state[attrList].length == 0) {
                 errObj[attrList] = true;
                 all_good = false;
@@ -168,7 +167,7 @@ class AttributeUniqueness extends React.Component {
         }
 
         // Validate the subtree dn's
-        for (let dn of this.state.subtrees) {
+        for (const dn of this.state.subtrees) {
             if (!valid_dn(dn)) {
                 errObj.subtrees = true;
                 all_good = false;
@@ -184,20 +183,20 @@ class AttributeUniqueness extends React.Component {
         if (all_good) {
             // Check for value differences to see if the save btn should be enabled
             all_good = false;
-            let attrLists = [
+            const attrLists = [
                 'subtrees', 'attrNames'
             ];
-            for (let check_attr of attrLists) {
+            for (const check_attr of attrLists) {
                 if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
                     all_good = true;
                     break;
                 }
             }
-            let configAttrs = [
+            const configAttrs = [
                 'acrossAllSubtrees', 'topEntryOc', 'subtreeEnriesOc',
                 'configEnabled'
             ];
-            for (let check_attr of configAttrs) {
+            for (const check_attr of configAttrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
@@ -217,14 +216,14 @@ class AttributeUniqueness extends React.Component {
     }
 
     handleChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
         });
     }
 
     handleFieldChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
         }, () => { this.validateConfig() });
@@ -233,7 +232,7 @@ class AttributeUniqueness extends React.Component {
     handleTypeaheadChange(values) {
         // When typaheads allow new values, an object is returned
         // instead of string.  Grab the "label" in this case
-        let new_values = [];
+        const new_values = [];
         for (let val of values) {
             if (val != "") {
                 if (typeof val === 'object') {
@@ -265,8 +264,8 @@ class AttributeUniqueness extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
-                    let tableKey = this.state.tableKey + 1;
+                    const myObject = JSON.parse(content);
+                    const tableKey = this.state.tableKey + 1;
                     this.setState({
                         configRows: myObject.items.map(item => item.attrs),
                         tableKey: tableKey
@@ -274,7 +273,7 @@ class AttributeUniqueness extends React.Component {
                 })
                 .fail(err => {
                     if (err != 0) {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         console.log("loadConfigs failed", errMsg.desc);
                     }
                 });
@@ -304,7 +303,7 @@ class AttributeUniqueness extends React.Component {
         } else {
             let configAttrNamesList = [];
             let configSubtreesList = [];
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -321,11 +320,11 @@ class AttributeUniqueness extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let configEntry = JSON.parse(content).attrs;
+                        const configEntry = JSON.parse(content).attrs;
                         this.setState({
                             configEntryModalShow: true,
                             newEntry: false,
-                            configName: configEntry["cn"] === undefined ? "" : configEntry["cn"][0],
+                            configName: configEntry.cn === undefined ? "" : configEntry.cn[0],
                             configEnabled: !(
                                 configEntry["nsslapd-pluginenabled"] === undefined ||
                             configEntry["nsslapd-pluginenabled"][0] == "off"
@@ -364,7 +363,7 @@ class AttributeUniqueness extends React.Component {
                         if (configEntry["uniqueness-attribute-name"] === undefined) {
                             this.setState({ attrNames: [], _attrNames: [] });
                         } else {
-                            for (let value of configEntry["uniqueness-attribute-name"]) {
+                            for (const value of configEntry["uniqueness-attribute-name"]) {
                                 configAttrNamesList = [...configAttrNamesList, value];
                             }
                             this.setState({ attrNames: configAttrNamesList, _attrNames: [...configAttrNamesList] });
@@ -372,7 +371,7 @@ class AttributeUniqueness extends React.Component {
                         if (configEntry["uniqueness-subtrees"] === undefined) {
                             this.setState({ subtrees: [], _subtrees: [] });
                         } else {
-                            for (let value of configEntry["uniqueness-subtrees"]) {
+                            for (const value of configEntry["uniqueness-subtrees"]) {
                                 configSubtreesList = [...configSubtreesList, value];
                             }
                             this.setState({ subtrees: configSubtreesList, _subtrees: [...configSubtreesList] });
@@ -440,7 +439,7 @@ class AttributeUniqueness extends React.Component {
         if (!(action == "add" && attrNames.length == 0)) {
             cmd = [...cmd, "--attr-name"];
             if (attrNames.length != 0) {
-                for (let value of attrNames) {
+                for (const value of attrNames) {
                     cmd = [...cmd, value];
                 }
             } else if (action == "add") {
@@ -453,7 +452,7 @@ class AttributeUniqueness extends React.Component {
         if (!(action == "add" && subtrees.length == 0)) {
             cmd = [...cmd, "--subtree"];
             if (subtrees.length != 0) {
-                for (let value of subtrees) {
+                for (const value of subtrees) {
                     cmd = [...cmd, value];
                 }
             } else if (action == "add") {
@@ -504,7 +503,7 @@ class AttributeUniqueness extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry ${action} operation - ${errMsg.desc}`
@@ -536,7 +535,7 @@ class AttributeUniqueness extends React.Component {
     }
 
     deleteConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -567,7 +566,7 @@ class AttributeUniqueness extends React.Component {
                     this.closeConfirmDelete();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry removal operation - ${errMsg.desc}`
@@ -599,9 +598,9 @@ class AttributeUniqueness extends React.Component {
             newEntry,
         } = this.state;
 
-        let title = (newEntry ? "Add" : "Edit") + " Attribute Uniqueness Plugin Config Entry";
+        const title = (newEntry ? "Add" : "Edit") + " Attribute Uniqueness Plugin Config Entry";
         let saveBtnName = (newEntry ? "Add" : "Save") + " Config";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.state.saving) {
             if (newEntry) {
                 saveBtnName = "Adding Config ...";
@@ -682,7 +681,7 @@ class AttributeUniqueness extends React.Component {
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -705,13 +704,13 @@ class AttributeUniqueness extends React.Component {
                                     isCreatable
                                     onCreateOption={this.onSubtreesCreateOption}
                                     validated={this.state.error.subtrees ? "error" : "default"}
-                                    >
+                                >
                                     {[""].map((dn, index) => (
                                         <SelectOption
                                             key={index}
                                             value={dn}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -844,10 +843,6 @@ AttributeUniqueness.propTypes = {
 AttributeUniqueness.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop,
     objectClasses: [],
 };
 

@@ -9,7 +9,6 @@ import {
     Select,
     SelectVariant,
     SelectOption,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
@@ -41,7 +40,7 @@ export class AttrEncryption extends React.Component {
     }
 
     handleModalChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
         });
@@ -120,7 +119,7 @@ export class AttrEncryption extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
@@ -153,7 +152,7 @@ export class AttrEncryption extends React.Component {
                     this.closeConfirmAttrDelete();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
@@ -172,19 +171,19 @@ export class AttrEncryption extends React.Component {
         } = this.state;
 
         // Update the available list of attrs for the Typeahead
-        let fullList = [];
-        let attrs = [];
-        for (let attrProp of this.props.rows) {
+        const fullList = [];
+        const attrs = [];
+        for (const attrProp of this.props.rows) {
             fullList.push(attrProp.name);
         }
-        for (let attr of this.props.attrs) {
+        for (const attr of this.props.attrs) {
             if (fullList.indexOf(attr) == -1) {
                 attrs.push(attr);
             }
         }
 
         let saveBtnName = "Add Attribute";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (saving) {
             saveBtnName = "Adding Attribute ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -265,7 +264,5 @@ AttrEncryption.defaultProps = {
     rows: [],
     suffix: "",
     serverId: "",
-    addNotification: noop,
     attrs: [],
-    reload: noop,
 };

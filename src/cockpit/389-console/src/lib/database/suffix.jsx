@@ -31,7 +31,6 @@ import {
     Tab,
     Tabs,
     TabTitleText,
-    noop
 } from "@patternfly/react-core";
 
 import PropTypes from "prop-types";
@@ -192,7 +191,7 @@ export class Suffix extends React.Component {
     handleChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
         if (value == "") {
             valueErr = true;
         }
@@ -212,7 +211,7 @@ export class Suffix extends React.Component {
             'cachememsize', 'cachesize', 'dncachememsize',
             'readOnly', 'requireIndex',
         ];
-        for (let check_attr of configAttrs) {
+        for (const check_attr of configAttrs) {
             if (attr != check_attr) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     saveBtnDisabled = false;
@@ -249,7 +248,7 @@ export class Suffix extends React.Component {
 
     importLDIF () {
         // Do import
-        let import_cmd = [
+        const import_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "import", this.props.suffix, this.state.importLDIFName, "--encrypted"
         ];
@@ -273,7 +272,7 @@ export class Suffix extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error importing LDIF file - ${errMsg.desc}`
@@ -317,7 +316,7 @@ export class Suffix extends React.Component {
     }
 
     doExport() {
-        let missingArgs = {ldifLocation: false};
+        const missingArgs = { ldifLocation: false };
         if (this.state.ldifLocation == "") {
             this.props.addNotification(
                 "warning",
@@ -344,7 +343,7 @@ export class Suffix extends React.Component {
         }
 
         // Do Export
-        let export_cmd = [
+        const export_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "export", this.props.suffix, "--ldif=" + this.state.ldifLocation
         ];
@@ -375,7 +374,7 @@ export class Suffix extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reloadLDIFs();
                     this.props.addNotification(
                         "error",
@@ -427,7 +426,7 @@ export class Suffix extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to reindex database - ${errMsg.desc}`
@@ -457,7 +456,7 @@ export class Suffix extends React.Component {
 
     createSubSuffix() {
         // Create a new suffix
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "create", "--be-name", this.state.subSuffixBeName,
             "--suffix=" + this.state.subSuffixValue + "," + this.props.suffix,
@@ -490,7 +489,7 @@ export class Suffix extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.loadSuffixTree(false);
                     this.closeSubSuffixModal();
                     this.props.addNotification(
@@ -524,7 +523,7 @@ export class Suffix extends React.Component {
         this.setState({
             linkSaving: true
         });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "link-create",
             "--suffix=" + this.state.createLinkSuffix + "," + this.props.suffix,
@@ -552,7 +551,7 @@ export class Suffix extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.loadSuffixTree(false);
                     this.closeLinkModal();
                     this.props.addNotification(
@@ -577,14 +576,14 @@ export class Suffix extends React.Component {
         const attr = e.target.id;
         let valueErr = false;
         let saveBtnDisabled = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
 
         const check_attrs = [
             "createLinkSuffix", "createLinkName", "createNsfarmserverurl",
             "createNsmultiplexorbinddn", "createNsmultiplexorcredentials",
             "createNsmultiplexorcredentialsConfirm", "createNsbindmechanism"
         ];
-        for (let check_attr of check_attrs) {
+        for (const check_attr of check_attrs) {
             if (attr != check_attr && this.state[check_attr] == "") {
                 saveBtnDisabled = true;
             }
@@ -598,21 +597,21 @@ export class Suffix extends React.Component {
         } else {
             if (attr == "createNsmultiplexorcredentials") {
                 if (value != this.state.createNsmultiplexorcredentialsConfirm) {
-                    errObj['createNsmultiplexorcredentials'] = true;
-                    errObj['createNsmultiplexorcredentialsConfirm'] = true;
+                    errObj.createNsmultiplexorcredentials = true;
+                    errObj.createNsmultiplexorcredentialsConfirm = true;
                     saveBtnDisabled = true;
                 } else {
-                    errObj['createNsmultiplexorcredentials'] = false;
-                    errObj['createNsmultiplexorcredentialsConfirm'] = false;
+                    errObj.createNsmultiplexorcredentials = false;
+                    errObj.createNsmultiplexorcredentialsConfirm = false;
                 }
             } else if (attr == "createNsmultiplexorcredentialsConfirm") {
                 if (value != this.state.createNsmultiplexorcredentials) {
-                    errObj['createNsmultiplexorcredentials'] = true;
-                    errObj['createNsmultiplexorcredentialsConfirm'] = true;
+                    errObj.createNsmultiplexorcredentials = true;
+                    errObj.createNsmultiplexorcredentialsConfirm = true;
                     saveBtnDisabled = true;
                 } else {
-                    errObj['createNsmultiplexorcredentials'] = false;
-                    errObj['createNsmultiplexorcredentialsConfirm'] = false;
+                    errObj.createNsmultiplexorcredentials = false;
+                    errObj.createNsmultiplexorcredentialsConfirm = false;
                 }
             }
         }
@@ -652,10 +651,10 @@ export class Suffix extends React.Component {
     handleSubSuffixChange(e) {
         const value = e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
         let saveBtnDisabled = false;
         const check_attrs = ["subSuffixBeName", "subSuffixValue"];
-        for (let check_attr of check_attrs) {
+        for (const check_attr of check_attrs) {
             if (this.state[check_attr] == "") {
                 saveBtnDisabled = true;
             }
@@ -675,7 +674,7 @@ export class Suffix extends React.Component {
     handleExportChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
         let saveBtnDisabled = false;
 
         if (e.target.id != "ldifLocation" && this.state.ldifLocation == 0) {
@@ -730,7 +729,7 @@ export class Suffix extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.loadSuffixTree(true);
                     this.closeLinkModal();
                     this.props.addNotification(
@@ -743,7 +742,7 @@ export class Suffix extends React.Component {
     // Save config
     saveSuffixConfig() {
         console.log("Save suffix config: ", this.props.suffix);
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'backend', 'suffix', 'set', this.props.suffix
         ];
@@ -779,9 +778,9 @@ export class Suffix extends React.Component {
                 savingConfig: true
             });
             log_cmd("saveSuffixConfig", "Save suffix config", cmd);
-            let msg = "Successfully updated suffix configuration";
+            const msg = "Successfully updated suffix configuration";
             cockpit
-                    .spawn(cmd, {superuser: true, "err": "message"})
+                    .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
                         // Continue with the next mod
                         this.props.reload(this.props.suffix);
@@ -796,7 +795,7 @@ export class Suffix extends React.Component {
                         });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.reload(this.props.suffix);
                         this.props.addNotification(
                             "error",
@@ -829,7 +828,7 @@ export class Suffix extends React.Component {
             <DropdownItem key="reindex" component="button" onClick={this.showReindexConfirm} title="Reindex the entire database">
                 Reindex Suffix
             </DropdownItem>,
-            <DropdownItem key="subSuffix" component="button"onClick={this.showSubSuffixModal} title="Create a sub-suffix under this suffix">
+            <DropdownItem key="subSuffix" component="button" onClick={this.showSubSuffixModal} title="Create a sub-suffix under this suffix">
                 Create Sub-Suffix
             </DropdownItem>,
             <DropdownItem key="dbLink" component="button" onClick={this.showLinkModal} title="Create a database chaining link subtree">
@@ -1042,17 +1041,8 @@ Suffix.defaultProps = {
     serverId: "",
     suffix: "",
     bename: "",
-    loadSuffixTree: noop,
-    reload: noop,
-    reloadRefs: noop,
-    reloadIndexes: noop,
-    reloadVLV: noop,
-    reloadAttrEnc: noop,
-    reloadLDIFs: noop,
-    addNotification: noop,
     dbtype: "",
     data: {},
     attrs: [],
     LDIFRows: [],
-    enableTree: PropTypes.noop,
 };

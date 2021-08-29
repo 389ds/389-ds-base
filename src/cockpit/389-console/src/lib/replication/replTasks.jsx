@@ -13,7 +13,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop,
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -141,13 +140,13 @@ export class ReplRUV extends React.Component {
 
     cleanRUV () {
         // Enable/disable agmt
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-tasks', 'cleanallruv', '--replica-id=' + this.state.rid,
             '--force-cleaning', '--suffix=' + this.props.suffix];
 
         log_cmd('cleanRUV', 'Clean the rid', cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -156,7 +155,7 @@ export class ReplRUV extends React.Component {
                     this.closeConfirmCleanRUV();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to start CleanAllRUV task - ${errMsg.desc}`
@@ -166,7 +165,7 @@ export class ReplRUV extends React.Component {
     }
 
     handleLDIFChange (e) {
-        let value = e.target.value;
+        const value = e.target.value;
         let saveOK = true;
         if (value == "" || bad_file_name(value)) {
             saveOK = false;
@@ -178,7 +177,7 @@ export class ReplRUV extends React.Component {
     }
 
     handleCLLDIFChange (e) {
-        let value = e.target.value;
+        const value = e.target.value;
         let saveOK = true;
         if (value == "" || value.indexOf(' ') >= 0) {
             saveOK = false;
@@ -190,7 +189,7 @@ export class ReplRUV extends React.Component {
     }
 
     handleChange (e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value,
         });
@@ -198,7 +197,7 @@ export class ReplRUV extends React.Component {
 
     importChangelog () {
         // Do changelog import
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "import-changelog", "default", "--replica-root", this.props.suffix
         ];
@@ -221,7 +220,7 @@ export class ReplRUV extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error importing changelog LDIF - ${errMsg.desc}`
@@ -235,7 +234,7 @@ export class ReplRUV extends React.Component {
 
     exportChangelog () {
         // Do changelog export
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "export-changelog"
         ];
@@ -274,7 +273,7 @@ export class ReplRUV extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error importing changelog LDIF - ${errMsg.desc}`
@@ -289,14 +288,14 @@ export class ReplRUV extends React.Component {
     render() {
         // Strip out the local RUV and display it different then only allow
         // cleaning of remote rids
-        let remote_rows = [];
+        const remote_rows = [];
         let localRID = "";
         let localURL = "";
         let localCSN = "";
         let localRawCSN = "";
         let localMinCSN = "";
         let localRawMinCSN = "";
-        for (let row of this.props.rows) {
+        for (const row of this.props.rows) {
             if (row.rid == this.props.localRID) {
                 localRID = row.rid;
                 localURL = row.url;
@@ -491,7 +490,5 @@ ReplRUV.defaultProps = {
     serverId: "",
     suffix: "",
     rows: [],
-    addNotification: noop,
     localRID: "",
-    reload: noop,
 };

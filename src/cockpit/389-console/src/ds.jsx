@@ -97,13 +97,13 @@ export class DSInstance extends React.Component {
         };
 
         // Dropdown tasks
-        this.onToggle = dropdownIsOpen => {
+        this.handleToggle = dropdownIsOpen => {
             this.setState({
                 dropdownIsOpen
             });
         };
 
-        this.onSelect = event => {
+        this.handleDropdown = event => {
             this.setState({
                 dropdownIsOpen: !this.state.dropdownIsOpen
             });
@@ -118,7 +118,7 @@ export class DSInstance extends React.Component {
         this.handleNavSelect = (event, tabIndex) => {
             const { wasActiveList } = this.state;
             if (!wasActiveList.includes(tabIndex)) {
-                let newList = wasActiveList.concat(tabIndex);
+                const newList = wasActiveList.concat(tabIndex);
                 this.setState({
                     wasActiveList: newList,
                     activeTabKey: tabIndex
@@ -131,7 +131,7 @@ export class DSInstance extends React.Component {
         };
 
         this.handleServerIdChange = this.handleServerIdChange.bind(this);
-        this.handleFieldChange = this.handleFieldChange.bind(this);
+        this.onFieldChange = this.onFieldChange.bind(this);
         this.addNotification = this.addNotification.bind(this);
         this.removeNotification = this.removeNotification.bind(this);
         this.handleNavSelect = this.handleNavSelect.bind(this);
@@ -152,15 +152,15 @@ export class DSInstance extends React.Component {
     }
 
     addNotification(variant, title) {
-        let key = new Date().getTime();
-        if (variant == "error" || variant == "danger") {
+        const key = new Date().getTime();
+        if (variant === "error" || variant === "danger") {
             variant = "danger";
             // To print exceptions reported by lib389, it looks best in pre tags
             title = <pre>{title}</pre>;
         }
 
         this.setState({
-            notifications: [ ...this.state.notifications, { title: title, variant: variant, key } ]
+            notifications: [...this.state.notifications, { title: title, variant: variant, key }]
         });
     }
 
@@ -190,15 +190,15 @@ export class DSInstance extends React.Component {
 
     setServerId(serverId, action) {
         // First we need to check if the instance is alive and well
-        let cmd = ["dsctl", "-j", serverId, "status"];
+        const cmd = ["dsctl", "-j", serverId, "status"];
         log_cmd("setServerId", "Test if instance is running ", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(status_data => {
-                    let status_json = JSON.parse(status_data);
+                    const status_json = JSON.parse(status_data);
                     if (status_json.running) {
                         this.updateProgress(25);
-                        let cmd = [
+                        const cmd = [
                             "dsconf",
                             "-j",
                             "ldapi://%2fvar%2frun%2fslapd-" + serverId + ".socket",
@@ -237,13 +237,13 @@ export class DSInstance extends React.Component {
                                     }
                                 })
                                 .fail(err => {
-                                    let errMsg = JSON.parse(err);
+                                    const errMsg = JSON.parse(err);
                                     console.log("setServerId failed: ", errMsg.desc);
                                     this.setState(
                                         {
                                             pageLoadingState: {
                                                 state: "notConnecting",
-                                                jsx: staticStates["notConnecting"]
+                                                jsx: staticStates.notConnecting
                                             }
                                         },
                                         () => {
@@ -259,7 +259,7 @@ export class DSInstance extends React.Component {
                             {
                                 pageLoadingState: {
                                     state: "notRunning",
-                                    jsx: staticStates["notRunning"]
+                                    jsx: staticStates.notRunning
                                 }
                             },
                             () => {
@@ -272,13 +272,13 @@ export class DSInstance extends React.Component {
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     console.log("setServerId failed: ", errMsg.desc);
                     this.setState(
                         {
                             pageLoadingState: {
                                 state: "notConnecting",
-                                jsx: staticStates["notConnecting"]
+                                jsx: staticStates.notConnecting
                             }
                         },
                         () => {
@@ -305,7 +305,7 @@ export class DSInstance extends React.Component {
                 wasActiveList: []
             },
             () => {
-                let cmd = ["dsctl", "-l", "-j"];
+                const cmd = ["dsctl", "-l", "-j"];
                 log_cmd(
                     "loadInstanceList",
                     "Load the instance list select",
@@ -315,10 +315,10 @@ export class DSInstance extends React.Component {
                         .spawn(cmd, { superuser: true })
                         .done(data => {
                             this.updateProgress(25);
-                            let myObject = JSON.parse(data);
-                            let options = [];
-                            for (let inst of myObject.insts) {
-                                options.push({value: inst.replace("slapd-", ""), label: inst, disabled: false});
+                            const myObject = JSON.parse(data);
+                            const options = [];
+                            for (const inst of myObject.insts) {
+                                options.push({ value: inst.replace("slapd-", ""), label: inst, disabled: false });
                             }
 
                             this.setState({
@@ -339,7 +339,7 @@ export class DSInstance extends React.Component {
                                         serverId: "",
                                         pageLoadingState: {
                                             state: "noInsts",
-                                            jsx: staticStates["noInsts"]
+                                            jsx: staticStates.noInsts
                                         }
                                     });
                                 }
@@ -352,7 +352,7 @@ export class DSInstance extends React.Component {
                                 loadingOperate: false,
                                 pageLoadingState: {
                                     state: "noInsts",
-                                    jsx: staticStates["noInsts"]
+                                    jsx: staticStates.noInsts
                                 }
                             });
                         });
@@ -366,18 +366,18 @@ export class DSInstance extends React.Component {
         cockpit.spawn(cmd, { superuser: true, err: "message" }).done(content => {
             this.updateProgress(25);
             const config = JSON.parse(content);
-            let rows = [];
-            for (let row of config.items) {
+            const rows = [];
+            for (const row of config.items) {
                 rows.push([row[0], row[1], row[2]]);
             }
             // Get the server version from the monitor
             cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.state.serverId + ".socket", "monitor", "server"];
             log_cmd("loadBackups", "Get the server version", cmd);
             cockpit.spawn(cmd, { superuser: true, err: "message" }).done(content => {
-                let monitor = JSON.parse(content);
+                const monitor = JSON.parse(content);
                 this.setState({
                     backupRows: rows,
-                    version: monitor.attrs['version'][0],
+                    version: monitor.attrs.version[0],
                 });
             });
         });
@@ -391,7 +391,7 @@ export class DSInstance extends React.Component {
         this.loadInstanceList(e);
     }
 
-    handleFieldChange(e) {
+    onFieldChange(e) {
         let value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
         if (e.target.type === "number") {
             if (e.target.value) {
@@ -415,7 +415,7 @@ export class DSInstance extends React.Component {
             loadingOperate: true
         });
 
-        if (action == undefined) {
+        if (action === undefined) {
             action = "remove";
         }
 
@@ -439,7 +439,7 @@ export class DSInstance extends React.Component {
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.addNotification(
                         "error",
                         `Error during instance ${action} operation - ${errMsg.desc}`
@@ -522,17 +522,17 @@ export class DSInstance extends React.Component {
             <DropdownItem id="restart-ds" key="restart" component="button" onClick={() => (this.operateInstance("restart"))}>
                 Restart Instance
             </DropdownItem>,
-            <DropdownItem id="manage-backup-ds" key="backups" component="button" onClick={this.openManageBackupsModal}>
+            <DropdownItem id="manage-backup-ds" key="backups" component="button" onClick={() => (this.openManageBackupsModal())}>
                 Manage Backups
             </DropdownItem>,
-            <DropdownItem id="reload-schema-ds" key="reload" component="button" onClick={this.openSchemaReloadModal}>
+            <DropdownItem id="reload-schema-ds" key="reload" component="button" onClick={() => (this.openSchemaReloadModal())}>
                 Reload Schema Files
             </DropdownItem>,
             <DropdownSeparator key="separator" />,
-            <DropdownItem id="remove-ds" key="remove" component="button" onClick={this.showDeleteConfirm}>
+            <DropdownItem id="remove-ds" key="remove" component="button" onClick={() => (this.showDeleteConfirm())}>
                 Remove This Instance
             </DropdownItem>,
-            <DropdownItem id="create-ds" key="create" component="button" onClick={this.openCreateInstanceModal}>
+            <DropdownItem id="create-ds" key="create" component="button" onClick={() => (this.openCreateInstanceModal())}>
                 Create New Instance
             </DropdownItem>
         ];
@@ -564,7 +564,7 @@ export class DSInstance extends React.Component {
                         <Button
                             id="no-inst-create-btn"
                             variant="primary"
-                            onClick={this.openCreateInstanceModal}
+                            onClick={() => (this.openCreateInstanceModal())}
                         >
                             Create New Instance
                         </Button>
@@ -584,10 +584,120 @@ export class DSInstance extends React.Component {
             operateSpinner = <Spinner className="ds-operate-spinner" size="md" />;
         }
 
+        let serverDropdown = "";
+
+        if (pageLoadingState.state !== "loading" &&
+            pageLoadingState.state !== "noInsts" &&
+            pageLoadingState.state !== "noPackage") {
+            serverDropdown =
+                <div className="ds-logo" hidden={pageLoadingState.state === "loading"}>
+                    <TextContent className="ds-logo-style" title={this.state.version}>
+                        <Text id="main-banner" component={TextVariants.h1}>
+                            <div className="ds-server-action">
+                                <FormSelect
+                                    title="Directory Server instance list"
+                                    value={serverId}
+                                    id="serverId"
+                                    onChange={this.handleServerIdChange}
+                                    aria-label="FormSelect Input"
+                                    className="ds-instance-select"
+                                >
+                                    {instList.map((option, index) => (
+                                        <FormSelectOption
+                                            isDisabled={option.disabled}
+                                            key={index}
+                                            value={option.value.replace("slapd-", "")}
+                                            label={option.label}
+                                        />
+                                    ))}
+                                </FormSelect>
+                            </div>
+                            {operateSpinner}
+                            <div className="dropdown ds-float-right">
+                                <Dropdown
+                                    id="ds-action"
+                                    className="ds-action-button"
+                                    position={DropdownPosition.right}
+                                    onSelect={this.handleDropdown}
+                                    toggle={
+                                        <DropdownToggle id="ds-dropdown" isPrimary onToggle={this.handleToggle}>
+                                            Actions
+                                        </DropdownToggle>
+                                    }
+                                    isOpen={dropdownIsOpen}
+                                    dropdownItems={dropdownItems}
+                                />
+                            </div>
+                        </Text>
+                    </TextContent>
+                </div>;
+        }
+
+        let mainPage = <div>{mainContent}</div>;
+        if (serverId !== "" && (pageLoadingState.state === "success" || pageLoadingState.state === "loading")) {
+            mainPage =
+                <div className="ds-margin-top-xlg">
+                    <div hidden={pageLoadingState.state === "loading"}>
+                        <Tabs isFilled activeKey={activeTabKey} onSelect={this.handleNavSelect}>
+                            <Tab eventKey={1} title={<TabTitleText><b>Server Settings</b></TabTitleText>}>
+                                <Server
+                                    addNotification={this.addNotification}
+                                    serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
+                                    version={this.state.version}
+                                    key={this.state.serverId}
+                                />
+                            </Tab>
+                            <Tab eventKey={2} title={<TabTitleText><b>Database</b></TabTitleText>}>
+                                <Database
+                                    addNotification={this.addNotification}
+                                    serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
+                                    key={this.state.serverId}
+                                />
+                            </Tab>
+                            <Tab eventKey={3} title={<TabTitleText><b>Replication</b></TabTitleText>}>
+                                <Replication
+                                    addNotification={this.addNotification}
+                                    serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
+                                    key={this.state.serverId}
+                                />
+                            </Tab>
+                            <Tab eventKey={4} title={<TabTitleText><b>Schema</b></TabTitleText>}>
+                                <Schema
+                                    addNotification={this.addNotification}
+                                    serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
+                                    key={this.state.serverId}
+                                />
+                            </Tab>
+                            <Tab eventKey={5} title={<TabTitleText><b>Plugins</b></TabTitleText>}>
+                                <Plugins
+                                    addNotification={this.addNotification}
+                                    serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
+                                    key={this.state.serverId}
+                                />
+                            </Tab>
+                            <Tab eventKey={6} title={<TabTitleText><b>Monitoring</b></TabTitleText>}>
+                                <Monitor
+                                    addNotification={this.addNotification}
+                                    serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
+                                    key={this.state.serverId}
+                                />
+                            </Tab>
+                        </Tabs>
+                    </div>
+                    <div hidden={pageLoadingState.state !== "loading"}>{mainContent}</div>
+                </div>;
+        }
+
         return (
             <div className={loadingOperate ? "ds-disabled" : ""}>
                 <AlertGroup isToast>
-                    {notifications.map(({key, variant, title}) => (
+                    {notifications.map(({ key, variant, title }) => (
                         <Alert
                             isLiveRegion
                             variant={AlertVariant[variant]}
@@ -604,114 +714,8 @@ export class DSInstance extends React.Component {
                         />
                     ))}
                 </AlertGroup>
-                {pageLoadingState.state !== "loading" &&
-                pageLoadingState.state !== "noInsts" &&
-                pageLoadingState.state !== "noPackage" ? (
-                    <div className="ds-logo" hidden={pageLoadingState.state === "loading"}>
-                        <TextContent className="ds-logo-style" title={this.state.version}>
-                            <Text id="main-banner" component={TextVariants.h1}>
-                                <div className="ds-server-action">
-                                    <FormSelect
-                                        title="Directory Server instance list"
-                                        value={serverId}
-                                        id="serverId"
-                                        onChange={this.handleServerIdChange}
-                                        aria-label="FormSelect Input"
-                                        className="ds-instance-select"
-                                    >
-                                        {instList.map((option, index) => (
-                                            <FormSelectOption
-                                                isDisabled={option.disabled}
-                                                key={index}
-                                                value={option.value.replace("slapd-", "")}
-                                                label={option.label}
-                                            />
-                                        ))}
-                                    </FormSelect>
-                                </div>
-                                {operateSpinner}
-                                <div className="dropdown ds-float-right">
-                                    <Dropdown
-                                        id="ds-action"
-                                        className="ds-action-button"
-                                        position={DropdownPosition.right}
-                                        onSelect={this.onSelect}
-                                        toggle={
-                                            <DropdownToggle id="ds-dropdown" isPrimary onToggle={this.onToggle}>
-                                                Actions
-                                            </DropdownToggle>
-                                        }
-                                        isOpen={dropdownIsOpen}
-                                        dropdownItems={dropdownItems}
-                                    />
-                                </div>
-                            </Text>
-                        </TextContent>
-                    </div>
-                ) : (
-                    <div />
-                )}
-                {serverId !== "" &&
-                (pageLoadingState.state === "success" || pageLoadingState.state === "loading") ? (
-                    <div className="ds-margin-top-xlg">
-                        <div hidden={pageLoadingState.state === "loading"}>
-                            <Tabs isFilled activeKey={activeTabKey} onSelect={this.handleNavSelect}>
-                                <Tab eventKey={1} title={<TabTitleText><b>Server Settings</b></TabTitleText>}>
-                                    <Server
-                                        addNotification={this.addNotification}
-                                        serverId={this.state.serverId}
-                                        wasActiveList={this.state.wasActiveList}
-                                        version={this.state.version}
-                                        key={this.state.serverId}
-                                    />
-                                </Tab>
-                                <Tab eventKey={2} title={<TabTitleText><b>Database</b></TabTitleText>}>
-                                    <Database
-                                        addNotification={this.addNotification}
-                                        serverId={this.state.serverId}
-                                        wasActiveList={this.state.wasActiveList}
-                                        key={this.state.serverId}
-                                    />
-                                </Tab>
-                                <Tab eventKey={3} title={<TabTitleText><b>Replication</b></TabTitleText>}>
-                                    <Replication
-                                        addNotification={this.addNotification}
-                                        serverId={this.state.serverId}
-                                        wasActiveList={this.state.wasActiveList}
-                                        key={this.state.serverId}
-                                    />
-                                </Tab>
-                                <Tab eventKey={4} title={<TabTitleText><b>Schema</b></TabTitleText>}>
-                                    <Schema
-                                        addNotification={this.addNotification}
-                                        serverId={this.state.serverId}
-                                        wasActiveList={this.state.wasActiveList}
-                                        key={this.state.serverId}
-                                    />
-                                </Tab>
-                                <Tab eventKey={5} title={<TabTitleText><b>Plugins</b></TabTitleText>}>
-                                    <Plugins
-                                        addNotification={this.addNotification}
-                                        serverId={this.state.serverId}
-                                        wasActiveList={this.state.wasActiveList}
-                                        key={this.state.serverId}
-                                    />
-                                </Tab>
-                                <Tab eventKey={6} title={<TabTitleText><b>Monitoring</b></TabTitleText>}>
-                                    <Monitor
-                                        addNotification={this.addNotification}
-                                        serverId={this.state.serverId}
-                                        wasActiveList={this.state.wasActiveList}
-                                        key={this.state.serverId}
-                                    />
-                                </Tab>
-                            </Tabs>
-                        </div>
-                        <div hidden={pageLoadingState.state !== "loading"}>{mainContent}</div>
-                    </div>
-                ) : (
-                    <div>{mainContent}</div>
-                )}
+                {serverDropdown}
+                {mainPage}
                 <CreateInstanceModal
                     showModal={this.state.showCreateInstanceModal}
                     closeHandler={this.closeCreateInstanceModal}
@@ -730,14 +734,14 @@ export class DSInstance extends React.Component {
                     serverId={this.state.serverId}
                     showModal={this.state.showManageBackupsModal}
                     closeHandler={this.closeManageBackupsModal}
-                    handleChange={this.handleFieldChange}
+                    handleChange={this.onFieldChange}
                     backups={this.state.backupRows}
                     reload={this.loadBackups}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showDeleteConfirm}
                     closeHandler={this.closeDeleteConfirm}
-                    handleChange={this.handleFieldChange}
+                    handleChange={this.onFieldChange}
                     actionHandler={this.removeInstance}
                     spinning={this.state.modalSpinning}
                     item={this.state.serverId}

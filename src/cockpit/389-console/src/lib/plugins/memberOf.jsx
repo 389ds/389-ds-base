@@ -19,7 +19,6 @@ import {
     TextContent,
     TextVariants,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -375,7 +374,7 @@ class MemberOf extends React.Component {
     }
 
     validateConfig() {
-        let errObj = {};
+        const errObj = {};
         let all_good = true;
 
         const reqAttrs = [
@@ -395,7 +394,7 @@ class MemberOf extends React.Component {
         ];
 
         // Check required attributes
-        for (let attr of reqAttrs) {
+        for (const attr of reqAttrs) {
             if (this.state[attr] == "") {
                 all_good = false;
                 errObj[attr] = true;
@@ -403,7 +402,7 @@ class MemberOf extends React.Component {
         }
 
         // Check required Lists are not empty
-        for (let attr of reqLists) {
+        for (const attr of reqLists) {
             if (this.state[attr].length == 0) {
                 all_good = false;
                 errObj[attr] = true;
@@ -411,7 +410,7 @@ class MemberOf extends React.Component {
         }
 
         // Check DN attrs
-        for (let attr of dnAttrs) {
+        for (const attr of dnAttrs) {
             if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
                 errObj[attr] = true;
                 all_good = false;
@@ -419,8 +418,8 @@ class MemberOf extends React.Component {
         }
 
         // Validate the subtree lists
-        for (let dn_list of dnLists) {
-            for (let dn of this.state[dn_list]) {
+        for (const dn_list of dnLists) {
+            for (const dn of this.state[dn_list]) {
                 if (!valid_dn(dn)) {
                     errObj[dn_list] = true;
                     all_good = false;
@@ -436,7 +435,7 @@ class MemberOf extends React.Component {
                 'memberOfEntryScope',
                 'memberOfEntryScopeExcludeSubtree', 'memberOfGroupAttr',
             ];
-            for (let check_attr of attrLists) {
+            for (const check_attr of attrLists) {
                 if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
                     all_good = true;
                     break;
@@ -447,7 +446,7 @@ class MemberOf extends React.Component {
                 'memberOfAllBackends', 'memberOfSkipNested',
                 'memberOfConfigEntry', 'memberOfAttr', 'memberOfAutoAddOC'
             ];
-            for (let check_attr of configAttrs) {
+            for (const check_attr of configAttrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
@@ -461,7 +460,7 @@ class MemberOf extends React.Component {
     }
 
     validateModal() {
-        let errObj = {};
+        const errObj = {};
         let all_good = true;
 
         const reqAttrs = [
@@ -481,7 +480,7 @@ class MemberOf extends React.Component {
         ];
 
         // Check required attributes
-        for (let attr of reqAttrs) {
+        for (const attr of reqAttrs) {
             if (this.state[attr] == "") {
                 all_good = false;
                 errObj[attr] = true;
@@ -489,7 +488,7 @@ class MemberOf extends React.Component {
         }
 
         // Check required Lists are not empty
-        for (let attr of reqLists) {
+        for (const attr of reqLists) {
             if (this.state[attr].length == 0) {
                 all_good = false;
                 errObj[attr] = true;
@@ -497,7 +496,7 @@ class MemberOf extends React.Component {
         }
 
         // Check DN attrs
-        for (let attr of dnAttrs) {
+        for (const attr of dnAttrs) {
             if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
                 errObj[attr] = true;
                 all_good = false;
@@ -506,8 +505,8 @@ class MemberOf extends React.Component {
         }
 
         // Validate the subtree lists
-        for (let dn_list of dnLists) {
-            for (let dn of this.state[dn_list]) {
+        for (const dn_list of dnLists) {
+            for (const dn of this.state[dn_list]) {
                 if (!valid_dn(dn)) {
                     errObj[dn_list] = true;
                     all_good = false;
@@ -522,7 +521,7 @@ class MemberOf extends React.Component {
                 'configEntryScope', 'configEntryScopeExcludeSubtree',
                 'configGroupAttr'
             ];
-            for (let check_attr of attrLists) {
+            for (const check_attr of attrLists) {
                 if (!listsEqual(this.state[check_attr], this.state['_' + check_attr])) {
                     all_good = true;
                     break;
@@ -533,7 +532,7 @@ class MemberOf extends React.Component {
                 'configDN', 'configAttr', 'configAutoAddOC',
                 'configAllBackends', 'configSkipNested'
             ];
-            for (let check_attr of configAttrs) {
+            for (const check_attr of configAttrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
@@ -547,14 +546,14 @@ class MemberOf extends React.Component {
     }
 
     handleFieldChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
         }, () => { this.validateConfig() });
     }
 
     handleModalChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
         }, () => { this.validateModal() });
@@ -578,7 +577,7 @@ class MemberOf extends React.Component {
 
     handleChange(e) {
         // Generic handler for things that don't need validating
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value,
         });
@@ -628,7 +627,7 @@ class MemberOf extends React.Component {
                         });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
                             `Fixup task for ${this.state.fixupDN} has failed ${errMsg.desc}`
@@ -660,7 +659,7 @@ class MemberOf extends React.Component {
             let configScopeList = [];
             let configExcludeScopeList = [];
             let configGroupAttrObjectList = [];
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -679,27 +678,27 @@ class MemberOf extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let configEntry = JSON.parse(content).attrs;
+                        const configEntry = JSON.parse(content).attrs;
                         this.setState({
                             configEntryModalShow: true,
                             newEntry: false,
                             saveBtnDisabledModal: true,
                             configDN: this.state.memberOfConfigEntry,
                             configAttr:
-                            configEntry["memberofattr"] === undefined
+                            configEntry.memberofattr === undefined
                                 ? ""
-                                : configEntry["memberofattr"][0],
+                                : configEntry.memberofattr[0],
                             configAutoAddOC:
-                            configEntry["memberofautoaddoc"] === undefined
+                            configEntry.memberofautoaddoc === undefined
                                 ? ""
-                                : configEntry["memberofautoaddoc"][0],
+                                : configEntry.memberofautoaddoc[0],
                             configAllBackends: !(
-                                configEntry["memberofallbackends"] === undefined ||
-                            configEntry["memberofallbackends"][0] == "off"
+                                configEntry.memberofallbackends === undefined ||
+                            configEntry.memberofallbackends[0] == "off"
                             ),
                             configSkipNested: !(
-                                configEntry["memberofskipnested"] === undefined ||
-                            configEntry["memberofskipnested"][0] == "off"
+                                configEntry.memberofskipnested === undefined ||
+                            configEntry.memberofskipnested[0] == "off"
                             ),
                             configConfigEntry:
                             configEntry["nsslapd-pluginConfigArea"] === undefined
@@ -707,30 +706,30 @@ class MemberOf extends React.Component {
                                 : configEntry["nsslapd-pluginConfigArea"][0],
                         });
 
-                        if (configEntry["memberofgroupattr"] === undefined) {
+                        if (configEntry.memberofgroupattr === undefined) {
                             this.setState({ configGroupAttr: [] });
                         } else {
-                            for (let value of configEntry["memberofgroupattr"]) {
+                            for (const value of configEntry.memberofgroupattr) {
                                 configGroupAttrObjectList = [...configGroupAttrObjectList, value];
                             }
                             this.setState({
                                 configGroupAttr: configGroupAttrObjectList
                             });
                         }
-                        if (configEntry["memberofentryscope"] === undefined) {
+                        if (configEntry.memberofentryscope === undefined) {
                             this.setState({ configEntryScope: [] });
                         } else {
-                            for (let value of configEntry["memberofentryscope"]) {
+                            for (const value of configEntry.memberofentryscope) {
                                 configScopeList = [...configScopeList, value];
                             }
                             this.setState({
                                 configEntryScope: configScopeList
                             });
                         }
-                        if (configEntry["memberofentryscopeexcludesubtree"] === undefined) {
+                        if (configEntry.memberofentryscopeexcludesubtree === undefined) {
                             this.setState({ configEntryScopeExcludeSubtreeScope: [] });
                         } else {
-                            for (let value of configEntry["memberofentryscopeexcludesubtree"]) {
+                            for (const value of configEntry.memberofentryscopeexcludesubtree) {
                                 configExcludeScopeList = [...configExcludeScopeList, value];
                             }
                             this.setState({
@@ -801,7 +800,7 @@ class MemberOf extends React.Component {
             // Delete attributes if the user set an empty value to the field
             cmd = [...cmd, "--scope"];
             if (configEntryScope.length != 0) {
-                for (let value of configEntryScope) {
+                for (const value of configEntryScope) {
                     cmd = [...cmd, value];
                 }
             } else {
@@ -809,7 +808,7 @@ class MemberOf extends React.Component {
             }
             cmd = [...cmd, "--exclude"];
             if (configEntryScopeExcludeSubtree.length != 0) {
-                for (let value of configEntryScopeExcludeSubtree) {
+                for (const value of configEntryScopeExcludeSubtree) {
                     cmd = [...cmd, value];
                 }
             } else {
@@ -817,7 +816,7 @@ class MemberOf extends React.Component {
             }
             cmd = [...cmd, "--groupattr"];
             if (configGroupAttr.length != 0) {
-                for (let value of configGroupAttr) {
+                for (const value of configGroupAttr) {
                     cmd = [...cmd, value];
                 }
             } else {
@@ -847,7 +846,7 @@ class MemberOf extends React.Component {
                         });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
                             `Error during the config entry ${action} operation - ${errMsg.desc}`
@@ -862,7 +861,7 @@ class MemberOf extends React.Component {
     }
 
     deleteConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -895,7 +894,7 @@ class MemberOf extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry removal operation - ${errMsg.desc}`
@@ -926,50 +925,50 @@ class MemberOf extends React.Component {
 
             this.setState({
                 memberOfAttr:
-                    pluginRow["memberofattr"] === undefined
+                    pluginRow.memberofattr === undefined
                         ? ""
-                        : pluginRow["memberofattr"][0],
+                        : pluginRow.memberofattr[0],
                 memberOfAutoAddOC:
-                    pluginRow["memberofautoaddoc"] === undefined
+                    pluginRow.memberofautoaddoc === undefined
                         ? ""
-                        : pluginRow["memberofautoaddoc"][0],
+                        : pluginRow.memberofautoaddoc[0],
                 memberOfAllBackends: !(
-                    pluginRow["memberofallbackends"] === undefined ||
-                    pluginRow["memberofallbackends"][0] == "off"
+                    pluginRow.memberofallbackends === undefined ||
+                    pluginRow.memberofallbackends[0] == "off"
                 ),
                 memberOfSkipNested: !(
-                    pluginRow["memberofskipnested"] === undefined ||
-                    pluginRow["memberofskipnested"][0] == "off"
+                    pluginRow.memberofskipnested === undefined ||
+                    pluginRow.memberofskipnested[0] == "off"
                 ),
                 memberOfConfigEntry:
                     pluginRow["nsslapd-pluginConfigArea"] === undefined
                         ? ""
                         : pluginRow["nsslapd-pluginConfigArea"][0],
                 _memberOfAttr:
-                    pluginRow["memberofattr"] === undefined
+                    pluginRow.memberofattr === undefined
                         ? ""
-                        : pluginRow["memberofattr"][0],
+                        : pluginRow.memberofattr[0],
                 _memberOfAutoAddOC:
-                    pluginRow["memberofautoaddoc"] === undefined
+                    pluginRow.memberofautoaddoc === undefined
                         ? ""
-                        : pluginRow["memberofautoaddoc"][0],
+                        : pluginRow.memberofautoaddoc[0],
                 _memberOfAllBackends: !(
-                    pluginRow["memberofallbackends"] === undefined ||
-                    pluginRow["memberofallbackends"][0] == "off"
+                    pluginRow.memberofallbackends === undefined ||
+                    pluginRow.memberofallbackends[0] == "off"
                 ),
                 _memberOfSkipNested: !(
-                    pluginRow["memberofskipnested"] === undefined ||
-                    pluginRow["memberofskipnested"][0] == "off"
+                    pluginRow.memberofskipnested === undefined ||
+                    pluginRow.memberofskipnested[0] == "off"
                 ),
                 _memberOfConfigEntry:
                     pluginRow["nsslapd-pluginConfigArea"] === undefined
                         ? ""
                         : pluginRow["nsslapd-pluginConfigArea"][0],
             });
-            if (pluginRow["memberofgroupattr"] === undefined) {
+            if (pluginRow.memberofgroupattr === undefined) {
                 this.setState({ memberOfGroupAttr: [], _memberOfGroupAttr: [] });
             } else {
-                for (let value of pluginRow["memberofgroupattr"]) {
+                for (const value of pluginRow.memberofgroupattr) {
                     memberOfGroupAttrObjectList = [...memberOfGroupAttrObjectList, value];
                 }
                 this.setState({
@@ -977,10 +976,10 @@ class MemberOf extends React.Component {
                     _memberOfGroupAttr: [...memberOfGroupAttrObjectList],
                 });
             }
-            if (pluginRow["memberofentryscope"] === undefined) {
+            if (pluginRow.memberofentryscope === undefined) {
                 this.setState({ memberOfEntryScope: [], _memberOfEntryScope: [] });
             } else {
-                for (let value of pluginRow["memberofentryscope"]) {
+                for (const value of pluginRow.memberofentryscope) {
                     memberOfEntryScopeList = [...memberOfEntryScopeList, value];
                 }
                 this.setState({
@@ -988,10 +987,10 @@ class MemberOf extends React.Component {
                     _memberOfEntryScope: [...memberOfEntryScopeList],
                 });
             }
-            if (pluginRow["memberofentryscopeexcludesubtree"] === undefined) {
+            if (pluginRow.memberofentryscopeexcludesubtree === undefined) {
                 this.setState({ memberOfEntryScopeExcludeSubtree: [], _memberOfEntryScopeExcludeSubtree: [] });
             } else {
-                for (let value of pluginRow["memberofentryscopeexcludesubtree"]) {
+                for (const value of pluginRow.memberofentryscopeexcludesubtree) {
                     getSchemamemberOfExcludeScopeList = [...getSchemamemberOfExcludeScopeList, value];
                 }
                 this.setState({
@@ -1039,7 +1038,7 @@ class MemberOf extends React.Component {
         // Delete attributes if the user set an empty value to the field
         cmd = [...cmd, "--scope"];
         if (memberOfEntryScope.length != 0) {
-            for (let value of memberOfEntryScope) {
+            for (const value of memberOfEntryScope) {
                 cmd = [...cmd, value];
             }
         } else {
@@ -1048,7 +1047,7 @@ class MemberOf extends React.Component {
 
         cmd = [...cmd, "--exclude"];
         if (memberOfEntryScopeExcludeSubtree.length != 0) {
-            for (let value of memberOfEntryScopeExcludeSubtree) {
+            for (const value of memberOfEntryScopeExcludeSubtree) {
                 cmd = [...cmd, value];
             }
         } else {
@@ -1057,7 +1056,7 @@ class MemberOf extends React.Component {
 
         cmd = [...cmd, "--groupattr"];
         if (memberOfGroupAttr.length != 0) {
-            for (let value of memberOfGroupAttr) {
+            for (const value of memberOfGroupAttr) {
                 cmd = [...cmd, value];
             }
         } else {
@@ -1137,7 +1136,7 @@ class MemberOf extends React.Component {
         } = this.state;
 
         let saveBtnName = "Save Config";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (saving) {
             saveBtnName = "Saving Config ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -1146,7 +1145,7 @@ class MemberOf extends React.Component {
         let modalButtons = [];
         if (!newEntry) {
             modalButtons = [
-                <Button key="del" variant="primary" onClick={this.showConfirmDelete} >
+                <Button key="del" variant="primary" onClick={this.showConfirmDelete}>
                     Delete Config
                 </Button>,
                 <Button
@@ -1305,7 +1304,7 @@ class MemberOf extends React.Component {
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -1332,7 +1331,7 @@ class MemberOf extends React.Component {
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -1355,13 +1354,13 @@ class MemberOf extends React.Component {
                                     isCreatable
                                     onCreateOption={this.onConfigCreateOption}
                                     validated={errorModal.configEntryScope ? "error" : "default"}
-                                    >
+                                >
                                     {[""].map((dn, index) => (
                                         <SelectOption
                                             key={index}
                                             value={dn}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                                 <FormHelperText isError isHidden={!errorModal.configEntryScope}>
                                     Values must be valid DN's
@@ -1396,13 +1395,13 @@ class MemberOf extends React.Component {
                                     isCreatable
                                     onCreateOption={this.onConfigExcludeCreateOption}
                                     validated={errorModal.configEntryScopeExcludeSubtree ? "error" : "default"}
-                                    >
+                                >
                                     {[""].map((dn, index) => (
                                         <SelectOption
                                             key={index}
                                             value={dn}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                                 <FormHelperText isError isHidden={!errorModal.configEntryScopeExcludeSubtree}>
                                     Values must be valid DN's
@@ -1419,7 +1418,7 @@ class MemberOf extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid title="If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter">
-                            <GridItem className="ds-label" span={3} >
+                            <GridItem className="ds-label" span={3}>
                                 Auto Add OC
                             </GridItem>
                             <GridItem span={9}>
@@ -1475,7 +1474,7 @@ class MemberOf extends React.Component {
                                             key={attr}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -1502,7 +1501,7 @@ class MemberOf extends React.Component {
                                             key={attr}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -1525,13 +1524,13 @@ class MemberOf extends React.Component {
                                     isCreatable
                                     onCreateOption={this.onSubtreeScopeCreateOption}
                                     validated={error.memberOfEntryScope ? "error" : "default"}
-                                    >
+                                >
                                     {[""].map((dn, index) => (
                                         <SelectOption
                                             key={index}
                                             value={dn}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                                 <FormHelperText isError isHidden={!error.memberOfEntryScope}>
                                     A subtree is required, and values must be valid DN's
@@ -1566,13 +1565,13 @@ class MemberOf extends React.Component {
                                     isCreatable
                                     onCreateOption={this.onExcludeCreateOption}
                                     validated={error.memberOfEntryScopeExcludeSubtree ? "error" : "default"}
-                                    >
+                                >
                                     {[""].map((dn, index) => (
                                         <SelectOption
                                             key={index}
                                             value={dn}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                                 <FormHelperText isError isHidden={!error.memberOfEntryScopeExcludeSubtree}>
                                     Values must be valid DN's
@@ -1690,9 +1689,6 @@ MemberOf.propTypes = {
 MemberOf.defaultProps = {
     rows: [],
     serverId: "",
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop,
     objectClasses: [],
 };
 

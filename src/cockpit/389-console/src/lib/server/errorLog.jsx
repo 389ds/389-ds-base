@@ -19,7 +19,6 @@ import {
     TextContent,
     TextVariants,
     TimePicker,
-    noop
 } from "@patternfly/react-core";
 import {
     Table,
@@ -78,20 +77,20 @@ export class ServerErrorLog extends React.Component {
             attrs: this.props.attrs,
             canSelectAll: false,
             rows: [
-                {cells: ['Trace Function Calls'], level: 1, selected: false},
-                {cells: ['Packet Handling'], level: 2, selected: false},
-                {cells: ['Heavy Trace Output'], level: 4, selected: false},
-                {cells: ['Connection Management'], level: 8, selected: false},
-                {cells: ['Packets Sent & Received'], level: 16, selected: false},
-                {cells: ['Search Filter Processing'], level: 32, selected: false},
-                {cells: ['Config File Processing'], level: 64, selected: false},
-                {cells: ['Access Control List Processing'], level: 128, selected: false},
-                {cells: ['Log Entry Parsing'], level: 256, selected: false},
-                {cells: ['Housekeeping'], level: 4096, selected: false},
-                {cells: ['Replication'], level: 8192, selected: false},
-                {cells: ['Entry Cache'], level: 32768, selected: false},
-                {cells: ['Plugin'], level: 65536, selected: false},
-                {cells: ['Access Control Summary'], level: 262144, selected: false},
+                { cells: ['Trace Function Calls'], level: 1, selected: false },
+                { cells: ['Packet Handling'], level: 2, selected: false },
+                { cells: ['Heavy Trace Output'], level: 4, selected: false },
+                { cells: ['Connection Management'], level: 8, selected: false },
+                { cells: ['Packets Sent & Received'], level: 16, selected: false },
+                { cells: ['Search Filter Processing'], level: 32, selected: false },
+                { cells: ['Config File Processing'], level: 64, selected: false },
+                { cells: ['Access Control List Processing'], level: 128, selected: false },
+                { cells: ['Log Entry Parsing'], level: 256, selected: false },
+                { cells: ['Housekeeping'], level: 4096, selected: false },
+                { cells: ['Replication'], level: 8192, selected: false },
+                { cells: ['Entry Cache'], level: 32768, selected: false },
+                { cells: ['Plugin'], level: 65536, selected: false },
+                { cells: ['Access Control Summary'], level: 262144, selected: false },
             ],
             columns: [
                 { title: 'Logging Level' },
@@ -124,7 +123,7 @@ export class ServerErrorLog extends React.Component {
 
     handleTimeChange(time_str) {
         let disableSaveBtn = true;
-        let time_parts = time_str.split(":");
+        const time_parts = time_str.split(":");
         let hour = time_parts[0];
         let min = time_parts[1];
         if (hour.length == 2 && hour[0] == "0") {
@@ -135,7 +134,7 @@ export class ServerErrorLog extends React.Component {
         }
 
         // Start doing the Save button checking
-        for (let config_attr of rotation_attrs_no_time) {
+        for (const config_attr of rotation_attrs_no_time) {
             if (this.state[config_attr] != this.state['_' + config_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -154,8 +153,8 @@ export class ServerErrorLog extends React.Component {
     }
 
     handleChange(e, nav_tab) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let disableBtnName = "";
         let config_attrs = [];
@@ -163,8 +162,8 @@ export class ServerErrorLog extends React.Component {
             config_attrs = settings_attrs;
             disableBtnName = "saveSettingsDisabled";
             // Handle the table contents check now
-            for (let row of this.state.rows) {
-                for (let orig_row of this.state['_rows']) {
+            for (const row of this.state.rows) {
+                for (const orig_row of this.state._rows) {
                     if (orig_row.cells[0] == row.cells[0]) {
                         if (orig_row.selected != row.selected) {
                             disableSaveBtn = false;
@@ -182,7 +181,7 @@ export class ServerErrorLog extends React.Component {
         }
 
         // Check if a setting was changed, if so enable the save button
-        for (let config_attr of config_attrs) {
+        for (const config_attr of config_attrs) {
             if (attr == config_attr && this.state['_' + config_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -190,7 +189,7 @@ export class ServerErrorLog extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let config_attr of config_attrs) {
+        for (const config_attr of config_attrs) {
             if (attr != config_attr && this.state['_' + config_attr] != this.state[config_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -218,12 +217,12 @@ export class ServerErrorLog extends React.Component {
             config_attrs = exp_attrs;
         }
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
 
-        for (let attr of config_attrs) {
+        for (const attr of config_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -237,7 +236,7 @@ export class ServerErrorLog extends React.Component {
             }
         }
 
-        for (let row of this.state.rows) {
+        for (const row of this.state.rows) {
             if (row.selected) {
                 new_level += row.level;
             }
@@ -256,7 +255,7 @@ export class ServerErrorLog extends React.Component {
 
         log_cmd("saveConfig", "Saving Error log settings", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.reloadConfig();
                     this.setState({
@@ -268,7 +267,7 @@ export class ServerErrorLog extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.reloadConfig();
                     this.setState({
                         loading: false
@@ -286,7 +285,7 @@ export class ServerErrorLog extends React.Component {
             loaded: !refresh,
         });
 
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
@@ -294,16 +293,16 @@ export class ServerErrorLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     let enabled = false;
-                    let level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
-                    let rows = [...this.state.rows];
+                    const level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
+                    const rows = [...this.state.rows];
 
                     if (attrs['nsslapd-errorlog-logging-enabled'][0] == "on") {
                         enabled = true;
                     }
-                    for (let row in rows) {
+                    for (const row in rows) {
                         if (rows[row].level & level_val) {
                             rows[row].selected = true;
                         } else {
@@ -334,7 +333,7 @@ export class ServerErrorLog extends React.Component {
                             'nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
                             rows: rows,
                             // Record original values
-                            '_rows':  JSON.parse(JSON.stringify(rows)),
+                            _rows:  JSON.parse(JSON.stringify(rows)),
                             '_nsslapd-errorlog': attrs['nsslapd-errorlog'][0],
                             '_nsslapd-errorlog-level': attrs['nsslapd-errorlog-level'][0],
                             '_nsslapd-errorlog-logexpirationtime': attrs['nsslapd-errorlog-logexpirationtime'][0],
@@ -353,7 +352,7 @@ export class ServerErrorLog extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error loading Error Log configuration - ${errMsg.desc}`
@@ -366,15 +365,15 @@ export class ServerErrorLog extends React.Component {
     }
 
     loadConfig() {
-        let attrs = this.state.attrs;
+        const attrs = this.state.attrs;
         let enabled = false;
-        let level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
-        let rows = [...this.state.rows];
+        const level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
+        const rows = [...this.state.rows];
 
         if (attrs['nsslapd-errorlog-logging-enabled'][0] == "on") {
             enabled = true;
         }
-        for (let row in rows) {
+        for (const row in rows) {
             if (rows[row].level & level_val) {
                 rows[row].selected = true;
             } else {
@@ -404,7 +403,7 @@ export class ServerErrorLog extends React.Component {
             'nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
             rows: rows,
             // Record original values
-            '_rows': JSON.parse(JSON.stringify(rows)),
+            _rows: JSON.parse(JSON.stringify(rows)),
             '_nsslapd-errorlog': attrs['nsslapd-errorlog'][0],
             '_nsslapd-errorlog-level': attrs['nsslapd-errorlog-level'][0],
             '_nsslapd-errorlog-logexpirationtime': attrs['nsslapd-errorlog-logexpirationtime'][0],
@@ -424,13 +423,13 @@ export class ServerErrorLog extends React.Component {
 
     onSelect(event, isSelected, rowId) {
         let disableSaveBtn = true;
-        let rows = JSON.parse(JSON.stringify(this.state.rows));
+        const rows = JSON.parse(JSON.stringify(this.state.rows));
 
         // Update the row
         rows[rowId].selected = isSelected;
 
         // Handle "save button" state, first check the other config settings
-        for (let config_attr of settings_attrs) {
+        for (const config_attr of settings_attrs) {
             if (this.state['_' + config_attr] != this.state[config_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -438,8 +437,8 @@ export class ServerErrorLog extends React.Component {
         }
 
         // Handle the table contents
-        for (let row of rows) {
-            for (let orig_row of this.state['_rows']) {
+        for (const row of rows) {
+            for (const orig_row of this.state._rows) {
                 if (orig_row.cells[0] == row.cells[0]) {
                     if (orig_row.selected != row.selected) {
                         disableSaveBtn = false;
@@ -459,7 +458,7 @@ export class ServerErrorLog extends React.Component {
         let saveSettingsName = "Save Log Settings";
         let saveRotationName = "Save Rotation Settings";
         let saveDeletionName = "Save Deletion Settings";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         let rotationTime = "";
         let hour = this.state['nsslapd-errorlog-logrotationsynchour'] ? this.state['nsslapd-errorlog-logrotationsynchour'] : "00";
         let min = this.state['nsslapd-errorlog-logrotationsyncmin'] ? this.state['nsslapd-errorlog-logrotationsyncmin'] : "00";
@@ -779,7 +778,6 @@ ServerErrorLog.propTypes = {
 };
 
 ServerErrorLog.defaultProps = {
-    addNotification: noop,
     serverId: "",
     attrs: {},
 };

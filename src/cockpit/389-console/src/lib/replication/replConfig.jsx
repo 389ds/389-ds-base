@@ -38,27 +38,27 @@ export class ReplConfig extends React.Component {
             saveBtnDisabled: true,
             isExpanded: false,
             // Config Settings
-            nsds5replicabinddn: this.props.data['nsds5replicabinddn'],
-            nsds5replicabinddngroup: this.props.data['nsds5replicabinddngroup'],
-            nsds5replicabinddngroupcheckinterval: Number(this.props.data['nsds5replicabinddngroupcheckinterval']) == 0 ? -1 : Number(this.props.data['nsds5replicabinddngroupcheckinterval']),
-            nsds5replicareleasetimeout: Number(this.props.data['nsds5replicareleasetimeout']),
-            nsds5replicapurgedelay: Number(this.props.data['nsds5replicapurgedelay']) == 0 ? 604800 : Number(this.props.data['nsds5replicapurgedelay']),
-            nsds5replicatombstonepurgeinterval: Number(this.props.data['nsds5replicatombstonepurgeinterval']) == 0 ? 86400 : Number(this.props.data['nsds5replicatombstonepurgeinterval']),
-            nsds5replicaprecisetombstonepurging: Number(this.props.data['nsds5replicaprecisetombstonepurging']),
-            nsds5replicaprotocoltimeout: Number(this.props.data['nsds5replicaprotocoltimeout']) == 0 ? 120 : Number(this.props.data['nsds5replicaprotocoltimeout']),
-            nsds5replicabackoffmin: Number(this.props.data['nsds5replicabackoffmin']) == 0 ? 3 : Number(this.props.data['nsds5replicabackoffmin']),
-            nsds5replicabackoffmax: Number(this.props.data['nsds5replicabackoffmax']) == 0 ? 300 : Number(this.props.data['nsds5replicabackoffmax']),
+            nsds5replicabinddn: this.props.data.nsds5replicabinddn,
+            nsds5replicabinddngroup: this.props.data.nsds5replicabinddngroup,
+            nsds5replicabinddngroupcheckinterval: Number(this.props.data.nsds5replicabinddngroupcheckinterval) == 0 ? -1 : Number(this.props.data.nsds5replicabinddngroupcheckinterval),
+            nsds5replicareleasetimeout: Number(this.props.data.nsds5replicareleasetimeout),
+            nsds5replicapurgedelay: Number(this.props.data.nsds5replicapurgedelay) == 0 ? 604800 : Number(this.props.data.nsds5replicapurgedelay),
+            nsds5replicatombstonepurgeinterval: Number(this.props.data.nsds5replicatombstonepurgeinterval) == 0 ? 86400 : Number(this.props.data.nsds5replicatombstonepurgeinterval),
+            nsds5replicaprecisetombstonepurging: Number(this.props.data.nsds5replicaprecisetombstonepurging),
+            nsds5replicaprotocoltimeout: Number(this.props.data.nsds5replicaprotocoltimeout) == 0 ? 120 : Number(this.props.data.nsds5replicaprotocoltimeout),
+            nsds5replicabackoffmin: Number(this.props.data.nsds5replicabackoffmin) == 0 ? 3 : Number(this.props.data.nsds5replicabackoffmin),
+            nsds5replicabackoffmax: Number(this.props.data.nsds5replicabackoffmax) == 0 ? 300 : Number(this.props.data.nsds5replicabackoffmax),
             // Original settings
-            _nsds5replicabinddn: this.props.data['nsds5replicabinddn'],
-            _nsds5replicabinddngroup: this.props.data['nsds5replicabinddngroup'],
-            _nsds5replicabinddngroupcheckinterval: Number(this.props.data['nsds5replicabinddngroupcheckinterval']) == 0 ? -1 : Number(this.props.data['nsds5replicabinddngroupcheckinterval']),
-            _nsds5replicareleasetimeout: this.props.data['nsds5replicareleasetimeout'],
-            _nsds5replicapurgedelay: Number(this.props.data['nsds5replicapurgedelay']) == 0 ? 604800 : Number(this.props.data['nsds5replicapurgedelay']),
-            _nsds5replicatombstonepurgeinterval: Number(this.props.data['nsds5replicatombstonepurgeinterval']) == 0 ? 86400 : Number(this.props.data['nsds5replicatombstonepurgeinterval']),
-            _nsds5replicaprecisetombstonepurging: this.props.data['nsds5replicaprecisetombstonepurging'],
-            _nsds5replicaprotocoltimeout: Number(this.props.data['nsds5replicaprotocoltimeout']) == 0 ? 120 : Number(this.props.data['nsds5replicaprotocoltimeout']),
-            _nsds5replicabackoffmin: Number(this.props.data['nsds5replicabackoffmin']) == 0 ? 3 : Number(this.props.data['nsds5replicabackoffmin']),
-            _nsds5replicabackoffmax: Number(this.props.data['nsds5replicabackoffmax']) == 0 ? 300 : Number(this.props.data['nsds5replicabackoffmax']),
+            _nsds5replicabinddn: this.props.data.nsds5replicabinddn,
+            _nsds5replicabinddngroup: this.props.data.nsds5replicabinddngroup,
+            _nsds5replicabinddngroupcheckinterval: Number(this.props.data.nsds5replicabinddngroupcheckinterval) == 0 ? -1 : Number(this.props.data.nsds5replicabinddngroupcheckinterval),
+            _nsds5replicareleasetimeout: this.props.data.nsds5replicareleasetimeout,
+            _nsds5replicapurgedelay: Number(this.props.data.nsds5replicapurgedelay) == 0 ? 604800 : Number(this.props.data.nsds5replicapurgedelay),
+            _nsds5replicatombstonepurgeinterval: Number(this.props.data.nsds5replicatombstonepurgeinterval) == 0 ? 86400 : Number(this.props.data.nsds5replicatombstonepurgeinterval),
+            _nsds5replicaprecisetombstonepurging: this.props.data.nsds5replicaprecisetombstonepurging,
+            _nsds5replicaprotocoltimeout: Number(this.props.data.nsds5replicaprotocoltimeout) == 0 ? 120 : Number(this.props.data.nsds5replicaprotocoltimeout),
+            _nsds5replicabackoffmin: Number(this.props.data.nsds5replicabackoffmin) == 0 ? 3 : Number(this.props.data.nsds5replicabackoffmin),
+            _nsds5replicabackoffmax: Number(this.props.data.nsds5replicabackoffmax) == 0 ? 300 : Number(this.props.data.nsds5replicabackoffmax),
         };
 
         this.onToggle = (isExpanded) => {
@@ -123,10 +123,10 @@ export class ReplConfig extends React.Component {
         if (changeType == "Promoting") {
             action = "promote";
         }
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', action,
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', action,
             '--suffix=' + this.props.suffix, "--newrole=" + this.state.newRole];
         if (this.state.newRole == "Supplier") {
-            let ridNum = parseInt(this.state.newRID, 10);
+            const ridNum = parseInt(this.state.newRID, 10);
             if (ridNum < 1 || ridNum >= 65535) {
                 this.props.addNotification(
                     "error",
@@ -154,7 +154,7 @@ export class ReplConfig extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload();
                     this.props.addNotification(
                         "error",
@@ -226,7 +226,7 @@ export class ReplConfig extends React.Component {
             addManagerSpinning: true
         });
 
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "create-manager", "--suffix=" + this.props.suffix, "--name=" + this.state.manager,
             "--passwd=" + this.state.manager_passwd
@@ -247,7 +247,7 @@ export class ReplConfig extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reloadConfig(this.props.suffix);
                     this.props.addNotification(
                         "error",
@@ -261,8 +261,8 @@ export class ReplConfig extends React.Component {
     }
 
     handleModalChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         this.setState({
             [attr]: value,
         });
@@ -278,7 +278,7 @@ export class ReplConfig extends React.Component {
             'nsds5replicaprecisetombstonepurging'
         ];
         // Check if a setting was changed, if so enable the save button
-        for (let config_attr of config_attrs) {
+        for (const config_attr of config_attrs) {
             if (this.state[config_attr] != this.state['_' + config_attr]) {
                 saveBtnDisabled = false;
                 break;
@@ -290,11 +290,11 @@ export class ReplConfig extends React.Component {
     }
 
     handleChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let saveBtnDisabled = true;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
 
         const config_attrs = [
             'nsds5replicabinddngroup', 'nsds5replicabinddngroupcheckinterval',
@@ -304,7 +304,7 @@ export class ReplConfig extends React.Component {
             'nsds5replicaprecisetombstonepurging'
         ];
         // Check if a setting was changed, if so enable the save button
-        for (let config_attr of config_attrs) {
+        for (const config_attr of config_attrs) {
             if (attr == config_attr && this.state['_' + config_attr] != value) {
                 saveBtnDisabled = false;
                 break;
@@ -312,7 +312,7 @@ export class ReplConfig extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let config_attr of config_attrs) {
+        for (const config_attr of config_attrs) {
             if (attr != config_attr && this.state['_' + config_attr] != this.state[config_attr]) {
                 saveBtnDisabled = false;
                 break;
@@ -336,10 +336,10 @@ export class ReplConfig extends React.Component {
     }
 
     handleManagerChange(e) {
-        let value = e.target.value;
-        let attr = e.target.id;
+        const value = e.target.value;
+        const attr = e.target.id;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
         if (value == "") {
             valueErr = true;
         }
@@ -350,7 +350,7 @@ export class ReplConfig extends React.Component {
                 valueErr = true;
             } else {
                 errObj[attr] = false;
-                errObj['manager_passwd_confirm'] = false;
+                errObj.manager_passwd_confirm = false;
             }
         } else if (attr == "manager_passwd_confirm") {
             if (value != this.state.manager_passwd) {
@@ -358,7 +358,7 @@ export class ReplConfig extends React.Component {
                 valueErr = true;
             } else {
                 errObj[attr] = false;
-                errObj['manager_passwd'] = false;
+                errObj.manager_passwd = false;
             }
         }
 
@@ -386,7 +386,7 @@ export class ReplConfig extends React.Component {
     }
 
     deleteManager() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "delete-manager", "--suffix=" + this.props.suffix, "--name=" + this.state.manager
         ];
@@ -407,7 +407,7 @@ export class ReplConfig extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reloadConfig(this.props.suffix);
                     this.props.addNotification(
                         "error",
@@ -420,7 +420,7 @@ export class ReplConfig extends React.Component {
     }
 
     saveConfig () {
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'set', '--suffix=' + this.props.suffix
         ];
@@ -463,9 +463,9 @@ export class ReplConfig extends React.Component {
                 saving: true
             });
             log_cmd("saveConfig", "Applying replication changes", cmd);
-            let msg = "Successfully updated replication configuration.";
+            const msg = "Successfully updated replication configuration.";
             cockpit
-                    .spawn(cmd, {superuser: true, "err": "message"})
+                    .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
                         this.props.reloadConfig(this.props.suffix);
                         this.props.addNotification(
@@ -477,7 +477,7 @@ export class ReplConfig extends React.Component {
                         });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.reloadConfig(this.props.suffix);
                         this.setState({
                             saving: false
@@ -496,14 +496,14 @@ export class ReplConfig extends React.Component {
 
     render() {
         let roleButton = "";
-        let manager_rows = [];
+        const manager_rows = [];
         let saveBtnName = "Save Configuration";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.state.saving) {
             saveBtnName = "Saving Config ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
-        for (let row of this.props.data.nsds5replicabinddn) {
+        for (const row of this.props.data.nsds5replicabinddn) {
             manager_rows.push(row);
         }
 

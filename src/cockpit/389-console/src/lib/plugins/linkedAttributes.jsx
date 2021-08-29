@@ -12,7 +12,6 @@ import {
     SelectOption,
     TextInput,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import { LinkedAttributesTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -146,7 +145,7 @@ class LinkedAttributes extends React.Component {
     }
 
     validate () {
-        let errObj = {};
+        const errObj = {};
         let all_good = true;
 
         if (this.state.configName == "") {
@@ -161,10 +160,10 @@ class LinkedAttributes extends React.Component {
         if (all_good) {
             // Check for value differences to see if the save btn should be enabled
             all_good = false;
-            let attrs = [
+            const attrs = [
                 'linkScope', 'managedType', 'linkType', 'configName'
             ];
-            for (let check_attr of attrs) {
+            for (const check_attr of attrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
                     all_good = true;
                     break;
@@ -197,8 +196,8 @@ class LinkedAttributes extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
-                    let tableKey = this.state.tableKey + 1;
+                    const myObject = JSON.parse(content);
+                    const tableKey = this.state.tableKey + 1;
                     this.setState({
                         configRows: myObject.items.map(item => item.attrs),
                         tableKey: tableKey,
@@ -206,7 +205,7 @@ class LinkedAttributes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadConfigs failed", errMsg.desc);
                     }
@@ -233,7 +232,7 @@ class LinkedAttributes extends React.Component {
                 saveBtnDisabled: true,
             });
         } else {
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -252,24 +251,24 @@ class LinkedAttributes extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let configEntry = JSON.parse(content).attrs;
+                        const configEntry = JSON.parse(content).attrs;
                         this.setState({
                             configEntryModalShow: true,
                             saveBtnDisabled: true,
                             newEntry: false,
-                            configName: configEntry["cn"] === undefined ? "" : configEntry["cn"][0],
+                            configName: configEntry.cn === undefined ? "" : configEntry.cn[0],
                             linkType:
-                            configEntry["linktype"] === undefined
+                            configEntry.linktype === undefined
                                 ? []
-                                : [configEntry["linktype"][0]],
+                                : [configEntry.linktype[0]],
                             managedType:
-                            configEntry["managedtype"] === undefined
+                            configEntry.managedtype === undefined
                                 ? []
-                                : [configEntry["managedtype"][0]],
+                                : [configEntry.managedtype[0]],
                             linkScope:
-                            configEntry["linkscope"] === undefined
+                            configEntry.linkscope === undefined
                                 ? ""
-                                : configEntry["linkscope"][0]
+                                : configEntry.linkscope[0]
                         });
 
                         this.props.toggleLoadingHandler();
@@ -349,7 +348,7 @@ class LinkedAttributes extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry ${action} operation - ${errMsg.desc}`
@@ -361,7 +360,7 @@ class LinkedAttributes extends React.Component {
     }
 
     deleteConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -393,7 +392,7 @@ class LinkedAttributes extends React.Component {
                     this.closeConfirmDelete();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry removal operation - ${errMsg.desc}`
@@ -426,9 +425,9 @@ class LinkedAttributes extends React.Component {
             firstLoad
         } = this.state;
 
-        let title = (newEntry ? "Add" : "Edit") + " Linked Attributes Plugin Config Entry";
+        const title = (newEntry ? "Add" : "Edit") + " Linked Attributes Plugin Config Entry";
         let saveBtnName = (newEntry ? "Add" : "Save") + " Config";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (saving) {
             if (newEntry) {
                 saveBtnName = "Adding Config ...";
@@ -504,7 +503,7 @@ class LinkedAttributes extends React.Component {
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -530,7 +529,7 @@ class LinkedAttributes extends React.Component {
                                             key={index}
                                             value={attr}
                                         />
-                                        ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>
@@ -615,10 +614,6 @@ LinkedAttributes.propTypes = {
 LinkedAttributes.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop
 };
 
 export default LinkedAttributes;

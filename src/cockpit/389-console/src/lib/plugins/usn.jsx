@@ -12,7 +12,6 @@ import {
     Switch,
     NumberInput,
     Tooltip,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -21,7 +20,7 @@ import {
     WrenchIcon,
 } from '@patternfly/react-icons';
 
-class USN extends React.Component {
+class USNPlugin extends React.Component {
     componentDidMount() {
         if (this.props.wasActiveList.includes(5)) {
             if (this.state.firstLoad) {
@@ -124,7 +123,7 @@ class USN extends React.Component {
                     this.setState({ disableSwitch: false });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     addNotification(
                         "error",
                         `Error during global USN mode modification - ${errMsg.desc}`
@@ -158,8 +157,8 @@ class USN extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
-                    let usnGlobalAttr = myObject.attrs["nsslapd-entryusn-global"][0];
+                    const myObject = JSON.parse(content);
+                    const usnGlobalAttr = myObject.attrs["nsslapd-entryusn-global"][0];
                     this.setState({
                         globalMode: !(usnGlobalAttr == "off"),
                         pluginEnabled: pluginEnabled,
@@ -169,7 +168,7 @@ class USN extends React.Component {
                 })
                 .fail(err => {
                     if (err != 0) {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         console.log("Get global USN failed", errMsg.desc);
                     }
                     this.setState({
@@ -225,7 +224,7 @@ class USN extends React.Component {
                         });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
                             `Cleanup USN Tombstones task has failed ${errMsg.desc}`
@@ -367,7 +366,7 @@ class USN extends React.Component {
     }
 }
 
-USN.propTypes = {
+USNPlugin.propTypes = {
     rows: PropTypes.array,
     serverId: PropTypes.string,
     savePluginHandler: PropTypes.func,
@@ -376,13 +375,9 @@ USN.propTypes = {
     toggleLoadingHandler: PropTypes.func
 };
 
-USN.defaultProps = {
+USNPlugin.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop
 };
 
-export default USN;
+export default USNPlugin;

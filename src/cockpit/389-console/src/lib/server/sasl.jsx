@@ -101,10 +101,10 @@ export class ServerSASL extends React.Component {
     }
 
     handleTestRegex() {
-        let test_string = this.state.saslTestText;
-        let regex = this.state.saslMapRegex;
-        let cleaned_regex = regex.replace(/\\\(/g, '(').replace(/\\\)/g, ')');
-        let sasl_regex = RegExp(cleaned_regex);
+        const test_string = this.state.saslTestText;
+        const regex = this.state.saslMapRegex;
+        const cleaned_regex = regex.replace(/\\\(/g, '(').replace(/\\\)/g, ')');
+        const sasl_regex = RegExp(cleaned_regex);
         if (sasl_regex.test(test_string)) {
             this.props.addNotification(
                 "success",
@@ -125,7 +125,7 @@ export class ServerSASL extends React.Component {
         let chkBox = false;
         let disableSaveBtn = true;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
 
         // Could be a typeahead change, check selection
         if (selection) {
@@ -201,12 +201,12 @@ export class ServerSASL extends React.Component {
     }
 
     handleModalAddChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let disableRegexTestBtn = true;
-        let valueErr = false;
-        let errObj = this.state.errObj;
+        const valueErr = false;
+        const errObj = this.state.errObj;
 
         // Check if a setting was changed, if so enable the save button
         if (attr == 'saslMapName' && value != "") {
@@ -254,12 +254,12 @@ export class ServerSASL extends React.Component {
     }
 
     handleModalChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let disableRegexTestBtn = true;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
 
         // Check if a setting was changed, if so enable the save button
         if (attr == 'saslMapName' && this.state._saslMapName != value) {
@@ -310,7 +310,7 @@ export class ServerSASL extends React.Component {
     }
 
     loadConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", 'get'
         ];
@@ -318,8 +318,8 @@ export class ServerSASL extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     let allowedMechsVal = attrs['nsslapd-allowed-sasl-mechanisms'][0];
                     let allowedMechs = [];
                     let fallback = false;
@@ -351,7 +351,7 @@ export class ServerSASL extends React.Component {
     }
 
     loadMechs() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", "sasl", 'get-mechs'
         ];
         log_cmd("loadMechs", "Get supported SASL mechanisms", cmd);
@@ -366,20 +366,20 @@ export class ServerSASL extends React.Component {
     }
 
     loadSASLMappings() {
-        let cmd = ["dsconf", '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'sasl', 'list', '--details'];
+        const cmd = ["dsconf", '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'sasl', 'list', '--details'];
         log_cmd('get_and_set_sasl', 'Get SASL mappings', cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let saslMapObj = JSON.parse(content);
-                    let mappings = [];
-                    for (let mapping of saslMapObj['items']) {
-                        if (!mapping['attrs'].hasOwnProperty('nssaslmappriority')) {
-                            mapping['attrs'].nssaslmappriority = ['100'];
+                    const saslMapObj = JSON.parse(content);
+                    const mappings = [];
+                    for (const mapping of saslMapObj.items) {
+                        if (!mapping.attrs.hasOwnProperty('nssaslmappriority')) {
+                            mapping.attrs.nssaslmappriority = ['100'];
                         }
-                        mappings.push(mapping['attrs']);
+                        mappings.push(mapping.attrs);
                     }
-                    let key = this.state.mappingKey + 1;
+                    const key = this.state.mappingKey + 1;
                     this.setState({
                         mappings: mappings,
                         mappingKey: key,
@@ -456,7 +456,7 @@ export class ServerSASL extends React.Component {
         this.setState({
             tableLoading: true,
         });
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'create',
             '--cn=' + this.state.saslMapName,
@@ -468,7 +468,7 @@ export class ServerSASL extends React.Component {
 
         log_cmd("createMapping", "Create sasl mapping", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.loadConfig();
                     this.props.addNotification(
@@ -477,7 +477,7 @@ export class ServerSASL extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.loadConfig();
                     this.props.addNotification(
                         "error",
@@ -488,8 +488,8 @@ export class ServerSASL extends React.Component {
 
     editMapping(name) {
         // Start spinning
-        let new_mappings = this.state.mappings;
-        for (let saslMap of new_mappings) {
+        const new_mappings = this.state.mappings;
+        for (const saslMap of new_mappings) {
             if (saslMap.cn[0] == name) {
                 saslMap.nssaslmapregexstring = [<Spinner className="ds-lower-field" key={new_mappings[0].nssaslmapregexstring[0]} loading size="sm" />];
                 saslMap.nssaslmapbasedntemplate = [<Spinner className="ds-lower-field" key={new_mappings[0].nssaslmapbasedntemplate[0]} loading size="sm" />];
@@ -504,11 +504,11 @@ export class ServerSASL extends React.Component {
         });
 
         // Delete and create
-        let delete_cmd = [
+        const delete_cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'delete', this.state._saslMapName
         ];
-        let create_cmd = [
+        const create_cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'create',
             '--cn=' + this.state.saslMapName,
@@ -520,11 +520,11 @@ export class ServerSASL extends React.Component {
 
         log_cmd("editMapping", "deleting sasl mapping", delete_cmd);
         cockpit
-                .spawn(delete_cmd, {superuser: true, "err": "message"})
+                .spawn(delete_cmd, { superuser: true, err: "message" })
                 .done(content => {
                     log_cmd("editMapping", "Create new sasl mapping", create_cmd);
                     cockpit
-                            .spawn(create_cmd, {superuser: true, "err": "message"})
+                            .spawn(create_cmd, { superuser: true, err: "message" })
                             .done(content => {
                                 this.loadConfig();
                                 this.props.addNotification(
@@ -533,7 +533,7 @@ export class ServerSASL extends React.Component {
                                 );
                             })
                             .fail(err => {
-                                let errMsg = JSON.parse(err);
+                                const errMsg = JSON.parse(err);
                                 this.closeMapping();
                                 this.loadConfig();
                                 this.props.addNotification(
@@ -543,7 +543,7 @@ export class ServerSASL extends React.Component {
                             });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.loadConfig();
                     this.closeMapping();
                     this.props.addNotification(
@@ -555,8 +555,8 @@ export class ServerSASL extends React.Component {
 
     deleteMapping() {
         // Start spinning
-        let new_mappings = this.state.mappings;
-        for (let saslMap of new_mappings) {
+        const new_mappings = this.state.mappings;
+        for (const saslMap of new_mappings) {
             if (saslMap.cn[0] == this.state.saslMapName) {
                 saslMap.nssaslmapregexstring = [<Spinner className="ds-lower-field" key={new_mappings[0].nssaslmapregexstring[0]} loading size="sm" />];
                 saslMap.nssaslmapbasedntemplate = [<Spinner className="ds-lower-field" key={new_mappings[0].nssaslmapbasedntemplate[0]} loading size="sm" />];
@@ -569,13 +569,13 @@ export class ServerSASL extends React.Component {
             tableLoading: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'delete', this.state.saslMapName
         ];
         log_cmd("deleteMapping", "Delete sasl mapping", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.loadConfig();
                     this.props.addNotification(
@@ -584,7 +584,7 @@ export class ServerSASL extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.loadConfig();
                     this.closeConfirmDelete();
                     this.props.addNotification(
@@ -601,12 +601,12 @@ export class ServerSASL extends React.Component {
         });
 
         // Build up the command list
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'config', 'replace'
         ];
 
-        let mech_str_new = this.state.allowedMechs.join(' ');
-        let mech_str_orig = this.state._allowedMechs.join(' ');
+        const mech_str_new = this.state.allowedMechs.join(' ');
+        const mech_str_orig = this.state._allowedMechs.join(' ');
         if (mech_str_orig != mech_str_new) {
             cmd.push("nsslapd-allowed-sasl-mechanisms=" + mech_str_new);
         }
@@ -623,7 +623,7 @@ export class ServerSASL extends React.Component {
 
         log_cmd("saveConfig", "Applying SASL config change", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.loadConfig();
                     this.props.addNotification(
@@ -633,7 +633,7 @@ export class ServerSASL extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.loadConfig();
                     this.props.addNotification(
                         "error",
@@ -645,7 +645,7 @@ export class ServerSASL extends React.Component {
     render() {
         let body = "";
         let saveBtnName = "Save Settings";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (this.state.configLoading) {
             saveBtnName = "Saving settings ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -713,13 +713,13 @@ export class ServerSASL extends React.Component {
                                     aria-labelledby="typeAhead-sasl-mechs"
                                     placeholderText="Type SASL mechanism to allow..."
                                     noResultsFoundText="There are no matching entries"
-                                    >
+                                >
                                     {this.state.supportedMechs.map((attr, index) => (
                                         <SelectOption
                                             key={index}
                                             value={attr}
                                         />
-                                            ))}
+                                    ))}
                                 </Select>
                             </GridItem>
                         </Grid>

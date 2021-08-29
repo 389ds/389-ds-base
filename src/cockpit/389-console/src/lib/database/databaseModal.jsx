@@ -12,7 +12,6 @@ import {
     ModalVariant,
     TextInput,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import { LDIFTable } from "./databaseTables.jsx";
 import PropTypes from "prop-types";
@@ -33,7 +32,7 @@ class CreateLinkModal extends React.Component {
         } = this.props;
 
         let saveBtnName = "Create Database Link";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (saving) {
             saveBtnName = "Creating Link ...";
             extraPrimaryProps.spinnerAriaValueText = "Creating";
@@ -251,7 +250,7 @@ class CreateSubSuffixModal extends React.Component {
         } = this.props;
 
         let saveBtnName = "Create Sub-Suffix";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (saving) {
             saveBtnName = "Creating suffix ...";
             extraPrimaryProps.spinnerAriaValueText = "Creating";
@@ -360,7 +359,7 @@ class ExportModal extends React.Component {
             error
         } = this.props;
         let saveBtnName = "Export Database";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (spinning) {
             saveBtnName = "Exporting ...";
             extraPrimaryProps.spinnerAriaValueText = "Creating";
@@ -436,8 +435,8 @@ class ImportModal extends React.Component {
             suffix
         } = this.props;
 
-        let suffixRows = [];
-        for (let row of rows) {
+        const suffixRows = [];
+        for (const row of rows) {
             if (row[3] == suffix) {
                 suffixRows.push(row);
             }
@@ -507,9 +506,6 @@ CreateLinkModal.propTypes = {
 
 CreateLinkModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     suffix: "",
     error: {},
 };
@@ -525,9 +521,6 @@ CreateSubSuffixModal.propTypes = {
 
 CreateSubSuffixModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     suffix: "",
     error: {},
 };
@@ -543,9 +536,6 @@ ExportModal.propTypes = {
 
 ExportModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     error: {},
     spinning: false
 };
@@ -562,10 +552,6 @@ ImportModal.propTypes = {
 
 ImportModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
-    showConfirmImport: noop,
     rows: [],
     suffix: ""
 };

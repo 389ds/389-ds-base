@@ -8,7 +8,6 @@ import {
     ModalVariant,
     TextInput,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
@@ -16,7 +15,7 @@ export class SASLMappingModal extends React.Component {
     render() {
         let title = this.props.type;
         let btnText = "Create Mapping";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (title != "Create") {
             btnText = "Save Mapping";
         }
@@ -218,10 +217,6 @@ SASLMappingModal.defaultProps = {
     showModal: false,
     testBtnDisabled: true,
     saveDisabled: true,
-    closeHandler: noop,
-    handleChange: noop,
-    handleTestRegex: noop,
-    saveHandler: noop,
     error: {},
     name: "",
     regex: "",

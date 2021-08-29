@@ -13,7 +13,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 import {
     Chart,
@@ -90,71 +89,71 @@ export class SuffixMonitor extends React.Component {
                 currentdncachecount: [0],
             },
             entryCacheList: [
-                {name: "", x: "1", y: 0},
-                {name: "", x: "2", y: 0},
-                {name: "", x: "3", y: 0},
-                {name: "", x: "4", y: 0},
-                {name: "", x: "5", y: 0},
-                {name: "", x: "6", y: 0},
-                {name: "", x: "7", y: 0},
-                {name: "", x: "8", y: 0},
-                {name: "", x: "9", y: 0},
-                {name: "", x: "10", y: 0},
+                { name: "", x: "1", y: 0 },
+                { name: "", x: "2", y: 0 },
+                { name: "", x: "3", y: 0 },
+                { name: "", x: "4", y: 0 },
+                { name: "", x: "5", y: 0 },
+                { name: "", x: "6", y: 0 },
+                { name: "", x: "7", y: 0 },
+                { name: "", x: "8", y: 0 },
+                { name: "", x: "9", y: 0 },
+                { name: "", x: "10", y: 0 },
             ],
             entryUtilCacheList: [
-                {name: "", x: "1", y: 0},
-                {name: "", x: "2", y: 0},
-                {name: "", x: "3", y: 0},
-                {name: "", x: "4", y: 0},
-                {name: "", x: "5", y: 0},
+                { name: "", x: "1", y: 0 },
+                { name: "", x: "2", y: 0 },
+                { name: "", x: "3", y: 0 },
+                { name: "", x: "4", y: 0 },
+                { name: "", x: "5", y: 0 },
             ],
             dnCacheList: [
-                {name: "", x: "1", y: 0},
-                {name: "", x: "2", y: 0},
-                {name: "", x: "3", y: 0},
-                {name: "", x: "4", y: 0},
-                {name: "", x: "5", y: 0},
-                {name: "", x: "6", y: 0},
-                {name: "", x: "7", y: 0},
-                {name: "", x: "8", y: 0},
-                {name: "", x: "9", y: 0},
-                {name: "", x: "10", y: 0},
+                { name: "", x: "1", y: 0 },
+                { name: "", x: "2", y: 0 },
+                { name: "", x: "3", y: 0 },
+                { name: "", x: "4", y: 0 },
+                { name: "", x: "5", y: 0 },
+                { name: "", x: "6", y: 0 },
+                { name: "", x: "7", y: 0 },
+                { name: "", x: "8", y: 0 },
+                { name: "", x: "9", y: 0 },
+                { name: "", x: "10", y: 0 },
             ],
             dnCacheUtilList: [
-                {name: "", x: "1", y: 0},
-                {name: "", x: "2", y: 0},
-                {name: "", x: "3", y: 0},
-                {name: "", x: "4", y: 0},
-                {name: "", x: "5", y: 0},
+                { name: "", x: "1", y: 0 },
+                { name: "", x: "2", y: 0 },
+                { name: "", x: "3", y: 0 },
+                { name: "", x: "4", y: 0 },
+                { name: "", x: "5", y: 0 },
             ],
         });
     }
 
     refreshSuffixCache() {
         // Search for db cache stat and update state
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "backend", this.props.suffix
         ];
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     let count = this.state.count + 1;
-                    let utilCount = this.state.utilCount + 1;
+                    const utilCount = this.state.utilCount + 1;
                     if (count > 100) {
                         // Keep progress count in check
                         count = 1;
                     }
 
                     // Build up the Entry Cache chart data
-                    let entryRatio = config.attrs.entrycachehitratio[0];
-                    let entry_data = this.state.entryCacheList;
+                    const entryRatio = config.attrs.entrycachehitratio[0];
+                    const entry_data = this.state.entryCacheList;
                     entry_data.shift();
-                    entry_data.push({name: "Cache Hit Ratio", x: count.toString(), y: parseInt(entryRatio)});
+                    entry_data.push({ name: "Cache Hit Ratio", x: count.toString(), y: parseInt(entryRatio) });
 
                     // Build up the Entry Util chart data
-                    let entry_util_data = this.state.entryUtilCacheList;
+                    const entry_util_data = this.state.entryUtilCacheList;
                     let maxsize = config.attrs.maxentrycachesize[0];
                     let currsize = config.attrs.currententrycachesize[0];
                     let utilratio = Math.round((currsize / maxsize) * 100);
@@ -162,16 +161,16 @@ export class SuffixMonitor extends React.Component {
                         utilratio = 1;
                     }
                     entry_util_data.shift();
-                    entry_util_data.push({name: "Cache Utilization", x: utilCount.toString(), y: parseInt(utilratio)});
+                    entry_util_data.push({ name: "Cache Utilization", x: utilCount.toString(), y: parseInt(utilratio) });
 
                     // Build up the DN Cache chart data
-                    let dnratio = config.attrs.dncachehitratio[0];
-                    let dn_data = this.state.dnCacheList;
+                    const dnratio = config.attrs.dncachehitratio[0];
+                    const dn_data = this.state.dnCacheList;
                     dn_data.shift();
-                    dn_data.push({name: "Cache Hit Ratio", x: count.toString(), y: parseInt(dnratio)});
+                    dn_data.push({ name: "Cache Hit Ratio", x: count.toString(), y: parseInt(dnratio) });
 
                     // Build up the DN Cache Util chart data
-                    let dn_util_data = this.state.dnCacheUtilList;
+                    const dn_util_data = this.state.dnCacheUtilList;
                     currsize = parseInt(config.attrs.currentdncachesize[0]);
                     maxsize = parseInt(config.attrs.maxdncachesize[0]);
                     utilratio = (currsize / maxsize) * 100;
@@ -179,7 +178,7 @@ export class SuffixMonitor extends React.Component {
                         utilratio = 1;
                     }
                     dn_util_data.shift();
-                    dn_util_data.push({name: "Cache Utilization", x: utilCount.toString(), y: parseInt(utilratio)});
+                    dn_util_data.push({ name: "Cache Utilization", x: utilCount.toString(), y: parseInt(utilratio) });
 
                     this.setState({
                         data: config.attrs,
@@ -320,8 +319,8 @@ export class SuffixMonitor extends React.Component {
                                                             ariaTitle="Live Entry Cache Statistics"
                                                             containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                             height={200}
-                                                            maxDomain={{y: 100}}
-                                                            minDomain={{y: 0}}
+                                                            maxDomain={{ y: 100 }}
+                                                            minDomain={{ y: 0 }}
                                                             padding={{
                                                                 bottom: 40,
                                                                 left: 60,
@@ -372,8 +371,8 @@ export class SuffixMonitor extends React.Component {
                                                             ariaTitle="Live Entry Cache Utilization Statistics"
                                                             containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                             height={200}
-                                                            maxDomain={{y: 100}}
-                                                            minDomain={{y: 0}}
+                                                            maxDomain={{ y: 100 }}
+                                                            minDomain={{ y: 0 }}
                                                             padding={{
                                                                 bottom: 40,
                                                                 left: 60,
@@ -468,8 +467,8 @@ export class SuffixMonitor extends React.Component {
                                                             ariaTitle="Live DN Cache Statistics"
                                                             containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                             height={200}
-                                                            maxDomain={{y: 100}}
-                                                            minDomain={{y: 0}}
+                                                            maxDomain={{ y: 100 }}
+                                                            minDomain={{ y: 0 }}
                                                             padding={{
                                                                 bottom: 40,
                                                                 left: 60,
@@ -520,8 +519,8 @@ export class SuffixMonitor extends React.Component {
                                                             ariaTitle="Live DN Cache Utilization Statistics"
                                                             containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                             height={200}
-                                                            maxDomain={{y: 100}}
-                                                            minDomain={{y: 0}}
+                                                            maxDomain={{ y: 100 }}
+                                                            minDomain={{ y: 0 }}
                                                             padding={{
                                                                 bottom: 40,
                                                                 left: 60,
@@ -621,7 +620,6 @@ SuffixMonitor.defaultProps = {
     serverId: "",
     suffix: "",
     bename: "",
-    enableTree: noop,
 };
 
 export default SuffixMonitor;

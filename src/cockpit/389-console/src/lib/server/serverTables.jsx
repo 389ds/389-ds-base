@@ -5,7 +5,6 @@ import {
     Pagination,
     PaginationVariant,
     SearchInput,
-    noop
 } from '@patternfly/react-core';
 import {
     expandable,
@@ -30,9 +29,10 @@ export class SASLTable extends React.Component {
             rows: [],
             dropdownIsOpen: false,
             columns: [
-                { title: 'Mapping Name',
-                  transforms: [sortable],
-                  cellFormatters: [expandable]
+                {
+                    title: 'Mapping Name',
+                    transforms: [sortable],
+                    cellFormatters: [expandable]
                 },
                 { title: 'Search Base', transforms: [sortable] },
                 { title: 'Priority', transforms: [sortable] },
@@ -58,17 +58,17 @@ export class SASLTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_rows = [];
-        let rows = [];
+        const sorted_rows = [];
+        const rows = [];
         let count = 0;
 
         // Convert the rows pairings into a sortable array based on the column indexes
         for (let idx = 0; idx < this.state.rows.length; idx += 2) {
             sorted_rows.push({
-                'expandedRow': this.state.rows[idx + 1],
-                '1': this.state.rows[idx].cells[0],
-                '2': this.state.rows[idx].cells[1],
-                '3': this.state.rows[idx].cells[2],
+                expandedRow: this.state.rows[idx + 1],
+                1: this.state.rows[idx].cells[0],
+                2: this.state.rows[idx].cells[1],
+                3: this.state.rows[idx].cells[2],
                 regex: this.state.rows[idx].regex,
                 filter: this.state.rows[idx].filter
             });
@@ -79,7 +79,7 @@ export class SASLTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_rows.reverse();
         }
-        for (let srow of sorted_rows) {
+        for (const srow of sorted_rows) {
             rows.push({
                 isOpen: false,
                 cells: [
@@ -119,7 +119,7 @@ export class SASLTable extends React.Component {
         let rows = [];
         let columns = this.state.columns;
         let count = 0;
-        for (let row of this.props.rows) {
+        for (const row of this.props.rows) {
             rows.push(
                 {
                     isOpen: false,
@@ -137,8 +137,8 @@ export class SASLTable extends React.Component {
             count += 2;
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No SASL Mappings']}];
-            columns = [{title: 'SASL Mappings'}];
+            rows = [{ cells: ['No SASL Mappings'] }];
+            columns = [{ title: 'SASL Mappings' }];
         }
         this.setState({
             rows: rows,
@@ -156,11 +156,11 @@ export class SASLTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
+        const rows = [];
         let count = 0;
 
-        for (let row of this.props.rows) {
-            let val = value.toLowerCase();
+        for (const row of this.props.rows) {
+            const val = value.toLowerCase();
 
             // Check for matches of all the parts
             if (val != "" && row.cn[0].toLowerCase().indexOf(val) == -1 &&
@@ -217,13 +217,13 @@ export class SASLTable extends React.Component {
 
     render() {
         const { perPage, page, sortBy, rows, columns } = this.state;
-        let origRows = [...rows];
-        let startIdx = ((perPage * page) - perPage) * 2;
-        let tableRows = origRows.splice(startIdx, perPage * 2);
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
 
         for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
             // Rewrite parent index to match new spliced array
-            tableRows[idx]['parent'] = count;
+            tableRows[idx].parent = count;
         }
 
         return (
@@ -272,6 +272,4 @@ SASLTable.propTypes = {
 
 SASLTable.defaultProps = {
     rows: [],
-    editMapping: noop,
-    deleteMapping: noop
 };

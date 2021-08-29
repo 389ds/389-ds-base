@@ -11,7 +11,6 @@ import {
     ModalVariant,
     TextInput,
     ValidatedOptions,
-    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -107,7 +106,7 @@ class WinSync extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Fixup task for ${this.state.fixupDN} has failed ${errMsg.desc}`
@@ -127,7 +126,7 @@ class WinSync extends React.Component {
             'posixWinsyncMapMemberUID', 'posixWinsyncMapNestedGrouping',
             'posixWinsyncMsSFUSchema'
         ];
-        for (let check_attr of attrs) {
+        for (const check_attr of attrs) {
             if (this.state[check_attr] != this.state['_' + check_attr]) {
                 all_good = true;
                 break;
@@ -140,7 +139,7 @@ class WinSync extends React.Component {
     }
 
     validateModal() {
-        let errObj = {};
+        const errObj = {};
         let all_good = true;
 
         if (!valid_dn(this.state.fixupDN)) {
@@ -159,14 +158,14 @@ class WinSync extends React.Component {
     }
 
     handleFieldChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
         }, () => { this.validateConfig() });
     }
 
     handleModalChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
         }, () => { this.validateModal() });
@@ -178,51 +177,51 @@ class WinSync extends React.Component {
 
             this.setState({
                 posixWinsyncCreateMemberOfTask: !(
-                    pluginRow["posixwinsynccreatememberoftask"] === undefined ||
-                    pluginRow["posixwinsynccreatememberoftask"][0] == "false"
+                    pluginRow.posixwinsynccreatememberoftask === undefined ||
+                    pluginRow.posixwinsynccreatememberoftask[0] == "false"
                 ),
                 posixWinsyncLowerCaseUID: !(
-                    pluginRow["posixwinsynclowercaseuid"] === undefined ||
-                    pluginRow["posixwinsynclowercaseuid"][0] == "false"
+                    pluginRow.posixwinsynclowercaseuid === undefined ||
+                    pluginRow.posixwinsynclowercaseuid[0] == "false"
                 ),
                 posixWinsyncMapMemberUID: !(
-                    pluginRow["posixwinsyncmapmemberuid"] === undefined ||
-                    pluginRow["posixwinsyncmapmemberuid"][0] == "false"
+                    pluginRow.posixwinsyncmapmemberuid === undefined ||
+                    pluginRow.posixwinsyncmapmemberuid[0] == "false"
                 ),
                 posixWinsyncMapNestedGrouping: !(
-                    pluginRow["posixwinsyncmapnestedgrouping"] === undefined ||
-                    pluginRow["posixwinsyncmapnestedgrouping"][0] == "false"
+                    pluginRow.posixwinsyncmapnestedgrouping === undefined ||
+                    pluginRow.posixwinsyncmapnestedgrouping[0] == "false"
                 ),
                 posixWinsyncMsSFUSchema: !(
-                    pluginRow["posixwinsyncmssfuschema"] === undefined ||
-                    pluginRow["posixwinsyncmssfuschema"][0] == "false"
+                    pluginRow.posixwinsyncmssfuschema === undefined ||
+                    pluginRow.posixwinsyncmssfuschema[0] == "false"
                 ),
                 _posixWinsyncCreateMemberOfTask: !(
-                    pluginRow["posixwinsynccreatememberoftask"] === undefined ||
-                    pluginRow["posixwinsynccreatememberoftask"][0] == "false"
+                    pluginRow.posixwinsynccreatememberoftask === undefined ||
+                    pluginRow.posixwinsynccreatememberoftask[0] == "false"
                 ),
                 _posixWinsyncLowerCaseUID: !(
-                    pluginRow["posixwinsynclowercaseuid"] === undefined ||
-                    pluginRow["posixwinsynclowercaseuid"][0] == "false"
+                    pluginRow.posixwinsynclowercaseuid === undefined ||
+                    pluginRow.posixwinsynclowercaseuid[0] == "false"
                 ),
                 _posixWinsyncMapMemberUID: !(
-                    pluginRow["posixwinsyncmapmemberuid"] === undefined ||
-                    pluginRow["posixwinsyncmapmemberuid"][0] == "false"
+                    pluginRow.posixwinsyncmapmemberuid === undefined ||
+                    pluginRow.posixwinsyncmapmemberuid[0] == "false"
                 ),
                 _posixWinsyncMapNestedGrouping: !(
-                    pluginRow["posixwinsyncmapnestedgrouping"] === undefined ||
-                    pluginRow["posixwinsyncmapnestedgrouping"][0] == "false"
+                    pluginRow.posixwinsyncmapnestedgrouping === undefined ||
+                    pluginRow.posixwinsyncmapnestedgrouping[0] == "false"
                 ),
                 _posixWinsyncMsSFUSchema: !(
-                    pluginRow["posixwinsyncmssfuschema"] === undefined ||
-                    pluginRow["posixwinsyncmssfuschema"][0] == "false"
+                    pluginRow.posixwinsyncmssfuschema === undefined ||
+                    pluginRow.posixwinsyncmssfuschema[0] == "false"
                 )
             });
         }
     }
 
     savePlugin() {
-        let cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -259,7 +258,7 @@ class WinSync extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to update Posix winsync plugin - ${errMsg.desc}`
@@ -289,12 +288,12 @@ class WinSync extends React.Component {
         } = this.state;
 
         let saveBtnName = "Save";
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
         if (saving) {
             saveBtnName = "Saving ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
-        let saveBtnNameModal = "Run Task";
+        const saveBtnNameModal = "Run Task";
         if (savingModal) {
             saveBtnName = "Task running ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
@@ -470,10 +469,6 @@ WinSync.propTypes = {
 WinSync.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop
 };
 
 export default WinSync;

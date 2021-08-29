@@ -5,7 +5,6 @@ import {
     Pagination,
     PaginationVariant,
     SearchInput,
-    noop
 } from '@patternfly/react-core';
 import {
     expandable,
@@ -30,9 +29,10 @@ class CertTable extends React.Component {
             rows: [],
             dropdownIsOpen: false,
             columns: [
-                { title: 'Nickname',
-                  transforms: [sortable],
-                  cellFormatters: [expandable]
+                {
+                    title: 'Nickname',
+                    transforms: [sortable],
+                    cellFormatters: [expandable]
                 },
                 { title: 'Subject DN', transforms: [sortable] },
                 { title: 'Expiration Date', transforms: [sortable] },
@@ -58,17 +58,17 @@ class CertTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_rows = [];
-        let rows = [];
+        const sorted_rows = [];
+        const rows = [];
         let count = 0;
 
         // Convert the rows pairings into a sortable array based on the column indexes
         for (let idx = 0; idx < this.state.rows.length; idx += 2) {
             sorted_rows.push({
-                'expandedRow': this.state.rows[idx + 1],
-                '1': this.state.rows[idx].cells[0],
-                '2': this.state.rows[idx].cells[1],
-                '3': this.state.rows[idx].cells[2],
+                expandedRow: this.state.rows[idx + 1],
+                1: this.state.rows[idx].cells[0],
+                2: this.state.rows[idx].cells[1],
+                3: this.state.rows[idx].cells[2],
                 issuer: this.state.rows[idx].issuer,
                 flags: this.state.rows[idx].flags
             });
@@ -79,7 +79,7 @@ class CertTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_rows.reverse();
         }
-        for (let srow of sorted_rows) {
+        for (const srow of sorted_rows) {
             rows.push({
                 isOpen: false,
                 cells: [
@@ -120,26 +120,26 @@ class CertTable extends React.Component {
         let columns = this.state.columns;
         let count = 0;
 
-        for (let cert of this.props.certs) {
+        for (const cert of this.props.certs) {
             rows.push(
                 {
                     isOpen: false,
-                    cells: [cert.attrs['nickname'], cert.attrs['subject'], cert.attrs['expires']],
-                    issuer: cert.attrs['issuer'],
-                    flags: cert.attrs['flags'],
+                    cells: [cert.attrs.nickname, cert.attrs.subject, cert.attrs.expires],
+                    issuer: cert.attrs.issuer,
+                    flags: cert.attrs.flags,
 
                 },
                 {
                     parent: count,
                     fullWidth: true,
-                    cells: [{ title: this.getExpandedRow(cert.attrs['issuer'], cert.attrs['flags']) }]
+                    cells: [{ title: this.getExpandedRow(cert.attrs.issuer, cert.attrs.flags) }]
                 },
             );
             count += 2;
         }
         if (rows.length == 0) {
-            rows = [{cells: ['No Certificates']}];
-            columns = [{title: 'Certificates'}];
+            rows = [{ cells: ['No Certificates'] }];
+            columns = [{ title: 'Certificates' }];
         }
         this.setState({
             rows: rows,
@@ -157,17 +157,17 @@ class CertTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
+        const rows = [];
         let count = 0;
 
-        for (let cert of this.props.certs) {
-            let val = value.toLowerCase();
+        for (const cert of this.props.certs) {
+            const val = value.toLowerCase();
 
             // Check for matches of all the parts
-            if (val != "" && cert.attrs['nickname'].toLowerCase().indexOf(val) == -1 &&
-                cert.attrs['subject'].toLowerCase().indexOf(val) == -1 &&
-                cert.attrs['issuer'].toLowerCase().indexOf(val) == -1 &&
-                cert.attrs['expires'].toLowerCase().indexOf(val) == -1) {
+            if (val != "" && cert.attrs.nickname.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.subject.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.issuer.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.expires.toLowerCase().indexOf(val) == -1) {
                 // Not a match
                 continue;
             }
@@ -175,15 +175,15 @@ class CertTable extends React.Component {
             rows.push(
                 {
                     isOpen: false,
-                    cells: [cert.attrs['nickname'], cert.attrs['subject'], cert.attrs['expires']],
-                    issuer: cert.attrs['issuer'],
-                    flags: cert.attrs['flags'],
+                    cells: [cert.attrs.nickname, cert.attrs.subject, cert.attrs.expires],
+                    issuer: cert.attrs.issuer,
+                    flags: cert.attrs.flags,
 
                 },
                 {
                     parent: count,
                     fullWidth: true,
-                    cells: [{ title: this.getExpandedRow(cert.attrs['issuer'], cert.attrs['flags']) }]
+                    cells: [{ title: this.getExpandedRow(cert.attrs.issuer, cert.attrs.flags) }]
                 },
             );
             count += 2;
@@ -213,13 +213,13 @@ class CertTable extends React.Component {
 
     render() {
         const { perPage, page, sortBy, rows, columns } = this.state;
-        let origRows = [...rows];
-        let startIdx = ((perPage * page) - perPage) * 2;
-        let tableRows = origRows.splice(startIdx, perPage * 2);
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
 
         for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
             // Rewrite parent index to match new spliced array
-            tableRows[idx]['parent'] = count;
+            tableRows[idx].parent = count;
         }
 
         return (
@@ -298,16 +298,16 @@ class CRLTable extends React.Component {
     }
 
     onSort(_event, index, direction) {
-        let sorted_rows = [];
-        let rows = [];
+        const sorted_rows = [];
+        const rows = [];
         let count = 0;
 
         // Convert the rows pairings into a sortable array based on the column indexes
         for (let idx = 0; idx < this.state.rows.length; idx += 2) {
             sorted_rows.push({
-                '1': this.state.rows[idx].cells[0],
-                '2': this.state.rows[idx].cells[1],
-                '3': this.state.rows[idx].cells[2],
+                1: this.state.rows[idx].cells[0],
+                2: this.state.rows[idx].cells[1],
+                3: this.state.rows[idx].cells[2],
                 issuer: this.state.rows[idx].issuer,
                 flags: this.state.rows[idx].flags
             });
@@ -318,7 +318,7 @@ class CRLTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_rows.reverse();
         }
-        for (let srow of sorted_rows) {
+        for (const srow of sorted_rows) {
             rows.push({
                 isOpen: false,
                 cells: [
@@ -343,17 +343,17 @@ class CRLTable extends React.Component {
     }
 
     onSearchChange(value, event) {
-        let rows = [];
+        const rows = [];
         let count = 0;
 
-        for (let cert of this.props.certs) {
-            let val = value.toLowerCase();
+        for (const cert of this.props.certs) {
+            const val = value.toLowerCase();
 
             // Check for matches of all the parts
-            if (val != "" && cert.attrs['nickname'].toLowerCase().indexOf(val) == -1 &&
-                cert.attrs['subject'].toLowerCase().indexOf(val) == -1 &&
-                cert.attrs['issuer'].toLowerCase().indexOf(val) == -1 &&
-                cert.attrs['expires'].toLowerCase().indexOf(val) == -1) {
+            if (val != "" && cert.attrs.nickname.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.subject.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.issuer.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.expires.toLowerCase().indexOf(val) == -1) {
                 // Not a match
                 continue;
             }
@@ -361,15 +361,15 @@ class CRLTable extends React.Component {
             rows.push(
                 {
                     isOpen: false,
-                    cells: [cert.attrs['nickname'], cert.attrs['subject'], cert.attrs['expires']],
-                    issuer: cert.attrs['issuer'],
-                    flags: cert.attrs['flags'],
+                    cells: [cert.attrs.nickname, cert.attrs.subject, cert.attrs.expires],
+                    issuer: cert.attrs.issuer,
+                    flags: cert.attrs.flags,
 
                 },
                 {
                     parent: count,
                     fullWidth: true,
-                    cells: [{ title: this.getExpandedRow(cert.attrs['issuer'], cert.attrs['flags']) }]
+                    cells: [{ title: this.getExpandedRow(cert.attrs.issuer, cert.attrs.flags) }]
                 },
             );
             count += 2;
@@ -398,7 +398,7 @@ class CRLTable extends React.Component {
     }
 
     render() {
-        let has_rows = false; // TODO
+        const has_rows = false; // TODO
         return (
             <div className="ds-margin-top">
                 <SearchInput
@@ -444,8 +444,6 @@ CertTable.propTypes = {
 CertTable.defaultProps = {
     // serverId: "",
     certs: [],
-    editCert: noop,
-    delCert: noop,
 };
 
 export {

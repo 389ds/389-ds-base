@@ -11,7 +11,6 @@ import {
     Text,
     TextContent,
     TextVariants,
-    noop
 } from "@patternfly/react-core";
 
 export class DoubleConfirmModal extends React.Component {
@@ -31,7 +30,7 @@ export class DoubleConfirmModal extends React.Component {
         } = this.props;
         let saveDisabled = true;
         let btnName = mBtnName;
-        let extraPrimaryProps = {};
+        const extraPrimaryProps = {};
 
         if (checked) {
             saveDisabled = false;
@@ -112,9 +111,6 @@ DoubleConfirmModal.propTypes = {
 
 DoubleConfirmModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    actionHandler: noop,
     spinning: false,
     item: "",
     checked: false,
