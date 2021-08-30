@@ -1,0 +1,149 @@
+#!/usr/bin/python3
+
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2021 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
+# PYTHON_ARGCOMPLETE_OK
+
+import argcomplete
+import argparse
+import pathlib
+import signal
+import sys
+import os
+from lib389.perftools import *
+
+parser_description="""
+Handle basic performance test
+"""
+
+parser_epilog="""
+Handle basic performance test.
+"""
+
+list_description="""
+List available tests.
+"""
+
+csv_description="""
+Generate performance result summary in csv format.
+"""
+
+run_description="""
+Generate a local test instance if it does not already exist and run tests.
+"""
+
+runall_description="""
+Run all tests for 100,1K,10K,100K,1M users with both db lib with 1, 4 and 8 threads.
+"""
+
+tests = PerformanceTools.listTests()
+
+def convArg(options, args, optkey, argkey):
+    # Convert one ParseArgs arg in PerformaceTools option
+    try:
+        options[optkey] = getattr(args,argkey)
+    except AttributeError:
+        pass
+
+def convArgs(args):
+    # Convert ParseArgs args in PerformaceTools options
+    options = {}
+    for k in ( 'resultDir', 'seed', 'suffix'):
+        convArg(options, args, k, k)
+    convArg(options, args, "db_lib", "db")
+    convArg(options, args, "nbUsers", "users")
+    convArg(options, args, "nb_threads", "threads")
+    return options
+
+
+def csvSubCmd(args):
+    perftools=PerformanceTools(convArgs(args))
+    PerformanceTools.log2Csv(perftools.getFilePath("log"), args.out)
+
+def justifyText(left, right, margin):
+    pos = 0;
+    l = len(right)
+    while (pos < l):
+        spacepos = -1
+        pos0 = pos
+
+        while (pos < l and right[pos] != '\n' and pos-pos0 <= margin):
+            if (right[pos] == ' '):
+                spacepos=pos
+            pos += 1
+        if (pos==l):
+            print (f"{left:<20}{right[pos0:pos]}")
+            break;
+        if pos > margin and spacepos > 0:
+            pos = spacepos
+        print (f"{left:<20}{right[pos0:pos]}")
+        spacepos = -1
+        pos += 1
+        left=""
+        
+
+def listSubCmd(args):
+    for name,test in tests.items():
+        justifyText(name+':', test.description(), 40)
+        print ("")
+
+def runSubCmd(args):
+    options = convArgs(args)
+    perftools = PerformanceTools.Tester.initTester(options)
+    for test in args.test:
+        tests[test].run(perftools, options)
+
+def runallSubCmd(args):
+    PerformanceTools.runAllTests(convArgs(args))
+
+
+# handle a control-c gracefully
+def signal_handler(signal, frame):
+    print('\n\nExiting...')
+    sys.exit(0)
+
+warningAboutUser="Note that this command creates new 389ds instances cwand must be run by an user having the permission to do so."
+
+# create the top-level parser
+parser = argparse.ArgumentParser(epilog=warningAboutUser)
+subparsers = parser.add_subparsers(help='sub-command help')
+prefix = os.path.join(os.environ.get('PREFIX', ""))
+perfdir= f"{prefix}/var/log/dirsrv/perfdir"
+parser.add_argument('--resultDir', '-r',  type=pathlib.Path, default=perfdir, help=f'results directory (default is {perfdir})')
+
+# create the parser for the "csv" command
+parser_csv = subparsers.add_parser('csv', help=csv_description, description=csv_description)
+parser_csv.set_defaults(func=csvSubCmd)
+parser_csv.add_argument('--out', '-o', type=pathlib.Path, default=None, help='csv file (default is stdout)')
+
+# create the parser for the "list" command
+parser_list = subparsers.add_parser('list', help=list_description, description=list_description)
+parser_list.set_defaults(func=listSubCmd)
+
+testnames = ( tests.keys() )
+
+# create the parser for the "run" command
+parser_run = subparsers.add_parser('run', help=run_description, description=run_description, epilog=warningAboutUser)
+parser_run.set_defaults(func=runSubCmd)
+parser_run.add_argument('--db', '-d', choices=['bdb','mdb'], default='mdb', help='db library (default is mdb)')
+parser_run.add_argument('--users', '-u', type=int, default=10000, help='number of users in test instance')
+parser_run.add_argument('--threads', '-t', type=int, default=1, help='number of threads in client tester')
+parser_run.add_argument('test', nargs='+', choices=testnames, help='test(s) to run')
+
+parser_run = subparsers.add_parser('runall', help=runall_description, description=runall_description, epilog=warningAboutUser)
+parser_run.set_defaults(func=runallSubCmd)
+
+signal.signal(signal.SIGINT, signal_handler)
+argcomplete.autocomplete(parser)
+args = parser.parse_args()
+#print(f"DBG args = {args}")
+if 'func' in args:
+    args.func(args)
+else:
+    parser.print_help()
