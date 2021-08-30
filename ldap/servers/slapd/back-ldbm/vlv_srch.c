@@ -580,7 +580,7 @@ vlvIndex_get_indexlength(backend *be, struct vlvIndex *p, dbi_db_t *db, back_txn
 
     if (!p->vlv_indexlength_cached) {
         PR_Lock(p->vlv_indexlength_lock);
-        err = dblayer_get_entries_count(be, db, &nbentries);
+        err = dblayer_get_entries_count(be, db, txn->back_txn_txn, &nbentries);
         if (err == 0) {
             p->vlv_indexlength_cached = 1;
             p->vlv_indexlength = nbentries;

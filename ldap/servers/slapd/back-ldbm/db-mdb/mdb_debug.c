@@ -137,7 +137,7 @@ void dbmdb_format_dbslist_info(char *info, dbmdb_dbi_t *dbi)
 {
     int nbentries = -1;
     int len = 0;
-    dbmdb_get_entries_count(dbi, &nbentries);
+    dbmdb_get_entries_count(dbi, NULL, &nbentries);
     len = append_flags(info, PATH_MAX, len, "flags", dbi->state.flags, mdb_dbi_flags_desc);
     len = append_flags(info, PATH_MAX, len, " state", dbi->state.state, mdb_state_desc);
     PR_snprintf(info+len, PATH_MAX-len, " dataversion: %d nb_entries=%d", dbi->state.dataversion, nbentries);
