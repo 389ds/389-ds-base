@@ -19,6 +19,7 @@ from lib389.tombstone import Tombstones
 from lib389.agreement import Agreements
 from lib389._constants import *
 
+
 pytestmark = pytest.mark.tier1
 
 
@@ -107,6 +108,43 @@ def test_error_20(topo_m2, _delete_after):
     repl_manager.wait_for_replication(m1, m2, timeout=100)
     # Change multivalue attribute
     assert user.replace_many(('cn', 'BUG 891866'), ('cn', 'Test'))
+
+
+@pytest.mark.bz1955658
+def test_enable_repl_w_master(topo):
+    """Check that enabling replication with the role "master" succeeds.
+
+    :id: 074fbb38-069e-11ec-98ca-fa163ec212ff
+    :customerscenario: True
+    :setup: Create DS standalone instance
+    :steps:
+        1. Create DS standalone instance
+        2. Enable replication on supplier with role='master' attribute OR Display appropriate message.
+        3. Disable role created above if it was created.
+        4. Re-enable replication on supplier with role='supplier' attribute
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+    _err_unknown_role = 'Error: Unknown replication role (master), you must use "supplier", "hub", or "consumer"'
+    log.info("Enabling replication on supplier with role='master' attribute")
+    cmd = ('dsconf -D "' + DN_DM + '" standalone1 ' + ' -w ' + PW_DM + ' replication enable --suffix="' + DEFAULT_SUFFIX +
+           '" --role="master" --replica-id=1 ')
+    if os.system(cmd) == 0:
+        log.info("Replication role enabled successfully")
+        cmd = ('dsconf -D "' + DN_DM + '" standalone1 ' + ' -w ' + PW_DM + ' replication disable --suffix="' + DEFAULT_SUFFIX+' "')
+        os.system(cmd)
+        log.info("Disabling replication on supplier with role='master' attribute")
+        time.sleep(.5)
+    elif topo.logcap.contains(_err_unknown_role):
+        log.info("Replication role provided is not supported")
+    log.info("Enabling replication on supplier with role='supplier' attribute")
+    cmd = ('dsconf -D "' + DN_DM + '" standalone1 ' + ' -w ' + PW_DM + ' replication enable --suffix="' + DEFAULT_SUFFIX +
+           '" --role="supplier" --replica-id=1 ')
+    assert os.system(cmd) == 0
 
 
 @pytest.mark.bz914305
