@@ -1359,8 +1359,8 @@ class CreateSuffixModal extends React.Component {
         const {
             showModal,
             closeHandler,
-            onHandleChange,
-            onHandleSelectChange,
+            handleChange,
+            handleSelectChange,
             saveHandler,
             createNotOK,
             initOption,
@@ -1414,7 +1414,7 @@ class CreateSuffixModal extends React.Component {
                             id="createSuffix"
                             aria-describedby="createSuffix"
                             name="createSuffix"
-                            onChange={onHandleChange}
+                            onChange={handleChange}
                             validated={error.createSuffix ? "error" : "noval"}
                         />
                         <FormHelperText isError isHidden={!error.createSuffix}>
@@ -1435,7 +1435,7 @@ class CreateSuffixModal extends React.Component {
                             id="createBeName"
                             aria-describedby="createSuffix"
                             name="suffixName"
-                            onChange={onHandleChange}
+                            onChange={handleChange}
                             validated={error.createBeName ? "error" : "noval"}
                         />
                         <FormHelperText isError isHidden={!error.createBeName}>
@@ -1446,7 +1446,7 @@ class CreateSuffixModal extends React.Component {
                         label="Initialization Option"
                         fieldId="initOptions"
                     >
-                        <FormSelect value={initOption} onChange={onHandleSelectChange} aria-label="FormSelect Input">
+                        <FormSelect value={initOption} onChange={handleSelectChange} aria-label="FormSelect Input">
                             <FormSelectOption key={1} value="noInit" label="Do Not Initialize Database" />
                             <FormSelectOption key={2} value="addSuffix" label="Create The Top Sub-Suffix Entry" />
                             <FormSelectOption key={3} value="addSample" label="Add Sample Entries" />
