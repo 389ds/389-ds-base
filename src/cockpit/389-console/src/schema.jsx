@@ -116,7 +116,7 @@ export class Schema extends React.Component {
             this.setState({
                 atSubMr: "",
                 isSubstringMROpen: false
-            }, () => { this.handleAttrChange(e) });
+            }, () => { this.onAttrChange(e) });
         };
         this.handleSubstringMRSelect = (event, selection) => {
             const e = { target: { id: 'dummy', value: "", type: 'input' } };
@@ -124,12 +124,12 @@ export class Schema extends React.Component {
                 this.setState({
                     atSubMr: selection,
                     isSubstringMROpen: false
-                }, () => { this.handleAttrChange(e) });
+                }, () => { this.onAttrChange(e) });
             } else {
                 this.setState({
                     atSubMr: selection,
                     isSubstringMROpen: false
-                }, () => { this.handleAttrChange(e) });
+                }, () => { this.onAttrChange(e) });
             }
         };
 
@@ -144,7 +144,7 @@ export class Schema extends React.Component {
             this.setState({
                 atOrder: "",
                 isOrderMROpen: false
-            }, () => { this.handleAttrChange(e) });
+            }, () => { this.onAttrChange(e) });
         };
         this.handleOrderMRSelect = (event, selection) => {
             const e = { target: { id: 'dummy', value: "", type: 'input' } };
@@ -152,12 +152,12 @@ export class Schema extends React.Component {
                 this.setState({
                     atOrder: "",
                     isOrderMROpen: false
-                }, () => { this.handleAttrChange(e) });
+                }, () => { this.onAttrChange(e) });
             } else {
                 this.setState({
                     atOrder: selection,
                     isOrderMROpen: false
-                }, () => { this.handleAttrChange(e) });
+                }, () => { this.onAttrChange(e) });
             }
         };
 
@@ -172,7 +172,7 @@ export class Schema extends React.Component {
             this.setState({
                 atEqMr: "",
                 isEqualityMROpen: false
-            }, () => { this.handleAttrChange(e) });
+            }, () => { this.onAttrChange(e) });
         };
         this.handleEqualityMRSelect = (event, selection) => {
             const e = { target: { id: 'dummy', value: "", type: 'input' } };
@@ -180,12 +180,12 @@ export class Schema extends React.Component {
                 this.setState({
                     atEqMr: "",
                     isEqualityMROpen: false
-                }, () => { this.handleAttrChange(e) });
+                }, () => { this.onAttrChange(e) });
             } else {
                 this.setState({
                     atEqMr: selection,
                     isEqualityMROpen: false
-                }, () => { this.handleAttrChange(e) });
+                }, () => { this.onAttrChange(e) });
             }
         };
 
@@ -200,7 +200,7 @@ export class Schema extends React.Component {
             this.setState({
                 atAlias: [],
                 isAliasNameOpen: false
-            }, () => { this.handleAttrChange(e) });
+            }, () => { this.onAttrChange(e) });
         };
         this.handleAliasNameSelect = (event, selection) => {
             const e = { target: { id: 'dummy', value: "", type: 'input' } };
@@ -209,14 +209,14 @@ export class Schema extends React.Component {
                     prevState => ({
                         atAlias: prevState.atAlias.filter((item) => item !== selection),
                         isAliasNameOpen: false
-                    }), () => { this.handleAttrChange(e) }
+                    }), () => { this.onAttrChange(e) }
                 );
             } else {
                 this.setState(
                     prevState => ({
                         atAlias: [...prevState.atAlias, selection],
                         isAliasNameOpen: false
-                    }), () => { this.handleAttrChange(e) }
+                    }), () => { this.onAttrChange(e) }
                 );
             }
         };
@@ -239,7 +239,7 @@ export class Schema extends React.Component {
             this.setState({
                 atParent: "",
                 isParentAttrOpen: false
-            }, () => { this.handleAttrChange(e) });
+            }, () => { this.onAttrChange(e) });
         };
         this.handleParentAttrSelect = (event, selection) => {
             const e = { target: { id: 'dummy', value: "", type: 'input' } };
@@ -247,13 +247,13 @@ export class Schema extends React.Component {
                 this.setState({
                     atParent: "",
                     isParentAttrOpen: false
-                }, () => { this.handleAttrChange(e) });
+                }, () => { this.onAttrChange(e) });
             } else {
                 this.setState(
                     prevState => ({
                         atParent: selection,
                         isParentAttrOpen: false
-                    }), () => { this.handleAttrChange(e) }
+                    }), () => { this.onAttrChange(e) }
                 );
             }
         };
@@ -277,14 +277,14 @@ export class Schema extends React.Component {
                     (prevState) => ({
                         ocMust: prevState.ocMust.filter((item) => item !== selection),
                         isRequiredAttrsOpen: false
-                    }), () => { this.handleOCChange(e) }
+                    }), () => { this.onOCChange(e) }
                 );
             } else {
                 this.setState(
                     prevState => ({
                         ocMust: [...prevState.ocMust, selection],
                         isRequiredAttrsOpen: false
-                    }), () => { this.handleOCChange(e) }
+                    }), () => { this.onOCChange(e) }
                 );
             }
         };
@@ -315,14 +315,14 @@ export class Schema extends React.Component {
                     prevState => ({
                         ocMay: prevState.ocMay.filter((item) => item !== selection),
                         isAllowedAttrsOpen: false
-                    }), () => { this.handleOCChange(e) }
+                    }), () => { this.onOCChange(e) }
                 );
             } else {
                 this.setState(
                     prevState => ({
                         ocMay: [...prevState.ocMay, selection],
                         isAllowedAttrsOpen: false
-                    }), () => { this.handleOCChange(e) }
+                    }), () => { this.onOCChange(e) }
                 );
             }
         };
@@ -343,8 +343,8 @@ export class Schema extends React.Component {
         };
 
         this.validateForm = this.validateForm.bind(this);
-        this.handleAttrChange = this.handleAttrChange.bind(this);
-        this.handleOCChange = this.handleOCChange.bind(this);
+        this.onAttrChange = this.onAttrChange.bind(this);
+        this.onOCChange = this.onOCChange.bind(this);
         this.onFieldChange = this.onFieldChange.bind(this);
         this.loadSchemaData = this.loadSchemaData.bind(this);
         this.loadSyntaxesFirst = this.loadSyntaxesFirst.bind(this);
@@ -1228,7 +1228,7 @@ export class Schema extends React.Component {
         return all_good;
     }
 
-    handleAttrChange (e) {
+    onAttrChange (e) {
         const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
         const attr = e.target.id;
         let saveBtnDisabled = true;
@@ -1281,7 +1281,7 @@ export class Schema extends React.Component {
         });
     }
 
-    handleOCChange (e) {
+    onOCChange (e) {
         const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
         const attr = e.target.id;
         let saveBtnDisabled = true;
@@ -1422,7 +1422,7 @@ export class Schema extends React.Component {
                                     editHandler={this.editObjectclass}
                                     newOcEntry={this.state.newOcEntry}
                                     ocModalViewOnly={this.state.ocModalViewOnly}
-                                    onFieldChange={this.handleOCChange}
+                                    handleFieldChange={this.onOCChange}
                                     objectclasses={this.state.objectclasses}
                                     attributes={this.state.attributes}
                                     ocName={this.state.ocName}
@@ -1485,7 +1485,7 @@ export class Schema extends React.Component {
                                     editHandler={this.editAttribute}
                                     newAtEntry={this.state.newAtEntry}
                                     atModalViewOnly={this.state.atModalViewOnly}
-                                    onFieldChange={this.handleAttrChange}
+                                    handleFieldChange={this.onAttrChange}
                                     objectclasses={this.state.objectclasses}
                                     attributes={this.state.attributes}
                                     matchingrules={this.state.matchingrules}
