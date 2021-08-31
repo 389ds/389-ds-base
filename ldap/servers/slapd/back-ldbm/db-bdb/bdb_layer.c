@@ -6853,7 +6853,7 @@ bdb_get_entries_count(dbi_db_t *db, dbi_txn_t *txn, int *count)
     DB_BTREE_STAT *stats = NULL;
     int rc;
 
-    rc = ((DB*)db)->stat(db, (DB_TXN*)txn, (void *)&stats, DB_FAST_STAT);
+    rc = ((DB*)db)->stat(db, (DB_TXN*)txn, (void *)&stats, 0);
     if (rc != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "bdb_get_entries_count",
                       "Failed to get bd statistics: db error - %d %s\n",
