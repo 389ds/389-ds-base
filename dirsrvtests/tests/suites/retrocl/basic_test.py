@@ -18,6 +18,7 @@ from lib389.cli_base import FakeArgs, connect_instance, disconnect_instance
 from lib389.cli_base.dsrc import dsrc_arg_concat
 from lib389.cli_conf.plugins.retrochangelog import retrochangelog_add_attr
 from lib389.idm.user import UserAccount, UserAccounts
+from lib389.idm.domain import Domain
 from lib389._mapped_object import DSLdapObjects
 
 pytestmark = pytest.mark.tier1
@@ -284,6 +285,49 @@ def test_retrocl_exclude_attr_mod(topology_st):
     except ldap.LDAPError as e:
         log.fatal("Changelog search failed, error: " + str(e))
         assert False
+
+
+def test_retrocl_trimming(topology_st):
+    """Test retrocl trimming works
+
+    :id: 54c6747f-6772-43b7-8b03-09e13fa0c205
+    :setup: Standalone Instance
+    :steps:
+        1. Enable Retro changelog
+        2. Add a bunch of entries
+        3. Configure trimming
+        4. Verify trimming occurred
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    inst = topology_st.standalone
+    # Configure plugin
+    log.info('Configure retrocl plugin')
+    rcl = RetroChangelogPlugin(inst)
+    rcl.enable()
+    inst.restart()
+
+    # Do some updates
+    suffix = Domain(inst, DEFAULT_SUFFIX)
+    for idx in range(0, 10):
+        suffix.replace('description', str(idx))
+
+    # Setup trimming
+    rcl.replace('nsslapd-changelog-trim-interval', '2')
+    rcl.replace('nsslapd-changelogmaxage', '5s')
+    inst.config.set('nsslapd-errorlog-level', '65536') # plugin logging
+    inst.restart()
+
+    # Verify trimming occurs
+    time.sleep(5)
+    assert inst.searchErrorsLog("trim_changelog: removed ")
+
+    # Clean up
+    inst.config.set('nsslapd-errorlog-level', '0')
 
 
 if __name__ == '__main__':
