@@ -235,28 +235,27 @@ static int
 trim_changelog(void)
 {
     int rc = 0, ldrc, done;
-    time_t now;
+    time_t now_interval; /* used for checking the trim interval */
+    time_t now_maxage; /* used for checking if the changelog entry can be trimmed */
     changeNumber first_in_log = 0, last_in_log = 0;
     int num_deleted = 0;
-    int me, lt;
+    int max_age, last_trim;
 
-
-    now = slapi_current_rel_time_t();
+    now_interval = slapi_current_rel_time_t(); /* monotonic time for interval */
 
     PR_Lock(ts.ts_s_trim_mutex);
-    me = ts.ts_c_max_age;
-    lt = ts.ts_s_last_trim;
+    max_age = ts.ts_c_max_age;
+    last_trim = ts.ts_s_last_trim;
     PR_Unlock(ts.ts_s_trim_mutex);
 
-    if (now - lt >= trim_interval) {
-
+    if (now_interval - last_trim >= trim_interval) {
         /*
-     * Trim the changelog.  Read sequentially through all the
-     * entries, deleting any which do not meet the criteria
-     * described in the ts structure.
-     */
+         * Trim the changelog.  Read sequentially through all the
+         * entries, deleting any which do not meet the criteria
+         * described in the ts structure.
+         */
         done = 0;
-
+        now_maxage = slapi_current_utc_time(); /* real time for trim candidates */
         while (!done && retrocl_trimming == 1) {
             int did_delete;
 
@@ -275,10 +274,10 @@ trim_changelog(void)
                 /* Always leave at least one entry in the change log */
                 break;
             }
-            if (me > 0L) {
+            if (max_age > 0L) {
                 time_t change_time = get_changetime(first_in_log, &ldrc);
                 if (change_time) {
-                    if ((change_time + me) < now) {
+                    if ((change_time + max_age) < now_maxage) {
                         retrocl_set_first_changenumber(first_in_log + 1);
                         ldrc = delete_changerecord(first_in_log);
                         num_deleted++;
@@ -298,11 +297,11 @@ trim_changelog(void)
         }
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "Not yet time to trim: %ld < (%d+%d)\n",
-                      now, lt, trim_interval);
+                      now_interval, last_trim, trim_interval);
     }
     PR_Lock(ts.ts_s_trim_mutex);
     ts.ts_s_trimming = 0;
-    ts.ts_s_last_trim = now;
+    ts.ts_s_last_trim = now_interval;
     PR_Unlock(ts.ts_s_trim_mutex);
     if (num_deleted > 0) {
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
@@ -351,13 +350,14 @@ retrocl_housekeeping(time_t cur_time, void *noarg __attribute__((unused)))
     int ldrc;
 
     if (retrocl_be_changelog == NULL) {
-        slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME, "retrocl_housekeeping - not housekeeping if no cl be\n");
+        slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME,
+                      "retrocl_housekeeping - not housekeeping if no cl be\n");
         return;
     }
 
     if (!ts.ts_s_initialized) {
-        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME, "retrocl_housekeeping - called before "
-                                                          "trimming constraints set\n");
+        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                      "retrocl_housekeeping - called before trimming constraints set\n");
         return;
     }
 
@@ -369,30 +369,33 @@ retrocl_housekeeping(time_t cur_time, void *noarg __attribute__((unused)))
         if (cur_time - ts.ts_s_last_trim >= (ts.ts_c_max_age)) {
             /* Is the first entry too old? */
             time_t first_time;
+            time_t now_maxage = slapi_current_utc_time(); /* real time for trimming candidates */
             /*
-         * good we could avoid going to the database to retrieve
-         * this time information if we cached the last value we'd read.
-         * But a client might have deleted it over protocol.
-         */
+             * good we could avoid going to the database to retrieve
+             * this time information if we cached the last value we'd read.
+             * But a client might have deleted it over protocol.
+             */
             first_time = retrocl_getchangetime(SLAPI_SEQ_FIRST, &ldrc);
             slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
                           "cltrim: ldrc=%d, first_time=%ld, cur_time=%ld\n",
                           ldrc, first_time, cur_time);
             if (LDAP_SUCCESS == ldrc && first_time > (time_t)0L &&
-                first_time + ts.ts_c_max_age < cur_time) {
+                first_time + ts.ts_c_max_age < now_maxage)
+            {
                 must_trim = 1;
             }
         }
         if (must_trim) {
-            slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME, "retrocl_housekeeping - changelog about to create thread\n");
+            slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME,
+                          "retrocl_housekeeping - changelog about to create thread\n");
             /* Start a thread to trim the changelog */
             ts.ts_s_trimming = 1;
             if (PR_CreateThread(PR_USER_THREAD,
                                 changelog_trim_thread_fn, NULL,
                                 PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD,
                                 RETROCL_DLL_DEFAULT_THREAD_STACKSIZE) == NULL) {
-                slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME, "retrocl_housekeeping - "
-                                                                  "Unable to create changelog trimming thread\n");
+                slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                              "retrocl_housekeeping - Unable to create changelog trimming thread\n");
             }
         } else {
             slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
