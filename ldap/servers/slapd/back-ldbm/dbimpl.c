@@ -355,10 +355,10 @@ int dblayer_dbi_txn_abort(Slapi_Backend *be, dbi_txn_t *txn)
     return priv->dblayer_dbi_txn_abort_fn(txn);
 }
 
-int dblayer_get_entries_count(Slapi_Backend *be, dbi_db_t *db, int *count)
+int dblayer_get_entries_count(Slapi_Backend *be, dbi_db_t *db, dbi_txn_t *txn, int *count)
 {
     dblayer_private *priv = dblayer_get_priv(be);
-    return priv->dblayer_get_entries_count_fn(db, count);
+    return priv->dblayer_get_entries_count_fn(db, txn, count);
 }
 
 const char *dblayer_op2str(dbi_op_t op)

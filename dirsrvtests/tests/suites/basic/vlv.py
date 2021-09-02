@@ -61,7 +61,7 @@ def check_vlv_search(conn):
         assert i <= imax
         expected_dn = f'uid=testuser{i},ou=People,dc=example,dc=com'
         print(f'found {repr(dn)} expected {expected_dn}')
-        assert dn == expected_dn
+        assert dn.lower() == expected_dn.lower()
         i=i+1
 
 

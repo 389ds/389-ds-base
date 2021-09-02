@@ -108,7 +108,7 @@ typedef int dblayer_set_dup_cmp_fn_t(struct attrinfo *a, dbi_dup_cmp_t idx);
 typedef int dblayer_dbi_txn_begin_fn_t(dbi_env_t *dbenv, PRBool readonly, dbi_txn_t *parent_txn, dbi_txn_t **txn);
 typedef int dblayer_dbi_txn_commit_fn_t(dbi_txn_t *txn);
 typedef int dblayer_dbi_txn_abort_fn_t(dbi_txn_t *txn);
-typedef int dblayer_get_entries_count_fn_t(dbi_db_t *db, int *count);
+typedef int dblayer_get_entries_count_fn_t(dbi_db_t *db, dbi_txn_t *txn, int *count);
 typedef int dblayer_cursor_get_count_fn_t(dbi_cursor_t *cursor, dbi_recno_t *count);
 typedef int dblayer_private_open_fn_t(backend *be, const char *db_filename, dbi_env_t **env, dbi_db_t **db);
 typedef int dblayer_private_close_fn_t(dbi_env_t **env, dbi_db_t **db);

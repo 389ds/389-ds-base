@@ -3149,7 +3149,7 @@ _cl5GetEntryCount(cldb_Handle *cldb)
     case DBI_RC_NOTFOUND:
         cldb->entryCount = 0;
 
-        rc = dblayer_get_entries_count(cldb->be, cldb->db, &cldb->entryCount);
+        rc = dblayer_get_entries_count(cldb->be, cldb->db, NULL, &cldb->entryCount);
         if (rc != 0) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                           "_cl5GetEntryCount - Failed to get changelog statistics");

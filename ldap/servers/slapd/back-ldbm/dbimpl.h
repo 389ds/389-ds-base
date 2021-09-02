@@ -151,7 +151,7 @@ int dblayer_set_dup_cmp_fn(Slapi_Backend *be, struct attrinfo *a, dbi_dup_cmp_t 
 int dblayer_dbi_txn_begin(Slapi_Backend *be, dbi_env_t *dbenv, int flags, dbi_txn_t *parent_txn, dbi_txn_t **txn);
 int dblayer_dbi_txn_commit(Slapi_Backend *be, dbi_txn_t *txn);
 int dblayer_dbi_txn_abort(Slapi_Backend *be, dbi_txn_t *txn);
-int dblayer_get_entries_count(Slapi_Backend *be, dbi_db_t *db, int *count);
+int dblayer_get_entries_count(Slapi_Backend *be, dbi_db_t *db, dbi_txn_t *txn, int *count);
 int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count);
 char *dblayer_get_db_filename(Slapi_Backend *be, dbi_db_t *db);
 const char *dblayer_strerror(int error);
