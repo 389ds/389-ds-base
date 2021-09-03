@@ -10,6 +10,7 @@ import os
 import logging
 import socket  # For hostname detection for GSSAPI tests
 import pytest
+import subprocess
 from lib389 import DirSrv
 from lib389.utils import generate_ds_params
 from lib389.mit_krb5 import MitKrb5
@@ -184,6 +185,48 @@ def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
     return topo
 
 
+__topologies = []
+
+def getInstancesReport():
+    # Capture data about stoped instances
+    # Get the list of instances that are down
+    stopped_instances = []
+    for topology in __topologies:
+        for inst in topology:
+            if inst.exists() and not inst.status():
+                stopped_instances.append(inst)
+    if len(stopped_instances) is 0:
+        return "All instances are running."
+    # Get core file informations
+    cmd = [ "/usr/bin/coredumpctl", "info", "ns-slapd" ]
+    coreinfo = subprocess.run(cmd, capture_output=True, shell=False, check=False, text=True)
+    res = "Core files:\n"
+    res += coreinfo.stdout
+    res += "\n\ncoredumpctl STDERR\n"
+    res += coreinfo.stderr
+    res += "\n"
+
+    # Get error log informations
+    for inst in stopped_instances:
+        res += f"Instance {inst.getServerId()} is not running:\nCore file information {str(cmd)}:\n"
+        # Let get the important data in error log file 
+        path = inst.ds_paths.error_log.format(instance_name=inst.getServerId())
+        res += f"\nERROR LOG EXTRACTS (from {path}):\n"
+        stopok=None
+        with open(path) as errorlog:
+            for line in errorlog:
+                # Lets detect if last line says that server was cleanly stopped.
+                stopok=None
+                if '- INFO - main - slapd stopped.' in line:
+                    stopok = line
+                # Capture relevant messages
+                if "- ERR -" in line:
+                    res += line
+                if "- CRIT -" in line:
+                    res += line
+        if stopok:
+            res += stopok
+    return res
 class TopologyMain(object):
     def __init__(self, standalones=None, suppliers=None, consumers=None, hubs=None):
         self.ms = {}
@@ -245,9 +288,11 @@ def topology_st(request):
     """Create DS standalone instance"""
 
     topology = create_topology({ReplicaRole.STANDALONE: 1})
+    __topologies.append(topology)
 
     def fin():
         topology.standalone.stop()
+        __topologies.remove(topology)
         if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             if topology.standalone.exists():
@@ -276,6 +321,7 @@ def topology_st_gssapi(request):
     REALM = hostname[1].upper()
 
     topology = create_topology({ReplicaRole.STANDALONE: 1})
+    __topologies.append(topology)
 
     # Fix the hostname.
     topology.standalone.host = socket.gethostname()
@@ -317,6 +363,7 @@ def topology_st_gssapi(request):
 
     def fin():
         topology.standalone.stop()
+        __topologies.remove(topology)
         if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             if topology.standalone.exists():
@@ -334,6 +381,7 @@ def topology_no_sample(request):
     """Create instance without sample entries to reproduce not initialised database"""
 
     topology = create_topology({ReplicaRole.STANDALONE: 1}, None)
+    __topologies.append(topology)
     topology.standalone.backends.create(properties={
         'cn': 'userRoot',
         'nsslapd-suffix': DEFAULT_SUFFIX,
@@ -341,6 +389,7 @@ def topology_no_sample(request):
 
     def fin():
         topology.standalone.stop()
+        __topologies.remove(topology)
         if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             if topology.standalone.exists():
@@ -357,9 +406,11 @@ def topology_i2(request):
     """Create two instance DS deployment"""
 
     topology = create_topology({ReplicaRole.STANDALONE: 2})
+    __topologies.append(topology)
 
     def fin():
         [inst.stop() for inst in topology]
+        __topologies.remove(topology)
         if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
@@ -377,9 +428,11 @@ def topology_i3(request):
     """Create three instance DS deployment"""
 
     topology = create_topology({ReplicaRole.STANDALONE: 3})
+    __topologies.append(topology)
 
     def fin():
         [inst.stop() for inst in topology]
+        __topologies.remove(topology)
         if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
@@ -396,8 +449,10 @@ def topology_m1(request):
     """Create Replication Deployment with one supplier and one consumer"""
 
     topology = create_topology({ReplicaRole.SUPPLIER: 1})
+    __topologies.append(topology)
 
     def fin():
+        __topologies.remove(topology)
         [inst.stop() for inst in topology]
         if DEBUGGING is None:
             assert _remove_ssca_db(topology)
@@ -417,9 +472,11 @@ def topology_m1c1(request):
 
     topology = create_topology({ReplicaRole.SUPPLIER: 1,
                                 ReplicaRole.CONSUMER: 1})
+    __topologies.append(topology)
 
     def fin():
         [inst.stop() for inst in topology]
+        __topologies.remove(topology)
         if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
@@ -437,9 +494,11 @@ def topology_m2(request):
     """Create Replication Deployment with two suppliers"""
 
     topology = create_topology({ReplicaRole.SUPPLIER: 2})
+    __topologies.append(topology)
 
     def fin():
         [inst.stop() for inst in topology]
+        __topologies.remove(topology)
         if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
@@ -457,9 +516,11 @@ def topology_m3(request):
     """Create Replication Deployment with three suppliers"""
 
     topology = create_topology({ReplicaRole.SUPPLIER: 3})
+    __topologies.append(topology)
 
     def fin():
         [inst.stop() for inst in topology]
+        __topologies.remove(topology)
         if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
@@ -477,9 +538,11 @@ def topology_m4(request):
     """Create Replication Deployment with four suppliers"""
 
     topology = create_topology({ReplicaRole.SUPPLIER: 4})
+    __topologies.append(topology)
 
     def fin():
         [inst.stop() for inst in topology]
+        __topologies.remove(topology)
         if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
@@ -498,9 +561,11 @@ def topology_m2c2(request):
 
     topology = create_topology({ReplicaRole.SUPPLIER: 2,
                                 ReplicaRole.CONSUMER: 2})
+    __topologies.append(topology)
 
     def fin():
         [inst.stop() for inst in topology]
+        __topologies.remove(topology)
         if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
@@ -519,6 +584,7 @@ def topology_m1h1c1(request):
 
     topo_roles = {ReplicaRole.SUPPLIER: 1, ReplicaRole.HUB: 1, ReplicaRole.CONSUMER: 1}
     topology = _create_instances(topo_roles, DEFAULT_SUFFIX)
+    __topologies.append(topology)
     supplier = topology.ms["supplier1"]
     hub = topology.hs["hub1"]
     consumer = topology.cs["consumer1"]
@@ -540,6 +606,7 @@ def topology_m1h1c1(request):
 
     def fin():
         [inst.stop() for inst in topology]
+        __topologies.remove(topology)
         if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
