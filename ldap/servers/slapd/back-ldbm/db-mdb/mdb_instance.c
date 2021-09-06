@@ -18,7 +18,7 @@
  * Maximum db size by default (final size may be smaller if not enough disk is available 
  *  final size may be greater is explicitly configured 
  */
-#define DEFAULT_DB_SIZE (1L*1024*1024*1024)
+#define DEFAULT_DB_SIZE (2L*1024*1024*1024)
 
 /* Flags allowed in mdb_dbi_open */
 #define MDB_DBIOPEN_MASK (MDB_REVERSEKEY | MDB_DUPSORT | MDB_INTEGERKEY |  \
