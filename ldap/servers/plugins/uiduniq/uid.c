@@ -776,7 +776,7 @@ search_one_berval(Slapi_DN *baseDN, const char **attrNames, const struct berval 
  *   LDAP_OPERATIONS_ERROR - a server failure.
  */
 static int
-searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char **attrNames, Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass, Slapi_DN *dn, PRBool unique_in_all_subtrees)
+searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char **attrNames, Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass, Slapi_DN *parentDN, Slapi_DN *target, PRBool unique_in_all_subtrees)
 {
     int result = LDAP_SUCCESS;
     int i;
@@ -793,7 +793,7 @@ searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char *
            * violate constraint
            */
         for (i = 0; subtrees && subtrees[i]; i++) {
-            if (slapi_sdn_issuffix(dn, subtrees[i])) {
+            if (slapi_sdn_issuffix(parentDN, subtrees[i])) {
                 in_a_subtree = PR_TRUE;
                 break;
             }
@@ -808,7 +808,7 @@ searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char *
     if (exclude_subtrees != NULL) {
         PRBool in_a_subtree = PR_FALSE;
         for (i = 0; exclude_subtrees && exclude_subtrees[i]; i++) {
-            if (slapi_sdn_issuffix(dn, exclude_subtrees[i])) {
+            if (slapi_sdn_issuffix(parentDN, exclude_subtrees[i])) {
                 in_a_subtree = PR_TRUE;
                 break;
             }
@@ -828,8 +828,8 @@ searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char *
      * The DN should already be normalized, so we don't have to
      * worry about that here.
      */
-        if (unique_in_all_subtrees || slapi_sdn_issuffix(dn, sufdn)) {
-            result = search(sufdn, attrNames, attr, values, requiredObjectClass, dn, exclude_subtrees);
+        if (unique_in_all_subtrees || slapi_sdn_issuffix(parentDN, sufdn)) {
+            result = search(sufdn, attrNames, attr, values, requiredObjectClass, target, exclude_subtrees);
             if (result)
                 break;
         }
@@ -1046,7 +1046,7 @@ preop_add(Slapi_PBlock *pb)
             } else {
                 /* Subtrees listed on invocation line */
                 result = searchAllSubtrees(config->subtrees, config->exclude_subtrees, attrNames, attr, NULL,
-                                           requiredObjectClass, sdn, config->unique_in_all_subtrees);
+                                           requiredObjectClass, sdn, sdn, config->unique_in_all_subtrees);
             }
             if (result != LDAP_SUCCESS) {
                 break;
@@ -1219,7 +1219,7 @@ preop_modify(Slapi_PBlock *pb)
         } else {
             /* Subtrees listed on invocation line */
             result = searchAllSubtrees(config->subtrees, config->exclude_subtrees, attrNames, NULL,
-                                       mod->mod_bvalues, requiredObjectClass, sdn, config->unique_in_all_subtrees);
+                                       mod->mod_bvalues, requiredObjectClass, sdn, sdn, config->unique_in_all_subtrees);
         }
     }
     END
@@ -1392,13 +1392,13 @@ preop_modrdn(Slapi_PBlock *pb)
              */
             if (NULL != markerObjectClass) {
                 /* Subtree defined by location of marker object class */
-                result = findSubtreeAndSearch(slapi_entry_get_sdn(e), attrNames, attr, NULL,
-                                              requiredObjectClass, superior,
+                result = findSubtreeAndSearch(superior, attrNames, attr, NULL,
+                                              requiredObjectClass, sdn,
                                               markerObjectClass, config->exclude_subtrees);
             } else {
                 /* Subtrees listed on invocation line */
                 result = searchAllSubtrees(config->subtrees, config->exclude_subtrees, attrNames, attr, NULL,
-                                           requiredObjectClass, superior, config->unique_in_all_subtrees);
+                                           requiredObjectClass, superior, sdn, config->unique_in_all_subtrees);
             }
             if (result != LDAP_SUCCESS) {
                 break;
