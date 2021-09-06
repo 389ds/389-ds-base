@@ -187,6 +187,42 @@ def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
 
 __topologies = []
 
+class LogFilter:
+# Generic filter class that logs everything
+    def __init__(self):
+        self.stop_now = False
+        self.last_line = None
+
+    def filter(self, line):
+        self.last_line = line
+        return True
+
+class ErrorLogFilter(LogFilter):
+# Generic filter class that keep errors and critical errors everything
+
+    def filter(self, line):
+        self.last_line = line
+        if "- ERR -" in line:
+            return True
+        if "- CRIT -" in line:
+            return True
+        if "MDB_MAP_FULL" in line:
+            self.stop_now = True
+        return False
+
+
+def log2Report(path, section_name, filter=LogFilter()):
+    # Concat filtered lines from a file as a string
+    # filter instance must have filter.filter(line) that returns a boolean
+    # and a filter.stop_now boolean
+    res = f"\n *** {section_name} *** \n\n"
+    with open(path) as file:
+        for line in file:
+            if filter.filter(line) is True:
+                res += line
+            if filter.stop_now is True:
+                break
+    return res
 def getInstancesReport():
     # Capture data about stoped instances
     # Get the list of instances that are down
@@ -211,21 +247,15 @@ def getInstancesReport():
         res += f"Instance {inst.getServerId()} is not running:\nCore file information {str(cmd)}:\n"
         # Let get the important data in error log file 
         path = inst.ds_paths.error_log.format(instance_name=inst.getServerId())
-        res += f"\nERROR LOG EXTRACTS (from {path}):\n"
-        stopok=None
-        with open(path) as errorlog:
-            for line in errorlog:
-                # Lets detect if last line says that server was cleanly stopped.
-                stopok=None
-                if '- INFO - main - slapd stopped.' in line:
-                    stopok = line
-                # Capture relevant messages
-                if "- ERR -" in line:
-                    res += line
-                if "- CRIT -" in line:
-                    res += line
-        if stopok:
-            res += stopok
+        logFilter = ErrorLogFilter()
+        res1 = log2Report(path, f"Extract of instance {inst.getServerId()} error log", logFilter)
+        if '- INFO - main - slapd stopped.' in logFilter.last_line:
+            res1 += logFilter.line
+        if logFilter.stop_now:
+            res1 = log2Report(path, f"Instance {inst.getServerId()} error log")
+            path = inst.ds_paths.access_log.format(instance_name=inst.getServerId())
+            res1 += log2Report(path, f"Instance {inst.getServerId()} access log")
+        res += res1
     return res
 class TopologyMain(object):
     def __init__(self, standalones=None, suppliers=None, consumers=None, hubs=None):
