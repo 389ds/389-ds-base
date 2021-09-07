@@ -198,16 +198,16 @@ class LogFilter:
         return True
 
 class ErrorLogFilter(LogFilter):
-# Generic filter class that keep errors and critical errors everything
+# Filter class that keep errors and critical errors everything
 
     def filter(self, line):
         self.last_line = line
+        if "MDB_MAP_FULL" in line:
+            self.stop_now = True
         if "- ERR -" in line:
             return True
         if "- CRIT -" in line:
             return True
-        if "MDB_MAP_FULL" in line:
-            self.stop_now = True
         return False
 
 

@@ -2505,6 +2505,9 @@ dbmdb_import_foreman(void *param)
     if (dbmdb_import_writer_create_dbi(info, WCTX_ENTRYID, ID2ENTRY LDBM_SUFFIX, PR_FALSE)) {
         goto error;
     }
+    if (dbmdb_import_writer_create_dbi(info, WCTX_UNIQUEID, SLAPI_ATTR_UNIQUEID LDBM_SUFFIX, PR_FALSE)) {
+        goto error;
+    }
 
     while (!finished) {
         FifoItem *fi = NULL;

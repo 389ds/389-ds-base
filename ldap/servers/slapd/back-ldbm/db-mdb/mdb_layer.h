@@ -246,6 +246,7 @@ typedef enum {
     WCTX_ENTRYDN,
     WCTX_ENTRYID,
     WCTX_PARENTID,
+    WCTX_UNIQUEID,
     WCTX_GENERIC    /* Must be last one */
 } dbmdb_wctx_id_t;  /* Allow to identify predefined writer context for some well known index */
 

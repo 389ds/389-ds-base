@@ -38,8 +38,8 @@ def set_log_file_and_ldif(topology_st, request):
 
     def fin():
         log.info('Delete files')
-        os.remove(LOG_FILE)
-        os.remove(ldif_file)
+        #os.remove(LOG_FILE)
+        #os.remove(ldif_file)
 
     request.addfinalizer(fin)
 

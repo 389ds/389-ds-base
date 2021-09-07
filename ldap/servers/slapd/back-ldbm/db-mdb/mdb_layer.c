@@ -1563,6 +1563,8 @@ dbi_error_t dbmdb_map_error(const char *funcname, int err)
             return DBI_RC_SUCCESS;
         case MDB_KEYEXIST:
             return DBI_RC_KEYEXIST;
+        case EINVAL:
+            return DBI_RC_NOTFOUND;
         case MDB_NOTFOUND:
             return DBI_RC_NOTFOUND;
         default:
