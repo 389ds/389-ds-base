@@ -1,6 +1,9 @@
 389 Directory Server
 ====================
 
+[![Test](https://github.com/389ds/389-ds-base/actions/workflows/pytest.yml/badge.svg)](https://github.com/389ds/389-ds-base/actions/workflows/pytest.yml)
+[![npm-audit-ci](https://github.com/389ds/389-ds-base/actions/workflows/npm.yml/badge.svg)](https://github.com/389ds/389-ds-base/actions/workflows/npm.yml)
+
 389 Directory Server is a highly usable, fully featured, reliable
 and secure LDAP server implementation. It handles many of the
 largest LDAP deployments in the world.
