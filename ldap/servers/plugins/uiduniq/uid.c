@@ -770,13 +770,13 @@ search_one_berval(Slapi_DN *baseDN, const char **attrNames, const struct berval 
  *
  * Return:
  *   LDAP_SUCCESS - no matches, or the attribute matches the
- *     target dn.
+ *     destination (target) dn.
  *   LDAP_CONSTRAINT_VIOLATION - an entry was found that already
  *     contains the attribute value.
  *   LDAP_OPERATIONS_ERROR - a server failure.
  */
 static int
-searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char **attrNames, Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass, Slapi_DN *parentDN, Slapi_DN *target, PRBool unique_in_all_subtrees)
+searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char **attrNames, Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass, Slapi_DN *sourceSDN, Slapi_DN *destinationSDN, PRBool unique_in_all_subtrees)
 {
     int result = LDAP_SUCCESS;
     int i;
@@ -788,12 +788,12 @@ searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char *
            * are unique in all the monitored subtrees
            */
 
-        /* First check the target entry is in one of
+        /* First check the source entry is in one of
            * the monitored subtree, so adding 'values' would
            * violate constraint
            */
         for (i = 0; subtrees && subtrees[i]; i++) {
-            if (slapi_sdn_issuffix(parentDN, subtrees[i])) {
+            if (slapi_sdn_issuffix(sourceSDN, subtrees[i])) {
                 in_a_subtree = PR_TRUE;
                 break;
             }
@@ -808,7 +808,7 @@ searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char *
     if (exclude_subtrees != NULL) {
         PRBool in_a_subtree = PR_FALSE;
         for (i = 0; exclude_subtrees && exclude_subtrees[i]; i++) {
-            if (slapi_sdn_issuffix(parentDN, exclude_subtrees[i])) {
+            if (slapi_sdn_issuffix(sourceSDN, exclude_subtrees[i])) {
                 in_a_subtree = PR_TRUE;
                 break;
             }
@@ -820,7 +820,7 @@ searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char *
 
     /*
    * For each DN in the managed list, do uniqueness checking if
-   * the target DN is a subnode in the tree.
+   * the destination (target) DN is a subnode in the tree.
    */
     for (i = 0; subtrees && subtrees[i]; i++) {
         Slapi_DN *sufdn = subtrees[i];
@@ -828,8 +828,8 @@ searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char *
      * The DN should already be normalized, so we don't have to
      * worry about that here.
      */
-        if (unique_in_all_subtrees || slapi_sdn_issuffix(parentDN, sufdn)) {
-            result = search(sufdn, attrNames, attr, values, requiredObjectClass, target, exclude_subtrees);
+        if (unique_in_all_subtrees || slapi_sdn_issuffix(sourceSDN, sufdn)) {
+            result = search(sufdn, attrNames, attr, values, requiredObjectClass, destinationSDN, exclude_subtrees);
             if (result)
                 break;
         }
@@ -903,20 +903,20 @@ getArguments(Slapi_PBlock *pb, char **attrName, char **markerObjectClass, char *
  *
  * Return:
  *   LDAP_SUCCESS - no matches, or the attribute matches the
- *     target dn.
+ *     destination (target) dn.
  *   LDAP_CONSTRAINT_VIOLATION - an entry was found that already
  *     contains the attribute value.
  *   LDAP_OPERATIONS_ERROR - a server failure.
  */
 static int
-findSubtreeAndSearch(Slapi_DN *parentDN, const char **attrNames, Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass, Slapi_DN *target, const char *markerObjectClass, Slapi_DN **excludes)
+findSubtreeAndSearch(Slapi_DN *sourceSDN, const char **attrNames, Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass, Slapi_DN *destinationSDN, const char *markerObjectClass, Slapi_DN **excludes)
 {
     int result = LDAP_SUCCESS;
     Slapi_PBlock *spb = NULL;
     Slapi_DN *curpar = slapi_sdn_new();
     Slapi_DN *newpar = NULL;
 
-    slapi_sdn_get_parent(parentDN, curpar);
+    slapi_sdn_get_parent(sourceSDN, curpar);
     while (slapi_sdn_get_dn(curpar) != NULL) {
         if ((spb = dnHasObjectClass(curpar, markerObjectClass))) {
             freePblock(spb);
@@ -925,7 +925,7 @@ findSubtreeAndSearch(Slapi_DN *parentDN, const char **attrNames, Slapi_Attr *att
            * to have the attribute already.
            */
             result = search(curpar, attrNames, attr, values, requiredObjectClass,
-                            target, excludes);
+                            destinationSDN, excludes);
             break;
         }
         newpar = slapi_sdn_new();
@@ -964,7 +964,7 @@ preop_add(Slapi_PBlock *pb)
     int err;
     char *markerObjectClass = NULL;
     char *requiredObjectClass = NULL;
-    Slapi_DN *sdn = NULL;
+    Slapi_DN *targetSDN = NULL;
     int isupdatedn;
     Slapi_Entry *e;
     Slapi_Attr *attr;
@@ -998,16 +998,16 @@ preop_add(Slapi_PBlock *pb)
     attr_friendly = config->attr_friendly;
 
     /*
-     * Get the target DN for this add operation
+     * Get the target SDN for this add operation
      */
-    err = slapi_pblock_get(pb, SLAPI_ADD_TARGET_SDN, &sdn);
+    err = slapi_pblock_get(pb, SLAPI_ADD_TARGET_SDN, &targetSDN);
     if (err) {
         result = uid_op_error(51);
         break;
     }
 
 #ifdef DEBUG
-    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "preop_add - ADD target=%s\n", slapi_sdn_get_dn(sdn));
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "preop_add - ADD target=%s\n", slapi_sdn_get_dn(targetSDN));
 #endif
 
     /*
@@ -1040,13 +1040,13 @@ preop_add(Slapi_PBlock *pb)
                  */
             if (NULL != markerObjectClass) {
                 /* Subtree defined by location of marker object class */
-                result = findSubtreeAndSearch(sdn, attrNames, attr, NULL,
-                                              requiredObjectClass, sdn,
+                result = findSubtreeAndSearch(targetSDN, attrNames, attr, NULL,
+                                              requiredObjectClass, targetSDN,
                                               markerObjectClass, config->exclude_subtrees);
             } else {
                 /* Subtrees listed on invocation line */
                 result = searchAllSubtrees(config->subtrees, config->exclude_subtrees, attrNames, attr, NULL,
-                                           requiredObjectClass, sdn, sdn, config->unique_in_all_subtrees);
+                                           requiredObjectClass, targetSDN, targetSDN, config->unique_in_all_subtrees);
             }
             if (result != LDAP_SUCCESS) {
                 break;
@@ -1120,7 +1120,7 @@ preop_modify(Slapi_PBlock *pb)
     int modcount = 0;
     int ii;
     LDAPMod *mod;
-    Slapi_DN *sdn = NULL;
+    Slapi_DN *targetSDN = NULL;
     int isupdatedn;
     int i = 0;
 
@@ -1186,8 +1186,8 @@ preop_modify(Slapi_PBlock *pb)
         break; /* no mods to check, we are done */
     }
 
-    /* Get the target DN */
-    err = slapi_pblock_get(pb, SLAPI_MODIFY_TARGET_SDN, &sdn);
+    /* Get the target SDN */
+    err = slapi_pblock_get(pb, SLAPI_MODIFY_TARGET_SDN, &targetSDN);
     if (err) {
         result = uid_op_error(11);
         break;
@@ -1197,7 +1197,7 @@ preop_modify(Slapi_PBlock *pb)
      * Check if it has the required object class
      */
     if (requiredObjectClass &&
-        !(spb = dnHasObjectClass(sdn, requiredObjectClass))) {
+        !(spb = dnHasObjectClass(targetSDN, requiredObjectClass))) {
         break;
     }
 
@@ -1213,13 +1213,13 @@ preop_modify(Slapi_PBlock *pb)
         mod = checkmods[ii];
         if (NULL != markerObjectClass) {
             /* Subtree defined by location of marker object class */
-            result = findSubtreeAndSearch(sdn, attrNames, NULL,
+            result = findSubtreeAndSearch(targetSDN, attrNames, NULL,
                                           mod->mod_bvalues, requiredObjectClass,
-                                          sdn, markerObjectClass, config->exclude_subtrees);
+                                          targetSDN, markerObjectClass, config->exclude_subtrees);
         } else {
             /* Subtrees listed on invocation line */
             result = searchAllSubtrees(config->subtrees, config->exclude_subtrees, attrNames, NULL,
-                                       mod->mod_bvalues, requiredObjectClass, sdn, sdn, config->unique_in_all_subtrees);
+                                       mod->mod_bvalues, requiredObjectClass, targetSDN, targetSDN, config->unique_in_all_subtrees);
         }
     }
     END
@@ -1271,8 +1271,8 @@ preop_modrdn(Slapi_PBlock *pb)
     int err;
     char *markerObjectClass = NULL;
     char *requiredObjectClass = NULL;
-    Slapi_DN *sdn = NULL;
-    Slapi_DN *superior;
+    Slapi_DN *sourceSDN = NULL;
+    Slapi_DN *superiorSDN;
     char *rdn;
     int deloldrdn = 0;
     int isupdatedn;
@@ -1311,14 +1311,14 @@ preop_modrdn(Slapi_PBlock *pb)
     }
 
     /* Get the DN of the entry being renamed */
-    err = slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_SDN, &sdn);
+    err = slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_SDN, &sourceSDN);
     if (err) {
         result = uid_op_error(31);
         break;
     }
 
     /* Get superior value - unimplemented in 3.0/4.0/5.0 DS */
-    err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &superior);
+    err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &superiorSDN);
     if (err) {
         result = uid_op_error(32);
         break;
@@ -1326,11 +1326,11 @@ preop_modrdn(Slapi_PBlock *pb)
 
     /*
      * No superior means the entry is just renamed at
-     * its current level in the tree.  Use the target DN for
+     * its current level in the tree.  Use the source SDN for
      * determining which managed tree this belongs to
      */
-    if (!superior)
-        superior = sdn;
+    if (!superiorSDN)
+        superiorSDN = sourceSDN;
 
     /* Get the new RDN - this has the attribute values */
     err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &rdn);
@@ -1352,10 +1352,10 @@ preop_modrdn(Slapi_PBlock *pb)
 
     /* Get the entry that is being renamed so we can make a dummy copy
      * of what it will look like after the rename. */
-    err = slapi_search_get_entry(&entry_pb, sdn, NULL, &e, plugin_identity);
+    err = slapi_search_get_entry(&entry_pb, sourceSDN, NULL, &e, plugin_identity);
     if (err != LDAP_SUCCESS) {
         result = uid_op_error(35);
-        /* We want to return a no such object error if the target doesn't exist. */
+        /* We want to return a no such object error if the source SDN doesn't exist. */
         if (err == LDAP_NO_SUCH_OBJECT) {
             result = err;
         }
@@ -1364,7 +1364,7 @@ preop_modrdn(Slapi_PBlock *pb)
 
     /* Apply the rename operation to the dummy entry. */
     /* slapi_entry_rename does not expect rdn normalized */
-    err = slapi_entry_rename(e, rdn, deloldrdn, superior);
+    err = slapi_entry_rename(e, rdn, deloldrdn, superiorSDN);
     if (err != LDAP_SUCCESS) {
         result = uid_op_error(36);
         break;
@@ -1392,13 +1392,13 @@ preop_modrdn(Slapi_PBlock *pb)
              */
             if (NULL != markerObjectClass) {
                 /* Subtree defined by location of marker object class */
-                result = findSubtreeAndSearch(superior, attrNames, attr, NULL,
-                                              requiredObjectClass, sdn,
+                result = findSubtreeAndSearch(superiorSDN, attrNames, attr, NULL,
+                                              requiredObjectClass, sourceSDN,
                                               markerObjectClass, config->exclude_subtrees);
             } else {
                 /* Subtrees listed on invocation line */
                 result = searchAllSubtrees(config->subtrees, config->exclude_subtrees, attrNames, attr, NULL,
-                                           requiredObjectClass, superior, sdn, config->unique_in_all_subtrees);
+                                           requiredObjectClass, superiorSDN, sourceSDN, config->unique_in_all_subtrees);
             }
             if (result != LDAP_SUCCESS) {
                 break;
