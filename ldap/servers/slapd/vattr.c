@@ -64,6 +64,10 @@
 #define SOURCEFILE "vattr.c"
 static char *sourcefile = SOURCEFILE;
 
+/* stolen from roles_cache.h, must remain in sync */
+#define NSROLEATTR "nsRole"
+static Slapi_Eq_Context vattr_check_ctx = {0};
+
 /* Define only for module test code */
 /* #define VATTR_TEST_CODE */
 
@@ -130,6 +134,112 @@ vattr_cleanup()
 {
     /* We need to free and remove anything that was inserted first */
     vattr_map_destroy();
+    slapi_eq_cancel_rel(vattr_check_ctx);
+}
+
+static void
+vattr_check_thread(void *arg)
+{
+    Slapi_Backend *be = NULL;
+    char *cookie = NULL;
+    Slapi_DN *base_sdn = NULL;
+    Slapi_PBlock *search_pb = NULL;
+    Slapi_Entry **entries = NULL;
+    int32_t rc;
+    int32_t check_suffix; /* used to skip suffixes in ignored_backend */
+    PRBool exist_vattr_definition = PR_FALSE;
+    char *ignored_backend[5] = {"cn=config", "cn=schema", "cn=monitor", "cn=changelog", NULL}; /* suffixes to ignore */
+    char *suffix;
+    int ignore_vattrs;
+
+    ignore_vattrs = config_get_ignore_vattrs();
+
+    if (!ignore_vattrs) {
+        /* Nothing to do more, we are already evaluating virtual attribute */
+        return;
+    }
+
+    search_pb = slapi_pblock_new();
+    be = slapi_get_first_backend(&cookie);
+    while (be && !exist_vattr_definition && !slapi_is_shutting_down()) {
+        base_sdn = (Slapi_DN *) slapi_be_getsuffix(be, 0);
+        suffix = (char *) slapi_sdn_get_dn(base_sdn);
+
+        if (suffix) {
+            /* First check that we need to check that suffix */
+            check_suffix = 1;
+            for (size_t i = 0; ignored_backend[i]; i++) {
+                if (strcasecmp(suffix, ignored_backend[i]) == 0) {
+                    check_suffix = 0;
+                    break;
+                }
+            }
+
+            /* search for a role or cos definition */
+            if (check_suffix) {
+                slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(base_sdn),
+                        LDAP_SCOPE_SUBTREE, "(&(objectclass=ldapsubentry)(|(objectclass=nsRoleDefinition)(objectclass=cosSuperDefinition)))",
+                        NULL, 0, NULL, NULL, (void *) plugin_get_default_component_id(), 0);
+                slapi_search_internal_pb(search_pb);
+                slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+
+                if (rc == LDAP_SUCCESS) {
+                    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+                    if (entries && entries[0]) {
+                        /* it exists at least a cos or role definition */
+                        exist_vattr_definition = PR_TRUE;
+                        slapi_log_err(SLAPI_LOG_INFO,
+                                "vattr_check_thread",
+                                "Found a role/cos definition in %s\n", slapi_entry_get_dn(entries[0]));
+                    } else {
+                        slapi_log_err(SLAPI_LOG_INFO,
+                                "vattr_check_thread",
+                                "No role/cos definition in %s\n", slapi_sdn_get_dn(base_sdn));
+                    }
+                }
+                slapi_free_search_results_internal(search_pb);
+            } /* check_suffix */
+        } /* suffix */
+        be = (backend *) slapi_get_next_backend(cookie);
+    }
+    slapi_pblock_destroy(search_pb);
+    slapi_ch_free_string(&cookie);
+
+    /* Now if a virtual attribute is defined, then CONFIG_IGNORE_VATTRS -> off */
+    if (exist_vattr_definition) {
+        char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+        errorbuf[0] = '\0';
+        config_set_ignore_vattrs(CONFIG_IGNORE_VATTRS, "off", errorbuf, 1);
+        slapi_log_err(SLAPI_LOG_INFO,
+                      "vattr_check_thread",
+                      "Because of virtual attribute definition, %s was set to 'off'\n", CONFIG_IGNORE_VATTRS);
+    }
+}
+static void
+vattr_check_schedule_once(time_t when __attribute__((unused)), void *arg)
+{
+    if (PR_CreateThread(PR_USER_THREAD,
+                        vattr_check_thread,
+                        (void *) arg,
+                        PR_PRIORITY_NORMAL,
+                        PR_GLOBAL_THREAD,
+                        PR_UNJOINABLE_THREAD,
+                        SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "vattr_check_schedule_once",
+                      "Fails to check if %s needs to be toggled to FALSE\n", CONFIG_IGNORE_VATTRS);
+    }
+}
+#define VATTR_CHECK_DELAY 3
+void
+vattr_check()
+{
+    /* Schedule running a callback that will create a thread
+     * but make sure it is called a first thing when event loop is created */
+    time_t now;
+
+    now = slapi_current_rel_time_t();
+    vattr_check_ctx = slapi_eq_once_rel(vattr_check_schedule_once, NULL, now + VATTR_CHECK_DELAY);
 }
 
 /* The public interface functions start here */
@@ -1631,6 +1741,9 @@ slapi_vattrspi_regattr(vattr_sp_handle *h, char *type_name_to_register, char *DN
     char *type_to_add;
     int free_type_to_add = 0;
     Slapi_DN original_dn;
+    int ignore_vattrs;
+
+    ignore_vattrs = config_get_ignore_vattrs();
 
     slapi_sdn_init(&original_dn);
 
@@ -1675,6 +1788,20 @@ slapi_vattrspi_regattr(vattr_sp_handle *h, char *type_name_to_register, char *DN
     slapi_sdn_done(&original_dn);
     if (free_type_to_add) {
         slapi_ch_free((void **)&type_to_add);
+    }
+    if (ignore_vattrs && strcasecmp(type_name_to_register, NSROLEATTR)) {
+        /* A new virtual attribute is registered.
+         * This new vattr being *different* than the default roles vattr 'nsRole'
+         * It is time to allow vattr lookup
+         */
+        char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+        errorbuf[0] = '\0';
+        config_set_ignore_vattrs(CONFIG_IGNORE_VATTRS, "off", errorbuf, 1);
+        slapi_log_err(SLAPI_LOG_INFO,
+                      "slapi_vattrspi_regattr",
+                      "Because %s is a new registered virtual attribute , %s was set to 'off'\n",
+                      type_name_to_register,
+                      CONFIG_IGNORE_VATTRS);
     }
 
     return ret;
