@@ -88,6 +88,7 @@ class Account(DSLdapObject):
 
         # Fetch Account Policy data if its enabled
         plugin = AccountPolicyPlugin(inst)
+        config_dn = plugin.get_attr_val_utf8("nsslapd-pluginarg0")
         state_attr = ""
         alt_state_attr = ""
         limit = ""
@@ -99,8 +100,7 @@ class Account(DSLdapObject):
         except IndexError:
             self._log.debug("The bound user doesn't have rights to access Account Policy settings. Not checking.")
 
-        if process_account_policy:
-            config_dn = plugin.get_attr_val_utf8("nsslapd-pluginarg0")
+        if process_account_policy and config_dn is not None:
             config = AccountPolicyConfig(inst, config_dn)
             config_settings = config.get_attrs_vals_utf8(["stateattrname", "altstateattrname",
                                                           "specattrname", "limitattrname"])
