@@ -22,35 +22,29 @@ log = logging.getLogger(__name__)
 @pytest.fixture(scope="function")
 def enable_config(request, topology_st, config_type):
     if config_type == 'ldapfile':
-        with open('/etc/openldap/ldap.conf', 'a') as f:
+        with open('/tmp/ldap_temp.conf', 'w') as f:
             f.write("TLS_CACERT /etc/dirsrv/slapd-standalone1/ca.crt\n")
             f.close()
 
     else:
         data = ['[localhost]\n', 'tls_cacertdir = /etc/dirsrv/slapd-standalone1\n',
                 f'uri = {topology_st.standalone.get_ldaps_uri()}\n']
-        fd = open('/root/.dsrc', 'w')
+        fd = open(f'{os.environ.get("HOME")}/.dsrc', 'w')
         for line in data:
             fd.write(line)
         fd.close()
 
     def fin():
         if config_type == 'ldapfile':
-            fr = open('/etc/openldap/ldap.conf', 'r')
-            data = fr.readlines()
-            fr.close()
-            fw = open('/etc/openldap/ldap.conf', 'w')
-            for line in data:
-                if line.strip('\n') != 'TLS_CACERT /etc/dirsrv/slapd-standalone1/ca.crt':
-                    fw.write(line)
+            os.remove('/tmp/ldap_temp.conf')
         else:
-            os.remove('/root/.dsrc')
+            os.remove(f'{os.environ.get("HOME")}/.dsrc')
 
     request.addfinalizer(fin)
 
 @pytest.mark.parametrize('config_type', ('ldapfile','dsrfile'))
 def test_dsconf_with_ldaps(topology_st, enable_config, config_type):
-    """Test the dna interval works
+    """Test dsconf CLI with LDAPS
 
     :id: 5288a288-60f0-4e81-a44b-d2ee2611ca86
     :parametrized: yes
@@ -73,15 +67,17 @@ def test_dsconf_with_ldaps(topology_st, enable_config, config_type):
     topology_st.standalone.enable_tls()
     if config_type == 'ldapfile':
         log.info("Use dsconf to list certificate")
-        cmdline=['/usr/sbin/dsconf', topology_st.standalone.get_ldaps_uri(), '-D', DN_DM, '-w', 'password',
-                 'security', 'certificate', 'list']
+        cmdline=['/usr/sbin/dsconf', topology_st.standalone.get_ldaps_uri(), '-D',
+                 DN_DM, '-w', 'password', 'security', 'certificate', 'list']
+        log.info(f'Command used : %{cmdline}')
+        proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE, env={'LDAPCONF': '/tmp/ldap_temp.conf'})
     else:
         log.info("Use dsconf to list certificate")
         cmdline=['/usr/sbin/dsconf','standalone1', '-D', DN_DM, '-w', 'password',
                  'security', 'certificate', 'list']
+        log.info(f'Command used : %{cmdline}')
+        proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
 
-    log.info(f'Command used : %{cmdline}')
-    proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
     msg = proc.communicate()
     log.info(f'output message : {msg[0]}')
     assert proc.returncode == 0
