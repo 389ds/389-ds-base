@@ -25,6 +25,7 @@
 #define DB2INDEX_ENTRYRDN 0x2     /* index entryrdn */
 #define DB2LDIF_ENTRYRDN 0x4      /* export entryrdn */
 #define DB2INDEX_OBJECTCLASS 0x10 /* for reindexing "objectclass: nstombstone" */
+#define DB2INDEX_NSUNIQUEID 0x20  /* for reindexing RUV tombstone */
 
 #define LDIF2LDBM_EXTBITS(x) ((x)&0xf)
 
@@ -1551,6 +1552,9 @@ bdb_db2index(Slapi_PBlock *pb)
                     if (strcasecmp(attrs[i] + 1, SLAPI_ATTR_OBJECTCLASS) == 0) {
                         index_ext |= DB2INDEX_OBJECTCLASS;
                     }
+                    if (strcasecmp(attrs[i] + 1, SLAPI_ATTR_UNIQUEID) == 0) {
+                        index_ext |= DB2INDEX_NSUNIQUEID;
+                    }
                     charray_add(&indexAttrs, attrs[i] + 1);
                     ai->ai_indexmask |= INDEX_OFFLINE;
                     slapi_task_log_notice(task, "%s: Indexing attribute: %s",
@@ -1903,7 +1907,7 @@ bdb_db2index(Slapi_PBlock *pb)
          * Update the attribute indexes
          */
         if (indexAttrs) {
-            if (istombstone && !(index_ext & (DB2INDEX_ENTRYRDN | DB2INDEX_OBJECTCLASS))) {
+            if (istombstone && !(index_ext & (DB2INDEX_ENTRYRDN | DB2INDEX_OBJECTCLASS | DB2INDEX_NSUNIQUEID))) {
                 /* if it is a tombstone entry, just entryrdn or "objectclass: nstombstone"
                  * need to be reindexed.  the to-be-indexed list does not contain them. */
                 backentry_free(&ep);
@@ -1923,8 +1927,10 @@ bdb_db2index(Slapi_PBlock *pb)
                         if (istombstone) {
                             if (!slapi_attr_type_cmp(indexAttrs[j], SLAPI_ATTR_OBJECTCLASS, SLAPI_TYPE_CMP_SUBTYPE)) {
                                 is_tombstone_obj = 1; /* is tombstone && is objectclass. need to index "nstombstone"*/
-                            } else if (slapi_attr_type_cmp(indexAttrs[j], LDBM_ENTRYRDN_STR, SLAPI_TYPE_CMP_SUBTYPE)) {
-                                /* Entry is a tombstone && this index is not an entryrdn. */
+                            } else if (slapi_attr_type_cmp(indexAttrs[j], LDBM_ENTRYRDN_STR, SLAPI_TYPE_CMP_SUBTYPE) &&
+                                       slapi_attr_type_cmp(indexAttrs[j], SLAPI_ATTR_UNIQUEID, SLAPI_TYPE_CMP_SUBTYPE))
+                            {
+                                /* Entry is a tombstone && this index is not entryrdn or nsuniqueid */
                                 continue;
                             }
                         }
