@@ -12,6 +12,8 @@ import ldap
 import pytest
 from ldif import LDIFParser
 from lib389.replica import Replicas
+from lib389.backend import Backends
+from lib389.idm.domain import Domain
 from lib389.idm.user import UserAccounts
 from lib389.topologies import topology_m2 as topo
 from lib389._constants import *
@@ -154,6 +156,39 @@ def test_memoryruv_sync_with_databaseruv(topo):
     log.info('Delete user: {}'.format(tuser.dn))
     tuser.delete()
     _compare_memoryruv_and_databaseruv(topo, 'delete')
+
+
+def test_ruv_after_reindex(topo):
+    """Test that the tombstone RUV entry is not corrupted after a reindex task
+
+    :id: 988c0fab-1905-4dc5-a45d-fbf195843a33
+    :setup: 2 suppliers
+    :steps:
+        1. Reindex database
+        2. Perform some updates
+        3. Check error log does not have "_entryrdn_insert_key" errors
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+
+    inst = topo.ms['supplier1']
+    suffix = Domain(inst, "ou=people," + DEFAULT_SUFFIX)
+    backends = Backends(inst)
+    backend = backends.get(DEFAULT_BENAME)
+
+    # Reindex nsuniqueid
+    backend.reindex(attrs=['nsuniqueid'], wait=True)
+
+    # Do some updates
+    for idx in range(0, 5):
+        suffix.replace('description', str(idx))
+
+    # Check error log for RUV entryrdn errors.  Stopping instance forces RUV
+    # to be written and quickly exposes the error
+    inst.stop()
+    assert not inst.searchErrorsLog("entryrdn_insert_key")
 
 
 if __name__ == '__main__':
