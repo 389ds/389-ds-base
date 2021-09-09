@@ -64,11 +64,13 @@ CARGO_FLAGS = @cargo_defs@
 if CLANG_ENABLE
 RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
 RUSTC_LINK_FLAGS = -C link-arg=-fuse-ld=lld
+RUST_LDFLAGS = -ldl -lpthread -lc -lm -lrt -lutil
 else
 RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
 RUSTC_LINK_FLAGS =
-endif
+# This avoids issues with stderr being double provided with clang + asan.
 RUST_LDFLAGS = -ldl -lpthread -lgcc_s -lc -lm -lrt -lutil
+endif
 RUST_DEFINES = -DRUST_ENABLE
 if RUST_ENABLE_OFFLINE
 RUST_OFFLINE = --locked --offline
@@ -1078,7 +1080,12 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 
 libns_dshttpd_la_CPPFLAGS = -I$(srcdir)/include/base $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) -I$(srcdir)/lib/ldaputil
 libns_dshttpd_la_LIBADD = libslapd.la libldaputil.la $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK)
+if CLANG_ENABLE
+# This avoids issues with stderr being double provided with clang + asan.
+libns_dshttpd_la_LDFLAGS = $(AM_LDFLAGS) -static-libgcc
+else
 libns_dshttpd_la_LDFLAGS = $(AM_LDFLAGS)
+endif
 
 #------------------------
 # libslapd
