@@ -101,6 +101,7 @@ main(int argc, char *argv[])
     }
 
     load_config(config_file);
+    free(config_file);
 
     /* check if we're already running as another process */
     if ((pid_fp = fopen(pidfile, "r")) != NULL) {
