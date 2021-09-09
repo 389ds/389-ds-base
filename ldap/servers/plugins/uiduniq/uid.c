@@ -770,13 +770,13 @@ search_one_berval(Slapi_DN *baseDN, const char **attrNames, const struct berval 
  *
  * Return:
  *   LDAP_SUCCESS - no matches, or the attribute matches the
- *     destination (target) dn.
+ *     source (target) dn.
  *   LDAP_CONSTRAINT_VIOLATION - an entry was found that already
  *     contains the attribute value.
  *   LDAP_OPERATIONS_ERROR - a server failure.
  */
 static int
-searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char **attrNames, Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass, Slapi_DN *sourceSDN, Slapi_DN *destinationSDN, PRBool unique_in_all_subtrees)
+searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char **attrNames, Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass, Slapi_DN *destinationSDN, Slapi_DN *sourceSDN, PRBool unique_in_all_subtrees)
 {
     int result = LDAP_SUCCESS;
     int i;
@@ -788,12 +788,12 @@ searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char *
            * are unique in all the monitored subtrees
            */
 
-        /* First check the source entry is in one of
+        /* First check the destination entry is in one of
            * the monitored subtree, so adding 'values' would
            * violate constraint
            */
         for (i = 0; subtrees && subtrees[i]; i++) {
-            if (slapi_sdn_issuffix(sourceSDN, subtrees[i])) {
+            if (slapi_sdn_issuffix(destinationSDN, subtrees[i])) {
                 in_a_subtree = PR_TRUE;
                 break;
             }
@@ -808,7 +808,7 @@ searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char *
     if (exclude_subtrees != NULL) {
         PRBool in_a_subtree = PR_FALSE;
         for (i = 0; exclude_subtrees && exclude_subtrees[i]; i++) {
-            if (slapi_sdn_issuffix(sourceSDN, exclude_subtrees[i])) {
+            if (slapi_sdn_issuffix(destinationSDN, exclude_subtrees[i])) {
                 in_a_subtree = PR_TRUE;
                 break;
             }
@@ -828,8 +828,8 @@ searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char *
      * The DN should already be normalized, so we don't have to
      * worry about that here.
      */
-        if (unique_in_all_subtrees || slapi_sdn_issuffix(sourceSDN, sufdn)) {
-            result = search(sufdn, attrNames, attr, values, requiredObjectClass, destinationSDN, exclude_subtrees);
+        if (unique_in_all_subtrees || slapi_sdn_issuffix(destinationSDN, sufdn)) {
+            result = search(sufdn, attrNames, attr, values, requiredObjectClass, sourceSDN, exclude_subtrees);
             if (result)
                 break;
         }
@@ -903,20 +903,20 @@ getArguments(Slapi_PBlock *pb, char **attrName, char **markerObjectClass, char *
  *
  * Return:
  *   LDAP_SUCCESS - no matches, or the attribute matches the
- *     destination (target) dn.
+ *     source (target) dn.
  *   LDAP_CONSTRAINT_VIOLATION - an entry was found that already
  *     contains the attribute value.
  *   LDAP_OPERATIONS_ERROR - a server failure.
  */
 static int
-findSubtreeAndSearch(Slapi_DN *sourceSDN, const char **attrNames, Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass, Slapi_DN *destinationSDN, const char *markerObjectClass, Slapi_DN **excludes)
+findSubtreeAndSearch(Slapi_DN *destinationSDN, const char **attrNames, Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass, Slapi_DN *sourceSDN, const char *markerObjectClass, Slapi_DN **excludes)
 {
     int result = LDAP_SUCCESS;
     Slapi_PBlock *spb = NULL;
     Slapi_DN *curpar = slapi_sdn_new();
     Slapi_DN *newpar = NULL;
 
-    slapi_sdn_get_parent(sourceSDN, curpar);
+    slapi_sdn_get_parent(destinationSDN, curpar);
     while (slapi_sdn_get_dn(curpar) != NULL) {
         if ((spb = dnHasObjectClass(curpar, markerObjectClass))) {
             freePblock(spb);
@@ -925,7 +925,7 @@ findSubtreeAndSearch(Slapi_DN *sourceSDN, const char **attrNames, Slapi_Attr *at
            * to have the attribute already.
            */
             result = search(curpar, attrNames, attr, values, requiredObjectClass,
-                            destinationSDN, excludes);
+                            sourceSDN, excludes);
             break;
         }
         newpar = slapi_sdn_new();
@@ -1272,7 +1272,7 @@ preop_modrdn(Slapi_PBlock *pb)
     char *markerObjectClass = NULL;
     char *requiredObjectClass = NULL;
     Slapi_DN *sourceSDN = NULL;
-    Slapi_DN *superiorSDN;
+    Slapi_DN *destinationSDN;
     char *rdn;
     int deloldrdn = 0;
     int isupdatedn;
@@ -1318,7 +1318,7 @@ preop_modrdn(Slapi_PBlock *pb)
     }
 
     /* Get superior value - unimplemented in 3.0/4.0/5.0 DS */
-    err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &superiorSDN);
+    err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &destinationSDN);
     if (err) {
         result = uid_op_error(32);
         break;
@@ -1329,8 +1329,8 @@ preop_modrdn(Slapi_PBlock *pb)
      * its current level in the tree.  Use the source SDN for
      * determining which managed tree this belongs to
      */
-    if (!superiorSDN)
-        superiorSDN = sourceSDN;
+    if (!destinationSDN)
+        destinationSDN = sourceSDN;
 
     /* Get the new RDN - this has the attribute values */
     err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &rdn);
@@ -1364,7 +1364,7 @@ preop_modrdn(Slapi_PBlock *pb)
 
     /* Apply the rename operation to the dummy entry. */
     /* slapi_entry_rename does not expect rdn normalized */
-    err = slapi_entry_rename(e, rdn, deloldrdn, superiorSDN);
+    err = slapi_entry_rename(e, rdn, deloldrdn, destinationSDN);
     if (err != LDAP_SUCCESS) {
         result = uid_op_error(36);
         break;
@@ -1392,13 +1392,13 @@ preop_modrdn(Slapi_PBlock *pb)
              */
             if (NULL != markerObjectClass) {
                 /* Subtree defined by location of marker object class */
-                result = findSubtreeAndSearch(superiorSDN, attrNames, attr, NULL,
+                result = findSubtreeAndSearch(destinationSDN, attrNames, attr, NULL,
                                               requiredObjectClass, sourceSDN,
                                               markerObjectClass, config->exclude_subtrees);
             } else {
                 /* Subtrees listed on invocation line */
                 result = searchAllSubtrees(config->subtrees, config->exclude_subtrees, attrNames, attr, NULL,
-                                           requiredObjectClass, superiorSDN, sourceSDN, config->unique_in_all_subtrees);
+                                           requiredObjectClass, destinationSDN, sourceSDN, config->unique_in_all_subtrees);
             }
             if (result != LDAP_SUCCESS) {
                 break;
