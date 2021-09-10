@@ -16,19 +16,19 @@
 /* Info file used to check version and get parameters needed to open the db in dbscan case */
 
 /*
- * Maximum db size by default (final size may be smaller if not enough disk is available 
- *  final size may be greater is explicitly configured 
+ * Maximum db size by default (final size may be smaller if not enough disk is available
+ *  final size may be greater is explicitly configured
  */
 #define DEFAULT_DB_SIZE (2L*1024*1024*1024)
 
-#define STOP_AVL_APPLY	(-8)
+#define STOP_AVL_APPLY  (-8)
 
 /* Flags allowed in mdb_dbi_open */
 #define MDB_DBIOPEN_MASK (MDB_REVERSEKEY | MDB_DUPSORT | MDB_INTEGERKEY |  \
                 MDB_DUPFIXED | MDB_INTEGERDUP | MDB_REVERSEDUP | MDB_CREATE)
 
 
-#define TST(thecmd)	do { rc = (thecmd); if (rc) { errinfo.file = __FILE__; errinfo.line = __LINE__; \
+#define TST(thecmd) do { rc = (thecmd); if (rc) { errinfo.file = __FILE__; errinfo.line = __LINE__; \
                          errinfo.cmd = #thecmd; goto error; } } while(0)
 
 
@@ -53,7 +53,7 @@ static dbmdb_descinfo_t dbmdb_descinfo[] = {
 typedef struct {
     struct backend *be;
     dbmdb_ctx_t *ctx;
-    dbmdb_dbi_t *dbi;	     /* Result dbi (in add case) or selected dbi */
+    dbmdb_dbi_t *dbi;        /* Result dbi (in add case) or selected dbi */
     MDB_txn *txn;
     int rc;                  /* used in avl_apply callbacks */
     const char *func;        /* Calling function name */
@@ -138,13 +138,13 @@ char *dbmdb_build_dbname(backend *be, const char *filename)
     PR_ASSERT(filename[0] != '/');
     if (strchr(filename, '/')) {
         return slapi_ch_smprintf("%s%s", filename, suffix);
-    } 
+    }
     if (!be) {
         return slapi_ch_strdup(filename);
     } else {
         ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
         return slapi_ch_smprintf("%s/%s%s", inst->inst_name, filename, suffix);
-    } 
+    }
 }
 
 int cmp_dbi_names(const void *i1, const void *i2)
@@ -168,7 +168,7 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
     octx->dbi = NULL;
     treekey.dbname = dbmdb_build_dbname(be, fname);
     node = tfind(&treekey, &ctx->dbis_treeroot, cmp_dbi_names);
-	
+
     if (node) {
         /* Already open - just returns the dbi */
         slapi_ch_free((void**)&treekey.dbname);
@@ -242,7 +242,7 @@ add_index_dbi(struct attrinfo *ai, dbi_open_ctx_t *octx)
 
 
 /* Open/creat all the dbis to avoid opening the db in operation towards this backend
- *  There are nasty issues if file is created but its parent txn get aborted 
+ *  There are nasty issues if file is created but its parent txn get aborted
  * So lets open all dbis right now (to insure dbi are open when starting
  *  an instance or when its configuration change) (should include the changelog too )
  */
@@ -286,17 +286,17 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
             slapi_log_error(SLAPI_LOG_ERR, "dbmdb_open_all_files", "unexpected non nul terminated key in __DBNAMES database.\n");
         } else {
             dbistate_t *st = data.mv_data;
-		    TST(add_dbi(&octx, NULL, key.mv_data, ((st->flags|mask)&~flags) ));
+            TST(add_dbi(&octx, NULL, key.mv_data, ((st->flags|mask)&~flags) ));
         }
         rc = MDB_CURSOR_GET(cur, &key, &data, MDB_NEXT);
-	}
-    if (rc == MDB_NOTFOUND) 
+    }
+    if (rc == MDB_NOTFOUND)
         rc =  0;
 
     if (be) {
         ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
         for (i=0; special_names[i]; i++) {
-		    TST(add_dbi(&octx, be, special_names[i], flags));
+            TST(add_dbi(&octx, be, special_names[i], flags));
             sn_dbis[i] = octx.dbi;
         }
         inst->inst_id2entry = sn_dbis[0];
@@ -323,7 +323,7 @@ error:
             if (!valid_slots[i]) {
                 tdelete(&ctx->dbi_slots[i], ctx->dbis_treeroot, cmp_dbi_names);
                 slapi_ch_free((void**)&ctx->dbi_slots[i].dbname);
-			}
+            }
         }
     }
     slapi_ch_free((void**)&valid_slots);
@@ -561,7 +561,7 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
 
 void free_dbi_node(void *node)
 {
-	dbmdb_dbi_t **dbi = node;
+    dbmdb_dbi_t **dbi = node;
     slapi_ch_free((void**)&(*dbi)->dbname);
 }
 
@@ -633,7 +633,7 @@ dbmdb_list_dbis(dbmdb_ctx_t *ctx, backend *be, char *fname, int islocked, int *s
         node = tfind(&treekey, &ctx->dbis_treeroot, cmp_dbi_names);
         slapi_ch_free((void**)&treekey.dbname);
         octx.dbilist = (dbmdb_dbi_t **)slapi_ch_calloc(2, sizeof (dbmdb_dbi_t *));
-        if (node) 
+        if (node)
             octx.dbilist[octx.dbilistidx++] = *node;
     } else {
         dbi_list(&octx);
@@ -846,13 +846,13 @@ int dbmdb_clear_dirty_flags(struct backend *be)
     octx.txn = TXN(txn);
     if (rc) {
         return dbmdb_map_error(__FUNCTION__, rc);
-    }    
+    }
     oldflaglist = (int*)slapi_ch_calloc(ctx->startcfg.max_dbs+1, sizeof (int *));
     dbilist = dbi_list(&octx);
 
     for (i = 0; !rc && dbilist[i]; i++) {
         rc = dbi_set_dirty(&octx, 0, DBIST_DIRTY, &oldflaglist[i]);
-	} 
+    }
     rc = END_TXN(&txn, rc);
     if (rc) {
         while (--i >= 0) {

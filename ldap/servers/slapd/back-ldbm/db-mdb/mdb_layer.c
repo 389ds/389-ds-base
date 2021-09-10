@@ -2483,7 +2483,6 @@ int dbmdb_public_new_cursor(dbi_db_t *db,  dbi_cursor_t *cursor)
     rc = MDB_CURSOR_OPEN(TXN(cursor->txn), dbi->dbi, (MDB_cursor**)&cursor->cur);
     if (rc==EINVAL) { /* DBG txn or dbi error */
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_new_cursor", "Failed to open cursor. txn = 0x%p (local=%d), dbi=%d (%s)\nSTACK:\n", TXN(cursor->txn), cursor->islocaltxn, dbi->dbi, dbi->dbname);
-        debug_txn_dbi(TXN(cursor->txn), dbi->dbi);
         log_stack(SLAPI_LOG_ERR);
     }
     if (rc && cursor->islocaltxn)
