@@ -4,6 +4,8 @@ import {
     Button,
     Checkbox,
     Form,
+    FormSelect,
+    FormSelectOption,
     Grid,
     GridItem,
     TextInput,
@@ -132,7 +134,30 @@ export class SuffixConfig extends React.Component {
             <div className="ds-margin-top-lg">
                 {cacheInputs}
                 <Form isHorizontal>
-                    <Grid className="ds-margin-top-lg" title="Put database in Read-Only mode (nsslapd-readonly).">
+                    <Grid
+                        className="ds-margin-top-lg"
+                        title="Set the backend type.  Warning, changing this setting could lead to unexpected database behavior."
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Backend State
+                        </GridItem>
+                        <GridItem span={9}>
+                            <FormSelect
+                                id="dbstate"
+                                value={this.props.dbstate}
+                                onChange={(str, e) => {
+                                    this.props.handleChange(e);
+                                }}
+                                aria-label="FormSelect Input"
+                            >
+                                <FormSelectOption value="backend" label="Backend" />
+                                <FormSelectOption value="disabled" label="Disabled" />
+                                <FormSelectOption value="referral" label="Referral" />
+                                <FormSelectOption value="referral on update" label="Referral On Update" />
+                            </FormSelect>
+                        </GridItem>
+                    </Grid>
+                    <Grid title="Put database in Read-Only mode (nsslapd-readonly).">
                         <GridItem span={12}>
                             <Checkbox
                                 label="Database Read-Only Mode"
@@ -145,7 +170,7 @@ export class SuffixConfig extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top" title="Block unindexed searches on this suffix (nsslapd-require-index).">
+                    <Grid title="Block unindexed searches on this suffix (nsslapd-require-index).">
                         <GridItem span={12}>
                             <Checkbox
                                 label="Block Unindexed Searches"

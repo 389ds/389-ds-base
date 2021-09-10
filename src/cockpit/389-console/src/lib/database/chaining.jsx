@@ -565,7 +565,7 @@ export class ChainingDatabaseConfig extends React.Component {
                 </TextContent>
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText><b>Default Creation Settings</b></TabTitleText>}>
-                        <div className="ds-indent">
+                        <div className="ds-indent ds-margin-bottom-md">
                             <Grid
                                 title="The size limit of entries returned over a database link (nsslapd-sizelimit)."
                                 className="ds-margin-top-xlg"
@@ -861,7 +861,6 @@ export class ChainingDatabaseConfig extends React.Component {
                             >
                                 {saveBtnName}
                             </Button>
-                            <hr />
                         </div>
                     </Tab>
                     <Tab eventKey={1} title={<TabTitleText><b>Controls & Components</b></TabTitleText>}>

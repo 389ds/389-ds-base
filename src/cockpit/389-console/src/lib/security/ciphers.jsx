@@ -478,7 +478,6 @@ export class Ciphers extends React.Component {
                     >
                         {saveBtnName}
                     </Button>
-                    <hr />
                 </div>;
         }
 

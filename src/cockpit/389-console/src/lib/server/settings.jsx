@@ -832,7 +832,7 @@ export class ServerSettings extends React.Component {
 
         if (this.state['nsslapd-disk-monitoring']) {
             diskMonitor =
-                <Form isHorizontal className="ds-margin-top-lg ds-left-indent-lg">
+                <Form isHorizontal className="ds-margin-top-lg ds-left-indent-lg ds-margin-bottom">
                     <Grid
                         title="The available disk space, in bytes, that will trigger the shutdown process. Default is 2mb. Once below half of the threshold then we enter the shutdown mode. (nsslapd-disk-monitoring-threshold)"
                     >
@@ -901,7 +901,7 @@ export class ServerSettings extends React.Component {
                 </div>;
         } else {
             body =
-                <div>
+                <div className="ds-margin-bottom-md">
                     <Grid>
                         <GridItem span={3}>
                             <TextContent>
@@ -1390,7 +1390,6 @@ export class ServerSettings extends React.Component {
                                 >
                                     {saveBtnName}
                                 </Button>
-                                <hr />
                             </Tab>
                         </Tabs>
                     </div>

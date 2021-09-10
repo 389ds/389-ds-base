@@ -27,7 +27,7 @@ import {
     faLeaf,
     faTree,
 } from '@fortawesome/free-solid-svg-icons';
-import { numToCommas, displayBytes } from '../tools.jsx';
+import { numToCommas, displayBytes, log_cmd } from '../tools.jsx';
 
 export class SuffixMonitor extends React.Component {
     constructor (props) {
@@ -135,6 +135,7 @@ export class SuffixMonitor extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "backend", this.props.suffix
         ];
+        log_cmd("refreshSuffixCache", "Get suffix monitor", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -298,7 +299,7 @@ export class SuffixMonitor extends React.Component {
                             <div className="ds-margin-top">
                                 <Grid hasGutter>
                                     <GridItem span={6}>
-                                        <Card>
+                                        <Card isHoverable>
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
@@ -344,7 +345,7 @@ export class SuffixMonitor extends React.Component {
                                         </Card>
                                     </GridItem>
                                     <GridItem span={6}>
-                                        <Card>
+                                        <Card isHoverable>
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
@@ -402,43 +403,44 @@ export class SuffixMonitor extends React.Component {
                                     Entry Cache Hit Ratio:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.entrycachehitratio}%</b>
-                                </GridItem>
-                                <GridItem span={3}>
-                                    Entry Cache Tries:
-                                </GridItem>
-                                <GridItem span={2}>
-                                    <b>{numToCommas(this.state.data.entrycachetries)}</b>
-                                </GridItem>
-                                <GridItem span={3}>
-                                    Entry Cache Hits:
-                                </GridItem>
-                                <GridItem span={2}>
-                                    <b>{numToCommas(this.state.data.entrycachehits)}</b>
+                                    <b>{this.state.data.entrycachehitratio[0]}%</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     Entry Cache Max Size:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{displayBytes(this.state.data.maxentrycachesize)} </b>
+                                    <b>{displayBytes(cachemax)} </b>
+                                </GridItem>
+
+                                <GridItem span={3}>
+                                    Entry Cache Hits:
+                                </GridItem>
+                                <GridItem span={2}>
+                                    <b>{numToCommas(this.state.data.entrycachehits[0])}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     Entry Cache Current Size:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{displayBytes(this.state.data.currententrycachesize)}</b>
+                                    <b>{displayBytes(cachecurr)}</b>
+                                </GridItem>
+                                <GridItem span={3}>
+                                    Entry Cache Tries:
+                                </GridItem>
+                                <GridItem span={2}>
+                                    <b>{numToCommas(this.state.data.entrycachetries[0])}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     Entry Cache Max Entries:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{numToCommas(this.state.data.maxentrycachecount)}</b>
+                                    <b>{numToCommas(this.state.data.maxentrycachecount[0])}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     Entry Cache Count:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{numToCommas(this.state.data.currententrycachecount)}</b>
+                                    <b>{numToCommas(this.state.data.currententrycachecount[0])}</b>
                                 </GridItem>
                             </Grid>
                         </Tab>
@@ -446,7 +448,7 @@ export class SuffixMonitor extends React.Component {
                             <div className="ds-margin-top">
                                 <Grid hasGutter>
                                     <GridItem span={6}>
-                                        <Card>
+                                        <Card isHoverable>
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
@@ -492,7 +494,7 @@ export class SuffixMonitor extends React.Component {
                                         </Card>
                                     </GridItem>
                                     <GridItem span={6}>
-                                        <Card>
+                                        <Card isHoverable>
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
@@ -550,43 +552,43 @@ export class SuffixMonitor extends React.Component {
                                     DN Cache Hit Ratio:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.dncachehitratio}%</b>
-                                </GridItem>
-                                <GridItem span={3}>
-                                    DN Cache Tries:
-                                </GridItem>
-                                <GridItem span={2}>
-                                    <b>{numToCommas(this.state.data.dncachetries)}</b>
-                                </GridItem>
-                                <GridItem span={3}>
-                                    DN Cache Hits:
-                                </GridItem>
-                                <GridItem span={2}>
-                                    <b>{numToCommas(this.state.data.dncachehits)}</b>
+                                    <b>{this.state.data.dncachehitratio[0]}%</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     DN Cache Max Size:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{displayBytes(this.state.data.maxdncachesize)}</b>
+                                    <b>{displayBytes(dncachemax)}</b>
+                                </GridItem>
+                                <GridItem span={3}>
+                                    DN Cache Hits:
+                                </GridItem>
+                                <GridItem span={2}>
+                                    <b>{numToCommas(this.state.data.dncachehits[0])}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     DN Cache Current Size:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{displayBytes(this.state.data.currentdncachesize)}</b>
+                                    <b>{displayBytes(dncachecurr)}</b>
+                                </GridItem>
+                                <GridItem span={3}>
+                                    DN Cache Tries:
+                                </GridItem>
+                                <GridItem span={2}>
+                                    <b>{numToCommas(this.state.data.dncachetries[0])}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     DN Cache Max Count:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{numToCommas(this.state.data.maxdncachecount)}</b>
+                                    <b>{numToCommas(this.state.data.maxdncachecount[0])}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     DN Cache Current Count:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{numToCommas(this.state.data.currentdncachecount)}</b>
+                                    <b>{numToCommas(this.state.data.currentdncachecount[0])}</b>
                                 </GridItem>
                             </Grid>
                         </Tab>

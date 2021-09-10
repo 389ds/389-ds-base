@@ -745,7 +745,7 @@ export class ServerErrorLog extends React.Component {
         }
 
         return (
-            <div id="server-errorlog-page" className={this.state.loading ? "ds-disabled" : ""}>
+            <div id="server-errorlog-page" className={this.state.loading ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"}>
                 <Grid>
                     <GridItem span={3}>
                         <TextContent>

@@ -458,7 +458,7 @@ export class GlobalDatabaseConfig extends React.Component {
         }
 
         return (
-            <div className={this.state.saving ? "ds-disabled" : ""} id="db-global-page">
+            <div className={this.state.saving ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"} id="db-global-page">
                 {spinner}
                 <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein'}>
                     <TextContent>
@@ -753,7 +753,6 @@ export class GlobalDatabaseConfig extends React.Component {
                     >
                         {saveBtnName}
                     </Button>
-                    <hr />
                 </div>
             </div>
         );

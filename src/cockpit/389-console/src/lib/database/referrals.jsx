@@ -255,13 +255,13 @@ export class SuffixReferrals extends React.Component {
 
     render() {
         return (
-            <div className="ds-sub-header">
+            <div className="ds-sub-header ds-margin-bottom-md">
                 <ReferralTable
                     key={this.props.rows}
                     rows={this.props.rows}
                     deleteRef={this.showConfirmRefDelete}
                 />
-                <Button className="ds-margin-top" variant="primary" onClick={this.showRefModal}>
+                <Button variant="primary" onClick={this.showRefModal}>
                     Create Referral
                 </Button>
                 <DoubleConfirmModal
