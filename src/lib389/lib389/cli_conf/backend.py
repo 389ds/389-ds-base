@@ -34,6 +34,7 @@ import ldap
 arg_to_attr = {
         'lookthroughlimit': 'nsslapd-lookthroughlimit',
         'mode': 'nsslapd-mode',
+        'state': 'nsslapd-state',
         'idlistscanlimit': 'nsslapd-idlistscanlimit',
         'directory': 'nsslapd-directory',
         'dbcachesize': 'nsslapd-dbcachesize',
@@ -155,7 +156,18 @@ def backend_list(inst, basedn, log, args):
 
 def backend_get(inst, basedn, log, args):
     rdn = _get_arg(args.selector, msg="Enter %s to retrieve" % RDN)
-    _generic_get(inst, basedn, log.getChild('backend_get'), MANY, rdn, args)
+    be = _get_backend(inst, rdn)
+    be_state = be.get_state()
+    if args.json:
+        entry = be.get_all_attrs_json()
+        entry_dict = json.loads(entry)
+        entry_dict['attrs']['nsslapd-state'] = [be_state]
+        log.info(json.dumps(entry_dict, indent=4))
+    else:
+        entry = be.display()
+        updated_entry = entry[:-1]  # remove \n
+        updated_entry += "nsslapd-state: " + be_state
+        log.info(updated_entry)
 
 
 def backend_get_dn(inst, basedn, log, args):
@@ -477,6 +489,8 @@ def backend_set(inst, basedn, log, args):
         be.set('nsslapd-require-index', 'on')
     if args.ignore_index:
         be.set('nsslapd-require-index', 'off')
+    if args.state:
+        be.set_state(args.state)
     if args.enable:
         be.enable()
     if args.disable:
@@ -844,6 +858,7 @@ def create_parser(subparsers):
     set_backend_parser.add_argument('--cache-size', help='The maximum number of entries to keep in the entry cache')
     set_backend_parser.add_argument('--cache-memsize', help='The maximum size in bytes that the entry cache can grow to')
     set_backend_parser.add_argument('--dncache-memsize', help='The maximum size in bytes that the DN cache can grow to')
+    set_backend_parser.add_argument('--state', help='Change the backend state to: "database", "disabled", "referral", "referral on update"')
     set_backend_parser.add_argument('be_name', help='The backend name or suffix to delete')
 
     #########################################

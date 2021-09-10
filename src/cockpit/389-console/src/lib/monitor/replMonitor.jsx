@@ -1319,7 +1319,7 @@ export class ReplMonitor extends React.Component {
         }
 
         const reportContent =
-            <div className="ds-margin-top-lg ds-indent">
+            <div className="ds-margin-top-lg ds-indent ds-margin-bottom-md">
                 <Tabs isBox activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>{_("Prepare Report")}</TabTitleText>}>
                         <ExpandableSection
@@ -1410,7 +1410,6 @@ export class ReplMonitor extends React.Component {
                         >
                             Add Alias
                         </Button>
-                        <hr />
                     </Tab>
                     <Tab isHidden={reportData.length == 0} eventKey={1} title={<TabTitleText>{_("Report Result")}</TabTitleText>}>
                         <div className="ds-indent ds-margin-top-lg">

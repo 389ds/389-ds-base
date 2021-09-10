@@ -1149,7 +1149,7 @@ export class GlobalPwPolicy extends React.Component {
                 </div>;
         } else {
             pwp_element =
-                <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-left-margin'}>
+                <div className={this.state.loading ? 'ds-fadeout ds-margin-bottom-md' : 'ds-fadein ds-left-margin ds-margin-bottom-md'}>
                     <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab eventKey={0} title={<TabTitleText><b>General Settings</b></TabTitleText>}>
                             <Form className="ds-margin-left-sm" isHorizontal>
@@ -1342,7 +1342,6 @@ export class GlobalPwPolicy extends React.Component {
                             >
                                 {saveBtnName}
                             </Button>
-                            <hr />
                         </Tab>
                         <Tab eventKey={1} title={<TabTitleText><b>Expiration</b></TabTitleText>}>
                             <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>

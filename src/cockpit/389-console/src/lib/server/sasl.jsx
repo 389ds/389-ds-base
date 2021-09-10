@@ -661,7 +661,7 @@ export class ServerSASL extends React.Component {
                 </div>;
         } else {
             body =
-                <div className={this.state.configLoading ? "ds-disabled" : ""}>
+                <div className={this.state.configLoading ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"}>
                     <Grid>
                         <GridItem span={3}>
                             <TextContent>
@@ -771,7 +771,6 @@ export class ServerSASL extends React.Component {
                     >
                         Create New Mapping
                     </Button>
-                    <hr />
                 </div>;
         }
 

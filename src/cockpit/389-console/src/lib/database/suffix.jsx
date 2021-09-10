@@ -54,11 +54,13 @@ export class Suffix extends React.Component {
             dncachememsize: this.props.data.dncachememsize,
             readOnly: this.props.data.readOnly,
             requireIndex: this.props.data.requireIndex,
+            dbstate: this.props.data.dbstate,
             _cachememsize: this.props.data.cachememsize,
             _cachesize: this.props.data.cachesize,
             _dncachememsize: this.props.data.dncachememsize,
             _readOnly: this.props.data.readOnly,
             _requireIndex: this.props.data.requireIndex,
+            _dbstate: this.props.data.dbstate,
             savingConfig: false,
             saveBtnDisabled: true,
 
@@ -209,7 +211,7 @@ export class Suffix extends React.Component {
 
         const configAttrs = [
             'cachememsize', 'cachesize', 'dncachememsize',
-            'readOnly', 'requireIndex',
+            'readOnly', 'requireIndex', 'dbstate'
         ];
         for (const check_attr of configAttrs) {
             if (attr != check_attr) {
@@ -773,6 +775,10 @@ export class Suffix extends React.Component {
             cmd.push("--dncache-memsize=" + this.state.dncachememsize);
             requireRestart = true;
         }
+        if (this.state._dbstate != this.state.dbstate) {
+            cmd.push("--state=" + this.state.dbstate);
+            requireRestart = true;
+        }
         if (cmd.length > 7) {
             this.setState({
                 savingConfig: true
@@ -797,9 +803,13 @@ export class Suffix extends React.Component {
                     .fail(err => {
                         const errMsg = JSON.parse(err);
                         this.props.reload(this.props.suffix);
+                        let msg = errMsg.desc;
+                        if ('info' in errMsg) {
+                            msg = errMsg.desc + " - " + errMsg.info;
+                        }
                         this.props.addNotification(
                             "error",
-                            `Error updating suffix configuration - ${errMsg.desc}`
+                            `Error updating suffix configuration - ${msg}`
                         );
                         this.setState({
                             savingConfig: false
@@ -875,6 +885,7 @@ export class Suffix extends React.Component {
                                 cachememsize={this.state.cachememsize}
                                 cachesize={this.state.cachesize}
                                 dncachememsize={this.state.dncachememsize}
+                                dbstate={this.state.dbstate}
                                 readOnly={this.state.readOnly}
                                 requireIndex={this.state.requireIndex}
                                 autoTuning={this.state.autoTuning}

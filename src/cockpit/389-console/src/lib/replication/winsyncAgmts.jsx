@@ -1208,7 +1208,7 @@ export class WinsyncAgmts extends React.Component {
                     search={this.onSearchChange}
                     value={this.state.value}
                 />
-                <div className="ds-margin-top ds-container ds-inline">
+                <div className="ds-margin-top ds-container ds-inline ds-margin-bottom-md">
                     <Button
                         variant="primary"
                         onClick={this.showCreateAgmtModal}

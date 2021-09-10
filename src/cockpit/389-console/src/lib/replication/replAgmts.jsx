@@ -1538,7 +1538,7 @@ export class ReplAgmts extends React.Component {
 
     render() {
         return (
-            <div className="ds-margin-right">
+            <div className="ds-margin-right ds-margin-bottom-md">
                 <ReplAgmtTable
                     key={this.state.rows}
                     rows={this.state.rows}

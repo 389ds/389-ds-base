@@ -809,6 +809,7 @@ export class Database extends React.Component {
                             cachememsize: config.attrs['nsslapd-cachememsize'][0],
                             cachesize: config.attrs['nsslapd-cachesize'][0],
                             dncachememsize: config.attrs['nsslapd-dncachememsize'][0],
+                            dbstate: config.attrs['nsslapd-state'][0],
                             readOnly: readonly,
                             requireIndex: requireindex,
                         }
@@ -977,6 +978,7 @@ export class Database extends React.Component {
                             cachememsize: config.attrs['nsslapd-cachememsize'][0],
                             cachesize: config.attrs['nsslapd-cachesize'][0],
                             dncachememsize: config.attrs['nsslapd-dncachememsize'][0],
+                            dbstate: config.attrs['nsslapd-state'][0],
                             readOnly: readonly,
                             requireIndex: requireindex,
                         }

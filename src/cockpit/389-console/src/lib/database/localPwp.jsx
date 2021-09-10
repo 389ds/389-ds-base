@@ -120,7 +120,7 @@ class CreatePolicy extends React.Component {
         }
 
         return (
-            <div>
+            <div className="ds-margin-bottom-md">
                 <Form className="ds-margin-left ds-margin-top-xlg" isHorizontal>
                     <TextContent>
                         <Text className="ds-center" component={TextVariants.h3}>
@@ -777,7 +777,6 @@ class CreatePolicy extends React.Component {
                 >
                     Create New Policy
                 </Button>
-                <hr />
             </div>
         );
     }
