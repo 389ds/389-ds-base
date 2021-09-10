@@ -40,7 +40,7 @@
 
 
 static void dbmdb_import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);
-static int dbmdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, dbmdb_dbi_t*db, dbi_txn_t*txn, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
+static int dbmdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, dbmdb_dbi_t **db, dbi_txn_t *txn, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
 static int _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value);
 static pseudo_back_txn_t **dbmdb_get_ptwctx(ImportJob*job, ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id);
 static pseudo_back_txn_t *dbmdb_new_wctx(ImportJob*job, ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id);
@@ -895,7 +895,7 @@ bail:
     return rc;
  }
 
-static int dbmdb_get_aux_id2entry(backend*be, dbmdb_dbi_t *dbi, char **path)
+static int dbmdb_get_aux_id2entry(backend*be, dbmdb_dbi_t **dbi, char **path)
 {
      return dbmdb_open_dbi_from_filename(dbi, be, ID2ENTRY, NULL, 0);
 }
@@ -922,8 +922,8 @@ dbmdb_index_producer(void *param)
 
 
     char *id2entry = NULL;
-    dbmdb_dbi_t db={0};
-    dbmdb_cursor_t dbc={0};
+    dbmdb_dbi_t *db = NULL;
+    dbmdb_cursor_t dbc = {0};
     MDB_val key = {0};
     MDB_val data = {0};
     char *entry_str = NULL;
@@ -967,7 +967,7 @@ dbmdb_index_producer(void *param)
     }
 
     /* get a cursor to we can walk over the table */
-     db_rval = dbmdb_open_cursor(&dbc, ctx, &db, db.state.flags|MDB_RDONLY);
+     db_rval = dbmdb_open_cursor(&dbc, ctx, db, db->state.flags|MDB_RDONLY);
      if( db_rval){
         slapi_log_err(SLAPI_LOG_ERR,
                       "dbmdb_index_producer", "Failed to get cursor for reindexing\n");
@@ -1443,7 +1443,7 @@ dbmdb_upgradedn_producer(void *param)
     struct backdn *bdn = NULL;
 
     /* vars for Berkeley MDB_dbi*/
-    dbmdb_dbi_t db={0};
+    dbmdb_dbi_t *db = NULL;
     MDB_val key = {0};
     MDB_val data = {0};
     int db_rval = -1;
@@ -1491,10 +1491,10 @@ dbmdb_upgradedn_producer(void *param)
     }
 
     /* get a cursor to we can walk over the table */
-     db_rval = dbmdb_open_cursor(&dbc, ctx,&db, db.state.flags|MDB_RDONLY);
+     db_rval = dbmdb_open_cursor(&dbc, ctx, db, db->state.flags|MDB_RDONLY);
      if (db_rval) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
-                 "Failedtoget%scursorforreindexing\n",db.dbname);
+                 "Failed to get %s cursor for reindexing\n", db->dbname);
          dblayer_release_id2entry(be,&db);
         goto error;
     }
@@ -3824,7 +3824,7 @@ dbmdb_dse_conf_verify(struct ldbminfo *li, char *src_dir)
 static int
 dbmdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
                                ldbm_instance *inst,
-                               dbmdb_dbi_t *db,
+                               dbmdb_dbi_t **db,
                                dbi_txn_t *txn,
                                ID id,
                                ID *total_id,
@@ -4223,19 +4223,19 @@ wqueue_process_item(ImportWorkerInfo *info, wqelem_t *elmt, dbi_txn_t *txn)
             rc = idl_delete_key(inst->inst_be, &slot->dbi, &dkey, iupd.id, &btxn, iupd.a);
             break;
         case IMPORT_WRITE_ACTION_ADD_VLV:
-            rc = MDB_PUT(TXN(txn), slot->dbi.dbi, &key, &data, 0);
+            rc = MDB_PUT(TXN(txn), slot->dbi->dbi, &key, &data, 0);
             if (rc) {
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_writer",
                     "Failed to add item in %s mdb database. error %d(%s).\n",
-                    elmt->slot->dbi.dbname, rc, mdb_strerror(rc));
+                    elmt->slot->dbi->dbname, rc, mdb_strerror(rc));
             }
             break;
         case IMPORT_WRITE_ACTION_DEL_VLV:
-            rc = MDB_DEL(TXN(txn), slot->dbi.dbi, &key, &data);
+            rc = MDB_DEL(TXN(txn), slot->dbi->dbi, &key, &data);
             if (rc) {
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_writer",
                     "Failed to add item in %s mdb database. error %d(%s).\n",
-                    elmt->slot->dbi.dbname, rc, mdb_strerror(rc));
+                    elmt->slot->dbi->dbname, rc, mdb_strerror(rc));
             }
             break;
         case IMPORT_WRITE_ACTION_ADD_ENTRYRDN:
@@ -4245,11 +4245,11 @@ wqueue_process_item(ImportWorkerInfo *info, wqelem_t *elmt, dbi_txn_t *txn)
             rc = handle_entryrdn_key(inst->inst_be, slot, entryrdn_delete_key, key.mv_data, data.mv_data, &btxn);
             break;
         case IMPORT_WRITE_ACTION_ADD:
-            rc = MDB_PUT(TXN(info->txn), elmt->slot->dbi.dbi, &key, &data, 0);
+            rc = MDB_PUT(TXN(info->txn), elmt->slot->dbi->dbi, &key, &data, 0);
             if (rc) {
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_writer",
                     "Failed to add item in %s mdb database. error %d(%s).\n",
-                    elmt->slot->dbi.dbname, rc, mdb_strerror(rc));
+                    elmt->slot->dbi->dbname, rc, mdb_strerror(rc));
             }
             break;
     }
@@ -4699,7 +4699,7 @@ dbmdb_writer_init(ImportJob*job)
     ldbm_instance *inst = job->inst;
     struct ldbminfo*li = inst->inst_be->be_database->plg_private;
     dbmdb_ctx_t *ctx = MDB_CONFIG(li);
-    dbmdb_dbi_t dummydbi;
+    dbmdb_dbi_t *dummydbi = NULL;
 
     job->writer_ctx = gwctx;
 

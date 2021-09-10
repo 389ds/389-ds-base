@@ -190,6 +190,7 @@ dbmdb_start(struct ldbminfo *li, int dbmode)
     return rc;
 }
 
+
 /* mode is one of
  * DBLAYER_NORMAL_MODE,
  * DBLAYER_INDEX_MODE,
@@ -203,7 +204,7 @@ dbmdb_instance_start(backend *be, int mode)
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     dbmdb_ctx_t *ctx = MDB_CONFIG(li);
     int return_value = -1;
-    dbmdb_dbi_t id2entry_dbi = {0};
+    dbmdb_dbi_t *id2entry_dbi = NULL;
 
     if (!ctx->env) {
         slapi_log_err(SLAPI_LOG_ERR,
@@ -230,14 +231,15 @@ dbmdb_instance_start(backend *be, int mode)
     }
 
 
-    /* Now attempt to open id2entry */
-    return_value = dbmdb_open_dbi_from_filename(&id2entry_dbi, be, ID2ENTRY LDBM_FILENAME_SUFFIX, NULL, MDB_CREATE);
+    /* Now attempt to open the instance files */
+    return_value = dbmdb_open_all_files(ctx, be);
     if (return_value == 0) {
-        dbmdb_mdbdbi2dbi_db(&id2entry_dbi, &inst->inst_id2entry);
-        if ((mode & DBLAYER_NORMAL_MODE) && id2entry_dbi.state.dataversion != DBMDB_CURRENT_DATAVERSION) {
-            return_value = dbmdb_ldbm_upgrade(inst, id2entry_dbi.state.dataversion);
+        id2entry_dbi = (dbmdb_dbi_t*)(inst->inst_id2entry);
+        if ((mode & DBLAYER_NORMAL_MODE) && id2entry_dbi->state.dataversion != DBMDB_CURRENT_DATAVERSION) {
+            return_value = dbmdb_ldbm_upgrade(inst, id2entry_dbi->state.dataversion);
         }
     }
+
 
     if (0 == return_value) {
         /* get nextid from disk now */
@@ -416,7 +418,7 @@ dbmdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, d
     if (0 != return_value)
         goto out;
 
-    dbmdb_mdbdbi2dbi_db(&cur.dbi, ppDB);
+    *ppDB = (dbi_db_t *)(cur.dbi);
 
 out:
     return return_value;
@@ -513,7 +515,6 @@ dbmdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_
         } else {
             /* no handle to close */
         }
-        dbmdb_close_dbi(&db);
         PR_Unlock(inst->inst_handle_list_mutex);
     }
 
@@ -708,21 +709,7 @@ dbmdb_txn_abort(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
     return return_value;
 }
 
-/* TEL:  Added startdb flag.  If set (1), the MDB_dbienvironment will be started so
- * that dbmdb_db_remove_ex will be used to remove the database files instead
- * of simply deleting them.  That is important when doing a selective restoration
- * of a single backend (FRI).  If not set (0), the traditional remove is used.
- */
-static int
-_dbmdb_delete_instance_dir(ldbm_instance *inst)
-{
-    struct ldbminfo *li = inst->inst_li;
-    dbmdb_ctx_t *conf = (dbmdb_ctx_t *)li->li_dblayer_config;
-    int rc = dbmdb_dbi_rmdir(conf, inst->inst_name);
-    return rc;
-}
-
-/* delete the db3 files in a specific backend instance --
+/* delete the db instances in a specific backend instance --
  * this is probably only used for import.
  * assumption: dblayer is open, but the instance has been closed.
  */
@@ -735,8 +722,7 @@ dbmdb_delete_instance_dir(backend *be)
     if (ret != 0) {
         return ret;
     } else {
-        ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-        return _dbmdb_delete_instance_dir(inst);
+        return dbmdb_dbi_rmdir(be);
     }
 }
 
@@ -1464,8 +1450,7 @@ dbmdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
             dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
             if (priv && priv->dblayer_env) {
                 char *instancedir;
-                dbmdb_dbi_t dbi = {0};
-                dbi_db_t *ptdbi = (dbi_db_t*) &dbi;
+                dbmdb_dbi_t *dbi = NULL;
 
                 slapi_back_get_info(be, BACK_INFO_INSTANCE_DIR, (void **)&instancedir);
                 rc = dbmdb_open_dbi_from_filename(&dbi, be, BDB_CL_FILENAME, NULL, 0);
@@ -1473,7 +1458,7 @@ dbmdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
                     /* Nothing to do */
                     rc = 0;
                 } else if (rc == 0) {
-                    rc = dbmdb_dbi_remove(MDB_CONFIG(li), &ptdbi);
+                    rc = dbmdb_dbi_remove(MDB_CONFIG(li), (dbi_db_t**)&dbi);
                 }
                 inst->inst_changelog = NULL;
                 slapi_ch_free_string(&instancedir);
@@ -1563,8 +1548,6 @@ dbi_error_t dbmdb_map_error(const char *funcname, int err)
             return DBI_RC_SUCCESS;
         case MDB_KEYEXIST:
             return DBI_RC_KEYEXIST;
-        case EINVAL:
-            return DBI_RC_NOTFOUND;
         case MDB_NOTFOUND:
             return DBI_RC_NOTFOUND;
         default:
@@ -1574,6 +1557,7 @@ dbi_error_t dbmdb_map_error(const char *funcname, int err)
             }
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_map_error",
                 "%s failed with db error %d : %s\n", funcname, err, msg);
+            log_stack(SLAPI_LOG_ERR);
             return DBI_RC_OTHER;
     }
 }
@@ -2034,7 +2018,7 @@ int dbmdb_recno_cache_search(dbmdb_recno_cache_ctx_t *rcctx)
     /* Search for GREATER OR EQUAL record */
     rcctx->key = rcctx->cache_key;
     rcctx->rce = NULL;
-    rc = dbmdb_begin_recno_cache_txn(rcctx, &txn_ctx, rcctx->rcdbi.dbi);
+    rc = dbmdb_begin_recno_cache_txn(rcctx, &txn_ctx, rcctx->rcdbi->dbi);
     if (!rc) {
         rc = MDB_CURSOR_GET(txn_ctx.cursor, &rcctx->key, &rcctx->data, MDB_SET_RANGE);
     }
@@ -2079,20 +2063,20 @@ void *dbmdb_recno_cache_build(void *arg)
 
     /* Clear the cache if it is not already empty */
     if (rc == 0) {
-        rc = dbmdb_begin_recno_cache_txn(rcctx, &txn_ctx, rcctx->dbi.dbi);
+        rc = dbmdb_begin_recno_cache_txn(rcctx, &txn_ctx, rcctx->dbi->dbi);
     }
     if (rc == 0) {
         key.mv_data = "OK";
         key.mv_size = 2;
-        rc = MDB_GET(txn_ctx.txn, rcctx->rcdbi.dbi, &key, &data);
+        rc = MDB_GET(txn_ctx.txn, rcctx->rcdbi->dbi, &key, &data);
         if (rc == 0) {
             /* Cache is already uptodate ==> nothing to build. */
             goto cache_built;
         }
         /* Lets clear the cache if it is not already empty */
-        rc = mdb_stat(txn_ctx.txn, rcctx->rcdbi.dbi, &stat);
+        rc = mdb_stat(txn_ctx.txn, rcctx->rcdbi->dbi, &stat);
         if (stat.ms_entries > 0) {
-            rc = MDB_DROP(txn_ctx.txn, rcctx->rcdbi.dbi, 0);
+            rc = MDB_DROP(txn_ctx.txn, rcctx->rcdbi->dbi, 0);
             txn_ctx.flags |= DBMDB_TXNCTX_NEED_COMMIT;
         }
     }
@@ -2105,7 +2089,7 @@ void *dbmdb_recno_cache_build(void *arg)
         }
         /* close the txn from time to time to avoid locking all dbi page */
         rc = dbmdb_end_recno_cache_txn(&txn_ctx, 0);
-        rc |= dbmdb_begin_recno_cache_txn(rcctx, &txn_ctx, rcctx->dbi.dbi);
+        rc |= dbmdb_begin_recno_cache_txn(rcctx, &txn_ctx, rcctx->dbi->dbi);
         if (rc) {
             break;
         }
@@ -2135,11 +2119,11 @@ void *dbmdb_recno_cache_build(void *arg)
         rcdata.mv_data = rce;
         rcdata.mv_size = len;
         dbmdb_generate_recno_cache_key_by_recno(&rckey, recno);
-        rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi.dbi, &rckey, &rcdata, 0);
+        rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi->dbi, &rckey, &rcdata, 0);
         slapi_ch_free(&rckey.mv_data);
         if (rc == 0) {
             dbmdb_generate_recno_cache_key_by_data(&rckey, &key, &data);
-            rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi.dbi, &rckey, &rcdata, 0);
+            rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi->dbi, &rckey, &rcdata, 0);
             slapi_ch_free(&rckey.mv_data);
             txn_ctx.flags |= DBMDB_TXNCTX_NEED_COMMIT;
         }
@@ -2151,7 +2135,7 @@ void *dbmdb_recno_cache_build(void *arg)
         /* Mark the cache as valid */
         rckey.mv_data = "OK";
         rckey.mv_size = 2;
-        rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi.dbi, &rckey, &rckey, 0);
+        rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi->dbi, &rckey, &rckey, 0);
         txn_ctx.flags |= DBMDB_TXNCTX_NEED_COMMIT;
     }
 cache_built:
@@ -2497,6 +2481,11 @@ int dbmdb_public_new_cursor(dbi_db_t *db,  dbi_cursor_t *cursor)
         cursor->islocaltxn = PR_TRUE;
     }
     rc = MDB_CURSOR_OPEN(TXN(cursor->txn), dbi->dbi, (MDB_cursor**)&cursor->cur);
+    if (rc==EINVAL) { /* DBG txn or dbi error */
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_new_cursor", "Failed to open cursor. txn = 0x%p (local=%d), dbi=%d (%s)\nSTACK:\n", TXN(cursor->txn), cursor->islocaltxn, dbi->dbi, dbi->dbname);
+        debug_txn_dbi(TXN(cursor->txn), dbi->dbi);
+        log_stack(SLAPI_LOG_ERR);
+    }
     if (rc && cursor->islocaltxn)
         END_TXN(&cursor->txn, rc);
     return dbmdb_map_error(__FUNCTION__, rc);
@@ -2608,7 +2597,7 @@ dbmdb_public_private_open(backend *be, const char *db_filename, dbi_env_t **env,
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     dbmdb_ctx_t *ctx = (dbmdb_ctx_t*) slapi_ch_calloc(1, sizeof *ctx);
-    dbmdb_dbi_t dbi = {0};
+    dbmdb_dbi_t *dbi = NULL;
     const char *dbname = NULL;
 
     li->li_dblayer_config = ctx;
@@ -2626,7 +2615,7 @@ dbmdb_public_private_open(backend *be, const char *db_filename, dbi_env_t **env,
     if (rc) {
         return dbmdb_map_error(__FUNCTION__, rc);
     }
-    dbmdb_mdbdbi2dbi_db(&dbi, db);
+    *db = (dbi_db_t *)dbi;
 
     return 0;
 }
@@ -2658,17 +2647,15 @@ dbmdb_public_in_import(ldbm_instance *inst)
 {
     struct ldbminfo *li = inst->inst_li;
     dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+    dbmdb_dbi_t **dbilist = NULL;
+    int size = 0;
     int rval = 0;
-    int len;
     int i;
 
-    for (i=0; i<ctx->nbdbis; i++) {
-        len = strlen(ctx->dbis[i].dbname);
-        if (strncmp(li->li_directory, ctx->dbis[i].dbname, len) == 0 &&
-            ctx->dbis[i].dbname[len] == '/') {
-            continue;
-        }
-        if (ctx->dbis[i].state.state & DBIST_DIRTY) {
+    dbilist = dbmdb_list_dbis(ctx, inst->inst_be, NULL, PR_FALSE, &size);
+
+    for (i=0; i<size; i++) {
+        if (dbilist[i]->state.state & DBIST_DIRTY) {
             rval = 1;
             break;
         }
@@ -2774,7 +2761,7 @@ int
 dbmdb_public_clear_vlv_cache(Slapi_Backend *be, dbi_txn_t *txn, dbi_db_t *db)
 {
     char *rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, ((dbmdb_dbi_t*)db)->dbname);
-    dbmdb_dbi_t rcdbi = {0};
+    dbmdb_dbi_t *rcdbi = NULL;
     MDB_val ok = { 0 };
     int rc = 0;
 
@@ -2782,9 +2769,8 @@ dbmdb_public_clear_vlv_cache(Slapi_Backend *be, dbi_txn_t *txn, dbi_db_t *db)
     ok.mv_size = 2;
     rc = dbmdb_open_dbi_from_filename(&rcdbi, be, rcdbname, NULL, 0);
     if (rc == 0) {
-        rc = MDB_DEL(TXN(txn), rcdbi.dbi, &ok, &ok);
+        rc = MDB_DEL(TXN(txn), rcdbi->dbi, &ok, &ok);
     }
     slapi_ch_free_string(&rcdbname);
-    slapi_ch_free_string((char**)&rcdbi.dbname);
     return rc;
 }

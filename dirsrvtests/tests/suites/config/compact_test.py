@@ -2,6 +2,7 @@ import logging
 import pytest
 import os
 import time
+from lib389.utils import get_default_db_lib
 from lib389.tasks import DBCompactTask
 from lib389.backend import DatabaseConfig
 from lib389.topologies import topology_m1 as topo
@@ -43,9 +44,12 @@ def test_compact_db_task(topo):
     task.wait()
     assert task.get_exit_code() == 0
 
-    # Check errors log to make sure task only performed changelog compaction
-    assert inst.searchErrorsLog("Compacting DB") == False
-    assert inst.searchErrorsLog("Compacting Replication Changelog")
+    # On bdb, check errors log to make sure task only performed changelog compaction
+    # Note: as mdb contains a single map file (the justChangelog flags has
+    #       no impact (and whole db is compacted))
+    if get_default_db_lib() == "bdb":
+        assert inst.searchErrorsLog("Compacting DB") == False
+        assert inst.searchErrorsLog("Compacting Replication Changelog")
     inst.deleteErrorLogs(restart=False)
 
 

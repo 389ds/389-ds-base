@@ -2005,7 +2005,6 @@ dbmdb_public_dbmdb_import_main(void *arg)
     int aborted = 0;
     ImportWorkerInfo *producer = NULL;
     char *opstr = "Import";
-    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     dbi_txn_t *txn = NULL;
 
     if (job->task) {
@@ -2365,7 +2364,7 @@ error:
     if((!ret) && (job->skipped)) {
         ret |= WARN_SKIPPED_IMPORT_ENTRY;
     }
-    dbmdb_clear_dirty_flags(MDB_CONFIG(li), inst->inst_name);
+    dbmdb_clear_dirty_flags(be);
 
     /* This instance isn't busy anymore */
     instance_set_not_busy(job->inst);

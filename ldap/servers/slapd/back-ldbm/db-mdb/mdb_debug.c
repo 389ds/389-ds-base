@@ -144,6 +144,23 @@ void dbmdb_format_dbslist_info(char *info, dbmdb_dbi_t *dbi)
 }
 
 
+void log_stack(int loglvl)
+{
+    /* Log stack (1 error message per frame to avoid log framework buffer overflow) */
+    void *frames[50];
+    char **symbols;
+    int nbframes;
+    int i;
+
+    nbframes = backtrace(frames, (sizeof frames)/sizeof frames[0]);
+    symbols = backtrace_symbols(frames, nbframes);
+    if (symbols) {
+        for (i=0; i<nbframes; i++) {
+           slapi_log_err(loglvl, "log_stack", "\t[%d]\t%s\n", i, symbols[i]);
+        }
+        free(symbols);
+    }
+}
 #if DBMDB_DEBUG
 /* MDB API Debug dhould be completed I only added the function that I wanted to trace */
 
@@ -494,7 +511,7 @@ dbg_import_elmt(const char *file, int lineno, const char *funcname, const char *
     dbgval2str(keystr, sizeof keystr, &key);
     dbgval2str(datastr, sizeof datastr, &data);
 
-    dbi_str = elmt2->slot->dbi.dbname;
+    dbi_str = elmt2->slot->dbi->dbname;
     if (!dbi_str)
     dbi_str = elmt2->slot->dbipath;
     if (!dbi_str)

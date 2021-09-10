@@ -2311,7 +2311,7 @@ _get_and_add_parent_rdns(backend *be,
         key.mv_data = &storedid;
 
         memset(&data, 0, sizeof(data));
-        rc = mdb_get(TXN(cur->txn), cur->dbi.dbi, &key, &data);
+        rc = mdb_get(TXN(cur->txn), cur->dbi->dbi, &key, &data);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
                           "Failed to position cursor at ID " ID_FMT "\n", id);

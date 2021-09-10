@@ -18,9 +18,10 @@ void dbmdb_format_dbslist_info(char *info, dbmdb_dbi_t *dbi);
 extern int dbgmdb_level; /* defined in mdb_debug.c */
 void dbg_log(const char *file, int lineno, const char *funcname, int loglevel, char *fmt, ...);
 void dbgval2str(char *buff, size_t bufsiz, MDB_val *val);
+void log_stack(int loglvl);
 
-/* #define DBMDB_DEBUG 1 */
-#define DBGMDB_LEVEL_DEFAULT DBGMDB_LEVEL_MDBAPI
+#define DBMDB_DEBUG 1
+#define DBGMDB_LEVEL_DEFAULT DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_TXN
 
 /* Define the wrapper associated with each log level */
 #ifdef DBMDB_DEBUG
@@ -57,6 +58,8 @@ int dbg_mdb_drop(const char *file, int lineno, const char *funcname, MDB_txn *tx
 
 int dbg_txn_begin(const char *file, int lineno, const char *funcname, MDB_env *env, MDB_txn *parent_txn, int flags, MDB_txn **txn);
 int dbg_txn_end(const char *file, int lineno, const char *funcname, MDB_txn *txn, int iscommit);
+void debug_txn_dbi(MDB_txn *txn, MDB_dbi dbi);
+
 
 #else /* DBMDB_DEBUG */
 
