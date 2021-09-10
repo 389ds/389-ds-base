@@ -1330,7 +1330,7 @@ preop_modrdn(Slapi_PBlock *pb)
      * determining which managed tree this belongs to
      */
     if (!destinationSDN)
-        destinationSDN = sourceSDN;
+        slapi_sdn_get_parent(sourceSDN, destinationSDN);
 
     /* Get the new RDN - this has the attribute values */
     err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &rdn);
