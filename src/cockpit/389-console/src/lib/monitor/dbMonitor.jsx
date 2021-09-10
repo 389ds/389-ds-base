@@ -230,7 +230,7 @@ export class DatabaseMonitor extends React.Component {
                 <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText><b>Database Cache</b></TabTitleText>}>
                         <div className="ds-margin-top">
-                            <Card>
+                            <Card isHoverable>
                                 <CardBody>
                                     <div className="ds-container">
                                         <div className="ds-center">
@@ -326,7 +326,7 @@ export class DatabaseMonitor extends React.Component {
                         <div className="ds-margin-top-lg">
                             <Grid hasGutter>
                                 <GridItem span={6}>
-                                    <Card>
+                                    <Card isHoverable>
                                         <CardBody>
                                             <div className="ds-container">
                                                 <div className="ds-center">
@@ -372,7 +372,7 @@ export class DatabaseMonitor extends React.Component {
                                     </Card>
                                 </GridItem>
                                 <GridItem span={6}>
-                                    <Card>
+                                    <Card isHoverable>
                                         <CardBody>
                                             <div className="ds-container">
                                                 <div className="ds-center">

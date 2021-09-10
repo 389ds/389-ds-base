@@ -603,7 +603,7 @@ export class ReplConfig extends React.Component {
                             onToggle={this.onToggle}
                             isExpanded={this.state.isExpanded}
                         >
-                            <div className="ds-margin-top ds-margin-left">
+                            <div className="ds-margin-top ds-margin-left ds-margin-bottom-md">
                                 <Grid
                                     title="The DN of the replication manager group"
                                     className="ds-margin-top"
@@ -817,7 +817,6 @@ export class ReplConfig extends React.Component {
                                         </Button>
                                     </GridItem>
                                 </Grid>
-                                <hr />
                             </div>
                         </ExpandableSection>
                     </Form>

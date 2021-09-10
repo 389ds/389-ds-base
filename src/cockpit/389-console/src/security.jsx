@@ -818,7 +818,7 @@ export class Security extends React.Component {
             let configPage = "";
             if (this.state.securityEnabled) {
                 configPage =
-                    <div>
+                    <div className="ds-margin-bottom-md">
                         <Form isHorizontal autoComplete="off">
                             <Grid
                                 title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  This parameter specifically sets what interface to use for TLS traffic.  Requires restart. (nsslapd-securelistenhost)."
@@ -1031,12 +1031,11 @@ export class Security extends React.Component {
                         >
                             {saveBtnName}
                         </Button>
-                        <hr />
                     </div>;
             }
 
             securityPage =
-                <div>
+                <div className="ds-margin-bottom-md">
                     <Grid>
                         <GridItem span={6}>
                             <TextContent>

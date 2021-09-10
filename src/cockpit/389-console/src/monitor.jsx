@@ -944,6 +944,7 @@ export class Monitor extends React.Component {
                                 bename={this.state.bename}
                                 enableTree={this.enableTree}
                                 key={this.state.node_text}
+                                addNotification={this.props.addNotification}
                             />;
                     }
                 }

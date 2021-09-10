@@ -410,7 +410,7 @@ export class VLVIndexes extends React.Component {
 
     render() {
         return (
-            <div className="ds-tab-table">
+            <div className="ds-tab-table ds-margin-bottom-md">
                 <VLVTable
                     rows={this.props.vlvItems}
                     key={this.props.vlvItems}
@@ -421,7 +421,6 @@ export class VLVIndexes extends React.Component {
                     updating={this.state.updating}
                 />
                 <Button
-                    className="ds-margin-top"
                     variant="primary"
                     onClick={this.showVLVModal}
                 >

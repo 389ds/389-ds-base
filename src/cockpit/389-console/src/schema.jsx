@@ -1389,7 +1389,7 @@ export class Schema extends React.Component {
             );
         } else {
             schemaPage = (
-                <div className="ds-indent ds-margin-top-xlg">
+                <div className="ds-indent ds-margin-top-xlg ds-margin-bottom-md">
                     <Tabs isBox activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab eventKey={0} title={<TabTitleText>Objectclasses</TabTitleText>}>
                             <div className="ds-margin-top-xlg ds-indent">
@@ -1416,7 +1416,6 @@ export class Schema extends React.Component {
                                 >
                                     Add ObjectClass
                                 </Button>
-                                <hr />
                                 <ObjectClassModal
                                     addHandler={this.addObjectclass}
                                     editHandler={this.editObjectclass}
@@ -1479,7 +1478,6 @@ export class Schema extends React.Component {
                                 >
                                     Add Attribute
                                 </Button>
-                                <hr />
                                 <AttributeTypeModal
                                     addHandler={this.addAttribute}
                                     editHandler={this.editAttribute}

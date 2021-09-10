@@ -260,7 +260,7 @@ export class ServerTuning extends React.Component {
                 </div>;
         } else {
             body =
-                <div className={this.state.loading ? "ds-disabled" : ""}>
+                <div className={this.state.loading ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"}>
                     <Grid>
                         <GridItem span={3}>
                             <TextContent>
@@ -602,7 +602,6 @@ export class ServerTuning extends React.Component {
                     >
                         {saveBtnName}
                     </Button>
-                    <hr />
                 </div>;
         }
 
