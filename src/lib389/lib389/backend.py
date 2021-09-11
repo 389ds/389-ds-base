@@ -844,6 +844,37 @@ class Backend(DSLdapObject):
     def get_cos_templates(self):
         return CosTemplates(self._instance, self._dn).list()
 
+    def get_state(self):
+            suffix = self.get_attr_val_utf8('nsslapd-suffix')
+            try:
+                mt = self._mts.get(suffix)
+            except ldap.NO_SUCH_OBJECT:
+                raise ValueError("Backend missing mapping tree entry, unable to get state")
+            return mt.get_attr_val_utf8('nsslapd-state')
+
+    def set_state(self, new_state):
+        new_state = new_state.lower()
+        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+        try:
+            mt = self._mts.get(suffix)
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError("Backend missing mapping tree entry, unable to set configuration")
+
+        if new_state not in ['backend', 'disabled', 'referral', 'referral on update']:
+            raise ValueError(f"Invalid backend state {new_state}, value must be one of the following: 'backend', 'disabled', 'referral', 'referral on update'")
+
+        # Can not change state of replicated backend
+        replicas = Replicas(self._instance)
+        try:
+            # Check if replication is enabled
+            replicas.get(suffix)
+            raise ValueError("Can not change the backend state of a replicated suffix")
+        except ldap.NO_SUCH_OBJECT:
+            pass
+
+        # Ok, change the state
+        mt.replace('nsslapd-state', new_state)
+
 
 class Backends(DSLdapObjects):
     """DSLdapObjects that represents DN_LDBM base DN
