@@ -252,8 +252,11 @@ my $totalEtime = 0.0;
 my $totalWtime = 0.0;
 my $totalOpTime = 0.0;
 my $etimeCount = 0;
+my $etimeAvg = 0;
 my $wtimeCount = 0;
+my $wtimeAvg = 0;
 my $opTimeCount = 0;
+my $optimeAvg = 0;
 my %cipher = ();
 my @removefiles = ();
 
@@ -869,12 +872,15 @@ sub dummy {
 
 print "\n";
 if ($wtimeCount ne "0") {
-	print sprintf "Average wtime (wait time):     %.9f\n", $totalWtime / $wtimeCount;
+	$wtimeAvg = $totalWtime / $wtimeCount;
+	print sprintf "Average wtime (wait time):     %.9f\n", $wtimeAvg;
 }
 if ($opTimeCount ne "0") {
-	print sprintf "Average optime (op time):      %.9f\n", $totalOpTime / $opTimeCount;
+	$optimeAvg = $totalOpTime / $opTimeCount;
+	print sprintf "Average optime (op time):      %.9f\n", $optimeAvg;
 }
-print sprintf "Average etime (elapsed time):  %.9f\n", $totalEtime / $etimeCount;
+$etimeAvg = $totalEtime / $etimeCount;
+print sprintf "Average etime (elapsed time):  %.9f\n", $etimeAvg;
 
 print "\n";
 print "Proxied Auth Operations:       $proxiedAuthCount\n";
@@ -1458,29 +1464,22 @@ if ($usage =~ /l/ || $verb eq "yes"){
 #                                                            #
 ##############################################################
 
-my $first;
 if ($usage =~ /t/i || $verb eq "yes"){
-	# Print the elapsed times (etime)
-
+	# Elapsed times (etime)
 	my $etime = $hashes->{etime};
 	my @ekeys = keys %{$etime};
-	# print most often etimes
+	# Print most frequent etimes
 	print "\n\n----- Top $sizeCount Most Frequent etimes (elapsed times) -----\n\n";
 	my $eloop = 0;
-	my $retime = 0;
 	foreach my $et (sort { $etime->{$b} <=> $etime->{$a} } @ekeys) {
 		if ($eloop == $sizeCount) { last; }
-		if ($retime ne "2"){
-			$first = $et;
-			$retime = "2";
-		}
-		printf "%-8s        %-12s\n", $etime->{ $et }, "etime=$et";
+		printf "%-12s    %-10s\n","etime=$et",$etime->{ $et };
 		$eloop++;
 	}
 	if ($eloop == 0) {
 		print "None";
 	}
-	# print longest etimes
+	# Print longest etimes
 	print "\n\n----- Top $sizeCount Longest etimes (elapsed times) -----\n\n";
 	$eloop = 0;
 	foreach my $et (sort { $b <=> $a } @ekeys) {
@@ -1492,27 +1491,21 @@ if ($usage =~ /t/i || $verb eq "yes"){
 		print "None";
 	}
 
-	# Print the wait times (wtime)
-
+	# Wait times (wtime)
 	my $wtime = $hashes->{wtime};
 	my @wkeys = keys %{$wtime};
-	# print most often wtimes
+	# Print most often wtimes
 	print "\n\n----- Top $sizeCount Most Frequent wtimes (wait times) -----\n\n";
 	$eloop = 0;
-	$retime = 0;
 	foreach my $et (sort { $wtime->{$b} <=> $wtime->{$a} } @wkeys) {
 		if ($eloop == $sizeCount) { last; }
-		if ($retime ne "2"){
-			$first = $et;
-			$retime = "2";
-		}
-		printf "%-8s        %-12s\n", $wtime->{ $et }, "wtime=$et";
+		printf "%-12s    %-10s\n","wtime=$et",$wtime->{ $et };
 		$eloop++;
 	}
 	if ($eloop == 0) {
 		print "None";
 	}
-	# print longest wtimes
+	# Print longest wtimes
 	print "\n\n----- Top $sizeCount Longest wtimes (wait times) -----\n\n";
 	$eloop = 0;
 	foreach my $et (sort { $b <=> $a } @wkeys) {
@@ -1524,27 +1517,21 @@ if ($usage =~ /t/i || $verb eq "yes"){
 		print "None";
 	}
 
-	# Print the operation times (optime)
-
+	# Operation times (optime)
 	my $optime = $hashes->{optime};
 	my @opkeys = keys %{$optime};
-	# print most often optimes
+	# Print most often optimes
 	print "\n\n----- Top $sizeCount Most Frequent optimes (actual operation times) -----\n\n";
 	$eloop = 0;
-	$retime = 0;
 	foreach my $et (sort { $optime->{$b} <=> $optime->{$a} } @opkeys) {
 		if ($eloop == $sizeCount) { last; }
-		if ($retime ne "2"){
-			$first = $et;
-			$retime = "2";
-		}
-		printf "%-8s        %-12s\n", $optime->{ $et }, "optime=$et";
+		printf "%-12s    %-10s\n","optime=$et",$optime->{ $et };
 		$eloop++;
 	}
 	if ($eloop == 0) {
 		print "None";
 	}
-	# print longest optimes
+	# Print longest optimes
 	print "\n\n----- Top $sizeCount Longest optimes (actual operation times) -----\n\n";
 	$eloop = 0;
 	foreach my $et (sort { $b <=> $a } @opkeys) {
@@ -1751,8 +1738,16 @@ if ($usage =~ /j/i || $verb eq "yes"){
 		print "\n $recCount.  You have more abnormal connection codes than cleanly closed connections.  You may want to investigate this difference.\n";
 		$recCount++;
 	}
-	if ($first > 0){
-		print "\n $recCount.  You have a majority of etimes that are greater than zero, you may want to investigate this performance problem.\n";
+	if (sprintf("%.1f", $etimeAvg)  > 0){
+		print "\n $recCount.  Your average etime is $etimeAvg, you may want to investigate this performance problem.\n";
+		$recCount++;
+	}
+	if (sprintf("%.2f", $wtimeAvg)  > 0){
+		print "\n $recCount.  Your average wtime is $wtimeAvg, you may want to investigate this performance problem.\n";
+		$recCount++;
+	}
+	if (sprintf("%.1f", $optimeAvg)  > 0){
+		print "\n $recCount.  Your average optime is $optimeAvg, you may want to investigate this performance problem.\n";
 		$recCount++;
 	}
 	if ($objectclassTopCount > ($srchCount *.25)){
@@ -1812,7 +1807,7 @@ sub displayUsage {
 	print "                 b       Bind Stats\n";
 	print "                 a       Search Base Stats\n";
 	print "                 l       Search Filter Stats\n";
-	print "                 t       Etime Stats\n";
+	print "                 t       Etime, Wtime, Optime Stats\n";
 	print "                 n       Nentries Stats\n";
 	print "                 x       Extended Operations\n";
 	print "                 r       Most Requested Attribute Stats\n";
