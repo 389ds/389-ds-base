@@ -366,14 +366,16 @@ dbmdb_ldif2db(Slapi_PBlock *pb)
     dbmdb_delete_instance_dir(inst->inst_be);
     /* it's okay to fail -- the directory might have already been deleted */
 
+    /* vlv_init should be called before dbmdb_instance_start
+     * so the vlv dbi get created
+     */
+    vlv_init(inst);
     /* dbmdb_instance_start will init the id2entry index. */
     /* it also (finally) fills in inst_dir_name */
     ret = dbmdb_instance_start(inst->inst_be, DBLAYER_IMPORT_MODE);
     if (ret != 0) {
         goto fail;
     }
-
-    vlv_init(inst);
 
     /***** done init limdb and dblayer *****/
 
@@ -1391,15 +1393,16 @@ dbmdb_db2index(Slapi_PBlock *pb)
             return return_value;
         }
 
+        /* vlv_init should be called before dbmdb_instance_start
+         * so the vlv dbi get created by dbmdb_instance_start
+         */
+        vlv_init(inst);
         /* dblayer_instance_start will init the id2entry index. */
         if (0 != dblayer_instance_start(be, DBLAYER_INDEX_MODE)) {
             slapi_task_log_notice(task, "Failed to start instance: %s", instance_name);
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_db2index", "db2ldif: Failed to start instance\n");
             return return_value;
         }
-
-        /* Initialise the Virtual List View code */
-        vlv_init(inst);
     }
 
     /* make sure no other tasks are going, and set the backend readonly */
@@ -1421,35 +1424,6 @@ dbmdb_db2index(Slapi_PBlock *pb)
         goto err_min;
     }
 
-    /* get a cursor to we can walk over the table */
-    rc = dbmdb_open_cursor(&cur, MDB_CONFIG(li), db, 0);
-    if (0 != rc) {
-        slapi_task_log_notice(task,
-                "%s: Failed to get database cursor for ldbm2index",
-                inst->inst_name);
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dbmdb_db2index", "%s: Failed to get cursor for ldbm2index\n",
-                      inst->inst_name);
-        goto err_min;
-    }
-
-    /* ask for the last id so we can give cute percentages */
-    rc = MDB_CURSOR_GET(cur.cur, &key, &data, MDB_LAST);
-    if (rc == MDB_NOTFOUND) {
-        lastid = 0;
-        isfirst = 0; /* neither a first nor a last */
-    } else if (rc == 0) {
-        lastid = id_stored_to_internal((char *)key.mv_data);
-        isfirst = 1;
-    } else {
-        slapi_task_log_notice(task, "%s: Failed to seek within id2entry (BAD %d)",
-                    inst->inst_name, return_value);
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dbmdb_db2index", "%s: Failed to seek within id2entry (BAD %d)\n",
-                      inst->inst_name, return_value);
-        goto err_out;
-    }
-
     /* Work out which indexes we should build */
     /* explanation: for archaic reasons, the list of indexes is passed to
      * ldif2index as a string list, where each string either starts with a
@@ -1458,7 +1432,7 @@ dbmdb_db2index(Slapi_PBlock *pb)
      */
     /* NOTE (LK): This part in determining the attrs to reindex belongs to the layer above
      * the selection of attributes is independent of the backend implementation.
-     * butit requires a method to pass the selection to this lkower level indexing function
+     * but it requires a method to pass the selection to this lower level indexing function
      * either by extension of the pblock or the argument list
      * TBD
      */
@@ -1597,6 +1571,40 @@ dbmdb_db2index(Slapi_PBlock *pb)
             idl_free(&idl);
         }
     }
+
+    /*
+     * get a cursor to we can walk over the table
+     * Note: this should not be done earlier because we cannot open/remove/reset a dbi 
+     * once a txn is open
+     */
+    rc = dbmdb_open_cursor(&cur, MDB_CONFIG(li), db, 0);
+    if (0 != rc) {
+        slapi_task_log_notice(task,
+                "%s: Failed to get database cursor for ldbm2index",
+                inst->inst_name);
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "dbmdb_db2index", "%s: Failed to get cursor for ldbm2index\n",
+                      inst->inst_name);
+        goto err_min;
+    }
+
+    /* ask for the last id so we can give cute percentages */
+    rc = MDB_CURSOR_GET(cur.cur, &key, &data, MDB_LAST);
+    if (rc == MDB_NOTFOUND) {
+        lastid = 0;
+        isfirst = 0; /* neither a first nor a last */
+    } else if (rc == 0) {
+        lastid = id_stored_to_internal((char *)key.mv_data);
+        isfirst = 1;
+    } else {
+        slapi_task_log_notice(task, "%s: Failed to seek within id2entry (BAD %d)",
+                    inst->inst_name, return_value);
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "dbmdb_db2index", "%s: Failed to seek within id2entry (BAD %d)\n",
+                      inst->inst_name, return_value);
+        goto err_out;
+    }
+
 
     if (idl) {
         /* don't need that cursor, we have a shopping list. */
@@ -2717,16 +2725,19 @@ dbmdb_upgradednformat(Slapi_PBlock *pb)
         }
     }
 
+    if (run_from_cmdline) {
+        /* vlv_init should be called before dbmdb_instance_start 
+         * so the vlv dbi get created 
+         */
+        vlv_init(inst);
+    }
+
     /* dbmdb_instance_start will init the id2entry index. */
     be = inst->inst_be;
     if (0 != dbmdb_instance_start(be, DBLAYER_IMPORT_MODE)) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradednformat",
                       "Failed to init instance %s\n", inst->inst_name);
         goto bail;
-    }
-
-    if (run_from_cmdline) {
-        vlv_init(inst); /* Initialise the Virtual List View code */
     }
 
     rc = dbmdb_back_ldif2db(pb);

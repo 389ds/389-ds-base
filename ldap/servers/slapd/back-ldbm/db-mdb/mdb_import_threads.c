@@ -3201,6 +3201,10 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
     dbmdb_delete_instance_dir(be);
     /* it's okay to fail -- it might already be gone */
 
+    /* vlv_init should be called before dbmdb_instance_start
+     * so the vlv dbi get created
+     */
+    vlv_init(job->inst);
     /* dbmdb_instance_start will init the id2entry index. */
     /* it also (finally) fills in inst_dir_name */
     ret = dbmdb_instance_start(be, DBLAYER_IMPORT_MODE);
@@ -3210,7 +3214,6 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
     /* END OF COPIED SECTION */
 
     pthread_mutex_lock(&job->wire_lock);
-    vlv_init(job->inst);
 
     /* create thread for dbmdb_import_main, so we can return */
     thread = PR_CreateThread(PR_USER_THREAD, dbmdb_import_main, (void *)job,
@@ -4053,7 +4056,7 @@ handle_entryrdn_key(backend *be, wqslot_t *slot,
 
     if (!slot->cursor.cur) {
         memset(&slot->cursor, 0, sizeof slot->cursor);
-        rc = dblayer_new_cursor(be, &slot->dbi, db_txn, &slot->cursor);
+        rc = dblayer_new_cursor(be, slot->dbi, db_txn, &slot->cursor);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "entryrdn_index_entry",
                     "Failed to make a cursor:%s(%d)\n", dblayer_strerror(rc), rc);
@@ -4166,7 +4169,6 @@ wqueue_process_item(ImportWorkerInfo *info, wqelem_t *elmt, dbi_txn_t *txn)
     back_txn btxn = {0};
     wqslot_t *slot = elmt->slot;
     index_update_t iupd;
-    int open_flags = 0;
     MDB_val data;
     MDB_val key;
     dbi_val_t dkey = {0};
@@ -4195,15 +4197,6 @@ wqueue_process_item(ImportWorkerInfo *info, wqelem_t *elmt, dbi_txn_t *txn)
         default:
             PR_ASSERT(0);
             abort();
-        case IMPORT_WRITE_ACTION_OPEN:
-            open_flags = MDB_MARK_DIRTY_DBI+MDB_CREATE;
-            rc = dbmdb_open_dbi_from_filename(&slot->dbi, inst->inst_be, slot->dbipath, NULL, open_flags);
-            if (rc) {
-                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_writer",
-                    "Failed to open %s database instance. Error:%d(%s).\n",
-                    slot->dbipath, rc, mdb_strerror(rc));
-            }
-            break;
         case IMPORT_WRITE_ACTION_ADD_INDEX:
             PR_ASSERT(data.mv_size == sizeof iupd);
             memcpy(&iupd, data.mv_data, data.mv_size);
@@ -4214,13 +4207,13 @@ wqueue_process_item(ImportWorkerInfo *info, wqelem_t *elmt, dbi_txn_t *txn)
                 iupd.disposition = &elmt->slot->idl_disposition;
             }
             dblayer_value_set_buffer(inst->inst_be, &dkey, key.mv_data, key.mv_size);
-            rc = idl_insert_key(inst->inst_be, &slot->dbi, &dkey, iupd.id, &btxn, iupd.a, iupd.disposition);
+            rc = idl_insert_key(inst->inst_be, slot->dbi, &dkey, iupd.id, &btxn, iupd.a, iupd.disposition);
             break;
         case IMPORT_WRITE_ACTION_DEL_INDEX:
             PR_ASSERT(data.mv_size == sizeof iupd);
             memcpy(&iupd, data.mv_data, data.mv_size);
             dblayer_value_set_buffer(inst->inst_be, &dkey, key.mv_data, key.mv_size);
-            rc = idl_delete_key(inst->inst_be, &slot->dbi, &dkey, iupd.id, &btxn, iupd.a);
+            rc = idl_delete_key(inst->inst_be, slot->dbi, &dkey, iupd.id, &btxn, iupd.a);
             break;
         case IMPORT_WRITE_ACTION_ADD_VLV:
             rc = MDB_PUT(TXN(txn), slot->dbi->dbi, &key, &data, 0);
@@ -4481,7 +4474,6 @@ dbmdb_import_writer_create_dbi(ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id, 
     long slot = PR_ATOMIC_INCREMENT(&gwctx->last_wqslot);
     ldbm_instance *inst = info->job->inst;
     dbmdb_ctx_t *ctx = MDB_CONFIG(inst->inst_li);
-    MDB_val vzero = {0};
     wqslot_t *wqslot;
 
     if (slot >= gwctx->max_wqslots) {
@@ -4504,7 +4496,8 @@ dbmdb_import_writer_create_dbi(ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id, 
         }
     }
     wqslot->dbipath = slapi_ch_smprintf("%s/%s", inst->inst_name, filename);
-    return dbmdb_import_sync_write(info->job, slot, IMPORT_WRITE_ACTION_OPEN, &vzero, &vzero);
+    /* Lets associate the slot and the dbi */
+    return dbmdb_open_dbi_from_filename(&wqslot->dbi, info->job->inst->inst_be, filename, NULL, 0);
 }
 
 /* Perform a synchronous write operation */

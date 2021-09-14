@@ -161,7 +161,7 @@ void log_stack(int loglvl)
         free(symbols);
     }
 }
-#if DBMDB_DEBUG
+#ifdef DBMDB_DEBUG
 /* MDB API Debug dhould be completed I only added the function that I wanted to trace */
 
 #define DBGVAL2STRMAXSIZE     40
@@ -511,9 +511,10 @@ dbg_import_elmt(const char *file, int lineno, const char *funcname, const char *
     dbgval2str(keystr, sizeof keystr, &key);
     dbgval2str(datastr, sizeof datastr, &data);
 
-    dbi_str = elmt2->slot->dbi->dbname;
+    if (elmt2->slot->dbi)
+        dbi_str = elmt2->slot->dbi->dbname;
     if (!dbi_str)
-    dbi_str = elmt2->slot->dbipath;
+        dbi_str = elmt2->slot->dbipath;
     if (!dbi_str)
     dbi_str = "???";
 

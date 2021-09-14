@@ -163,9 +163,9 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
     MDB_val data = {0};
     MDB_val key = {0};
     int flags2 = 0;
-    int rc = 0;
 
     octx->dbi = NULL;
+    octx->rc = 0;
     treekey.dbname = dbmdb_build_dbname(be, fname);
     node = tfind(&treekey, &ctx->dbis_treeroot, cmp_dbi_names);
 
@@ -185,7 +185,7 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
     octx->rc = MDB_DBI_OPEN(octx->txn, treekey.dbname, treekey.state.flags, &treekey.dbi);
     if (octx->rc) {
         slapi_log_err(SLAPI_LOG_ERR, "add_dbi", "Failed to open database instance %s. Error is %d: %s.\n",
-                      treekey.dbname, rc, mdb_strerror(rc));
+                      treekey.dbname, octx->rc, mdb_strerror(octx->rc));
         slapi_ch_free((void**)&treekey.dbname);
         return octx->rc;
     }
@@ -203,7 +203,7 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
     octx->rc = MDB_PUT(octx->txn, ctx->dbinames_dbi, &key, &data, 0);
     if (octx->rc) {
         slapi_log_err(SLAPI_LOG_ERR, "add_dbi", "Failed to insert database instance %s in DBNAMES. Error is %d: %s.\n",
-                      treekey.dbname, rc, mdb_strerror(rc));
+                      treekey.dbname, octx->rc, mdb_strerror(octx->rc));
         slapi_ch_free((void**)&treekey.dbname);
         return octx->rc;
     }
@@ -249,22 +249,31 @@ add_index_dbi(struct attrinfo *ai, dbi_open_ctx_t *octx)
 int
 dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
 {
-    int flags = ctx->readonly ? MDB_RDONLY: MDB_CREATE;
-    int mask = ctx->readonly ? MDB_RDONLY: 0;
     dbi_open_ctx_t octx = {0};
     MDB_cursor *cur = NULL;
     dbi_txn_t *txn = NULL;
     MDB_val data = {0};
     MDB_val key = {0};
-    char *special_names[] = { ID2ENTRY, NULL };
+    char *special_names[] = { ID2ENTRY, LDBM_PARENTID_STR, LDBM_ENTRYRDN_STR, LDBM_ANCESTORID_STR, NULL };
     dbmdb_dbi_t *sn_dbis[(sizeof special_names) / sizeof special_names[0]] = {0};
     int *valid_slots = NULL;
     errinfo_t errinfo = {0};
+    int ctxflags;
     int rc = 0;
     int i;
 
-    pthread_mutex_lock(&ctx->dbis_lock);
+    if (!ctx) {
+        struct ldbminfo *li = (struct ldbminfo *)(be->be_database->plg_private);
+        ctx = MDB_CONFIG(li);
+    }
+    ctxflags = ctx->readonly ? MDB_RDONLY: MDB_CREATE;
+
+    /* Note: ctx->dbis_lock mutex must always be hold after getting the txn
+     *  because txn is held very early (within backend code) in add operation
+     *  and inverting the order may lead to deadlock
+     */
     TST(START_TXN(&txn, NULL, TXNFL_DBI));
+    pthread_mutex_lock(&ctx->dbis_lock);
 
     if (!ctx->dbi_slots) {
         ctx->dbi_slots = (dbmdb_dbi_t*)slapi_ch_calloc(ctx->startcfg.max_dbs, sizeof (dbmdb_dbi_t));
@@ -278,15 +287,19 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
     octx.be = be;
     octx.txn = TXN(txn);
 
-    TST(add_dbi(&octx, NULL, DBNAMES, flags));
+    TST(add_dbi(&octx, NULL, DBNAMES, ctxflags));
     TST(MDB_CURSOR_OPEN(octx.txn, ctx->dbinames_dbi, &cur));
     TST(MDB_CURSOR_GET(cur, &key, &data, MDB_FIRST));
     while (rc == 0) {
         if (((char*)(key.mv_data))[key.mv_size-1]) {
-            slapi_log_error(SLAPI_LOG_ERR, "dbmdb_open_all_files", "unexpected non nul terminated key in __DBNAMES database.\n");
+            slapi_log_error(SLAPI_LOG_ERR, "dbmdb_open_all_files", "unexpected non NUL terminated key in __DBNAMES database.\n");
         } else {
             dbistate_t *st = data.mv_data;
-            TST(add_dbi(&octx, NULL, key.mv_data, ((st->flags|mask)&~flags) ));
+            int flags = st->flags;  /* Copy the flags (we need to change them and st is read-only */
+            /* Should ignore the context flags stored in the state flags but use the current ones */
+            flags &= ~(MDB_RDONLY|MDB_CREATE);
+            flags |= ctxflags;
+            TST(add_dbi(&octx, NULL, key.mv_data, flags));
         }
         rc = MDB_CURSOR_GET(cur, &key, &data, MDB_NEXT);
     }
@@ -296,7 +309,7 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
     if (be) {
         ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
         for (i=0; special_names[i]; i++) {
-            TST(add_dbi(&octx, be, special_names[i], flags));
+            TST(add_dbi(&octx, be, special_names[i], ctxflags));
             sn_dbis[i] = octx.dbi;
         }
         inst->inst_id2entry = sn_dbis[0];
@@ -320,7 +333,7 @@ error:
     if (rc) {
         /* Roll back invalid slots and rebuild dbis table */
         for (i=0; i < ctx->startcfg.max_dbs; i++) {
-            if (!valid_slots[i]) {
+            if (!valid_slots[i] && ctx->dbi_slots[i].dbname) {
                 tdelete(&ctx->dbi_slots[i], ctx->dbis_treeroot, cmp_dbi_names);
                 slapi_ch_free((void**)&ctx->dbi_slots[i].dbname);
             }
@@ -561,19 +574,27 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
 
 void free_dbi_node(void *node)
 {
-    dbmdb_dbi_t **dbi = node;
-    slapi_ch_free((void**)&(*dbi)->dbname);
+    /* Nothing to do here */
 }
 
 /* close the database env and release the context resource */
 void dbmdb_ctx_close(dbmdb_ctx_t *ctx)
 {
+    int i;
+    if (ctx->dbi_slots) {
+        /* ASAN report error if the tdestroy call is moved after mdb_env_close env */
+        /* I do not really understand why (because the btree does not refer to mdb resources
+         * except MDB_dbi (which is an integer)
+         */
+    }
     if (ctx->env) {
         mdb_env_close(ctx->env);
         ctx->env = NULL;
     }
     if (ctx->dbi_slots) {
         tdestroy(ctx->dbis_treeroot, free_dbi_node);
+        for (i=0; i<ctx->startcfg.max_dbs; i++)
+            slapi_ch_free((void**)&ctx->dbi_slots[i].dbname);
         slapi_ch_free((void**)&ctx->dbi_slots);
         pthread_mutex_destroy(&ctx->dbis_lock);
         pthread_mutex_destroy(&ctx->rcmutex);
@@ -602,7 +623,7 @@ dbi_list_insert(const void *nodep, VISIT which, void *closure)
                     return;  /* Not an instance of wanted backend */
             }
 
-            octx->dbilist[octx->dbilistidx++] = *(dbmdb_dbi_t**)nodep;
+            octx->dbilist[octx->dbilistidx++] = dbi;
             break;
     }
 }
@@ -636,7 +657,7 @@ dbmdb_list_dbis(dbmdb_ctx_t *ctx, backend *be, char *fname, int islocked, int *s
         if (node)
             octx.dbilist[octx.dbilistidx++] = *node;
     } else {
-        dbi_list(&octx);
+        octx.dbilist = dbi_list(&octx);
     }
     if (!islocked)
         pthread_mutex_unlock(&ctx->dbis_lock);
@@ -672,14 +693,14 @@ dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
 }
 
 static int
-dbi_remove1(MDB_txn *txn, dbmdb_dbi_t *dbi, int deletion_flags)
+dbi_remove1(dbmdb_ctx_t *ctx, MDB_txn *txn, dbmdb_dbi_t *dbi, int deletion_flags)
 {
     int rc = MDB_DROP(txn, dbi->dbi, deletion_flags);
     if (rc == 0 && deletion_flags) {
         MDB_val key = {0};
         key.mv_data = (char*)(dbi->dbname);
         key.mv_size = strlen(key.mv_data)+1;
-        rc = MDB_DEL(txn, dbi->dbi, &key, NULL);
+        rc = MDB_DEL(txn, ctx->dbinames_dbi, &key, NULL);
     }
     return rc;
 }
@@ -695,26 +716,25 @@ dbi_remove(dbi_open_ctx_t *octx)
     int rc = 0;
     int i;
 
-    pthread_mutex_lock(&ctx->dbis_lock);
     rc = START_TXN(&txn, NULL, TXNFL_DBI);
     if (rc) {
-        pthread_mutex_unlock(&ctx->dbis_lock);
         return rc;
     }
+    pthread_mutex_lock(&ctx->dbis_lock);
     octx->txn = TXN(txn);
     if (octx->dbi) {
-        rc = dbi_remove1(octx->txn, octx->dbi, octx->deletion_flags);
+        rc = dbi_remove1(octx->ctx, octx->txn, octx->dbi, octx->deletion_flags);
     } else {
         dbilist = dbi_list(octx);
         for (i = 0; !rc && dbilist[i]; i++) {
-            rc = dbi_remove1(octx->txn, dbilist[i], octx->deletion_flags);
+            rc = dbi_remove1(octx->ctx, octx->txn, dbilist[i], octx->deletion_flags);
         }
     }
     rc = END_TXN(&txn, rc);
     if (rc == 0) {
+        if (octx->deletion_flags) {
         if (octx->dbi) {
             /* Remove name(s) from tree and slot */
-            if (octx->deletion_flags) {
                 treekey.dbname = octx->dbi->dbname;
                 tdelete(&treekey, &ctx->dbis_treeroot, cmp_dbi_names);
                 slapi_ch_free((void**)&octx->dbi->dbname);
@@ -809,12 +829,13 @@ int dbmdb_dbi_set_dirty(dbmdb_ctx_t *ctx, dbmdb_dbi_t *dbi, int dirty_flags)
     PR_ASSERT(strcmp(ctx->dbi_slots[dbi->dbi].dbname, dbi->dbname) == 0);
     octx.dbi = &ctx->dbi_slots[dbi->dbi];
 
-    pthread_mutex_lock(&ctx->dbis_lock);
     rc = START_TXN(&txn, NULL, TXNFL_DBI);
     if (rc == 0) {
+        pthread_mutex_lock(&ctx->dbis_lock);
         old_flags = dbi->state.state;
         octx.txn = TXN(txn);
         rc = dbi_set_dirty(&octx, dirty_flags, -1, &old_flags);
+        pthread_mutex_unlock(&ctx->dbis_lock);
         rc = END_TXN(&txn, rc);
         if (rc) {
             dbi->state.state = old_flags;
@@ -841,16 +862,17 @@ int dbmdb_clear_dirty_flags(struct backend *be)
     octx.func = __FUNCTION__;
     octx.ctx = ctx;
     octx.be = be;
-    pthread_mutex_lock(&ctx->dbis_lock);
     rc = START_TXN(&txn, NULL, TXNFL_DBI);
     octx.txn = TXN(txn);
     if (rc) {
         return dbmdb_map_error(__FUNCTION__, rc);
     }
+    pthread_mutex_lock(&ctx->dbis_lock);
     oldflaglist = (int*)slapi_ch_calloc(ctx->startcfg.max_dbs+1, sizeof (int *));
     dbilist = dbi_list(&octx);
 
     for (i = 0; !rc && dbilist[i]; i++) {
+        octx.dbi = dbilist[i];
         rc = dbi_set_dirty(&octx, 0, DBIST_DIRTY, &oldflaglist[i]);
     }
     rc = END_TXN(&txn, rc);
@@ -886,10 +908,10 @@ int dbmdb_update_dbi_state(dbmdb_ctx_t *ctx, dbmdb_dbi_t *dbi, dbistate_t *state
     int rc = 0;
     int has_txn = (txn != NULL);
 
-    if (!is_locked)
-        pthread_mutex_lock(&ctx->dbis_lock);  /* Insure that dbi->dbname does not vanish */
     if (!has_txn)
         rc = START_TXN(&txn, NULL, 0);
+    if (!is_locked)
+        pthread_mutex_lock(&ctx->dbis_lock);  /* Insure that dbi->dbname does not vanish */
     if (rc)
         goto error;
     if (!dbi->dbname)
@@ -903,7 +925,7 @@ int dbmdb_update_dbi_state(dbmdb_ctx_t *ctx, dbmdb_dbi_t *dbi, dbistate_t *state
     rc = MDB_PUT(TXN(txn), ctx->dbinames_dbi, &key, &data, 0);
 error:
     if (!has_txn)
-        rc = END_TXN(txn, rc);
+        rc = END_TXN(&txn, rc);
     if (!is_locked)
         pthread_mutex_unlock(&ctx->dbis_lock);
     return rc;
@@ -928,7 +950,7 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
     if (flags & ~allowed_flags) {
         char badflags[80];
         dbmdb_envflags2str(flags & ~allowed_flags, badflags, sizeof badflags);
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_dbname",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_dbi_from_filename",
             "Unexpected flags %s when trying to open database %s (invalid flags) \n", badflags, filename);
         return MDB_INVALID;
     }
@@ -936,17 +958,21 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
     /* Let see if the file is not already open */
     *dbi = dbi_get_by_name(ctx, be, filename);
     if (!*dbi && (flags & MDB_CREATE)) {
-        pthread_mutex_lock(&ctx->dbis_lock);
+#ifdef DBMDB_DEBUG
+        /* Useful to diagnose dbmdb_open_dbi_from_filename call on not open dbi while a txn already is held */
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_open_dbi_from_filename", "need to open dbi %s/%s\n", be->be_name, filename);
+#endif
         rc = START_TXN(&txn, NULL, TXNFL_DBI);
         if (!rc) {
             octx.ctx = ctx;
             octx.be = be;
             octx.txn = TXN(txn);
+            pthread_mutex_lock(&ctx->dbis_lock);
             rc = add_dbi(&octx, be, filename, flags & ~custom_flags);
-            rc = END_TXN(txn, rc);
+            pthread_mutex_unlock(&ctx->dbis_lock);
+            rc = END_TXN(&txn, rc);
             *dbi = octx.dbi;
         }
-        pthread_mutex_unlock(&ctx->dbis_lock);
     }
     if (rc) {
         return rc;
@@ -1079,13 +1105,11 @@ dbdmd_gather_stats(dbmdb_ctx_t *ctx, backend *be)
     octx.func = __FUNCTION__;
     octx.ctx = ctx;
     octx.be = be;
-    pthread_mutex_lock(&ctx->dbis_lock);
     rc = START_TXN(&txn, NULL, TXNFL_RDONLY);
     if (rc) {
-        pthread_mutex_unlock(&ctx->dbis_lock);
         return NULL;
     }
-
+    pthread_mutex_lock(&ctx->dbis_lock);
     dbilist = dbi_list(&octx);
     len = sizeof (dbmdb_stats_t) + octx.dbilistidx * sizeof (dbmdb_dbis_stat_t);
     stats = (dbmdb_stats_t*)slapi_ch_calloc(1, len);

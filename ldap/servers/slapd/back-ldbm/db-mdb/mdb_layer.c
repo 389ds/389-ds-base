@@ -2438,11 +2438,6 @@ int dbmdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *ke
             break;
         case DBI_OP_CLOSE:
             /* No need to close db instances with lmdb */
-            /* But we should still free the dbmdb_dbi_t struct */
-            slapi_ch_free_string((char**)&dbmdb_db->dbname);
-            dbmdb_db->dbi = 0;
-            dbmdb_db->env = NULL;
-            slapi_ch_free((void **) &dbmdb_db);
             break;
         default:
             /* Unknown db operation */
@@ -2482,8 +2477,19 @@ int dbmdb_public_new_cursor(dbi_db_t *db,  dbi_cursor_t *cursor)
     }
     rc = MDB_CURSOR_OPEN(TXN(cursor->txn), dbi->dbi, (MDB_cursor**)&cursor->cur);
     if (rc==EINVAL) { /* DBG txn or dbi error */
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_new_cursor", "Failed to open cursor. txn = 0x%p (local=%d), dbi=%d (%s)\nSTACK:\n", TXN(cursor->txn), cursor->islocaltxn, dbi->dbi, dbi->dbname);
-        log_stack(SLAPI_LOG_ERR);
+        MDB_stat st2;
+        rc = mdb_stat(TXN(cursor->txn), dbi->dbi, &st2);
+        if (rc == 0 && st2.ms_entries == 0 && dbmdb_is_read_only_txn_thread()) {
+            /* cannot open a cursor with read-only txn on empty db */
+           rc = MDB_NOTFOUND;
+        } else if (rc==EINVAL) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_new_cursor", "Invalid dbi =%d (%s) while opening cursor in txn= %p\n", dbi->dbi, dbi->dbname, TXN(cursor->txn));
+            log_stack(SLAPI_LOG_ERR);
+        } else {
+            rc = EINVAL;
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_new_cursor", "Failed to open cursor dbi =%d (%s) in txn= %p\n", dbi->dbi, dbi->dbname, TXN(cursor->txn));
+            log_stack(SLAPI_LOG_ERR);
+         }
     }
     if (rc && cursor->islocaltxn)
         END_TXN(&cursor->txn, rc);
@@ -2659,6 +2665,7 @@ dbmdb_public_in_import(ldbm_instance *inst)
             break;
         }
     }
+    slapi_ch_free((void **)&dbilist);
     return rval;
 }
 
