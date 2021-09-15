@@ -19,39 +19,19 @@ from lib389.utils import Paths
 
 p = Paths()
 
-# Generic filter class that logs everything
-class LogFilter:
-    def __init__(self):
-        self.stop_now = False
-        self.last_line = None
-
-    def filter(self, line):
-        self.last_line = line
-        return True
-
-# An error log filter class that only keep emergency, errors and critical errors
-class ErrorLogFilter(LogFilter):
-    def filter(self, line):
-        self.last_line = line
-        if "MDB_MAP_FULL" in line:
-            self.stop_now = True
-        for keyword in ( "CRIT", "EMERG", "ERR" ):
-            if f"- {keyword} -" in line:
-                return True
-        return False
-
-
 # Concat filtered lines from a file as a string
-# filter instance must have filter.filter(line) that returns a boolean
-# and a filter.stop_now boolean
-def log2Report(path, filter=LogFilter()):
+# Keeping only relevant data
+def logErrors(path):
+    keywords = ( "CRIT", "EMERG", "ERR" )
+    cleanstop = '- INFO - main - slapd stopped.'
     res=""
     with open(path) as file:
         for line in file:
-            if filter.filter(line) is True:
+            if any(ele in line for ele in keywords):
                 res += line
-            if filter.stop_now is True:
-                break
+        # Check if last line is a clean stop.
+        if cleanstop in line:
+            res += line
     return res
 
 # Log a list of items
@@ -79,6 +59,20 @@ def logasanfiles():
         with open(f) as asan_report:
             res.append((os.path.basename(f), asan_report.read()))
     return res
+
+# Log dbscan -L output (This may help to determine mdb map size)
+def logDbscan(inst):
+    dblib = inst.get_db_lib()
+    dbhome = Paths(inst.getServerId()).db_home_dir
+    cmd = [ "dbscan", "-D", dblib, "-L", dbhome ]
+    dbscan = subprocess.run(cmd, capture_output=True, shell=False, check=False, text=True)
+    text = ""
+    text += dbscan.stdout.replace(f'{dbhome}/', '')
+    if dbscan.stderr:
+        text += "\n\ndbscan STDERR\n"
+        text += dbscan.stderr
+    text += "\n"
+    return text
 
 
 def getReport():
@@ -112,20 +106,12 @@ def getReport():
     # By default we only log an extract of error log:
     #   Critical, Emergency and standard errors
     #   and the final "server stopped" info line (that denotes a clean stop)
-    # But if we detect MDB_MAP_FULL the whole access and error logs are logged
-    #  (to help determining how much the map size should be increased)
     for inst in instancesKO:
+        # Log extract of error log
         path = inst.ds_paths.error_log.format(instance_name=inst.getServerId())
-        logFilter = ErrorLogFilter()
-        text = log2Report(path, logFilter)
-        if '- INFO - main - slapd stopped.' in logFilter.last_line:
-            text += logFilter.last_line
-        if logFilter.stop_now:
-            addSection(f"Instance {inst.getServerId()} error log", log2Report(path))
-            path = inst.ds_paths.access_log.format(instance_name=inst.getServerId())
-            addSection(f"Instance {inst.getServerId()} access log", log2Report(path))
-        else:
-            addSection(f"extract of instance {inst.getServerId()} error log", text)
+        addSection(f"Extract of instance {inst.getServerId()} error log", logErrors(path))
+        # And dbscan -L output
+        addSection(f"Database info for instance {inst.getServerId()}", logDbscan(inst))
 
     return report
 
