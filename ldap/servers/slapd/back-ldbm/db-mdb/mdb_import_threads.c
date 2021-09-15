@@ -45,6 +45,8 @@ static int _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value);
 static pseudo_back_txn_t **dbmdb_get_ptwctx(ImportJob*job, ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id);
 static pseudo_back_txn_t *dbmdb_new_wctx(ImportJob*job, ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id);
 static long dbmdb_get_wqslot(ImportJob* job, ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id);
+static void dbmdb_free_wctx(ImportJob*job, ImportWorkerInfo*info, dbmdb_wctx_id_t wctx_id);
+
 
 static struct backentry *
 dbmdb_import_make_backentry(Slapi_Entry *e, ID id)
@@ -4683,7 +4685,7 @@ dbmdb_get_wctx(ImportJob*job, ImportWorkerInfo*info, dbmdb_wctx_id_t wctx_id)
     return(back_txn*)*dbmdb_get_ptwctx(job, info, wctx_id);
 }
 
-void
+static void
 dbmdb_free_wctx(ImportJob*job, ImportWorkerInfo*info, dbmdb_wctx_id_t wctx_id)
 {
     pseudo_back_txn_t**txn = dbmdb_get_ptwctx(job, info, wctx_id);
