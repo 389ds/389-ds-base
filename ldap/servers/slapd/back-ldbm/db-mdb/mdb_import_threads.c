@@ -2446,16 +2446,20 @@ close_foreman_wqslots(ImportJob *job)
  {
      long wqslot = dbmdb_get_wqslot(job, NULL, WCTX_PARENTID);
      dbmdb_import_write_push(job, wqslot, IMPORT_WRITE_ACTION_CLOSE, NULL, NULL);
+     dbmdb_free_wctx(job, NULL, WCTX_PARENTID);
 
      if(entryrdn_get_switch()){
          wqslot = dbmdb_get_wqslot(job, NULL, WCTX_ENTRYRDN);
          dbmdb_import_write_push(job, wqslot, IMPORT_WRITE_ACTION_CLOSE, NULL, NULL);
+         dbmdb_free_wctx(job, NULL, WCTX_ENTRYRDN);
      }else{
          wqslot = dbmdb_get_wqslot(job, NULL, WCTX_ENTRYDN);
          dbmdb_import_write_push(job, wqslot, IMPORT_WRITE_ACTION_CLOSE, NULL, NULL);
+         dbmdb_free_wctx(job, NULL, WCTX_ENTRYDN);
      }
      wqslot = dbmdb_get_wqslot(job, NULL, WCTX_ENTRYID);
      dbmdb_import_write_push(job, wqslot, IMPORT_WRITE_ACTION_CLOSE, NULL, NULL);
+     dbmdb_free_wctx(job, NULL, WCTX_ENTRYID);
  }
 
 /* foreman thread:
@@ -3112,6 +3116,7 @@ done:
     wqslot = dbmdb_get_wqslot(job, info, WCTX_GENERIC);
     dbmdb_end_txn(__FUNCTION__, 1, &info->txn);
     dbmdb_import_write_push(job, wqslot, IMPORT_WRITE_ACTION_CLOSE, NULL, NULL);
+    dbmdb_free_wctx(job, info, WCTX_GENERIC);
 }
 
 
@@ -4676,6 +4681,13 @@ back_txn*
 dbmdb_get_wctx(ImportJob*job, ImportWorkerInfo*info, dbmdb_wctx_id_t wctx_id)
 {
     return(back_txn*)*dbmdb_get_ptwctx(job, info, wctx_id);
+}
+
+void
+dbmdb_free_wctx(ImportJob*job, ImportWorkerInfo*info, dbmdb_wctx_id_t wctx_id)
+{
+    pseudo_back_txn_t**txn = dbmdb_get_ptwctx(job, info, wctx_id);
+    slapi_ch_free((void*)txn);
 }
 
 static long

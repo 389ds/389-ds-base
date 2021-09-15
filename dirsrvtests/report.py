@@ -58,7 +58,7 @@ def log2Report(path, filter=LogFilter()):
 def loglist(list):
     text = ""
     for item in list:
-        text += "	f{item}\n"
+        text += f"	{item}\n"
     return text
 
 # Log cores file
@@ -72,24 +72,22 @@ def logcorefiles():
     text += "\n"
     return text
 
-def subsection(name, text):
-    return f"{name}\n\n{text}\n\n\n"
-
-
 # Log ASAN files
 def logasanfiles():
-    text = ""
+    res = []
     for f in glob.glob(f'{p.run_dir}/ns-slapd-*san*'):
         with open(f) as asan_report:
-            text += subsection(os.path.basename(f), asan_report.read())
-    return text
+            res.append((os.path.basename(f), asan_report.read()))
+    return res
 
 
 def getReport():
     # Capture data about stoped instances
-    # Return a Report (i.e: dict of { 'sectionName': text } )
-    # Determine the list of instances
-    report = {}
+    # Return a Report (i.e: list of ( sectionName,  text ) tuple )
+    # Lets determine the list of instances
+    report = []
+    def addSection(name, text):
+        report.append((name, text))
     instancesOK=[]
     instancesKO=[]
     for instdir in DirSrv().list(all=True):
@@ -100,15 +98,15 @@ def getReport():
         else:
             instancesKO.append(inst)
     text=""
-    # Generate the report
-    report["Running instances"] = loglist([i.getServerId() for i in instancesOK])
-    report["Stopped instances"] = loglist([i.getServerId() for i in instancesKO])
+    # Lets generate the report
+    addSection("Running instances", loglist([i.getServerId() for i in instancesOK]))
+    addSection("Stopped instances", loglist([i.getServerId() for i in instancesKO]))
 
     # Get core file informations
-    report["Core files"] = logcorefiles()
+    addSection("Core files", logcorefiles())
 
     # Get asan file informations
-    report["ASAN files"] = logasanfiles()
+    report.extend(logasanfiles())
 
     # Get error log informations on stopped servers
     # By default we only log an extract of error log:
@@ -121,13 +119,13 @@ def getReport():
         logFilter = ErrorLogFilter()
         text = log2Report(path, logFilter)
         if '- INFO - main - slapd stopped.' in logFilter.last_line:
-            text += logFilter.line
+            text += logFilter.last_line
         if logFilter.stop_now:
-            report[f"Instance {inst.getServerId()} error log"] = log2Report(path)
+            addSection(f"Instance {inst.getServerId()} error log", log2Report(path))
             path = inst.ds_paths.access_log.format(instance_name=inst.getServerId())
-            report[f"Instance {inst.getServerId()} access log"] = log2Report(path)
+            addSection(f"Instance {inst.getServerId()} access log", log2Report(path))
         else:
-            report[f"extract of instance {inst.getServerId()} error log"] = text
+            addSection(f"extract of instance {inst.getServerId()} error log", text)
 
     return report
 

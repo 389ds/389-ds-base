@@ -180,6 +180,7 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
     dbmdb_get_file_params(treekey.dbname, &flags2, &dupsort_fn);
     treekey.env = ctx->env;
     treekey.state.flags = flags | flags2;
+    treekey.state.flags &= ~MDB_RDONLY;
     treekey.state.state = DBIST_CLEAN;
     treekey.state.dataversion = DBMDB_CURRENT_DATAVERSION;
     octx->rc = MDB_DBI_OPEN(octx->txn, treekey.dbname, treekey.state.flags, &treekey.dbi);
@@ -200,7 +201,9 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
     if (strcmp(DBNAMES, treekey.dbname) == 0) {
         ctx->dbinames_dbi = treekey.dbi;
     }
-    octx->rc = MDB_PUT(octx->txn, ctx->dbinames_dbi, &key, &data, 0);
+    if (treekey.state.flags & MDB_CREATE) {
+        octx->rc = MDB_PUT(octx->txn, ctx->dbinames_dbi, &key, &data, 0);
+    }
     if (octx->rc) {
         slapi_log_err(SLAPI_LOG_ERR, "add_dbi", "Failed to insert database instance %s in DBNAMES. Error is %d: %s.\n",
                       treekey.dbname, octx->rc, mdb_strerror(octx->rc));
@@ -216,6 +219,7 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
     return 0;
 }
 
+/* avlapply callback to open/create the dbi needed to handle an index */
 static int
 add_index_dbi(struct attrinfo *ai, dbi_open_ctx_t *octx)
 {
@@ -254,7 +258,7 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
     dbi_txn_t *txn = NULL;
     MDB_val data = {0};
     MDB_val key = {0};
-    char *special_names[] = { ID2ENTRY, LDBM_PARENTID_STR, LDBM_ENTRYRDN_STR, LDBM_ANCESTORID_STR, NULL };
+    char *special_names[] = { ID2ENTRY, LDBM_PARENTID_STR, LDBM_ENTRYRDN_STR, LDBM_ANCESTORID_STR, BDB_CL_FILENAME, NULL };
     dbmdb_dbi_t *sn_dbis[(sizeof special_names) / sizeof special_names[0]] = {0};
     int *valid_slots = NULL;
     errinfo_t errinfo = {0};
@@ -716,7 +720,10 @@ dbi_remove(dbi_open_ctx_t *octx)
     int rc = 0;
     int i;
 
-    rc = START_TXN(&txn, NULL, TXNFL_DBI);
+    /* reset operation can be done in englobing txn (so flag is 0)
+     * but not remove operation (so flag is TXNFL_DBI)
+     */
+    rc = START_TXN(&txn, NULL, octx->deletion_flags ? TXNFL_DBI : 0);
     if (rc) {
         return rc;
     }
@@ -762,6 +769,18 @@ dbi_remove(dbi_open_ctx_t *octx)
     return rc;
 }
 
+/* Reset an open database */
+int dbmdb_dbi_reset(dbmdb_ctx_t *ctx, dbi_db_t *dbi)
+{
+    dbi_open_ctx_t octx = {0};
+
+    octx.func = __FUNCTION__;
+    octx.ctx = ctx;
+    octx.dbi = dbi;
+    octx.deletion_flags = 0;
+    return dbmdb_map_error(__FUNCTION__, dbi_remove(&octx));
+}
+
 
 /* Remove an open database */
 int dbmdb_dbi_remove(dbmdb_ctx_t *ctx, dbi_db_t **dbi)
@@ -772,6 +791,7 @@ int dbmdb_dbi_remove(dbmdb_ctx_t *ctx, dbi_db_t **dbi)
     octx.ctx = ctx;
     octx.dbi = *dbi;
     octx.deletion_flags = 1;
+    *dbi = NULL;
     return dbmdb_map_error(__FUNCTION__, dbi_remove(&octx));
 }
 
@@ -1162,5 +1182,21 @@ dbmdb_free_stats(dbmdb_stats_t **stats)
     slapi_ch_free((void**)stats);
 }
 
-
+int
+dbmdb_reset_vlv_file(backend *be, const char *filename)
+{
+    struct ldbminfo *li = (struct ldbminfo *)(be->be_database->plg_private);
+    dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+    dbmdb_dbi_t *dbi = NULL;
+    char *rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, filename);
+    int rc = 0;
+    dbi = dbi_get_by_name(ctx, be, filename);
+    if (dbi) 
+        rc = dbmdb_dbi_reset(ctx, dbi);
+    dbi = dbi_get_by_name(ctx, be, rcdbname);
+    if (dbi && !rc) 
+        rc = dbmdb_dbi_reset(ctx, dbi);
+    slapi_ch_free_string(&rcdbname);
+    return rc;
+}
 

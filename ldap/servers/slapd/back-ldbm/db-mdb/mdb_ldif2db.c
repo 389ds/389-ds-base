@@ -1351,11 +1351,12 @@ dbmdb_db2index(Slapi_PBlock *pb)
     int isfirst = 1;
     int index_ext = 0;
     struct vlvIndex *vlvip = NULL;
-    back_txn txn;
+    back_txn txn = {0};
     ID suffixid = NOID; /* holds the id of the suffix entry */
     Slapi_Value **nstombstone_vals = NULL;
     int istombstone = 0;
     dbmdb_cursor_t cur = {0};
+    dbi_db_t *dbi;
     uint size = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_db2index", "=>\n");
@@ -1504,6 +1505,7 @@ dbmdb_db2index(Slapi_PBlock *pb)
                                   inst->inst_name, attrs[i] + 1);
                 }
                 dblayer_erase_index_file(be, ai, PR_TRUE, i /* chkpt; 1st time only */);
+                dbmdb_get_db(be, ai->ai_type, MDB_OPEN_DIRTY_DBI | MDB_CREATE, ai, &dbi);
                 break;
             case 'T': /* VLV Search to index */
                 vlvip = vlv_find_searchname((attrs[i]) + 1, be);
@@ -1521,7 +1523,7 @@ dbmdb_db2index(Slapi_PBlock *pb)
                     pvlv[numvlv] = vlvip;
                     numvlv++;
                     /* Get rid of the index if it already exists */
-                    PR_Delete(vlvIndex_filename(vlvip));
+                    dbmdb_reset_vlv_file(be, vlvIndex_filename(vlvip));
                     slapi_task_log_notice(task, "%s: Indexing VLV: %s", inst->inst_name, attrs[i] + 1);
                     slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index", "%s: Indexing VLV: %s\n",
                                   inst->inst_name, attrs[i] + 1);
@@ -1572,12 +1574,32 @@ dbmdb_db2index(Slapi_PBlock *pb)
         }
     }
 
+    if (dbmdb_open_all_files(NULL, be)) {
+        slapi_task_log_notice(task,
+                "%s: Could not open/create database ",
+                inst->inst_name);
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_db2index", "Could not open/create database\n");
+        goto err_min;
+    }
+    rc = dblayer_txn_begin(be, NULL, &txn);
+    if (0 != rc) {
+        slapi_task_log_notice(task,
+                "%s: Failed to start transaction for ldbm2index",
+                inst->inst_name);
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "dbmdb_db2index", "%s: Failed start transaction for ldbm2index\n",
+                      inst->inst_name);
+        goto err_min;
+    }
+
     /*
      * get a cursor to we can walk over the table
      * Note: this should not be done earlier because we cannot open/remove/reset a dbi 
-     * once a txn is open
+     * once a txn is open. Should also reuse the back_txn to avoid trouble with entryrdn index
      */
-    rc = dbmdb_open_cursor(&cur, MDB_CONFIG(li), db, 0);
+    cur.dbi = db;
+    cur.txn = txn.back_txn_txn;
+    rc = MDB_CURSOR_OPEN(TXN(cur.txn), cur.dbi->dbi, &cur.cur);
     if (0 != rc) {
         slapi_task_log_notice(task,
                 "%s: Failed to get database cursor for ldbm2index",
@@ -1605,13 +1627,6 @@ dbmdb_db2index(Slapi_PBlock *pb)
         goto err_out;
     }
 
-
-    if (idl) {
-        /* don't need that cursor, we have a shopping list. */
-        dbmdb_close_cursor(&cur, 0);
-    }
-
-    dblayer_txn_init(li, &txn);
 
     while (1) {
         if (g_get_shutdown() || c_get_shutdown()) {
@@ -1825,19 +1840,6 @@ dbmdb_db2index(Slapi_PBlock *pb)
                 *nstombstone_vals = slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
             }
             if (tombstone_csn) {
-                if (!run_from_cmdline) {
-                    rc = dblayer_txn_begin(be, NULL, &txn);
-                    if (0 != rc) {
-                        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_db2index",
-                                      "%s: Failed to begin txn for update index '%s' (err %d: %s)\n",
-                                      inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
-                        slapi_task_log_notice(task,
-                                "%s: ERROR: failed to begin txn for update index '%s' (err %d: %s)",
-                                inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
-                        return_value = -2;
-                        goto err_out;
-                    }
-                }
 
                 csn_as_string(tombstone_csn, PR_FALSE, deletion_csn_str);
                 rc = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN, deletion_csn_str,
@@ -1849,24 +1851,8 @@ dbmdb_db2index(Slapi_PBlock *pb)
                     slapi_task_log_notice(task,
                             "%s: ERROR: failed to update index '%s' (err %d: %s)",
                             inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
-                    if (!run_from_cmdline) {
-                        dblayer_txn_abort(be, &txn);
-                    }
                     return_value = -2;
                     goto err_out;
-                }
-                if (!run_from_cmdline) {
-                    rc = dblayer_txn_commit(be, &txn);
-                    if (0 != rc) {
-                        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_db2index",
-                                      "%s: Failed to commit txn for update index '%s' (err %d: %s)\n",
-                                      inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
-                        slapi_task_log_notice(task,
-                                "%s: ERROR: failed to commit txn for update index '%s' (err %d: %s)",
-                                inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
-                        return_value = -2;
-                        goto err_out;
-                    }
                 }
             }
         } else {
@@ -1904,22 +1890,6 @@ dbmdb_db2index(Slapi_PBlock *pb)
                         }
                         svals = attr_get_present_values(attr);
 
-                        if (!run_from_cmdline) {
-                            rc = dblayer_txn_begin(be, NULL, &txn);
-                            if (0 != rc) {
-                                slapi_log_err(SLAPI_LOG_ERR,
-                                              "dbmdb_db2index", "%s: Failed to begin txn for update index '%s'\n",
-                                              inst->inst_name, indexAttrs[j]);
-                                slapi_log_err(SLAPI_LOG_ERR,
-                                              "dbmdb_db2index", "%s: Error %d: %s\n", inst->inst_name, rc,
-                                              dblayer_strerror(rc));
-                                slapi_task_log_notice(task,
-                                        "%s: ERROR: failed to begin txn for update index '%s' (err %d: %s)",
-                                        inst->inst_name, indexAttrs[j], rc, dblayer_strerror(rc));
-                                return_value = -2;
-                                goto err_out;
-                            }
-                        }
                         if (is_tombstone_obj) {
                             rc = index_addordel_values_sv(be, indexAttrs[j], nstombstone_vals, NULL, ep->ep_id, BE_INDEX_ADD, &txn);
                         } else {
@@ -1935,28 +1905,8 @@ dbmdb_db2index(Slapi_PBlock *pb)
                             slapi_task_log_notice(task,
                                     "%s: ERROR: failed to update index '%s' (err %d: %s)",
                                     inst->inst_name, indexAttrs[j], rc, dblayer_strerror(rc));
-                            if (!run_from_cmdline) {
-                                dblayer_txn_abort(be, &txn);
-                            }
                             return_value = -2;
                             goto err_out;
-                        }
-                        if (!run_from_cmdline) {
-                            rc = dblayer_txn_commit(be, &txn);
-                            if (0 != rc) {
-                                slapi_log_err(SLAPI_LOG_ERR,
-                                              "dbmdb_db2index", "%s: Failed to commit txn for "
-                                                                      "update index '%s'\n",
-                                              inst->inst_name, indexAttrs[j]);
-                                slapi_log_err(SLAPI_LOG_ERR,
-                                              "dbmdb_db2index", "%s: Error %d: %s\n", inst->inst_name, rc,
-                                              dblayer_strerror(rc));
-                                slapi_task_log_notice(task,
-                                        "%s: ERROR: failed to commit txn for  update index '%s' (err %d: %s)",
-                                        inst->inst_name, indexAttrs[j], rc, dblayer_strerror(rc));
-                                return_value = -2;
-                                goto err_out;
-                            }
                         }
                     }
                 }
@@ -1967,30 +1917,10 @@ dbmdb_db2index(Slapi_PBlock *pb)
          * If it is NOT a tombstone entry, update the Virtual List View indexes.
          */
         for (vlvidx = 0; !istombstone && (vlvidx < numvlv); vlvidx++) {
-            char *ai = "Unknown index";
-
             if (g_get_shutdown() || c_get_shutdown()) {
                 goto err_out;
             }
-            if (indexAttrs && indexAttrs[vlvidx]) {
-                ai = indexAttrs[vlvidx];
-            }
-            if (!run_from_cmdline) {
-                rc = dblayer_txn_begin(be, NULL, &txn);
-                if (0 != rc) {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "dbmdb_db2index", "%s: Failed to begin txn for update index '%s'\n",
-                                  inst->inst_name, ai);
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "dbmdb_db2index", "%s: Error %d: %s\n", inst->inst_name, rc,
-                                  dblayer_strerror(rc));
-                    slapi_task_log_notice(task,
-                            "%s: ERROR: failed to begin txn for update index '%s' (err %d: %s)",
-                            inst->inst_name, ai, rc, dblayer_strerror(rc));
-                    return_value = -2;
-                    goto err_out;
-                }
-            }
+
             /*
              * lock is needed around vlv_update_index to protect the
              * vlv structure.
@@ -1998,22 +1928,6 @@ dbmdb_db2index(Slapi_PBlock *pb)
             vlv_acquire_lock(be);
             vlv_update_index(pvlv[vlvidx], &txn, li, pb, NULL, ep);
             vlv_release_lock(be);
-            if (!run_from_cmdline) {
-                rc = dblayer_txn_commit(be, &txn);
-                if (0 != rc) {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "dbmdb_db2index", "%s: Failed to commit txn for update index '%s'\n",
-                                  inst->inst_name, ai);
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "dbmdb_db2index", "%s: Error %d: %s\n", inst->inst_name, rc,
-                                  dblayer_strerror(rc));
-                    slapi_task_log_notice(task,
-                            "%s: ERROR: failed to commit txn for update index '%s' (err %d: %s)",
-                            inst->inst_name, ai, rc, dblayer_strerror(rc));
-                    return_value = -2;
-                    goto err_out;
-                }
-            }
         }
 
         /*
@@ -2037,21 +1951,6 @@ dbmdb_db2index(Slapi_PBlock *pb)
         }
         if (index_ext & DB2INDEX_ENTRYRDN) {
             if (entryrdn_get_switch()) { /* subtree-rename: on */
-                if (!run_from_cmdline) {
-                    rc = dblayer_txn_begin(be, NULL, &txn);
-                    if (0 != rc) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "dbmdb_db2index", "%s: ERROR: failed to begin txn for update index 'entryrdn'\n",
-                                      inst->inst_name);
-                        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_db2index", "%s: Error %d: %s\n",
-                                      inst->inst_name, rc, dblayer_strerror(rc));
-                        slapi_task_log_notice(task,
-                                "%s: ERROR: failed to begin txn for update index 'entryrdn' (err %d: %s)",
-                                inst->inst_name, rc, dblayer_strerror(rc));
-                        return_value = -2;
-                        goto err_out;
-                    }
-                }
                 rc = entryrdn_index_entry(be, ep, BE_INDEX_ADD, &txn);
                 if (rc) {
                     slapi_log_err(SLAPI_LOG_ERR,
@@ -2063,27 +1962,8 @@ dbmdb_db2index(Slapi_PBlock *pb)
                     slapi_task_log_notice(task,
                             "%s: ERROR: failed to update index 'entryrdn' (err %d: %s)",
                             inst->inst_name, rc, dblayer_strerror(rc));
-                    if (!run_from_cmdline) {
-                        dblayer_txn_abort(be, &txn);
-                    }
                     return_value = -2;
                     goto err_out;
-                }
-                if (!run_from_cmdline) {
-                    rc = dblayer_txn_commit(be, &txn);
-                    if (0 != rc) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "dbmdb_db2index", "%s: Failed to commit txn for "
-                                                              "update index 'entryrdn'\n",
-                                      inst->inst_name);
-                        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_db2index", "%s: Error %d: %s\n",
-                                      inst->inst_name, rc, dblayer_strerror(rc));
-                        slapi_task_log_notice(task,
-                                "%s: ERROR: failed to commit txn for update index 'entryrdn' (err %d: %s)",
-                                inst->inst_name, rc, dblayer_strerror(rc));
-                        return_value = -2;
-                        goto err_out;
-                    }
                 }
             }
         }
@@ -2137,8 +2017,24 @@ err_out:
     backentry_free(&ep); /* if ep or *ep is NULL, it does nothing */
     if (idl) {
         idl_free(&idl);
+    }
+    if (return_value) {
+        return_value = dbmdb_close_cursor(&cur, return_value);
     } else {
-        dbmdb_close_cursor(&cur, 0);
+        return_value = dbmdb_close_cursor(&cur, return_value);
+        if (return_value) {
+            slapi_log_err(SLAPI_LOG_ERR,
+                          "dbmdb_db2index", "%s: Failed to commit txn for db2index\n",
+                          inst->inst_name);
+            slapi_log_err(SLAPI_LOG_ERR,
+                          "dbmdb_db2index", "%s: Error %d: %s\n", inst->inst_name, rc,
+                          dblayer_strerror(rc));
+            slapi_task_log_notice(task,
+                    "%s: ERROR: failed to commit txn for db2index (err %d: %s)",
+                    inst->inst_name, rc, dblayer_strerror(rc));
+            return_value = -2;
+            goto err_out;
+        }
     }
     if (return_value < 0) { /* error case: undo vlv indexing */
         /* if jumped to out due to an error, vlv lock has not been released */

@@ -6,7 +6,7 @@ import glob
 import ldap
 import os
 
-from lib389.topologies import getInstancesReport
+from .report import getReport
 from lib389.paths import Paths
 from enum import Enum
 
@@ -115,6 +115,5 @@ def pytest_exception_interact(node, call, report):
     if report.failed:
         # call.excinfo contains an ExceptionInfo instance
         if call.excinfo.type is ldap.SERVER_DOWN:
-            text = getInstancesReport()
-            report.sections.append(("Captured SERVER_DOWN info", text))
+            report.sections.extend(getReport())
 
