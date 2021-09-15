@@ -63,11 +63,11 @@ CARGO_FLAGS = @cargo_defs@
 
 if CLANG_ENABLE
 RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
-RUSTC_LINK_FLAGS = -C link-arg=-fuse-ld=lld
+RUSTC_LINK_FLAGS = -Clink-arg=-fuse-ld=lld
 RUST_LDFLAGS = -ldl -lpthread -lc -lm -lrt -lutil
 else
 RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
-RUSTC_LINK_FLAGS =
+RUSTC_LINK_FLAGS = -Clink-arg=-fuse-ld=ld
 # This avoids issues with stderr being double provided with clang + asan.
 RUST_LDFLAGS = -ldl -lpthread -lgcc_s -lc -lm -lrt -lutil
 endif
@@ -92,7 +92,7 @@ CLANG_LDFLAGS = -latomic -fuse-ld=lld
 EXPORT_LDFLAGS =
 else
 CLANG_ON = 0
-CLANG_LDFLAGS =
+CLANG_LDFLAGS = -flto
 if DEBUG
 EXPORT_LDFLAGS = -rdynamic
 endif
