@@ -111,9 +111,10 @@ def pytest_runtest_makereport(item, call):
                 text = asan_report.read()
                 extra.append(pytest_html.extras.text(text, name=os.path.basename(f)))
         report.extra = extra
+
+
 def pytest_exception_interact(node, call, report):
     if report.failed:
         # call.excinfo contains an ExceptionInfo instance
         if call.excinfo.type is ldap.SERVER_DOWN:
             report.sections.extend(getReport())
-
