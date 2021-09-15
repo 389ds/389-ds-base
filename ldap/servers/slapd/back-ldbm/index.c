@@ -17,8 +17,6 @@
 #include "back-ldbm.h"
 
 static const char *errmsg = "database index operation failed";
-#define NASTY_MSG(n) ((char*)(#n " - database index operation failed"))
-
 
 static int is_indexed(const char *indextype, int indexmask, char **index_rules);
 static int index_get_allids(int *allids, const char *indextype, struct attrinfo *ai, const struct berval *val, unsigned int flags);
@@ -1836,7 +1834,6 @@ addordel_values_sv(
     struct berval *hashed_bvp = NULL;
     struct berval *encrypted_bvp = NULL;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    char *index_id = get_index_name(be, db, a);
 
     slapi_log_err(SLAPI_LOG_TRACE, "addordel_values_sv", "%s_values\n",
                   (flags & BE_INDEX_ADD) ? "add" : "del");
@@ -1865,12 +1862,12 @@ addordel_values_sv(
         }
 
         if (rc != 0) {
-            ldbm_nasty(NASTY_MSG("addordel_values_sv"), index_id, 1120, rc);
+            ldbm_nasty("addordel_values_sv", errmsg, 1120, rc);
         }
         dblayer_value_free(be, &key);
         index_free_prefix(prefix);
-        slapi_log_err(SLAPI_LOG_TRACE, "addordel_values_sv", "%s_values %d index: %s\n",
-                      (flags & BE_INDEX_ADD) ? "add" : "del", rc, index_id);
+        slapi_log_err(SLAPI_LOG_TRACE, "addordel_values_sv", "%s_values %d\n",
+                      (flags & BE_INDEX_ADD) ? "add" : "del", rc);
         return (rc);
     }
 
@@ -1963,7 +1960,7 @@ addordel_values_sv(
             }
         }
         if (rc != 0) {
-            ldbm_nasty(NASTY_MSG("addordel_values_sv"), index_id, 1130, rc);
+            ldbm_nasty("addordel_values_sv", errmsg, 1130, rc);
             break;
         }
         if (NULL != key.dptr && realbuf != key.dptr) { /* realloc'ed */
@@ -1977,7 +1974,7 @@ addordel_values_sv(
     }
 
     if (rc != 0) {
-        ldbm_nasty(NASTY_MSG("addordel_values_sv"), index_id, 1140, rc);
+        ldbm_nasty("addordel_values_sv", errmsg, 1140, rc);
     }
     slapi_log_err(SLAPI_LOG_TRACE, "addordel_values_sv", "%s_values %d\n",
                   (flags & BE_INDEX_ADD) ? "add" : "del", rc);

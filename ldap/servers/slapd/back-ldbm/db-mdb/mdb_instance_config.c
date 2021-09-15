@@ -53,7 +53,7 @@ dbmdb_instance_delete_instance_entry_callback(struct ldbminfo *li, struct ldbm_i
         if (inst->inst_dir_name == NULL) {
             dblayer_get_instance_data_dir(inst->inst_be);
         }
-        dbmdb_dbi_rmdir(inst->inst_be);
+        dbmdb_dbi_rmdir(MDB_CONFIG(li), inst->inst_dir_name);
 
         /* unregister the monitor */
         dbmdb_instance_unregister_monitor(inst);

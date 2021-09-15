@@ -126,17 +126,6 @@ int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_
         ltxn = *get_mdbtxnanchor();
     }
     if (ltxn) {
-        if (flags & TXNFL_DBI) {
-            /* Too bad: we cannot handle this situation as it leads to inconsistency
-             * if parent txn get aborted.
-             */
-             slapi_log_error(SLAPI_LOG_CRIT, "dbmdb_start_txn",
-                    "Code issue: Trying to handle a db instance in a thread that is already holding a txn.\n");
-            log_stack(SLAPI_LOG_CRIT);
-            abort();
-        }
-
-
         if (ltxn->flags & TXNFL_RDONLY) {
             PR_ASSERT(flags & TXNFL_RDONLY);
             /* Cannot use sub txn */
@@ -178,7 +167,7 @@ int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_
         ltxn->hr_time_start = hr_time_now;
         push_mdbtxn(ltxn);
         *txn = (dbi_txn_t*)ltxn;
-        dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_TXN, "%s: dbi_txn_t=%p mdb_txn=%p\n", funcname, ltxn, mtxn);
+        dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_TXN, "dbi_txn_t=%p mdb_txn=%p\n", ltxn, mtxn);
     } else {
         slapi_log_error(SLAPI_LOG_ERR, "dbmdb_start_txn",
             "Failed to begin a txn for function %s. err=%d %s\n",

@@ -229,7 +229,7 @@ int idl_get_tune(void);
 size_t idl_get_allidslimit(struct attrinfo *a, int allidslimit);
 int idl_get_idl_new(void);
 IDList *idl_new_range_fetch(backend *be, dbi_db_t *db, dbi_val_t *lowerkey, dbi_val_t *upperkey, dbi_txn_t *txn, struct attrinfo *a, int *flag_err, int allidslimit, int sizelimit, struct timespec *expire_time, int lookthrough_limit, int operator);
-char *get_index_name(backend *be, dbi_db_t *db, struct attrinfo *a);
+
 
 int64_t idl_compare(IDList *a, IDList *b);
 

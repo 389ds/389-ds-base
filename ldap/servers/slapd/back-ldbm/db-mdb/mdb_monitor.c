@@ -130,7 +130,7 @@ dbmdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     }
 #endif
 
-    stats = dbdmd_gather_stats(MDB_CONFIG(li), inst->inst_be);
+    stats = dbdmd_gather_stats(MDB_CONFIG(li), inst->inst_name);
 
     for (i = 0; stats && i<stats->nbdbis; i++) {
         /* only print out stats on files used by this instance */

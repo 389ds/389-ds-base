@@ -23,6 +23,8 @@
 
 #include "back-ldbm.h"
 
+static char *filename = "idl_new.c";
+
 #define DB_USE_BULK_FETCH 1
 #define BULK_FETCH_BUFFER_SIZE (8 * 1024)
 
@@ -61,17 +63,6 @@ int
 idl_new_get_tune(void)
 {
     return idl_tune;
-}
-
-char *
-get_index_name(backend *be, dbi_db_t *db, struct attrinfo *a)
-{
-    if (a && a->ai_type) {
-        return a->ai_type;
-    } else if (dblayer_get_db_filename(be, db)) {
-        return dblayer_get_db_filename(be, db);
-    }
-    return "(unknown)";
 }
 
 size_t
@@ -154,7 +145,13 @@ idl_new_fetch(
     dbi_val_t dataret = {0};
     back_txn s_txn = {0};
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    char *index_id = get_index_name(be, db, a);
+    char *index_id = "unknown";
+
+    if (a && a->ai_type) {
+        index_id = a->ai_type;
+    } else if (dblayer_get_db_filename(be, db)) {
+        index_id = dblayer_get_db_filename(be, db);
+    }
 
     if (NEW_IDL_NOOP == *flag_err) {
         *flag_err = 0;
@@ -172,7 +169,7 @@ idl_new_fetch(
     /* Make a cursor */
     ret = dblayer_new_cursor(be, db, s_txn.back_txn_txn, &cursor);
     if (0 != ret) {
-        ldbm_nasty("idl_new_fetch - idl_new.c", index_id, 1, ret);
+        ldbm_nasty("idl_new_fetch", filename, 1, ret);
         goto error;
     }
 
@@ -194,7 +191,7 @@ idl_new_fetch(
                         "(need=%ld actual=%ld)\n",
                         index_id, (char *)key.data, bulkdata.v.size, bulkdata.v.ulen);
             }
-            ldbm_nasty("idl_new_fetch - idl_new.c", index_id, 2, ret);
+            ldbm_nasty("idl_new_fetch", filename, 2, ret);
         }
         goto error; /* Not found is OK, return NULL IDL */
     }
@@ -259,7 +256,7 @@ idl_new_fetch(
 
     if (ret != DBI_RC_NOTFOUND) {
         idl_free(&idl);
-        ldbm_nasty("idl_new_fetch - idl_new.c", index_id, 59, ret);
+        ldbm_nasty("idl_new_fetch", filename, 59, ret);
         goto error;
     }
 
@@ -280,7 +277,7 @@ error:
     /* Close the cursor */
     ret2 = dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
     if (ret2) {
-        ldbm_nasty("idl_new_fetch - idl_new.c", index_id, 3, ret2);
+        ldbm_nasty("idl_new_fetch", filename, 3, ret2);
         if (!ret) {
             /* if cursor close returns DEADLOCK, we must bubble that up
                to the higher layers for retries */
@@ -405,8 +402,6 @@ idl_new_range_fetch(
     idl_range_id_pair *leftover = NULL;
     size_t leftoverlen = 32;
     size_t leftovercnt = 0;
-    char *index_id = get_index_name(be, db, ai);
-
 
     if (NULL == flag_err) {
         return NULL;
@@ -441,7 +436,7 @@ idl_new_range_fetch(
     /* Make a cursor */
     ret = dblayer_new_cursor(be, db, txn, &cursor);
     if (0 != ret) {
-        ldbm_nasty("idl_new_range_fetch - idl_new.c", index_id, 1, ret);
+        ldbm_nasty("idl_new_range_fetch", filename, 1, ret);
         goto error;
     }
     memset(&dataret, 0, sizeof(dataret));
@@ -463,7 +458,7 @@ idl_new_range_fetch(
                                                                     "data item for key %s is too large for our buffer (need=%ld actual=%ld)\n",
                               (char *)cur_key.data, bulkdata.v.size, bulkdata.v.ulen);
             }
-            ldbm_nasty("idl_new_range_fetch - idl_new.c", index_id, 2, ret);
+            ldbm_nasty("idl_new_range_fetch", filename, 2, ret);
         }
         goto error; /* Not found is OK, return NULL IDL */
     }
@@ -603,7 +598,7 @@ idl_new_range_fetch(
             ret = 0; /* normal case */
         } else {
             idl_free(&idl);
-            ldbm_nasty("idl_new_range_fetch - idl_new.c", index_id, 59, ret);
+            ldbm_nasty("idl_new_range_fetch", filename, 59, ret);
             goto error;
         }
     }
@@ -625,7 +620,7 @@ error:
     /* Close the cursor */
     ret2 = dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
     if (ret2) {
-        ldbm_nasty("idl_new_range_fetch - idl_new.c", index_id, 3, ret2);
+        ldbm_nasty("idl_new_range_fetch", filename, 3, ret2);
         if (!ret) {
             /* if cursor close returns DEADLOCK, we must bubble that up
                to the higher layers for retries */
@@ -679,7 +674,6 @@ idl_new_insert_key(
 {
     int ret = 0;
     dbi_val_t data = {0};
-    char *index_id = get_index_name(be, db, a);
 
 #if defined(DB_ALLIDS_ON_WRITE)
     dbi_cursor_t cursor = {0};
@@ -688,7 +682,7 @@ idl_new_insert_key(
     /* Make a cursor */
     ret = dblayer_new_cursor(be, db, txn, &cursor);
     if (0 != ret) {
-        ldbm_nasty("idl_new_insert_key - idl_new.c", index_id, 58, ret);
+        ldbm_nasty("idl_new_insert_key", filename, 58, ret);
         cursor = NULL;
         goto error;
     }
@@ -702,7 +696,7 @@ idl_new_insert_key(
             goto error; /* allid: don't bother inserting any more */
         }
     } else if (DBI_RC_NOTFOUND != ret) {
-        ldbm_nasty("idl_new_insert_key - idl_new.c", index_id, 12, ret);
+        ldbm_nasty("idl_new_insert_key", filename, 12, ret);
         goto error;
     }
     if (NULL != disposition) {
@@ -718,7 +712,7 @@ idl_new_insert_key(
             /* this is okay */
             ret = 0;
         } else {
-            ldbm_nasty("idl_new_insert_key - idl_new.c", index_id, 50, ret);
+            ldbm_nasty("idl_new_insert_key", filename, 50, ret);
         }
     } else {
         /* check for allidslimit exceeded in database */
@@ -741,7 +735,7 @@ idl_new_insert_key(
         /* Close the cursor */
         ret2 = dblayer_cursor_op(cursor, DBI_OP_CLOSE, NULL, NULL);
         if (ret2) {
-            ldbm_nasty("idl_new_insert_key - idl_new.c", index_id, 56, ret2);
+            ldbm_nasty("idl_new_insert_key", filename, 56, ret2);
         }
         dblayer_bulk_free(be, &bulkdata);
     }
@@ -758,7 +752,7 @@ idl_new_insert_key(
             /* this is okay */
             ret = 0;
         } else {
-            ldbm_nasty("idl_new_insert_key - idl_new.c", index_id, 60, ret);
+            ldbm_nasty("idl_new_insert_key", filename, 60, ret);
         }
     }
 #endif
@@ -778,12 +772,11 @@ int idl_new_delete_key(
     int ret2 = 0;
     dbi_cursor_t cursor = {0};
     dbi_val_t data = {0};
-    char *index_id = get_index_name(be, db, a);
 
     /* Make a cursor */
     ret = dblayer_new_cursor(be, db, txn, &cursor);
     if (0 != ret) {
-        ldbm_nasty("idl_new_delete_key - idl_new.c", index_id, 21, ret);
+        ldbm_nasty("idl_new_delete_key", filename, 21, ret);
         goto error;
     }
     dblayer_value_set_buffer(be, &data, &id, sizeof(id));
@@ -797,7 +790,7 @@ int idl_new_delete_key(
         if (DBI_RC_NOTFOUND == ret) {
             ret = 0; /* Not Found is OK, return immediately */
         } else {
-            ldbm_nasty("idl_new_delete_key - idl_new.c", index_id, 22, ret);
+            ldbm_nasty("idl_new_delete_key", filename, 22, ret);
         }
         goto error;
     }
@@ -808,7 +801,7 @@ error:
     /* Close the cursor */
     ret2 = dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
     if (ret2) {
-        ldbm_nasty("idl_new_delete_key - idl_new.c", index_id, 24, ret2);
+        ldbm_nasty("idl_new_delete_key", filename, 24, ret2);
         if (!ret) {
             /* if cursor close returns DEADLOCK, we must bubble that up
                to the higher layers for retries */
@@ -826,12 +819,11 @@ static int idl_new_store_allids(backend * be, dbi_db_t * db, dbi_val_t * key, db
     dbi_cursor_t cursor = {0};
     dbi_val_t data = {0};
     ID id = 0;
-    char *index_id = get_index_name(be, db, NULL);
 
     /* Make a cursor */
     ret = dblayer_new_cursor(be, db, txn, &cursor);
     if (0 != ret) {
-        ldbm_nasty("idl_new_store_allids - idl_new.c", index_id, 31, ret);
+        ldbm_nasty(filename, 31, ret);
         cursor = NULL;
         goto error;
     }
@@ -850,7 +842,7 @@ static int idl_new_store_allids(backend * be, dbi_db_t * db, dbi_val_t * key, db
             ret = dblayer_cursor_op(cursor, DBI_OP_DEL, key, &data);
         }
         if (0 != ret && DBI_RC_NOTFOUND != ret) {
-            ldbm_nasty("idl_new_store_allids - idl_new.c", index_id, 54, ret);
+            ldbm_nasty("idl_new_store_allids", filename, 54, ret);
             goto error;
         } else {
             ret = 0;
@@ -859,7 +851,7 @@ static int idl_new_store_allids(backend * be, dbi_db_t * db, dbi_val_t * key, db
         if (DBI_RC_NOTFOUND == ret) {
             ret = 0; /* Not Found is OK */
         } else {
-            ldbm_nasty("idl_new_store_allids - idl_new.c", index_id, 32, ret);
+            ldbm_nasty("idl_new_store_allids", filename, 32, ret);
             goto error;
         }
     }
@@ -868,7 +860,7 @@ static int idl_new_store_allids(backend * be, dbi_db_t * db, dbi_val_t * key, db
     id = ALLID;
     ret = dblayer_cursor_op(cursor, DBI_OP_ADD, key, &data);
     if (0 != ret) {
-        ldbm_nasty("idl_new_store_allids - idl_new.c", index_id, 53, ret);
+        ldbm_nasty("idl_new_store_allids", filename, 53, ret);
         goto error;
     }
 
@@ -880,7 +872,7 @@ error:
     dblayer_value_free(be, &data);
     ret2 = dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
     if (ret2) {
-        ldbm_nasty("idl_new_store_allids - idl_new.c", index_id, 33, ret2);
+        ldbm_nasty("idl_new_store_allids", filename, 33, ret2);
     }
     return ret;
 #ifdef KRAZY_K0DE
@@ -905,7 +897,6 @@ int idl_new_store_block(
     dbi_val_t data = {0};
     ID id = 0;
     size_t x = 0;
-    char *index_id = get_index_name(be, db, a);
 #if defined(DB_ALLIDS_ON_WRITE)
     dbi_recno_t count;
 #endif
@@ -929,7 +920,7 @@ int idl_new_store_block(
     /* Make a cursor */
     ret = dblayer_new_cursor(be, db, txn, &cursor);
     if (0 != ret) {
-        ldbm_nasty("idl_new_store_block - idl_new.c", index_id, 41, ret);
+        ldbm_nasty("idl_new_store_block", filename, 41, ret);
         goto error;
     }
 
@@ -941,7 +932,7 @@ int idl_new_store_block(
     if (ret == DBI_RC_NOTFOUND) {
         ret = 0;
     } else if (ret != 0) {
-        ldbm_nasty("idl_new_store_block - idl_new.c", index_id, 47, ret);
+        ldbm_nasty("idl_new_store_block", filename, 47, ret);
         goto error;
     }
 
@@ -954,7 +945,7 @@ int idl_new_store_block(
             if (DBI_RC_KEYEXIST == ret) {
                 ret = 0; /* exist is okay */
             } else {
-                ldbm_nasty("idl_new_store_block - idl_new.c", index_id, 48, ret);
+                ldbm_nasty("idl_new_store_block", filename, 48, ret);
                 goto error;
             }
         }
@@ -978,7 +969,7 @@ error:
     /* Close the cursor */
     ret2 = dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
     if (ret2) {
-        ldbm_nasty("idl_new_store_block - idl_new.c", index_id, 49, ret2);
+        ldbm_nasty("idl_new_store_block", filename, 49, ret2);
         if (!ret) {
             /* if cursor close returns DEADLOCK, we must bubble that up
                to the higher layers for retries */

@@ -26,9 +26,9 @@
 
 static char *sourcefile = "dbmdb_import.c";
 
-static int dbmdb_ancestorid_create_index(backend *be, ImportJob *job);
-static int dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job);
-static int dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job);
+static int dbmdb_ancestorid_create_index(backend *be, ImportJob *job, dbi_txn_t * txn);
+static int dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job, dbi_txn_t * txn);
+static int dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job, dbi_txn_t * txn);
 
 /* Start of definitions for a simple cache using a hash table */
 
@@ -548,9 +548,9 @@ out:
  *
  */
 static int
-dbmdb_ancestorid_create_index(backend *be, ImportJob *job)
+dbmdb_ancestorid_create_index(backend *be, ImportJob *job, dbi_txn_t * txn)
 {
-    return (idl_get_idl_new()) ? dbmdb_ancestorid_new_idl_create_index(be, job) : dbmdb_ancestorid_default_create_index(be, job);
+    return (idl_get_idl_new()) ? dbmdb_ancestorid_new_idl_create_index(be, job, txn) : dbmdb_ancestorid_default_create_index(be, job, txn);
 }
 
 /*
@@ -560,7 +560,7 @@ dbmdb_ancestorid_create_index(backend *be, ImportJob *job)
  * when the new mode is used, particularly with large databases.
  */
 static int
-dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job)
+dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job, dbi_txn_t * txn)
 {
     int key_count = 0;
     int ret = 0;
@@ -577,7 +577,6 @@ dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job)
     id2idl_hash *ht = NULL;
     dbmdb_id2idl *ididl;
     int started_progress_logging = 0;
-    dbi_txn_t * txn = NULL;
 
     /*
      * We need to iterate depth-first through the non-leaf nodes
@@ -776,7 +775,7 @@ out:
  * large databases.  Cf. bug 469800.
  */
 static int
-dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
+dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job, dbi_txn_t * txn)
 {
     int key_count = 0;
     int ret = 0;
@@ -791,7 +790,6 @@ dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
     NIDS nids;
     ID id, parentid;
     int started_progress_logging = 0;
-    dbi_txn_t *txn = NULL;
 
     /*
      * We need to iterate depth-first through the non-leaf nodes
@@ -813,7 +811,7 @@ dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
     }
 
     /* Get the non-leaf node IDs */
-    ret = dbmdb_get_nonleaf_ids(be, NULL, &nodes, job);
+    ret = dbmdb_get_nonleaf_ids(be, txn, &nodes, job);
     if (ret != 0)
         return ret;
 
@@ -844,13 +842,6 @@ dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
     ret = dblayer_get_index_file(be, ai_pid, (dbi_db_t**)&db_pid, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("dbmdb_ancestorid_new_idl_create_index", sourcefile, 13060, ret);
-        goto out;
-    }
-
-    ret = START_TXN(&txn,NULL,0);  /* Start a rw txn to update the index */
-    if (ret) {
-        import_log_notice(job,SLAPI_LOG_ERR,"dbmdb_public_dbmdb_import_main",
-                      "Failed to begin a transaction");
         goto out;
     }
 
@@ -953,8 +944,6 @@ dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
     }
 
 out:
-    if (txn)
-        ret = END_TXN(&txn, ret);
     if (ret == 0) {
         if (started_progress_logging) {
             /* finish what we started logging */
@@ -2016,6 +2005,8 @@ dbmdb_public_dbmdb_import_main(void *arg)
     int aborted = 0;
     ImportWorkerInfo *producer = NULL;
     char *opstr = "Import";
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    dbi_txn_t *txn = NULL;
 
     if (job->task) {
         slapi_task_inc_refcount(job->task);
@@ -2046,9 +2037,6 @@ dbmdb_public_dbmdb_import_main(void *arg)
                   (caddr_t)job, -1, AVL_INORDER);
         vlv_getindices((IFP)dbmdb_import_attr_callback, (void *)job, be);
     }
-
-    /* insure all dbi get open */
-    dbmdb_open_all_files(NULL, job->inst->inst_be);
 
     /* Determine how much index buffering space to allocate to each index */
     dbmdb_import_set_index_buffer_size(job);
@@ -2190,6 +2178,12 @@ dbmdb_public_dbmdb_import_main(void *arg)
         }
     }
 
+    ret = START_TXN(&txn,NULL,0);  /* Start a rw txn to update some indexes */
+    if(ret){
+        import_log_notice(job,SLAPI_LOG_ERR,"dbmdb_public_dbmdb_import_main",
+                          "Failedtobeginatransaction");
+        goto error;
+    }
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_public_dbmdb_import_main", "Indexing complete.  Post-processing...");
     /* Now do the numsubordinates attribute */
     /* [610066] reindexed db cannot be used in the following backup/restore */
@@ -2211,7 +2205,7 @@ dbmdb_public_dbmdb_import_main(void *arg)
 
         ainfo_get(be, "ancestorid", &ai);
         dblayer_erase_index_file(be, ai, PR_TRUE, 0);
-        if ((ret = dbmdb_ancestorid_create_index(be, job)) != 0) {
+        if ((ret = dbmdb_ancestorid_create_index(be, job, txn)) != 0) {
             import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_public_dbmdb_import_main", "Failed to create ancestorid index");
             goto error;
         }
@@ -2228,6 +2222,7 @@ dbmdb_public_dbmdb_import_main(void *arg)
 error:
     /* If we fail, the database is now in a mess, so we delete it
        except dry run mode */
+    ret = END_TXN(&txn, ret);
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_public_dbmdb_import_main", "Closing files...");
     cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
     if (entryrdn_get_switch()) {
@@ -2370,7 +2365,7 @@ error:
     if((!ret) && (job->skipped)) {
         ret |= WARN_SKIPPED_IMPORT_ENTRY;
     }
-    dbmdb_clear_dirty_flags(be);
+    dbmdb_clear_dirty_flags(MDB_CONFIG(li), inst->inst_name);
 
     /* This instance isn't busy anymore */
     instance_set_not_busy(job->inst);
