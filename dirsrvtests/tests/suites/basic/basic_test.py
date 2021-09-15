@@ -424,7 +424,11 @@ def test_basic_db2index(topology_st):
     indexes = []
 
     # Error log message to confirm a reindex
-    info_message = 'INFO - bdb_db2index - ' + DEFAULT_BENAME + ':' + ' Indexing attribute: '
+    if get_default_db_lib() == "mdb":
+        dbprefix = "dbmdb"
+    else:
+        dbprefix = "bdb"
+    info_message = f'INFO - {dbprefix}_db2index - {DEFAULT_BENAME}: Indexing attribute: '
 
     log.info('Start the server')
     topology_st.standalone.start()
@@ -464,10 +468,10 @@ def test_basic_db2index(topology_st):
     for indexNum, index in enumerate(indexes):
         if index in "entryrdn":
             assert topology_st.standalone.searchErrorsLog(
-                'INFO - bdb_db2index - ' + DEFAULT_BENAME + ':' + ' Indexing ' + index)
+                f'INFO - {dbprefix}_db2index - {DEFAULT_BENAME}: Indexing {index}')
         else:
             assert topology_st.standalone.searchErrorsLog(
-                'INFO - bdb_db2index - ' + DEFAULT_BENAME + ':' + ' Indexing attribute: ' + index)
+                f'INFO - {dbprefix}_db2index - {DEFAULT_BENAME}: Indexing attribute: {index}')
 
     assert indexNum+1 == numIndexes
 
