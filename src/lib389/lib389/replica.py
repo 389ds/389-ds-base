@@ -1639,12 +1639,13 @@ class Replica(DSLdapObject):
 
         return RUV(data)
 
-    def get_maxcsn(self):
+    def get_maxcsn(self, replica_id = None):
         """Return the current replica's maxcsn for this suffix
 
         :returns: str
         """
-        replica_id = self.get_rid()
+        if replica_id is None:
+            replica_id = self.get_rid()
         replica_ruvs = self.get_ruv()
         return replica_ruvs._rid_maxcsn.get(replica_id, '00000000000000000000')
 
@@ -2437,6 +2438,41 @@ class ReplicationManager(object):
             time.sleep(1)
         raise Exception("RUV did not sync in time!")
 
+    def wait_while_replication_is_progressing(self, from_instance, to_instance, timeout=5):
+        """ Wait while replication is progressing
+            used by wait_for_replication to avoid timeout because of
+              slow replication (typically when traces have been added) 
+            Returns true is repliaction is stalled.
+
+        :param from_instance: The instance whos state we we want to check from
+        :type from_instance: lib389.DirSrv
+        :param to_instance: The instance whos state we want to check matches from.
+        :type to_instance: lib389.DirSrv
+        :param timeout: Fail after timeout seconds.
+        :type timeout: int
+
+        """
+        from_replicas = Replicas(from_instance)
+        from_r = from_replicas.get(self._suffix)
+
+        to_replicas = Replicas(to_instance)
+        to_r = to_replicas.get(self._suffix)
+
+        target_csn = from_r.get_maxcsn()
+        last_csn = '00000000000000000000'
+        csn = to_r.get_maxcsn(from_r.get_rid())
+        while (csn < target_csn):
+            last_csn = csn
+            for i in range(0, timeout):
+                time.sleep(1)
+                csn = to_r.get_maxcsn(from_r.get_rid())
+                if csn > last_csn:
+                    break
+            if csn <= last_csn:
+                return False
+        return True
+
+
     def wait_for_replication(self, from_instance, to_instance, timeout=20):
         """Wait for a replication event to occur from instance to instance. This
         shows some point of synchronisation has occured.
@@ -2458,6 +2494,7 @@ class ReplicationManager(object):
         change = str(uuid.uuid4())
 
         from_group.replace('description', change)
+        self.wait_while_replication_is_progressing(from_instance, to_instance)
 
         for i in range(0, timeout):
             desc = to_group.get_attr_val_utf8('description')

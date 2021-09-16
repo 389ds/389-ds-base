@@ -509,7 +509,7 @@ dbmdb_ctx_t_serial_lock_set(void *arg,
 static config_info dbmdb_ctx_t_param[] = {
     {CONFIG_MDB_MAX_SIZE, CONFIG_TYPE_UINT64, "0", &dbmdb_ctx_t_db_max_size_get, &dbmdb_ctx_t_db_max_size_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_MDB_MAX_READERS, CONFIG_TYPE_INT, "0", &dbmdb_ctx_t_db_max_readers_get, &dbmdb_ctx_t_db_max_readers_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_MDB_MAX_DBS, CONFIG_TYPE_INT, "128", &dbmdb_ctx_t_db_max_dbs_get, &dbmdb_ctx_t_db_max_dbs_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_MDB_MAX_DBS, CONFIG_TYPE_INT, "512", &dbmdb_ctx_t_db_max_dbs_get, &dbmdb_ctx_t_db_max_dbs_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_MAXPASSBEFOREMERGE, CONFIG_TYPE_INT, "100", &dbmdb_ctx_t_maxpassbeforemerge_get, &dbmdb_ctx_t_maxpassbeforemerge_set, 0},
     {CONFIG_DB_DURABLE_TRANSACTIONS, CONFIG_TYPE_ONOFF, "on", &dbmdb_ctx_t_db_durable_transactions_get, &dbmdb_ctx_t_db_durable_transactions_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_BYPASS_FILTER_TEST, CONFIG_TYPE_STRING, "on", &dbmdb_ctx_t_get_bypass_filter_test, &dbmdb_ctx_t_set_bypass_filter_test, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},

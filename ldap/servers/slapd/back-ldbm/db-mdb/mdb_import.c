@@ -953,8 +953,9 @@ dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
     }
 
 out:
-    if (txn)
+    if (txn) {
         ret = END_TXN(&txn, ret);
+    }
     if (ret == 0) {
         if (started_progress_logging) {
             /* finish what we started logging */

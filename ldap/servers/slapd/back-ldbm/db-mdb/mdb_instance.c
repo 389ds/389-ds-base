@@ -258,7 +258,7 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
     dbi_txn_t *txn = NULL;
     MDB_val data = {0};
     MDB_val key = {0};
-    char *special_names[] = { ID2ENTRY, LDBM_PARENTID_STR, LDBM_ENTRYRDN_STR, LDBM_ANCESTORID_STR, BDB_CL_FILENAME, NULL };
+    char *special_names[] = { ID2ENTRY, LDBM_PARENTID_STR, LDBM_ENTRYRDN_STR, LDBM_ANCESTORID_STR, BE_CHANGELOG_FILE, NULL };
     dbmdb_dbi_t *sn_dbis[(sizeof special_names) / sizeof special_names[0]] = {0};
     int *valid_slots = NULL;
     errinfo_t errinfo = {0};
