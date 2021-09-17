@@ -20,7 +20,7 @@ void dbg_log(const char *file, int lineno, const char *funcname, int loglevel, c
 void dbgval2str(char *buff, size_t bufsiz, MDB_val *val);
 void log_stack(int loglvl);
 
-#define DBMDB_DEBUG 1
+/*#define DBMDB_DEBUG 1 */
 #define DBGMDB_LEVEL_DEFAULT DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_TXN
 
 /* Define the wrapper associated with each log level */

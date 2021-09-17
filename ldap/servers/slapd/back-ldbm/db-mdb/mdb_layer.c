@@ -2546,7 +2546,7 @@ dbmdb_get_entries_count(dbi_db_t *db, dbi_txn_t *txn, int *count)
     MDB_stat stats = {0};
     int rc = 0;
 
-    rc = START_TXN(&txn, txn, MDB_RDONLY);
+    rc = START_TXN(&txn, txn, TXNFL_RDONLY);
     if (rc == 0)
         rc = mdb_stat(TXN(txn), dbmdb_db->dbi, &stats);
     if (rc == 0)
