@@ -2235,6 +2235,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_REWRITE_RFC1274_ATTRIBUTE "nsslapd-rewrite-rfc1274"
 #define CONFIG_PLUGIN_BINDDN_TRACKING_ATTRIBUTE "nsslapd-plugin-binddn-tracking"
 #define CONFIG_MODDN_ACI_ATTRIBUTE "nsslapd-moddn-aci"
+#define CONFIG_TARGETFILTER_CACHE_ATTRIBUTE "nsslapd-targetfilter-cache"
 #define CONFIG_GLOBAL_BACKEND_LOCK "nsslapd-global-backend-lock"
 #define CONFIG_ENABLE_NUNC_STANS "nsslapd-enable-nunc-stans"
 #define CONFIG_ENABLE_UPGRADE_HASH "nsslapd-enable-upgrade-hash"
@@ -2408,6 +2409,7 @@ typedef struct _slapdFrontendConfig
     char **plugin;
     slapi_onoff_t plugin_track;
     slapi_onoff_t moddn_aci;
+    slapi_onoff_t targetfilter_cache;
     struct pw_scheme *pw_storagescheme;
     slapi_onoff_t pwpolicy_local;
     slapi_onoff_t pw_is_global_policy;

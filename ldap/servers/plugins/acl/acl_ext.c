@@ -189,6 +189,11 @@ acl_operation_ext_constructor(void *object __attribute__((unused)), void *parent
         slapi_log_err(SLAPI_LOG_ERR, plugin_name,
                       "acl_operation_ext_constructor - Operation extension allocation Failed\n");
     }
+    /* targetfilter_cache toggle set during aclpb allocation
+     * to avoid accessing configuration during the evaluation
+     * of each aci
+     */
+    aclpb->targetfilter_cache_enabled = config_get_targetfilter_cache();
 
     TNF_PROBE_0_DEBUG(acl_operation_ext_constructor_end, "ACL", "");
 
@@ -713,6 +718,7 @@ acl__free_aclpb(Acl_PBlock **aclpb_ptr)
     slapi_ch_free((void **)&(aclpb->aclpb_curr_entryEval_context.acle_handles_matched_target));
     slapi_ch_free((void **)&(aclpb->aclpb_prev_entryEval_context.acle_handles_matched_target));
     slapi_ch_free((void **)&(aclpb->aclpb_prev_opEval_context.acle_handles_matched_target));
+    targetfilter_cache_free(aclpb);
     slapi_sdn_free(&aclpb->aclpb_authorization_sdn);
     slapi_sdn_free(&aclpb->aclpb_curr_entry_sdn);
     if (aclpb->aclpb_macro_ht) {
@@ -920,6 +926,12 @@ acl__done_aclpb(struct acl_pblock *aclpb)
                       aclpb->aclpb_proplist ? (char *)aclpb->aclpb_proplist : "NULL",
                       aclpb->aclpb_acleval ? (char *)aclpb->aclpb_acleval : "NULL");
     }
+
+    /* This aclpb return to the aclpb pool, make sure
+     * the cached evaluations are freed and that
+     * aclpb_curr_entry_targetfilters is NULL
+     */
+    targetfilter_cache_free(aclpb);
 
     /* Now Free the contents or clean it */
     slapi_sdn_done(aclpb->aclpb_curr_entry_sdn);
