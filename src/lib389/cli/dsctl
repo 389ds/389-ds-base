@@ -25,7 +25,6 @@ from lib389.cli_ctl import nsstate as cli_nsstate
 from lib389.cli_ctl import dbgen as cli_dbgen
 from lib389.cli_ctl import dsrc as cli_dsrc
 from lib389.cli_ctl import cockpit as cli_cockpit
-from lib389.cli_ctl import dblib as cli_dblib
 from lib389.cli_ctl.instance import instance_remove_all
 from lib389.cli_base import (
     disconnect_instance,
@@ -65,7 +64,6 @@ cli_nsstate.create_parser(subparsers)
 cli_dbgen.create_parser(subparsers)
 cli_dsrc.create_parser(subparsers)
 cli_cockpit.create_parser(subparsers)
-cli_dblib.create_parser(subparsers)
 
 argcomplete.autocomplete(parser)
 
