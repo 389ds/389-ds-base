@@ -679,6 +679,10 @@ dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
     dbmdb_ctx_t ctx = {0};
     int size=0;
     int i;
+    MDB_stat st = {0};
+    MDB_envinfo info = {0};
+    long used_pages = 0;
+    dbi_txn_t *txn = NULL;
 
     strncpy(ctx.home, dbhome, MAXPATHLEN);
     if (dbmdb_make_env(&ctx, 1, 0644)) {
@@ -686,11 +690,22 @@ dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
     }
     /* list all dbs */
     dbilist = dbmdb_list_dbis(&ctx, NULL, NULL, PR_FALSE, &size);
-    dbs = (dbi_dbslist_t*)slapi_ch_calloc(size+1, sizeof (dbi_dbslist_t));
+    dbs = (dbi_dbslist_t*)slapi_ch_calloc(size+2, sizeof (dbi_dbslist_t));
+    START_TXN(&txn, NULL, TXNFL_RDONLY);
     for (i=0; i<size; i++) {
         PR_snprintf(dbs[i].filename, PATH_MAX, "%s/%s", dbhome, dbilist[i]->dbname);
         dbmdb_format_dbslist_info(dbs[i].info, dbilist[i]);
+        mdb_stat(TXN(txn), dbilist[i]->dbi, &st);
+        used_pages += st.ms_branch_pages+st.ms_leaf_pages+st.ms_overflow_pages;     
     }
+    mdb_stat(TXN(txn), 0, &st);        /* Free pages db */
+    used_pages += st.ms_branch_pages+st.ms_leaf_pages+st.ms_overflow_pages;     
+    mdb_stat(TXN(txn), 1, &st);        /* Main db */
+    used_pages += st.ms_branch_pages+st.ms_leaf_pages+st.ms_overflow_pages;     
+    END_TXN(&txn, 0);
+    mdb_env_info(ctx.env, &info);
+    PR_snprintf(dbs[i].filename, PATH_MAX, "GLOBAL STATS: pages total=%ld used=%ld size=%d",
+        info.me_mapsize / st.ms_psize, used_pages, st.ms_psize);
     dbmdb_ctx_close(&ctx);
     slapi_ch_free((void**)&dbilist);
     return dbs;
