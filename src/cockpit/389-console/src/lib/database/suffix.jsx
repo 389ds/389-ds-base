@@ -7,35 +7,31 @@ import { SuffixReferrals } from "./referrals.jsx";
 import { SuffixIndexes } from "./indexes.jsx";
 import { VLVIndexes } from "./vlvIndexes.jsx";
 import { log_cmd, bad_file_name } from "../tools.jsx";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faLeaf,
+    faTree,
+    faSyncAlt
+} from '@fortawesome/free-solid-svg-icons';
+import '@fortawesome/fontawesome-svg-core/styles.css';
 import {
     ImportModal,
     ExportModal,
-    ReindexModal,
     CreateSubSuffixModal,
     CreateLinkModal,
 } from "./databaseModal.jsx";
 import {
-    DropdownButton,
-    MenuItem,
-    Nav,
-    NavItem,
-    Row,
-    Col,
-    ControlLabel,
-    Icon,
-    TabContent,
-    TabPane,
-    TabContainer,
-    noop
-} from "patternfly-react";
-
-// PR React 4 example
-// import {
-//    Dropdown,
-//    DropdownToggle,
-//    DropdownItem,
-//    DropdownSeparator,
-// } from "@patternfly/react-core";
+    Dropdown,
+    DropdownToggle,
+    DropdownItem,
+    DropdownPosition,
+    DropdownSeparator,
+    Grid,
+    GridItem,
+    Tab,
+    Tabs,
+    TabTitleText,
+} from "@patternfly/react-core";
 
 import PropTypes from "prop-types";
 
@@ -44,24 +40,29 @@ export class Suffix extends React.Component {
         super(props);
         this.state = {
             loading: false,
-            activeKey: 1,
+            activeTabKey: 0,
             notifications: [],
             errObj: {},
             refRows: this.props.data.refRows,
             encAttrsRows: this.props.data.encAttrsRows,
             vlvItems: this.props.data.vlvItems,
             autoTuning: this.props.data.autoTuning,
+            dropdownIsOpen: false,
             // Suffix configuration
             cachememsize: this.props.data.cachememsize,
             cachesize: this.props.data.cachesize,
             dncachememsize: this.props.data.dncachememsize,
             readOnly: this.props.data.readOnly,
             requireIndex: this.props.data.requireIndex,
+            dbstate: this.props.data.dbstate,
             _cachememsize: this.props.data.cachememsize,
             _cachesize: this.props.data.cachesize,
             _dncachememsize: this.props.data.dncachememsize,
             _readOnly: this.props.data.readOnly,
             _requireIndex: this.props.data.requireIndex,
+            _dbstate: this.props.data.dbstate,
+            savingConfig: false,
+            saveBtnDisabled: true,
 
             // Import/Export modals
             showImportModal: false,
@@ -69,7 +70,6 @@ export class Suffix extends React.Component {
             ldifLocation: "",
             attrEncryption: false,
             exportSpinner: false,
-            importSpinner: false,
             showConfirmLDIFImport: false,
             importLDIFName: "",
             deleleLDIFName: "",
@@ -85,6 +85,9 @@ export class Suffix extends React.Component {
             createSuffixEntry: false,
             noSuffixInit: true,
             createSampleEntries: false,
+            saveSubSuffixBtnDisabled: true,
+            subSuffixSaving: false,
+            initOption: "noInit",
 
             // Create Link
             showLinkModal: false,
@@ -96,18 +99,42 @@ export class Suffix extends React.Component {
             createNsmultiplexorcredentialsConfirm: "",
             createUseStartTLS: false,
             createNsbindmechanism: "SIMPLE",
-            linkPwdMatch: false,
+            linkSaving: false,
+            linkSaveBtnDisabled: true,
             // Delete
             showDeleteConfirm: false,
         };
 
+        // config.autoAddCss = false;
+
+        // Dropdown tasks
+        this.onToggle = dropdownIsOpen => {
+            this.setState({
+                dropdownIsOpen
+            });
+        };
+        this.onSelect = event => {
+            this.setState({
+                dropdownIsOpen: !this.state.dropdownIsOpen
+            });
+            this.onFocus();
+        };
+        this.onFocus = () => {
+            const element = document.getElementById('suffix-dropdown');
+            element.focus();
+        };
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+
         // General bindings
-        this.handleNavSelect = this.handleNavSelect.bind(this);
         // Import modal
         this.showImportModal = this.showImportModal.bind(this);
         this.closeImportModal = this.closeImportModal.bind(this);
         this.handleChange = this.handleChange.bind(this);
-        this.handleRadioChange = this.handleRadioChange.bind(this);
         this.doImport = this.doImport.bind(this);
         this.importLDIF = this.importLDIF.bind(this);
         this.showConfirmLDIFImport = this.showConfirmLDIFImport.bind(this);
@@ -116,6 +143,7 @@ export class Suffix extends React.Component {
         this.showExportModal = this.showExportModal.bind(this);
         this.closeExportModal = this.closeExportModal.bind(this);
         this.doExport = this.doExport.bind(this);
+        this.handleExportChange = this.handleExportChange.bind(this);
         // Reindex Suffix Modal
         this.showReindexConfirm = this.showReindexConfirm.bind(this);
         this.closeReindexConfirm = this.closeReindexConfirm.bind(this);
@@ -124,24 +152,24 @@ export class Suffix extends React.Component {
         this.showSubSuffixModal = this.showSubSuffixModal.bind(this);
         this.closeSubSuffixModal = this.closeSubSuffixModal.bind(this);
         this.createSubSuffix = this.createSubSuffix.bind(this);
+        this.handleSubSuffixOnSelect = this.handleSubSuffixOnSelect.bind(this);
+        this.handleSubSuffixChange = this.handleSubSuffixChange.bind(this);
         // Create link modal
         this.showLinkModal = this.showLinkModal.bind(this);
         this.closeLinkModal = this.closeLinkModal.bind(this);
         this.createLink = this.createLink.bind(this);
         this.handleLinkChange = this.handleLinkChange.bind(this);
+        this.handleLinkOnSelect = this.handleLinkOnSelect.bind(this);
         // Suffix config
         this.saveSuffixConfig = this.saveSuffixConfig.bind(this);
         this.showDeleteConfirm = this.showDeleteConfirm.bind(this);
         this.closeDeleteConfirm = this.closeDeleteConfirm.bind(this);
+        this.handleConfigChange = this.handleConfigChange.bind(this);
         this.doDelete = this.doDelete.bind(this);
     }
 
     componentDidMount() {
         this.props.enableTree();
-    }
-
-    handleNavSelect(key) {
-        this.setState({ activeKey: key });
     }
 
     //
@@ -152,7 +180,6 @@ export class Suffix extends React.Component {
             ldifLocation: "",
             attrEncryption: false,
             showImportModal: true,
-            importSpinner: false,
             errObj: {},
         });
     }
@@ -166,7 +193,7 @@ export class Suffix extends React.Component {
     handleChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
         if (value == "") {
             valueErr = true;
         }
@@ -177,11 +204,36 @@ export class Suffix extends React.Component {
         });
     }
 
-    showConfirmLDIFImport (item) {
+    handleConfigChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+        let saveBtnDisabled = true;
+
+        const configAttrs = [
+            'cachememsize', 'cachesize', 'dncachememsize',
+            'readOnly', 'requireIndex', 'dbstate'
+        ];
+        for (const check_attr of configAttrs) {
+            if (attr != check_attr) {
+                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                    saveBtnDisabled = false;
+                }
+            } else if (value != this.state['_' + check_attr]) {
+                saveBtnDisabled = false;
+            }
+        }
+
+        this.setState({
+            [attr]: value,
+            saveBtnDisabled: saveBtnDisabled
+        });
+    }
+
+    showConfirmLDIFImport (name) {
         // call deleteLDIF
         this.setState({
             showConfirmLDIFImport: true,
-            importLDIFName: item.name,
+            importLDIFName: name,
             modalChecked: false,
             modalSpinning: false,
         });
@@ -198,14 +250,13 @@ export class Suffix extends React.Component {
 
     importLDIF () {
         // Do import
-        let import_cmd = [
+        const import_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "import", this.props.suffix, this.state.importLDIFName, "--encrypted"
         ];
 
         this.setState({
-            importSpinner: true,
-            showConfirmLDIFImport: false,
+            modalSpinning: true,
         });
 
         log_cmd("doImport", "Do online import", import_cmd);
@@ -217,17 +268,20 @@ export class Suffix extends React.Component {
                         `Import successfully initiated`
                     );
                     this.setState({
-                        showImportModal: false
+                        modalSpinning: false,
+                        showConfirmLDIFImport: false,
+                        showImportModal: false,
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error importing LDIF file - ${errMsg.desc}`
                     );
                     this.setState({
-                        showImportModal: false
+                        modalSpinning: false,
+                        showConfirmLDIFImport: false
                     });
                 });
     }
@@ -264,7 +318,7 @@ export class Suffix extends React.Component {
     }
 
     doExport() {
-        let missingArgs = {ldifLocation: false};
+        const missingArgs = { ldifLocation: false };
         if (this.state.ldifLocation == "") {
             this.props.addNotification(
                 "warning",
@@ -291,7 +345,7 @@ export class Suffix extends React.Component {
         }
 
         // Do Export
-        let export_cmd = [
+        const export_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "export", this.props.suffix, "--ldif=" + this.state.ldifLocation
         ];
@@ -322,7 +376,7 @@ export class Suffix extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reloadLDIFs();
                     this.props.addNotification(
                         "error",
@@ -353,16 +407,10 @@ export class Suffix extends React.Component {
         });
     }
 
-    closeReindexModal() {
-        this.setState({
-            showReindexModal: false
-        });
-    }
-
     doReindex() {
         // Show index status modal
         this.setState({
-            showReindexModal: true
+            modalSpinning: true
         });
         const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "index", "reindex", "--wait", this.props.suffix];
@@ -375,18 +423,18 @@ export class Suffix extends React.Component {
                         `Database has successfully been reindexed`
                     );
                     this.setState({
-                        showReindexModal: false,
+                        modalSpinning: false,
                         showReindexConfirm: false,
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to reindex database - ${errMsg.desc}`
                     );
                     this.setState({
-                        showReindexModal: false,
+                        modalSpinning: false,
                         showReindexConfirm: false,
                     });
                 });
@@ -409,36 +457,8 @@ export class Suffix extends React.Component {
     }
 
     createSubSuffix() {
-        let missingArgs = {
-            createSuffix: false,
-            createBeName: false
-        };
-        let errors = false;
-        if (this.state.subSuffixValue == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing Suffix`
-            );
-            missingArgs.subSuffixValue = true;
-            errors = true;
-        }
-        if (this.state.subSuffixBeName == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing backend name`
-            );
-            missingArgs.subSuffixBeName = true;
-            errors = true;
-        }
-        if (errors) {
-            this.setState({
-                errObj: missingArgs
-            });
-            return;
-        }
-
         // Create a new suffix
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "create", "--be-name", this.state.subSuffixBeName,
             "--suffix=" + this.state.subSuffixValue + "," + this.props.suffix,
@@ -452,6 +472,10 @@ export class Suffix extends React.Component {
             cmd.push('--create-suffix');
         }
 
+        this.setState({
+            subSuffixSaving: true
+        });
+
         log_cmd("createSubSuffix", "Create a sub suffix", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -462,15 +486,21 @@ export class Suffix extends React.Component {
                         "success",
                         `Successfully created new sub-suffix`
                     );
+                    this.setState({
+                        subSuffixSaving: false
+                    });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.loadSuffixTree(false);
                     this.closeSubSuffixModal();
                     this.props.addNotification(
                         "error",
                         `Error creating sub-suffix - ${errMsg.desc}`
                     );
+                    this.setState({
+                        subSuffixSaving: false
+                    });
                 });
     }
 
@@ -480,7 +510,6 @@ export class Suffix extends React.Component {
     showLinkModal() {
         this.setState({
             showLinkModal: true,
-            linkPwdMatch: true,
             errObj: {},
         });
     }
@@ -492,77 +521,11 @@ export class Suffix extends React.Component {
     }
 
     createLink() {
-        // Check for required paramters
-        let formError = false;
-        let missingArgs = {
-            createLinkSuffix: false,
-            createNsfarmserverurl: false,
-            createLinkName: false,
-            createNsmultiplexorbinddn: false,
-            createNsmultiplexorcredentials: false,
-            createNsmultiplexorcredentialsConfirm: false
-        };
-        if (this.state.createLinkSuffix == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing subsuffix!`
-            );
-            missingArgs.createLinkSuffix = true;
-            formError = true;
-        }
-        if (this.state.createNsfarmserverurl == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing Server URL!`
-            );
-            missingArgs.createNsfarmserverurl = true;
-            formError = true;
-        }
-        if (this.state.createLinkName == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing Link Name`
-            );
-            missingArgs.createLinkName = true;
-            formError = true;
-        }
-        if (this.state.createNsmultiplexorbinddn == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing Bind DN`
-            );
-            missingArgs.createNsmultiplexorbinddn = true;
-            formError = true;
-        }
-        // Check passwords match
-        if (this.state.createNsmultiplexorcredentials == "" &&
-            this.state.createNsmultiplexorcredentialsConfirm == "") {
-            this.props.addNotification(
-                "warning",
-                `Missing Bind Password`
-            );
-            missingArgs.createNsmultiplexorcredentialsConfirm = true;
-            missingArgs.createNsmultiplexorcredentials = true;
-            formError = true;
-        }
-        if (this.state.createNsmultiplexorcredentials != this.state.createNsmultiplexorcredentialsConfirm) {
-            this.props.addNotification(
-                "warning",
-                `Passwords do not match`
-            );
-            missingArgs.createNsmultiplexorcredentialsConfirm = true;
-            missingArgs.createNsmultiplexorcredentials = false;
-            formError = true;
-        }
-        if (formError) {
-            this.setState({
-                errObj: missingArgs
-            });
-            return;
-        }
-
         // Add chaining link
-        let cmd = [
+        this.setState({
+            linkSaving: true
+        });
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "link-create",
             "--suffix=" + this.state.createLinkSuffix + "," + this.props.suffix,
@@ -585,59 +548,149 @@ export class Suffix extends React.Component {
                         "success",
                         `Successfully created database link`
                     );
+                    this.setState({
+                        linkSaving: false
+                    });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.loadSuffixTree(false);
                     this.closeLinkModal();
                     this.props.addNotification(
                         "error",
                         `Error creating database link - ${errMsg.desc}`
                     );
+                    this.setState({
+                        linkSaving: false
+                    });
                 });
     }
 
-    checkPasswords() {
-        let pwdMatch = false;
-        if (this.state.createNsmultiplexorcredentials == this.state.createNsmultiplexorcredentialsConfirm) {
-            pwdMatch = true;
-        }
+    handleLinkOnSelect(value, event) {
         this.setState({
-            linkPwdMatch: pwdMatch
+            createNsbindmechanism: value,
         });
     }
 
     handleLinkChange(e) {
         // Check for matching credentials
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        let saveBtnDisabled = false;
+        const errObj = this.state.errObj;
+
+        const check_attrs = [
+            "createLinkSuffix", "createLinkName", "createNsfarmserverurl",
+            "createNsmultiplexorbinddn", "createNsmultiplexorcredentials",
+            "createNsmultiplexorcredentialsConfirm", "createNsbindmechanism"
+        ];
+        for (const check_attr of check_attrs) {
+            if (attr != check_attr && this.state[check_attr] == "") {
+                saveBtnDisabled = true;
+            }
+        }
+
+        // Handle password validation
+        if (attr != "createNsmultiplexorcredentials" && attr != "createNsmultiplexorcredentialsConfirm") {
+            if (this.state.createNsmultiplexorcredentials != this.state.createNsmultiplexorcredentialsConfirm) {
+                saveBtnDisabled = true;
+            }
+        } else {
+            if (attr == "createNsmultiplexorcredentials") {
+                if (value != this.state.createNsmultiplexorcredentialsConfirm) {
+                    errObj.createNsmultiplexorcredentials = true;
+                    errObj.createNsmultiplexorcredentialsConfirm = true;
+                    saveBtnDisabled = true;
+                } else {
+                    errObj.createNsmultiplexorcredentials = false;
+                    errObj.createNsmultiplexorcredentialsConfirm = false;
+                }
+            } else if (attr == "createNsmultiplexorcredentialsConfirm") {
+                if (value != this.state.createNsmultiplexorcredentials) {
+                    errObj.createNsmultiplexorcredentials = true;
+                    errObj.createNsmultiplexorcredentialsConfirm = true;
+                    saveBtnDisabled = true;
+                } else {
+                    errObj.createNsmultiplexorcredentials = false;
+                    errObj.createNsmultiplexorcredentialsConfirm = false;
+                }
+            }
+        }
+
         if (value == "") {
             valueErr = true;
+            saveBtnDisabled = true;
+        }
+        errObj[attr] = valueErr;
+        this.setState({
+            [e.target.id]: value,
+            errObj: errObj,
+            linkSaveBtnDisabled: saveBtnDisabled
+        });
+    }
+
+    handleSubSuffixOnSelect(value, event) {
+        let noInit = false;
+        let addSuffix = false;
+        let addSample = false;
+
+        if (value == "noInit") {
+            noInit = true;
+        } else if (value == "addSuffix") {
+            addSuffix = true;
+        } else { // addSample
+            addSample = true;
+        }
+        this.setState({
+            initOption: value,
+            noSuffixInit: noInit,
+            createSuffixEntry: addSuffix,
+            createSampleEntries: addSample
+        });
+    }
+
+    handleSubSuffixChange(e) {
+        const value = e.target.value;
+        let valueErr = false;
+        const errObj = this.state.errObj;
+        let saveBtnDisabled = false;
+        const check_attrs = ["subSuffixBeName", "subSuffixValue"];
+        for (const check_attr of check_attrs) {
+            if (this.state[check_attr] == "") {
+                saveBtnDisabled = true;
+            }
+        }
+        if (value == "") {
+            valueErr = true;
+            saveBtnDisabled = true;
         }
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
-        }, this.checkPasswords);
+            errObj: errObj,
+            saveSubSuffixBtnDisabled: saveBtnDisabled
+        });
     }
 
-    handleRadioChange(e) {
-        // Handle the create suffix init option radio button group
-        let noInit = false;
-        let addSuffix = false;
-        let addSample = false;
-        if (e.target.id == "noSuffixInit") {
-            noInit = true;
-        } else if (e.target.id == "createSuffixEntry") {
-            addSuffix = true;
-        } else { // createSampleEntries
-            addSample = true;
+    handleExportChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        let valueErr = false;
+        const errObj = this.state.errObj;
+        let saveBtnDisabled = false;
+
+        if (e.target.id != "ldifLocation" && this.state.ldifLocation == 0) {
+            saveBtnDisabled = true;
         }
+        if (value == "") {
+            valueErr = true;
+            saveBtnDisabled = true;
+        }
+        errObj[e.target.id] = valueErr;
         this.setState({
-            noSuffixInit: noInit,
-            createSuffixEntry: addSuffix,
-            createSampleEntries: addSample
+            [e.target.id]: value,
+            errObj: errObj,
+            saveExportBtnDisabled: saveBtnDisabled
         });
     }
 
@@ -678,7 +731,7 @@ export class Suffix extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.loadSuffixTree(true);
                     this.closeLinkModal();
                     this.props.addNotification(
@@ -691,7 +744,7 @@ export class Suffix extends React.Component {
     // Save config
     saveSuffixConfig() {
         console.log("Save suffix config: ", this.props.suffix);
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'backend', 'suffix', 'set', this.props.suffix
         ];
@@ -722,32 +775,45 @@ export class Suffix extends React.Component {
             cmd.push("--dncache-memsize=" + this.state.dncachememsize);
             requireRestart = true;
         }
+        if (this.state._dbstate != this.state.dbstate) {
+            cmd.push("--state=" + this.state.dbstate);
+            requireRestart = true;
+        }
         if (cmd.length > 7) {
+            this.setState({
+                savingConfig: true
+            });
             log_cmd("saveSuffixConfig", "Save suffix config", cmd);
-            let msg = "Successfully updated suffix configuration";
+            const msg = "Successfully updated suffix configuration";
             cockpit
-                    .spawn(cmd, {superuser: true, "err": "message"})
+                    .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
                         // Continue with the next mod
                         this.props.reload(this.props.suffix);
-                        this.props.addNotification(
-                            "success",
-                            msg
-                        );
                         if (requireRestart) {
                             this.props.addNotification(
                                 "warning",
-                                `You must restart the Directory Server for these changes to take effect.`
+                                msg + "You must restart the Directory Server for these changes to take effect."
                             );
                         }
+                        this.setState({
+                            savingConfig: false
+                        });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.reload(this.props.suffix);
+                        let msg = errMsg.desc;
+                        if ('info' in errMsg) {
+                            msg = errMsg.desc + " - " + errMsg.info;
+                        }
                         this.props.addNotification(
                             "error",
-                            `Error updating suffix configuration - ${errMsg.desc}`
+                            `Error updating suffix configuration - ${msg}`
                         );
+                        this.setState({
+                            savingConfig: false
+                        });
                     });
         }
     }
@@ -756,134 +822,122 @@ export class Suffix extends React.Component {
     // Render the component
     //
     render () {
-        let suffixIcon = "tree";
+        let suffixIcon = faTree;
         if (this.props.dbtype == "subsuffix") {
-            suffixIcon = "leaf";
+            suffixIcon = faLeaf;
         }
+        const { dropdownIsOpen, activeTabKey } = this.state;
+
+        const dropdownItems = [
+            <DropdownItem key="import" component="button" onClick={this.showImportModal} title="Import an LDIF file to initialize the database">
+                Initialize Suffix
+            </DropdownItem>,
+            <DropdownItem key="export" component="button" onClick={this.showExportModal} title="Export the database to an LDIF file">
+                Export Suffix
+            </DropdownItem>,
+            <DropdownItem key="reindex" component="button" onClick={this.showReindexConfirm} title="Reindex the entire database">
+                Reindex Suffix
+            </DropdownItem>,
+            <DropdownItem key="subSuffix" component="button" onClick={this.showSubSuffixModal} title="Create a sub-suffix under this suffix">
+                Create Sub-Suffix
+            </DropdownItem>,
+            <DropdownItem key="dbLink" component="button" onClick={this.showLinkModal} title="Create a database chaining link subtree">
+                Create Database Link
+            </DropdownItem>,
+            <DropdownSeparator key="separator" />,
+            <DropdownItem key="deleteSuffix" component="button" onClick={this.showDeleteConfirm} title="This will permanently delete the database">
+                Delete Suffix
+            </DropdownItem>,
+        ];
 
         return (
             <div id="suffix-page">
-                <Row>
-                    <Col sm={10} className="ds-word-wrap">
-                        <ControlLabel className="ds-suffix-header">
-                            <Icon type="fa" name={suffixIcon} /> {this.props.suffix} (<i>{this.props.bename}</i>)
-                            <Icon className="ds-left-margin ds-refresh"
-                                type="fa" name="refresh" title="Refresh suffix"
-                                onClick={() => this.props.reload(this.props.suffix)}
+                <Grid>
+                    <GridItem className="ds-suffix-header" span={9}>
+                        <FontAwesomeIcon size="sm" icon={suffixIcon} />&nbsp;&nbsp;{this.props.suffix} (<i>{this.props.bename}</i>)
+                        <FontAwesomeIcon
+                            className="ds-left-margin ds-refresh"
+                            icon={faSyncAlt}
+                            title="Refresh suffix"
+                            onClick={() => this.props.reload(this.props.suffix)}
+                        />
+                    </GridItem>
+                    <GridItem span={3}>
+                        <Dropdown
+                            className="ds-float-right"
+                            position={DropdownPosition.right}
+                            onSelect={this.onSelect}
+                            toggle={
+                                <DropdownToggle id="suffix-dropdown" isPrimary onToggle={this.onToggle}>
+                                    Suffix Tasks
+                                </DropdownToggle>
+                            }
+                            isOpen={dropdownIsOpen}
+                            dropdownItems={dropdownItems}
+                        />
+                    </GridItem>
+                </Grid>
+
+                <div className="ds-sub-header">
+                    <Tabs activeKey={activeTabKey} onSelect={this.handleNavSelect}>
+                        <Tab eventKey={0} title={<TabTitleText><b>Settings</b></TabTitleText>}>
+                            <SuffixConfig
+                                cachememsize={this.state.cachememsize}
+                                cachesize={this.state.cachesize}
+                                dncachememsize={this.state.dncachememsize}
+                                dbstate={this.state.dbstate}
+                                readOnly={this.state.readOnly}
+                                requireIndex={this.state.requireIndex}
+                                autoTuning={this.state.autoTuning}
+                                handleChange={this.handleConfigChange}
+                                saveHandler={this.saveSuffixConfig}
+                                saving={this.state.savingConfig}
+                                saveBtnDisabled={this.state.saveBtnDisabled}
                             />
-                        </ControlLabel>
-                    </Col>
-                    <Col sm={2}>
-                        <div>
-                            <DropdownButton className="ds-action-button" bsStyle="primary" title="Suffix Tasks" id="mydropdown" pullRight>
-                                <MenuItem eventKey="1" onClick={this.showImportModal} title="Import an LDIF file to initialize the database">
-                                    Initialize Suffix
-                                </MenuItem>
-                                <MenuItem eventKey="2" onClick={this.showExportModal} title="Export the database to an LDIF file">
-                                    Export Suffix
-                                </MenuItem>
-                                <MenuItem eventKey="3" onClick={this.showReindexConfirm} title="Reindex the entire database">
-                                    Reindex Suffix
-                                </MenuItem>
-                                <MenuItem eventKey="4" onClick={this.showSubSuffixModal} title="Create a sub-suffix under this suffix">
-                                    Create Sub-Suffix
-                                </MenuItem>
-                                <MenuItem eventKey="5" onClick={this.showLinkModal} title="Create a database chaining link subtree">
-                                    Create Database Link
-                                </MenuItem>
-                                <MenuItem divider />
-                                <MenuItem eventKey="6" onClick={this.showDeleteConfirm} title="This will permanently delete the database">
-                                    Delete Suffix
-                                </MenuItem>
-                            </DropdownButton>
-                        </div>
-                    </Col>
-                </Row>
-
-                <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                    <div className="ds-margin-top-xlg">
-                        <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                            <NavItem eventKey={1}>
-                                <div dangerouslySetInnerHTML={{__html: 'Settings'}} />
-                            </NavItem>
-                            <NavItem eventKey={2}>
-                                <div dangerouslySetInnerHTML={{__html: 'Referrals'}} />
-                            </NavItem>
-                            <NavItem eventKey={3}>
-                                <div dangerouslySetInnerHTML={{__html: 'Indexes'}} />
-                            </NavItem>
-                            <NavItem eventKey={5}>
-                                <div dangerouslySetInnerHTML={{__html: 'VLV Indexes'}} />
-                            </NavItem>
-                            <NavItem eventKey={4}>
-                                <div dangerouslySetInnerHTML={{__html: 'Encrypted Attributes'}} />
-                            </NavItem>
-                        </Nav>
-                        <TabContent>
-
-                            <TabPane eventKey={1}>
-                                <SuffixConfig
-                                    cachememsize={this.state.cachememsize}
-                                    cachesize={this.state.cachesize}
-                                    dncachememsize={this.state.dncachememsize}
-                                    readOnly={this.state.readOnly}
-                                    requireIndex={this.state.requireIndex}
-                                    autoTuning={this.state.autoTuning}
-                                    handleChange={this.handleChange}
-                                    saveHandler={this.saveSuffixConfig}
-                                />
-                            </TabPane>
-
-                            <TabPane eventKey={2}>
-                                <SuffixReferrals
-                                    rows={this.props.data.refRows}
-                                    suffix={this.props.suffix}
-                                    reload={this.props.reloadRefs}
-                                    addNotification={this.props.addNotification}
-                                    serverId={this.props.serverId}
-                                    key={this.state.refRows}
-                                />
-                            </TabPane>
-
-                            <TabPane eventKey={3}>
-                                <div className="ds-indent ds-tab-table">
-                                    <TabContainer id="index-tabs" defaultActiveKey={1}>
-                                        <SuffixIndexes
-                                            systemIndexRows={this.props.data.systemIndexRows}
-                                            indexRows={this.props.data.indexRows}
-                                            suffix={this.props.suffix}
-                                            serverId={this.props.serverId}
-                                            addNotification={this.props.addNotification}
-                                            reload={this.props.reloadIndexes}
-                                        />
-                                    </TabContainer>
-                                </div>
-                            </TabPane>
-                            <TabPane eventKey={4}>
-                                <div className="ds-sub-header">
-                                    <AttrEncryption
-                                        rows={this.props.data.encAttrsRows}
-                                        suffix={this.props.suffix}
-                                        serverId={this.props.serverId}
-                                        addNotification={this.props.addNotification}
-                                        attrs={this.props.attrs}
-                                        reload={this.props.reloadAttrEnc}
-                                    />
-                                </div>
-                            </TabPane>
-                            <TabPane eventKey={5}>
-                                <VLVIndexes
-                                    suffix={this.props.suffix}
-                                    serverId={this.props.serverId}
-                                    vlvItems={this.props.data.vlvItems}
-                                    addNotification={this.props.addNotification}
-                                    attrs={this.props.attrs}
-                                    reload={this.props.reloadVLV}
-                                />
-                            </TabPane>
-                        </TabContent>
-                    </div>
-                </TabContainer>
+                        </Tab>
+                        <Tab eventKey={1} title={<TabTitleText><b>Referrals</b></TabTitleText>}>
+                            <SuffixReferrals
+                                rows={this.props.data.refRows}
+                                suffix={this.props.suffix}
+                                reload={this.props.reloadRefs}
+                                addNotification={this.props.addNotification}
+                                serverId={this.props.serverId}
+                                key={this.state.refRows}
+                            />
+                        </Tab>
+                        <Tab eventKey={2} title={<TabTitleText><b>Indexes</b></TabTitleText>}>
+                            <SuffixIndexes
+                                systemIndexRows={this.props.data.systemIndexRows}
+                                indexRows={this.props.data.indexRows}
+                                suffix={this.props.suffix}
+                                serverId={this.props.serverId}
+                                addNotification={this.props.addNotification}
+                                reload={this.props.reloadIndexes}
+                            />
+                        </Tab>
+                        <Tab eventKey={3} title={<TabTitleText><b>VLV Indexes</b></TabTitleText>}>
+                            <VLVIndexes
+                                suffix={this.props.suffix}
+                                serverId={this.props.serverId}
+                                vlvItems={this.props.data.vlvItems}
+                                addNotification={this.props.addNotification}
+                                attrs={this.props.attrs}
+                                reload={this.props.reloadVLV}
+                                key={this.props.vlvTableKey}
+                            />
+                        </Tab>
+                        <Tab eventKey={4} title={<TabTitleText><b>Encrypted Attributes</b></TabTitleText>}>
+                            <AttrEncryption
+                                rows={this.props.data.encAttrsRows}
+                                suffix={this.props.suffix}
+                                serverId={this.props.serverId}
+                                addNotification={this.props.addNotification}
+                                attrs={this.props.attrs}
+                                reload={this.props.reloadAttrEnc}
+                            />
+                        </Tab>
+                    </Tabs>
+                </div>
                 <DoubleConfirmModal
                     showModal={this.state.showDeleteConfirm}
                     closeHandler={this.closeDeleteConfirm}
@@ -901,22 +955,26 @@ export class Suffix extends React.Component {
                     showModal={this.state.showLinkModal}
                     closeHandler={this.closeLinkModal}
                     handleChange={this.handleLinkChange}
+                    handleSelectChange={this.handleLinkOnSelect}
                     saveHandler={this.createLink}
                     suffix={this.props.suffix}
-                    pwdMatch={this.state.linkPwdMatch}
+                    starttls_checked={this.state.createUseStartTLS}
                     error={this.state.errObj}
+                    saving={this.state.linkSaving}
+                    saveBtnDisabled={this.state.linkSaveBtnDisabled}
+                    bindMech={this.state.createNsbindmechanism}
                 />
                 <CreateSubSuffixModal
                     showModal={this.state.showSubSuffixModal}
                     closeHandler={this.closeSubSuffixModal}
-                    handleChange={this.handleChange}
-                    handleRadioChange={this.handleRadioChange}
+                    handleChange={this.handleSubSuffixChange}
+                    handleSelectChange={this.handleSubSuffixOnSelect}
                     saveHandler={this.createSubSuffix}
                     suffix={this.props.suffix}
-                    noInit={this.state.noSuffixInit}
-                    addSuffix={this.state.createSuffixEntry}
-                    addSample={this.state.createSampleEntries}
                     error={this.state.errObj}
+                    saving={this.state.subSuffixSaving}
+                    saveBtnDisabled={this.state.saveSubSuffixBtnDisabled}
+                    initOption={this.state.initOption}
                 />
                 <ImportModal
                     showModal={this.state.showImportModal}
@@ -924,9 +982,9 @@ export class Suffix extends React.Component {
                     handleChange={this.handleChange}
                     saveHandler={this.doImport}
                     showConfirmImport={this.showConfirmLDIFImport}
-                    spinning={this.state.importSpinner}
                     rows={this.props.LDIFRows}
                     suffix={this.props.suffix}
+                    saveBtnDisabled={this.state.ldifLocation == ""}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmLDIFImport}
@@ -944,10 +1002,12 @@ export class Suffix extends React.Component {
                 <ExportModal
                     showModal={this.state.showExportModal}
                     closeHandler={this.closeExportModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.handleExportChange}
                     saveHandler={this.doExport}
                     spinning={this.state.exportSpinner}
                     error={this.state.errObj}
+                    includeReplData={this.state.includeReplData}
+                    saveBtnDisabled={this.state.ldifLocation == ""}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showReindexConfirm}
@@ -961,11 +1021,6 @@ export class Suffix extends React.Component {
                     mMsg="Are you sure you want to reindex all the attribute indexes?"
                     mSpinningMsg="Reindexing Database ..."
                     mBtnName="Reindex"
-                />
-                <ReindexModal
-                    showModal={this.state.showReindexModal}
-                    closeHandler={this.closeReindexModal}
-                    msg="Reindexing All Attribute Indexes"
                 />
             </div>
         );
@@ -997,17 +1052,8 @@ Suffix.defaultProps = {
     serverId: "",
     suffix: "",
     bename: "",
-    loadSuffixTree: noop,
-    reload: noop,
-    reloadRefs: noop,
-    reloadIndexes: noop,
-    reloadVLV: noop,
-    reloadAttrEnc: noop,
-    reloadLDIFs: noop,
-    addNotification: noop,
     dbtype: "",
     data: {},
     attrs: [],
     LDIFRows: [],
-    enableTree: PropTypes.noop,
 };

@@ -322,13 +322,12 @@ def _add_parser_args(parser, type):
         parser.add_argument('--usage',
                             help='The flag indicates how the attribute type is to be used. Choose from the list: '
                                  'userApplications (default), directoryOperation, distributedOperation, dSAOperation')
-        parser.add_argument('--sup', nargs='+', help='The list of NAMEs or OIDs of attribute types'
-                                                     'this attribute type is derived from')
+        parser.add_argument('--sup', nargs=1, help='The NAME or OID of attribute type this attribute type is derived from')
     elif type == 'objectclasses':
         parser.add_argument('--must', nargs='+', help='NAMEs or OIDs of all attributes an entry of the object must have')
         parser.add_argument('--may', nargs='+', help='NAMEs or OIDs of additional attributes an entry of the object may have')
         parser.add_argument('--kind', help='Kind of an object. STRUCTURAL (default), ABSTRACT, AUXILIARY')
-        parser.add_argument('--sup', nargs='+', help='NAMEs or OIDs of object classes this object is derived from')
+        parser.add_argument('--sup', nargs='+', help='NAME or OIDs of object classes this object is derived from')
     else:
         raise ValueError("Wrong parser type: %s" % type)
 

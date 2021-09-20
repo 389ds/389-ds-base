@@ -4,20 +4,26 @@ import { log_cmd, valid_dn } from "../tools.jsx";
 import {
     Button,
     Checkbox,
-    Col,
-    ControlLabel,
     Form,
-    FormControl,
-    Icon,
-    Nav,
-    NavItem,
-    Row,
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
     Spinner,
-    TabContainer,
-    TabContent,
-    noop,
-    TabPane,
-} from "patternfly-react";
+    Tab,
+    Tabs,
+    TabTitleText,
+    TextInput,
+    Text,
+    TextContent,
+    TextVariants,
+    ValidatedOptions,
+} from "@patternfly/react-core";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faSyncAlt
+} from '@fortawesome/free-solid-svg-icons';
+import '@fortawesome/fontawesome-svg-core/styles.css';
 import PropTypes from "prop-types";
 
 const general_attrs = [
@@ -64,7 +70,7 @@ export class ServerSettings extends React.Component {
         super(props);
         this.state = {
             loading: true,
-            activeKey: 1,
+            activeTabKey: 0,
             attrs: this.props.attrs,
             // Setting lists
             configSaveDisabled: true,
@@ -81,7 +87,29 @@ export class ServerSettings extends React.Component {
             errObjAdv: {},
         };
 
-        this.handleNavSelect = this.handleNavSelect.bind(this);
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+
+        this.options = [
+            { value: 'PBKDF2_SHA256', label: 'PBKDF2_SHA256', disabled: false },
+            { value: 'SSHA512', label: 'SSHA512', disabled: false },
+            { value: 'SSHA384', label: 'SSHA384', disabled: false },
+            { value: 'SSHA256', label: 'SSHA256', disabled: false },
+            { value: 'SSHA', label: 'SSHA', disabled: false },
+            { value: 'MD5', label: 'MD5', disabled: false },
+            { value: 'SMD5', label: 'SMD5', disabled: false },
+            { value: 'CRYPT-MD5', label: 'CRYPT-MD5', disabled: false },
+            { value: 'CRYPT-SHA512', label: 'CRYPT-SHA512', disabled: false },
+            { value: 'CRYPT-SHA256', label: 'CRYPT-SHA256', disabled: false },
+            { value: 'CRYPT', label: 'CRYPT', disabled: false },
+            { value: 'GOST_YESCRYPT', label: 'GOST_YESCRYPT', disabled: false },
+            { value: 'CLEAR', label: 'CLEAR', disabled: false },
+        ];
+
         this.handleConfigChange = this.handleConfigChange.bind(this);
         this.handleRootDNChange = this.handleRootDNChange.bind(this);
         this.handleDiskMonChange = this.handleDiskMonChange.bind(this);
@@ -110,15 +138,15 @@ export class ServerSettings extends React.Component {
         this.setState({ activeKey: key });
     }
 
-    handleConfigChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+    handleConfigChange(str, e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let valueErr = false;
-        let errObj = this.state.errObjConfig;
+        const errObj = this.state.errObjConfig;
 
         // Check if a setting was changed, if so enable the save button
-        for (let general_attr of general_attrs) {
+        for (const general_attr of general_attrs) {
             if (attr == general_attr && this.state['_' + general_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -126,7 +154,7 @@ export class ServerSettings extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let general_attr of general_attrs) {
+        for (const general_attr of general_attrs) {
             if (attr != general_attr && this.state['_' + general_attr] != this.state[general_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -146,15 +174,15 @@ export class ServerSettings extends React.Component {
         });
     }
 
-    handleRootDNChange(e) {
-        let value = e.target.value;
-        let attr = e.target.id;
+    handleRootDNChange(str, e) {
+        const value = e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let valueErr = false;
-        let errObj = this.state.errObjRootDN;
+        const errObj = this.state.errObjRootDN;
 
         // Check if a setting was changed, if so enable the save button
-        for (let rootdn_attr of rootdn_attrs) {
+        for (const rootdn_attr of rootdn_attrs) {
             if (attr == rootdn_attr && this.state['_' + rootdn_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -162,7 +190,7 @@ export class ServerSettings extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let rootdn_attr of rootdn_attrs) {
+        for (const rootdn_attr of rootdn_attrs) {
             if (attr != rootdn_attr && this.state['_' + rootdn_attr] != this.state[rootdn_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -181,9 +209,9 @@ export class ServerSettings extends React.Component {
         if (attr == 'confirmRootpw') {
             if (value != this.state['nsslapd-rootpw']) {
                 disableSaveBtn = true;
-                errObj['confirmRootpw'] = true;
+                errObj.confirmRootpw = true;
             } else {
-                errObj['confirmRootpw'] = false;
+                errObj.confirmRootpw = false;
             }
         }
 
@@ -200,14 +228,14 @@ export class ServerSettings extends React.Component {
     }
 
     handleDiskMonChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let valueErr = false;
-        let errObj = this.state.errObjDiskMon;
+        const errObj = this.state.errObjDiskMon;
 
         // Check if a setting was changed, if so enable the save button
-        for (let disk_attr of disk_attrs) {
+        for (const disk_attr of disk_attrs) {
             if (attr == disk_attr && this.state['_' + disk_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -215,7 +243,7 @@ export class ServerSettings extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let disk_attr of disk_attrs) {
+        for (const disk_attr of disk_attrs) {
             if (attr != disk_attr && this.state['_' + disk_attr] != this.state[disk_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -235,14 +263,14 @@ export class ServerSettings extends React.Component {
     }
 
     handleAdvChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let valueErr = false;
-        let errObj = this.state.errObjAdv;
+        const errObj = this.state.errObjAdv;
 
         // Check if a setting was changed, if so enable the save button
-        for (let adv_attr of adv_attrs) {
+        for (const adv_attr of adv_attrs) {
             if (attr == adv_attr && this.state['_' + adv_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -250,7 +278,7 @@ export class ServerSettings extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let adv_attr of adv_attrs) {
+        for (const adv_attr of adv_attrs) {
             if (attr != adv_attr && this.state['_' + adv_attr] != this.state[adv_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -275,7 +303,7 @@ export class ServerSettings extends React.Component {
     }
 
     loadConfig() {
-        let attrs = this.state.attrs;
+        const attrs = this.state.attrs;
         // Handle the checkbox values
         let diskMonitoring = false;
         let diskLogCritical = false;
@@ -345,7 +373,7 @@ export class ServerSettings extends React.Component {
             'nsslapd-certdir': attrs['nsslapd-certdir'][0],
             'nsslapd-rootdn': attrs['nsslapd-rootdn'][0],
             'nsslapd-rootpw': attrs['nsslapd-rootpw'][0],
-            'confirmRootpw': attrs['nsslapd-rootpw'][0],
+            confirmRootpw: attrs['nsslapd-rootpw'][0],
             'nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
             'nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
             'nsslapd-disk-monitoring-threshold': attrs['nsslapd-disk-monitoring-threshold'][0],
@@ -374,7 +402,7 @@ export class ServerSettings extends React.Component {
             '_nsslapd-certdir': attrs['nsslapd-certdir'][0],
             '_nsslapd-rootdn': attrs['nsslapd-rootdn'][0],
             '_nsslapd-rootpw': attrs['nsslapd-rootpw'][0],
-            '_confirmRootpw': attrs['nsslapd-rootpw'][0],
+            _confirmRootpw: attrs['nsslapd-rootpw'][0],
             '_nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
             '_nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
             '_nsslapd-disk-monitoring-threshold': attrs['nsslapd-disk-monitoring-threshold'][0],
@@ -396,12 +424,15 @@ export class ServerSettings extends React.Component {
     }
 
     saveRootDN() {
-        let cmd = [
+        this.setState({
+            rootDNReloading: true,
+        });
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
 
-        for (let attr of rootdn_attrs) {
+        for (const attr of rootdn_attrs) {
             if (attr != 'confirmRootpw' && this.state['_' + attr] != this.state[attr]) {
                 cmd.push(attr + "=" + this.state[attr]);
             }
@@ -409,7 +440,7 @@ export class ServerSettings extends React.Component {
 
         log_cmd("saveRootDN", "Saving changes to root DN", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.reloadRootDN();
                     this.props.addNotification(
@@ -418,7 +449,7 @@ export class ServerSettings extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.reloadRootDN();
                     this.props.addNotification(
                         "error",
@@ -428,10 +459,7 @@ export class ServerSettings extends React.Component {
     }
 
     reloadRootDN() {
-        this.setState({
-            rootDNReloading: true,
-        });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
@@ -439,26 +467,26 @@ export class ServerSettings extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     this.setState(() => (
                         {
                             rootDNReloading: false,
                             'nsslapd-rootdn': attrs['nsslapd-rootdn'][0],
                             'nsslapd-rootpw': attrs['nsslapd-rootpw'][0],
-                            'confirmRootpw': attrs['nsslapd-rootpw'][0],
+                            confirmRootpw: attrs['nsslapd-rootpw'][0],
                             'nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
                             // Record original values
                             '_nsslapd-rootdn': attrs['nsslapd-rootdn'][0],
                             '_nsslapd-rootpw': attrs['nsslapd-rootpw'][0],
-                            '_confirmRootpw': attrs['nsslapd-rootpw'][0],
+                            _confirmRootpw: attrs['nsslapd-rootpw'][0],
                             '_nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
                             rootDNSaveDisabled: true
                         })
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         rootDNReloading: false,
                     });
@@ -470,12 +498,14 @@ export class ServerSettings extends React.Component {
     }
 
     saveDiskMonitoring() {
-        let cmd = [
+        this.setState({
+            diskMonReloading: true,
+        });
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
-
-        for (let attr of disk_attrs) {
+        for (const attr of disk_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -491,7 +521,7 @@ export class ServerSettings extends React.Component {
 
         log_cmd("saveRootDN", "Saving changes to Disk Monitoring", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.reloadDiskMonitoring();
                     this.props.addNotification(
@@ -500,7 +530,7 @@ export class ServerSettings extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.reloadDiskMonitoring();
                     this.props.addNotification(
                         "error",
@@ -510,10 +540,7 @@ export class ServerSettings extends React.Component {
     }
 
     reloadDiskMonitoring() {
-        this.setState({
-            diskMonReloading: true,
-        });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
@@ -521,8 +548,8 @@ export class ServerSettings extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     // Handle the checkbox values
                     let diskMonitoring = false;
                     let diskLogCritical = false;
@@ -550,7 +577,7 @@ export class ServerSettings extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         diskMonReloading: false,
                     });
@@ -562,11 +589,14 @@ export class ServerSettings extends React.Component {
     }
 
     saveAdvanced() {
-        let cmd = [
+        this.setState({
+            advReloading: true,
+        });
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
-        for (let attr of adv_attrs) {
+        for (const attr of adv_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -582,7 +612,7 @@ export class ServerSettings extends React.Component {
 
         log_cmd("saveAdvanced", "Saving Advanced configuration", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.reloadAdvanced();
                     this.props.addNotification(
@@ -591,7 +621,7 @@ export class ServerSettings extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.reloadAdvanced();
                     this.props.addNotification(
                         "error",
@@ -601,10 +631,7 @@ export class ServerSettings extends React.Component {
     }
 
     reloadAdvanced() {
-        this.setState({
-            advReloading: true,
-        });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
@@ -612,8 +639,8 @@ export class ServerSettings extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     // Handle the checkbox values
                     let schemaCheck = false;
                     let syntaxCheck = false;
@@ -690,7 +717,7 @@ export class ServerSettings extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error loading Advanced configuration - ${errMsg.desc}`
@@ -703,12 +730,15 @@ export class ServerSettings extends React.Component {
 
     saveConfig() {
         // Build up the command list
-        let cmd = [
+        this.setState({
+            configReloading: true,
+        });
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
 
-        for (let attr of general_attrs) {
+        for (const attr of general_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 cmd.push(attr + "=" + this.state[attr]);
             }
@@ -716,18 +746,18 @@ export class ServerSettings extends React.Component {
 
         log_cmd("saveConfig", "Applying server config change", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     // Continue with the next mod
                     this.reloadConfig();
                     this.props.addNotification(
-                        "success",
+                        "warning",
                         "Successfully updated server configuration.  These " +
                             "changes require the server to be restarted to take effect."
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.reloadConfig();
                     this.props.addNotification(
                         "error",
@@ -737,10 +767,7 @@ export class ServerSettings extends React.Component {
     }
 
     reloadConfig() {
-        this.setState({
-            configReloading: true,
-        });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
@@ -748,8 +775,8 @@ export class ServerSettings extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     let listenhost = "";
 
                     if ('nsslapd-listenhost' in attrs) {
@@ -780,7 +807,7 @@ export class ServerSettings extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error reloading server configuration - ${errMsg.desc}`
@@ -793,524 +820,587 @@ export class ServerSettings extends React.Component {
 
     render() {
         let body = "";
-        let reloadSpinner = "";
         let diskMonitor = "";
+
+        let saveBtnName = "Save Settings";
+        const extraPrimaryProps = {};
+        if (this.state.configReloading || this.state.rootDNReloading ||
+            this.state.diskMonReloading || this.state.advReloading) {
+            saveBtnName = "Saving settings ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
 
         if (this.state['nsslapd-disk-monitoring']) {
             diskMonitor =
-                <Form horizontal className="ds-margin-top">
-                    <Row
-                        className="ds-margin-top"
+                <Form isHorizontal className="ds-margin-top-lg ds-left-indent-lg ds-margin-bottom">
+                    <Grid
                         title="The available disk space, in bytes, that will trigger the shutdown process. Default is 2mb. Once below half of the threshold then we enter the shutdown mode. (nsslapd-disk-monitoring-threshold)"
                     >
-                        <Col componentClass={ControlLabel} sm={4}>
+                        <GridItem className="ds-label" span={3}>
                             Disk Monitoring Threshold
-                        </Col>
-                        <Col sm={4}>
-                            <FormControl
-                                id="nsslapd-disk-monitoring-threshold"
-                                type="text"
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
                                 value={this.state['nsslapd-disk-monitoring-threshold']}
-                                onChange={this.handleDiskMonChange}
-                                className={this.state.errObjDiskMon.diskThreshold ? "ds-input-bad" : ""}
+                                type="number"
+                                id="nsslapd-disk-monitoring-threshold"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="monthreshold"
+                                onChange={(str, e) => {
+                                    this.handleDiskMonChange(e);
+                                }}
+                                validated={this.state.errObjDiskMon.diskThreshold ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
-                    <Row
-                        className="ds-margin-top"
-                        title="How many minutes to wait to allow an admin to clean up disk space before shutting slapd down. The default is 60 minutes. (nsslapd-disk-monitoring-grace-period)."
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="How many minutes to wait to allow an admin to clean up disk space before shutting slapd down. The default is 60 minutes. (nsslapd-disk-monitoring-grace-period)"
                     >
-                        <Col componentClass={ControlLabel} sm={4}>
+                        <GridItem className="ds-label" span={3}>
                             Disk Monitoring Grace Period
-                        </Col>
-                        <Col sm={4}>
-                            <FormControl
-                                id="nsslapd-disk-monitoring-grace-period"
-                                type="text"
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
                                 value={this.state['nsslapd-disk-monitoring-grace-period']}
-                                onChange={this.handleDiskMonChange}
-                                className={this.state.errObjDiskMon.diskGracePeriod ? "ds-input-bad" : ""}
+                                type="number"
+                                id="nsslapd-disk-monitoring-grace-period"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="monthreahold"
+                                onChange={(str, e) => {
+                                    this.handleDiskMonChange(e);
+                                }}
+                                validated={this.state.errObjDiskMon.diskGracePeriod ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                        </Col>
-                    </Row>
-                    <Row
+                        </GridItem>
+                    </Grid>
+                    <Grid
                         className="ds-margin-top"
                         title="When disk space gets critically low do not remove logs to free up disk space (nsslapd-disk-monitoring-logging-critical)."
                     >
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Server Logs
-                        </Col>
-                        <Col sm={4}>
+                        <GridItem span={9}>
                             <Checkbox
                                 id="nsslapd-disk-monitoring-logging-critical"
-                                defaultChecked={this.state['nsslapd-disk-monitoring-logging-critical']}
-                                onChange={this.handleDiskMonChange}
-                            >
-                                Preserve Logs Even If Disk Space Gets Low
-                            </Checkbox>
-                        </Col>
-                    </Row>
+                                isChecked={this.state['nsslapd-disk-monitoring-logging-critical']}
+                                onChange={(checked, e) => {
+                                    this.handleDiskMonChange(e);
+                                }}
+                                label="Preserve Logs Even If Disk Space Gets Low"
+                            />
+                        </GridItem>
+                    </Grid>
                 </Form>;
-        }
-
-        if (this.state.configReloading || this.state.rootDNReloading ||
-            this.state.diskMonReloading || this.state.advReloading) {
-            reloadSpinner = <Spinner loading size="md" />;
         }
 
         if (this.state.loading) {
             body =
                 <div className="ds-loading-spinner ds-margin-top ds-center">
-                    <h4>Loading Server Settings ...</h4>
-                    <Spinner className="ds-margin-top" loading size="md" />
+                    <TextContent>
+                        <Text component={TextVariants.h3}>Loading Server Settings ...</Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top" size="md" />
                 </div>;
         } else {
             body =
-                <div>
-                    <Row>
-                        <Col sm={4}>
-                            <ControlLabel className="ds-suffix-header ds-margin-top-lg ds-margin-left-sm">
-                                Server Settings
-                                <Icon className="ds-left-margin ds-refresh"
-                                    type="fa" name="refresh" title="Refresh configuration settings"
-                                    onClick={this.reloadConfig}
-                                />
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={8} className="ds-margin-top-lg">
-                            {reloadSpinner}
-                        </Col>
-                    </Row>
-                    <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-margin-left'}>
-                        <TabContainer id="server-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                            <div className="ds-margin-top">
-                                <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                                    <NavItem eventKey={1}>
-                                        <div dangerouslySetInnerHTML={{__html: 'General Settings'}} />
-                                    </NavItem>
-                                    <NavItem eventKey={2}>
-                                        <div dangerouslySetInnerHTML={{__html: 'Directory Manager'}} />
-                                    </NavItem>
-                                    <NavItem eventKey={3}>
-                                        <div dangerouslySetInnerHTML={{__html: 'Disk Monitoring'}} />
-                                    </NavItem>
-                                    <NavItem eventKey={4}>
-                                        <div dangerouslySetInnerHTML={{__html: 'Advanced Settings'}} />
-                                    </NavItem>
-                                </Nav>
-                                <TabContent className="ds-margin-top-lg">
-                                    <TabPane eventKey={1}>
-                                        <Form className="ds-margin-top-lg" horizontal>
-                                            <Row title="The version of the Directory Server rpm package" className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={3}>
-                                                    Server Version
-                                                </Col>
-                                                <Col sm={7}>
-                                                    <FormControl
-                                                        id="server-version"
-                                                        type="text"
-                                                        value={this.props.version}
-                                                        disabled
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <Row title="The server's local hostname (nsslapd-localhost)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={3}>
-                                                    Server Hostname
-                                                </Col>
-                                                <Col sm={7}>
-                                                    <FormControl
-                                                        id="nsslapd-localhost"
-                                                        type="text"
-                                                        value={this.state['nsslapd-localhost']}
-                                                        onChange={this.handleConfigChange}
-                                                        className={this.state.errObjConfig['nsslapd-localhost'] ? "ds-input-bad" : ""}
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <Row title="The server's port number (nsslapd-port)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={3}>
-                                                    LDAP Port
-                                                </Col>
-                                                <Col sm={7}>
-                                                    <FormControl
-                                                        id="nsslapd-port"
-                                                        type="number"
-                                                        min="0"
-                                                        max="65535"
-                                                        value={this.state['nsslapd-port']}
-                                                        onChange={this.handleConfigChange}
-                                                        className={this.state.errObjConfig['nsslapd-port'] ? "ds-input-bad" : ""}
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <Row title="The server's secure port number (nsslapd-port)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={3}>
-                                                    LDAPS Port
-                                                </Col>
-                                                <Col sm={7}>
-                                                    <FormControl
-                                                        id="nsslapd-secureport"
-                                                        type="number"
-                                                        min="1"
-                                                        max="65535"
-                                                        value={this.state['nsslapd-secureport']}
-                                                        onChange={this.handleConfigChange}
-                                                        className={this.state.errObjConfig['nsslapd-secureport'] ? "ds-input-bad" : ""}
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <Row
-                                                title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  Requires restart. (nsslapd-listenhost)."
-                                                className="ds-margin-top"
-                                            >
-                                                <Col componentClass={ControlLabel} sm={3}>
-                                                    Listen Host Address
-                                                </Col>
-                                                <Col sm={7}>
-                                                    <FormControl
-                                                        id="nsslapd-listenhost"
-                                                        type="text"
-                                                        value={this.state['nsslapd-listenhost']}
-                                                        onChange={this.handleConfigChange}
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <Row title="The location where database backups are stored (nsslapd-bakdir)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={3}>
-                                                    Backup Directory
-                                                </Col>
-                                                <Col sm={7}>
-                                                    <FormControl
-                                                        id="nsslapd-bakdir"
-                                                        type="text"
-                                                        value={this.state['nsslapd-bakdir']}
-                                                        onChange={this.handleConfigChange}
-                                                        className={this.state.errObjConfig['nsslapd-bakdir'] ? "ds-input-bad" : ""}
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <Row title="The location where the server's LDIF files are located (nsslapd-ldifdir)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={3}>
-                                                    LDIF File Directory
-                                                </Col>
-                                                <Col sm={7}>
-                                                    <FormControl
-                                                        id="nsslapd-ldifdir"
-                                                        type="text"
-                                                        value={this.state['nsslapd-ldifdir']}
-                                                        onChange={this.handleConfigChange}
-                                                        className={this.state.errObjConfig['nsslapd-ldifdir'] ? "ds-input-bad" : ""}
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <Row title="The location for the servers custom schema files. (nsslapd-schemadir)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={3}>
-                                                    Schema Directory
-                                                </Col>
-                                                <Col sm={7}>
-                                                    <FormControl
-                                                        id="nsslapd-schemadir"
-                                                        type="text"
-                                                        value={this.state['nsslapd-schemadir']}
-                                                        onChange={this.handleConfigChange}
-                                                        className={this.state.errObjConfig['nsslapd-schemadir'] ? "ds-input-bad" : ""}
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <Row title="The location of the server's certificates (nsslapd-certdir)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={3}>
-                                                    Certificate Directory
-                                                </Col>
-                                                <Col sm={7}>
-                                                    <FormControl
-                                                        id="nsslapd-certdir"
-                                                        type="text"
-                                                        value={this.state['nsslapd-certdir']}
-                                                        onChange={this.handleConfigChange}
-                                                        className={this.state.errObjConfig['nsslapd-certdir'] ? "ds-input-bad" : ""}
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <Button
-                                                disabled={this.state.configSaveDisabled}
-                                                bsStyle="primary"
-                                                className="ds-margin-top-med"
-                                                onClick={this.saveConfig}
-                                            >
-                                                Save
-                                            </Button>
-                                        </Form>
-                                    </TabPane>
-                                    <TabPane eventKey={2}>
-                                        <Form className="ds-margin-top-lg" horizontal>
-                                            <Row title="The DN of the unrestricted directory manager (nsslapd-rootdn)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={4}>
-                                                    Directory Manager DN
-                                                </Col>
-                                                <Col sm={4}>
-                                                    <FormControl
-                                                        disabled
-                                                        type="text"
-                                                        value={this.state['nsslapd-rootdn']}
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <Row title="The Directory Manager password (nsslapd-rootpw)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={4}>
-                                                    Directory Manager Password
-                                                </Col>
-                                                <Col sm={4}>
-                                                    <FormControl
-                                                        id="nsslapd-rootpw"
-                                                        type="password"
-                                                        value={this.state['nsslapd-rootpw']}
-                                                        onChange={this.handleRootDNChange}
-                                                        className={this.state.errObjRootDN['nsslapd-rootpw'] ? "ds-input-bad" : ""}
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <Row title="The Directory Manager password (nsslapd-rootpw)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={4}>
-                                                    Confirm Password
-                                                </Col>
-                                                <Col sm={4}>
-                                                    <FormControl
-                                                        id="confirmRootpw"
-                                                        type="password"
-                                                        value={this.state.confirmRootpw}
-                                                        onChange={this.handleRootDNChange}
-                                                        className={this.state.errObjRootDN.confirmRootpw ? "ds-input-bad" : ""}
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <Row title="Set the Directory Manager password storage scheme (nsslapd-rootpwstoragescheme)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={4}>
-                                                    Password Storage Scheme
-                                                </Col>
-                                                <Col sm={4}>
-                                                    <select
-                                                      className="btn btn-default dropdown" id="nsslapd-rootpwstoragescheme"
-                                                      onChange={this.handleRootDNChange} value={this.state['nsslapd-rootpwstoragescheme']}>
-                                                        <option>PBKDF2_SHA256</option>
-                                                        <option>SSHA512</option>
-                                                        <option>SSHA384</option>
-                                                        <option>SSHA256</option>
-                                                        <option>SSHA</option>
-                                                        <option>MD5</option>
-                                                        <option>SMD5</option>
-                                                        <option>CRYPT-MD5</option>
-                                                        <option>CRYPT-SHA512</option>
-                                                        <option>CRYPT-SHA256</option>
-                                                        <option>CRYPT</option>
-                                                        <option>GOST_YESCRYPT</option>
-                                                        <option>CLEAR</option>
-                                                    </select>
-                                                </Col>
-                                            </Row>
-                                            <Button
-                                                bsStyle="primary"
-                                                className="ds-margin-top-med"
-                                                disabled={this.state.rootDNSaveDisabled}
-                                                onClick={this.saveRootDN}
-                                            >
-                                                Save
-                                            </Button>
-                                        </Form>
-                                    </TabPane>
+                <div className="ds-margin-bottom-md">
+                    <Grid>
+                        <GridItem span={3}>
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Server Settings <FontAwesomeIcon
+                                        size="lg"
+                                        className="ds-left-margin ds-refresh"
+                                        icon={faSyncAlt}
+                                        title="Refresh configuration settings"
+                                        onClick={this.reloadConfig}
+                                    />
+                                </Text>
+                            </TextContent>
+                        </GridItem>
+                    </Grid>
 
-                                    <TabPane eventKey={3}>
-                                        <Form className="ds-margin-left ds-margin-top-lg">
-                                            <Row title="Enable disk space monitoring (nsslapd-disk-monitoring)." className="ds-margin-top">
-                                                <Checkbox
-                                                    id="nsslapd-disk-monitoring"
-                                                    checked={this.state['nsslapd-disk-monitoring']}
-                                                    onChange={this.handleDiskMonChange}
-                                                >
-                                                    Enable Disk Space Monitoring
-                                                </Checkbox>
-                                            </Row>
-                                        </Form>
-                                        {diskMonitor}
-                                        <Button
-                                            disabled={this.state.diskMonSaveDisabled}
-                                            bsStyle="primary"
-                                            className="ds-margin-top-med"
-                                            onClick={this.saveDiskMonitoring}
-                                        >
-                                            Save
-                                        </Button>
-                                    </TabPane>
+                    <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-left-margin'}>
+                        <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                            <Tab eventKey={0} title={<TabTitleText><b>General Settings</b></TabTitleText>}>
+                                <Form className="ds-margin-top-xlg" isHorizontal>
+                                    <Grid
+                                        title="The version of the Directory Server rpm package"
+                                    >
+                                        <GridItem className="ds-label" span={2}>
+                                            Server Version
+                                        </GridItem>
+                                        <GridItem span={10}>
+                                            <TextInput
+                                                value={this.props.version}
+                                                type="text"
+                                                id="server-version"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="server-version"
+                                                isDisabled
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title="The server's local hostname (nsslapd-localhost)."
+                                    >
+                                        <GridItem className="ds-label" span={2}>
+                                            Server Hostname
+                                        </GridItem>
+                                        <GridItem span={10}>
+                                            <TextInput
+                                                value={this.state['nsslapd-localhost']}
+                                                type="text"
+                                                id="nsslapd-localhost"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="server-hostname"
+                                                onChange={this.handleConfigChange}
+                                                validated={this.state.errObjConfig['nsslapd-localhost'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title="The server's port number (nsslapd-port)."
+                                    >
+                                        <GridItem className="ds-label" span={2}>
+                                            LDAP Port
+                                        </GridItem>
+                                        <GridItem span={10}>
+                                            <TextInput
+                                                value={this.state['nsslapd-port']}
+                                                type="number"
+                                                id="nsslapd-port"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="server-port"
+                                                onChange={this.handleConfigChange}
+                                                validated={this.state.errObjConfig['nsslapd-port'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title="The server's secure port number (nsslapd-secureport)."
+                                    >
+                                        <GridItem className="ds-label" span={2}>
+                                            LDAPS Port
+                                        </GridItem>
+                                        <GridItem span={10}>
+                                            <TextInput
+                                                value={this.state['nsslapd-secureport']}
+                                                type="number"
+                                                id="nsslapd-secureport"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="server-secureport"
+                                                onChange={this.handleConfigChange}
+                                                validated={this.state.errObjConfig['nsslapd-secureport'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  Requires restart. (nsslapd-listenhost)."
+                                    >
+                                        <GridItem className="ds-label" span={2}>
+                                            Listen Host Address
+                                        </GridItem>
+                                        <GridItem span={10}>
+                                            <TextInput
+                                                value={this.state['nsslapd-listenhost']}
+                                                type="text"
+                                                id="nsslapd-listenhost"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="server-listenhost"
+                                                onChange={this.handleConfigChange}
+                                                validated={this.state.errObjConfig['nsslapd-listenhost'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title="The location where database backups are stored (nsslapd-bakdir)."
+                                    >
+                                        <GridItem className="ds-label" span={2}>
+                                            Backup Directory
+                                        </GridItem>
+                                        <GridItem span={10}>
+                                            <TextInput
+                                                value={this.state['nsslapd-bakdir']}
+                                                type="text"
+                                                id="nsslapd-bakdir"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="server-bakdir"
+                                                onChange={this.handleConfigChange}
+                                                validated={this.state.errObjConfig['nsslapd-bakdir'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title="The location where the server's LDIF files are located (nsslapd-ldifdir)."
+                                    >
+                                        <GridItem className="ds-label" span={2}>
+                                            LDIF File Directory
+                                        </GridItem>
+                                        <GridItem span={10}>
+                                            <TextInput
+                                                value={this.state['nsslapd-ldifdir']}
+                                                type="text"
+                                                id="nsslapd-ldifdir"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="server-ldifdir"
+                                                onChange={this.handleConfigChange}
+                                                validated={this.state.errObjConfig['nsslapd-ldifdir'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title="The location for the servers custom schema files. (nsslapd-schemadir)."
+                                    >
+                                        <GridItem className="ds-label" span={2}>
+                                            Schema Directory
+                                        </GridItem>
+                                        <GridItem span={10}>
+                                            <TextInput
+                                                value={this.state['nsslapd-schemadir']}
+                                                type="text"
+                                                id="nsslapd-schemadir"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="server-schemadir"
+                                                onChange={this.handleConfigChange}
+                                                validated={this.state.errObjConfig['nsslapd-schemadir'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title="The location of the server's certificates (nsslapd-certdir)."
+                                    >
+                                        <GridItem className="ds-label" span={2}>
+                                            Certificate Directory
+                                        </GridItem>
+                                        <GridItem span={10}>
+                                            <TextInput
+                                                value={this.state['nsslapd-certdir']}
+                                                type="text"
+                                                id="nsslapd-certdir"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="server-certdir"
+                                                onChange={this.handleConfigChange}
+                                                validated={this.state.errObjConfig['nsslapd-certdir'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                </Form>
+                                <Button
+                                    isDisabled={this.state.configSaveDisabled}
+                                    variant="primary"
+                                    className="ds-margin-top-xlg"
+                                    onClick={this.saveConfig}
+                                    isLoading={this.state.configReloading}
+                                    spinnerAriaValueText={this.state.configReloading ? "Saving" : undefined}
+                                    {...extraPrimaryProps}
+                                >
+                                    {saveBtnName}
+                                </Button>
+                            </Tab>
 
-                                    <TabPane eventKey={4}>
-                                        <Form className="ds-margin-top ds-margin-left" horizontal>
-                                            <Row className="ds-margin-top-lg">
-                                                <Col sm={5}>
-                                                    <Checkbox
-                                                        id="nsslapd-schemacheck"
-                                                        defaultChecked={this.state['nsslapd-schemacheck']}
-                                                        onChange={this.handleAdvChange}
-                                                        title="Enable schema checking (nsslapd-schemacheck)."
-                                                    >
-                                                        Enable Schema Checking
-                                                    </Checkbox>
-                                                </Col>
-                                                <Col sm={5}>
-                                                    <Checkbox
-                                                        id="nsslapd-syntaxcheck"
-                                                        defaultChecked={this.state['nsslapd-syntaxcheck']}
-                                                        onChange={this.handleAdvChange}
-                                                        title="Enable attribute syntax checking (nsslapd-syntaxcheck)."
-                                                    >
-                                                        Enable Attribute Syntax Checking
-                                                    </Checkbox>
-                                                </Col>
-                                            </Row>
-                                            <Row className="ds-margin-top">
-                                                <Col sm={5}>
-                                                    <Checkbox
-                                                        id="nsslapd-plugin-logging"
-                                                        defaultChecked={this.state['nsslapd-plugin-logging']}
-                                                        onChange={this.handleAdvChange}
-                                                        title="Enable plugins to log access and audit events.  (nsslapd-plugin-logging)."
-                                                    >
-                                                        Enable Plugin Logging
-                                                    </Checkbox>
-                                                </Col>
-                                                <Col sm={5}>
-                                                    <Checkbox
-                                                        id="nsslapd-syntaxlogging"
-                                                        defaultChecked={this.state['nsslapd-syntaxlogging']}
-                                                        onChange={this.handleAdvChange}
-                                                        title="Enable syntax logging (nsslapd-syntaxlogging)."
-                                                    >
-                                                        Enable Attribute Syntax Logging
-                                                    </Checkbox>
-                                                </Col>
-
-                                            </Row>
-                                            <Row className="ds-margin-top">
-                                                <Col sm={5}>
-                                                    <Checkbox
-                                                        id="nsslapd-plugin-binddn-tracking"
-                                                        defaultChecked={this.state['nsslapd-plugin-binddn-tracking']}
-                                                        onChange={this.handleAdvChange}
-                                                        title="Enabling this feature will write new operational attributes to the modified entry: internalModifiersname & internalCreatorsname. These new attributes contain the plugin DN, while modifiersname will be the original binding entry that triggered the update. (nsslapd-plugin-binddn-tracking)."
-                                                    >
-                                                        Enable Plugin Bind DN Tracking
-                                                    </Checkbox>
-                                                </Col>
-                                                <Col sm={5}>
-                                                    <Checkbox
-                                                        id="nsslapd-attribute-name-exceptions"
-                                                        defaultChecked={this.state['nsslapd-attribute-name-exceptions']}
-                                                        onChange={this.handleAdvChange}
-                                                        title="Allows non-standard characters in attribute names to be used for backwards compatibility with older servers (nsslapd-attribute-name-exceptions)."
-                                                    >
-                                                        Allow Attribute Naming Exceptions
-                                                    </Checkbox>
-                                                </Col>
-                                            </Row>
-                                            <Row className="ds-margin-top">
-                                                <Col sm={5}>
-                                                    <Checkbox
-                                                        id="nsslapd-dn-validate-strict"
-                                                        defaultChecked={this.state['nsslapd-dn-validate-strict']}
-                                                        onChange={this.handleAdvChange}
-                                                        title="Enables strict syntax validation for DNs, according to section 3 in RFC 4514 (nsslapd-dn-validate-strict)."
-                                                    >
-                                                        Strict DN Syntax Validation
-                                                    </Checkbox>
-                                                </Col>
-                                                <Col sm={5}>
-                                                    <Checkbox
-                                                        id="nsslapd-entryusn-global"
-                                                        defaultChecked={this.state['nsslapd-entryusn-global']}
-                                                        onChange={this.handleAdvChange}
-                                                        title="For USN plugin - maintain unique USNs across all back end databases (nsslapd-entryusn-global)."
-                                                    >
-                                                        Maintain Unique USNs Across All Backends
-                                                    </Checkbox>
-                                                </Col>
-                                            </Row>
-                                            <Row className="ds-margin-top">
-                                                <Col sm={5}>
-                                                    <Checkbox
-                                                        id="nsslapd-ignore-time-skew"
-                                                        defaultChecked={this.state['nsslapd-ignore-time-skew']}
-                                                        onChange={this.handleAdvChange}
-                                                        title="Ignore replication time skew when acquiring a replica to start a replciation session (nsslapd-ignore-time-skew)."
-                                                    >
-                                                        Ignore CSN Time Skew
-                                                    </Checkbox>
-                                                </Col>
-                                                <Col sm={5}>
-                                                    <Checkbox
-                                                        id="nsslapd-readonly"
-                                                        defaultChecked={this.state['nsslapd-readonly']}
-                                                        onChange={this.handleAdvChange}
-                                                        title="Make entire server read-only (nsslapd-readonly)"
-                                                    >
-                                                        Server Read-Only
-                                                    </Checkbox>
-                                                </Col>
-                                            </Row>
-                                        </Form>
-                                        <Form className="ds-margin-left">
-                                            <Row
-                                                className="ds-margin-top-xlg"
-                                                title="Allow anonymous binds to the server (nsslapd-allow-anonymous-access)."
+                            <Tab eventKey={1} title={<TabTitleText><b>Directory Manager</b></TabTitleText>}>
+                                <Form className="ds-margin-top-xlg" isHorizontal>
+                                    <Grid
+                                        title="The DN of the unrestricted directory manager (nsslapd-rootdn)."
+                                    >
+                                        <GridItem className="ds-label" span={3}>
+                                            Directory Manager DN
+                                        </GridItem>
+                                        <GridItem span={9}>
+                                            <TextInput
+                                                value={this.state['nsslapd-rootdn']}
+                                                type="text"
+                                                id="nsslapd-rootdn"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="nsslapd-rootdn"
+                                                isDisabled
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title="The maximum number of logs that are archived (nsslapd-accesslog-maxlogsperdir)."
+                                    >
+                                        <GridItem className="ds-label" span={3}>
+                                            Directory Manager Password
+                                        </GridItem>
+                                        <GridItem span={9}>
+                                            <TextInput
+                                                value={this.state['nsslapd-rootpw']}
+                                                type="password"
+                                                id="nsslapd-rootpw"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="nsslapd-rootpw"
+                                                onChange={this.handleRootDNChange}
+                                                validated={this.state.errObjRootDN['nsslapd-rootpw'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title="Confirm the Directory Manager password"
+                                    >
+                                        <GridItem className="ds-label" span={3}>
+                                            Confirm Password
+                                        </GridItem>
+                                        <GridItem span={9}>
+                                            <TextInput
+                                                value={this.state.confirmRootpw}
+                                                type="password"
+                                                id="confirmRootpw"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="confirmRootpw"
+                                                onChange={this.handleRootDNChange}
+                                                validated={this.state.errObjRootDN.confirmRootpw ? ValidatedOptions.error : ValidatedOptions.default}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title="Set the Directory Manager password storage scheme (nsslapd-rootpwstoragescheme)."
+                                    >
+                                        <GridItem className="ds-label" span={3}>
+                                            Password Storage Scheme
+                                        </GridItem>
+                                        <GridItem span={9}>
+                                            <FormSelect
+                                                id="nsslapd-rootpwstoragescheme"
+                                                value={this.state['nsslapd-rootpwstoragescheme']}
+                                                onChange={this.handleRootDNChange}
+                                                aria-label="FormSelect Input"
                                             >
-                                                <Col componentClass={ControlLabel} sm={5}>
-                                                    Allow Anonymous Access
-                                                </Col>
-                                                <Col sm={4}>
-                                                    <select
-                                                        className="btn btn-default dropdown" id="nsslapd-allow-anonymous-access"
-                                                        onChange={this.handleAdvChange} value={this.state['nsslapd-allow-anonymous-access']}
-                                                    >
-                                                        <option>on</option>
-                                                        <option>off</option>
-                                                        <option title="Allows anonymous search and read access to search the root DSE itself, but restricts access to all other directory entries. ">rootdse</option>
-                                                    </select>
-                                                </Col>
-                                            </Row>
-                                            <Row
-                                                className="ds-margin-top"
-                                                title="The DN of a template entry containing the resource limits to apply to anonymous connections (nsslapd-anonlimitsdn)."
+                                                {this.options.map((option, index) => (
+                                                    <FormSelectOption key={index} value={option.value} label={option.label} />
+                                                ))}
+                                            </FormSelect>
+                                        </GridItem>
+                                    </Grid>
+                                </Form>
+                                <Button
+                                    variant="primary"
+                                    className="ds-margin-top-xlg"
+                                    isDisabled={this.state.rootDNSaveDisabled}
+                                    onClick={this.saveRootDN}
+                                    isLoading={this.state.rootDNReloading}
+                                    spinnerAriaValueText={this.state.rootDNReloading ? "Saving" : undefined}
+                                    {...extraPrimaryProps}
+                                >
+                                    {saveBtnName}
+                                </Button>
+                            </Tab>
+                            <Tab eventKey={2} title={<TabTitleText><b>Disk Monitoring</b></TabTitleText>}>
+                                <Form className="ds-margin-left ds-margin-top-xlg">
+                                    <Checkbox
+                                        id="nsslapd-disk-monitoring"
+                                        isChecked={this.state['nsslapd-disk-monitoring']}
+                                        onChange={(checked, e) => {
+                                            this.handleDiskMonChange(e);
+                                        }}
+                                        label="Enable Disk Space Monitoring"
+                                    />
+                                </Form>
+                                {diskMonitor}
+                                <Button
+                                    isDisabled={this.state.diskMonSaveDisabled}
+                                    variant="primary"
+                                    className="ds-margin-top-xlg"
+                                    onClick={this.saveDiskMonitoring}
+                                    isLoading={this.state.diskMonReloading}
+                                    spinnerAriaValueText={this.state.diskMonReloading ? "Saving" : undefined}
+                                    {...extraPrimaryProps}
+                                >
+                                    {saveBtnName}
+                                </Button>
+                            </Tab>
+                            <Tab eventKey={3} title={<TabTitleText><b>Advanced Settings</b></TabTitleText>}>
+                                <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
+                                    <Grid>
+                                        <GridItem span={5}>
+                                            <Checkbox
+                                                id="nsslapd-schemacheck"
+                                                isChecked={this.state['nsslapd-schemacheck']}
+                                                onChange={(checked, e) => {
+                                                    this.handleAdvChange(e);
+                                                }}
+                                                title="Enable schema checking (nsslapd-schemacheck)."
+                                                aria-label="uncontrolled checkbox example"
+                                                label="Enable Schema Checking"
+                                            />
+                                        </GridItem>
+                                        <GridItem span={5}>
+                                            <Checkbox
+                                                id="nsslapd-syntaxcheck"
+                                                isChecked={this.state['nsslapd-syntaxcheck']}
+                                                onChange={(checked, e) => {
+                                                    this.handleAdvChange(e);
+                                                }}
+                                                title="Enable attribute syntax checking (nsslapd-syntaxcheck)."
+                                                label="Enable Attribute Syntax Checking"
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid>
+                                        <GridItem span={5}>
+                                            <Checkbox
+                                                id="nsslapd-plugin-logging"
+                                                isChecked={this.state['nsslapd-plugin-logging']}
+                                                onChange={(checked, e) => {
+                                                    this.handleAdvChange(e);
+                                                }}
+                                                title="Enable plugins to log access and audit events.  (nsslapd-plugin-logging)."
+                                                label="Enable Plugin Logging"
+                                            />
+                                        </GridItem>
+                                        <GridItem span={5}>
+                                            <Checkbox
+                                                id="nsslapd-syntaxlogging"
+                                                isChecked={this.state['nsslapd-syntaxlogging']}
+                                                onChange={(checked, e) => {
+                                                    this.handleAdvChange(e);
+                                                }}
+                                                title="Enable syntax logging (nsslapd-syntaxlogging)."
+                                                label="Enable Attribute Syntax Logging"
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid>
+                                        <GridItem span={5}>
+                                            <Checkbox
+                                                id="nsslapd-plugin-binddn-tracking"
+                                                isChecked={this.state['nsslapd-plugin-binddn-tracking']}
+                                                onChange={(checked, e) => {
+                                                    this.handleAdvChange(e);
+                                                }}
+                                                label="Enable Plugin Bind DN Tracking"
+                                                title="Enabling this feature will write new operational attributes to the modified entry: internalModifiersname & internalCreatorsname. These new attributes contain the plugin DN, while modifiersname will be the original binding entry that triggered the update. (nsslapd-plugin-binddn-tracking)."
+                                            />
+                                        </GridItem>
+                                        <GridItem span={5}>
+                                            <Checkbox
+                                                id="nsslapd-attribute-name-exceptions"
+                                                isChecked={this.state['nsslapd-attribute-name-exceptions']}
+                                                onChange={(checked, e) => {
+                                                    this.handleAdvChange(e);
+                                                }}
+                                                title="Allows non-standard characters in attribute names to be used for backwards compatibility with older servers (nsslapd-attribute-name-exceptions)."
+                                                label="Allow Attribute Naming Exceptions"
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid>
+                                        <GridItem span={5}>
+                                            <Checkbox
+                                                id="nsslapd-dn-validate-strict"
+                                                isChecked={this.state['nsslapd-dn-validate-strict']}
+                                                onChange={(checked, e) => {
+                                                    this.handleAdvChange(e);
+                                                }}
+                                                label="Strict DN Syntax Validation"
+                                                title="Enables strict syntax validation for DNs, according to section 3 in RFC 4514 (nsslapd-dn-validate-strict)."
+                                            />
+                                        </GridItem>
+                                        <GridItem span={5}>
+                                            <Checkbox
+                                                id="nsslapd-entryusn-global"
+                                                isChecked={this.state['nsslapd-entryusn-global']}
+                                                onChange={(checked, e) => {
+                                                    this.handleAdvChange(e);
+                                                }}
+                                                title="For USN plugin - maintain unique USNs across all back end databases (nsslapd-entryusn-global)."
+                                                label="Maintain Unique USNs Across All Backends"
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid>
+                                        <GridItem span={5}>
+                                            <Checkbox
+                                                id="nsslapd-ignore-time-skew"
+                                                isChecked={this.state['nsslapd-ignore-time-skew']}
+                                                onChange={(checked, e) => {
+                                                    this.handleAdvChange(e);
+                                                }}
+                                                title="Ignore replication time skew when acquiring a replica to start a replciation session (nsslapd-ignore-time-skew)."
+                                                label="Ignore CSN Time Skew"
+                                            />
+                                        </GridItem>
+                                        <GridItem span={5}>
+                                            <Checkbox
+                                                id="nsslapd-readonly"
+                                                isChecked={this.state['nsslapd-readonly']}
+                                                onChange={(checked, e) => {
+                                                    this.handleAdvChange(e);
+                                                }}
+                                                title="Make entire server read-only (nsslapd-readonly)"
+                                                label="Server Read-Only"
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        className="ds-margin-top"
+                                        title="Allow anonymous binds to the server (nsslapd-allow-anonymous-access)."
+                                    >
+                                        <GridItem className="ds-label" span={3}>
+                                            Allow Anonymous Access
+                                        </GridItem>
+                                        <GridItem span={9}>
+                                            <FormSelect
+                                                id="nsslapd-allow-anonymous-access"
+                                                value={this.state['nsslapd-allow-anonymous-access']}
+                                                onChange={(str, e) => {
+                                                    this.handleAdvChange(e);
+                                                }}
+                                                aria-label="FormSelect Input"
                                             >
-                                                <Col componentClass={ControlLabel} sm={5}>
-                                                    Anonymous Resource Limits DN
-                                                </Col>
-                                                <Col sm={4}>
-                                                    <FormControl
-                                                        id="nsslapd-anonlimitsdn"
-                                                        type="text"
-                                                        value={this.state['nsslapd-anonlimitsdn']}
-                                                        onChange={this.handleAdvChange}
-                                                        className={this.state.errObjAdv.anonLimitsDN ? "ds-input-bad" : ""}
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <Button
-                                                disabled={this.state.advSaveDisabled}
-                                                bsStyle="primary"
-                                                className="ds-margin-top-lg"
-                                                onClick={this.saveAdvanced}
-                                            >
-                                                Save
-                                            </Button>
-                                        </Form>
-                                    </TabPane>
-                                </TabContent>
-                            </div>
-                        </TabContainer>
+                                                <FormSelectOption key="0" value="on" label="on" />
+                                                <FormSelectOption key="1" value="off" label="off" />
+                                                <FormSelectOption
+                                                    key="2"
+                                                    value="rootdse"
+                                                    label="rootdse"
+                                                    title="Allows anonymous search and read access to search the root DSE itself, but restricts access to all other directory entries. "
+                                                />
+                                            </FormSelect>
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title="The DN of a template entry containing the resource limits to apply to anonymous connections (nsslapd-anonlimitsdn)."
+                                    >
+                                        <GridItem className="ds-label" span={3}>
+                                            Anonymous Resource Limits DN
+                                        </GridItem>
+                                        <GridItem span={9}>
+                                            <TextInput
+                                                value={this.state['nsslapd-anonlimitsdn']}
+                                                type="text"
+                                                id="nsslapd-anonlimitsdn"
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name="nsslapd-anonlimitsdn"
+                                                onChange={(str, e) => {
+                                                    this.handleAdvChange(e);
+                                                }}
+                                                validated={this.state.errObjAdv.anonLimitsDN ? ValidatedOptions.error : ValidatedOptions.default}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                </Form>
+                                <Button
+                                    isDisabled={this.state.advSaveDisabled}
+                                    variant="primary"
+                                    className="ds-margin-top-xlg"
+                                    onClick={this.saveAdvanced}
+                                    isLoading={this.state.advReloading}
+                                    spinnerAriaValueText={this.state.advReloading ? "Saving" : undefined}
+                                    {...extraPrimaryProps}
+                                >
+                                    {saveBtnName}
+                                </Button>
+                            </Tab>
+                        </Tabs>
                     </div>
                 </div>;
         }
 
         return (
-            <div id="server-settings-page">
+            <div
+                id="server-settings-page" className={this.state.configReloading || this.state.rootDNReloading ||
+                this.state.diskMonReloading || this.state.advReloading ? "ds-disabled" : ""}
+            >
                 {body}
             </div>
         );
@@ -1327,7 +1417,6 @@ ServerSettings.propTypes = {
 };
 
 ServerSettings.defaultProps = {
-    addNotification: noop,
     serverId: "",
     version: "",
     attrs: {},

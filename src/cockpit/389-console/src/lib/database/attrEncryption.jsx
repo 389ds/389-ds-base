@@ -1,15 +1,16 @@
 import cockpit from "cockpit";
 import React from "react";
-import { ConfirmPopup } from "../notifications.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 import { EncryptedAttrTable } from "./databaseTables.jsx";
 import {
-    Row,
-    Col,
     Button,
-    noop
-} from "patternfly-react";
+    Grid,
+    GridItem,
+    Select,
+    SelectVariant,
+    SelectOption,
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
-import { Typeahead } from "react-bootstrap-typeahead";
 import { log_cmd } from "../tools.jsx";
 
 export class AttrEncryption extends React.Component {
@@ -18,44 +19,85 @@ export class AttrEncryption extends React.Component {
 
         this.state = {
             showConfirmAttrDelete: false,
-            typeahead: "",
             addAttr: "",
             delAttr: "",
+            isSelectOpen: false,
+            modalSpinning: false,
+            modalChecked: false,
+            saving: false,
         };
 
         // Delete referral and confirmation
         this.showConfirmAttrDelete = this.showConfirmAttrDelete.bind(this);
         this.closeConfirmAttrDelete = this.closeConfirmAttrDelete.bind(this);
-        this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
         this.addEncryptedAttr = this.addEncryptedAttr.bind(this);
         this.delEncryptedAttr = this.delEncryptedAttr.bind(this);
+        this.handleModalChange = this.handleModalChange.bind(this);
+        // Select Typeahead
+        this.onSelect = this.onSelect.bind(this);
+        this.onSelectToggle = this.onSelectToggle.bind(this);
+        this.onSelectClear = this.onSelectClear.bind(this);
     }
 
-    showConfirmAttrDelete (item) {
+    handleModalChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.setState({
+            [e.target.id]: value
+        });
+    }
+
+    showConfirmAttrDelete (name) {
         this.setState({
             showConfirmAttrDelete: true,
-            delAttr: item.name
+            delAttr: name,
+            modalChecked: false,
+            modalSpinning: false,
         });
     }
 
     closeConfirmAttrDelete() {
         this.setState({
-            showConfirmAttrDelete: false
+            showConfirmAttrDelete: false,
+            modalSpinning: false,
+            modalChecked: false,
         });
     }
 
-    handleTypeaheadChange (value) {
+    onSelect = (event, selection) => {
+        if (this.state.addAttr.includes(selection)) {
+            this.setState(
+                (prevState) => ({
+                    addAttr: prevState.addAttr.filter((item) => item !== selection),
+                    isSelectOpen: false
+                }),
+            );
+        } else {
+            this.setState(
+                prevState => ({
+                    addAttr: [...prevState.addAttr, selection],
+                    isSelectOpen: false
+                }),
+            );
+        }
+    }
+
+    onSelectToggle = isSelectOpen => {
         this.setState({
-            addAttr: value
+            isSelectOpen
+        });
+    }
+
+    onSelectClear = () => {
+        this.setState({
+            addAttr: "",
+            isSelectOpen: false
         });
     }
 
     addEncryptedAttr () {
-        // reset typeahead input field
-        this.typeahead.getInstance().clear();
-        if (this.state.addAttr == "") {
-            return;
-        }
+        this.setState({
+            saving: true
+        });
 
         // Add the new encrypted attr
         const cmd = [
@@ -71,18 +113,29 @@ export class AttrEncryption extends React.Component {
                         "success",
                         `Successfully added encrypted attribute`
                     );
+                    this.setState({
+                        saving: false,
+                        addAttr: "",
+                    });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failed to delete encrypted attribute - ${errMsg.desc}`
+                        `Failed to add encrypted attribute - ${errMsg.desc}`
                     );
+                    this.setState({
+                        saving: false,
+                        addAttr: "",
+                    });
                 });
     }
 
     delEncryptedAttr() {
+        this.setState({
+            modalSpinning: true
+        });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "attr-encrypt", "--del-attr=" + this.state.delAttr, this.props.suffix
@@ -96,67 +149,100 @@ export class AttrEncryption extends React.Component {
                         "success",
                         `Encrypted attribute successfully deleted`
                     );
+                    this.closeConfirmAttrDelete();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
                         `Failure deleting encrypted attribute - ${errMsg.desc}`
                     );
+                    this.closeConfirmAttrDelete();
                 });
     }
 
     render() {
-        const delAttr = <b>{this.state.delAttr}</b>;
+        const {
+            addAttr,
+            saving,
+            isSelectOpen,
+            modalSpinning,
+        } = this.state;
 
         // Update the available list of attrs for the Typeahead
-        let fullList = [];
-        let attrs = [];
-        for (let attrProp of this.props.rows) {
+        const fullList = [];
+        const attrs = [];
+        for (const attrProp of this.props.rows) {
             fullList.push(attrProp.name);
         }
-        for (let attr of this.props.attrs) {
+        for (const attr of this.props.attrs) {
             if (fullList.indexOf(attr) == -1) {
                 attrs.push(attr);
             }
         }
 
+        let saveBtnName = "Add Attribute";
+        const extraPrimaryProps = {};
+        if (saving) {
+            saveBtnName = "Adding Attribute ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
+
         return (
-            <div>
+            <div className={saving || modalSpinning ? "ds-margin-top-lg ds-disabled" : "ds-margin-top-lg"}>
                 <EncryptedAttrTable
+                    key={this.props.rows}
                     rows={this.props.rows}
-                    loadModalHandler={this.showConfirmAttrDelete}
+                    deleteAttr={this.showConfirmAttrDelete}
                 />
-                <Row className="ds-margin-top">
-                    <Col sm={6}>
-                        <Typeahead
-                            id="attrEncrypt"
-                            onChange={value => {
-                                this.handleTypeaheadChange(value);
-                            }}
-                            maxResults={1000}
-                            options={attrs}
-                            placeholder="Type attribute name to be encrypted"
-                            ref={(typeahead) => { this.typeahead = typeahead }}
-                        />
-                    </Col>
-                    <Col sm={3} bsClass="ds-no-padding">
-                        <Button
-                            bsStyle="primary"
-                            onClick={this.addEncryptedAttr}
+                <Grid className="ds-margin-top">
+                    <GridItem span={6}>
+                        <Select
+                            variant={SelectVariant.typeahead}
+                            onToggle={this.onSelectToggle}
+                            onSelect={this.onSelect}
+                            onClear={this.onSelectClear}
+                            selections={addAttr}
+                            isOpen={isSelectOpen}
+                            aria-labelledby="typeAhead-AttrEnc"
+                            placeholderText="Type attribute name to be encrypted"
+                            noResultsFoundText="There are no matching entries"
                         >
-                            Add Attribute
+                            {attrs.map((attr, index) => (
+                                <SelectOption
+                                    key={index}
+                                    value={attr}
+                                />
+                            ))}
+                        </Select>
+                    </GridItem>
+                    <GridItem span={3} className="ds-no-padding">
+                        <Button
+                            className="ds-left-margin"
+                            variant="primary"
+                            onClick={this.addEncryptedAttr}
+                            isLoading={saving}
+                            isDisabled={addAttr == ""}
+                            spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveBtnName}
                         </Button>
-                    </Col>
-                </Row>
-                <ConfirmPopup
+                    </GridItem>
+                </Grid>
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmAttrDelete}
                     closeHandler={this.closeConfirmAttrDelete}
-                    actionFunc={this.delEncryptedAttr}
-                    actionParam={this.state.attrName}
-                    msg="Are you sure you want to remove this encrypted attribute?"
-                    msgContent={delAttr}
+                    handleChange={this.handleModalChange}
+                    actionHandler={this.delEncryptedAttr}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.delAttr}
+                    checked={this.state.modalChecked}
+                    mTitle="Remove Attribute Encryption"
+                    mMsg="Are you sure you want to remove this encrypted attribute?"
+                    mSpinningMsg="Deleting ..."
+                    mBtnName="Delete"
                 />
             </div>
         );
@@ -178,7 +264,5 @@ AttrEncryption.defaultProps = {
     rows: [],
     suffix: "",
     serverId: "",
-    addNotification: noop,
     attrs: [],
-    reload: noop,
 };

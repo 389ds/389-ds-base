@@ -190,6 +190,24 @@ def pam_pta_del(inst, basedn, log, args):
     log.info("Successfully deleted the %s", config.dn)
 
 
+def enable_plugins(inst, basedn, log, args):
+    log.debug("Enabling the Pass Through Authentication & Pam Passthru Auth plugins")
+    passthru_plugin = PassThroughAuthenticationPlugin(inst)
+    pam_passthru_plugin = PAMPassThroughAuthPlugin(inst)
+    passthru_plugin.enable()
+    pam_passthru_plugin.enable();
+    log.info("Plugins disabled.")
+
+
+def disable_plugins(inst, basedn, log, args):
+    log.debug("Disabling the Pass Through Authentication & Pam Passthru Auth plugins")
+    passthru_plugin = PassThroughAuthenticationPlugin(inst)
+    pam_passthru_plugin = PAMPassThroughAuthPlugin(inst)
+    passthru_plugin.disable()
+    pam_passthru_plugin.disable();
+    log.info("Plugins disabled.")
+
+
 def _add_parser_args_pam(parser):
     parser.add_argument('--exclude-suffix', nargs='+',
                         help='Specifies a suffix to exclude from PAM authentication (pamExcludeSuffix)')
@@ -200,7 +218,7 @@ def _add_parser_args_pam(parser):
     parser.add_argument('--filter',
                         help='Sets an LDAP filter to use to identify specific entries within '
                              'the included suffixes for which to use PAM pass-through authentication (pamFilter)')
-    parser.add_argument('--id-attr', nargs='+',
+    parser.add_argument('--id-attr',
                         help='Contains the attribute name which is used to hold the PAM user ID (pamIDAttr)')
     parser.add_argument('--id_map_method',
                         help='Sets the method to use to map the LDAP bind DN to a PAM identity (pamIDMapMethod)')

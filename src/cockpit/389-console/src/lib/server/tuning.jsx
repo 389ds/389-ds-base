@@ -1,20 +1,26 @@
 import cockpit from "cockpit";
 import React from "react";
-import CustomCollapse from "../customCollapse.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
     Button,
-    Col,
-    ControlLabel,
-    Form,
-    FormControl,
-    Icon,
     Checkbox,
-    Row,
-    noop,
+    ExpandableSection,
+    Form,
+    Grid,
+    GridItem,
     Spinner,
-} from "patternfly-react";
+    TextInput,
+    Text,
+    TextContent,
+    TextVariants,
+    ValidatedOptions,
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faSyncAlt
+} from '@fortawesome/free-solid-svg-icons';
+import '@fortawesome/fontawesome-svg-core/styles.css';
 
 const tuning_attrs = [
     'nsslapd-ndn-cache-enabled',
@@ -46,6 +52,13 @@ export class ServerTuning extends React.Component {
             saveDisabled: true,
             errObj: {},
             attrs: this.props.attrs,
+            isExpanded: false,
+        };
+
+        this.onToggle = (isExpanded) => {
+            this.setState({
+                isExpanded
+            });
         };
 
         this.handleChange = this.handleChange.bind(this);
@@ -62,14 +75,14 @@ export class ServerTuning extends React.Component {
     }
 
     handleChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
         let disableSaveBtn = true;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
 
         // Check if a setting was changed, if so enable the save button
-        for (let tuning_attr of tuning_attrs) {
+        for (const tuning_attr of tuning_attrs) {
             if (attr == tuning_attr && this.state['_' + tuning_attr] != value) {
                 disableSaveBtn = false;
                 break;
@@ -77,7 +90,7 @@ export class ServerTuning extends React.Component {
         }
 
         // Now check for differences in values that we did not touch
-        for (let tuning_attr of tuning_attrs) {
+        for (const tuning_attr of tuning_attrs) {
             if (attr != tuning_attr && this.state['_' + tuning_attr] != this.state[tuning_attr]) {
                 disableSaveBtn = false;
                 break;
@@ -99,20 +112,20 @@ export class ServerTuning extends React.Component {
     loadConfig(reloading) {
         if (reloading) {
             this.setState({
-                loading: true
+                loaded: false
             });
         }
 
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
-        log_cmd("loadConfig", "Load server configuration", cmd);
+        log_cmd("loadConfig", "Load server tuning configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let attrs = config.attrs;
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
                     let ndnEnabled = false;
                     let ignoreVirtAttrs = false;
                     let connNoCannon = false;
@@ -133,6 +146,7 @@ export class ServerTuning extends React.Component {
                     this.setState({
                         loaded: true,
                         loading: false,
+                        saveDisabled: true,
                         // Settings
                         'nsslapd-ndn-cache-enabled': ndnEnabled,
                         'nsslapd-ignore-virtual-attrs': ignoreVirtAttrs,
@@ -172,7 +186,7 @@ export class ServerTuning extends React.Component {
                     }, this.props.enableTree());
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         loaded: true
                     });
@@ -184,12 +198,16 @@ export class ServerTuning extends React.Component {
     }
 
     saveConfig() {
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
 
-        for (let attr of tuning_attrs) {
+        this.setState({
+            loading: true
+        });
+
+        for (const attr of tuning_attrs) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -205,318 +223,384 @@ export class ServerTuning extends React.Component {
 
         log_cmd("saveConfig", "Saving Tuning configuration", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.loadConfig(1);
+                    this.loadConfig();
                     this.props.addNotification(
                         "success",
-                        "Successfully updated Advanced configuration"
+                        "Successfully updated tuning configuration"
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.loadConfig(1);
+                    const errMsg = JSON.parse(err);
+                    this.loadConfig();
                     this.props.addNotification(
                         "error",
-                        `Error updating Advanced configuration - ${errMsg.desc}`
+                        `Error updating tuning configuration - ${errMsg.desc}`
                     );
                 });
     }
 
     render () {
-        let reloadSpinner = "";
         let body = "";
-
+        let saveBtnName = "Save Settings";
+        const extraPrimaryProps = {};
         if (this.state.loading) {
-            reloadSpinner = <Spinner loading size="md" />;
+            saveBtnName = "Saving settings ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
+
         if (!this.state.loaded) {
             body =
-                <div className="ds-loading-spinner ds-margin-top ds-center">
-                    <h4>Loading tuning configuration ...</h4>
-                    <Spinner className="ds-margin-top" loading size="md" />
+                <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>Loading Tuning Configuration ...</Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top" size="lg" />
                 </div>;
         } else {
             body =
-                <div>
-                    <Row>
-                        <Col sm={4}>
-                            <ControlLabel className="ds-suffix-header ds-margin-top-lg ds-margin-left-sm">
-                                Tuning & Limits
-                                <Icon className="ds-left-margin ds-refresh"
-                                    type="fa" name="refresh" title="Refresh tuning settings"
-                                    onClick={() => {
-                                        this.loadConfig(1);
-                                    }}
-                                />
-                            </ControlLabel>
-                        </Col>
-                        <Col sm={8} className="ds-margin-top-lg">
-                            {reloadSpinner}
-                        </Col>
-                    </Row>
-                    <hr />
-                    <Form horizontal>
-                        <Row title="The number of worker threads that handle database operations (nsslapd-threadnumber)." className="ds-margin-top">
-                            <Col componentClass={ControlLabel} sm={4}>
+                <div className={this.state.loading ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"}>
+                    <Grid>
+                        <GridItem span={3}>
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Tuning & Limits <FontAwesomeIcon
+                                        size="lg"
+                                        className="ds-left-margin ds-refresh"
+                                        icon={faSyncAlt}
+                                        title="Refresh settings"
+                                        onClick={() => {
+                                            this.loadConfig(1);
+                                        }}
+                                    />
+                                </Text>
+                            </TextContent>
+                        </GridItem>
+                    </Grid>
+                    <Form className="ds-left-margin" isHorizontal>
+                        <Grid
+                            className="ds-margin-top-xlg"
+                            title="The number of worker threads that handle database operations (nsslapd-threadnumber)."
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Number Of Worker Threads
-                            </Col>
-                            <Col sm={3}>
-                                <FormControl
-                                    id="nsslapd-threadnumber"
-                                    type="number"
-                                    min="-1"
-                                    max="1048576"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
                                     value={this.state['nsslapd-threadnumber']}
-                                    onChange={this.handleChange}
-                                    className={this.state.errObj['nsslapd-threadnumber'] ? "ds-input-bad" : ""}
-                                />
-                            </Col>
-                        </Row>
-                        <Row title="The maximum number of file descriptors the server will use (nsslapd-maxdescriptors)." className="ds-margin-top">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Maximum File Descriptors
-                            </Col>
-                            <Col sm={3}>
-                                <FormControl
-                                    id="nsslapd-maxdescriptors"
                                     type="number"
-                                    min="1024"
-                                    max="1048576"
-                                    value={this.state['nsslapd-maxdescriptors']}
-                                    onChange={this.handleChange}
-                                    className={this.state.errObj['nsslapd-maxdescriptors'] ? "ds-input-bad" : ""}
+                                    id="nsslapd-threadnumber"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="threadnumber"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
+                                    validated={this.state.errObj['nsslapd-threadnumber'] ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                            </Col>
-                        </Row>
-                        <Row title="The maximum number of seconds allocated for a search request (nsslapd-timelimit)." className="ds-margin-top">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The maximum number of seconds allocated for a search request (nsslapd-timelimit)."
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Search Time Limit
-                            </Col>
-                            <Col sm={3}>
-                                <FormControl
-                                    id="nsslapd-timelimit"
-                                    type="number"
-                                    min="-1"
-                                    max="2147483647"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
                                     value={this.state['nsslapd-timelimit']}
-                                    onChange={this.handleChange}
-                                    className={this.state.errObj['nsslapd-timelimit'] ? "ds-input-bad" : ""}
+                                    type="number"
+                                    id="nsslapd-timelimit"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="timelimit"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
+                                    validated={this.state.errObj['nsslapd-timelimit'] ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                            </Col>
-                        </Row>
-                        <Row title="The maximum number of entries to return from a search operation (nsslapd-sizelimit)." className="ds-margin-top">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The maximum number of entries to return from a search operation (nsslapd-sizelimit)."
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Search Size Limit
-                            </Col>
-                            <Col sm={3}>
-                                <FormControl
-                                    id="nsslapd-sizelimit"
-                                    type="number"
-                                    min="-1"
-                                    max="2147483647"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
                                     value={this.state['nsslapd-sizelimit']}
-                                    onChange={this.handleChange}
-                                    className={this.state.errObj['nsslapd-sizelimit'] ? "ds-input-bad" : ""}
+                                    type="number"
+                                    id="nsslapd-sizelimit"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="sizelimit"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
+                                    validated={this.state.errObj['nsslapd-sizelimit'] ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                            </Col>
-                        </Row>
-                        <Row title="The maximum number of entries to return from a paged search operation (nsslapd-pagedsizelimit)." className="ds-margin-top">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The maximum number of entries to return from a paged search operation (nsslapd-pagedsizelimit)."
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Paged Search Size Limit
-                            </Col>
-                            <Col sm={3}>
-                                <FormControl
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={this.state['nsslapd-sizelimit']}
+                                    type="number"
                                     id="nsslapd-pagedsizelimit"
-                                    type="number"
-                                    min="-1"
-                                    max="2147483647"
-                                    value={this.state['nsslapd-pagedsizelimit']}
-                                    onChange={this.handleChange}
-                                    className={this.state.errObj['nsslapd-pagedsizelimit'] ? "ds-input-bad" : ""}
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="pagedsizelimit"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
+                                    validated={this.state.errObj['nsslapd-pagedsizelimit'] ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                            </Col>
-                        </Row>
-                        <Row title="Sets the amount of time in seconds after which an idle LDAP client connection is closed by the server (nsslapd-idletimeout)." className="ds-margin-top">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="Sets the amount of time in seconds after which an idle LDAP client connection is closed by the server (nsslapd-idletimeout)."
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Idle Connection Timeout
-                            </Col>
-                            <Col sm={3}>
-                                <FormControl
-                                    id="nsslapd-idletimeout"
-                                    type="number"
-                                    min="0"
-                                    max="2147483647"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
                                     value={this.state['nsslapd-idletimeout']}
-                                    onChange={this.handleChange}
-                                    className={this.state.errObj['nsslapd-idletimeout'] ? "ds-input-bad" : ""}
-                                />
-                            </Col>
-                        </Row>
-                        <Row title="Sets the amount of time in milliseconds after which the connection to a stalled LDAP client is closed (nsslapd-ioblocktimeout)." className="ds-margin-top">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                I/O Block Timeout
-                            </Col>
-                            <Col sm={3}>
-                                <FormControl
-                                    id="nsslapd-ioblocktimeout"
                                     type="number"
-                                    min="0"
-                                    max="2147483647"
-                                    value={this.state['nsslapd-ioblocktimeout']}
-                                    onChange={this.handleChange}
-                                    className={this.state.errObj['nsslapd-ioblocktimeout'] ? "ds-input-bad" : ""}
+                                    id="nsslapd-idletimeout"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="idletimeout"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
+                                    validated={this.state.errObj['nsslapd-idletimeout'] ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                            </Col>
-                        </Row>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="Sets the amount of time in milliseconds after which the connection to a stalled LDAP client is closed (nsslapd-ioblocktimeout)."
+                        >
+                            <GridItem className="ds-label" span={3}>
+                                I/O Block Timeout
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={this.state['nsslapd-ioblocktimeout']}
+                                    type="number"
+                                    id="nsslapd-ioblocktimeout"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="ioblocktimeout"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
+                                    validated={this.state.errObj['nsslapd-ioblocktimeout'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                            </GridItem>
+                        </Grid>
                     </Form>
-                    <CustomCollapse className="ds-margin-left-sm ds-margin-right">
-                        <div className="ds-margin-top">
-                            <Form horizontal>
-                                <Row className="ds-margin-top" title="Sets the I/O wait time for all outbound LDAP connections (nsslapd-outbound-ldap-io-timeout).">
-                                    <Col componentClass={ControlLabel} sm={4}>
+                    <ExpandableSection
+                        className="ds-margin-top-xlg"
+                        toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                        onToggle={this.onToggle}
+                        isExpanded={this.state.isExpanded}
+                    >
+                        <div className="ds-margin-top ds-indent">
+                            <Form isHorizontal>
+                                <Grid
+                                    className="ds-margin-top"
+                                    title="Sets the I/O wait time for all outbound LDAP connections (nsslapd-outbound-ldap-io-timeout)."
+                                >
+                                    <GridItem className="ds-label" span={3}>
                                         Outbound IO Timeout
-                                    </Col>
-                                    <Col sm={3}>
-                                        <FormControl
-                                            type="number"
-                                            min="0"
-                                            max="2147483647"
-                                            id="nsslapd-outbound-ldap-io-timeout"
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
                                             value={this.state['nsslapd-outbound-ldap-io-timeout']}
-                                            onChange={this.handleChange}
+                                            type="number"
+                                            id="nsslapd-outbound-ldap-io-timeout"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="outbound-ldap-io-timeout"
+                                            onChange={(str, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            validated={this.state.errObj['nsslapd-outbound-ldap-io-timeout'] ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                    </Col>
-                                </Row>
-                                <Row className="ds-margin-top" title="The maximum size in bytes allowed for an incoming message (nsslapd-maxbersize).">
-                                    <Col componentClass={ControlLabel} sm={4}>
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="The maximum size in bytes allowed for an incoming message (nsslapd-maxbersize)."
+                                >
+                                    <GridItem className="ds-label" span={3}>
                                         Maximum BER Size
-                                    </Col>
-                                    <Col sm={3}>
-                                        <FormControl
-                                            type="number"
-                                            min="1"
-                                            max="2147483647"
-                                            id="nsslapd-maxbersize"
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
                                             value={this.state['nsslapd-maxbersize']}
-                                            onChange={this.handleChange}
+                                            type="number"
+                                            id="nsslapd-maxbersize"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="maxbersize"
+                                            onChange={(str, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            validated={this.state.errObj['nsslapd-maxbersize'] ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                    </Col>
-                                </Row>
-                                <Row className="ds-margin-top" title="The maximum allowed SASL IO packet size that the server will accept (nsslapd-maxsasliosize).">
-                                    <Col componentClass={ControlLabel} sm={4}>
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="The maximum allowed SASL IO packet size that the server will accept (nsslapd-maxsasliosize)."
+                                >
+                                    <GridItem className="ds-label" span={3}>
                                         Maximum SASL IO Size
-                                    </Col>
-                                    <Col sm={3}>
-                                        <FormControl
-                                            type="number"
-                                            min="-1"
-                                            max="2147483647"
-                                            id="nsslapd-maxsasliosize"
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
                                             value={this.state['nsslapd-maxsasliosize']}
-                                            onChange={this.handleChange}
+                                            type="number"
+                                            id="nsslapd-maxsasliosize"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="maxsasliosize"
+                                            onChange={(str, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            validated={this.state.errObj['nsslapd-maxsasliosize'] ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                    </Col>
-                                </Row>
-                                <Row className="ds-margin-top" title="The maximum length for how long the connection queue for the socket can grow before refusing connections (nsslapd-listen-backlog-size).">
-                                    <Col componentClass={ControlLabel} sm={4}>
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="The maximum length for how long the connection queue for the socket can grow before refusing connections (nsslapd-listen-backlog-size)."
+                                >
+                                    <GridItem className="ds-label" span={3}>
                                         Listen Backlog Size
-                                    </Col>
-                                    <Col sm={3}>
-                                        <FormControl
-                                            type="number"
-                                            min="64"
-                                            id="nsslapd-listen-backlog-size"
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
                                             value={this.state['nsslapd-listen-backlog-size']}
-                                            onChange={this.handleChange}
-                                        />
-                                    </Col>
-                                </Row>
-                                <Row className="ds-margin-top" title="Sets how deep a nested search filter is analysed (nsslapd-max-filter-nest-level).">
-                                    <Col componentClass={ControlLabel} sm={4}>
-                                        Maximum Nested Filter Level
-                                    </Col>
-                                    <Col sm={3}>
-                                        <FormControl
                                             type="number"
-                                            min="0"
-                                            id="nsslapd-max-filter-nest-level"
-                                            value={this.state['nsslapd-max-filter-nest-level']}
-                                            onChange={this.handleChange}
+                                            id="nsslapd-listen-backlog-size"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="listen-backlog-size"
+                                            onChange={(str, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            validated={this.state.errObj['nsslapd-listen-backlog-size'] ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                    </Col>
-                                </Row>
-                                <Row className="ds-margin-top-xlg">
-                                    <Col componentClass={ControlLabel} sm={4} title="Enable the normalized DN cache.  Each thread has its own cache (nsslapd-ndn-cache-enabled).">
-                                        <Checkbox
-                                            checked={this.state['nsslapd-ndn-cache-enabled']}
-                                            id="nsslapd-ndn-cache-enabled"
-                                            onChange={this.handleChange}
-                                        >
-                                            Enable Normalized DN Cache
-                                        </Checkbox>
-                                    </Col>
-                                    <Col sm={4}>
-                                        <div className="ds-inline">
-                                            <FormControl
-                                                id="nsslapd-ndn-cache-max-size"
-                                                type="number"
-                                                min="1048576"
-                                                max="2147483647"
-                                                className="ds-input-right"
-                                                value={this.state['nsslapd-ndn-cache-max-size']}
-                                                onChange={this.handleChange}
-                                                title="Per thread NDN cache size in bytes (nsslapd-ndn-cache-max-size)."
-                                            />
-                                        </div>
-                                        <div className="ds-inline ds-left-margin ds-lower-field">
-                                            <font size="2">bytes</font>
-                                        </div>
-                                    </Col>
-                                </Row>
-                                <Row className="ds-margin-top">
-                                    <Col sm={4} componentClass={ControlLabel} title="Disable DNS reverse entries for outgoing connections (nsslapd-connection-nocanon).">
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="Sets how deep a nested search filter is analysed (nsslapd-max-filter-nest-level)."
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Maximum Nested Filter Level
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={this.state['nsslapd-max-filter-nest-level']}
+                                            type="number"
+                                            id="nsslapd-max-filter-nest-level"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="max-filter-nest-level"
+                                            onChange={(str, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            validated={this.state.errObj['nsslapd-max-filter-nest-level'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="Disable DNS reverse entries for outgoing connections (nsslapd-connection-nocanon)."
+                                >
+                                    <GridItem className="ds-label" span={4}>
                                         <Checkbox
                                             id="nsslapd-connection-nocanon"
-                                            defaultChecked={this.state['nsslapd-connection-nocanon']}
-                                            onChange={this.handleChange}
-                                        >
-                                            Disable Reverse DNS Lookups
-                                        </Checkbox>
-                                    </Col>
-                                </Row>
-                                <Row className="ds-margin-top">
-                                    <Col sm={4} componentClass={ControlLabel} title="Sets the worker threads to continuously read a connection without passing it back to the polling mechanism. (nsslapd-enable-turbo-mode).">
+                                            isChecked={this.state['nsslapd-connection-nocanon']}
+                                            onChange={(checked, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            label="Disable Reverse DNS Lookups"
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="Sets the worker threads to continuously read a connection without passing it back to the polling mechanism. (nsslapd-enable-turbo-mode)."
+                                >
+                                    <GridItem className="ds-label" span={4}>
                                         <Checkbox
                                             id="nsslapd-enable-turbo-mode"
-                                            defaultChecked={this.state['nsslapd-enable-turbo-mode']}
-                                            onChange={this.handleChange}
-                                        >
-                                            Enable Connection Turbo Mode
-                                        </Checkbox>
-                                    </Col>
-                                </Row>
-                                <Row className="ds-margin-top">
-                                    <Col sm={4} componentClass={ControlLabel} title="Disable the virtual attribute lookup in a search entry (nsslapd-ignore-virtual-attrs).">
+                                            isChecked={this.state['nsslapd-enable-turbo-mode']}
+                                            onChange={(checked, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            label="Enable Connection Turbo Mode"
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="Disable the virtual attribute lookup in a search entry (nsslapd-ignore-virtual-attrs)."
+                                >
+                                    <GridItem className="ds-label" span={4}>
                                         <Checkbox
                                             id="nsslapd-ignore-virtual-attrs"
-                                            defaultChecked={this.state['nsslapd-ignore-virtual-attrs']}
-                                            onChange={this.handleChange}
-                                        >
-                                            Disable Virtual Attribute Lookups
-                                        </Checkbox>
-                                    </Col>
-                                </Row>
+                                            isChecked={this.state['nsslapd-ignore-virtual-attrs']}
+                                            onChange={(checked, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            label="Disable Virtual Attribute Lookups"
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="Enable the normalized DN cache.  Each thread has its own cache (nsslapd-ndn-cache-enabled)."
+                                >
+                                    <GridItem className="ds-label" span={4}>
+                                        <Checkbox
+                                            isChecked={this.state['nsslapd-ndn-cache-enabled']}
+                                            id="nsslapd-ndn-cache-enabled"
+                                            onChange={(checked, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            label="Enable Normalized DN Cache"
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="The max NDN cache size in bytes (nsslapd-ndn-cache-max-size)."
+                                    className="ds-left-indent-lg"
+                                >
+                                    <GridItem className="ds-label" span={2}>
+                                        NDN Max Cache Size
+                                    </GridItem>
+                                    <GridItem span={2}>
+                                        <TextInput
+                                            isDisabled={!this.state['nsslapd-ndn-cache-enabled']}
+                                            value={this.state['nsslapd-ndn-cache-max-size']}
+                                            type="number"
+                                            id="nsslapd-ndn-cache-max-size"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="ndn-cache-max-size"
+                                            onChange={(str, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            validated={this.state.errObj['nsslapd-ndn-cache-max-size'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                    </GridItem>
+                                </Grid>
                             </Form>
                         </div>
-                    </CustomCollapse>
+                    </ExpandableSection>
                     <Button
-                        disabled={this.state.saveDisabled}
-                        bsStyle="primary"
-                        className="ds-margin-top-lg ds-margin-left"
+                        isDisabled={this.state.saveDisabled}
+                        variant="primary"
+                        className="ds-margin-top-xlg"
                         onClick={this.saveConfig}
+                        isLoading={this.state.loading}
+                        spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                        {...extraPrimaryProps}
                     >
-                        Save
+                        {saveBtnName}
                     </Button>
                 </div>;
         }
@@ -538,7 +622,6 @@ ServerTuning.propTypes = {
 };
 
 ServerTuning.defaultProps = {
-    addNotification: noop,
     serverId: "",
     attrs: {},
 };

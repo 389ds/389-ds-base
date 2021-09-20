@@ -11,6 +11,7 @@ import copy
 import os
 import base64
 import time
+import fnmatch
 from struct import pack, unpack
 from datetime import timedelta
 from stat import ST_MODE
@@ -53,7 +54,6 @@ class DSEldif(DSLint):
                 if not line.startswith(' '):
                     if processed_line:
                         self._contents.append(processed_line)
-
                     if line.startswith('dn:'):
                         processed_line = line.lower()
                     else:
@@ -145,6 +145,20 @@ class DSEldif(DSLint):
             return vals[0] if len(vals) > 0 else None
         return vals
 
+    def get_indexes(self, backend):
+        """Return a list of backend indexes
+
+        :param backend: a backend to get the indexes of
+        """
+        indexes = []
+        for entry in self._contents:
+            if fnmatch.fnmatch(entry, "*,cn=index,cn={}*".format(backend.lower())):
+                start = entry.find("cn=")
+                end = entry.find(",")
+                indexes.append(entry[start+len('cn='):end])
+
+        return indexes
+
     def add(self, entry_dn, attr, value):
         """Add an attribute under a given entry
 
@@ -158,6 +172,35 @@ class DSEldif(DSLint):
 
         entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn.lower()))
         self._contents.insert(entry_dn_i+1, "{}: {}\n".format(attr, value))
+        self._update()
+
+    def rename(self, entry_dn, new_dn, del_old_rdn=True):
+        """Rename an entry
+        :param entry_dn: a DN of entry we want to rename
+        :type entry_dn: str
+        :param new_dn: The new DN
+        :type new_dn: str
+        :param del_old_rdn: Delete the old RND attribute from the entry
+        :type del_old_rdn: boolean
+        """
+
+        # old rdn
+        old_rdn = entry_dn.split(',', 1)[0]
+        rdn_attr = old_rdn.split('=')[0]
+
+        # new rdn
+        new_rdn = new_dn.split(',', 1)[0]
+        new_rdn_attr = new_rdn.split('=')[0]
+        new_rdn_val = new_rdn.split('=')[1]
+
+        # Handle the rdn attribute
+        if del_old_rdn:
+           self.delete(entry_dn, rdn_attr)
+        self.add(entry_dn, new_rdn_attr, new_rdn_val)
+
+        # Rename the entry
+        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn.lower()))
+        self._contents[entry_dn_i] = f"dn: {new_dn}\n"
         self._update()
 
     def delete(self, entry_dn, attr, value=None):

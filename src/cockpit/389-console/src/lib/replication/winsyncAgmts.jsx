@@ -1,15 +1,16 @@
 import cockpit from "cockpit";
 import React from "react";
-import { ConfirmPopup, DoubleConfirmModal } from "../notifications.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 import { ReplAgmtTable } from "./replTables.jsx";
 import { WinsyncAgmtModal } from "./replModals.jsx";
-import { log_cmd, valid_dn, valid_port } from "../tools.jsx";
+import { log_cmd, valid_dn, valid_port, listsEqual } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     Button,
-    // Icon,
-    noop,
-} from "patternfly-react";
+} from "@patternfly/react-core";
+import {
+    SortByDirection,
+} from '@patternfly/react-table';
 
 export class WinsyncAgmts extends React.Component {
     _mounted = false;
@@ -23,10 +24,12 @@ export class WinsyncAgmts extends React.Component {
             showConfirmEnableAgmt: false,
             showConfirmDisableAgmt: false,
             errObj: {},
-            modalMsg: "",
-            modalScheduleMsg: "",
             savingAgmt: false,
             mounted: false,
+            rows: [],
+            page: 1,
+            value: "",
+            sortBy: {},
             // Create agreement
             agmtName: "",
             agmtHost: "",
@@ -44,8 +47,8 @@ export class WinsyncAgmts extends React.Component {
             agmtSyncFri: true,
             agmtSyncSat: true,
             agmtSyncSun: true,
-            agmtStartTime: "0",
-            agmtEndTime: "0",
+            agmtStartTime: "0000",
+            agmtEndTime: "2359",
             agmtInit: "noinit",
             agmtSaveOK: false,
             modalChecked: false,
@@ -61,11 +64,44 @@ export class WinsyncAgmts extends React.Component {
             // Init agmt
             agmtInitCounter: 0,
             agmtInitIntervals: [],
+
+            isExcludeAttrCreateOpen: false,
+            isExcludeAttrEditOpen: false,
         };
+
+        // Create - Exclude Attributes
+        this.onExcludeAttrCreateToggle = isExcludeAttrCreateOpen => {
+            this.setState({
+                isExcludeAttrCreateOpen
+            });
+        };
+        this.onExcludeAttrCreateClear = () => {
+            this.setState({
+                agmtFracAttrs: [],
+                isExcludeAttrCreateOpen: false
+            });
+        };
+
+        // Edit - Exclude Attributes
+        this.onExcludeAttrEditToggle = isExcludeAttrEditOpen => {
+            this.setState({
+                isExcludeAttrEditOpen
+            });
+        };
+        this.onExcludeAttrEditClear = () => {
+            this.setState({
+                agmtFracAttrs: [],
+                isExcludeAttrEditOpen: false
+            });
+        };
+
         this.showCreateAgmtModal = this.showCreateAgmtModal.bind(this);
         this.closeCreateAgmtModal = this.closeCreateAgmtModal.bind(this);
         this.closeEditAgmtModal = this.closeEditAgmtModal.bind(this);
-        this.handleChange = this.handleChange.bind(this);
+        this.handleTASelectChange = this.handleTASelectChange.bind(this);
+        this.handleTimeChange = this.handleTimeChange.bind(this);
+        this.handleCreateChange = this.handleCreateChange.bind(this);
+        this.handleEditChange = this.handleEditChange.bind(this);
         this.handleModalChange = this.handleModalChange.bind(this);
         this.handleTAFracAttrChange = this.handleTAFracAttrChange.bind(this);
         this.handleTAFracAttrChangeEdit = this.handleTAFracAttrChangeEdit.bind(this);
@@ -85,26 +121,19 @@ export class WinsyncAgmts extends React.Component {
         this.closeConfirmEnableAgmt = this.closeConfirmEnableAgmt.bind(this);
         this.closeConfirmDisableAgmt = this.closeConfirmDisableAgmt.bind(this);
         this.watchAgmtInit = this.watchAgmtInit.bind(this);
+        // Table sort and search
+        this.onSort = this.onSort.bind(this);
+        this.onSearchChange = this.onSearchChange.bind(this);
     }
 
     componentDidMount () {
         this._mounted = true;
+        const rows = JSON.parse(JSON.stringify(this.props.rows));
+        this.setState({ rows: rows });
     }
 
     componentWillUnmount () {
         this._mounted = false;
-    }
-
-    listEqual(old_values, new_values) {
-        if (old_values.length != new_values.length) {
-            return false;
-        }
-        for (let i = old_values.length; i--;) {
-            if (old_values[i] != new_values[i]) {
-                return false;
-            }
-        }
-        return true;
     }
 
     handleModalChange (e) {
@@ -113,273 +142,350 @@ export class WinsyncAgmts extends React.Component {
         });
     }
 
-    handleChange (e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let time_val = "";
-        let valueErr = false;
-        let errObj = this.state.errObj;
+    validateConfig(attr, value, errObj) {
+        // Validate the current Settings
         let all_good = true;
-        let modal_msg = "";
-        let modal_schedule_msg = "";
-        let edit = false;
-        if (value == "") {
-            valueErr = true;
+        const configAttrs = [
+            'agmtName', 'agmtHost', "agmtWinDomain"
+        ];
+        const dnAttrs = [
+            'agmtBindDN', 'agmtWinSubtree', 'agmtWinSubtree', 'agmtDSSubtree'
+        ];
+
+        // If we disable
+        if (attr == 'agmtSync' && value == true) {
+            errObj.agmtSyncMon = false;
+            errObj.agmtSyncTue = false;
+            errObj.agmtSyncWed = false;
+            errObj.agmtSyncThu = false;
+            errObj.agmtSyncFri = false;
+            errObj.agmtSyncSat = false;
+            errObj.agmtSyncSun = false;
+            errObj.agmtStartTime = false;
+            errObj.agmtEndTime = false;
         }
-        errObj[e.target.id] = valueErr;
-        if (e.target.name == "agmt-modal-edit") {
-            let orig_attr = "_" + e.target.id;
-            let attr = e.target.id;
+
+        for (const configAttr of configAttrs) {
+            if (attr == configAttr) {
+                if (value == "") {
+                    errObj[attr] = true;
+                    all_good = false;
+                } else {
+                    errObj[attr] = false;
+                }
+            } else if (this.state[configAttr] == "") {
+                errObj[configAttr] = true;
+                all_good = false;
+            }
+        }
+
+        for (const dnAttr of dnAttrs) {
+            if (attr == dnAttr) {
+                if (!valid_dn(value)) {
+                    errObj[dnAttr] = true;
+                    all_good = false;
+                } else {
+                    errObj[attr] = false;
+                }
+            } else if (!valid_dn(this.state[dnAttr])) {
+                errObj[dnAttr] = true;
+                all_good = false;
+            }
+        }
+
+        if (attr == 'agmtPort') {
+            if (!valid_port(value)) {
+                errObj.agmtPort = true;
+                all_good = false;
+            } else {
+                errObj.agmtPort = false;
+            }
+        }
+
+        // Check passwords match
+        if (attr == 'agmtBindPW') {
+            if (value != this.state.agmtBindPWConfirm || value == "") {
+                errObj.agmtBindPW = true;
+                errObj.agmtBindPWConfirm = true;
+                all_good = false;
+            } else {
+                errObj.agmtBindPW = false;
+                errObj.agmtBindPWConfirm = false;
+            }
+        } else if (attr == 'agmtBindPWConfirm') {
+            if (value != this.state.agmtBindPW || value == "") {
+                errObj.agmtBindPW = true;
+                errObj.agmtBindPWConfirm = true;
+                all_good = false;
+            } else {
+                errObj.agmtBindPW = false;
+                errObj.agmtBindPWConfirm = false;
+            }
+        } else if (this.state.agmtBindPW != this.state.agmtBindPWConfirm || this.state.agmtBindPW == "" || this.state.agmtBindPWConfirm == "") {
+            // Not a pasword change, but the values are no good
+            errObj.agmtBindPW = true;
+            errObj.agmtBindPWConfirm = true;
+            all_good = false;
+        }
+
+        if (attr == 'agmtSync') {
+            if (value) {
+                // Just set all the days and let the user remove days as needed
+                errObj.agmtStartTime = false;
+                errObj.agmtEndTime = false;
+                this.setState({
+                    agmtSyncMon: true,
+                    agmtSyncTue: true,
+                    agmtSyncWed: true,
+                    agmtSyncThu: true,
+                    agmtSyncFri: true,
+                    agmtSyncSat: true,
+                    agmtSyncSun: true,
+                    agmtStartTime: "0000",
+                    agmtEndTime: "2359",
+                });
+            }
+        } else if (this.state.agmtSync) {
+            // Check the days first
+            let have_days = false;
+            const days = [
+                "agmtSyncSun", "agmtSyncMon", "agmtSyncTue", "agmtSyncWed",
+                "agmtSyncThu", "agmtSyncFri", "agmtSyncSat"
+            ];
+            for (const day of days) {
+                if ((attr != day && this.state[day]) || (attr == day && value)) {
+                    have_days = true;
+                    break;
+                }
+            }
+            errObj.agmtSyncSun = false;
+            errObj.agmtSyncMon = false;
+            errObj.agmtSyncTue = false;
+            errObj.agmtSyncWed = false;
+            errObj.agmtSyncThu = false;
+            errObj.agmtSyncFri = false;
+            errObj.agmtSyncSat = false;
+            if (!have_days) {
+                errObj.agmtSyncSun = true;
+                errObj.agmtSyncMon = true;
+                errObj.agmtSyncTue = true;
+                errObj.agmtSyncWed = true;
+                errObj.agmtSyncThu = true;
+                errObj.agmtSyncFri = true;
+                errObj.agmtSyncSat = true;
+                all_good = false;
+            } else if (attr == 'agmtStartTime') {
+                if (value == "") {
+                    all_good = false;
+                    errObj.agmtStartTime = true;
+                } else if (value >= this.state.agmtEndTime) {
+                    errObj.agmtStartTime = true;
+                    all_good = false;
+                } else {
+                    // All good, reset form
+                    errObj.agmtStartTime = false;
+                    errObj.agmtEndTime = false;
+                }
+            } else if (attr == 'agmtEndTime') {
+                if (value == "") {
+                    errObj.agmtEndTime = true;
+                    all_good = false;
+                } else if (this.state.agmtStartTime >= value) {
+                    errObj.agmtStartTime = true;
+                    all_good = false;
+                } else {
+                    // All good, reset form
+                    errObj.agmtStartTime = false;
+                    errObj.agmtEndTime = false;
+                }
+            } else if (this.state.agmtStartTime >= this.state.agmtEndTime) {
+                errObj.agmtStartTime = true;
+                all_good = false;
+            }
+        }
+
+        return all_good;
+    }
+
+    handleTimeChange(action, attr, val) {
+        let value = val.replace(":", "");
+        const errObj = this.state.errObj;
+        const e = { target: { id: 'dummy', value: "", type: 'input' } };
+
+        if (value == "") {
+            value = "0000";
+        }
+        if (attr == "agmtStartTime") {
+            if (value > this.state.agmtEndTime) {
+                errObj.agmtStartTime = true;
+            } else {
+                errObj.agmtStartTime = false;
+                errObj.agmtEndTime = false;
+            }
+        } else if (attr == "agmtEndTime") {
+            if (this.state.agmtStartTime > value) {
+                errObj.agmtEndTime = true;
+            } else {
+                errObj.agmtEndTime = false;
+                errObj.agmtStartTime = false;
+            }
+        }
+
+        this.setState({
+            [attr]: value,
+            errObj: errObj,
+        }, () => { action == "edit" ? this.handleEditChange(e) : this.handleCreateChange(e) });
+    }
+
+    handleCreateChange (e) {
+        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+        const errObj = this.state.errObj;
+        let all_good = true;
+
+        if (e.target.type == "time") {
+            // Strip out the colon from the time
+            value = value.replace(':', '');
+        }
+
+        all_good = this.validateConfig(attr, value, errObj);
+
+        this.setState({
+            [attr]: value,
+            errObj: errObj,
+            agmtSaveOK: all_good,
+            [e.target.toggle]: false
+        });
+    }
+
+    handleEditChange (e) {
+        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+        const errObj = this.state.errObj;
+        let all_good = true;
+        errObj[attr] = false;
+
+        if (e.target.type == "time") {
+            // Strip out the colon from the time
+            value = value.replace(':', '');
+        }
+
+        all_good = this.validateConfig(attr, value, errObj);
+
+        if (all_good) {
+            // All the values are valid, but did something change that warrants
+            // the save button to be enabled?
             all_good = false;
             if ((attr != 'agmtHost' && this.state.agmtHost != this.state._agmtHost) ||
                 (attr != 'agmtPort' && this.state.agmtPort != this.state._agmtPort) ||
                 (attr != 'agmtBindDN' && this.state.agmtBindDN != this.state._agmtBindDN) ||
+                (attr != 'agmtBindMethod' && this.state.agmtBindMethod != this.state._agmtBindMethod) ||
                 (attr != 'agmtProtocol' && this.state.agmtProtocol != this.state._agmtProtocol) ||
                 (attr != 'agmtSync' && this.state.agmtSync != this.state._agmtSync) ||
+                (attr != 'agmtFracAttrs' && !listsEqual(this.state.agmtFracAttrs, this.state._agmtFracAttrs)) ||
                 (attr != 'agmtSyncGroups' && this.state.agmtSyncGroups != this.state._agmtSyncGroups) ||
                 (attr != 'agmtSyncUsers' && this.state.agmtSyncUsers != this.state._agmtSyncUsers) ||
                 (attr != 'agmtWinDomain' && this.state.agmtWinDomain != this.state._agmtWinDomain) ||
                 (attr != 'agmtWinSubtree' && this.state.agmtWinSubtree != this.state._agmtWinSubtree) ||
                 (attr != 'agmtDSSubtree' && this.state.agmtDSSubtree != this.state._agmtDSSubtree) ||
                 (attr != 'agmtOneWaySync' && this.state.agmtOneWaySync != this.state._agmtOneWaySync) ||
-                (attr != 'agmtSyncInterval' && this.state.agmtSyncInterval != this.state._agmtSyncInterval) ||
-                (attr != 'agmtFracAttrs' && !this.listEqual(this.state.agmtFracAttrs, this.state._agmtFracAttrs))) {
+                (attr != 'agmtSyncInterval' && this.state.agmtSyncInterval != this.state._agmtSyncInterval)) {
                 all_good = true;
             }
-            if (!this.state._agmtSync) {
+            if ((attr != "agmtSync" && this.state.agmtSync) || (attr == "agmtSync" && value)) {
                 if ((attr != 'agmtSyncMon' && this.state.agmtSyncMon != this.state._agmtSyncMon) ||
                     (attr != 'agmtSyncTue' && this.state.agmtSyncTue != this.state._agmtSyncTue) ||
                     (attr != 'agmtSyncWed' && this.state.agmtSyncWed != this.state._agmtSyncWed) ||
                     (attr != 'agmtSyncThu' && this.state.agmtSyncThu != this.state._agmtSyncThu) ||
                     (attr != 'agmtSyncFri' && this.state.agmtSyncFri != this.state._agmtSyncFri) ||
                     (attr != 'agmtSyncSat' && this.state.agmtSyncSat != this.state._agmtSyncSat) ||
-                    (attr != 'agmtSyncSun' && this.state.agmtSyncSun != this.state._agmtSyncSun)) {
+                    (attr != 'agmtSyncSun' && this.state.agmtSyncSun != this.state._agmtSyncSun) ||
+                    (attr != 'agmtStartTime' && this.state.agmtStartTime != this.state._agmtStartTime) ||
+                    (attr != 'agmtEndTime' && this.state.agmtEndTime != this.state._agmtEndTime)) {
                     all_good = true;
                 }
             }
-            if (attr != 'agmtFracAttrs' &&
-                value != this.state[orig_attr]) {
+            if (attr == 'agmtFracAttrs' && !this.listEqual(value, this.state._agmtFracAttrs)) {
                 all_good = true;
-            } else if (attr == 'agmtFracAttrs' && !this.listEqual(value, this.state._agmtFracAttrs)) {
+            } else if (attr != 'dummy' && value != this.state['_' + attr]) {
                 all_good = true;
             }
         }
 
-        if (e.target.type == "time") {
-            // Strip out the colon from the time
-            time_val = value.replace(':', '');
-        }
-
-        if (e.target.name.startsWith("agmt-modal")) {
-            // Validate modal settings "live"
-            if (e.target.id == 'agmtName') {
-                if (value == "") {
-                    all_good = false;
-                }
-            } else if (this.state.agmtName == "") {
-                all_good = false;
-            }
-            if (e.target.id == 'agmtHost') {
-                if (value == "") {
-                    all_good = false;
-                }
-            } else if (this.state.agmtHost == "") {
-                all_good = false;
-            } else if (edit && value == this.state._agmtHost) {
-                all_good = false;
-            }
-            if (e.target.id == 'agmtPort') {
-                if (value == "") {
-                    all_good = false;
-                } else if (!valid_port(value)) {
-                    all_good = false;
-                    errObj['agmtPort'] = true;
-                    modal_msg = "Invalid Consumer Port number";
-                }
-            } else if (this.state.agmtPort == "") {
-                all_good = false;
-            }
-            if (e.target.id == 'agmtBindDN') {
-                if (value == "") {
-                    all_good = false;
-                }
-                if (!valid_dn(value)) {
-                    errObj['agmtBindDN'] = true;
-                    all_good = false;
-                    modal_msg = "Invalid DN for Bind DN";
-                }
-            } else if (this.state.agmtBindDN == "") {
-                all_good = false;
-            } else if (!valid_dn(this.state.agmtBindDN)) {
-                modal_msg = "Invalid DN for Bind DN";
-                errObj['agmtBindDN'] = true;
-                all_good = false;
-            }
-            if (e.target.id == 'agmtBindPW') {
-                if (value == "") {
-                    all_good = false;
-                } else if (value != this.state.agmtBindPWConfirm) {
-                    modal_msg = "Passwords Do Not Match";
-                    errObj['agmtBindPW'] = true;
-                    errObj['agmtBindPWConfirm'] = true;
-                    all_good = false;
-                } else {
-                    errObj['agmtBindPW'] = false;
-                    errObj['agmtBindPWConfirm'] = false;
-                }
-            } else if (this.state.agmtBindPW == "") {
-                all_good = false;
-            }
-            if (e.target.id == 'agmtBindPWConfirm') {
-                if (value == "") {
-                    all_good = false;
-                } else if (value != this.state.agmtBindPW) {
-                    modal_msg = "Passwords Do Not Match";
-                    errObj['agmtBindPW'] = true;
-                    errObj['agmtBindPWConfirm'] = true;
-                    all_good = false;
-                } else {
-                    errObj['agmtBindPW'] = false;
-                    errObj['agmtBindPWConfirm'] = false;
-                }
-            } else if (this.state.agmtBindPWConfirm == "") {
-                all_good = false;
-            }
-            if (e.target.id == 'agmtSync') {
-                if (!value) {
-                    if (this.state.agmtStartTime >= this.state.agmtEndTime) {
-                        modal_schedule_msg = "Schedule start time is greater than or equal to the end time";
-                        errObj['agmtStartTime'] = true;
-                        all_good = false;
-                    }
-                }
-            } else if (!this.state.agmtSync) {
-                // Check the days first
-                let have_days = false;
-                let days = ["agmtSyncSun", "agmtSyncMon", "agmtSyncTue", "agmtSyncWed",
-                    "agmtSyncThu", "agmtSyncFri", "agmtSyncSat"];
-                for (let day of days) {
-                    if ((e.target.id != day && this.state[day]) || (e.target.id == day && value)) {
-                        have_days = true;
-                        break;
-                    }
-                }
-                if (!have_days) {
-                    modal_schedule_msg = "You must select at least one day for replication";
-                    all_good = false;
-                } else if (e.target.id == 'agmtStartTime') {
-                    if (time_val == "") {
-                        all_good = false;
-                        errObj['agmtStartTime'] = true;
-                    } else if (time_val >= this.state.agmtEndTime.replace(":", "")) {
-                        errObj['agmtStartTime'] = true;
-                        all_good = false;
-                        modal_schedule_msg = "Schedule start time is greater than or equal to the end time";
-                    } else {
-                        // All good, reset form
-                        modal_schedule_msg = "";
-                        errObj['agmtStartTime'] = false;
-                        errObj['agmtEndTime'] = false;
-                    }
-                } else if (e.target.id == 'agmtEndTime') {
-                    if (time_val == "") {
-                        errObj['agmtEndTime'] = true;
-                        all_good = false;
-                    } else if (this.state.agmtStartTime.replace(":", "") >= time_val) {
-                        modal_schedule_msg = "Schedule start time is greater than or equal to the end time";
-                        errObj['agmtStartTime'] = true;
-                        all_good = false;
-                    } else {
-                        // All good, reset form
-                        modal_schedule_msg = "";
-                        errObj['agmtStartTime'] = false;
-                        errObj['agmtEndTime'] = false;
-                    }
-                } else if (this.state.agmtStartTime >= this.state.agmtEndTime) {
-                    modal_schedule_msg = "Schedule start time is greater than or equal to the end time";
-                    errObj['agmtStartTime'] = true;
-                    all_good = false;
-                }
-            }
-            if (e.target.id == 'agmtSyncGroups') {
-                if (edit && value == this.state._agmtSyncGroups) {
-                    all_good = false;
-                }
-            }
-            if (e.target.id == 'agmtSyncUsers') {
-                if (edit && value == this.state._agmtSyncUsers) {
-                    all_good = false;
-                }
-            }
-            if (e.target.id == 'agmtWinSubtree') {
-                if (value == "") {
-                    all_good = false;
-                } else if (edit && value == this.state._agmtWinSubtree) {
-                    all_good = false;
-                }
-                if (!valid_dn(value)) {
-                    errObj['agmtWinSubtree'] = true;
-                    all_good = false;
-                    modal_msg = "Invalid DN for Windows Subtree";
-                }
-            }
-            if (e.target.id == 'agmtDSSubtree') {
-                if (value == "") {
-                    all_good = false;
-                } else if (edit && value == this.state._agmtDSSubtree) {
-                    all_good = false;
-                }
-                if (!valid_dn(value)) {
-                    errObj['agmtDSSubtree'] = true;
-                    all_good = false;
-                    modal_msg = "Invalid DN for Directory Server Subtree";
-                }
-            }
-            if (e.target.id == 'agmtSyncInterval') {
-                if (value != "" && isNaN(value)) {
-                    errObj['agmtSyncInterval'] = true;
-                    all_good = false;
-                    modal_msg = "Invalid value, value must be a number";
-                } else if (edit && value == this.state._agmtSyncInterval) {
-                    all_good = false;
-                }
-            }
-            if (e.target.id == 'agmtOneWaySync') {
-                if (edit && value == this.state._agmtOneWaySync) {
-                    all_good = false;
-                }
-            }
-            // End of agmt modal live validation
-        }
         this.setState({
-            [e.target.id]: value,
+            [attr]: value,
             errObj: errObj,
             agmtSaveOK: all_good,
-            modalMsg: modal_msg,
-            modalScheduleMsg: modal_schedule_msg,
+            [e.target.toggle]: false
         });
     }
 
-    handleTAFracAttrChangeEdit (values) {
-        // TypeAhead handling
-        let e = {
-            target: {
-                name: 'agmt-modal-edit',
-                id: 'agmtFracAttrs',
-                value: values,
-                type: 'input',
+    handleTASelectChange (e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+        let valueErr = false;
+        const errObj = this.state.errObj;
+        if (value == "") {
+            valueErr = true;
+        }
+        errObj[attr] = valueErr;
+
+        // We handle strings and arrays here, need to find a better way to differentiate.
+        if (attr.endsWith('Attrs')) {
+            if (this.state[attr].includes(value)) {
+                this.setState(
+                    (prevState) => ({
+                        [attr]: prevState[attr].filter((item) => item !== e.target.value),
+                        errObj: errObj,
+                        [e.target.toggle]: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        [attr]: [...prevState[attr], value],
+                        errObj: errObj,
+                        [e.target.toggle]: false
+                    }),
+                );
             }
-        };
-        this.handleChange(e);
+        } else {
+            this.setState({
+                [attr]: value,
+                errObj: errObj,
+                [e.target.toggle]: false
+            });
+        }
+    }
+
+    handleTAFracAttrChangeEdit (selection) {
+        // TypeAhead handling
+        const { agmtFracAttrs } = this.state;
+        const e = { target: { id: 'dummy', value: "", type: 'input' } };
+        if (agmtFracAttrs.includes(selection)) {
+            const new_values = this.state.agmtFracAttrs.filter(item => item !== selection);
+            this.setState({
+                agmtFracAttrs: new_values,
+                isExcludeAttrsEditOpen: false,
+            }, () => { this.handleEditChange(e) });
+        } else {
+            const new_values = [...this.state.agmtFracAttrs, selection];
+            this.setState({
+                agmtFracAttrs: new_values,
+                isExcludeAttrsEditOpen: false,
+            }, () => { this.handleEditChange(e) });
+        }
     }
 
     handleTAFracAttrChange (values) {
         // TypeAhead handling
-        let e = {
+        const e = {
             target: {
                 name: 'agmt-modal',
                 id: 'agmtFracAttrs',
                 value: values,
                 type: 'input',
+                toggle: 'isExcludeAttrCreateOpen',
             }
         };
         this.handleChange(e);
@@ -422,13 +528,13 @@ export class WinsyncAgmts extends React.Component {
             showCreateAgmtModal: true,
             agmtName: "",
             agmtHost: "",
-            agmtPort: "",
+            agmtPort: "636",
             agmtProtocol: "LDAP",
             agmtBindDN: "",
             agmtBindPW: "",
             agmtBindPWConfirm: "",
             agmtFracAttrs: [],
-            agmtSync: true,
+            agmtSync: false,
             agmtSyncMon: true,
             agmtSyncTue: true,
             agmtSyncWed: true,
@@ -436,8 +542,8 @@ export class WinsyncAgmts extends React.Component {
             agmtSyncFri: true,
             agmtSyncSat: true,
             agmtSyncSun: true,
-            agmtStartTime: "00:00",
-            agmtEndTime: "23:59",
+            agmtStartTime: "0000",
+            agmtEndTime: "2359",
             agmtInit: "noinit",
             agmtSaveOK: false,
             agmtSyncGroups: false,
@@ -447,17 +553,13 @@ export class WinsyncAgmts extends React.Component {
             agmtDSSubtree: "",
             agmtOneWaySync: "both", // "both", "toWindows", "fromWindows"
             agmtSyncInterval: "",
-            modalScheduleMsg: "",
             errObj: {
-                // Marks all the fields as required
+                // Marks all these fields as required
                 agmtName: true,
                 agmtHost: true,
-                agmtPort: true,
                 agmtBindDN: true,
                 agmtBindPW: true,
                 agmtBindPWConfirm: true,
-                agmtStartTime: false,
-                agmtEndTime: false,
                 agmtWinDomain: true,
                 agmtWinSubtree: true,
                 agmtDSSubtree: true,
@@ -479,7 +581,7 @@ export class WinsyncAgmts extends React.Component {
 
     showEditAgmt (agmtName) {
         // Search for the agmt to get all the details
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-winsync-agmt', 'get', agmtName, '--suffix=' + this.props.suffix,
         ];
@@ -497,7 +599,7 @@ export class WinsyncAgmts extends React.Component {
                     let agmtBindPW = "";
                     let agmtBindPWConfirm = "";
                     let agmtFracAttrs = [];
-                    let agmtSync = true;
+                    let agmtSync = false;
                     let agmtSyncMon = false;
                     let agmtSyncTue = false;
                     let agmtSyncWed = false;
@@ -505,8 +607,8 @@ export class WinsyncAgmts extends React.Component {
                     let agmtSyncFri = false;
                     let agmtSyncSat = false;
                     let agmtSyncSun = false;
-                    let agmtStartTime = "";
-                    let agmtEndTime = "";
+                    let agmtStartTime = "0000";
+                    let agmtEndTime = "2359";
                     let agmtSyncGroups = false;
                     let agmtSyncUsers = false;
                     let agmtWinDomain = "";
@@ -515,8 +617,8 @@ export class WinsyncAgmts extends React.Component {
                     let agmtOneWaySync = "both";
                     let agmtSyncInterval = "";
 
-                    for (let attr in config['attrs']) {
-                        let val = config['attrs'][attr][0];
+                    for (const attr in config.attrs) {
+                        const val = config.attrs[attr][0];
                         if (attr == "winsyncinterval") {
                             agmtSyncInterval = val;
                         }
@@ -562,19 +664,19 @@ export class WinsyncAgmts extends React.Component {
                             agmtBindPWConfirm = val;
                         }
                         if (attr == "nsds5replicatedattributelist") {
-                            let attrs = val.replace("(objectclass=*) $ EXCLUDE", "").trim();
+                            const attrs = val.replace("(objectclass=*) $ EXCLUDE", "").trim();
                             agmtFracAttrs = attrs.split(' ');
                         }
                         if (attr == "nsds5replicaupdateschedule") {
-                            agmtSync = false;
+                            agmtSync = true;
                             // Parse schedule
-                            let parts = val.split(' ');
-                            let times = parts[0].split('-');
-                            let days = parts[1];
+                            const parts = val.split(' ');
+                            const times = parts[0].split('-');
+                            const days = parts[1];
 
                             // Do the times
-                            agmtStartTime = times[0].substring(0, 2) + ":" + times[0].substring(2, 4);
-                            agmtEndTime = times[1].substring(0, 2) + ":" + times[1].substring(2, 4);
+                            agmtStartTime = times[0];
+                            agmtEndTime = times[1];
 
                             // Do the days
                             if (days.includes("0")) {
@@ -660,7 +762,7 @@ export class WinsyncAgmts extends React.Component {
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to get agreement information for: "${agmtName}" - ${errMsg.desc}`
@@ -669,13 +771,13 @@ export class WinsyncAgmts extends React.Component {
     }
 
     saveAgmt () {
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-winsync-agmt', 'set', this.state.agmtName, '--suffix=' + this.props.suffix,
         ];
 
         // Handle Schedule
-        if (!this.state.agmtSync) {
+        if (this.state.agmtSync) {
             let agmt_days = "";
             if (this.state.agmtSyncSun) {
                 agmt_days += "0";
@@ -699,7 +801,7 @@ export class WinsyncAgmts extends React.Component {
                 agmt_days += "6";
             }
             cmd.push('--schedule=' + this.state.agmtStartTime.replace(':', '') + "-" + this.state.agmtEndTime.replace(':', '') + " " + agmt_days);
-        } else if (this.state.agmtSync != this.state._agmtSync && this.state.agmtSync) {
+        } else if (this.state.agmtSync != this.state._agmtSync && !this.state.agmtSync) {
             // We disabled custom scheduleRow
             cmd.push('--schedule=');
         }
@@ -771,7 +873,7 @@ export class WinsyncAgmts extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to update winsync agreement - ${errMsg.desc}`
@@ -783,11 +885,11 @@ export class WinsyncAgmts extends React.Component {
     }
 
     pokeAgmt (agmtName) {
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-winsync-agmt', 'poke', agmtName, '--suffix=' + this.props.suffix];
         log_cmd('pokeAgmt', 'send updates now', cmd);
         cockpit
-                .spawn(cmd, { superuser: true, "err": "message" })
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -796,7 +898,7 @@ export class WinsyncAgmts extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         'error',
                         `Failed to poke winsync agreement - ${errMsg.desc}`
@@ -805,11 +907,14 @@ export class WinsyncAgmts extends React.Component {
     }
 
     initAgmt () {
-        let init_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        this.setState({
+            modalSpinning: true
+        });
+        const init_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-winsync-agmt', 'init', '--suffix=' + this.props.suffix, this.state.agmtName];
-        log_cmd('initAgmt', 'Initialize agreement', init_cmd);
+        log_cmd('initAgmt', 'Initialize winsync agreement', init_cmd);
         cockpit
-                .spawn(init_cmd, { superuser: true, "err": "message" })
+                .spawn(init_cmd, { superuser: true, err: "message" })
                 .done(content => {
                     var agmtIntervalCount = this.state.agmtInitCounter + 1;
                     var intervals = this.state.agmtInitIntervals;
@@ -825,7 +930,7 @@ export class WinsyncAgmts extends React.Component {
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         'error',
                         `Failed to initialize winsync agreement - ${errMsg.desc}`
@@ -840,12 +945,16 @@ export class WinsyncAgmts extends React.Component {
         if (state == 'Enabled') {
             this.setState({
                 agmtName: agmtName,
-                showConfirmDisableAgmt: true
+                showConfirmDisableAgmt: true,
+                modalSpinning: false,
+                modalChecked: false,
             });
         } else {
             this.setState({
                 agmtName: agmtName,
-                showConfirmEnableAgmt: true
+                showConfirmEnableAgmt: true,
+                modalSpinning: false,
+                modalChecked: false,
             });
         }
     }
@@ -864,11 +973,14 @@ export class WinsyncAgmts extends React.Component {
 
     enableAgmt (agmtName) {
         // Enable/disable agmt
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-winsync-agmt', 'enable', agmtName, '--suffix=' + this.props.suffix];
         log_cmd('enableAgmt', 'enable agmt', cmd);
+        this.setState({
+            modalSpinning: true
+        });
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -876,7 +988,7 @@ export class WinsyncAgmts extends React.Component {
                         'Successfully enabled winsync agreement');
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to enabled winsync agreement - ${errMsg.desc}`
@@ -886,11 +998,14 @@ export class WinsyncAgmts extends React.Component {
 
     disableAgmt (agmtName) {
         // Enable/disable agmt
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-winsync-agmt', 'disable', agmtName, '--suffix=' + this.props.suffix];
         log_cmd('disableAgmt', 'Disable agmt', cmd);
+        this.setState({
+            modalSpinning: true
+        });
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -898,7 +1013,7 @@ export class WinsyncAgmts extends React.Component {
                         'Successfully disabled winsync agreement');
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to disable winsync agreement - ${errMsg.desc}`
@@ -910,11 +1025,11 @@ export class WinsyncAgmts extends React.Component {
         this.setState({
             deleteSpinning: true
         });
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-winsync-agmt', 'delete', '--suffix=' + this.props.suffix, this.state.agmtName];
         log_cmd('deleteAgmt', 'Delete agmt', cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -926,7 +1041,7 @@ export class WinsyncAgmts extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to delete winsync agreement - ${errMsg.desc}`
@@ -939,7 +1054,7 @@ export class WinsyncAgmts extends React.Component {
     }
 
     createAgmt () {
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-winsync-agmt', 'create', this.state.agmtName, '--suffix=' + this.props.suffix,
             '--host=' + this.state.agmtHost, '--port=' + this.state.agmtPort,
@@ -950,7 +1065,7 @@ export class WinsyncAgmts extends React.Component {
         ];
 
         // Handle Schedule
-        if (!this.state.agmtSync) {
+        if (this.state.agmtSync) {
             let agmt_days = "";
             if (this.state.agmtSyncSun) {
                 agmt_days += "0";
@@ -1012,7 +1127,7 @@ export class WinsyncAgmts extends React.Component {
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to create winsync agreement - ${errMsg.desc}`
@@ -1025,43 +1140,84 @@ export class WinsyncAgmts extends React.Component {
 
     watchAgmtInit(agmtName, idx) {
         // Watch the init, then clear the interval index
-        let status_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        const status_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-winsync-agmt', 'init-status', '--suffix=' + this.props.suffix, agmtName];
         log_cmd('watchAgmtInit', 'Get initialization status for agmt', status_cmd);
         cockpit
-                .spawn(status_cmd, {superuser: true, "err": "message"})
+                .spawn(status_cmd, { superuser: true, err: "message" })
                 .done(data => {
-                    let init_status = JSON.parse(data);
+                    const init_status = JSON.parse(data);
                     if (init_status.startsWith('Agreement successfully initialized') ||
                         init_status.startsWith('Agreement initialization failed')) {
                         // Either way we're done, stop watching the status
                         clearInterval(this.state.agmtInitIntervals[idx]);
+                        this.props.reload(this.props.suffix);
                     }
-                    this.props.reload(this.props.suffix);
                 });
+    }
+
+    onSort(_event, index, direction) {
+        const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
+        });
+    }
+
+    onSearchChange(value, event) {
+        let rows = [];
+        const val = value.toLowerCase();
+        for (const row of this.state.rows) {
+            if (val != "" &&
+                row[0].indexOf(val) == -1 &&
+                row[1].indexOf(val) == -1 &&
+                row[2].indexOf(val) == -1) {
+                // Not a match, skip it
+                continue;
+            }
+            rows.push([row[0], row[1], row[2], row[3], row[4], row[5]]);
+        }
+        if (val == "") {
+            // reset rows
+            rows = JSON.parse(JSON.stringify(this.props.rows));
+        }
+        this.setState({
+            rows: rows,
+            value: value,
+            page: 1,
+        });
     }
 
     render() {
         return (
             <div className="ds-margin-right">
                 <ReplAgmtTable
-                    rows={this.props.rows}
+                    key={this.state.rows}
+                    rows={this.state.rows}
                     edit={this.showEditAgmt}
                     poke={this.pokeAgmt}
                     init={this.showConfirmInitAgmt}
                     enable={this.confirmToggle}
                     delete={this.showConfirmDeleteAgmt}
+                    page={this.state.page}
+                    sort={this.onSort}
+                    sortBy={this.state.sortBy}
+                    search={this.onSearchChange}
+                    value={this.state.value}
                 />
-                <div className="ds-margin-top ds-container ds-inline">
+                <div className="ds-margin-top ds-container ds-inline ds-margin-bottom-md">
                     <Button
-                        bsStyle="primary"
+                        variant="primary"
                         onClick={this.showCreateAgmtModal}
                     >
                         Create Agreement
                     </Button>
                     <Button
                         className="ds-left-margin"
-                        bsStyle="default"
+                        variant="default"
                         onClick={() => {
                             this.props.reload(this.props.suffix);
                         }}
@@ -1072,9 +1228,14 @@ export class WinsyncAgmts extends React.Component {
                 <WinsyncAgmtModal
                     showModal={this.state.showCreateAgmtModal}
                     closeHandler={this.closeCreateAgmtModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.handleCreateChange}
+                    handleTimeChange={this.handleTimeChange}
                     handleFracChange={this.handleTAFracAttrChange}
+                    onSelectToggle={this.onExcludeAttrCreateToggle}
+                    onSelectClear={this.onExcludeAttrCreateClear}
+                    isExcludeAttrOpen={this.state.isExcludeAttrCreateOpen}
                     saveHandler={this.createAgmt}
+                    getToggleId={this.getToggleId}
                     spinning={this.state.savingAgmt}
                     agmtName={this.state.agmtName}
                     agmtHost={this.state.agmtHost}
@@ -1101,17 +1262,22 @@ export class WinsyncAgmts extends React.Component {
                     agmtDSSubtree={this.state.agmtDSSubtree}
                     agmtOneWaySync={this.state.agmtOneWaySync}
                     agmtSyncInterval={this.state.agmtSyncInterval}
+                    agmtInit={this.state.agmtInit}
                     availAttrs={this.props.attrs}
                     error={this.state.errObj}
-                    errorMsg={this.state.modalMsg}
-                    errorScheduleMsg={this.state.modalScheduleMsg}
                     saveOK={this.state.agmtSaveOK}
                 />
                 <WinsyncAgmtModal
+                    key={this.state.showEditAgmtModal ? "edit1" : "edit0"}
                     showModal={this.state.showEditAgmtModal}
                     closeHandler={this.closeEditAgmtModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.handleEditChange}
+                    handleTimeChange={this.handleTimeChange}
                     handleFracChange={this.handleTAFracAttrChangeEdit}
+                    onSelectToggle={this.onExcludeAttrEditToggle}
+                    onSelectClear={this.onExcludeAttrEditClear}
+                    isExcludeAttrOpen={this.state.isExcludeAttrEditOpen}
+                    getToggleId={this.getToggleId}
                     saveHandler={this.saveAgmt}
                     spinning={this.state.savingAgmt}
                     agmtName={this.state.agmtName}
@@ -1141,10 +1307,9 @@ export class WinsyncAgmts extends React.Component {
                     agmtDSSubtree={this.state.agmtDSSubtree}
                     agmtOneWaySync={this.state.agmtOneWaySync}
                     agmtSyncInterval={this.state.agmtSyncInterval}
+                    agmtInit={this.state.agmtInit}
                     availAttrs={this.props.attrs}
                     error={this.state.errObj}
-                    errorMsg={this.state.modalMsg}
-                    errorScheduleMsg={this.state.modalScheduleMsg}
                     saveOK={this.state.agmtSaveOK}
                     edit
                 />
@@ -1170,25 +1335,35 @@ export class WinsyncAgmts extends React.Component {
                     item={this.state.agmtName}
                     checked={this.state.modalChecked}
                     mTitle="Initialize Winsync Agreement"
-                    mMsg="Are you sure you want to initialize this winsync agreement"
+                    mMsg="Are you sure you want to initialize this winsync agreement?"
                     mSpinningMsg="Initializing Winsync Agreement ..."
                     mBtnName="Initialize Agreement"
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmEnableAgmt}
                     closeHandler={this.closeConfirmEnableAgmt}
-                    actionFunc={this.enableAgmt}
-                    actionParam={this.state.agmtName}
-                    msg="Are you sure you want to enable this winsync agreement?"
-                    msgContent={this.state.agmtName}
+                    handleChange={this.handleModalChange}
+                    actionHandler={this.enableAgmt}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.agmtName}
+                    checked={this.state.modalChecked}
+                    mTitle="Enable Winsync Agreement"
+                    mMsg="Are you sure you want to enable this winsync agreement?"
+                    mSpinningMsg="Enabling Winsync Agreement ..."
+                    mBtnName="Enable Agreement"
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmDisableAgmt}
                     closeHandler={this.closeConfirmDisableAgmt}
-                    actionFunc={this.disableAgmt}
-                    actionParam={this.state.agmtName}
-                    msg="Are you sure you want to disable this winsync agreement?"
-                    msgContent={this.state.agmtName}
+                    handleChange={this.handleModalChange}
+                    actionHandler={this.disableAgmt}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.agmtName}
+                    checked={this.state.modalChecked}
+                    mTitle="Disable Winsync Agreement"
+                    mMsg="Are you sure you want to disable this winsync agreement?"
+                    mSpinningMsg="Disabling Winsync Agreement ..."
+                    mBtnName="Disable Agreement"
                 />
             </div>
         );
@@ -1206,5 +1381,4 @@ WinsyncAgmts.defaultProps = {
     serverId: "",
     suffix: "",
     rows: [],
-    addNotification: noop,
 };

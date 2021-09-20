@@ -1,17 +1,20 @@
 import React from "react";
 import {
-    Modal,
-    Row,
-    Col,
-    ControlLabel,
-    Checkbox,
-    FormControl,
-    Icon,
     Button,
+    Checkbox,
     Form,
-    Spinner,
-    noop
-} from "patternfly-react";
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
+    Modal,
+    ModalVariant,
+    Text,
+    TextContent,
+    TextVariants,
+    TextInput,
+    ValidatedOptions,
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
 export class SecurityAddCACertModal extends React.Component {
@@ -24,86 +27,82 @@ export class SecurityAddCACertModal extends React.Component {
             spinning,
             error
         } = this.props;
-
-        let spinner = "";
+        let saveBtnName = "Add Certificate";
+        const extraPrimaryProps = {};
         if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Adding CA certificate...
-                    </div>
-                </Row>;
+            saveBtnName = "Adding Certificate ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Add Certificate Authority
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <h4>
-                                Add CA certificate to the security database.
-                            </h4>
-                            <hr />
-                            <Row title="Enter full path to and and including certificate file name">
-                                <Col sm={4}>
-                                    <ControlLabel>Certificate File</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="text"
-                                        id="certFile"
-                                        className={error.certFile ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <p />
-                            <Row title="Enter name/nickname of the certificate">
-                                <Col sm={4}>
-                                    <ControlLabel>Certificate Nickname</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="text"
-                                        id="certName"
-                                        className={error.certName ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <p />
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Add Certificate
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title="Add Certificate Authority"
+                aria-labelledby="ds-modal"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={error.certFile || error.certName}
+                    >
+                        {saveBtnName}
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal autoComplete="off">
+                    <TextContent>
+                        <Text component={TextVariants.h4}>
+                            Add a CA Certificate to the security database.
+                        </Text>
+                    </TextContent>
+                    <hr />
+                    <Grid title="Enter full path to and and including certificate file name">
+                        <GridItem className="ds-label" span={3}>
+                            Certificate File
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                type="text"
+                                id="certFile"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="certFile"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.certFile ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="Enter name/nickname of the certificate"
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Certificate Nickname
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                type="text"
+                                id="certName"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="certName"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.certName ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                </Form>
             </Modal>
         );
     }
@@ -120,85 +119,82 @@ export class SecurityAddCertModal extends React.Component {
             error
         } = this.props;
 
-        let spinner = "";
+        let saveBtnName = "Add Certificate";
+        const extraPrimaryProps = {};
         if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Adding certificate...
-                    </div>
-                </Row>;
+            saveBtnName = "Adding Certificate ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Add Certificate
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <h4>
-                                Add certificate to the security database.
-                            </h4>
-                            <hr />
-                            <Row title="Enter full path to and and including certificate file name">
-                                <Col sm={4}>
-                                    <ControlLabel>Certificate File</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="text"
-                                        id="certFile"
-                                        className={error.certFile ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <p />
-                            <Row title="Enter name/nickname of the certificate">
-                                <Col sm={4}>
-                                    <ControlLabel>Certificate Nickname</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="text"
-                                        id="certName"
-                                        className={error.certName ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <p />
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Add Certificate
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                aria-labelledby="ds-modal"
+                title="Add Certificate"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={error.certFile || error.certName}
+                    >
+                        {saveBtnName}
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal>
+                    <TextContent>
+                        <Text component={TextVariants.h4}>
+                            Add A Certificate To The Security Database.
+                        </Text>
+                    </TextContent>
+                    <hr />
+                    <Grid title="Enter full path to and and including certificate file name">
+                        <GridItem className="ds-label" span={3}>
+                            Certificate File
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                type="text"
+                                id="certFile"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="certFile"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.certFile ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="Enter name/nickname of the certificate"
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Certificate Nickname
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                type="text"
+                                id="certName"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="certName"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.certName ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                </Form>
             </Modal>
         );
     }
@@ -217,77 +213,70 @@ export class SecurityEnableModal extends React.Component {
         } = this.props;
 
         // Build list of cert names for the select list
-        let certNames = [];
-        for (let cert of certs) {
-            certNames.push(cert.attrs['nickname']);
+        const certNames = [];
+        for (const cert of certs) {
+            certNames.push(cert.attrs.nickname);
         }
-        let certNameOptions = certNames.map((name) =>
-            <option key={name} value={name}>{name}</option>
-        );
-        let spinner = "";
+
+        let saveBtnName = "Enable Security";
+        const extraPrimaryProps = {};
         if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Enabling security...
-                    </div>
-                </Row>;
+            saveBtnName = "Enabling Security ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Enable Security
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <h4>
-                                You are choosing to enable security for the Directory Server which
-                                allows the server to accept incoming client TLS connections.  Please
-                                select which certificate the server should use.
-                            </h4>
-                            <hr />
-                            <Row className="ds-margin-top" title="The server certificate the Directory Server will use">
-                                <Col sm={4}>
-                                    <ControlLabel>Available Certificates</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <select id="certNameSelect" onChange={handleChange} defaultValue={primaryName}>
-                                        {certNameOptions}
-                                    </select>
-                                </Col>
-                            </Row>
-                            <p />
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Enable Security
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                aria-labelledby="ds-modal"
+                title="Enable Security"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                    >
+                        {saveBtnName}
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal>
+                    <TextContent>
+                        <Text component={TextVariants.h4}>
+                            You are choosing to enable security for the Directory Server which
+                            allows the server to accept incoming client TLS connections.  Please
+                            select which certificate the server should use.
+                        </Text>
+                    </TextContent>
+                    <hr />
+                    <Grid className="ds-margin-top" title="The server certificate the Directory Server will use">
+                        <GridItem className="ds-label" span={4}>
+                            Available Certificates
+                        </GridItem>
+                        <GridItem sm={8}>
+                            <FormSelect
+                                value={primaryName}
+                                id="certNameSelect"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                aria-label="FormSelect Input"
+                            >
+                                {certNames.map((option) => (
+                                    <FormSelectOption key={option} value={option} label={option} />
+                                ))}
+                            </FormSelect>
+                        </GridItem>
+                    </Grid>
+                </Form>
             </Modal>
         );
     }
@@ -304,14 +293,11 @@ export class EditCertModal extends React.Component {
             spinning
         } = this.props;
 
-        let spinner = "";
+        let saveBtnName = "Save Flags";
+        const extraPrimaryProps = {};
         if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Saving certificate...
-                    </div>
-                </Row>;
+            saveBtnName = "Saving flags ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
         // Process the cert flags
@@ -336,6 +322,7 @@ export class EditCertModal extends React.Component {
         let SSLFlags = '';
         let EmailFlags = '';
         let OSFlags = '';
+
         if (flags != "") {
             [SSLFlags, EmailFlags, OSFlags] = flags.split(',');
             if (SSLFlags.includes('T')) {
@@ -395,219 +382,223 @@ export class EditCertModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Edit Certificate Trust Flags
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Flags</ControlLabel>
-                                </Col>
-                                <Col sm={2}>
-                                    <ControlLabel>SSL</ControlLabel>
-                                </Col>
-                                <Col sm={2}>
-                                    <ControlLabel>Email</ControlLabel>
-                                </Col>
-                                <Col sm={3}>
-                                    <ControlLabel>Object Signing</ControlLabel>
-                                </Col>
-                            </Row>
-                            <hr />
-                            <Row>
-                                <Col sm={4} title="Trusted CA (flag 'C', also implies 'c' flag)">
-                                    (C) - Trusted CA
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="CflagSSL"
-                                        checked={CSSLChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="CflagEmail"
-                                        checked={CEmailChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="CflagOS"
-                                        checked={COSChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <p />
-                            <Row>
-                                <Col sm={4} title="Trusted CA for client authentication (flag 'T')">
-                                    (T) - Trusted CA Client Auth
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="TflagSSL"
-                                        checked={TSSLChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="TflagEmail"
-                                        checked={TEmailChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="TflagOS"
-                                        checked={TOSChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <p />
-                            <Row>
-                                <Col sm={4} title="Valid CA (flag 'c')">
-                                    (c) - Valid CA
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="cflagSSL"
-                                        checked={cSSLChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="cflagEmail"
-                                        checked={cEmailChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="cflagOS"
-                                        checked={cOSChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <p />
-                            <Row>
-                                <Col sm={4} title="Trusted Peer (flag 'P', implies flag 'p')">
-                                    (P) - Trusted Peer
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="PflagSSL"
-                                        checked={PSSLChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="PflagEmail"
-                                        checked={PEmailChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="PflagOS"
-                                        checked={POSChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <p />
-                            <Row>
-                                <Col sm={4} title="Valid Peer (flag 'p')">
-                                    (p) - Valid Peer
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="pflagSSL"
-                                        checked={pSSLChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="pflagEmail"
-                                        checked={pEmailChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="pflagOS"
-                                        checked={pOSChecked}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <hr />
-                            <Row>
-                                <Col sm={4} title="A private key is associated with the certificate. This is a dynamic flag and you cannot adjust it.">
-                                    (u) - Private Key
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="uflagSSL"
-                                        checked={uSSLChecked}
-                                        disabled
-                                    />
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="uflagEmail"
-                                        checked={uEmailChecked}
-                                        disabled
-                                    />
-                                </Col>
-                                <Col sm={2}>
-                                    <Checkbox
-                                        id="uflagOS"
-                                        checked={uOSChecked}
-                                        disabled
-                                    />
-                                </Col>
-                            </Row>
-                            <p />
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Save
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                aria-labelledby="ds-modal"
+                title="Edit Certificate Trust Flags"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={this.props.disableSaveBtn}
+                    >
+                        {saveBtnName}
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Grid className="ds-margin-top">
+                    <GridItem span={6}>
+                        Flags
+                    </GridItem>
+                    <GridItem span={2}>
+                        SSL
+                    </GridItem>
+                    <GridItem span={2}>
+                        Email
+                    </GridItem>
+                    <GridItem span={2}>
+                        Object Signing
+                    </GridItem>
+                    <hr />
+                    <GridItem span={6} title="Trusted CA (flag 'C', also implies 'c' flag)">
+                        (C) - Trusted CA
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="CflagSSL"
+                            isChecked={CSSLChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="CflagEmail"
+                            isChecked={CEmailChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="CflagOS"
+                            isChecked={COSChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+
+                    <GridItem span={6} title="Trusted CA for client authentication (flag 'T')">
+                        (T) - Trusted CA Client Auth
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="TflagSSL"
+                            isChecked={TSSLChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="TflagEmail"
+                            isChecked={TEmailChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="TflagOS"
+                            isChecked={TOSChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+
+                    <GridItem span={6} title="Valid CA (flag 'c')">
+                        (c) - Valid CA
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="cflagSSL"
+                            isChecked={cSSLChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="cflagEmail"
+                            isChecked={cEmailChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="cflagOS"
+                            isChecked={cOSChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+
+                    <GridItem span={6} title="Trusted Peer (flag 'P', implies flag 'p')">
+                        (P) - Trusted Peer
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="PflagSSL"
+                            isChecked={PSSLChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="PflagEmail"
+                            isChecked={PEmailChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="PflagOS"
+                            isChecked={POSChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+
+                    <GridItem span={6} title="Valid Peer (flag 'p')">
+                        (p) - Valid Peer
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="pflagSSL"
+                            isChecked={pSSLChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="pflagEmail"
+                            isChecked={pEmailChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="pflagOS"
+                            isChecked={pOSChecked}
+                            onChange={(checked, e) => {
+                                handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+                    <hr />
+                    <GridItem span={6} title="A private key is associated with the certificate. This is a dynamic flag and you cannot adjust it.">
+                        (u) - Private Key
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="uflagSSL"
+                            isChecked={uSSLChecked}
+                            disabled
+                        />
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="uflagEmail"
+                            isChecked={uEmailChecked}
+                            disabled
+                        />
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Checkbox
+                            id="uflagOS"
+                            isChecked={uOSChecked}
+                            disabled
+                        />
+                    </GridItem>
+                </Grid>
             </Modal>
         );
     }
@@ -625,9 +616,6 @@ SecurityEnableModal.propTypes = {
 
 SecurityEnableModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     primaryName: "",
     certs: [],
     spinning: false,
@@ -644,9 +632,6 @@ EditCertModal.propTypes = {
 
 EditCertModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     flags: "",
     spinning: false,
 };
@@ -662,9 +647,6 @@ SecurityAddCertModal.propTypes = {
 
 SecurityAddCertModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     spinning: false,
     error: {},
 };
@@ -680,9 +662,6 @@ SecurityAddCACertModal.propTypes = {
 
 SecurityAddCACertModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     spinning: false,
     error: {},
 };

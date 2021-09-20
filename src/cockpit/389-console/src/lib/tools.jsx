@@ -1,6 +1,6 @@
 export function searchFilter(searchFilterValue, columnsToSearch, rows) {
     if (searchFilterValue && rows && rows.length) {
-        let filteredRows = [];
+        const filteredRows = [];
         rows.forEach(row => {
             let rowToSearch = [];
             if (columnsToSearch && columnsToSearch.length) {
@@ -31,18 +31,18 @@ export function searchFilter(searchFilterValue, columnsToSearch, rows) {
 
 export function log_cmd(js_func, desc, cmd_array) {
     if (console) {
-        let pw_args = ["--passwd", "--bind-pw", "--nsslapd-rootpw"];
-        let cmd_list = [];
+        const pw_args = ["--passwd", "--bind-pw", "--nsslapd-rootpw"];
+        const cmd_list = [];
         let converted_pw = false;
 
-        for (let idx in cmd_array) {
-            let cmd = cmd_array[idx];
+        for (const idx in cmd_array) {
+            const cmd = cmd_array[idx];
             converted_pw = false;
             for (var arg_idx in pw_args) {
                 if (cmd.startsWith(pw_args[arg_idx])) {
                     // We are setting a password, if it has a value we need to hide it
-                    let arg_len = cmd.indexOf("=");
-                    let arg = cmd.substring(0, arg_len);
+                    const arg_len = cmd.indexOf("=");
+                    const arg = cmd.substring(0, arg_len);
                     if (cmd.length != arg_len + 1) {
                         // We are setting a password value...
                         cmd_list.push(arg + "=**********");
@@ -61,13 +61,13 @@ export function log_cmd(js_func, desc, cmd_array) {
 
 // Convert DS timestamp to a friendly string: 20180921142257Z -> 10/21/2018, 2:22:57 PM
 export function get_date_string(timestamp) {
-    let year = timestamp.substr(0, 4);
-    let month = timestamp.substr(4, 2);
-    let day = timestamp.substr(6, 2);
-    let hour = timestamp.substr(8, 2);
-    let minute = timestamp.substr(10, 2);
-    let sec = timestamp.substr(12, 2);
-    let date = new Date(
+    const year = timestamp.substr(0, 4);
+    const month = timestamp.substr(4, 2);
+    const day = timestamp.substr(6, 2);
+    const hour = timestamp.substr(8, 2);
+    const minute = timestamp.substr(10, 2);
+    const sec = timestamp.substr(12, 2);
+    const date = new Date(
         parseInt(year),
         parseInt(month) - 1,
         parseInt(day),
@@ -75,7 +75,7 @@ export function get_date_string(timestamp) {
         parseInt(minute),
         parseInt(sec)
     );
-    return date.toLocaleString();
+    return date.toLocaleString('en-ZA');
 }
 
 // Take two directory server tiemstamps and get the elapsed time
@@ -87,7 +87,7 @@ export function get_date_diff(start, end) {
     let hour = start.substr(8, 2);
     let minute = start.substr(10, 2);
     let sec = start.substr(12, 2);
-    let startDate = new Date(
+    const startDate = new Date(
         parseInt(year),
         parseInt(month),
         parseInt(day),
@@ -103,7 +103,7 @@ export function get_date_diff(start, end) {
     hour = end.substr(8, 2);
     minute = end.substr(10, 2);
     sec = end.substr(12, 2);
-    let currDate = new Date(
+    const currDate = new Date(
         parseInt(year),
         parseInt(month),
         parseInt(day),
@@ -116,12 +116,34 @@ export function get_date_diff(start, end) {
     let seconds = Math.floor((currDate - startDate) / 1000);
     let minutes = Math.floor(seconds / 60);
     let hours = Math.floor(minutes / 60);
-    let days = Math.floor(hours / 24);
+    const days = Math.floor(hours / 24);
     hours = hours - days * 24;
     minutes = minutes - days * 24 * 60 - hours * 60;
     seconds = seconds - days * 24 * 60 * 60 - hours * 60 * 60 - minutes * 60;
 
-    return `${days} days, ${hours} hours, ${minutes} minutes, and ${seconds} seconds`;
+    // Handle plurals
+    if (days == "1") {
+        day = "day";
+    } else {
+        day = "days";
+    }
+    if (hours == "1") {
+        hour = "hour";
+    } else {
+        hour = "hours";
+    }
+    if (minutes == "1") {
+        minute = "minute";
+    } else {
+        minute = "minutes";
+    }
+    if (seconds == "1") {
+        sec = "second";
+    } else {
+        sec = "seconds";
+    }
+
+    return `${days} ${day}, ${hours} ${hour}, ${minutes} ${minute}, and ${seconds} ${sec}`;
 }
 
 export function bad_file_name(file_name) {
@@ -130,6 +152,15 @@ export function bad_file_name(file_name) {
         return true;
     }
     return false;
+}
+
+export function file_is_path(file_name) {
+    if (file_name.length >= 2 && file_name.startsWith("/") && !file_name.endsWith("/")) {
+        // Simple and Crude
+        return true;
+    } else {
+        return false;
+    }
 }
 
 export function valid_port(val) {
@@ -145,10 +176,59 @@ export function valid_port(val) {
 
 export function valid_dn(dn) {
     // Validate value is a valid DN (sanity validation)
-    if (dn.endsWith(",")) {
+    if (dn == "" || dn.endsWith(",")) {
         return false;
     }
-    let dn_regex = new RegExp("^([A-Za-z])+=\\S.*");
-    let result = dn_regex.test(dn);
+    const dn_regex = new RegExp("^([A-Za-z])+=\\S.*");
+    const result = dn_regex.test(dn);
     return result;
+}
+
+export function numToCommas(num) {
+    //  Convert a number to have human friendly commas
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+export function displayBytes(bytes) {
+    // Convert bytes into a more human readable value/unit
+    if (bytes === 0) {
+        return '0 Bytes';
+    }
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+export function displayKBytes(kbytes) {
+    // Convert kilobytes into a more human readable value/unit
+    if (kbytes === 0) {
+        return '0 KB';
+    }
+    const k = 1024;
+    const sizes = ['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    const i = Math.floor(Math.log(kbytes) / Math.log(k));
+
+    return parseFloat((kbytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+export function listsEqual(list1, list2) {
+    if (Array.isArray(list1) && Array.isArray(list2)) {
+        const list1_sorted = [...list1];
+        const list2_sorted = [...list2];
+        if (list1_sorted.length != list2_sorted.length) {
+            return false;
+        }
+        for (let i = list1_sorted.length; i--;) {
+            if (list1_sorted[i].toLowerCase() != list2_sorted[i].toLowerCase()) {
+                return false;
+            }
+        }
+        return true;
+    } else if (list1 === undefined && list2 === undefined) {
+        return true;
+    } else {
+        return false;
+    }
 }

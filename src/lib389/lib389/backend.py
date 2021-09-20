@@ -866,12 +866,12 @@ class Backend(DSLdapObject):
         return CosTemplates(self._instance, self._dn).list()
 
     def get_state(self):
-            suffix = self.get_attr_val_utf8('nsslapd-suffix')
-            try:
-                mt = self._mts.get(suffix)
-            except ldap.NO_SUCH_OBJECT:
-                raise ValueError("Backend missing mapping tree entry, unable to get state")
-            return mt.get_attr_val_utf8('nsslapd-state')
+        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+        try:
+            mt = self._mts.get(suffix)
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError("Backend missing mapping tree entry, unable to get state")
+        return mt.get_attr_val_utf8('nsslapd-state')
 
     def set_state(self, new_state):
         new_state = new_state.lower()
@@ -881,8 +881,8 @@ class Backend(DSLdapObject):
         except ldap.NO_SUCH_OBJECT:
             raise ValueError("Backend missing mapping tree entry, unable to set configuration")
 
-        if new_state not in ['backend', 'disabled', 'referral', 'referral on update']:
-            raise ValueError(f"Invalid backend state {new_state}, value must be one of the following: 'backend', 'disabled', 'referral', 'referral on update'")
+        if new_state not in ['backend', 'disabled',  'referral',  'referral on update']:
+            raise ValueError(f"Invalid backend state {new_state}, value must be one of the following: 'backend', 'disabled',  'referral',  'referral on update'")
 
         # Can not change state of replicated backend
         replicas = Replicas(self._instance)

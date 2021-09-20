@@ -1,0 +1,24 @@
+# Enable RPM builds and running integration tests in PRs through https://packit.dev/
+# To use this, enable Packit-as-a-service in GitHub: https://packit.dev/docs/packit-as-a-service/
+# See https://packit.dev/docs/configuration/ for the format of this file
+
+specfile_path: cockpit-starter-kit.spec
+actions:
+  post-upstream-clone: make cockpit-starter-kit.spec
+  # build in development mode; production mode uses too much memory for limited
+  # sandcastle containers; also reduce memory consumption of webpack
+  # https://github.com/packit/sandcastle/pull/92
+  # https://medium.com/the-node-js-collection/node-js-memory-management-in-container-environments-7eb8409a74e8
+  create-archive:
+    - make NODE_ENV=development NODE_OPTIONS=--max-old-space-size=500
+    # dummy LICENSE.txt, as terser did not run
+    - touch dist/index.js.LICENSE.txt.gz
+    - make dist-gzip
+  # starter-kit.git has no release tags; your project can drop this once you have a release
+  get-current-version: make print-version
+jobs:
+  - job: tests
+    trigger: pull_request
+    metadata:
+      targets:
+      - fedora-all

@@ -134,7 +134,7 @@ def enable_replication(inst, basedn, log, args):
     role = args.role.lower()
     rid = args.replica_id
 
-    if role == "supplier" or role == "master":
+    if role == "supplier":
         repl_type = '3'
         repl_flag = '1'
     elif role == "hub":
@@ -157,7 +157,7 @@ def enable_replication(inst, basedn, log, args):
         }
 
     # Validate supplier settings
-    if role == "supplier" or role == "master":
+    if role == "supplier":
         # Do we have a rid?
         if not args.replica_id or args.replica_id is None:
             # Error, supplier needs a rid TODO
@@ -446,15 +446,16 @@ def get_repl_monitor_info(inst, basedn, log, args):
             log.info(supplier_header)
 
         # Draw a line with the same length as the header
-        status = ""
         if not args.json:
             log.info("-".join(["" for _ in range(0, len(supplier_header)+1)]))
-        if report_data[0]["replica_status"].startswith("Unavailable"):
-            status = report_data[0]["replica_status"]
-            if not args.json:
-                log.info(f"Replica Status: {status}\n")
-        else:
-            for replica in report_data:
+
+        for replica in report_data:
+            if replica["replica_status"].startswith("Unreachable") or \
+                replica["replica_status"].startswith("Unavailable"):
+                status = replica["replica_status"]
+                if not args.json:
+                    log.info(f"Replica Status: {status}\n")
+            else:
                 replica_root = replica["replica_root"]
                 replica_id = replica["replica_id"]
                 replica_status = replica["replica_status"]
