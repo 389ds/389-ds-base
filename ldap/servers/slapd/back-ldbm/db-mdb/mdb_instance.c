@@ -244,6 +244,12 @@ add_index_dbi(struct attrinfo *ai, dbi_open_ctx_t *octx)
     }
 }
 
+/* Destructor for dbi's tree */
+void free_dbi_node(void *node)
+{
+    /* as the tree points on ctx->dbi_slots slots, there is nothing to do here */
+}
+
 
 /* Open/creat all the dbis to avoid opening the db in operation towards this backend
  *  There are nasty issues if file is created but its parent txn get aborted
@@ -335,11 +341,17 @@ error:
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_all_files", "%s failed at %s[%d] with rc=%d: %s.\n", errinfo.cmd, errinfo.file, errinfo.line, rc, mdb_strerror(rc));
     }
     if (rc) {
-        /* Roll back invalid slots and rebuild dbis table */
+        /* Roll back invalid slots and rebuild dbis tree */
+        tdestroy(ctx->dbis_treeroot, free_dbi_node);
+        ctx->dbis_treeroot = NULL;
         for (i=0; i < ctx->startcfg.max_dbs; i++) {
-            if (!valid_slots[i] && ctx->dbi_slots[i].dbname) {
-                tdelete(&ctx->dbi_slots[i], ctx->dbis_treeroot, cmp_dbi_names);
-                slapi_ch_free((void**)&ctx->dbi_slots[i].dbname);
+            if (ctx->dbi_slots[i].dbname) {
+                if (valid_slots[i]) {
+                    /* Insert the dbi in tree */
+                    tsearch(&ctx->dbi_slots[i], &ctx->dbis_treeroot, cmp_dbi_names);
+                } else {
+                    slapi_ch_free((void**)&ctx->dbi_slots[i].dbname);
+                }
             }
         }
     }
@@ -576,11 +588,6 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
     return rc;
 }
 
-void free_dbi_node(void *node)
-{
-    /* Nothing to do here */
-}
-
 /* close the database env and release the context resource */
 void dbmdb_ctx_close(dbmdb_ctx_t *ctx)
 {
@@ -597,6 +604,7 @@ void dbmdb_ctx_close(dbmdb_ctx_t *ctx)
     }
     if (ctx->dbi_slots) {
         tdestroy(ctx->dbis_treeroot, free_dbi_node);
+        ctx->dbis_treeroot = NULL;
         for (i=0; i<ctx->startcfg.max_dbs; i++)
             slapi_ch_free((void**)&ctx->dbi_slots[i].dbname);
         slapi_ch_free((void**)&ctx->dbi_slots);
