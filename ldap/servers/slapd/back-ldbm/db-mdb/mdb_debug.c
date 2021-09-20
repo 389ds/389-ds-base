@@ -13,15 +13,12 @@
 #include "mdb_layer.h"
 #include "mdb_import_threads.h"
 
-#ifdef DBMDB_DEBUG
 #include <execinfo.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <syscall.h>
-#endif
-
 
 
 /* This file contains some utility to format some strings
