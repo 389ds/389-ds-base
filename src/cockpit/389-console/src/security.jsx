@@ -1,30 +1,55 @@
 import cockpit from "cockpit";
 import React from "react";
-import Switch from "react-switch";
-import { ConfirmPopup } from "./lib/notifications.jsx";
+import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import { log_cmd } from "./lib/tools.jsx";
-import { Typeahead } from "react-bootstrap-typeahead";
 import { CertificateManagement } from "./lib/security/certificateManagement.jsx";
 import { SecurityEnableModal } from "./lib/security/securityModals.jsx";
 import { Ciphers } from "./lib/security/ciphers.jsx";
 import {
     Button,
     Checkbox,
-    Col,
-    ControlLabel,
     Form,
-    FormControl,
-    Icon,
-    Nav,
-    NavItem,
-    Row,
+    Grid,
+    GridItem,
+    Select,
+    SelectOption,
+    SelectVariant,
     Spinner,
-    TabContainer,
-    TabContent,
-    noop,
-    TabPane
-} from "patternfly-react";
+    Switch,
+    Tab,
+    Tabs,
+    TabTitleText,
+    TextInput,
+    Text,
+    TextContent,
+    TextVariants,
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faSyncAlt
+} from '@fortawesome/free-solid-svg-icons';
+import '@fortawesome/fontawesome-svg-core/styles.css';
+
+const configAttrs = [
+    'sslVersionMin',
+    'sslVersionMax',
+    'secureListenhost',
+    'clientAuth',
+    'validateCert',
+    'requireSecureBinds',
+    'checkHostname',
+    'allowWeakCipher',
+    'nstlsallowclientrenegotiation',
+];
+
+const configCoreAttrs = [
+    'secureListenhost',
+    'requireSecureBinds',
+    'checkHostname',
+    'allowWeakCipher',
+    'nstlsallowclientrenegotiation',
+];
 
 export class Security extends React.Component {
     constructor (props) {
@@ -32,14 +57,20 @@ export class Security extends React.Component {
         this.state = {
             loaded: false,
             saving: false,
-            activeKey: 1,
-
+            activeTabKey: 0,
             errObj: {},
             showConfirmDisable: false,
             showSecurityEnableModal: false,
             primaryCertName: '',
             serverCertNames: [],
             serverCerts: [],
+            isMinSSLOpen: false,
+            isMaxSSLOpen: false,
+            isClientAuthOpen: false,
+            isValidateCertOpen: false,
+            disableSaveBtn: true,
+            modalChecked: false,
+            modalSpinning: false,
             // Ciphers
             supportedCiphers: [],
             enabledCiphers: [],
@@ -66,11 +97,139 @@ export class Security extends React.Component {
             _sslVersionMax: '',
             _allowWeakCipher: false,
             _nssslpersonalityssl: '',
+            _nssslpersonalityssllist: "",
             _nstlsallowclientrenegotiation: true,
+
+            isServerCertOpen: false,
+        };
+
+        // Server Cert
+        this.handleServerCertSelect = (event, selection) => {
+            if (this.state.nssslpersonalityssl.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        nssslpersonalityssl: prevState.nssslpersonalityssl.filter((item) => item !== selection),
+                        isServerCertOpen: false
+                    }),
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        nssslpersonalityssl: [...prevState.nssslpersonalityssl, selection],
+                        isServerCertOpen: false
+                    }),
+                );
+            }
+        };
+        this.handleServerCertToggle = isServerCertOpen => {
+            this.setState({
+                isServerCertOpen
+            });
+        };
+        this.handleServerCertClear = () => {
+            this.setState({
+                nssslpersonalityssl: [],
+                isServerCertOpen: false
+            });
+        };
+
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+
+        // Select handlers
+        this.configChanged = () => {
+            // Check if a core/non-select setting was changed
+            for (const config_attr of configCoreAttrs) {
+                if (this.state[config_attr] !== this.state['_' + config_attr]) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        this.handleMinSSLToggle = isMinSSLOpen => {
+            this.setState({
+                isMinSSLOpen
+            });
+        };
+        this.handleMinSSLSelect = (event, selection, isPlaceholder) => {
+            let disableSaveBtn = !this.configChanged();
+
+            // Check if a setting was changed, if so enable the save button
+            if (this.state._sslVersionMin !== selection) {
+                disableSaveBtn = false;
+            }
+            this.setState({
+                sslVersionMin: selection,
+                isMinSSLOpen: false,
+                disableSaveBtn: disableSaveBtn
+            });
+        };
+
+        this.handleMaxSSLToggle = isMaxSSLOpen => {
+            this.setState({
+                isMaxSSLOpen
+            });
+        };
+        this.handleMaxSSLSelect = (event, selection, isPlaceholder) => {
+            let disableSaveBtn = !this.configChanged();
+
+            // Check if a setting was changed, if so enable the save button
+            if (this.state._sslVersionMax !== selection) {
+                disableSaveBtn = false;
+            }
+            this.setState({
+                sslVersionMax: selection,
+                isMaxSSLOpen: false,
+                disableSaveBtn: disableSaveBtn
+            });
+        };
+
+        this.handleClientAuthToggle = isClientAuthOpen => {
+            this.setState({
+                isClientAuthOpen
+            });
+        };
+        this.handleClientAuthSelect = (event, selection, isPlaceholder) => {
+            let disableSaveBtn = !this.configChanged();
+
+            // Check if a setting was changed, if so enable the save button
+            if (this.state._clientAuth !== selection) {
+                disableSaveBtn = false;
+            }
+
+            this.setState({
+                clientAuth: selection,
+                isClientAuthOpen: false,
+                disableSaveBtn: disableSaveBtn
+            });
+        };
+
+        this.handleValidateCertToggle = isValidateCertOpen => {
+            this.setState({
+                isValidateCertOpen
+            });
+        };
+        this.handleValidateCertSelect = (event, selection, isPlaceholder) => {
+            let disableSaveBtn = !this.configChanged();
+
+            // Check if a setting was changed, if so enable the save button
+            if (this.state._validateCert !== selection) {
+                disableSaveBtn = false;
+            }
+            this.setState({
+                validateCert: selection,
+                isValidateCertOpen: false,
+                disableSaveBtn: disableSaveBtn
+            });
         };
 
         this.handleChange = this.handleChange.bind(this);
-        this.handleNavSelect = this.handleNavSelect.bind(this);
+        this.onModalChange = this.onModalChange.bind(this);
         this.handleSwitchChange = this.handleSwitchChange.bind(this);
         this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
         this.loadSecurityConfig = this.loadSecurityConfig.bind(this);
@@ -83,19 +242,29 @@ export class Security extends React.Component {
         this.disableSecurity = this.disableSecurity.bind(this);
         this.saveSecurityConfig = this.saveSecurityConfig.bind(this);
         this.closeSecurityEnableModal = this.closeSecurityEnableModal.bind(this);
-        this.reloadConfig = this.reloadConfig.bind(this);
+        this.handleReloadConfig = this.handleReloadConfig.bind(this);
+        this.onSelectToggle = this.onSelectToggle.bind(this);
+        this.onSelectClear = this.onSelectClear.bind(this);
+        this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
     }
 
     componentDidMount () {
         if (!this.state.loaded) {
-            this.setState({securityEnabled: true}, this.setState({securityEnabled: false}));
+            this.setState({ securityEnabled: true }, this.setState({ securityEnabled: false }));
             this.loadSecurityConfig();
         } else {
             this.props.enableTree();
         }
     }
 
-    reloadConfig () {
+    onModalChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.setState({
+            [e.target.id]: value
+        });
+    }
+
+    handleReloadConfig () {
         this.setState({
             loaded: false
         }, this.loadSecurityConfig);
@@ -116,7 +285,7 @@ export class Security extends React.Component {
                     }, this.loadEnabledCiphers);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -143,7 +312,7 @@ export class Security extends React.Component {
                     }, this.loadCerts);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -164,7 +333,7 @@ export class Security extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let certs = JSON.parse(content);
+                    const certs = JSON.parse(content);
                     this.setState(() => (
                         {
                             CACerts: certs,
@@ -173,7 +342,7 @@ export class Security extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -196,9 +365,9 @@ export class Security extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const certs = JSON.parse(content);
-                    let certNames = [];
-                    for (let cert of certs) {
-                        certNames.push(cert.attrs['nickname']);
+                    const certNames = [];
+                    for (const cert of certs) {
+                        certNames.push(cert.attrs.nickname);
                     }
                     this.setState(() => (
                         {
@@ -208,7 +377,7 @@ export class Security extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -230,7 +399,7 @@ export class Security extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
-                    const nickname = config.items['nssslpersonalityssl'];
+                    const nickname = config.items.nssslpersonalityssl;
                     this.setState(() => (
                         {
                             nssslpersonalityssl: nickname,
@@ -239,7 +408,7 @@ export class Security extends React.Component {
                     ), this.loadSupportedCiphers);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -271,38 +440,38 @@ export class Security extends React.Component {
                     let renegot = true;
 
                     if ('nstlsallowclientrenegotiation' in config.items) {
-                        if (config.items['nstlsallowclientrenegotiation'] == "off") {
+                        if (config.items.nstlsallowclientrenegotiation === "off") {
                             renegot = false;
                         }
                     }
                     if ('nsslapd-security' in attrs) {
-                        if (attrs['nsslapd-security'].toLowerCase() == "on") {
+                        if (attrs['nsslapd-security'].toLowerCase() === "on") {
                             secEnabled = true;
                         }
                     }
                     if ('nsslapd-require-secure-binds' in attrs) {
-                        if (attrs['nsslapd-require-secure-binds'].toLowerCase() == "on") {
+                        if (attrs['nsslapd-require-secure-binds'].toLowerCase() === "on") {
                             secReqSecBinds = true;
                         }
                     }
                     if ('nssslclientauth' in attrs) {
-                        if (attrs['nssslclientauth'] != "") {
-                            clientAuth = attrs['nssslclientauth'];
+                        if (attrs.nssslclientauth !== "") {
+                            clientAuth = attrs.nssslclientauth;
                         }
                     }
                     if ('nsslapd-validate-cert' in attrs) {
-                        if (attrs['nsslapd-validate-cert'] != "") {
+                        if (attrs['nsslapd-validate-cert'] !== "") {
                             validateCert = attrs['nsslapd-validate-cert'].toLowerCase();
                         }
                     }
                     if ('allowweakcipher' in attrs) {
-                        if (attrs['allowweakcipher'].toLowerCase() == "on") {
+                        if (attrs.allowweakcipher.toLowerCase() === "on") {
                             allowWeak = true;
                         }
                     }
                     if ('nsssl3ciphers' in attrs) {
-                        if (attrs['nsssl3ciphers'] != "") {
-                            cipherPref = attrs['nsssl3ciphers'];
+                        if (attrs.nsssl3ciphers !== "") {
+                            cipherPref = attrs.nsssl3ciphers;
                         }
                     }
 
@@ -314,8 +483,8 @@ export class Security extends React.Component {
                             clientAuth: clientAuth,
                             checkHostname: attrs['nsslapd-ssl-check-hostname'],
                             validateCert: validateCert,
-                            sslVersionMin: attrs['sslversionmin'],
-                            sslVersionMax: attrs['sslversionmax'],
+                            sslVersionMin: attrs.sslversionmin,
+                            sslVersionMax: attrs.sslversionmax,
                             allowWeakCipher: allowWeak,
                             cipherPref: cipherPref,
                             nstlsallowclientrenegotiation: renegot,
@@ -326,8 +495,8 @@ export class Security extends React.Component {
                             _clientAuth: clientAuth,
                             _checkHostname: attrs['nsslapd-ssl-check-hostname'],
                             _validateCert: validateCert,
-                            _sslVersionMin: attrs['sslversionmin'],
-                            _sslVersionMax: attrs['sslversionmax'],
+                            _sslVersionMin: attrs.sslversionmin,
+                            _sslVersionMax: attrs.sslversionmax,
                             _allowWeakCipher: allowWeak,
                         }
                     ), function() {
@@ -337,7 +506,7 @@ export class Security extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -349,16 +518,10 @@ export class Security extends React.Component {
                 });
     }
 
-    handleNavSelect(key) {
-        this.setState({
-            activeKey: key
-        });
-    }
-
     handleSwitchChange(value) {
         if (!value) {
             // We are disabling security, ask for confirmation
-            this.setState({showConfirmDisable: true});
+            this.setState({ showConfirmDisable: true });
         } else {
             // Check if we have certs, if we do make the user choose one from dropdown list, otherwise reject the
             // enablement
@@ -382,7 +545,7 @@ export class Security extends React.Component {
         });
     }
 
-    handleSecEnableChange (e) {
+    onSecEnableChange (e) {
         const value = e.target.value.trim();
         this.setState({
             primaryCertName: value,
@@ -424,7 +587,7 @@ export class Security extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -441,6 +604,9 @@ export class Security extends React.Component {
     }
 
     disableSecurity () {
+        this.setState({
+            modalSpinning: true,
+        });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "disable",
@@ -459,10 +625,11 @@ export class Security extends React.Component {
                     );
                     this.setState({
                         securityEnabled: false,
+                        modalSpinning: false,
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -471,6 +638,9 @@ export class Security extends React.Component {
                         "error",
                         `Error disabling security - ${msg}`
                     );
+                    this.setState({
+                        modalSpinning: false,
+                    });
                 });
     }
 
@@ -478,10 +648,10 @@ export class Security extends React.Component {
         // Validate some setting first
         let sslMin = this.state._sslVersionMin;
         let sslMax = this.state._sslVersionMax;
-        if (this.state._sslVersionMin != this.state.sslVersionMin) {
+        if (this.state._sslVersionMin !== this.state.sslVersionMin) {
             sslMin = this.state.sslVersionMin;
         }
-        if (this.state._sslVersionMax != this.state.sslVersionMax) {
+        if (this.state._sslVersionMax !== this.state.sslVersionMax) {
             sslMax = this.state.sslVersionMax;
         }
 
@@ -495,41 +665,41 @@ export class Security extends React.Component {
             return;
         }
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'security', 'set'
         ];
 
-        if (this.state._validateCert != this.state.validateCert) {
+        if (this.state._validateCert !== this.state.validateCert) {
             cmd.push("--verify-cert-chain-on-startup=" + this.state.validateCert);
         }
-        if (this.state._sslVersionMin != this.state.sslVersionMin) {
+        if (this.state._sslVersionMin !== this.state.sslVersionMin) {
             cmd.push("--tls-protocol-min=" + this.state.sslVersionMin);
         }
-        if (this.state._sslVersionMax != this.state.sslVersionMax) {
+        if (this.state._sslVersionMax !== this.state.sslVersionMax) {
             cmd.push("--tls-protocol-max=" + this.state.sslVersionMax);
         }
-        if (this.state._clientAuth != this.state.clientAuth) {
+        if (this.state._clientAuth !== this.state.clientAuth) {
             cmd.push("--tls-client-auth=" + this.state.clientAuth);
         }
-        if (this.state._secureListenhost != this.state.secureListenhost) {
+        if (this.state._secureListenhost !== this.state.secureListenhost) {
             cmd.push("--listen-host=" + this.state.secureListenhost);
         }
-        if (this.state._allowWeakCipher != this.state.allowWeakCipher) {
+        if (this.state._allowWeakCipher !== this.state.allowWeakCipher) {
             let val = "off";
             if (this.state.allowWeakCipher) {
                 val = "on";
             }
             cmd.push("--allow-insecure-ciphers=" + val);
         }
-        if (this.state._checkHostname != this.state.checkHostname) {
+        if (this.state._checkHostname !== this.state.checkHostname) {
             let val = "off";
             if (this.state.checkHostname) {
                 val = "on";
             }
             cmd.push("--check-hostname=" + val);
         }
-        if (this.state._requireSecureBinds != this.state.requireSecureBinds) {
+        if (this.state._requireSecureBinds !== this.state.requireSecureBinds) {
             let val = "off";
             if (this.state.requireSecureBinds) {
                 val = "on";
@@ -537,7 +707,7 @@ export class Security extends React.Component {
             cmd.push("--require-secure-authentication=" + val);
         }
 
-        if (this.state._nstlsallowclientrenegotiation != this.state.nstlsallowclientrenegotiation) {
+        if (this.state._nstlsallowclientrenegotiation !== this.state.nstlsallowclientrenegotiation) {
             let val = "off";
             if (this.state.nstlsallowclientrenegotiation) {
                 val = "on";
@@ -547,7 +717,7 @@ export class Security extends React.Component {
 
         if (cmd.length > 5) {
             log_cmd("saveSecurityConfig", "Applying security config change", cmd);
-            let msg = "Successfully updated security configuration.";
+            const msg = "Successfully updated security configuration.";
 
             this.setState({
                 // Start the spinner
@@ -555,7 +725,7 @@ export class Security extends React.Component {
             });
 
             cockpit
-                    .spawn(cmd, {superuser: true, "err": "message"})
+                    .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
                         this.loadSecurityConfig(1);
                         this.props.addNotification(
@@ -571,7 +741,7 @@ export class Security extends React.Component {
                         });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.loadSecurityConfig();
                         this.setState({
                             saving: false
@@ -588,290 +758,371 @@ export class Security extends React.Component {
         }
     }
 
-    handleTypeaheadChange(value) {
-        if (value.length == 0) {
-            return;
-        }
+    handleTypeaheadChange(value, collection) {
         this.setState({
-            nssslpersonalityssl: value[0],
+            [collection]: [...this.state[collection], value],
         });
     }
 
     handleChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+        let disableSaveBtn = true;
+
+        // Check if a setting was changed, if so enable the save button
+        for (const config_attr of configAttrs) {
+            if (attr === config_attr && this.state['_' + config_attr] !== value) {
+                disableSaveBtn = false;
+                break;
+            }
+        }
+
+        // Now check for differences in values that we did not touch
+        for (const config_attr of configAttrs) {
+            if (attr !== config_attr && this.state['_' + config_attr] !== this.state[config_attr]) {
+                disableSaveBtn = false;
+                break;
+            }
+        }
+
         this.setState({
-            [e.target.id]: value,
+            [attr]: value,
+            disableSaveBtn: disableSaveBtn
         });
     }
 
-    handleLoginModal(e) {
-        const value = e.target.value.trim();
-        let valueErr = false;
-        let errObj = this.state.errObj;
-        if (value == "") {
-            valueErr = true;
-        }
-        errObj[e.target.id] = valueErr;
+    onSelectToggle = (isExpanded, toggleId) => {
         this.setState({
-            [e.target.id]: value,
-            errObj: errObj
+            [toggleId]: isExpanded
+        });
+    }
+
+    onSelectClear = (toggleId, collection) => {
+        this.setState({
+            [toggleId]: false,
+            [collection]: []
         });
     }
 
     render() {
         let securityPage = "";
-        let serverCert = [this.state.nssslpersonalityssl];
+        const serverCert = [this.state.nssslpersonalityssl];
+        let saveBtnName = "Save Settings";
+        const extraPrimaryProps = {};
+        if (this.state.saving) {
+            saveBtnName = "Saving settings ...";
+            extraPrimaryProps.spinnerAriaValueText = "Loading";
+        }
+
         if (this.state.loaded && !this.state.saving) {
             let configPage = "";
             if (this.state.securityEnabled) {
                 configPage =
-                    <Form horizontal>
-                        <Row className="ds-margin-top" title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  This parameter specifically sets what interface to use for TLS traffic.  Requires restart. (nsslapd-securelistenhost).">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Secure Listen Host
-                            </Col>
-                            <Col sm={8}>
-                                <FormControl
-                                    id="secureListenhost"
-                                    type="text"
-                                    value={this.state.secureListenhost}
-                                    onChange={this.handleChange}
-                                />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The name, or nickname, of the server certificate inthe NSS datgabase the server should use (nsSSLPersonalitySSL).">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Server Certificate Name
-                            </Col>
-                            <Col sm={8}>
-                                <Typeahead
-                                    id="serverCertNameTypeahead"
-                                    onChange={this.handleTypeaheadChange}
-                                    selected={serverCert}
-                                    emptyLabel="No matching certificates found"
-                                    options={this.state.serverCertNames}
-                                    newSelectionPrefix="Select a server certificate"
-                                    placeholder="Type a sever certificate nickname..."
-                                />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The minimum SSL/TLS version the server will accept (sslversionmin).">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Minimum TLS Version
-                            </Col>
-                            <Col sm={8}>
-                                <select id="sslVersionMin" className="btn btn-default dropdown ds-select" onChange={this.handleChange} value={this.state.sslVersionMin}>
-                                    <option>TLS1.3</option>
-                                    <option>TLS1.2</option>
-                                    <option>TLS1.1</option>
-                                    <option>TLS1.0</option>
-                                    <option>SSL3</option>
-                                </select>
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The maximum SSL/TLS version the server will accept (sslversionmax).">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Maximum TLS Version
-                            </Col>
-                            <Col sm={4}>
-                                <select id="sslVersionMax" className="btn btn-default dropdown ds-select" onChange={this.handleChange} value={this.state.sslVersionMax}>
-                                    <option>TLS1.3</option>
-                                    <option>TLS1.2</option>
-                                    <option>TLS1.1</option>
-                                    <option>TLS1.0</option>
-                                    <option>SSL3</option>
-                                </select>
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="Sets how the Directory Server enforces TLS client authentication (nsSSLClientAuth).">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Client Authentication
-                            </Col>
-                            <Col sm={4}>
-                                <select id="clientAuth" className="btn btn-default dropdown ds-select" onChange={this.handleChange} value={this.state.clientAuth}>
-                                    <option>off</option>
-                                    <option>allowed</option>
-                                    <option>required</option>
-                                </select>
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="Validate server's certificate expiration date (nsslapd-validate-cert).">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Validate Certificate
-                            </Col>
-                            <Col sm={4}>
-                                <select id="validateCert" className="btn btn-default dropdown ds-select" onChange={this.handleChange} value={this.state.validateCert}>
-                                    <option>warn</option>
-                                    <option>on</option>
-                                    <option>off</option>
-                                </select>
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                <Checkbox
-                                    id="requireSecureBinds"
-                                    defaultChecked={this.state.requireSecureBinds}
-                                    onChange={this.handleChange}
-                                    title="Require all connections use TLS (nsslapd-require-secure-binds)."
-                                >
-                                    Require Secure Connections
-                                </Checkbox>
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col componentClass={ControlLabel} sm={4}>
-                                <Checkbox
-                                    id="checkHostname"
-                                    defaultChecked={this.state.checkHostname}
-                                    onChange={this.handleChange}
-                                    title="Verify authenticity of a request by matching the host name against the value assigned to the common name (cn) attribute of the subject name (subjectDN field) in the certificate being presented. (nsslapd-ssl-check-hostname)."
-                                >
-                                    Verify Certificate Subject Hostname
-                                </Checkbox>
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col componentClass={ControlLabel} sm={4}>
-                                <Checkbox
-                                    id="allowWeakCipher"
-                                    defaultChecked={this.state.allowWeakCipher}
-                                    onChange={this.handleChange}
-                                    title="Allow weak ciphers (allowWeakCipher)."
-                                >
-                                    Allow Weak Ciphers
-                                </Checkbox>
-                            </Col>
-                        </Row>
-                        <Row>
-                            <Col componentClass={ControlLabel} sm={4}>
-                                <Checkbox
-                                    id="nstlsallowclientrenegotiation"
-                                    defaultChecked={this.state.nstlsallowclientrenegotiation}
-                                    onChange={this.handleChange}
-                                    title="Allow client-initiated renegotiation (nsTLSAllowClientRenegotiation)."
-                                >
-                                    Allow Client Renegotiation
-                                </Checkbox>
-                            </Col>
-                        </Row>
+                    <div className="ds-margin-bottom-md">
+                        <Form isHorizontal autoComplete="off">
+                            <Grid
+                                title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  This parameter specifically sets what interface to use for TLS traffic.  Requires restart. (nsslapd-securelistenhost)."
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Secure Listen Host
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <TextInput
+                                        value={this.state.secureListenhost}
+                                        type="text"
+                                        id="secureListenhost"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="server-hostname"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The name, or nickname, of the server certificate inthe NSS datgabase the server should use (nsSSLPersonalitySSL)."
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Server Certificate Name
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <Select
+                                        variant={SelectVariant.typeahead}
+                                        typeAheadAriaLabel="Type a server certificate nickname"
+                                        onToggle={this.handleServerCertToggle}
+                                        onSelect={this.handleServerCertSelect}
+                                        onClear={this.handleServerCertClear}
+                                        selections={serverCert}
+                                        isOpen={this.state.isServerCertOpen}
+                                        aria-labelledby="typeAhead-server-cert"
+                                        placeholderText="Type a sever certificate nickname..."
+                                        noResultsFoundText="There are no matching entries"
+                                    >
+                                        {this.state.serverCertNames.map((cert, index) => (
+                                            <SelectOption
+                                                key={index}
+                                                value={cert}
+                                            />
+                                        ))}
+                                    </Select>
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The minimum SSL/TLS version the server will accept (sslversionmin)."
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Minimum TLS Version
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <Select
+                                        variant={SelectVariant.single}
+                                        aria-label="Select Input"
+                                        onToggle={this.handleMinSSLToggle}
+                                        onSelect={this.handleMinSSLSelect}
+                                        selections={this.state.sslVersionMin}
+                                        isOpen={this.state.isMinSSLOpen}
+                                        aria-labelledby="minssl"
+                                    >
+                                        <SelectOption key={1} value="TLS1.3" />
+                                        <SelectOption key={2} value="TLS1.2" />
+                                        <SelectOption key={3} value="TLS1.1" />
+                                        <SelectOption key={4} value="TLS1.0" />
+                                        <SelectOption key={5} value="SSL3" />
+                                    </Select>
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The maximum SSL/TLS version the server will accept (sslversionmax)."
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Maximum TLS Version
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <Select
+                                        variant={SelectVariant.single}
+                                        aria-label="Select Input"
+                                        onToggle={this.handleMaxSSLToggle}
+                                        onSelect={this.handleMaxSSLSelect}
+                                        selections={this.state.sslVersionMax}
+                                        isOpen={this.state.isMaxSSLOpen}
+                                        aria-labelledby="maxssl"
+                                    >
+                                        <SelectOption key={1} value="TLS1.3" />
+                                        <SelectOption key={2} value="TLS1.2" />
+                                        <SelectOption key={3} value="TLS1.1" />
+                                        <SelectOption key={4} value="TLS1.0" />
+                                        <SelectOption key={5} value="SSL3" />
+                                    </Select>
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Sets how the Directory Server enforces TLS client authentication (nsSSLClientAuth)."
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Client Authentication
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <Select
+                                        variant={SelectVariant.single}
+                                        aria-label="Select Input"
+                                        onToggle={this.handleClientAuthToggle}
+                                        onSelect={this.handleClientAuthSelect}
+                                        selections={this.state.clientAuth}
+                                        isOpen={this.state.isClientAuthOpen}
+                                        aria-labelledby="clientAuth"
+                                    >
+                                        <SelectOption key={1} value="off" />
+                                        <SelectOption key={2} value="allowed" />
+                                        <SelectOption key={3} value="required" />
+                                    </Select>
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Validate server's certificate expiration date (nsslapd-validate-cert)."
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Validate Certificate
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <Select
+                                        variant={SelectVariant.single}
+                                        aria-label="Select Input"
+                                        onToggle={this.handleValidateCertToggle}
+                                        onSelect={this.handleValidateCertSelect}
+                                        selections={this.state.validateCert}
+                                        isOpen={this.state.isValidateCertOpen}
+                                        aria-labelledby="validateCert"
+                                    >
+                                        <SelectOption key={1} value="warn" />
+                                        <SelectOption key={2} value="on" />
+                                        <SelectOption key={3} value="off" />
+                                    </Select>
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Require all connections use TLS (nsslapd-require-secure-binds)."
+                            >
+                                <GridItem className="ds-label" span={4}>
+                                    <Checkbox
+                                        id="requireSecureBinds"
+                                        isChecked={this.state.requireSecureBinds}
+                                        onChange={(checked, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                        label="Require Secure Connections"
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Verify authenticity of a request by matching the host name against the value assigned to the common name (cn) attribute of the subject name (subjectDN field) in the certificate being presented. (nsslapd-ssl-check-hostname)."
+                            >
+                                <GridItem className="ds-label" span={4}>
+                                    <Checkbox
+                                        id="checkHostname"
+                                        isChecked={this.state.checkHostname}
+                                        onChange={(checked, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                        label="Verify Certificate Subject Hostname"
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Allow weak ciphers (allowWeakCipher)."
+                            >
+                                <GridItem className="ds-label" span={4}>
+                                    <Checkbox
+                                        id="allowWeakCipher"
+                                        isChecked={this.state.allowWeakCipher}
+                                        onChange={(checked, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                        title="Allow weak ciphers (allowWeakCipher)."
+                                        label="Allow Weak Ciphers"
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Allow client-initiated renegotiation (nsTLSAllowClientRenegotiation)."
+                            >
+                                <GridItem className="ds-label" span={4}>
+                                    <Checkbox
+                                        id="nstlsallowclientrenegotiation"
+                                        isChecked={this.state.nstlsallowclientrenegotiation}
+                                        onChange={(checked, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                        title="Allow client-initiated renegotiation (nsTLSAllowClientRenegotiation)."
+                                        label="Allow Client Renegotiation"
+                                    />
+                                </GridItem>
+                            </Grid>
+                        </Form>
                         <Button
-                            bsStyle="primary"
-                            className="ds-margin-top-lg"
+                            variant="primary"
+                            className="ds-margin-top-xlg"
                             onClick={() => {
                                 this.saveSecurityConfig();
                             }}
+                            isDisabled={this.state.disableSaveBtn}
+                            isLoading={this.state.saving}
+                            spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                            {...extraPrimaryProps}
                         >
-                            Save Configuration
+                            {saveBtnName}
                         </Button>
-                    </Form>;
+                    </div>;
             }
 
             securityPage =
-                <div className="container-fluid">
-                    <Row>
-                        <Col sm={11}>
-                            <ControlLabel className="ds-suffix-header">
-                                Security Settings
-                                <Icon className="ds-left-margin ds-refresh"
-                                    type="fa" name="refresh" title="Refresh configuration settings"
-                                    onClick={this.reloadConfig}
-                                />
-                            </ControlLabel>
-                        </Col>
-                    </Row>
-
+                <div className="ds-margin-bottom-md">
+                    <Grid>
+                        <GridItem span={6}>
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Security Settings
+                                    <FontAwesomeIcon
+                                        size="lg"
+                                        className="ds-left-margin ds-refresh"
+                                        icon={faSyncAlt}
+                                        title="Refresh settings"
+                                        onClick={this.handleReloadConfig}
+                                    />
+                                </Text>
+                            </TextContent>
+                        </GridItem>
+                    </Grid>
                     <div className="ds-tab-table">
-                        <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                            <div>
-                                <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                                    <NavItem eventKey={1}>
-                                        <div dangerouslySetInnerHTML={{__html: 'Security Configuration'}} />
-                                    </NavItem>
-                                    <NavItem eventKey={2}>
-                                        <div dangerouslySetInnerHTML={{__html: 'Certificate Management'}} />
-                                    </NavItem>
-                                    <NavItem eventKey={3}>
-                                        <div dangerouslySetInnerHTML={{__html: 'Cipher Preferences'}} />
-                                    </NavItem>
-                                </Nav>
-                                <TabContent>
-                                    <TabPane eventKey={1}>
-                                        <div className="ds-margin-top-xlg ds-indent">
-                                            <Row>
-                                                <Col sm={11}>
-                                                    <ControlLabel>
-                                                        Security Enabled
-                                                    </ControlLabel>
-                                                    <Switch
-                                                        className="ds-switch ds-margin-left-sm ds-lower-field"
-                                                        onChange={this.handleSwitchChange}
-                                                        checked={this.state.securityEnabled}
-                                                        height={20}
-                                                    />
-                                                </Col>
-                                            </Row>
-                                            <hr />
-                                            {configPage}
-                                        </div>
-                                    </TabPane>
-
-                                    <TabPane eventKey={2}>
-                                        <div className="ds-margin-top-lg">
-                                            <CertificateManagement
-                                                serverId={this.props.serverId}
-                                                CACerts={this.state.CACerts}
-                                                ServerCerts={this.state.serverCerts}
-                                                addNotification={this.props.addNotification}
-                                            />
-                                        </div>
-                                    </TabPane>
-
-                                    <TabPane eventKey={3}>
-                                        <div className="ds-indent ds-tab-table">
-                                            <Ciphers
-                                                serverId={this.props.serverId}
-                                                supportedCiphers={this.state.supportedCiphers}
-                                                cipherPref={this.state.cipherPref}
-                                                enabledCiphers={this.state.enabledCiphers}
-                                                addNotification={this.props.addNotification}
-                                            />
-                                        </div>
-                                    </TabPane>
-                                </TabContent>
-                            </div>
-                        </TabContainer>
+                        <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                            <Tab eventKey={0} title={<TabTitleText><b>Security Configuration</b></TabTitleText>}>
+                                <Grid className="ds-margin-top-xlg ds-left-indent-md">
+                                    <GridItem className="ds-label" span={4}>
+                                        <Switch
+                                            id="simple-switch"
+                                            label="Security Enabled"
+                                            labelOff="Security Disabled"
+                                            isChecked={this.state.securityEnabled}
+                                            onChange={this.handleSwitchChange}
+                                        />
+                                    </GridItem>
+                                    <hr />
+                                    {configPage}
+                                </Grid>
+                            </Tab>
+                            <Tab eventKey={1} title={<TabTitleText><b>Certificate Management</b></TabTitleText>}>
+                                <CertificateManagement
+                                    serverId={this.props.serverId}
+                                    CACerts={this.state.CACerts}
+                                    ServerCerts={this.state.serverCerts}
+                                    addNotification={this.props.addNotification}
+                                />
+                            </Tab>
+                            <Tab eventKey={2} title={<TabTitleText><b>Cipher Preferences</b></TabTitleText>}>
+                                <div className="ds-indent ds-tab-table">
+                                    <Ciphers
+                                        serverId={this.props.serverId}
+                                        supportedCiphers={this.state.supportedCiphers}
+                                        cipherPref={this.state.cipherPref}
+                                        enabledCiphers={this.state.enabledCiphers}
+                                        addNotification={this.props.addNotification}
+                                    />
+                                </div>
+                            </Tab>
+                        </Tabs>
                     </div>
-                </div>;
-        } else if (this.state.saving) {
-            securityPage =
-                <div className="ds-loading-spinner ds-center">
-                    <p />
-                    <h4>Saving security information ...</h4>
-                    <Spinner loading size="md" />
                 </div>;
         } else {
             securityPage =
-                <div className="ds-loading-spinner ds-center">
-                    <p />
-                    <h4>Loading security information ...</h4>
-                    <Spinner loading size="md" />
+                <div className="ds-margin-top-xlg ds-loading-spinner ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading Security Information ...
+                        </Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top-lg" size="lg" />
                 </div>;
         }
         return (
-            <div>
+            <div className={this.state.saving ? "ds-disabled" : ""}>
                 {securityPage}
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmDisable}
                     closeHandler={this.closeConfirmDisable}
-                    actionFunc={this.disableSecurity}
-                    msg="Are you sure you want to disable security?"
-                    msgContent="Attention: this requires the server to be restarted to take effect."
+                    handleChange={this.onModalChange}
+                    actionHandler={this.disableSecurity}
+                    spinning={this.state.modalSpinning}
+                    item="Requires server restart to take effect."
+                    checked={this.state.modalChecked}
+                    mTitle="Disable Security"
+                    mMsg="Are you sure you want to disable security?"
+                    mSpinningMsg="Disabling ..."
+                    mBtnName="Disable"
                 />
+
                 <SecurityEnableModal
                     showModal={this.state.showSecurityEnableModal}
                     closeHandler={this.closeSecurityEnableModal}
-                    handleChange={this.handleSecEnableChange}
+                    handleChange={this.onSecEnableChange}
                     saveHandler={this.enableSecurity}
                     primaryName={this.state.primaryCertName}
                     certs={this.state.serverCerts}
@@ -890,7 +1141,6 @@ Security.propTypes = {
 };
 
 Security.defaultProps = {
-    addNotification: noop,
     serverId: "",
 };
 

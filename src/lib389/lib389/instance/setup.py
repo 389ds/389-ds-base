@@ -794,14 +794,14 @@ class SetupDs(object):
         # Copy in the collation
         srcfile = os.path.join(slapd['sysconf_dir'], 'dirsrv/config/slapd-collations.conf')
         dstfile = os.path.join(slapd['config_dir'], 'slapd-collations.conf')
-        shutil.copy2(srcfile, dstfile)
+        shutil.copy(srcfile, dstfile)
         os.chown(dstfile, slapd['user_uid'], slapd['group_gid'])
         os.chmod(dstfile, 0o440)
 
         # Copy in the certmap configuration
         srcfile = os.path.join(slapd['sysconf_dir'], 'dirsrv/config/certmap.conf')
         dstfile = os.path.join(slapd['config_dir'], 'certmap.conf')
-        shutil.copy2(srcfile, dstfile)
+        shutil.copy(srcfile, dstfile)
         os.chown(dstfile, slapd['user_uid'], slapd['group_gid'])
         os.chmod(dstfile, 0o440)
 

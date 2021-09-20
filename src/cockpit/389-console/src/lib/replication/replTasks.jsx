@@ -2,18 +2,23 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd, bad_file_name } from "../tools.jsx";
 import { RUVTable } from "./replTables.jsx";
-import { ExportModal, ExportCLModal } from "./replModals.jsx";
+import { ExportCLModal } from "./replModals.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import PropTypes from "prop-types";
 import {
     Button,
-    Col,
-    ControlLabel,
     Form,
-    Icon,
-    noop,
-    Row,
-} from "patternfly-react";
+    Grid,
+    GridItem,
+    Text,
+    TextContent,
+    TextVariants,
+} from "@patternfly/react-core";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faSyncAlt
+} from '@fortawesome/free-solid-svg-icons';
+import '@fortawesome/fontawesome-svg-core/styles.css';
 
 export class ReplRUV extends React.Component {
     constructor(props) {
@@ -23,7 +28,7 @@ export class ReplRUV extends React.Component {
             errObj: {},
             rid: "",
             localRID: "",
-            ldifLocatio: "",
+            ldifLocation: "",
             saveOK: false,
             showConfirmCleanRUV: false,
             modalChecked: false,
@@ -49,7 +54,6 @@ export class ReplRUV extends React.Component {
         this.handleRadioChange = this.handleRadioChange.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.cleanRUV = this.cleanRUV.bind(this);
-        this.doExport = this.doExport.bind(this);
         this.exportChangelog = this.exportChangelog.bind(this);
         this.importChangelog = this.importChangelog.bind(this);
     }
@@ -109,6 +113,7 @@ export class ReplRUV extends React.Component {
         this.setState({
             saveOK: false,
             showConfirmExport: true,
+            ldifLocation: ""
         });
     }
 
@@ -118,7 +123,7 @@ export class ReplRUV extends React.Component {
         });
     }
 
-    handleRadioChange(e) {
+    handleRadioChange(_, e) {
         // Handle the changelog export options
         let defaultCL = false;
         let debugCL = false;
@@ -135,13 +140,13 @@ export class ReplRUV extends React.Component {
 
     cleanRUV () {
         // Enable/disable agmt
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-tasks', 'cleanallruv', '--replica-id=' + this.state.rid,
             '--force-cleaning', '--suffix=' + this.props.suffix];
 
         log_cmd('cleanRUV', 'Clean the rid', cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
@@ -150,7 +155,7 @@ export class ReplRUV extends React.Component {
                     this.closeConfirmCleanRUV();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Failed to start CleanAllRUV task - ${errMsg.desc}`
@@ -160,7 +165,7 @@ export class ReplRUV extends React.Component {
     }
 
     handleLDIFChange (e) {
-        let value = e.target.value;
+        const value = e.target.value;
         let saveOK = true;
         if (value == "" || bad_file_name(value)) {
             saveOK = false;
@@ -172,7 +177,7 @@ export class ReplRUV extends React.Component {
     }
 
     handleCLLDIFChange (e) {
-        let value = e.target.value;
+        const value = e.target.value;
         let saveOK = true;
         if (value == "" || value.indexOf(' ') >= 0) {
             saveOK = false;
@@ -184,53 +189,15 @@ export class ReplRUV extends React.Component {
     }
 
     handleChange (e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value,
         });
     }
 
-    doExport () {
-        // Do Export
-        let export_cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "export", this.props.suffix, "--ldif=" + this.state.ldifLocation,
-            '--replication', "--encrypted"
-        ];
-
-        this.setState({
-            exportSpinner: true,
-        });
-
-        log_cmd("doExport", "replication do online export", export_cmd);
-        cockpit
-                .spawn(export_cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.props.addNotification(
-                        "success",
-                        `Database export complete`
-                    );
-                    this.setState({
-                        showConfirmExport: false,
-                        exportSpinner: false,
-                    });
-                })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Error exporting database - ${errMsg.desc}`
-                    );
-                    this.setState({
-                        showConfirmExport: false,
-                        exportSpinner: false,
-                    });
-                });
-    }
-
     importChangelog () {
         // Do changelog import
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "import-changelog", "default", "--replica-root", this.props.suffix
         ];
@@ -253,7 +220,7 @@ export class ReplRUV extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error importing changelog LDIF - ${errMsg.desc}`
@@ -267,7 +234,7 @@ export class ReplRUV extends React.Component {
 
     exportChangelog () {
         // Do changelog export
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "export-changelog"
         ];
@@ -306,7 +273,7 @@ export class ReplRUV extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error importing changelog LDIF - ${errMsg.desc}`
@@ -321,14 +288,14 @@ export class ReplRUV extends React.Component {
     render() {
         // Strip out the local RUV and display it different then only allow
         // cleaning of remote rids
-        let remote_rows = [];
+        const remote_rows = [];
         let localRID = "";
         let localURL = "";
         let localCSN = "";
         let localRawCSN = "";
         let localMinCSN = "";
         let localRawMinCSN = "";
-        for (let row of this.props.rows) {
+        for (const row of this.props.rows) {
             if (row.rid == this.props.localRID) {
                 localRID = row.rid;
                 localURL = row.url;
@@ -342,46 +309,38 @@ export class ReplRUV extends React.Component {
         }
         let localRUV =
             <div className="ds-left-indent-md">
-                <Row className="ds-margin-top-med">
-                    <Col sm={2}>
-                        <ControlLabel>
-                            Replica ID
-                        </ControlLabel>
-                    </Col>
-                    <Col sm={10}>
+                <Grid className="ds-margin-top-med">
+                    <GridItem span={2}>
+                        Replica ID
+                    </GridItem>
+                    <GridItem span={10}>
                         <b>{localRID}</b>
-                    </Col>
-                </Row>
-                <Row>
-                    <Col sm={2}>
-                        <ControlLabel>
-                            LDAP URL
-                        </ControlLabel>
-                    </Col>
-                    <Col sm={10}>
+                    </GridItem>
+                </Grid>
+                <Grid>
+                    <GridItem span={2}>
+                        LDAP URL
+                    </GridItem>
+                    <GridItem span={10}>
                         <b>{localURL}</b>
-                    </Col>
-                </Row>
-                <Row>
-                    <Col sm={2}>
-                        <ControlLabel>
-                            Min CSN
-                        </ControlLabel>
-                    </Col>
-                    <Col sm={10}>
+                    </GridItem>
+                </Grid>
+                <Grid>
+                    <GridItem span={2}>
+                        Min CSN
+                    </GridItem>
+                    <GridItem span={10}>
                         <b>{localMinCSN}</b> ({localRawMinCSN})
-                    </Col>
-                </Row>
-                <Row>
-                    <Col sm={2}>
-                        <ControlLabel>
-                            Max CSN
-                        </ControlLabel>
-                    </Col>
-                    <Col sm={10}>
+                    </GridItem>
+                </Grid>
+                <Grid>
+                    <GridItem span={2}>
+                        Max CSN
+                    </GridItem>
+                    <GridItem span={10}>
                         <b>{localCSN}</b> ({localRawCSN})
-                    </Col>
-                </Row>
+                    </GridItem>
+                </Grid>
             </div>;
 
         if (localRID == "") {
@@ -395,98 +354,83 @@ export class ReplRUV extends React.Component {
 
         return (
             <div className="ds-margin-top-xlg ds-indent">
-                <ControlLabel className="ds-h4">
-                    Local RUV
-                    <Icon className="ds-left-margin ds-refresh"
-                        type="fa" name="refresh" title="Refresh the RUV for this suffix"
-                        onClick={() => {
-                            this.props.reload(this.props.suffix);
-                        }}
-                    />
-                </ControlLabel>
+                <TextContent>
+                    <Text component={TextVariants.h3}>
+                        Local RUV <FontAwesomeIcon
+                            size="lg"
+                            className="ds-left-margin ds-refresh"
+                            icon={faSyncAlt}
+                            title="RRefresh the RUV for this suffixs"
+                            onClick={() => {
+                                this.props.reload(this.props.suffix);
+                            }}
+                        />
+                    </Text>
+                </TextContent>
                 {localRUV}
-                <hr />
-                <Row className="ds-margin-top">
-                    <Col sm={12} className="ds-word-wrap">
-                        <ControlLabel className="ds-h4">
-                            Remote RUV's
-                            <Icon className="ds-left-margin ds-refresh"
-                                type="fa" name="refresh" title="Refresh the RUV for this suffix"
-                                onClick={() => {
-                                    this.props.reload(this.props.suffix);
-                                }}
-                            />
-                        </ControlLabel>
-                    </Col>
-                </Row>
-                <div className="ds-left-indent-md ds-margin-top-lg">
+                <TextContent className="ds-margin-top-xlg">
+                    <Text component={TextVariants.h3}>
+                        Remote RUV's <FontAwesomeIcon
+                            size="lg"
+                            className="ds-left-margin ds-refresh"
+                            icon={faSyncAlt}
+                            title="Refresh the remote RUVs for this suffixs"
+                            onClick={() => {
+                                this.props.reload(this.props.suffix);
+                            }}
+                        />
+                    </Text>
+                </TextContent>
+                <div className="ds-left-indent-md">
                     <RUVTable
                         rows={remote_rows}
                         confirmDelete={this.showConfirmCleanRUV}
                     />
                 </div>
-                <hr />
-                <h4 className="ds-margin-top-xlg">Create Replica Initialization LDIF File</h4>
-                <Form className="ds-margin-top-lg ds-left-indent-md" horizontal>
-                    <Row className="ds-margin-top-lg">
-                        <Col sm={3} componentClass={ControlLabel}>
-                            <Button
-                                bsStyle="primary"
-                                onClick={this.showConfirmExport}
-                                title="See Database Tab -> Backups & LDIFs to manage the new LDIF"
-                            >
-                                Export Replica
-                            </Button>
-                        </Col>
-                        <Col sm={8}>
-                            <p className="ds-margin-top">
-                                Export this suffix with the replication metadata to an LDIF file for initializing another replica.
-                            </p>
-                        </Col>
-                    </Row>
-                </Form>
-                <hr />
-                <h4 className="ds-margin-top-xlg">Replication Change Log Tasks</h4>
-                <Form className="ds-margin-top-lg ds-left-indent-md" horizontal>
-                    <Row className="ds-margin-top-lg">
-                        <Col
-                            sm={3} componentClass={ControlLabel}
+                <TextContent className="ds-margin-top-xlg">
+                    <Text component={TextVariants.h3}>
+                        Replication Change Log Tasks
+                    </Text>
+                </TextContent>
+                <Form className="ds-margin-top-lg ds-left-indent-md" isHorizontal>
+                    <Grid>
+                        <GridItem
+                            span={3}
                             title="Export the changelog to an LDIF file.  Typically used for changelog encryption purposes, or debugging."
                         >
                             <Button
-                                bsStyle="primary"
+                                variant="primary"
                                 onClick={this.showCLExport}
                             >
                                 Export Changelog
                             </Button>
-                        </Col>
-                        <Col sm={8}>
+                        </GridItem>
+                        <GridItem span={9}>
                             <p className="ds-margin-top">
                                 Export the replication changelog to a LDIF file.  Used for preparing to encrypt the changelog, or simply for debugging.
                             </p>
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top-lg">
-                        <Col
-                            sm={3} componentClass={ControlLabel}
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top-lg">
+                        <GridItem
+                            span={3}
                             title="Initialize the changelog with an LDIF file for changelog encryption purposes."
                         >
                             <Button
-                                bsStyle="primary"
+                                variant="primary"
                                 onClick={this.showConfirmCLImport}
                             >
                                 Import Changelog
                             </Button>
-                        </Col>
-                        <Col sm={8}>
+                        </GridItem>
+                        <GridItem span={9}>
                             <p className="ds-margin-top">
                                 Initialize the replication changelog from an LDIF file.  Used to initialize the change log after encryption has been enabled.
                             </p>
-                        </Col>
-                    </Row>
+                        </GridItem>
+                    </Grid>
                 </Form>
                 <hr />
-
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmCleanRUV}
                     closeHandler={this.closeConfirmCleanRUV}
@@ -513,14 +457,6 @@ export class ReplRUV extends React.Component {
                     mSpinningMsg="Initialzing Replication Change Log ..."
                     mBtnName="Import Changelog LDIF"
                 />
-                <ExportModal
-                    showModal={this.state.showConfirmExport}
-                    closeHandler={this.closeConfirmExport}
-                    handleChange={this.handleLDIFChange}
-                    saveHandler={this.doExport}
-                    spinning={this.state.exportSpinner}
-                    saveOK={this.state.saveOK}
-                />
                 <ExportCLModal
                     showModal={this.state.showCLExport}
                     closeHandler={this.closeCLExport}
@@ -536,7 +472,6 @@ export class ReplRUV extends React.Component {
                     spinning={this.state.exportSpinner}
                     saveOK={this.state.saveOK}
                 />
-
             </div>
         );
     }
@@ -555,7 +490,5 @@ ReplRUV.defaultProps = {
     serverId: "",
     suffix: "",
     rows: [],
-    addNotification: noop,
     localRID: "",
-    reload: noop,
 };

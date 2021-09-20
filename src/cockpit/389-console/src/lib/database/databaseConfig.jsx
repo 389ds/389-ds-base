@@ -1,22 +1,29 @@
 import cockpit from "cockpit";
 import React from "react";
-import CustomCollapse from "../customCollapse.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
+    Button,
     Checkbox,
-    Col,
-    ControlLabel,
-    Form,
-    Row,
+    ExpandableSection,
+    Grid,
+    GridItem,
+    TextInput,
     Spinner,
-    noop
-} from "patternfly-react";
+    Text,
+    TextContent,
+    TextVariants,
+    ValidatedOptions,
+} from "@patternfly/react-core";
+
 import PropTypes from "prop-types";
 
 export class GlobalDatabaseConfig extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            isExpanded: false,
+            saving: false,
+            saveBtnDisabled: true,
             db_cache_auto: this.props.data.db_cache_auto,
             import_cache_auto: this.props.data.import_cache_auto,
             looklimit: this.props.data.looklimit,
@@ -61,27 +68,20 @@ export class GlobalDatabaseConfig extends React.Component {
             _db_cache_auto: this.props.data.db_cache_auto,
             _import_cache_auto: this.props.data.import_cache_auto,
         };
+
         this.handleChange = this.handleChange.bind(this);
         this.select_db_locks_monitoring = this.select_db_locks_monitoring.bind(this);
-        this.select_auto_cache = this.select_auto_cache.bind(this);
-        this.select_auto_import_cache = this.select_auto_import_cache.bind(this);
         this.save_db_config = this.save_db_config.bind(this);
+
+        this.onToggle = (isExpanded) => {
+            this.setState({
+                isExpanded
+            });
+        };
     }
 
     componentDidMount() {
         this.props.enableTree();
-    }
-
-    select_auto_cache (e) {
-        this.setState({
-            db_cache_auto: !this.state.db_cache_auto
-        }, this.handleChange(e));
-    }
-
-    select_auto_import_cache (e) {
-        this.setState({
-            import_cache_auto: !this.state.import_cache_auto
-        }, this.handleChange(e));
     }
 
     select_db_locks_monitoring (val, e) {
@@ -90,17 +90,39 @@ export class GlobalDatabaseConfig extends React.Component {
         }, this.handleChange(val, e));
     }
 
-    handleChange(e) {
+    handleChange(str, e) {
         // Generic
+        let saveBtnDisabled = true;
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+        const check_attrs = [
+            "db_cache_auto", "import_cache_auto", "looklimit",
+            "idscanlimit", "pagelooklimit", "pagescanlimit",
+            "rangelooklimit", "autosize", "autosizesplit",
+            "dbcachesize", "txnlogdir", "dbhomedir",
+            "dblocks", "dblocksMonitoring", "dblocksMonitoringThreshold",
+            "dblocksMonitoringPause", "chxpoint", "compactinterval",
+            "compacttime", "importcachesize", "importcacheauto",
+        ];
+        for (const check_attr of check_attrs) {
+            if (attr != check_attr) {
+                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                    saveBtnDisabled = false;
+                }
+            } else if (value != this.state['_' + check_attr]) {
+                saveBtnDisabled = false;
+            }
+        }
+
         this.setState({
-            [e.target.id]: value
+            [attr]: value,
+            saveBtnDisabled: saveBtnDisabled
         });
     }
 
     save_db_config() {
         // Build up the command list
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'backend', 'config', 'set'
         ];
@@ -215,27 +237,32 @@ export class GlobalDatabaseConfig extends React.Component {
             cmd.push("--import-cachesize=" + this.state.importcachesize);
         }
         if (cmd.length > 6) {
+            this.setState({
+                saving: true
+            });
             log_cmd("save_db_config", "Applying config change", cmd);
-            let msg = "Successfully updated database configuration";
+            const msg = "Successfully updated database configuration";
             cockpit
-                    .spawn(cmd, {superuser: true, "err": "message"})
+                    .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
                         // Continue with the next mod
                         this.props.reload();
-                        this.props.addNotification(
-                            "success",
-                            msg
-                        );
+                        this.setState({
+                            saving: false
+                        });
                         if (requireRestart) {
                             this.props.addNotification(
                                 "warning",
-                                `You must restart the Directory Server for these changes to take effect.`
+                                msg + ". You must restart the Directory Server for these changes to take effect."
                             );
                         }
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.reload();
+                        this.setState({
+                            saving: false
+                        });
                         this.props.addNotification(
                             "error",
                             `Error updating configuration - ${errMsg.desc}`
@@ -250,295 +277,482 @@ export class GlobalDatabaseConfig extends React.Component {
         let db_auto_checked = false;
         let import_auto_checked = false;
         let dblocksMonitor = "";
+        const dblocksThreshold = this.state.dblocksMonitoringThreshold;
+        const dblocksPause = this.state.dblocksMonitoringPause;
 
         if (this.state.dblocksMonitoring) {
-            dblocksMonitor = <div className="ds-margin-top">
-                <Row className="ds-margin-top" title="Sets the DB lock exhaustion threshold in percentage (valid range is 70-95). When the threshold is reached, all searches are aborted until the number of active locks decreases below the configured threshold and/or the directory server administrator increases the number of Database Locks (nsslapd-db-locks). This threshold is a safeguard against DB corruption which might be caused by locks exhaustion. (nsslapd-db-locks-monitoring-threshold) ('90' by default)">
-                    <Col componentClass={ControlLabel} sm={4}>
-                        DB Locks Threshold Percentage
-                    </Col>
-                    <Col sm={8}>
-                        <input className="ds-input" type="number" id="dblocksMonitoringThreshold" size="10" onChange={this.handleChange} value={this.state.dblocksMonitoringThreshold} />
-                    </Col>
-                </Row>
-                <Row className="ds-margin-top" title="Sets the amount of time (milliseconds) that the DB lock monitoring thread spends waiting between checks. (nsslapd-db-locks-monitoring-pause) ('500' by default)">
-                    <Col componentClass={ControlLabel} sm={4}>
-                        DB Locks Pause Milliseconds
-                    </Col>
-                    <Col sm={8}>
-                        <input className="ds-input" type="number" id="dblocksMonitoringPause" size="10" onChange={this.handleChange} value={this.state.dblocksMonitoringPause} />
-                    </Col>
-                </Row>
-            </div>;
+            dblocksMonitor =
+                <div className="ds-margin-left ds-margin-top">
+                    <Grid
+                        title="Sets the DB lock exhaustion value in percentage (valid range is 70-95). If too many locks are acquired, the server will abort the searches while the number of locks are not decreased. It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold)."
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            DB Locks Threshold Percentage
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                id="dblocksMonitoringThreshold"
+                                name="dblocksMonitoringThreshold"
+                                type="number"
+                                aria-describedby="dblocksMonitoringThreshold"
+                                value={dblocksThreshold}
+                                onChange={this.handleChange}
+                                validated={parseInt(dblocksThreshold) < 70 || parseInt(dblocksThreshold) > 95 ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="Sets the amount of time (milliseconds) that the monitoring thread spends waiting between checks. (nsslapd-db-locks-monitoring-pause)."
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            DB Locks Pause Milliseconds
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                id="dblocksMonitoringPause"
+                                name="dblocksMonitoringPause"
+                                type="number"
+                                aria-describedby="dblocksMonitoringPause"
+                                value={dblocksPause}
+                                onChange={this.handleChange}
+                                validated={parseInt(dblocksPause) < 1 ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                </div>;
         }
 
         if (this.state.db_cache_auto) {
-            db_cache_form = <div id="auto-cache-form" className="ds-margin-left">
-                <div>
-                    <label htmlFor="autosize" className="ds-config-label-xlrg"
-                        title="Enable database and entry cache auto-tuning using a percentage of the system's current resources (nsslapd-cache-autosize).">
-                        Memory Percentage</label><input className="ds-input" type="text"
-                        id="autosizee" size="10" onChange={this.handleChange}
-                        value={this.state.autosize} />
-                </div>
-                <div>
-                    <label htmlFor="autosizesplit" className="ds-config-label-xlrg"
-                        title="Sets the percentage of memory that is used for the database cache. The remaining percentage is used for the entry cache (nsslapd-cache-autosize-split).">
-                        DB Cache Percentage</label><input className="ds-input" type="text"
-                        id="autosizesplit" size="10" onChange={this.handleChange}
-                        value={this.state.autosizesplit} />
-                </div>
-            </div>;
+            db_cache_form =
+                <div className="ds-margin-left">
+                    <Grid
+                        title="Enable database and entry cache auto-tuning using a percentage of the system's current resources (nsslapd-cache-autosize)."
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={6}>
+                            Memory Percentage
+                        </GridItem>
+                        <GridItem span={6}>
+                            <TextInput
+                                value={this.state.autosize}
+                                type="number"
+                                id="autosize"
+                                aria-describedby="autosize"
+                                name="autosize"
+                                onChange={this.handleChange}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="Sets the percentage of memory that is used for the database cache. The remaining percentage is used for the entry cache (nsslapd-cache-autosize-split)."
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={6}>
+                            DB Cache Percentage
+                        </GridItem>
+                        <GridItem span={6}>
+                            <TextInput
+                                value={this.state.autosizesplit}
+                                type="number"
+                                id="autosizesplit"
+                                aria-describedby="autosizesplit"
+                                name="autosizesplit"
+                                onChange={this.handleChange}
+                            />
+                        </GridItem>
+                    </Grid>
+                </div>;
             db_auto_checked = true;
         } else {
-            db_cache_form = <div id="manual-cache-form" className="ds-margin-left">
-                <label htmlFor="dbcachesize" className="ds-config-label-xlrg"
-                    title="Specifies the database index cache size in bytes (nsslapd-dbcachesize).">
-                    Database Cache Size</label><input className="ds-input" type="text"
-                    id="dbcachesize" size="10" onChange={this.handleChange} value={this.state.dbcachesize} />
+            db_cache_form = <div className="ds-margin-left">
+                <Grid
+                    title="Specifies the database index cache size in bytes (nsslapd-dbcachesize)."
+                    className="ds-margin-top"
+                >
+                    <GridItem className="ds-label" span={6}>
+                        Database Cache Size
+                    </GridItem>
+                    <GridItem span={6}>
+                        <TextInput
+                            value={this.state.dbcachesize}
+                            type="number"
+                            id="dbcachesize"
+                            aria-describedby="dbcachesize"
+                            name="dbcachesize"
+                            onChange={this.handleChange}
+                        />
+                    </GridItem>
+                </Grid>
             </div>;
             db_auto_checked = false;
         }
 
         if (this.state.import_cache_auto) {
-            import_cache_form = <div id="auto-import-cache-form" className="ds-margin-left">
-                <label htmlFor="importcacheauto" className="ds-config-label-xlrg"
-                    title="Enter '-1' to use 50% of available memory, '0' to disable autotuning, or enter the percentage of available memory to use.  Value range -1 through 100, default is '-1' (nsslapd-import-cache-autosize).">
-                    Import Cache Autosize</label><input className="ds-input" type="text"
-                    id="importcacheauto" size="10"
-                    onChange={this.handleChange} value={this.state.importcacheauto} />
-            </div>;
+            import_cache_form =
+                <div id="auto-import-cache-form" className="ds-margin-left">
+                    <Grid
+                        title="Enter '-1' to use 50% of available memory, '0' to disable autotuning, or enter the percentage of available memory to use.  Value range -1 through 100, default is '-1' (nsslapd-import-cache-autosize)."
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={6}>
+                            Import Cache Autosize
+                        </GridItem>
+                        <GridItem span={6}>
+                            <TextInput
+                                value={this.state.importcacheauto}
+                                type="number"
+                                id="importcacheauto"
+                                aria-describedby="importcacheauto"
+                                name="importcacheauto"
+                                onChange={this.handleChange}
+                            />
+                        </GridItem>
+                    </Grid>
+                </div>;
             import_auto_checked = true;
         } else {
-            import_cache_form = <div id="manual-import-cache-form" className="ds-margin-left">
-                <label htmlFor="importcachesize" className="ds-config-label-xlrg"
-                    title="The size of the database cache in bytes used in the bulk import process. (nsslapd-import-cachesize).">
-                    Import Cache Size</label><input className="ds-input" type="text" id="importcachesize"
-                    size="10" onChange={this.handleChange} value={this.state.importcachesize} />
-            </div>;
+            import_cache_form =
+                <div className="ds-margin-left">
+                    <Grid
+                        title="The size of the database cache in bytes used in the bulk import process. (nsslapd-import-cachesize)."
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={6}>
+                            Import Cache Size
+                        </GridItem>
+                        <GridItem span={6}>
+                            <TextInput
+                                value={this.state.importcachesize}
+                                type="number"
+                                id="importcachesize"
+                                aria-describedby="importcachesize"
+                                name="importcachesize"
+                                onChange={this.handleChange}
+                            />
+                        </GridItem>
+                    </Grid>
+                </div>;
             import_auto_checked = false;
         }
 
         let spinner = "";
         if (this.state.loading) {
             spinner =
-                <div className="ds-loading-spinner ds-margin-top ds-center">
-                    <h4>Loading global database configuration ...</h4>
+                <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading global database configuration ...
+                        </Text>
+                    </TextContent>
                     <Spinner className="ds-margin-top" loading size="md" />
                 </div>;
         }
 
+        let saveBtnName = "Save Config";
+        const extraPrimaryProps = {};
+        if (this.props.refreshing) {
+            saveBtnName = "Saving config ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
+
         return (
-            <div id="db-global-page">
+            <div className={this.state.saving ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"} id="db-global-page">
                 {spinner}
                 <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein'}>
-                    <h3 className="ds-config-header">Global Database Configuration</h3>
-                    <hr />
-                    <Form horizontal>
-                        <Row
-                            title="The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit)."
-                            className="ds-margin-top"
-                        >
-                            <Col componentClass={ControlLabel} sm={5}>
-                                Database Look Though Limit
-                            </Col>
-                            <Col sm={4}>
-                                <input
-                                    id="looklimit"
-                                    value={this.state.looklimit}
-                                    onChange={this.handleChange} className="ds-input-auto" type="text"
-                                />
-                            </Col>
-                        </Row>
-                        <Row
-                            title="The number of entry IDs that are searched during a search operation (nsslapd-idlistscanlimit)."
-                            className="ds-margin-top"
-                        >
-                            <Col componentClass={ControlLabel} sm={5}>
-                                ID List Scan Limit
-                            </Col>
-                            <Col sm={4}>
-                                <input
-                                    id="idscanlimit"
-                                    value={this.state.idscanlimit}
-                                    onChange={this.handleChange} className="ds-input-auto" type="text"
-                                />
-                            </Col>
-                        </Row>
-                        <Row
-                            title="The maximum number of entries that the Directory Server will check when examining candidate entries for a search which uses the simple paged results control (nsslapd-pagedlookthroughlimit)."
-                            className="ds-margin-top"
-                        >
-                            <Col componentClass={ControlLabel} sm={5}>
-                                Paged Search Look Through Limit
-                            </Col>
-                            <Col sm={4}>
-                                <input
-                                    id="pagelooklimit"
-                                    value={this.state.pagelooklimit}
-                                    onChange={this.handleChange} className="ds-input-auto" type="text"
-                                />
-                            </Col>
-                        </Row>
-                        <Row
-                            title="The number of entry IDs that are searched, specifically, for a search operation using the simple paged results control (nsslapd-pagedidlistscanlimit)."
-                            className="ds-margin-top"
-                        >
-                            <Col componentClass={ControlLabel} sm={5}>
-                                Paged Search ID List Scan Limit
-                            </Col>
-                            <Col sm={4}>
-                                <input
-                                    id="pagescanlimit"
-                                    value={this.state.pagescanlimit}
-                                    onChange={this.handleChange} className="ds-input-auto" type="text"
-                                />
-                            </Col>
-                        </Row>
-                        <Row
-                            title="The maximum number of entries that the Directory Server will check when examining candidate entries in response to a range search request (nsslapd-rangelookthroughlimit)."
-                            className="ds-margin-top"
-                        >
-                            <Col componentClass={ControlLabel} sm={5}>
-                                Range Search Look Through Limit
-                            </Col>
-                            <Col sm={4}>
-                                <input
-                                    id="rangelooklimit"
-                                    value={this.state.rangelooklimit}
-                                    onChange={this.handleChange} className="ds-input-auto" type="text"
-                                />
-                            </Col>
-                        </Row>
-                    </Form>
+                    <TextContent>
+                        <Text className="ds-config-header" component={TextVariants.h2}>
+                            Global Database Configuration
+                        </Text>
+                    </TextContent>
+                    <Grid
+                        title="The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit)."
+                        className="ds-margin-top-lg"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Database Look Though Limit
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={this.state.looklimit}
+                                type="number"
+                                id="looklimit"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="looklimit"
+                                onChange={this.handleChange}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="The number of entry IDs that are searched during a search operation (nsslapd-idlistscanlimit)."
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            ID List Scan Limit
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={this.state.idscanlimit}
+                                type="number"
+                                id="idscanlimit"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="idscanlimit"
+                                onChange={this.handleChange}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="The maximum number of entries that the Directory Server will check when examining candidate entries for a search which uses the simple paged results control (nsslapd-pagedlookthroughlimit)."
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Paged Search Look Through Limit
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={this.state.pagelooklimit}
+                                type="number"
+                                id="pagelooklimit"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="pagelooklimit"
+                                onChange={this.handleChange}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="The number of entry IDs that are searched, specifically, for a search operation using the simple paged results control (nsslapd-pagedidlistscanlimit)."
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Paged Search ID List Scan Limit
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={this.state.pagescanlimit}
+                                type="number"
+                                id="pagescanlimit"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="pagescanlimit"
+                                onChange={this.handleChange}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="The maximum number of entries that the Directory Server will check when examining candidate entries in response to a range search request (nsslapd-rangelookthroughlimit)."
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Range Search Look Through Limit
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={this.state.rangelooklimit}
+                                type="number"
+                                id="rangelooklimit"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="rangelooklimit"
+                                onChange={this.handleChange}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top-xlg">
+                        <GridItem span={6}>
+                            <TextContent>
+                                <Text className="ds-sub-header" component={TextVariants.h3}>
+                                    Database Cache Settings
+                                </Text>
+                            </TextContent>
+                            <hr />
+                        </GridItem>
+                        <GridItem span={6}>
+                            <TextContent>
+                                <Text className="ds-sub-header" component={TextVariants.h3}>
+                                    Import Cache Settings
+                                </Text>
+                            </TextContent>
+                            <hr />
+                        </GridItem>
 
-                    <div className="ds-container">
-                        <Form className="container-fluid" horizontal>
-                            <Row>
-                                <Col sm={5}>
-                                    <h4 className="ds-sub-header">Database Cache Settings</h4>
-                                    <hr />
-                                </Col>
-                                <Col sm={1} />
-                                <Col sm={5}>
-                                    <h4 className="ds-sub-header">Import Cache Settings</h4>
-                                    <hr />
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col sm={5}>
-                                    <Checkbox title="Set Database/Entry to be set automatically"
-                                        id="autoCacheChkbox"
-                                        checked={db_auto_checked}
-                                        onChange={this.select_auto_cache}
-                                    >
-                                        Automatic Cache Tuning
-                                    </Checkbox>
-                                </Col>
-                                <Col sm={1} />
-                                <Col sm={5}>
-                                    <Checkbox title="Set input to be set automatically"
-                                        id="autoImportCacheChkbox"
-                                        checked={import_auto_checked}
-                                        onChange={ this.select_auto_import_cache}
-                                    >
-                                        Automatic Import Cache Tuning
-                                    </Checkbox>
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={6}>
-                                    {db_cache_form}
-                                </Col>
+                        <GridItem span={6}>
+                            <Checkbox
+                                label="Automatic Cache Tuning"
+                                onChange={this.handleChange}
+                                isChecked={db_auto_checked}
+                                aria-label="uncontrolled checkbox example"
+                                id="db_cache_auto"
+                            />
+                        </GridItem>
+                        <GridItem span={6}>
+                            <Checkbox
+                                label="Automatic Import Cache Tuning"
+                                title="Set import cache to be set automatically"
+                                onChange={this.handleChange}
+                                isChecked={import_auto_checked}
+                                aria-label="uncontrolled checkbox example"
+                                id="import_cache_auto"
+                            />
+                        </GridItem>
 
-                                <Col sm={6}>
-                                    {import_cache_form}
-                                </Col>
-                            </Row>
-                        </Form>
-                    </div>
-                    <CustomCollapse>
-                        <div className="ds-margin-top">
-                            <div className="ds-margin-left">
-                                <Form horizontal>
-                                    <Row className="ds-margin-top" title="Database Transaction Log Location (nsslapd-db-logdirectory).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Transaction Logs Directory
-                                        </Col>
-                                        <Col sm={8}>
-                                            <input id="txnlogdir" value={this.state.txnlogdir} onChange={this.handleChange} className="ds-input-auto" type="text" />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="Location for database memory mapped files.  You must specify a subdirectory of a tempfs type filesystem (nsslapd-db-home-directory).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Database Home Directory
-                                        </Col>
-                                        <Col sm={8}>
-                                            <input id="dbhomedir" value={this.state.dbhomedir} onChange={this.handleChange} className="ds-input-auto" type="text" />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="Amount of time in seconds after which the Directory Server sends a checkpoint entry to the database transaction log (nsslapd-db-checkpoint-interval).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Database Checkpoint Interval
-                                        </Col>
-                                        <Col sm={8}>
-                                            <input id="chxpoint" value={this.state.chxpoint} onChange={this.handleChange} className="ds-input-auto" type="text" />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Database Compact Interval
-                                        </Col>
-                                        <Col sm={8}>
-                                            <input id="compactinterval" value={this.state.compactinterval} onChange={this.handleChange} className="ds-input-auto" type="number" />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="The Time Of Day to perform the database compaction after the compact interval has been met.  Uses the format: 'HH:MM' and defaults to '23:59'. (nsslapd-db-compactdb-time)">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Database Compact Time
-                                        </Col>
-                                        <Col sm={8}>
-                                            <input id="compacttime" value={this.state.compacttime} onChange={this.handleChange} className="ds-input-auto" type="number" />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="The number of database locks (nsslapd-db-locks).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Database Locks
-                                        </Col>
-                                        <Col sm={8}>
-                                            <input id="dblocks" value={this.state.dblocks} onChange={this.handleChange} className="ds-input-auto" type="text" />
-                                        </Col>
-                                    </Row>
-                                    <Row>
-                                        <Col sm={12}>
-                                            <h5 className="ds-sub-header">DB Locks Monitoring</h5>
-                                            <hr />
-                                        </Col>
-                                    </Row>
-                                    <Row>
-                                        <Col sm={12}>
-                                            <Checkbox title="Set input to be set automatically"
-                                                id="dblocksMonitoring"
-                                                checked={this.state.dblocksMonitoring}
-                                                onChange={this.select_db_locks_monitoring}
-                                            >
-                                                Enable Monitoring
-                                            </Checkbox>
-                                        </Col>
-                                    </Row>
-                                    <Row>
-                                        <Col sm={12}>
-                                            {dblocksMonitor}
-                                        </Col>
-                                    </Row>
-                                </Form>
-                            </div>
+                        <GridItem span={5}>
+                            {db_cache_form}
+                        </GridItem>
+                        <GridItem span={1} />
+                        <GridItem span={5}>
+                            {import_cache_form}
+                        </GridItem>
+                    </Grid>
+
+                    <ExpandableSection
+                        className="ds-margin-top-xlg"
+                        toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                        onToggle={this.onToggle}
+                        isExpanded={this.state.isExpanded}
+                    >
+                        <div className="ds-left-indent-md">
+                            <Grid
+                                title="Database Transaction Log Location (nsslapd-db-logdirectory)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Transaction Logs Directory
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.txnlogdir}
+                                        type="text"
+                                        id="txnlogdir"
+                                        aria-describedby="txnlogdir"
+                                        name="txnlogdir"
+                                        onChange={this.handleChange}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Location for database memory mapped files.  You must specify a subdirectory of a tempfs type filesystem (nsslapd-db-home-directory)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Database Home Directory
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.dbhomedir}
+                                        type="text"
+                                        id="dbhomedir"
+                                        aria-describedby="dbhomedir"
+                                        name="dbhomedir"
+                                        onChange={this.handleChange}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Amount of time in seconds after which the Directory Server sends a checkpoint entry to the database transaction log (nsslapd-db-checkpoint-interval)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Database Checkpoint Interval
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.chxpoint}
+                                        type="number"
+                                        id="chxpoint"
+                                        aria-describedby="chxpoint"
+                                        name="chxpoint"
+                                        onChange={this.handleChange}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval).  The default is 30 days at midnight."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Database Compaction Interval
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.compactinterval}
+                                        type="number"
+                                        id="compactinterval"
+                                        aria-describedby="compactinterval"
+                                        name="compactinterval"
+                                        onChange={this.handleChange}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The Time Of Day to perform the database compaction after the compact interval has been met.  Uses the format: 'HH:MM' and defaults to '23:59'. (nsslapd-db-compactdb-time)"
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Database Compaction Time
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.compacttime}
+                                        type="text"
+                                        id="compacttime"
+                                        aria-describedby="compacttime"
+                                        name="compacttime"
+                                        onChange={this.handleChange}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The number of database locks (nsslapd-db-locks)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Database Compaction Time
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.dblocks}
+                                        type="number"
+                                        id="dblocks"
+                                        aria-describedby="dblocks"
+                                        name="dblocks"
+                                        onChange={this.handleChange}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid className="ds-margin-top-xlg">
+                                <GridItem span={12}>
+                                    <TextContent>
+                                        <Text className="ds-sub-header" component={TextVariants.h3}>
+                                            DB Locks Monitoring
+                                        </Text>
+                                    </TextContent>
+                                    <hr />
+                                </GridItem>
+                                <GridItem span={12}>
+                                    <Checkbox
+                                        label="Enable Monitoring"
+                                        id="dblocksMonitoring"
+                                        isChecked={this.state.dblocksMonitoring}
+                                        onChange={this.select_db_locks_monitoring}
+                                        aria-label="uncontrolled checkbox example"
+                                    />
+                                </GridItem>
+                                <GridItem span={12}>
+                                    {dblocksMonitor}
+                                </GridItem>
+                            </Grid>
                         </div>
-                    </CustomCollapse>
-                    <div className="ds-margin-top-lg">
-                        <button className="btn btn-primary save-button"
-                            onClick={this.save_db_config}>Save Configuration</button>
-                    </div>
+                    </ExpandableSection>
+                    <Button
+                        className="ds-margin-top-lg"
+                        onClick={this.save_db_config}
+                        variant="primary"
+                        isLoading={this.state.saving}
+                        spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={this.state.saveBtnDisabled}
+                    >
+                        {saveBtnName}
+                    </Button>
                 </div>
             </div>
         );
@@ -557,8 +771,5 @@ GlobalDatabaseConfig.propTypes = {
 
 GlobalDatabaseConfig.defaultProps = {
     serverId: "",
-    addNotification: noop,
     data: {},
-    reload: noop,
-    enableTree: noop,
 };

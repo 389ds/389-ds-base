@@ -325,7 +325,7 @@ only.
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         try:
-            certdetails = ensure_str(check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8'))
+            certdetails = check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
         except subprocess.CalledProcessError as e:
             raise ValueError(e.output.decode('utf-8').rstrip())
         end_date_str = certdetails.split("Not After : ")[1].split("\n")[0]

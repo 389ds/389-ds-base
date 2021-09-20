@@ -1,6 +1,7 @@
+import "./css/patternfly-4-cockpit.scss";
+import "core-js/stable";
 import React from "react";
 import ReactDOM from "react-dom";
-import "./patternfly/patternfly-cockpit.scss";
 import "./css/ds.css";
 import "./css/branding.css";
 import { DSInstance } from "./ds.jsx";

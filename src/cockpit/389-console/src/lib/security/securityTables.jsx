@@ -1,14 +1,20 @@
 import React from "react";
 import {
-    // Button,
-    DropdownButton,
-    MenuItem,
-    actionHeaderCellFormatter,
-    sortableHeaderCellFormatter,
-    tableCellFormatter,
-    noop
-} from "patternfly-react";
-import { DSTable } from "../dsTable.jsx";
+    Grid,
+    GridItem,
+    Pagination,
+    PaginationVariant,
+    SearchInput,
+} from '@patternfly/react-core';
+import {
+    expandable,
+    Table,
+    TableHeader,
+    TableBody,
+    TableVariant,
+    sortable,
+    SortByDirection,
+} from '@patternfly/react-table';
 import PropTypes from "prop-types";
 
 class CertTable extends React.Component {
@@ -16,225 +22,240 @@ class CertTable extends React.Component {
         super(props);
 
         this.state = {
-            rowKey: "nickname",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
+            dropdownIsOpen: false,
             columns: [
                 {
-                    property: "nickname",
-                    header: {
-                        label: "Certificate Name",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
+                    title: 'Nickname',
+                    transforms: [sortable],
+                    cellFormatters: [expandable]
                 },
-                {
-                    property: "subject",
-                    header: {
-                        label: "Subject DN",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "issuer",
-                    header: {
-                        label: "Issued By",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "flags",
-                    header: {
-                        label: "Trust Flags",
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "expires",
-                    header: {
-                        label: "Expiration Date",
-                        props: {
-                            index: 4,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 4
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "action",
-                    header: {
-                        label: "",
-                        props: {
-                            index: 5,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 5
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.nickname[0]}>
-                                        <DropdownButton id={rowData.nickname[0]}
-                                            className="ds-action-button"
-                                            bsStyle="primary" title="Actions">
-                                            <MenuItem eventKey="1" onClick={() => {
-                                                this.props.editCert(rowData);
-                                            }}
-                                            >
-                                                Edit Trust Flags
-                                            </MenuItem>
-                                            <MenuItem divider />
-                                            <MenuItem eventKey="2" onClick={() => {
-                                                this.props.delCert(rowData);
-                                            }}
-                                            >
-                                                Delete Certificate
-                                            </MenuItem>
-                                        </DropdownButton>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
+                { title: 'Subject DN', transforms: [sortable] },
+                { title: 'Expiration Date', transforms: [sortable] },
+            ],
         };
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
+
+        this.onSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.onPerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage: perPage,
+                page: 1
+            });
+        };
+
+        this.onSort = this.onSort.bind(this);
+        this.onCollapse = this.onCollapse.bind(this);
+        this.onSearchChange = this.onSearchChange.bind(this);
     }
 
-    getSingleColumn () {
+    onSort(_event, index, direction) {
+        const sorted_rows = [];
+        const rows = [];
+        let count = 0;
+
+        // Convert the rows pairings into a sortable array based on the column indexes
+        for (let idx = 0; idx < this.state.rows.length; idx += 2) {
+            sorted_rows.push({
+                expandedRow: this.state.rows[idx + 1],
+                1: this.state.rows[idx].cells[0],
+                2: this.state.rows[idx].cells[1],
+                3: this.state.rows[idx].cells[2],
+                issuer: this.state.rows[idx].issuer,
+                flags: this.state.rows[idx].flags
+            });
+        }
+
+        // Sort the rows and build the new rows
+        sorted_rows.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
+        if (direction !== SortByDirection.asc) {
+            sorted_rows.reverse();
+        }
+        for (const srow of sorted_rows) {
+            rows.push({
+                isOpen: false,
+                cells: [
+                    srow[1], srow[2], srow[3]
+                ],
+                issuer: srow.issuer,
+                flags: srow.flags,
+            });
+            srow.expandedRow.parent = count; // reset parent idx
+            rows.push(srow.expandedRow);
+            count += 2;
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: rows,
+            page: 1,
+        });
+    }
+
+    getExpandedRow(issuer, flags) {
+        return (
+            <Grid className="ds-left-indent-lg">
+                <GridItem span={3}>Issuer DN:</GridItem>
+                <GridItem span={9}><b>{issuer}</b></GridItem>
+                <GridItem span={3}>Trust Flags:</GridItem>
+                <GridItem span={9}><b>{flags}</b></GridItem>
+
+            </Grid>
+        );
+    }
+
+    componentDidMount() {
+        let rows = [];
+        let columns = this.state.columns;
+        let count = 0;
+
+        for (const cert of this.props.certs) {
+            rows.push(
+                {
+                    isOpen: false,
+                    cells: [cert.attrs.nickname, cert.attrs.subject, cert.attrs.expires],
+                    issuer: cert.attrs.issuer,
+                    flags: cert.attrs.flags,
+
+                },
+                {
+                    parent: count,
+                    fullWidth: true,
+                    cells: [{ title: this.getExpandedRow(cert.attrs.issuer, cert.attrs.flags) }]
+                },
+            );
+            count += 2;
+        }
+        if (rows.length == 0) {
+            rows = [{ cells: ['No Certificates'] }];
+            columns = [{ title: 'Certificates' }];
+        }
+        this.setState({
+            rows: rows,
+            columns: columns
+        });
+    }
+
+    onCollapse(event, rowKey, isOpen) {
+        const { rows, perPage, page } = this.state;
+        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        rows[index].isOpen = isOpen;
+        this.setState({
+            rows
+        });
+    }
+
+    onSearchChange(value, event) {
+        const rows = [];
+        let count = 0;
+
+        for (const cert of this.props.certs) {
+            const val = value.toLowerCase();
+
+            // Check for matches of all the parts
+            if (val != "" && cert.attrs.nickname.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.subject.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.issuer.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.expires.toLowerCase().indexOf(val) == -1) {
+                // Not a match
+                continue;
+            }
+
+            rows.push(
+                {
+                    isOpen: false,
+                    cells: [cert.attrs.nickname, cert.attrs.subject, cert.attrs.expires],
+                    issuer: cert.attrs.issuer,
+                    flags: cert.attrs.flags,
+
+                },
+                {
+                    parent: count,
+                    fullWidth: true,
+                    cells: [{ title: this.getExpandedRow(cert.attrs.issuer, cert.attrs.flags) }]
+                },
+            );
+            count += 2;
+        }
+
+        this.setState({
+            rows: rows,
+            value: value,
+            page: 1,
+        });
+    }
+
+    actions() {
         return [
             {
-                property: "msg",
-                header: {
-                    label: "Certificates",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+                title: 'Edit Trust Flags',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.editCert(rowData.cells[0], rowData.flags)
             },
+            {
+                title: 'Delete Certificate',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.delCert(rowData.cells[0])
+            }
         ];
     }
 
-    getColumns() {
-        return this.state.columns;
-    }
-
     render() {
-        let certRows = [];
-        let serverTable;
-        for (let cert of this.props.certs) {
-            let obj = {
-                'nickname': [cert.attrs['nickname']],
-                'subject': [cert.attrs['subject']],
-                'issuer': [cert.attrs['issuer']],
-                'expires': [cert.attrs['expires']],
-                'flags': [cert.attrs['flags']],
-            };
-            certRows.push(obj);
-        }
+        const { perPage, page, sortBy, rows, columns } = this.state;
+        const origRows = [...rows];
+        const startIdx = ((perPage * page) - perPage) * 2;
+        const tableRows = origRows.splice(startIdx, perPage * 2);
 
-        if (certRows.length == 0) {
-            serverTable = <DSTable
-                getColumns={this.getSingleColumn}
-                rowKey={"msg"}
-                rows={[{msg: "No Certificates"}]}
-                key={"nocerts"}
-            />;
-        } else {
-            serverTable = <DSTable
-                getColumns={this.getColumns}
-                rowKey={this.state.rowKey}
-                rows={certRows}
-                key={certRows}
-                disableLoadingSpinner
-            />;
+        for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
+            // Rewrite parent index to match new spliced array
+            tableRows[idx].parent = count;
         }
 
         return (
-            <div>
-                {serverTable}
+            <div className="ds-margin-top-lg">
+                <SearchInput
+                    placeholder='Search Certificates'
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
+                <Table
+                    className="ds-margin-top"
+                    aria-label="cert table"
+                    cells={columns}
+                    key={tableRows}
+                    rows={tableRows}
+                    variant={TableVariant.compact}
+                    sortBy={sortBy}
+                    onSort={this.onSort}
+                    onCollapse={this.onCollapse}
+                    actions={tableRows.length > 0 ? this.actions() : null}
+                    dropdownPosition="right"
+                    dropdownDirection="bottom"
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+                <Pagination
+                    itemCount={this.state.rows.length / 2}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant={PaginationVariant.bottom}
+                    onSetPage={this.onSetPage}
+                    onPerPageSelect={this.onPerPageSelect}
+                />
             </div>
         );
     }
@@ -246,188 +267,166 @@ class CRLTable extends React.Component {
         super(props);
 
         this.state = {
-            rowKey: "name",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
+            dropdownIsOpen: false,
             columns: [
-                {
-                    property: "name",
-                    header: {
-                        label: "Issued By",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "effective",
-                    header: {
-                        label: "Effective Date",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "nextUpdate",
-                    header: {
-                        label: "Next Updateo",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-
-                {
-                    property: "type",
-                    header: {
-                        label: "Type",
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "action",
-                    header: {
-                        label: "",
-                        props: {
-                            index: 4,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 4
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.name[0]}>
-                                        <DropdownButton id={rowData.name[0]}
-                                            className="ds-action-button"
-                                            bsStyle="primary" title="Actions">
-                                            <MenuItem eventKey="1" onClick={() => {
-                                                this.props.editIndex(rowData);
-                                            }}
-                                            >
-                                                View CRL
-                                            </MenuItem>
-                                            <MenuItem eventKey="2" onClick={() => {
-                                                this.props.reindexIndex(rowData);
-                                            }}
-                                            >
-                                                Delete CRL
-                                            </MenuItem>
-                                        </DropdownButton>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
+                { title: 'Issued By', transforms: [sortable] },
+                { title: 'Effective Date', transforms: [sortable] },
+                { title: 'Next Update', transforms: [sortable] },
+                { title: 'Type', transforms: [sortable] },
+            ],
         };
-        this.getColumns = this.getColumns.bind(this);
+
+        this.onSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.onPerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage: perPage
+            });
+        };
+
+        this.onSort = this.onSort.bind(this);
+        this.onSearchChange = this.onSearchChange.bind(this);
     }
 
-    getSingleColumn () {
+    onSort(_event, index, direction) {
+        const sorted_rows = [];
+        const rows = [];
+        let count = 0;
+
+        // Convert the rows pairings into a sortable array based on the column indexes
+        for (let idx = 0; idx < this.state.rows.length; idx += 2) {
+            sorted_rows.push({
+                1: this.state.rows[idx].cells[0],
+                2: this.state.rows[idx].cells[1],
+                3: this.state.rows[idx].cells[2],
+                issuer: this.state.rows[idx].issuer,
+                flags: this.state.rows[idx].flags
+            });
+        }
+
+        // Sort the rows and build the new rows
+        sorted_rows.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
+        if (direction !== SortByDirection.asc) {
+            sorted_rows.reverse();
+        }
+        for (const srow of sorted_rows) {
+            rows.push({
+                isOpen: false,
+                cells: [
+                    srow[1], srow[2], srow[3]
+                ],
+                issuer: srow.issuer,
+                flags: srow.flags,
+            });
+            srow.expandedRow.parent = count; // reset parent idx
+            rows.push(srow.expandedRow);
+            count += 2;
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: rows,
+            page: 1,
+        });
+    }
+
+    onSearchChange(value, event) {
+        const rows = [];
+        let count = 0;
+
+        for (const cert of this.props.certs) {
+            const val = value.toLowerCase();
+
+            // Check for matches of all the parts
+            if (val != "" && cert.attrs.nickname.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.subject.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.issuer.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.expires.toLowerCase().indexOf(val) == -1) {
+                // Not a match
+                continue;
+            }
+
+            rows.push(
+                {
+                    isOpen: false,
+                    cells: [cert.attrs.nickname, cert.attrs.subject, cert.attrs.expires],
+                    issuer: cert.attrs.issuer,
+                    flags: cert.attrs.flags,
+
+                },
+                {
+                    parent: count,
+                    fullWidth: true,
+                    cells: [{ title: this.getExpandedRow(cert.attrs.issuer, cert.attrs.flags) }]
+                },
+            );
+            count += 2;
+        }
+
+        this.setState({
+            rows: rows,
+            value: value,
+            page: 1,
+        });
+    }
+
+    actions() {
         return [
             {
-                property: "msg",
-                header: {
-                    label: "Certificate Revocation Lists",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+                title: 'View CRL',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.editConfig(rowData.cells[0], rowData.cells[1], rowData.credsBindpw, rowData.pwInteractive)
             },
+            {
+                title: 'Delete CRL',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.deleteConfig(rowData.cells[0])
+            }
         ];
     }
 
-    getColumns() {
-        return this.state.columns;
-    }
-
     render() {
-        let crlTable;
-        if (this.props.rows.length == 0) {
-            crlTable = <DSTable
-                getColumns={this.getSingleColumn}
-                rowKey={"msg"}
-                rows={[{msg: "None"}]}
-            />;
-        } else {
-            crlTable = <DSTable
-                getColumns={this.getColumns}
-                rowKey={this.state.rowKey}
-                rows={this.props.rows}
-                disableLoadingSpinner
-            />;
-        }
+        const has_rows = false; // TODO
         return (
-            <div>
-                {crlTable}
+            <div className="ds-margin-top">
+                <SearchInput
+                    placeholder="Search CRL's"
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
+                <Table
+                    variant={TableVariant.compact} aria-label="Cred Table"
+                    sortBy={this.sortBy} onSort={this.onSort} cells={this.state.columns}
+                    rows={this.state.rows}
+                    actions={has_rows ? this.actions() : null}
+                    dropdownPosition="right"
+                    dropdownDirection="bottom"
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+                <Pagination
+                    itemCount={this.state.rows.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={this.state.perPage}
+                    page={this.state.page}
+                    variant={PaginationVariant.bottom}
+                    onSetPage={this.onSetPage}
+                    onPerPageSelect={this.onPerPageSelect}
+                />
             </div>
         );
     }
@@ -445,8 +444,6 @@ CertTable.propTypes = {
 CertTable.defaultProps = {
     // serverId: "",
     certs: [],
-    editCert: noop,
-    delCert: noop,
 };
 
 export {

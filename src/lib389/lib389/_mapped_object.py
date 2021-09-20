@@ -1249,7 +1249,7 @@ class DSLdapObjects(DSLogging, DSLints):
         # Now actually commit the creation req
         return co.ensure_state(rdn, properties, self._basedn)
 
-    def filter(self, search, scope=None, strict=False):
+    def filter(self, search, attrlist=None, scope=None, strict=False):
         # This will yield and & filter for objectClass with as many terms as needed.
         if search:
             search_filter = _gen_and([self._get_objectclass_filter(), search])
@@ -1257,7 +1257,9 @@ class DSLdapObjects(DSLogging, DSLints):
             search_filter = self._get_objectclass_filter()
         if scope is None:
             scope = self._scope
-        self._log.debug(f'list filter = {search_filter} with scope {scope}')
+        if attrlist:
+            self._list_attrlist = attrlist
+        self._log.debug(f'list filter = {search_filter} with scope {scope} and attribute list {attrlist}')
         try:
             results = self._instance.search_ext_s(
                 base=self._basedn,
@@ -1274,23 +1276,3 @@ class DSLdapObjects(DSLogging, DSLints):
                 raise ldap.NO_SUCH_OBJECT
             insts = []
         return insts
-
-
-class DSContainer(DSLdapObject):
-    """Just a basic container entry
-
-    :param instance: DirSrv instance
-    :type instance: DirSrv
-    :param dn: The dn of the entry
-    :type dn: str
-    """
-
-    def __init__(self, instance, dn):
-        super(DSContainer, self).__init__(instance, dn)
-        self._rdn_attribute = 'cn'
-        self._must_attributes = ['cn']
-        self._create_objectclasses = [
-            'top',
-            'nsContainer',
-        ]
-        self._protected = True

@@ -365,24 +365,19 @@ def backend_get_subsuffixes(inst, basedn, log, args):
 def build_node(suffix, be_name, subsuf=False, link=False, replicated=False):
     """Build the UI node for a suffix
     """
-    icon = "glyphicon glyphicon-tree-conifer"
     suffix_type = "suffix"
     if subsuf:
-        icon = "glyphicon glyphicon-leaf"
         suffix_type = "subsuffix"
     if link:
-        icon = "glyphicon glyphicon-link"
         suffix_type = "dblink"
 
     return {
-        "text": suffix,
+        "name": suffix,
         "id": suffix,
-        "selectable": True,
-        "icon": icon,
         "type": suffix_type,
         "replicated": replicated,
         "be": be_name,
-        "nodes": []
+        "children": []
     }
 
 
@@ -410,14 +405,14 @@ def backend_build_tree(inst, be_insts, nodes):
                         # We have a subsuffix (maybe a db link?)
                         link = is_db_link(inst, sub_be)
                         replicated = is_db_replicated(inst, sub_suffix)
-                        node['nodes'].append(build_node(sub_suffix,
+                        node['children'].append(build_node(sub_suffix,
                                                         sub_be,
                                                         subsuf=True,
                                                         link=link,
                                                         replicated=replicated))
 
                 # Recurse over the new subsuffixes
-                backend_build_tree(inst, be_insts, node['nodes'])
+                backend_build_tree(inst, be_insts, node['children'])
                 break
 
 
@@ -428,8 +423,8 @@ def print_suffix_tree(nodes, level, log):
         for node in nodes:
             spaces = " " * level
             log.info('{}- {}'.format(spaces, node['id']))
-            if len(node['nodes']) > 0:
-                print_suffix_tree(node['nodes'], level + 2, log)
+            if len(node['children']) > 0:
+                print_suffix_tree(node['children'], level + 2, log)
 
 
 def backend_get_tree(inst, basedn, log, args):
@@ -815,6 +810,7 @@ def backend_compact(inst, basedn, log, args):
     if task.get_exit_code() != 0:
         raise ValueError("Failed to create Database Compaction Task")
     log.info("Successfully started Database Compaction Task")
+
 
 def create_parser(subparsers):
     backend_parser = subparsers.add_parser('backend', help="Manage database suffixes and backends")

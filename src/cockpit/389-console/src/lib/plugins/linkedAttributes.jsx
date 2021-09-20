@@ -1,22 +1,23 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Icon,
-    Modal,
     Button,
-    Row,
-    Col,
     Form,
-    noop,
-    FormGroup,
-    FormControl,
-    ControlLabel
-} from "patternfly-react";
-import { Typeahead } from "react-bootstrap-typeahead";
+    Grid,
+    GridItem,
+    Modal,
+    ModalVariant,
+    Select,
+    SelectVariant,
+    SelectOption,
+    TextInput,
+    ValidatedOptions,
+} from "@patternfly/react-core";
 import { LinkedAttributesTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, valid_dn } from "../tools.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 
 class LinkedAttributes extends React.Component {
     componentDidMount() {
@@ -32,7 +33,9 @@ class LinkedAttributes extends React.Component {
         this.state = {
             firstLoad: true,
             configRows: [],
-            attributes: [],
+            tableKey: 1,
+            error: {},
+            saveBtnDisabled: true,
 
             configName: "",
             linkType: [],
@@ -41,13 +44,78 @@ class LinkedAttributes extends React.Component {
 
             newEntry: false,
             showConfigModal: false,
-            showConfirmDeleteConfig: false
+            showConfirmDelete: false,
+            modalChecked: false,
+            modalSpinning: false,
+
+            isLinkTypeOpen: false,
+            isManagedTypeOpen: false,
         };
 
-        this.getAttributes = this.getAttributes.bind(this);
+        // Link Type
+        this.onLinkTypeSelect = (event, selection) => {
+            if (this.state.linkType.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        linkType: prevState.linkType.filter((item) => item !== selection),
+                        isLinkTypeOpen: false
+                    }), () => { this.validate() }
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        linkType: [...prevState.linkType, selection],
+                        isLinkTypeOpen: false
+                    }), () => { this.validate() }
+                );
+            }
+        };
+        this.onLinkTypeToggle = isLinkTypeOpen => {
+            this.setState({
+                isLinkTypeOpen
+            });
+        };
+        this.onLinkTypeClear = () => {
+            this.setState({
+                linkType: [],
+                isLinkTypeOpen: false
+            }, () => { this.validate() });
+        };
+
+        // Managed Type
+        this.onManagedTypeSelect = (event, selection) => {
+            if (this.state.managedType.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        managedType: prevState.managedType.filter((item) => item !== selection),
+                        isManagedTypeOpen: false
+                    }), () => { this.validate() }
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        managedType: [...prevState.managedType, selection],
+                        isManagedTypeOpen: false
+                    }), () => { this.validate() }
+                );
+            }
+        };
+        this.onManagedTypeToggle = isManagedTypeOpen => {
+            this.setState({
+                isManagedTypeOpen
+            });
+        };
+        this.onManagedTypeClear = () => {
+            this.setState({
+                managedType: [],
+                isManagedTypeOpen: false
+            }, () => { this.validate() });
+        };
+
         this.handleFieldChange = this.handleFieldChange.bind(this);
         this.loadConfigs = this.loadConfigs.bind(this);
         this.showEditConfigModal = this.showEditConfigModal.bind(this);
+        this.showConfirmDelete = this.showConfirmDelete.bind(this);
         this.showAddConfigModal = this.showAddConfigModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
         this.openModal = this.openModal.bind(this);
@@ -55,19 +123,67 @@ class LinkedAttributes extends React.Component {
         this.deleteConfig = this.deleteConfig.bind(this);
         this.addConfig = this.addConfig.bind(this);
         this.editConfig = this.editConfig.bind(this);
+        this.closeConfirmDelete = this.closeConfirmDelete.bind(this);
+    }
+
+    showConfirmDelete (name) {
+        this.setState({
+            showConfirmDelete: true,
+            modalChecked: false,
+            modalSpinning: false,
+            deleteName: name
+        });
+    }
+
+    closeConfirmDelete () {
+        this.setState({
+            showConfirmDelete: false,
+            modalChecked: false,
+            modalSpinning: false,
+            deleteName: ""
+        });
+    }
+
+    validate () {
+        const errObj = {};
+        let all_good = true;
+
+        if (this.state.configName == "") {
+            errObj.configName = true;
+            all_good = false;
+        }
+        if (this.state.linkScope == "" || !valid_dn(this.state.linkScope)) {
+            errObj.linkScope = true;
+            all_good = false;
+        }
+
+        if (all_good) {
+            // Check for value differences to see if the save btn should be enabled
+            all_good = false;
+            const attrs = [
+                'linkScope', 'managedType', 'linkType', 'configName'
+            ];
+            for (const check_attr of attrs) {
+                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                    all_good = true;
+                    break;
+                }
+            }
+        }
+        this.setState({
+            saveBtnDisabled: !all_good,
+            error: errObj
+        });
     }
 
     handleFieldChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
-            [e.target.id]: e.target.value
-        });
+            [e.target.id]: value
+        }, () => { this.validate() });
     }
 
     loadConfigs() {
-        this.setState({
-            firstLoad: false
-        });
-        // Get all the attributes and matching rules now
         const cmd = [
             "dsconf",
             "-j",
@@ -80,13 +196,16 @@ class LinkedAttributes extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let myObject = JSON.parse(content);
+                    const myObject = JSON.parse(content);
+                    const tableKey = this.state.tableKey + 1;
                     this.setState({
-                        configRows: myObject.items.map(item => item.attrs)
+                        configRows: myObject.items.map(item => item.attrs),
+                        tableKey: tableKey,
+                        firstLoad: false
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadConfigs failed", errMsg.desc);
                     }
@@ -94,7 +213,7 @@ class LinkedAttributes extends React.Component {
     }
 
     showEditConfigModal(rowData) {
-        this.openModal(rowData.cn[0]);
+        this.openModal(rowData);
     }
 
     showAddConfigModal(rowData) {
@@ -102,7 +221,6 @@ class LinkedAttributes extends React.Component {
     }
 
     openModal(name) {
-        this.getAttributes();
         if (!name) {
             this.setState({
                 configEntryModalShow: true,
@@ -110,10 +228,11 @@ class LinkedAttributes extends React.Component {
                 configName: "",
                 linkType: [],
                 managedType: [],
-                linkScope: ""
+                linkScope: "",
+                saveBtnDisabled: true,
             });
         } else {
-            let cmd = [
+            const cmd = [
                 "dsconf",
                 "-j",
                 "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -132,23 +251,24 @@ class LinkedAttributes extends React.Component {
                         err: "message"
                     })
                     .done(content => {
-                        let configEntry = JSON.parse(content).attrs;
+                        const configEntry = JSON.parse(content).attrs;
                         this.setState({
                             configEntryModalShow: true,
+                            saveBtnDisabled: true,
                             newEntry: false,
-                            configName: configEntry["cn"] === undefined ? "" : configEntry["cn"][0],
+                            configName: configEntry.cn === undefined ? "" : configEntry.cn[0],
                             linkType:
-                            configEntry["linktype"] === undefined
+                            configEntry.linktype === undefined
                                 ? []
-                                : [configEntry["linktype"][0]],
+                                : [configEntry.linktype[0]],
                             managedType:
-                            configEntry["managedtype"] === undefined
+                            configEntry.managedtype === undefined
                                 ? []
-                                : [configEntry["managedtype"][0]],
+                                : [configEntry.managedtype[0]],
                             linkScope:
-                            configEntry["linkscope"] === undefined
+                            configEntry.linkscope === undefined
                                 ? ""
-                                : configEntry["linkscope"][0]
+                                : configEntry.linkscope[0]
                         });
 
                         this.props.toggleLoadingHandler();
@@ -160,7 +280,8 @@ class LinkedAttributes extends React.Component {
                             configName: "",
                             linkType: [],
                             managedType: [],
-                            linkScope: ""
+                            linkScope: "",
+                            saveBtnDisabled: true,
                         });
                         this.props.toggleLoadingHandler();
                     });
@@ -227,7 +348,7 @@ class LinkedAttributes extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry ${action} operation - ${errMsg.desc}`
@@ -238,20 +359,22 @@ class LinkedAttributes extends React.Component {
                 });
     }
 
-    deleteConfig(rowData) {
-        let configName = rowData.cn[0];
-        let cmd = [
+    deleteConfig() {
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "plugin",
             "linked-attr",
             "config",
-            configName,
+            this.state.deleteName,
             "delete"
         ];
 
-        this.props.toggleLoadingHandler();
+        this.setState({
+            modalSpinning: true
+        });
+
         log_cmd("deleteConfig", "Delete the Linked Attributes Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
@@ -262,21 +385,21 @@ class LinkedAttributes extends React.Component {
                     console.info("deleteConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${configName} was successfully deleted`
+                        `Config entry ${this.state.deleteName} was successfully deleted`
                     );
                     this.loadConfigs();
                     this.closeModal();
-                    this.props.toggleLoadingHandler();
+                    this.closeConfirmDelete();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error during the config entry removal operation - ${errMsg.desc}`
                     );
                     this.loadConfigs();
                     this.closeModal();
-                    this.props.toggleLoadingHandler();
+                    this.closeConfirmDelete();
                 });
     }
 
@@ -288,34 +411,6 @@ class LinkedAttributes extends React.Component {
         this.cmdOperation("set");
     }
 
-    getAttributes() {
-        const attr_cmd = [
-            "dsconf",
-            "-j",
-            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "schema",
-            "attributetypes",
-            "list"
-        ];
-        log_cmd("getAttributes", "Get attrs", attr_cmd);
-        cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    const attrContent = JSON.parse(content);
-                    let attrs = [];
-                    for (let content of attrContent["items"]) {
-                        attrs.push(content.name[0]);
-                    }
-                    this.setState({
-                        attributes: attrs
-                    });
-                })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.props.addNotification("error", `Failed to get attributes - ${errMsg.desc}`);
-                });
-    }
-
     render() {
         const {
             configEntryModalShow,
@@ -324,116 +419,144 @@ class LinkedAttributes extends React.Component {
             managedType,
             linkScope,
             newEntry,
-            attributes
+            error,
+            saveBtnDisabled,
+            saving,
+            firstLoad
         } = this.state;
 
+        const title = (newEntry ? "Add" : "Edit") + " Linked Attributes Plugin Config Entry";
+        let saveBtnName = (newEntry ? "Add" : "Save") + " Config";
+        const extraPrimaryProps = {};
+        if (saving) {
+            if (newEntry) {
+                saveBtnName = "Adding Config ...";
+            } else {
+                saveBtnName = "Saving Config ...";
+            }
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
         return (
-            <div>
-                <Modal show={configEntryModalShow} onHide={this.closeModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.closeModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>
-                                {newEntry ? "Add" : "Edit"} Linked Attributes Plugin Config Entry
-                            </Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup controlId="configName">
-                                            <Col componentClass={ControlLabel} sm={3} title="The Linked Attributes configuration name">
-                                                Config Name
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configName}
-                                                    onChange={this.handleFieldChange}
-                                                    disabled={!newEntry}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup controlId="linkType">
-                                            <Col componentClass={ControlLabel} sm={3} title="Sets the attribute that is managed manually by administrators (linkType)">
-                                                Link Type
-                                            </Col>
-                                            <Col sm={9}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            linkType: value
-                                                        });
-                                                    }}
-                                                    selected={linkType}
-                                                    options={attributes}
-                                                    newSelectionPrefix="Add a managed attribute: "
-                                                    placeholder="Type an attribute..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup controlId="managedType">
-                                            <Col componentClass={ControlLabel} sm={3} title="Sets the attribute that is created dynamically by the plugin (managedType)">
-                                                Managed Type
-                                            </Col>
-                                            <Col sm={9}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            managedType: value
-                                                        });
-                                                    }}
-                                                    selected={managedType}
-                                                    options={attributes}
-                                                    newSelectionPrefix="Add a dynamic attribute: "
-                                                    placeholder="Type an attribute..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup controlId="linkScope">
-                                            <Col componentClass={ControlLabel} sm={3} title="Sets the base DN that restricts the plugin to a specific part of the directory tree (linkScope)">
-                                                Link Scope
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={linkScope}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.closeModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={newEntry ? this.addConfig : this.editConfig}
-                            >
-                                Save
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+            <div className={saving || firstLoad ? "ds-disabled" : ""}>
+                <Modal
+                    variant={ModalVariant.medium}
+                    title={title}
+                    isOpen={configEntryModalShow}
+                    aria-labelledby="ds-modal"
+                    onClose={this.closeModal}
+                    actions={[
+                        <Button
+                            key="confirm"
+                            variant="primary"
+                            onClick={newEntry ? this.addConfig : this.editConfig}
+                            isDisabled={saveBtnDisabled}
+                            isLoading={saving}
+                            spinnerAriaValueText={saving ? "Saving" : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveBtnName}
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.closeModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Form isHorizontal autoComplete="off">
+                        <Grid title="The Linked Attributes configuration name">
+                            <GridItem className="ds-label" span={3}>
+                                Config Name
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={configName}
+                                    type="text"
+                                    id="configName"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="configName"
+                                    onChange={(str, e) => {
+                                        this.handleFieldChange(e);
+                                    }}
+                                    validated={error.configName ? ValidatedOptions.error : ValidatedOptions.default}
+                                    isDisabled={!newEntry}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Sets the attribute that is managed manually by administrators (linkType)">
+                            <GridItem className="ds-label" span={3}>
+                                Link Type
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={this.onLinkTypeToggle}
+                                    onSelect={this.onLinkTypeSelect}
+                                    onClear={this.onLinkTypeClear}
+                                    selections={linkType}
+                                    isOpen={this.state.isLinkTypeOpen}
+                                    aria-labelledby="typeAhead-link-type"
+                                    placeholderText="Type an attribute..."
+                                    noResultsFoundText="There are no matching entries"
+                                >
+                                    {this.props.attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                    ))}
+                                </Select>
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Sets the attribute that is created dynamically by the plugin (managedType)">
+                            <GridItem className="ds-label" span={3}>
+                                Managed Type
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={this.onManagedTypeToggle}
+                                    onSelect={this.onManagedTypeSelect}
+                                    onClear={this.onManagedTypeClear}
+                                    selections={managedType}
+                                    isOpen={this.state.isManagedTypeOpen}
+                                    placeholderText="Type an attribute..."
+                                    aria-labelledby="typeAhead-managed-type"
+                                    noResultsFoundText="There are no matching entries"
+                                >
+                                    {this.props.attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                    ))}
+                                </Select>
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Sets the base DN that restricts the plugin to a specific part of the directory tree (linkScope)">
+                            <GridItem className="ds-label" span={3}>
+                                Link Scope
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={linkScope}
+                                    type="text"
+                                    id="linkScope"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="linkScope"
+                                    onChange={(str, e) => {
+                                        this.handleFieldChange(e);
+                                    }}
+                                    validated={error.linkScope ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                            </GridItem>
+                        </Grid>
+                    </Form>
                 </Modal>
+
                 <PluginBasicConfig
                     rows={this.props.rows}
+                    key={this.state.configRows}
                     serverId={this.props.serverId}
                     cn="Linked Attributes"
                     pluginName="Linked Attributes"
@@ -443,23 +566,37 @@ class LinkedAttributes extends React.Component {
                     addNotification={this.props.addNotification}
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
-                    <Row>
-                        <Col sm={12}>
+                    <Grid>
+                        <GridItem span={12}>
                             <LinkedAttributesTable
                                 rows={this.state.configRows}
+                                key={this.state.tableKey}
                                 editConfig={this.showEditConfigModal}
-                                deleteConfig={this.deleteConfig}
+                                deleteConfig={this.showConfirmDelete}
                             />
                             <Button
-                                className="ds-margin-top"
-                                bsStyle="primary"
+                                key="addconf"
+                                variant="primary"
                                 onClick={this.showAddConfigModal}
                             >
                                 Add Config
                             </Button>
-                        </Col>
-                    </Row>
+                        </GridItem>
+                    </Grid>
                 </PluginBasicConfig>
+                <DoubleConfirmModal
+                    showModal={this.state.showConfirmDelete}
+                    closeHandler={this.closeConfirmDelete}
+                    handleChange={this.handleFieldChange}
+                    actionHandler={this.deleteConfig}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.deleteName}
+                    checked={this.state.modalChecked}
+                    mTitle="Delete Linked Attribute Configuration"
+                    mMsg="Are you sure you want to delete this configuration?"
+                    mSpinningMsg="Deleting Configuration..."
+                    mBtnName="Delete Configuration"
+                />
             </div>
         );
     }
@@ -477,10 +614,6 @@ LinkedAttributes.propTypes = {
 LinkedAttributes.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop
 };
 
 export default LinkedAttributes;

@@ -2,13 +2,29 @@ import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import { log_cmd } from "./lib/tools.jsx";
-import { Col, Row, Tab, Nav, NavItem, noop, Spinner } from "patternfly-react";
-import PluginViewModal from "./lib/plugins/pluginModal.jsx";
+import { DoubleConfirmModal } from "./lib/notifications.jsx";
+import {
+    Grid,
+    GridItem,
+    Spinner,
+    Nav,
+    NavItem,
+    NavList,
+    Text,
+    TextContent,
+    TextVariants,
+} from "@patternfly/react-core";
+import {
+    CheckCircleIcon,
+    ListIcon,
+    BanIcon,
+} from '@patternfly/react-icons';
+
 import { PluginTable } from "./lib/plugins/pluginTables.jsx";
 import AccountPolicy from "./lib/plugins/accountPolicy.jsx";
 import AttributeUniqueness from "./lib/plugins/attributeUniqueness.jsx";
 import AutoMembership from "./lib/plugins/autoMembership.jsx";
-import DNA from "./lib/plugins/dna.jsx";
+import DNAPlugin from "./lib/plugins/dna.jsx";
 import LinkedAttributes from "./lib/plugins/linkedAttributes.jsx";
 import ManagedEntries from "./lib/plugins/managedEntries.jsx";
 import MemberOf from "./lib/plugins/memberOf.jsx";
@@ -16,10 +32,8 @@ import PassthroughAuthentication from "./lib/plugins/passthroughAuthentication.j
 import ReferentialIntegrity from "./lib/plugins/referentialIntegrity.jsx";
 import RetroChangelog from "./lib/plugins/retroChangelog.jsx";
 import RootDNAccessControl from "./lib/plugins/rootDNAccessControl.jsx";
-import USN from "./lib/plugins/usn.jsx";
+import USNPlugin from "./lib/plugins/usn.jsx";
 import WinSync from "./lib/plugins/winsync.jsx";
-
-var cmd;
 
 export class Plugins extends React.Component {
     componentDidUpdate(prevProps) {
@@ -34,24 +48,29 @@ export class Plugins extends React.Component {
         }
     }
 
-    constructor() {
-        super();
+    componentDidMount () {
+        this.getSchema();
+    }
 
-        this.handleFieldChange = this.handleFieldChange.bind(this);
-        this.handleSwitchChange = this.handleSwitchChange.bind(this);
-        this.openPluginModal = this.openPluginModal.bind(this);
-        this.closePluginModal = this.closePluginModal.bind(this);
-        this.pluginList = this.pluginList.bind(this);
-        this.onChangeTab = this.onChangeTab.bind(this);
-        this.savePlugin = this.savePlugin.bind(this);
-        this.toggleLoading = this.toggleLoading.bind(this);
+    constructor(props) {
+        super(props);
 
         this.state = {
             firstLoad: true,
             loading: false,
             showPluginModal: false,
             currentPluginTab: "",
+            activePlugin: "All Plugins",
+            togglePluginName: "",
+            togglePluginEnabled: false,
+            showConfirmToggle: false,
+            toggleSpinning: false,
+            modalChecked: false,
+            modalSpinning: false,
             rows: [],
+            pluginTableKey: 0,
+            attributes: [],
+            objectclasses: [],
 
             // Plugin attributes
             currentPluginName: "",
@@ -67,27 +86,81 @@ export class Plugins extends React.Component {
             currentPluginDependsOnNamed: "",
             currentPluginPrecedence: ""
         };
+
+        this.handleSelect = result => {
+            this.setState({
+                activePlugin: result.itemId
+            });
+        };
+
+        this.onFieldChange = this.onFieldChange.bind(this);
+        this.pluginList = this.pluginList.bind(this);
+        this.onChangeTab = this.onChangeTab.bind(this);
+        this.savePlugin = this.savePlugin.bind(this);
+        this.toggleLoading = this.toggleLoading.bind(this);
+        this.getIconAndName = this.getIconAndName.bind(this);
+        this.togglePlugin = this.togglePlugin.bind(this);
+        this.showConfirmToggle = this.showConfirmToggle.bind(this);
+        this.closeConfirmToggle = this.closeConfirmToggle.bind(this);
+        this.getSchema = this.getSchema.bind(this);
+    }
+
+    getSchema() {
+        const attr_cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "schema",
+            "attributetypes",
+            "list"
+        ];
+        log_cmd("getSchema", "Plugins Get attrs", attr_cmd);
+        cockpit
+                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const attrContent = JSON.parse(content);
+                    const attrs = [];
+                    for (const content of attrContent.items) {
+                        attrs.push(content.name[0]);
+                    }
+
+                    const oc_cmd = [
+                        "dsconf",
+                        "-j",
+                        "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                        "schema",
+                        "objectclasses",
+                        "list"
+                    ];
+                    log_cmd("getSchema", "Get objectClasses", oc_cmd);
+                    cockpit
+                            .spawn(oc_cmd, { superuser: true, err: "message" })
+                            .done(content => {
+                                const ocContent = JSON.parse(content);
+                                const ocs = [];
+                                for (const content of ocContent.items) {
+                                    ocs.push(content.name[0]);
+                                }
+                                this.setState({
+                                    objectClasses: ocs,
+                                    attributes: attrs,
+                                });
+                            })
+                            .fail(err => {
+                                const errMsg = JSON.parse(err);
+                                this.props.addNotification("error", `Failed to get objectClasses - ${errMsg.desc}`);
+                            });
+                });
     }
 
     onChangeTab(event) {
         this.setState({ currentPluginTab: event.target.value });
     }
 
-    handleFieldChange(e) {
+    onFieldChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
-            [e.target.id]: e.target.value
-        });
-    }
-
-    handleSwitchChange(value) {
-        this.setState({
-            currentPluginEnabled: !value
-        });
-    }
-
-    closePluginModal() {
-        this.setState({
-            showPluginModal: false
+            [e.target.id]: value
         });
     }
 
@@ -97,47 +170,8 @@ export class Plugins extends React.Component {
         }));
     }
 
-    openPluginModal(rowData) {
-        var pluginEnabled;
-        if (rowData["nsslapd-pluginEnabled"][0] === "on") {
-            pluginEnabled = true;
-        } else if (rowData["nsslapd-pluginEnabled"][0] === "off") {
-            pluginEnabled = false;
-        } else {
-            console.error(
-                "openPluginModal failed",
-                "wrong nsslapd-pluginenabled attribute value",
-                rowData["nsslapd-pluginEnabled"][0]
-            );
-        }
-        this.setState({
-            currentPluginName: rowData.cn[0],
-            currentPluginType: rowData["nsslapd-pluginType"][0],
-            currentPluginEnabled: pluginEnabled,
-            currentPluginPath: rowData["nsslapd-pluginPath"][0],
-            currentPluginInitfunc: rowData["nsslapd-pluginInitfunc"][0],
-            currentPluginId: rowData["nsslapd-pluginId"][0],
-            currentPluginVendor: rowData["nsslapd-pluginVendor"][0],
-            currentPluginVersion: rowData["nsslapd-pluginVersion"][0],
-            currentPluginDescription: rowData["nsslapd-pluginDescription"][0],
-            currentPluginDependsOnType:
-                rowData["nsslapd-plugin-depends-on-type"] === undefined
-                    ? ""
-                    : rowData["nsslapd-plugin-depends-on-type"][0],
-            currentPluginDependsOnNamed:
-                rowData["nsslapd-plugin-depends-on-named"] === undefined
-                    ? ""
-                    : rowData["nsslapd-plugin-depends-on-named"][0],
-            currentPluginPrecedence:
-                rowData["nsslapd-pluginprecedence"] === undefined
-                    ? ""
-                    : rowData["nsslapd-pluginprecedence"][0],
-            showPluginModal: true
-        });
-    }
-
     pluginList() {
-        cmd = [
+        const cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -150,6 +184,7 @@ export class Plugins extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     var myObject = JSON.parse(content);
+                    const pluginTableKey = this.state.pluginTableKey + 1;
                     if (this.state.firstLoad) {
                         this.setState(prevState => ({
                             pluginTabs: {
@@ -158,15 +193,17 @@ export class Plugins extends React.Component {
                             },
                             rows: myObject.items,
                             firstLoad: false,
+                            pluginTableKey: pluginTableKey,
                         }));
                     } else {
                         this.setState({
-                            rows: myObject.items
+                            rows: myObject.items,
+                            pluginTableKey: pluginTableKey,
                         });
                     }
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `${errMsg.desc} error during plugin loading`
@@ -227,7 +264,7 @@ export class Plugins extends React.Component {
                     this.toggleLoading();
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     if (errMsg.desc.indexOf("nothing to set") >= 0) {
                         nothingToSetErr = true;
                     } else {
@@ -240,7 +277,7 @@ export class Plugins extends React.Component {
                     this.toggleLoading();
                 })
                 .always(() => {
-                    if ("specificPluginCMD" in data && data.specificPluginCMD.length != 0) {
+                    if ("specificPluginCMD" in data && data.specificPluginCMD.length !== 0) {
                         this.toggleLoading();
                         log_cmd(
                             "savePlugin",
@@ -265,7 +302,7 @@ export class Plugins extends React.Component {
                                     console.info("savePlugin", "Result", content);
                                 })
                                 .fail(err => {
-                                    let errMsg = JSON.parse(err);
+                                    const errMsg = JSON.parse(err);
                                     if (
                                         (errMsg.desc.indexOf("nothing to set") >= 0 && nothingToSetErr) ||
                                 errMsg.desc.indexOf("nothing to set") < 0
@@ -290,74 +327,131 @@ export class Plugins extends React.Component {
                 });
     }
 
+    showConfirmToggle(plugin_name, enabled) {
+        this.setState({
+            showConfirmToggle: true,
+            togglePluginName: plugin_name,
+            togglePluginEnabled: enabled,
+            modalChecked: false,
+            modalSpinning: false,
+        });
+    }
+
+    closeConfirmToggle() {
+        this.setState({
+            showConfirmToggle: false,
+            togglePluginName: "",
+            togglePluginEnabled: "",
+        });
+    }
+
+    togglePlugin() {
+        const new_status = this.state.togglePluginEnabled ? "off" : "on";
+        const cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "plugin",
+            "set",
+            "--enabled=" + new_status,
+            this.state.togglePluginName,
+        ];
+
+        this.setState({ modalSpinning: true });
+        log_cmd("togglePlugin", "Switch plugin states from the plugin tab", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    console.info("savePlugin", "Result", content);
+                    this.pluginList();
+                    this.props.addNotification(
+                        "warning",
+                        `${this.state.togglePluginName} plugin was successfully set to "${new_status}".
+                        Please, restart the instance.`
+                    );
+                    this.setState({
+                        modalSpinning: false,
+                        showConfirmToggle: false
+                    });
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        `Error during ${this.state.togglePluginName} plugin modification - ${errMsg.desc}`
+                    );
+                    // toggleLoadingHandler();
+                    this.setState({
+                        modalSpinning: false,
+                        showConfirmToggle: false
+                    });
+                });
+    }
+
+    getIconAndName(name, plugin_name) {
+        const pluginRow = this.state.rows.find(row => row.cn[0] === plugin_name);
+        if (pluginRow) {
+            if (pluginRow['nsslapd-pluginEnabled'][0] === "on") {
+                return <div className="ds-ok-icon"><CheckCircleIcon title="Plugin is enabled" className="ds-icon-sm" />{name}</div>;
+            } else {
+                return <div className="ds-disabled-icon"><BanIcon title="Plugin is disabled" className="ds-icon-sm" />{name}</div>;
+            }
+        } else {
+            return name;
+        }
+    }
+
     render() {
         const selectPlugins = {
             allPlugins: {
                 name: "All Plugins",
+                icon: <div><ListIcon className="ds-icon-sm" />All Plugins</div>,
                 component: (
-                    <PluginTable rows={this.state.rows} loadModalHandler={this.openPluginModal} />
-                )
+                    <PluginTable
+                        key={this.state.pluginTableKey}
+                        rows={this.state.rows}
+                        showConfirmToggle={this.showConfirmToggle}
+                        spinning={this.state.modalSpinning}
+                    />
+                ),
             },
             accountPolicy: {
                 name: "Account Policy",
+                icon: this.getIconAndName("Account Policy", "Account Policy Plugin"),
                 component: (
                     <AccountPolicy
+                        key={this.state.rows}
                         rows={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
+                        attributes={this.state.attributes}
                     />
                 )
             },
             attributeUniqueness: {
                 name: "Attribute Uniqueness",
+                icon: this.getIconAndName("Attribute Uniqueness", "attribute uniqueness"),
                 component: (
                     <AttributeUniqueness
                         rows={this.state.rows}
+                        key={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
-                        key={this.props.wasActiveList}
-                    />
-                )
-            },
-            linkedAttributes: {
-                name: "Linked Attributes",
-                component: (
-                    <LinkedAttributes
-                        rows={this.state.rows}
-                        serverId={this.props.serverId}
-                        savePluginHandler={this.savePlugin}
-                        pluginListHandler={this.pluginList}
-                        addNotification={this.props.addNotification}
-                        toggleLoadingHandler={this.toggleLoading}
-                        wasActiveList={this.props.wasActiveList}
-                        key={this.props.wasActiveList}
-                    />
-                )
-            },
-            dna: {
-                name: "DNA",
-                component: (
-                    <DNA
-                        rows={this.state.rows}
-                        serverId={this.props.serverId}
-                        savePluginHandler={this.savePlugin}
-                        pluginListHandler={this.pluginList}
-                        addNotification={this.props.addNotification}
-                        toggleLoadingHandler={this.toggleLoading}
-                        wasActiveList={this.props.wasActiveList}
-                        key={this.props.wasActiveList}
+                        attributes={this.state.attributes}
+                        objectClasses={this.state.objectClasses}
                     />
                 )
             },
             autoMembership: {
                 name: "Auto Membership",
+                icon: this.getIconAndName("Auto Membership", "Auto Membership Plugin"),
                 component: (
                     <AutoMembership
                         rows={this.state.rows}
@@ -367,12 +461,62 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        attributes={this.state.attributes}
                         key={this.props.wasActiveList}
+                    />
+                )
+            },
+            dna: {
+                name: "DNA",
+                icon: this.getIconAndName("DNA", "Distributed Numeric Assignment Plugin"),
+                component: (
+                    <DNAPlugin
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.props.addNotification}
+                        wasActiveList={this.props.wasActiveList}
+                        attributes={this.state.attributes}
+                        key={this.props.wasActiveList}
+                    />
+                )
+            },
+            linkedAttributes: {
+                name: "Linked Attributes",
+                icon: this.getIconAndName("Linked Attributes", "Linked Attributes"),
+                component: (
+                    <LinkedAttributes
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.props.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                        wasActiveList={this.props.wasActiveList}
+                        attributes={this.state.attributes}
+                        key={this.props.wasActiveList}
+                    />
+                )
+            },
+            managedEntries: {
+                name: "Managed Entries",
+                icon: this.getIconAndName("Managed Entries", "Managed Entries"),
+                component: (
+                    <ManagedEntries
+                        rows={this.state.rows}
+                        key={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        attributes={this.state.attributes}
+                        addNotification={this.props.addNotification}
                     />
                 )
             },
             memberOf: {
                 name: "MemberOf",
+                icon: this.getIconAndName("MemberOf", "MemberOf Plugin"),
                 component: (
                     <MemberOf
                         rows={this.state.rows}
@@ -382,25 +526,14 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        objectClasses={this.state.objectClasses}
                         key={this.props.wasActiveList}
                     />
                 )
             },
-            managedEntries: {
-                name: "Managed Entries",
-                component: (
-                    <ManagedEntries
-                        rows={this.state.rows}
-                        serverId={this.props.serverId}
-                        savePluginHandler={this.savePlugin}
-                        pluginListHandler={this.pluginList}
-                        addNotification={this.props.addNotification}
-                        toggleLoadingHandler={this.toggleLoading}
-                    />
-                )
-            },
             passthroughAuthentication: {
-                name: "Passthrough Authentication",
+                name: "Pass Through Auth",
+                icon: this.getIconAndName("Pass Through Auth", "Pass Through Authentication"),
                 component: (
                     <PassthroughAuthentication
                         rows={this.state.rows}
@@ -410,25 +543,30 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        attributes={this.state.attributes}
                         key={this.props.wasActiveList}
                     />
                 )
             },
             winsync: {
                 name: "Posix Winsync",
+                icon: this.getIconAndName("Posix Winsync", "Posix Winsync API"),
                 component: (
                     <WinSync
                         rows={this.state.rows}
+                        key={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
                         addNotification={this.props.addNotification}
+                        attributes={this.state.attributes}
                         toggleLoadingHandler={this.toggleLoading}
                     />
                 )
             },
             referentialIntegrity: {
                 name: "Referential Integrity",
+                icon: this.getIconAndName("Referential Integrity", "referential integrity postoperation"),
                 component: (
                     <ReferentialIntegrity
                         rows={this.state.rows}
@@ -438,12 +576,14 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        attributes={this.state.attributes}
                         key={this.props.wasActiveList}
                     />
                 )
             },
             retroChangelog: {
                 name: "Retro Changelog",
+                icon: this.getIconAndName("Retro Changelog", "Retro Changelog Plugin"),
                 component: (
                     <RetroChangelog
                         rows={this.state.rows}
@@ -453,12 +593,14 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        attributes={this.state.attributes}
                         key={this.props.wasActiveList}
                     />
                 )
             },
             rootDnaAccessControl: {
                 name: "RootDN Access Control",
+                icon: this.getIconAndName("RootDN Access Control", "RootDN Access Control"),
                 component: (
                     <RootDNAccessControl
                         rows={this.state.rows}
@@ -466,14 +608,17 @@ export class Plugins extends React.Component {
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
                         addNotification={this.props.addNotification}
+                        wasActiveList={this.props.wasActiveList}
+                        attributes={this.state.attributes}
                         toggleLoadingHandler={this.toggleLoading}
                     />
                 )
             },
             usn: {
                 name: "USN",
+                icon: this.getIconAndName("USN", "USN"),
                 component: (
-                    <USN
+                    <USNPlugin
                         rows={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
@@ -489,64 +634,54 @@ export class Plugins extends React.Component {
 
         return (
             <div className="container-fluid">
-                <div className="ds-loading-spinner ds-center" hidden={!this.state.firstLoad}>
-                    <h4>Loading plugins ...</h4>
-                    <Spinner className="ds-margin-top" loading size="md" />
+                <div className="ds-margin-top-xlg ds-center" hidden={!this.state.firstLoad}>
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading Plugins ...
+                        </Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top-lg" size="xl" />
                 </div>
-                <div hidden={this.state.firstLoad}>
-                    <Row className="clearfix">
-                        <Col sm={12}>
-                            <Spinner
-                                className="ds-float-left ds-plugin-spinner"
-                                loading={this.state.loading}
-                                size="md"
-                            />
-                        </Col>
-                    </Row>
-                    <Tab.Container
-                        id="left-tabs-example"
-                        defaultActiveKey={Object.keys(selectPlugins)[0]}
-                    >
-                        <Row className="clearfix">
-                            <Col sm={3}>
-                                <Nav bsStyle="pills" stacked>
-                                    {Object.entries(selectPlugins).map(([id, item]) => (
-                                        <NavItem key={id} eventKey={id}>
-                                            {item.name}
-                                        </NavItem>
-                                    ))}
+                <div hidden={this.state.firstLoad} className={this.state.loading ? "ds-disabled" : ""}>
+                    <Grid className="ds-margin-top-xlg" hasGutter>
+                        <GridItem span={3}>
+                            <div>
+                                <Nav key={this.state.pluginTableKey} theme="light" onSelect={this.handleSelect}>
+                                    <NavList>
+                                        {Object.entries(selectPlugins).map(([id, item]) => (
+                                            <NavItem key={item.name} itemId={item.name} isActive={this.state.activePlugin === item.name}>
+                                                {item.icon}
+                                            </NavItem>
+                                        ))}
+                                    </NavList>
                                 </Nav>
-                            </Col>
-                            <Col sm={9}>
-                                <Tab.Content animation={false}>
-                                    {Object.entries(selectPlugins).map(([id, item]) => (
-                                        <Tab.Pane key={id} eventKey={id}>
-                                            {item.component}
-                                        </Tab.Pane>
+                            </div>
+                        </GridItem>
+                        <GridItem className="ds-indent-md" span={9}>
+                            {Object.entries(selectPlugins).filter(plugin => plugin[1].name === this.state.activePlugin)
+                                    .map(filteredPlugin => (
+                                        <div key={filteredPlugin[1].name} className="ds-margin-top">
+                                            {filteredPlugin[1].component}
+                                        </div>
                                     ))}
-                                </Tab.Content>
-                            </Col>
-                        </Row>
-                    </Tab.Container>
-                    <PluginViewModal
-                        handleChange={this.handleFieldChange}
-                        handleSwitchChange={this.handleSwitchChange}
-                        pluginData={{
-                            currentPluginName: this.state.currentPluginName,
-                            currentPluginType: this.state.currentPluginType,
-                            currentPluginEnabled: this.state.currentPluginEnabled,
-                            currentPluginPath: this.state.currentPluginPath,
-                            currentPluginInitfunc: this.state.currentPluginInitfunc,
-                            currentPluginId: this.state.currentPluginId,
-                            currentPluginVendor: this.state.currentPluginVendor,
-                            currentPluginVersion: this.state.currentPluginVersion,
-                            currentPluginDescription: this.state.currentPluginDescription,
-                            currentPluginDependsOnType: this.state.currentPluginDependsOnType,
-                            currentPluginDependsOnNamed: this.state.currentPluginDependsOnNamed,
-                            currentPluginPrecedence: this.state.currentPluginPrecedence
-                        }}
-                        closeHandler={this.closePluginModal}
-                        showModal={this.state.showPluginModal}
+                        </GridItem>
+                    </Grid>
+                    <DoubleConfirmModal
+                        showModal={this.state.showConfirmToggle}
+                        closeHandler={this.closeConfirmToggle}
+                        handleChange={this.onFieldChange}
+                        actionHandler={this.togglePlugin}
+                        spinning={this.state.modalSpinning}
+                        item={this.state.togglePluginName}
+                        checked={this.state.modalChecked}
+                        mTitle={this.state.togglePluginEnabled ? "Disable Plugin" : "Enable Plugin"}
+                        mMsg={this.state.togglePluginEnabled
+                            ? "Are you really sure you want to disable this plugin?  Disabling some plugins can cause the server to not start, please use caution."
+                            : "Are you sure you want to enable this plugin?"}
+                        mSpinningMsg={this.state.togglePluginEnabled
+                            ? "Disabling plugin ..." : "Enabling plugin ..."}
+                        mBtnName={this.state.togglePluginEnabled
+                            ? "Disable Plugin" : "Enable Plugin"}
                     />
                 </div>
             </div>
@@ -560,6 +695,5 @@ Plugins.propTypes = {
 };
 
 Plugins.defaultProps = {
-    addNotification: noop,
     serverId: ""
 };

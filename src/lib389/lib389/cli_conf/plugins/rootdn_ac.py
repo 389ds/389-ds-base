@@ -52,7 +52,7 @@ def validate_args(args):
         if min < 0 or min > 59:
             raise ValueError(f"The minute portion of the time is invalid: {min}  Must be between 1 and 59")
 
-    if args.days_allowed is not None:
+    if args.days_allowed is not None and args.days_allowed != "delete":
         valid_days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
         choosen_days =  args.days_allowed.lower().replace(' ', '').split(',')
         for day in choosen_days:
@@ -61,26 +61,28 @@ def validate_args(args):
 
     if args.allow_ip is not None:
         for ip in args.allow_ip:
-            try:
-                socket.inet_aton(ip)
-            except socket.error:
-                raise ValueError(f"Invalid IP address ({ip}) for '--allow-ip'")
+            if ip != "delete":
+                try:
+                    socket.inet_aton(ip)
+                except socket.error:
+                    raise ValueError(f"Invalid IP address ({ip}) for '--allow-ip'")
 
-    if args.deny_ip is not None:
+    if args.deny_ip is not None and args.deny_ip != "delete":
         for ip in args.deny_ip:
-            try:
-                socket.inet_aton(ip)
-            except socket.error:
-                raise ValueError(f"Invalid IP address ({ip}) for '--deny-ip'")
+            if ip != "delete":
+                try:
+                    socket.inet_aton(ip)
+                except socket.error:
+                    raise ValueError(f"Invalid IP address ({ip}) for '--deny-ip'")
 
     if args.allow_host is not None:
         for hostname in args.allow_host:
-            if not is_valid_hostname(hostname):
+            if hostname != "delete" and not is_valid_hostname(hostname):
                 raise ValueError(f"Invalid hostname ({hostname}) for '--allow-host'")
 
     if args.deny_host is not None:
         for hostname in args.deny_host:
-            if not is_valid_hostname(hostname):
+            if hostname != "delete" and not is_valid_hostname(hostname):
                 raise ValueError(f"Invalid hostname ({hostname}) for '--deny-host'")
 
 

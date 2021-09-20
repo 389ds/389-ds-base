@@ -1,20 +1,36 @@
 import cockpit from "cockpit";
 import React from "react";
-import { ConfirmPopup, DoubleConfirmModal } from "../notifications.jsx";
-import CustomCollapse from "../customCollapse.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
-    Modal,
-    Icon,
     Button,
+    Checkbox,
+    ExpandableSection,
     Form,
-    Row,
-    Col,
-    ControlLabel,
-    FormControl,
-    noop
-} from "patternfly-react";
+    Grid,
+    GridItem,
+    Modal,
+    ModalVariant,
+    Select,
+    SelectOption,
+    SelectVariant,
+    SimpleList,
+    SimpleListItem,
+    Tab,
+    Tabs,
+    TabTitleText,
+    TextInput,
+    Text,
+    TextContent,
+    TextVariants,
+    ValidatedOptions,
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faLink,
+    faSyncAlt
+} from '@fortawesome/free-solid-svg-icons';
 
 //
 // This component is the global chaining & default configuration
@@ -23,60 +39,86 @@ export class ChainingDatabaseConfig extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            activeTabKey: this.props.activeKey,
             oids: this.props.data.oids,
             oidList: this.props.data.oidList,
             availableOids: this.props.data.availableOids,
             comps: this.props.data.comps,
             compList: this.props.data.compList,
             availableComps: this.props.data.availableComps,
-            selectedOids: this.props.data.selectedOids,
-            selectedComps: this.props.data.selectedComps,
-            removeOids: this.props.data.removeOids,
-            removeComps: this.props.data.removeComps,
+            selectedOid: "",
+            selectedComp: "",
+            removeOid: "",
+            removeComp: "",
             showConfirmCompDelete: false,
             showConfirmOidDelete: false,
             showOidModal: false,
             showCompsModal: false,
+            isExpanded: false,
+            saveBtnDisabled: true,
+            isOpen: false,
+            isModalSelectOpen: false,
+            modalChecked: false,
+            modalSpinning: false,
             // Chaining config settings
-            defSearchCheck: this.props.data.defSearchCheck,
-            defBindConnLimit: this.props.data.defBindConnLimit,
-            defBindTimeout: this.props.data.defBindTimeout,
-            defBindRetryLimit: this.props.data.defBindRetryLimit,
-            defConcurLimit: this.props.data.defConcurLimit,
-            defConcurOpLimit: this.props.data.defConcurOpLimit,
-            defConcurBindLimit: this.props.data.defConcurBindLimit,
-            defConnLife: this.props.data.defConnLife,
-            defHopLimit: this.props.data.defHopLimit,
-            defDelay: this.props.data.defDelay,
-            defTestDelay: this.props.data.defTestDelay,
-            defOpConnLimit: this.props.data.defOpConnLimit,
-            defSizeLimit: this.props.data.defSizeLimit,
-            defTimeLimit: this.props.data.defTimeLimit,
+            defSearchCheck: this.props.data.defSearchCheck[0],
+            defBindConnLimit: this.props.data.defBindConnLimit[0],
+            defBindTimeout: this.props.data.defBindTimeout[0],
+            defBindRetryLimit: this.props.data.defBindRetryLimit[0],
+            defConcurLimit: this.props.data.defConcurLimit[0],
+            defConcurOpLimit: this.props.data.defConcurOpLimit[0],
+            defConnLife: this.props.data.defConnLife[0],
+            defHopLimit: this.props.data.defHopLimit[0],
+            defDelay: this.props.data.defDelay[0],
+            defTestDelay: this.props.data.defTestDelay[0],
+            defOpConnLimit: this.props.data.defOpConnLimit[0],
+            defSizeLimit: this.props.data.defSizeLimit[0],
+            defTimeLimit: this.props.data.defTimeLimit[0],
             defProxy: this.props.data.defProxy,
             defRefOnScoped: this.props.data.defRefOnScoped,
             defCheckAci: this.props.data.defCheckAci,
             defUseStartTLS: this.props.data.defUseStartTLS,
             // Original values used for saving config
-            _defSearchCheck: this.props.data.defSearchCheck,
-            _defBindConnLimit: this.props.data.defBindConnLimit,
-            _defBindTimeout: this.props.data.defBindTimeout,
-            _defBindRetryLimit: this.props.data.defBindRetryLimit,
-            _defConcurLimit: this.props.data.defConcurLimit,
-            _defConcurOpLimit: this.props.data.defConcurOpLimit,
-            _defConnLife: this.props.data.defConnLife,
-            _defHopLimit: this.props.data.defHopLimit,
-            _defDelay: this.props.data.defDelay,
-            _defTestDelay: this.props.data.defTestDelay,
-            _defOpConnLimit: this.props.data.defOpConnLimit,
-            _defSizeLimit: this.props.data.defSizeLimit,
-            _defTimeLimit: this.props.data.defTimeLimit,
+            _defSearchCheck: this.props.data.defSearchCheck[0],
+            _defBindConnLimit: this.props.data.defBindConnLimit[0],
+            _defBindTimeout: this.props.data.defBindTimeout[0],
+            _defBindRetryLimit: this.props.data.defBindRetryLimit[0],
+            _defConcurLimit: this.props.data.defConcurLimit[0],
+            _defConcurOpLimit: this.props.data.defConcurOpLimit[0],
+            _defConnLife: this.props.data.defConnLife[0],
+            _defHopLimit: this.props.data.defHopLimit[0],
+            _defDelay: this.props.data.defDelay[0],
+            _defTestDelay: this.props.data.defTestDelay[0],
+            _defOpConnLimit: this.props.data.defOpConnLimit[0],
+            _defSizeLimit: this.props.data.defSizeLimit[0],
+            _defTimeLimit: this.props.data.defTimeLimit[0],
             _defProxy: this.props.data.defProxy,
             _defRefOnScoped: this.props.data.defRefOnScoped,
             _defCheckAci: this.props.data.defCheckAci,
             _defUseStartTLS: this.props.data.defUseStartTLS,
         };
 
+        this.onToggle = (isExpanded) => {
+            this.setState({
+                isExpanded
+            });
+        };
+
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+
+        this.onModalToggle = isModalSelectOpen => {
+            this.setState({
+                isModalSelectOpen
+            });
+        };
+
         this.handleChange = this.handleChange.bind(this);
+        this.handleModalChange = this.handleModalChange.bind(this);
         this.save_chaining_config = this.save_chaining_config.bind(this);
         // Chaining Control OIDs
         this.showOidModal = this.showOidModal.bind(this);
@@ -101,17 +143,45 @@ export class ChainingDatabaseConfig extends React.Component {
         this.props.enableTree();
     }
 
-    handleChange(e) {
-        // Generic
+    handleModalChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
         });
     }
 
+    handleChange(e) {
+        let saveBtnDisabled = true;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+        const check_attrs = [
+            "defSearchCheck", "defBindConnLimit", "defBindTimeout",
+            "defBindRetryLimit", "defConcurLimit", "defConcurOpLimit",
+            "defConnLife", "defHopLimit", "defDelay",
+            "defTestDelay", "defOpConnLimit", "defSizeLimit",
+            "defTimeLimit", "defProxy", "defRefOnScoped",
+            "defCheckAci", "defUseStartTLS",
+        ];
+
+        for (const check_attr of check_attrs) {
+            if (attr != check_attr) {
+                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                    saveBtnDisabled = false;
+                }
+            } else if (value != this.state['_' + check_attr]) {
+                saveBtnDisabled = false;
+            }
+        }
+
+        this.setState({
+            [attr]: value,
+            saveBtnDisabled: saveBtnDisabled
+        });
+    }
+
     save_chaining_config () {
         // Build up the command list
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'chaining', 'config-set-def'
         ];
@@ -186,9 +256,12 @@ export class ChainingDatabaseConfig extends React.Component {
 
         // If we have chaining mods, then apply them...
         if (cmd.length > 5) {
+            this.setState({
+                saving: true
+            });
             log_cmd("save_chaining_config", "Applying default chaining config change", cmd);
             cockpit
-                    .spawn(cmd, {superuser: true, "err": "message"})
+                    .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
                         // Continue with the next mod
                         this.props.reload();
@@ -196,14 +269,20 @@ export class ChainingDatabaseConfig extends React.Component {
                             "success",
                             `Successfully updated chaining configuration`
                         );
+                        this.setState({
+                            saving: false
+                        });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.reload();
                         this.props.addNotification(
                             "error",
                             `Error updating chaining configuration - ${errMsg.desc}`
                         );
+                        this.setState({
+                            saving: false
+                        });
                     });
         }
     }
@@ -213,7 +292,8 @@ export class ChainingDatabaseConfig extends React.Component {
     //
     showOidModal () {
         this.setState({
-            showOidModal: true
+            showOidModal: true,
+            selectedOid: "",
         });
     }
 
@@ -223,44 +303,50 @@ export class ChainingDatabaseConfig extends React.Component {
         });
     }
 
-    handleOidChange(e) {
-        const options = e.target.options;
-        let values = [];
-        for (let option of options) {
-            if (option.selected) {
-                values.push(option.value);
-            }
+    handleOidChange (selectedItem, selectedItemProps) {
+        const oid = selectedItemProps.children;
+        if (oid != this.state.selectedOid) {
+            this.setState({
+                selectedOid: oid
+            });
         }
-        this.setState({
-            selectedOids: values
-        });
     }
 
     saveOids () {
         // Save chaining control oids
-        let cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "chaining", "config-set"
-        ];
-        for (let oid of this.state.selectedOids) {
-            if (!this.state.oidList.includes(oid)) {
-                cmd.push('--add-control=' + oid);
-            }
+        if (this.state.selectedOid == "") {
+            return;
         }
-        this.closeOidModal();
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "chaining", "config-set", "--add-control=" + this.state.selectedOid
+        ];
+        this.setState({
+            selectedOid: "",
+            modalSpinning: true,
+        });
+
         log_cmd("saveOids", "Save new chaining OID controls", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reload();
+                    this.closeOidModal();
+                    this.props.reload(1);
+                    this.setState({
+                        modalSpinning: false,
+                    });
                     this.props.addNotification(
                         "success",
                         `Successfully updated chaining controls`
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.props.reload();
+                    const errMsg = JSON.parse(err);
+                    this.setState({
+                        modalSpinning: false,
+                    });
+                    this.closeOidModal();
+                    this.props.reload(1);
                     this.props.addNotification(
                         "error",
                         `Error updating chaining controls - ${errMsg.desc}`
@@ -268,42 +354,40 @@ export class ChainingDatabaseConfig extends React.Component {
                 });
     }
 
-    handleSelectOids (e) {
-        const options = e.target.options;
-        let values = [];
-        for (let option of options) {
-            if (option.selected) {
-                values.push(option.value);
-            }
+    handleSelectOids (selectedItem, selectedItemProps) {
+        const oid = selectedItemProps.children;
+        if (oid != this.state.removeOid) {
+            this.setState({
+                removeOid: oid
+            });
         }
-        this.setState({
-            removeOids: values
-        });
     }
 
     deleteOids(props) {
-        // Remove chaining controls
-        let cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "chaining", "config-set"
-        ];
-        for (let oid of this.state.removeOids) {
-            cmd.push('--del-control=' + oid);
+        // Remove chaining oid control
+        if (this.state.removeOid == "") {
+            return;
         }
-        this.state.removeOids = [];
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "chaining", "config-set", "--del-control=" + this.state.removeOid
+        ];
+        this.setState({
+            removeOid: ""
+        });
 
-        log_cmd("deleteOids", "Delete chaining controls", cmd);
+        log_cmd("deleteOids", "Delete chaining control oid", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reload();
+                    this.props.reload(1);
                     this.props.addNotification(
                         "success",
                         `Successfully removed chaining controls`
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload();
                     this.props.addNotification(
                         "error",
@@ -317,7 +401,8 @@ export class ChainingDatabaseConfig extends React.Component {
     //
     showCompsModal () {
         this.setState({
-            showCompsModal: true
+            showCompsModal: true,
+            selectedComp: "",
         });
     }
 
@@ -327,57 +412,60 @@ export class ChainingDatabaseConfig extends React.Component {
         });
     }
 
-    handleCompsChange(e) {
-        const options = e.target.options;
-        let values = [];
-        for (let option of options) {
-            if (option.selected) {
-                values.push(option.value);
-            }
+    handleCompsChange (selectedItem, selectedItemProps) {
+        const comp = selectedItemProps.children;
+        if (comp != this.state.selectedComp) {
+            this.setState({
+                selectedComp: comp
+            });
         }
-        this.setState({
-            selectedComps: values
-        });
     }
 
-    handleSelectComps (e) {
-        const options = e.target.options;
-        let values = [];
-        for (let option of options) {
-            if (option.selected) {
-                values.push(option.value);
-            }
+    handleSelectComps (selectedItem, selectedItemProps) {
+        const comp = selectedItemProps.children;
+        if (comp != this.state.removeComp) {
+            this.setState({
+                removeComp: comp
+            });
         }
-        this.setState({
-            removeComps: values
-        });
     }
 
     saveComps () {
-        // Save chaining control oids
-        let cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "chaining", "config-set"
-        ];
-        for (let comp of this.state.selectedComps) {
-            if (!this.state.compList.includes(comp)) {
-                cmd.push('--add-comp=' + comp);
-            }
+        // Save chaining control Components
+        if (this.state.selectedComp == "") {
+            return;
         }
-        this.closeCompsModal();
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "chaining", "config-set", "--add-comp=" + this.state.selectedComp
+        ];
+
+        this.setState({
+            modalSpinning: true,
+            selectedComp: "",
+        });
+
         log_cmd("saveComps", "Save new chaining components", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reload();
+                    this.closeCompsModal();
+                    this.props.reload(1);
+                    this.setState({
+                        modalSpinnming: false,
+                    });
                     this.props.addNotification(
                         "success",
                         `Successfully updated chaining components`
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
+                    this.closeCompsModal();
                     this.props.reload();
+                    this.setState({
+                        modalSpinnming: false,
+                    });
                     this.props.addNotification(
                         "error",
                         `Error updating chaining components - ${errMsg.desc}`
@@ -386,28 +474,30 @@ export class ChainingDatabaseConfig extends React.Component {
     }
 
     deleteComps(props) {
-        // Remove chaining comps
-        let cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "chaining", "config-set"
-        ];
-        for (let comp of this.state.removeComps) {
-            cmd.push('--del-comp=' + comp);
+        if (this.state.removeComp == "") {
+            return;
         }
-        this.state.removeComps = [];
+        // Remove chaining comps
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "chaining", "config-set", "--del-comp=" + this.state.removeComp
+        ];
+        this.setState({
+            removeComp: "",
+        });
 
         log_cmd("deleteComps", "Delete chaining components", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reload();
+                    this.props.reload(1);
                     this.props.addNotification(
                         "success",
                         `Successfully removed chaining components`
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload();
                     this.props.addNotification(
                         "error",
@@ -421,13 +511,13 @@ export class ChainingDatabaseConfig extends React.Component {
     //
     showConfirmDelete(item) {
         if (item == "oid") {
-            if (this.state.removeOids.length) {
+            if (this.state.removeOid.length) {
                 this.setState({
                     showConfirmOidDelete: true
                 });
             }
         } else if (item == "comp") {
-            if (this.state.removeComps.length) {
+            if (this.state.removeComp.length) {
                 this.setState({
                     showConfirmCompDelete: true
                 });
@@ -449,181 +539,403 @@ export class ChainingDatabaseConfig extends React.Component {
 
     render() {
         // Get OIDs and comps
-        this.state.oids = this.state.oidList.map((oid) =>
-            <option key={oid} value={oid}>{oid}</option>
+        let oids = this.state.oidList.map((oid) =>
+            <SimpleListItem key={oid}>{oid}</SimpleListItem>
         );
-        this.state.comps = this.state.compList.map((comp) =>
-            <option key={comp} value={comp}>{comp}</option>
+        if (oids.length == 0) {
+            oids = "";
+        }
+        let comps = this.state.compList.map((comps) =>
+            <SimpleListItem key={comps}>{comps}</SimpleListItem>
         );
+        if (comps.length == 0) {
+            comps = "";
+        }
+        let saveBtnName = "Save Settings";
+        const extraPrimaryProps = {};
+        if (this.props.refreshing) {
+            saveBtnName = "Saving settings ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
 
         return (
-            <div id="chaining-page">
-                <h3 className="ds-config-header">Database Chaining Settings</h3>
-                <hr />
-                <div className="ds-container">
-                    <div className="ds-chaining-split">
-                        <form>
-                            <label className="ds-config-label" htmlFor="chaining-oid-list" title="A list of LDAP control OIDs to be forwarded through chaining"><b>Forwarded LDAP Controls</b></label>
-                            <select id="chaining-oid-list" onChange={this.handleSelectOids} className="ds-chaining-list" name="nstransmittedcontrols" size="10" multiple>
-                                {this.state.oids}
-                            </select>
-                        </form>
-                        <div className="clearfix ds-container">
-                            <div className="ds-panel-left">
-                                <button type="button" onClick={this.showOidModal} className="ds-button-left">Add</button>
-                            </div>
-                            <div className="ds-panel-right">
-                                <button type="button" onClick={e => this.showConfirmDelete("oid")} className="ds-button-right">Delete</button>
-                            </div>
+            <div id="chaining-page" className={this.state.saving ? "ds-disabled" : ""}>
+                <TextContent>
+                    <Text className="ds-config-header" component={TextVariants.h2}>Database Chaining Settings</Text>
+                </TextContent>
+                <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText><b>Default Creation Settings</b></TabTitleText>}>
+                        <div className="ds-indent ds-margin-bottom-md">
+                            <Grid
+                                title="The size limit of entries returned over a database link (nsslapd-sizelimit)."
+                                className="ds-margin-top-xlg"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Size Limit
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.defSizeLimit}
+                                        type="number"
+                                        id="defSizeLimit"
+                                        aria-describedby="defSizeLimit"
+                                        name="defSizeLimit"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The maximum number of operations per connections. (nsconcurrentoperationslimit)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Max Operations Per Conn
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.defConcurOpLimit}
+                                        type="number"
+                                        id="defConcurOpLimit"
+                                        aria-describedby="defConcurOpLimit"
+                                        name="defConcurOpLimit"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The time limit of an operation over a database link (nsslapd-timelimit)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Time Limit
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.defTimeLimit}
+                                        type="number"
+                                        id="defTimeLimit"
+                                        aria-describedby="defTimeLimit"
+                                        name="defTimeLimit"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The maximum number of operations per connections. (nsconcurrentoperationslimit)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Connection Lifetime
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.defConnLife}
+                                        type="number"
+                                        id="defConnLife"
+                                        aria-describedby="defConnLife"
+                                        name="defConnLife"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Max TCP Connections
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.defBindConnLimit}
+                                        type="number"
+                                        id="defBindConnLimit"
+                                        aria-describedby="defBindConnLimit"
+                                        name="defBindConnLimit"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Max LDAP Connections
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.defOpConnLimit}
+                                        type="number"
+                                        id="defOpConnLimit"
+                                        aria-describedby="defOpConnLimit"
+                                        name="defOpConnLimit"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Abandoned Op Check Interval
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.defSearchCheck}
+                                        type="number"
+                                        id="defSearchCheck"
+                                        aria-describedby="defSearchCheck"
+                                        name="defSearchCheck"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Max Binds Per Connection
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.defConcurLimit}
+                                        type="number"
+                                        id="defConcurLimit"
+                                        aria-describedby="defConcurLimit"
+                                        name="defConcurLimit"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Database Link Hop Limit
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.defHopLimit}
+                                        type="number"
+                                        id="defHopLimit"
+                                        aria-describedby="defHopLimit"
+                                        name="defHopLimit"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The amount of time before the bind attempt times out. (nsbindtimeout)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Bind Timeout
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.defBindTimeout}
+                                        type="number"
+                                        id="defBindTimeout"
+                                        aria-describedby="defBindTimeout"
+                                        name="defBindTimeout"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Bind Retry Limit
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.state.defBindRetryLimit}
+                                        type="number"
+                                        id="defBindRetryLimit"
+                                        aria-describedby="defBindRetryLimit"
+                                        name="defBindRetryLimit"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={12}>
+                                    <Checkbox
+                                        label="Check Local ACIs"
+                                        id="defCheckAci"
+                                        isChecked={this.state.defCheckAci}
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                        aria-label="check aci"
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={12}>
+                                    <Checkbox
+                                        label="Send Referral On Scoped Search"
+                                        id="defRefOnScoped"
+                                        isChecked={this.state.defRefOnScoped}
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                        aria-label="send ref"
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Sets whether proxied authentication is allowed. (nsproxiedauthorization)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={12}>
+                                    <Checkbox
+                                        label="Allow Proxied Authentication"
+                                        id="defProxy"
+                                        isChecked={this.state.defProxy}
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                        aria-label="prox auth"
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Use StartTLS for connections to remote server. (nsusestarttls)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={12}>
+                                    <Checkbox
+                                        label="Use StartTLS"
+                                        id="defUseStartTLS"
+                                        isChecked={this.state.defUseStartTLS}
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                        aria-label="startTLS"
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Button
+                                className="ds-margin-top-xlg"
+                                variant="primary"
+                                onClick={this.save_chaining_config}
+                                isDisabled={this.state.saveBtnDisabled}
+                                isLoading={this.state.saving}
+                                spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                                {...extraPrimaryProps}
+                            >
+                                {saveBtnName}
+                            </Button>
                         </div>
-                    </div>
-                    <div className="ds-chaining-divider" />
-                    <div className="ds-chaining-split">
-                        <form>
-                            <label className="ds-config-label" htmlFor="chaining-comp-list" title="A list of components to go through chaining"><b>Components to Chain</b></label>
-                            <select id="chaining-comp-list" onChange={this.handleSelectComps} className="ds-chaining-list" name="nsactivechainingcomponents" size="10" multiple>
-                                {this.state.comps}}
-                            </select>
-                        </form>
-                        <div className="clearfix ds-container">
-                            <div className="ds-panel-left">
-                                <button type="button" onClick={this.showCompsModal} className="ds-button-left">Add</button>
-                            </div>
-                            <div className="ds-panel-right">
-                                <button type="button" onClick={e => this.showConfirmDelete("comp")} className="ds-button-right">Delete</button>
-                            </div>
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText><b>Controls & Components</b></TabTitleText>}>
+                        <div className="ds-indent">
+                            <Grid className="ds-margin-top-xlg">
+                                <GridItem
+                                    span={4}
+                                    title="A list of LDAP control OIDs to be forwarded through chaining."
+                                >
+                                    <TextContent>
+                                        <Text component={TextVariants.h4}>Forwarded LDAP Controls</Text>
+                                    </TextContent>
+                                    <div className="ds-box ds-margin-top">
+                                        <SimpleList onSelect={this.handleSelectOids} aria-label="forward ctrls">
+                                            {oids}
+                                        </SimpleList>
+                                    </div>
+                                    <div className="ds-margin-bottom-md ds-container">
+                                        <div className="ds-panel-left">
+                                            <Button
+                                                variant="primary"
+                                                onClick={this.showOidModal}
+                                                className="ds-button-left"
+                                            >
+                                                Add
+                                            </Button>
+                                        </div>
+                                        <div className="ds-panel-right">
+                                            <Button
+                                                variant="primary"
+                                                onClick={e => this.showConfirmDelete("oid")}
+                                                className="ds-button-right"
+                                                isDisabled={this.state.removeOid == ""}
+                                            >
+                                                Delete
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </GridItem>
+                                <GridItem span={1} />
+                                <GridItem span={4} title="A list of components to go through chaining">
+                                    <TextContent>
+                                        <Text component={TextVariants.h4}>Components to Chain</Text>
+                                    </TextContent>
+                                    <div className="ds-box ds-margin-top">
+                                        <SimpleList onSelect={this.handleSelectComps} aria-label="comps">
+                                            {comps}
+                                        </SimpleList>
+                                    </div>
+                                    <div className="ds-margin-bottom-md ds-container">
+                                        <div className="ds-panel-left">
+                                            <Button
+                                                variant="primary"
+                                                onClick={this.showCompsModal}
+                                                className="ds-button-left"
+                                            >
+                                                Add
+                                            </Button>
+                                        </div>
+                                        <div className="ds-panel-right">
+                                            <Button
+                                                variant="primary"
+                                                onClick={e => this.showConfirmDelete("comp")}
+                                                className="ds-button-right"
+                                                isDisabled={this.state.removeComp == ""}
+                                            >
+                                                Delete
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </GridItem>
+                            </Grid>
                         </div>
-                    </div>
-                </div>
-                <h4 className="ds-margin-top ds-sub-header ds-center">Default Database Link Creation Settings</h4>
-                <hr />
-                <Form horizontal>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="The size limit of entries returned over a database link (nsslapd-sizelimit).">
-                            Size Limit
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" id="defSizeLimit" onChange={this.handleChange} defaultValue={this.state.defSizeLimit} />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="The maximum number of operations per connections. (nsconcurrentoperationslimit).">
-                            Max Operations Per Conn
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" id="defConcurOpLimit" onChange={this.handleChange} defaultValue={this.state.defConcurOpLimit} />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="The time limit of an operation over a database link (nsslapd-timelimit).">
-                            Time Limit
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" id="defTimeLimit" onChange={this.handleChange} defaultValue={this.state.defTimeLimit} />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="The maximum number of operations per connections. (nsconcurrentoperationslimit).">
-                            Connection Lifetime
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" id="defConnLife" onChange={this.handleChange} defaultValue={this.state.defConnLife} />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit).">
-                            Max TCP Connections
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" id="defBindConnLimit" onChange={this.handleChange} defaultValue={this.state.defBindConnLimit} />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).">
-                            Max LDAP Connections
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" id="defOpConnLimit" onChange={this.handleChange} defaultValue={this.state.defOpConnLimit} />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).">
-                            Abandoned Op Check Interval
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" id="defSearchCheck" onChange={this.handleChange} defaultValue={this.state.defSearchCheck} />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).">
-                            Max Binds Per Connection
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" id="defConcurLimit" onChange={this.handleChange} defaultValue={this.state.defConcurLimit} />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit).">
-                            Database Link Hop Limit
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" id="defHopLimit" onChange={this.handleChange} defaultValue={this.state.defHopLimit} />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="The amount of time before the bind attempt times out. (nsbindtimeout).">
-                            Bind Timeout
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" id="defBindTimeout" onChange={this.handleChange} defaultValue={this.state.defBindTimeout} />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit).">
-                            Bind Retry Limit
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" id="defBindRetryLimit" onChange={this.handleChange} defaultValue={this.state.defBindRetryLimit} />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci).">
-                            Check Local ACIs
-                        </Col>
-                        <Col sm={8}>
-                            <input type="checkbox" onChange={this.handleChange} defaultChecked={this.state.defCheckAci} className="ds-config-checkbox" id="nsusdefCheckAciestarttls" />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch).">
-                            Send Referral On Scoped Search
-                        </Col>
-                        <Col sm={8}>
-                            <input type="checkbox" onChange={this.handleChange} defaultChecked={this.state.defRefOnScoped} className="ds-config-checkbox" id="defRefOnScoped" />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci).">
-                            Allow Proxied Authentication
-                        </Col>
-                        <Col sm={8}>
-                            <input type="checkbox" onChange={this.handleChange} defaultChecked={this.state.defProxy} className="ds-config-checkbox" id="defProxy" />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch).">
-                            Use StartTLS
-                        </Col>
-                        <Col sm={8}>
-                            <input type="checkbox" onChange={this.handleChange} defaultChecked={this.state.defUseStartTLS} className="ds-config-checkbox" id="defUseStartTLS" />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top-lg">
-                        <Col sm={5}>
-                            <button className="btn btn-primary save-button" onClick={this.save_chaining_config}>Save Default Settings</button>
-                        </Col>
-                    </Row>
-                </Form>
+                    </Tab>
+                </Tabs>
 
                 <ChainControlsModal
                     showModal={this.state.showOidModal}
@@ -631,6 +943,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     handleChange={this.handleOidChange}
                     saveHandler={this.saveOids}
                     oidList={this.state.availableOids}
+                    spinning={this.state.modalSpinning}
                 />
                 <ChainCompsModal
                     showModal={this.state.showCompsModal}
@@ -638,20 +951,33 @@ export class ChainingDatabaseConfig extends React.Component {
                     handleChange={this.handleCompsChange}
                     saveHandler={this.saveComps}
                     compList={this.state.availableComps}
+                    spinning={this.state.modalSpinning}
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmOidDelete}
                     closeHandler={this.closeConfirmOidDelete}
-                    actionFunc={this.deleteOids}
-                    msg="Are you sure you want to delete these OID's?"
-                    msgContent={this.state.removeOids}
+                    handleChange={this.handleModalChange}
+                    actionHandler={this.deleteOids}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.removeOid}
+                    checked={this.state.modalChecked}
+                    mTitle="Remove Chaining OID"
+                    mMsg="Are you sure you want to delete this OID?"
+                    mSpinningMsg="Deleting ..."
+                    mBtnName="Delete"
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmCompDelete}
                     closeHandler={this.closeConfirmCompDelete}
-                    actionFunc={this.deleteComps}
-                    msg="Are you sure you want to delete these components?"
-                    msgContent={this.state.removeComps}
+                    handleChange={this.handleModalChange}
+                    actionHandler={this.deleteComps}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.removeComp}
+                    checked={this.state.modalChecked}
+                    mTitle="Remove Chaining Component"
+                    mMsg="Are you sure you want to delete this component?"
+                    mSpinningMsg="Deleting ..."
+                    mBtnName="Delete"
                 />
             </div>
         );
@@ -665,13 +991,16 @@ export class ChainingConfig extends React.Component {
     constructor(props) {
         super(props);
 
-        if (this.props.data !== undefined) {
+        if (this.props.data) {
             this.state = {
                 errObj: {},
                 showDeleteConfirm: false,
                 linkPwdMatch: true,
                 modalSpinning: false,
                 modalChecked: false,
+                saving: false,
+                saveBtnDisabled: true,
+                isOpen: false,
                 // Settings
                 nsfarmserverurl: this.props.data.nsfarmserverurl,
                 nsmultiplexorbinddn: this.props.data.nsmultiplexorbinddn,
@@ -722,6 +1051,40 @@ export class ChainingConfig extends React.Component {
                 linkPwdMatch: true,
             };
         }
+
+        this.onSelectToggle = isOpen => {
+            this.setState({
+                isOpen
+            });
+        };
+
+        this.onSelect = (event, selection, isPlaceholder) => {
+            let saveBtnDisabled = true;
+            const check_attrs = [
+                "nsfarmserverurl", "nsmultiplexorbinddn", "nsmultiplexorcredentials",
+                "nsmultiplexorcredentials_confirm", "sizelimit", "timelimit",
+                "bindconnlimit", "opconnlimit", "concurrbindlimit",
+                "bindtimeout", "bindretrylimit", "concurroplimit",
+                "connlifetime", "searchcheckinterval", "hoplimit",
+                "nsbindmechanism", "nsusestarttls", "nsusestarttls",
+                "nsreferralonscopedsearch", "nsproxiedauthorization", "nschecklocalaci"
+            ];
+
+            for (const check_attr of check_attrs) {
+                if (check_attr != "nsbindmechanism" && this.state[check_attr] !== this.state['_' + check_attr]) {
+                    saveBtnDisabled = false;
+                }
+            }
+            if (selection != this.state._nsbindmechanism) {
+                saveBtnDisabled = false;
+            }
+            this.setState({
+                nsbindmechanism: selection,
+                saveBtnDisabled: saveBtnDisabled,
+                isOpen: false
+            });
+        };
+
         this.handleChange = this.handleChange.bind(this);
         this.saveLink = this.saveLink.bind(this);
         this.deleteLink = this.deleteLink.bind(this);
@@ -754,27 +1117,51 @@ export class ChainingConfig extends React.Component {
         if (this.state.nsmultiplexorcredentials == this.state.nsmultiplexorcredentials_confirm) {
             pwdMatch = true;
         }
+
         this.setState({
-            linkPwdMatch: pwdMatch
+            linkPwdMatch: pwdMatch,
         });
     }
 
     handleChange (e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const attr = e.target.id;
+        const errObj = this.state.errObj;
+        let saveBtnDisabled = true;
+
+        const check_attrs = [
+            "nsfarmserverurl", "nsmultiplexorbinddn", "nsmultiplexorcredentials",
+            "nsmultiplexorcredentials_confirm", "sizelimit", "timelimit",
+            "bindconnlimit", "opconnlimit", "concurrbindlimit",
+            "bindtimeout", "bindretrylimit", "concurroplimit",
+            "connlifetime", "searchcheckinterval", "hoplimit",
+            "nsbindmechanism", "nsusestarttls", "nsusestarttls",
+            "nsreferralonscopedsearch", "nsproxiedauthorization", "nschecklocalaci"
+        ];
+        for (const check_attr of check_attrs) {
+            if (attr != check_attr) {
+                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                    saveBtnDisabled = false;
+                }
+            } else if (value != this.state['_' + check_attr]) {
+                saveBtnDisabled = false;
+            }
+        }
+
         if (value == "") {
             valueErr = true;
         }
-        errObj[e.target.id] = valueErr;
+        errObj[attr] = valueErr;
         this.setState({
-            [e.target.id]: value,
-            errObj: errObj
+            [attr]: value,
+            errObj: errObj,
+            saveBtnDisabled: saveBtnDisabled
         }, this.checkPasswords);
     }
 
     saveLink() {
-        let missingArgs = {};
+        const missingArgs = {};
         let errors = false;
 
         if (this.state.nsfarmserverurl == "") {
@@ -825,8 +1212,8 @@ export class ChainingConfig extends React.Component {
             return;
         }
 
-        // Buld up the command of all the hcnge we have to do
-        let cmd = [
+        // Build up the command of all the changes we need to make
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "link-set", this.props.suffix
         ];
@@ -907,6 +1294,9 @@ export class ChainingConfig extends React.Component {
         }
 
         if (cmd.length > 6) {
+            this.setState({
+                saving: true
+            });
             // Something changed, perform the update
             log_cmd("saveLink", "Save chaining link config", cmd);
             cockpit
@@ -917,14 +1307,20 @@ export class ChainingConfig extends React.Component {
                             "success",
                             `Successfully Updated Link Configuration`
                         );
+                        this.setState({
+                            saving: false
+                        });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.reload(this.props.suffix);
                         this.props.addNotification(
                             "error",
                             `Failed to update link configuration - ${errMsg.desc}`
                         );
+                        this.setState({
+                            saving: false
+                        });
                     });
         }
     }
@@ -945,7 +1341,7 @@ export class ChainingConfig extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.loadSuffixTree(true);
                     this.props.addNotification(
                         "error",
@@ -956,297 +1352,451 @@ export class ChainingConfig extends React.Component {
 
     render () {
         const error = this.state.errObj;
-
+        const extraPrimaryProps = {};
+        let saveBtnName = "Save Settings";
+        if (this.state.loading) {
+            saveBtnName = "Saving settings ...";
+            extraPrimaryProps.spinnerAriaValueText = "Loading";
+        }
         return (
-            <div>
-                <Row>
-                    <Col sm={10} className="ds-word-wrap">
-                        <ControlLabel className="ds-suffix-header">
-                            <Icon type="fa" name="link" /> <b>{this.props.suffix}</b> (<i>{this.props.bename}</i>)
-                            <Icon className="ds-left-margin ds-refresh"
-                                type="fa" name="refresh" title="Refresh database link"
-                                onClick={() => this.props.reload(this.props.suffix)}
-                            />
-                        </ControlLabel>
-                    </Col>
-                    <Col sm={2}>
+            <div className={this.state.saving ? "ds-disabled" : ""}>
+                <Grid>
+                    <GridItem span={10} className="ds-word-wrap">
+                        <TextContent>
+                            <Text className="ds-suffix-header" component={TextVariants.h3}>
+                                <FontAwesomeIcon size="sm" icon={faLink} /> {this.props.suffix} (<i><font size="3">{this.props.bename}</font></i>)
+                                <FontAwesomeIcon
+                                    size="lg"
+                                    className="ds-left-margin ds-refresh"
+                                    icon={faSyncAlt}
+                                    title="Refresh database link"
+                                    onClick={() => this.props.reload(this.props.suffix)}
+                                />
+                            </Text>
+                        </TextContent>
+                    </GridItem>
+                    <GridItem span={2}>
                         <Button
-                            bsStyle="danger"
+                            className="ds-float-right"
+                            variant="danger"
                             onClick={this.showDeleteConfirm}
                         >
                             Delete Link
                         </Button>
-                    </Col>
-                </Row>
-                <Form horizontal autoComplete="off" className="ds-margin-top-xlg">
-                    <Row title="The LDAP URL for the remote server.  Add additional failure server URLs by separating them with a space. (nsfarmserverurl)">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Remote Server LDAP URL
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                type="text"
-                                id="nsfarmserverurl"
-                                className="ds-input-auto"
-                                onChange={this.handleChange}
-                                defaultValue={this.state.nsfarmserverurl}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="The distinguished name (DN) of the entry to authenticate to the remote server. (nsmultiplexorbinddn)">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Remote Server Bind DN
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                type="text"
-                                id="nsmultiplexorbinddn"
-                                className="ds-input-auto"
-                                onChange={this.handleChange}
-                                defaultValue={this.state.nsmultiplexorbinddn}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="The password for the authenticating entry. (nsmultiplexorcredentials)">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Bind DN Password
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                type="password"
-                                id="nsmultiplexorcredentials"
-                                className={(error.nsmultiplexorcredentials || !this.state.linkPwdMatch) ? "ds-input-auto-bad" : "ds-input-auto"}
-                                onChange={this.handleChange}
-                                defaultValue={this.state.nsmultiplexorcredentials}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="Confirm the password for the authenticating entry. (nsmultiplexorcredentials)">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Confirm Password
-                        </Col>
-                        <Col sm={8}>
-                            <FormControl
-                                type="password"
-                                id="nsmultiplexorcredentials_confirm"
-                                className={(error.nsmultiplexorcredentials_confirm || !this.state.linkPwdMatch) ? "ds-input-auto-bad" : "ds-input-auto"}
-                                onChange={this.handleChange}
-                                defaultValue={this.state.nsmultiplexorcredentials_confirm}
-                            />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="The authentication mechanism.  Simple (user name and password), SASL/DIGEST-MD5, or SASL>GSSAPI. (nsbindmechanism)">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Bind Mechanism
-                        </Col>
-                        <Col sm={8}>
-                            <select value={this.state.nsbindmechanism}
-                                className="btn btn-default dropdown ds-dblink-dropdown"
-                                onChange={this.handleChange}
-                                id="nsbindmechanism"
-                            >
-                                <option>Simple</option>
-                                <option>SASL/DIGEST-MD5</option>
-                                <option>SASL/GSSAPI</option>
-                            </select>
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top" title="Use StartTLS for connections to the remote server. (nsusestarttls)">
-                        <Col componentClass={ControlLabel} sm={4}>
-                            Use StartTLS
-                        </Col>
-                        <Col sm={8}>
-                            <input type="checkbox" onChange={this.props.handleChange} defaultChecked={this.state.nsusestarttls} className="ds-config-checkbox" id="nsusestarttls" />
-                        </Col>
-                    </Row>
-                </Form>
+                    </GridItem>
+                </Grid>
 
-                <CustomCollapse className="ds-margin-top">
-                    <Form horizontal className="ds-margin-top ds-margin-left">
-                        <Row className="ds-margin-top" title="The size limit of entries returned over a database link (nsslapd-sizelimit).">
-                            <Col componentClass={ControlLabel} sm={4}>
+                <Grid
+                    title="The LDAP URL for the remote server.  Add additional failure server URLs by separating them with a space. (nsfarmserverurl)."
+                    className="ds-margin-top-lg"
+                >
+                    <GridItem className="ds-label" span={3}>
+                        Remote Server LDAP URL
+                    </GridItem>
+                    <GridItem span={9}>
+                        <TextInput
+                            value={this.state.nsfarmserverurl}
+                            type="text"
+                            id="nsfarmserverurl"
+                            aria-describedby="nsfarmserverurl"
+                            name="nsfarmserverurl"
+                            onChange={(str, e) => {
+                                this.handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+                </Grid>
+                <Grid
+                    title="The distinguished name (DN) of the entry to authenticate to the remote server. (nsmultiplexorbinddn)."
+                    className="ds-margin-top"
+                >
+                    <GridItem className="ds-label" span={3}>
+                        Remote Server Bind DN
+                    </GridItem>
+                    <GridItem span={9}>
+                        <TextInput
+                            value={this.state.nsmultiplexorbinddn}
+                            type="text"
+                            id="nsmultiplexorbinddn"
+                            aria-describedby="nsmultiplexorbinddn"
+                            name="nsmultiplexorbinddn"
+                            onChange={(str, e) => {
+                                this.handleChange(e);
+                            }}
+                        />
+                    </GridItem>
+                </Grid>
+                <Grid
+                    title="The password for the authenticating entry. (nsmultiplexorcredentials)."
+                    className="ds-margin-top"
+                >
+                    <GridItem className="ds-label" span={3}>
+                        Bind DN Password
+                    </GridItem>
+                    <GridItem span={9}>
+                        <TextInput
+                            value={this.state.nsmultiplexorcredentials}
+                            type="password"
+                            id="nsmultiplexorcredentials"
+                            aria-describedby="nsmultiplexorcredentials"
+                            name="nsmultiplexorcredentials"
+                            onChange={(str, e) => {
+                                this.handleChange(e);
+                            }}
+                            validated={(error.nsmultiplexorcredentials || !this.state.linkPwdMatch) ? ValidatedOptions.error : ValidatedOptions.default}
+                        />
+                    </GridItem>
+                </Grid>
+                <Grid
+                    title="Confirm the password for the authenticating entry. (nsmultiplexorcredentials)."
+                    className="ds-margin-top"
+                >
+                    <GridItem className="ds-label" span={3}>
+                        Confirm Password
+                    </GridItem>
+                    <GridItem span={9}>
+                        <TextInput
+                            value={this.state.nsmultiplexorcredentials_confirm}
+                            type="password"
+                            id="nsmultiplexorcredentials_confirm"
+                            aria-describedby="nsmultiplexorcredentials_confirm"
+                            name="nsmultiplexorcredentials_confirm"
+                            onChange={(str, e) => {
+                                this.handleChange(e);
+                            }}
+                            validated={(error.nsmultiplexorcredentials_confirm || !this.state.linkPwdMatch) ? ValidatedOptions.error : ValidatedOptions.default}
+                        />
+                    </GridItem>
+                </Grid>
+                <Grid
+                    title="The authentication mechanism.  Simple (user name and password), SASL/DIGEST-MD5, or SASL>GSSAPI. (nsbindmechanism)."
+                    className="ds-margin-top"
+                >
+                    <GridItem className="ds-label" span={3}>
+                        Bind Method
+                    </GridItem>
+                    <GridItem span={9}>
+                        <Select
+                            variant={SelectVariant.single}
+                            aria-label="Select Input"
+                            onToggle={this.onSelectToggle}
+                            onSelect={this.onSelect}
+                            selections={this.state.nsbindmechanism}
+                            isOpen={this.state.isOpen}
+                            aria-labelledby="UID"
+                        >
+                            <SelectOption key="Simple" value="Simple" />
+                            <SelectOption key="SASL/DIGEST-MD5" value="SASL/DIGEST-MD5" />
+                            <SelectOption key="SASL/GSSAPI" value="SASL/GSSAPI" />
+                        </Select>
+                    </GridItem>
+                </Grid>
+                <Grid
+                    title="Use StartTLS for connections to the remote server. (nsusestarttls)."
+                    className="ds-margin-top"
+                >
+                    <GridItem className="ds-label" span={12}>
+                        <Checkbox
+                            label="Use StartTLS"
+                            id="nsusestarttls"
+                            isChecked={this.state.nsusestarttls}
+                            onChange={(str, e) => {
+                                this.handleChange(e);
+                            }}
+                            aria-label="check startTLS"
+                        />
+                    </GridItem>
+                </Grid>
+
+                <ExpandableSection
+                    className="ds-margin-top-xlg"
+                    toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                    onToggle={this.onToggle}
+                    isExpanded={this.state.isExpanded}
+                >
+                    <div className="ds-margin-top ds-margin-left">
+                        <Grid
+                            title="The size limit of entries returned over a database link (nsslapd-sizelimit)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Size Limit
-                            </Col>
-                            <Col sm={8}>
-                                <FormControl
-                                    type="text"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={this.state.sizelimit}
+                                    type="number"
                                     id="sizelimit"
-                                    className="ds-input-auto"
-                                    onChange={this.handleChange}
-                                    defaultValue={this.state.sizelimit}
+                                    aria-describedby="sizelimit"
+                                    name="sizelimit"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The time limit of an operation over a database link (nsslapd-timelimit).">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The time limit of an operation over a database link (nsslapd-timelimit)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Time Limit
-                            </Col>
-                            <Col sm={8}>
-                                <FormControl
-                                    type="text"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={this.state.sizelimit}
+                                    type="number"
                                     id="timelimit"
-                                    className="ds-input-auto"
-                                    onChange={this.handleChange}
-                                    defaultValue={this.state.timelimit}
+                                    aria-describedby="timelimit"
+                                    name="timelimit"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit).">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Max TCP Connections
-                            </Col>
-                            <Col sm={8}>
-                                <FormControl
-                                    type="text"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={this.state.bindconnlimit}
+                                    type="number"
                                     id="bindconnlimit"
-                                    className="ds-input-auto"
-                                    onChange={this.handleChange}
-                                    defaultValue={this.state.bindconnlimit}
+                                    aria-describedby="bindconnlimit"
+                                    name="bindconnlimit"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Max LDAP Connections
-                            </Col>
-                            <Col sm={8}>
-                                <FormControl
-                                    type="text"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={this.state.opconnlimit}
+                                    type="number"
                                     id="opconnlimit"
-                                    className="ds-input-auto"
-                                    onChange={this.handleChange}
-                                    defaultValue={this.state.opconnlimit}
+                                    aria-describedby="opconnlimit"
+                                    name="opconnlimit"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The maximum number of concurrent bind operations per TCP connection. (nsconcurrentbindlimit).">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The maximum number of concurrent bind operations per TCP connection. (nsconcurrentbindlimit)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Max Binds Per Connection
-                            </Col>
-                            <Col sm={8}>
-                                <FormControl
-                                    type="text"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={this.state.concurrbindlimit}
+                                    type="number"
                                     id="concurrbindlimit"
-                                    className="ds-input-auto"
-                                    onChange={this.handleChange}
-                                    defaultValue={this.state.concurrbindlimit}
+                                    aria-describedby="concurrbindlimit"
+                                    name="concurrbindlimit"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The amount of time before the bind attempt times out. (nsbindtimeout).">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The amount of time before the bind attempt times out. (nsbindtimeout)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Bind Timeout
-                            </Col>
-                            <Col sm={8}>
-                                <FormControl
-                                    type="text"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={this.state.bindtimeout}
+                                    type="number"
                                     id="bindtimeout"
-                                    className="ds-input-auto"
-                                    onChange={this.handleChange}
-                                    defaultValue={this.state.bindtimeout}
+                                    aria-describedby="bindtimeout"
+                                    name="bindtimeout"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit).">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Bind Retry Limit
-                            </Col>
-                            <Col sm={8}>
-                                <FormControl
-                                    type="text"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={this.state.bindtimeout}
+                                    type="number"
                                     id="bindretrylimit"
-                                    className="ds-input-auto"
-                                    onChange={this.handleChange}
-                                    defaultValue={this.state.bindretrylimit}
+                                    aria-describedby="bindretrylimit"
+                                    name="bindretrylimit"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The maximum number of operations per connections. (nsconcurrentoperationslimit).">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The maximum number of operations per connections. (nsconcurrentoperationslimit)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Max Operations Per Connection
-                            </Col>
-                            <Col sm={8}>
-                                <FormControl
-                                    type="text"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={this.state.concurroplimit}
+                                    type="number"
                                     id="concurroplimit"
-                                    className="ds-input-auto"
-                                    onChange={this.handleChange}
-                                    defaultValue={this.state.concurroplimit}
+                                    aria-describedby="concurroplimit"
+                                    name="concurroplimit"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The life of a database link connection to the remote server in seconds.  0 is unlimited  (nsconnectionlife).">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The life of a database link connection to the remote server in seconds.  0 is unlimited  (nsconnectionlife)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Connection Lifetime
-                            </Col>
-                            <Col sm={8}>
-                                <FormControl
-                                    type="text"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={this.state.connlifetime}
+                                    type="number"
                                     id="connlifetime"
-                                    className="ds-input-auto"
-                                    onChange={this.handleChange}
-                                    defaultValue={this.state.connlifetime}
+                                    aria-describedby="connlifetime"
+                                    name="connlifetime"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Abandoned Op Check Interval
-                            </Col>
-                            <Col sm={8}>
-                                <FormControl
-                                    type="text"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={this.state.searchcheckinterval}
+                                    type="number"
                                     id="searchcheckinterval"
-                                    className="ds-input-auto"
-                                    onChange={this.handleChange}
-                                    defaultValue={this.state.searchcheckinterval}
+                                    aria-describedby="searchcheckinterval"
+                                    name="searchcheckinterval"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit).">
-                            <Col componentClass={ControlLabel} sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={3}>
                                 Hop Limit
-                            </Col>
-                            <Col sm={8}>
-                                <FormControl
-                                    type="text"
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={this.state.hoplimit}
+                                    type="number"
                                     id="hoplimit"
-                                    className="ds-input-auto"
-                                    onChange={this.handleChange}
-                                    defaultValue={this.state.hoplimit}
+                                    aria-describedby="hoplimit"
+                                    name="hoplimit"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="Allow proxied authentication to the remote server. (nsproxiedauthorization).">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Allow Proxied Authentication
-                            </Col>
-                            <Col sm={8}>
-                                <input type="checkbox" onChange={this.props.handleChange} defaultChecked={this.state.nsproxiedauthorization} className="ds-config-checkbox" id="nsproxiedauthorization" />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci).">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Check Local ACIs
-                            </Col>
-                            <Col sm={8}>
-                                <input type="checkbox" onChange={this.props.handleChange} defaultChecked={this.state.nschecklocalaci} className="ds-config-checkbox" id="nschecklocalaci" />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top" title="Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch).">
-                            <Col componentClass={ControlLabel} sm={4}>
-                                Send Referral On Scoped Search
-                            </Col>
-                            <Col sm={8}>
-                                <input type="checkbox" onChange={this.props.handleChange} defaultChecked={this.state.nsreferralonscopedsearch} className="ds-config-checkbox" id="nsreferralonscopedsearch" />
-                            </Col>
-                        </Row>
-                    </Form>
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="Allow proxied authentication to the remote server. (nsproxiedauthorization)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={12}>
+                                <Checkbox
+                                    label="Allow Proxied Authentication"
+                                    id="nsproxiedauthorization"
+                                    isChecked={this.state.nsproxiedauthorization}
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
+                                    aria-label="send ref"
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={12}>
+                                <Checkbox
+                                    label="Check Local ACIs"
+                                    id="nschecklocalaci"
+                                    isChecked={this.state.nschecklocalaci}
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
+                                    aria-label="send ref"
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch)."
+                            className="ds-margin-top"
+                        >
+                            <GridItem className="ds-label" span={12}>
+                                <Checkbox
+                                    label="Send Referral On Scoped Search"
+                                    id="nsreferralonscopedsearch"
+                                    isChecked={this.state.nsreferralonscopedsearch}
+                                    onChange={(str, e) => {
+                                        this.handleChange(e);
+                                    }}
+                                    aria-label="send ref"
+                                />
+                            </GridItem>
+                        </Grid>
+                    </div>
                     <hr />
-                </CustomCollapse>
-                <div className="ds-margin-top-lg">
-                    <button onClick={this.saveLink} className="btn btn-primary">Save Configuration</button>
-                </div>
+                </ExpandableSection>
+                <Button
+                    className="ds-margin-top-lg"
+                    onClick={this.saveLink}
+                    variant="primary"
+                    isLoading={this.state.saving}
+                    spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                    {...extraPrimaryProps}
+                    isDisabled={this.state.saveBtnDisabled}
+                >
+                    {saveBtnName}
+                </Button>
                 <DoubleConfirmModal
                     showModal={this.state.showDeleteConfirm}
                     closeHandler={this.closeDeleteConfirm}
@@ -1276,55 +1826,55 @@ export class ChainControlsModal extends React.Component {
             closeHandler,
             handleChange,
             saveHandler,
-            oidList
+            oidList,
+            spinning,
         } = this.props;
 
         const oids = oidList.map((oid) =>
-            <option key={oid} value={oid}>{oid}</option>
+            <SimpleListItem key={oid}>{oid}</SimpleListItem>
         );
+        let btnName = "Add New Controls";
+        const extraPrimaryProps = {};
+        if (spinning) {
+            btnName = "Saving Controls ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Chaining LDAP Controls
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <label className="ds-config-label" htmlFor="avail-chaining-oid-list" title="A list of LDAP control OIDs to be forwarded through chaining">Available LDAP Controls</label>
-                            <div>
-                                <select id="avail-chaining-oid-list" onChange={handleChange} className="ds-width-auto" size="10" multiple>
-                                    {oids}
-                                </select>
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Add & Save New Controls
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title="Chaining LDAP Controls"
+                aria-labelledby="ds-modal"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Loading" : undefined}
+                        {...extraPrimaryProps}
+                    >
+                        {btnName}
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal>
+                    <TextContent title="A list of LDAP control OIDs to be forwarded through chaining">
+                        <Text component={TextVariants.h3}>
+                            Available LDAP Controls
+                        </Text>
+                    </TextContent>
+                    <div className="ds-box ds-margin-top">
+                        <SimpleList onSelect={handleChange} aria-label="comps">
+                            {oids}
+                        </SimpleList>
+                    </div>
+                </Form>
             </Modal>
         );
     }
@@ -1337,55 +1887,54 @@ export class ChainCompsModal extends React.Component {
             closeHandler,
             handleChange,
             saveHandler,
-            compList
+            compList,
+            spinning
         } = this.props;
-
         const comps = compList.map((comp) =>
-            <option key={comp} value={comp}>{comp}</option>
+            <SimpleListItem key={comp}>{comp}</SimpleListItem>
         );
-
+        let btnName = "Add New Components";
+        const extraPrimaryProps = {};
+        if (spinning) {
+            btnName = "Saving Components ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Chaining Components
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <label className="ds-config-label" htmlFor="avail-chaining-comp-list" title="A list of LDAP control OIDs to be forwarded through chaining">Available Components</label>
-                            <div>
-                                <select id="avail-chaining-comp-list" onChange={handleChange} className="ds-width-auto" size="10" multiple>
-                                    {comps}
-                                </select>
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Add & Save New Components
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title="Chaining Components"
+                isOpen={showModal}
+                onClose={closeHandler}
+                aria-labelledby="ds-modal"
+                actions={[
+                    <Button
+                        key="comps"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Loading" : undefined}
+                        {...extraPrimaryProps}
+                    >
+                        {btnName}
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal>
+                    <TextContent title="A list of LDAP control components">
+                        <Text component={TextVariants.h3}>
+                            Available Components
+                        </Text>
+                    </TextContent>
+                    Available LDAP Controls
+                    <div className="ds-box ds-margin-top">
+                        <SimpleList onSelect={handleChange} aria-label="comps">
+                            {comps}
+                        </SimpleList>
+                    </div>
+                </Form>
             </Modal>
         );
     }
@@ -1403,9 +1952,6 @@ ChainCompsModal.propTypes = {
 
 ChainCompsModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     compList: [],
 };
 
@@ -1419,9 +1965,6 @@ ChainControlsModal.propTypes = {
 
 ChainControlsModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    saveHandler: noop,
     oidList: [],
 };
 
@@ -1435,10 +1978,7 @@ ChainingDatabaseConfig.propTypes = {
 
 ChainingDatabaseConfig.defaultProps = {
     serverId: "",
-    addNotification: noop,
-    reload: noop,
     data: {},
-    enableTree: PropTypes.noop,
 };
 
 ChainingConfig.propTypes = {
@@ -1456,9 +1996,5 @@ ChainingConfig.defaultProps = {
     serverId: "",
     suffix: "",
     bename: "",
-    loadSuffixTree: noop,
-    addNotification: noop,
     data: {},
-    reload: noop,
-    enableTree: noop,
 };
