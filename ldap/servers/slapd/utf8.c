@@ -43,6 +43,8 @@
 /* uft8.c - misc. utf8 "string" functions. */
 #include "slapi-plugin.h"
 
+#define register  /* For C97 */
+
 static char UTF8len[64] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

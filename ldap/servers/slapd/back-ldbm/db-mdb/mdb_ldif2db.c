@@ -2024,10 +2024,14 @@ err_out:
     if (idl) {
         idl_free(&idl);
     }
+    if (cur.cur) {
+        MDB_CURSOR_CLOSE(cur.cur);
+        cur.cur = NULL;
+    }
     if (return_value) {
-        return_value = dbmdb_close_cursor(&cur, return_value);
+        return_value = dblayer_txn_commit(be, &txn);
     } else {
-        return_value = dbmdb_close_cursor(&cur, return_value);
+        return_value = dblayer_txn_abort(be, &txn);
         if (return_value) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "dbmdb_db2index", "%s: Failed to commit txn for db2index\n",
@@ -2081,7 +2085,7 @@ err_min:
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_db2index", "<=\n");
-
+    dbg_log(__FILE__, __LINE__, __FUNCTION__, DBGMDB_LEVEL_IMPORT, "db2index exited with code %d.\n", return_value);
     return return_value;
 }
 

@@ -63,7 +63,6 @@
  typedef struct wqslot {
      FILE *tmpfile;            /* storage for delayed slots */
      char *tmpfilepath;        /* tmpfile path */
-     char *dbipath;            /* dbi dbname */
      volatile int closed;      /* Tells that slot is clsosed */
      dbmdb_dbi_t *dbi;         /* database instanc e*/
      dbi_cursor_t cursor;      /* writer thread cursor associated with dbi */

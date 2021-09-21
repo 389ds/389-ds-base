@@ -4047,8 +4047,8 @@ update_writer_thread_stats(ImportWorkerInfo*info)
     } else {
        gwctx->writer_progress = 0.0;
     }
-
-     return finished;
+    dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_IMPORT, "exiting update_writer_thread_stats. Progress=%f finished=%d", gwctx->writer_progress, finished);
+    return finished;
  }
 
 static int
@@ -4473,6 +4473,9 @@ error:
     wqueue_process_queue(info, item_list, NULL);
 }
 
+/* Does not create the dbi (that is done earlier when calling dbmdb_open_all_files())
+ * But it creates the associated queue slot in which operations get pushed to the writer thread
+ */
 int
 dbmdb_import_writer_create_dbi(ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id, const char *filename, PRBool delayed)
 {
@@ -4482,6 +4485,7 @@ dbmdb_import_writer_create_dbi(ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id, 
     ldbm_instance *inst = info->job->inst;
     dbmdb_ctx_t *ctx = MDB_CONFIG(inst->inst_li);
     wqslot_t *wqslot;
+    int rc;
 
     if (slot >= gwctx->max_wqslots) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer_create_dbi",
@@ -4502,9 +4506,9 @@ dbmdb_import_writer_create_dbi(ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id, 
             return -1;
         }
     }
-    wqslot->dbipath = slapi_ch_smprintf("%s/%s", inst->inst_name, filename);
     /* Lets associate the slot and the dbi */
-    return dbmdb_open_dbi_from_filename(&wqslot->dbi, info->job->inst->inst_be, filename, NULL, 0);
+    rc = dbmdb_open_dbi_from_filename(&wqslot->dbi, info->job->inst->inst_be, filename, NULL, MDB_OPEN_DIRTY_DBI);
+    return rc;
 }
 
 /* Perform a synchronous write operation */
@@ -4751,7 +4755,6 @@ dbmdb_writer_cleanup(ImportJob *job)
             unlink(slot->tmpfilepath);
         }
         slapi_ch_free_string(&slot->tmpfilepath);
-        slapi_ch_free_string(&slot->dbipath);
     }
     slapi_ch_free((void**)&gwctx->wqslots);
     pthread_mutex_destroy(&gwctx->mutex);

@@ -345,7 +345,7 @@ _cl5ReadString(char **str, char **buff)
     assume the value stored as null terminated string.
 */
 void
-print_attr(char *attrname, char **buff)
+print_attr(const char *attrname, char **buff)
 {
     char *val = NULL;
 

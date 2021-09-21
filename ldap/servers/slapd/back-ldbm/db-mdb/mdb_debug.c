@@ -512,9 +512,6 @@ dbg_import_elmt(const char *file, int lineno, const char *funcname, const char *
         dbi_str = elmt2->slot->dbi->dbname;
     }
     if (!dbi_str) {
-        dbi_str = elmt2->slot->dbipath;
-    }
-    if (!dbi_str) {
         dbi_str = "???";
     }
 
