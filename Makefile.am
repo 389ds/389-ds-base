@@ -23,7 +23,6 @@ NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
 DEBUG_CFLAGS = @debug_cflags@
 DEBUG_CXXFLAGS = @debug_cxxflags@
-GCCSEC_CFLAGS = @gccsec_cflags@
 if CLANG_ENABLE
 ASAN_CFLAGS = @asan_cflags@
 else
@@ -32,6 +31,7 @@ ASAN_CFLAGS = @asan_cflags@ -lasan
 else
 ASAN_CFLAGS = @asan_cflags@
 endif
+GCCSEC_CFLAGS = @gccsec_cflags@
 endif
 MSAN_CFLAGS = @msan_cflags@
 TSAN_CFLAGS = @tsan_cflags@
@@ -88,7 +88,7 @@ endif
 
 if CLANG_ENABLE
 CLANG_ON = 1
-CLANG_LDFLAGS = -latomic -fuse-ld=lld
+CLANG_LDFLAGS = -latomic -fuse-ld=lld -Wl,--build-id=sha1
 EXPORT_LDFLAGS =
 else
 CLANG_ON = 0
