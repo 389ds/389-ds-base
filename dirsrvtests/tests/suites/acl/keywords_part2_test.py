@@ -10,22 +10,18 @@
 """
 This test script will test wrong/correct key value with ACIs.
 """
-
+import ldap
 import os
-import time
-from datetime import datetime
 import pytest
 import socket
-
+import time
+from datetime import datetime
 from lib389._constants import DEFAULT_SUFFIX, PW_DM
 from lib389.idm.domain import Domain
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.idm.user import UserAccount
 
-import ldap
-
 pytestmark = pytest.mark.tier1
-
 
 KEYWORDS_OU_KEY = "ou=Keywords,{}".format(DEFAULT_SUFFIX)
 DAYOFWEEK_OU_KEY = "ou=Dayofweek,{}".format(KEYWORDS_OU_KEY)
@@ -65,6 +61,8 @@ def test_access_from_certain_network_only_ip(topo, add_user, aci_of_user):
     # Wait till Access Log is generated
     topo.standalone.restart()
 
+    old_hostname = socket.gethostname()
+    socket.sethostname('localhost')
     hostname = socket.gethostname()
     IP = socket.gethostbyname(hostname)
 
@@ -74,9 +72,14 @@ def test_access_from_certain_network_only_ip(topo, add_user, aci_of_user):
                       f'allow(all)userdn = "ldap:///{NETSCAPEIP_KEY}" and (ip = "127.0.0.1" or ip = "::1" or ip = "{IP}") ;)')
 
     # create a new connection for the test
+    new_uri = topo.standalone.ldapuri.replace(old_hostname, hostname)
+    topo.standalone.ldapuri = new_uri
     conn = UserAccount(topo.standalone, NETSCAPEIP_KEY).bind(PW_DM)
+
     # Perform Operation
+    topo.standalone.config.set('nsslapd-errorlog-level', '128')
     org = OrganizationalUnit(conn, IP_OU_KEY)
+    topo.standalone.host = hostname
     org.replace("seeAlso", "cn=1")
 
     # remove the aci
@@ -92,7 +95,7 @@ def test_access_from_certain_network_only_ip(topo, add_user, aci_of_user):
         org.replace("seeAlso", "cn=1")
 
 
-def test_connectin_from_an_unauthorized_network(topo, add_user, aci_of_user):
+def test_connection_from_an_unauthorized_network(topo, add_user, aci_of_user):
     """
     User cannot access the data when connectin from an unauthorized network as per the ACI.
 
@@ -107,28 +110,35 @@ def test_connectin_from_an_unauthorized_network(topo, add_user, aci_of_user):
         2. Operation should  succeed
         3. Operation should  succeed
     """
+    old_hostname = socket.gethostname()
+    socket.sethostname('localhost')
     hostname = socket.gethostname()
-    IP = socket.gethostbyname(hostname)
 
     # Add ACI
     domain = Domain(topo.standalone, DEFAULT_SUFFIX)
     domain.add("aci", f'(target = "ldap:///{IP_OU_KEY}")'
                       f'(targetattr="*")(version 3.0; aci "IP aci"; '
                       f'allow(all) userdn = "ldap:///{NETSCAPEIP_KEY}" '
-                      f'and (ip != "127.0.0.1" and ip != "::1" and ip != "{IP}") ;)')
+                      f'and (ip != "127.0.0.1" and ip != "::1") ;)')
 
     # create a new connection for the test
+    new_uri = topo.standalone.ldapuri.replace(old_hostname, hostname)
+    topo.standalone.ldapuri = new_uri
     conn = UserAccount(topo.standalone, NETSCAPEIP_KEY).bind(PW_DM)
+
     # Perform Operation
+    topo.standalone.config.set('nsslapd-errorlog-level', '128')
     org = OrganizationalUnit(conn, IP_OU_KEY)
     with pytest.raises(ldap.INSUFFICIENT_ACCESS):
         org.replace("seeAlso", "cn=1")
+
     # Remove the ACI
     domain.ensure_removed('aci', domain.get_attr_vals('aci')[-1])
     # Add new ACI
     domain.add('aci', f'(target = "ldap:///{IP_OU_KEY}")(targetattr="*")'
                       f'(version 3.0; aci "IP aci"; allow(all) '
-                      f'userdn = "ldap:///{NETSCAPEIP_KEY}" and (ip = "127.0.0.1" or ip = "::1" or ip = "{IP}") ;)')
+                      f'userdn = "ldap:///{NETSCAPEIP_KEY}" and (ip = "127.0.0.1" or ip = "::1") ;)')
+    time.sleep(1)
 
     # now user can access data
     org.replace("seeAlso", "cn=1")
