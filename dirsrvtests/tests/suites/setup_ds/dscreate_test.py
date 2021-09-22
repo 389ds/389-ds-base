@@ -1,12 +1,10 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
-
-
 import sys
 import pytest
 from lib389 import DirSrv
@@ -17,14 +15,12 @@ from lib389.instance.options import General2Base, Slapd2Base
 from lib389._constants import *
 from lib389.utils import ds_is_older
 
-import tempfile
-
 pytestmark = [pytest.mark.tier0,
               pytest.mark.skipif(ds_is_older('1.4.1.2'), reason="Needs a compatible systemd unit, see PR#50213")]
 
 INSTANCE_PORT = 54321
+INSTANCE_SECURE_PORT = 54322
 INSTANCE_SERVERID = 'standalone'
-
 DEBUGGING = True
 
 MAJOR, MINOR, _, _, _ = sys.version_info
@@ -75,6 +71,7 @@ def test_setup_ds_minimal_dry(topology):
     slapd_options = Slapd2Base(lc.log)
     slapd_options.set('instance_name', INSTANCE_SERVERID)
     slapd_options.set('port', INSTANCE_PORT)
+    slapd_options.set('secure_port', INSTANCE_SECURE_PORT)
     slapd_options.set('root_password', PW_DM)
     slapd_options.verify()
     slapd = slapd_options.collect()
@@ -102,6 +99,7 @@ def test_setup_ds_minimal(topology):
     slapd_options = Slapd2Base(lc.log)
     slapd_options.set('instance_name', INSTANCE_SERVERID)
     slapd_options.set('port', INSTANCE_PORT)
+    slapd_options.set('secure_port', INSTANCE_SECURE_PORT)
     slapd_options.set('root_password', PW_DM)
     slapd_options.verify()
     slapd = slapd_options.collect()
@@ -117,14 +115,3 @@ def test_setup_ds_minimal(topology):
     topology.standalone.start()
     # Okay, actually remove the instance
     remove_ds_instance(topology.standalone)
-
-
-def test_setup_ds_inf_minimal(topology):
-    if MAJOR < 3:
-        return
-    # Write a template inf
-    # Check it?
-    # Setup the server
-
-    pass
-

@@ -259,7 +259,7 @@ DS_LASIpGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_in
     if (rv != LAS_EVAL_TRUE || (NULL == aclpb)) {
         acl_print_acllib_err(errp, NULL);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
-                      "DS_LASIpGetter:Unable to get the ACLPB(%d)\n", rv);
+                      "DS_LASIpGetter: Unable to get the ACLPB(%d)\n", rv);
         return LAS_EVAL_FAIL;
     }
 
@@ -362,7 +362,6 @@ DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_i
         char buf[PR_NETDB_BUF_SIZE];
 
         if (slapi_pblock_get(aclpb->aclpb_pblock, SLAPI_CONN_CLIENTNETADDR, &client_praddr) != 0) {
-
             slapi_log_err(SLAPI_LOG_ERR, plugin_name, "DS_LASDnsGetter - Could not get client IP.\n");
             return (LAS_EVAL_FAIL);
         }
@@ -377,12 +376,41 @@ DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_i
                 (*dnsList)->bv_len = strlen((*dnsList)->bv_val);
                 slapi_pblock_set(aclpb->aclpb_pblock, SLAPI_CLIENT_DNS, &dnsList);
             }
+        } else {
+            char *errtext = NULL;
+            PRInt32 errlen;
+            char ip_str[1024] = {0};
+            PR_NetAddrToString(&client_praddr, ip_str, 1024);
+            errlen = PR_GetErrorTextLength();
+            if (errlen > 0) {
+                errtext = slapi_ch_malloc(errlen + 1);
+                if (PR_GetErrorText(errtext) > 0) {
+                    slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASDnsGetter - "
+                                  "Failed to resolve IP address (%s) error %d: %s\n",
+                                  ip_str, PR_GetError(), errtext);
+                }
+                slapi_ch_free_string(&errtext);
+            } else {
+                slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASDnsGetter - "
+                              "Failed to resolve IP address (%s) error %d\n",
+                              ip_str, PR_GetError());
+            }
         }
         slapi_ch_free((void **)&hp);
     }
 
-    if (NULL == dnsName)
+    if (NULL == dnsName) {
+        char ip_str[1024] = {0};
+        PR_NetAddrToString(&client_praddr, ip_str, 1024);
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                "DS_LASDnsGetter - Could not get host name from client IP (%s).\n", ip_str);
         return LAS_EVAL_FAIL;
+    } else {
+        char ip_str[1024] = {0};
+        PR_NetAddrToString(&client_praddr, ip_str, 1024);
+        slapi_log_err(SLAPI_LOG_ACL, plugin_name,
+                "DS_LASDnsGetter - Got host name (%s) from client IP (%s).\n", dnsName, ip_str);
+    }
 
     rv = PListInitProp(subject, 0, ACL_ATTR_DNS, dnsName, NULL);
     if (rv < 0) {
@@ -393,6 +421,7 @@ DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_i
     slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASDnsGetter - DNS name: %s\n", dnsName);
     return LAS_EVAL_TRUE;
 }
+
 /***************************************************************************/
 /* New LASes                                   */
 /*                                        */
