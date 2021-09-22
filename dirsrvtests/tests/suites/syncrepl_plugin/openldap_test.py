@@ -8,15 +8,12 @@
 import logging
 import ldap
 import time
-from ldap.syncrepl import SyncreplConsumer
 import pytest
-from lib389 import DirSrv
-from lib389.idm.user import nsUserAccounts, UserAccounts
 from lib389.topologies import topology_st as topology
 from lib389.paths import Paths
 from lib389.utils import ds_is_older
 from lib389.plugins import RetroChangelogPlugin, ContentSyncPlugin
-from lib389._constants import *
+from lib389._constants import ErrorLog, DEFAULT_SUFFIX
 from lib389.plugins import EntryUUIDPlugin
 
 from . import ISyncRepl, syncstate_assert

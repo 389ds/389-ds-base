@@ -65,14 +65,16 @@ jobs:
         set -x
         CID=$(sudo docker run -d -h server.example.com --privileged --rm -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
         sudo docker exec $CID sh -c "dnf install -y -v dist/rpms/*rpm"
-        sudo docker exec $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml -v dirsrvtests/tests/suites/${{ matrix.suite }}
+        sudo docker exec $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html -v dirsrvtests/tests/suites/${{ matrix.suite }}
 
     - name: Make the results file readable by all
       if: always()
-      run:
-        sudo chmod -f a+r pytest.xml
+      run: |
+        sudo chmod -f -v -R a+r pytest.*ml assets
+        sudo chmod -f -v a+x assets
 
     - name: Sanitize filename
+      if: always()
       run: echo "PYTEST_SUITE=$(echo ${{ matrix.suite }} | sed -e 's#\/#-#g')" >> $GITHUB_ENV
       
     - name: Upload pytest test results
@@ -80,5 +82,8 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: pytest-${{ env.PYTEST_SUITE }}
-        path: pytest.xml
+        path: |
+          pytest.xml
+          pytest.html
+          assets
  
