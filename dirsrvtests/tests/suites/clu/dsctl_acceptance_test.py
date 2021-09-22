@@ -9,7 +9,7 @@
 import logging
 import pytest
 import os
-from lib389._constants import *
+import time
 from lib389.topologies import topology_st as topo
 
 log = logging.getLogger(__name__)
@@ -36,17 +36,24 @@ def test_custom_path(topo):
 
     # Get LDIF dir
     ldif_dir = topo.standalone.get_ldif_dir()
+    bak_dir = topo.standalone.get_bak_dir()
+    log.info("ldif dir: " + ldif_dir + " items: " + str(len(os.listdir(ldif_dir))))
+    log.info("bak dir: " + bak_dir + " items: " + str(len(os.listdir(bak_dir))))
 
     # Set backup directory to LDIF directory
     topo.standalone.config.replace('nsslapd-bakdir', ldif_dir)
+    time.sleep(.5)
 
     # Stop the server and take a backup
     topo.standalone.stop()
-    topo.standalone.db2bak(None)
+    time.sleep(.5)
+    topo.standalone.db2bak(None)  # Bug, bak dir is being pulled from defaults.inf, and not from config
 
     # Verify backup was written to LDIF directory
-    backups = os.listdir(ldif_dir)
-    assert len(backups)
+    log.info("AFTER: ldif dir (new bak dir): " + ldif_dir + " items: " + str(len(os.listdir(ldif_dir))))
+    log.info("AFTER: bak dir: " + bak_dir + " items: " + str(len(os.listdir(bak_dir))))
+
+    assert len(os.listdir(ldif_dir))
 
 
 if __name__ == '__main__':
@@ -54,4 +61,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main(["-s", CURRENT_FILE])
-
