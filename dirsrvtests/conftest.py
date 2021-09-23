@@ -90,9 +90,9 @@ def rotate_xsan_logs(request):
             # rotate the ASAN logs so that only relevant logs are attached to the case in the report.
             xsan_logs_dir = f'{p.run_dir}/bak'
             if not os.path.exists(xsan_logs_dir):
-                os.mkdir(xsan_logs_dir)
+                os.makedirs(xsan_logs_dir)
             else:
-                for f in glob.glob(f'{p.run_dir}/ns-slapd-*san*'):
+                for f in glob.glob(f'{p.run_dir}/ns-slapd*san*'):
                     shutil.move(f, xsan_logs_dir)
             return rotate_xsan_logs
 
