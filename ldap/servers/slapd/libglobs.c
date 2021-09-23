@@ -221,6 +221,7 @@ slapi_onoff_t init_return_exact_case;
 slapi_onoff_t init_result_tweak;
 slapi_onoff_t init_plugin_track;
 slapi_onoff_t init_moddn_aci;
+slapi_onoff_t init_targetfilter_cache;
 slapi_onoff_t init_lastmod;
 slapi_onoff_t init_readonly;
 slapi_onoff_t init_accesscontrol;
@@ -909,6 +910,11 @@ static struct config_get_and_set
      (void **)&global_slapdFrontendConfig.moddn_aci,
      CONFIG_ON_OFF, (ConfigGetFunc)config_get_moddn_aci,
      &init_moddn_aci, NULL},
+    {CONFIG_TARGETFILTER_CACHE_ATTRIBUTE, config_set_targetfilter_cache,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.targetfilter_cache,
+     CONFIG_ON_OFF, (ConfigGetFunc)config_get_targetfilter_cache,
+     &init_targetfilter_cache, NULL},
     {CONFIG_ATTRIBUTE_NAME_EXCEPTION_ATTRIBUTE, config_set_attrname_exceptions,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.attrname_exceptions,
@@ -1697,6 +1703,7 @@ FrontendConfig_init(void)
     init_syntaxcheck = cfg->syntaxcheck = LDAP_ON;
     init_plugin_track = cfg->plugin_track = LDAP_OFF;
     init_moddn_aci = cfg->moddn_aci = LDAP_ON;
+    init_targetfilter_cache = cfg->targetfilter_cache = LDAP_ON;
     init_syntaxlogging = cfg->syntaxlogging = LDAP_OFF;
     init_dn_validate_strict = cfg->dn_validate_strict = LDAP_OFF;
     init_ds4_compatible_schema = cfg->ds4_compatible_schema = LDAP_OFF;
@@ -4096,6 +4103,21 @@ config_set_moddn_aci(const char *attrname, char *value, char *errorbuf, int appl
 }
 
 int32_t
+config_set_targetfilter_cache(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname,
+                              value,
+                              &(slapdFrontendConfig->targetfilter_cache),
+                              errorbuf,
+                              apply);
+
+    return retVal;
+}
+
+int32_t
 config_set_dynamic_plugins(const char *attrname, char *value, char *errorbuf, int apply)
 {
     int32_t retVal = LDAP_SUCCESS;
@@ -5943,6 +5965,13 @@ config_get_moddn_aci(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     return slapi_atomic_load_32(&(slapdFrontendConfig->moddn_aci), __ATOMIC_ACQUIRE);
+}
+
+int32_t
+config_get_targetfilter_cache(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return slapi_atomic_load_32(&(slapdFrontendConfig->targetfilter_cache), __ATOMIC_ACQUIRE);
 }
 
 int32_t
