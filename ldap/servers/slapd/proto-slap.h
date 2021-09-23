@@ -262,6 +262,7 @@ int config_set_lastmod(const char *attrname, char *value, char *errorbuf, int ap
 int config_set_nagle(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_accesscontrol(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_moddn_aci(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_targetfilter_cache(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_security(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_readonly(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_schemacheck(const char *attrname, char *value, char *errorbuf, int apply);
@@ -450,6 +451,7 @@ int config_get_accesscontrol(void);
 int config_get_return_exact_case(void);
 int config_get_result_tweak(void);
 int config_get_moddn_aci(void);
+int32_t config_get_targetfilter_cache(void);
 int config_get_security(void);
 int config_get_schemacheck(void);
 int config_get_syntaxcheck(void);

@@ -66,6 +66,9 @@ static void print_access_control_summary(char *source,
                                          const char *edn,
                                          aclResultReason_t *acl_reason);
 static int check_rdn_access(Slapi_PBlock *pb, Slapi_Entry *e, const char *newrdn, int access);
+static struct targetfilter_cached_result *targetfilter_cache_lookup(struct acl_pblock *aclpb, char *filter, PRBool filter_valid);
+static void targetfilter_cache_add(struct acl_pblock *aclpb, char *filter, int result, PRBool filter_valid);
+
 
 
 /*
@@ -175,6 +178,70 @@ check_rdn_access(Slapi_PBlock *pb, Slapi_Entry *e, const char *dn, int access)
     return (retCode);
 }
 
+/* Retrieves, in the targetfilter cache (list), this
+ * filter in case it was already evaluated
+ *
+ * filter: key to retrieve the evaluation in the cache
+ * filter_valid: PR_FALSE means that the filter key is truncated, PR_TRUE else
+ */
+static struct targetfilter_cached_result *
+targetfilter_cache_lookup(struct acl_pblock *aclpb, char *filter, PRBool filter_valid)
+{
+    struct targetfilter_cached_result *results;
+    if (! aclpb->targetfilter_cache_enabled) {
+        /* targetfilter cache is disabled */
+        return NULL;
+    }
+    if (filter == NULL) {
+        return NULL;
+    }
+    for(results = aclpb->aclpb_curr_entry_targetfilters; results; results = results->next) {
+        if (strcmp(results->filter, filter) == 0) {
+            return results;
+        }
+    }
+
+    return NULL;
+}
+
+/* Free all evaluations cached for this current entry */
+void
+targetfilter_cache_free(struct acl_pblock *aclpb)
+{
+    struct targetfilter_cached_result *results, *next;
+    if (aclpb == NULL) {
+        return;
+    }
+    for(results = aclpb->aclpb_curr_entry_targetfilters; results;) {
+        next = results->next;
+        slapi_ch_free_string(&results->filter);
+        slapi_ch_free((void **) &results);
+        results = next;
+    }
+    aclpb->aclpb_curr_entry_targetfilters = NULL;
+}
+
+/* add a new targetfilter evaluation into the cache (per entry)
+ * ATM just use a linked list of evaluation
+ *
+ * filter: key to retrieve the evaluation in the cache
+ * result: result of the evaluation
+ * filter_valid: PR_FALSE means that the filter key is truncated, PR_TRUE else
+ */
+static void
+targetfilter_cache_add(struct acl_pblock *aclpb, char *filter, int result, PRBool filter_valid)
+{
+    struct targetfilter_cached_result *results;
+    if (! filter_valid || ! aclpb->targetfilter_cache_enabled) {
+        /* targetfilter cache is disabled or filter is truncated */
+        return;
+    }
+    results = (struct targetfilter_cached_result *) slapi_ch_calloc(1, (sizeof(struct targetfilter_cached_result)));
+    results->filter = slapi_ch_strdup(filter);
+    results->next = aclpb->aclpb_curr_entry_targetfilters;
+    results->matching_result = result;
+    aclpb->aclpb_curr_entry_targetfilters = results;
+}
 /***************************************************************************
 *
 * acl_access_allowed
@@ -495,6 +562,7 @@ acl_access_allowed(
 
         /* Keep the ptr to the current entry */
         aclpb->aclpb_curr_entry = (Slapi_Entry *)e;
+        targetfilter_cache_free(aclpb);
 
         /* Get the attr info */
         deallocate_attrEval = acl__get_attrEval(aclpb, attr);
@@ -1922,7 +1990,7 @@ acl_modified(Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change)
 *    None.
 *
 **************************************************************************/
-static int
+int
 acl__scan_for_acis(Acl_PBlock *aclpb, int *err)
 {
     aci_t *aci;
@@ -2403,10 +2471,68 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
                                                     ACL_EVAL_TARGET_FILTER);
             slapi_ch_free((void **)&lasinfo);
         } else {
-            if (slapi_vattr_filter_test(NULL, aclpb->aclpb_curr_entry,
-                                        aci->targetFilter,
-                                        0 /*don't do access check*/) != 0) {
-                filter_matched = ACL_FALSE;
+            Slapi_DN *sdn;
+            char* attr_evaluated = "None";
+            char logbuf[2048] = {0};
+            char *redzone = "the redzone";
+            int32_t redzone_idx;
+            char *filterstr; /* key to retrieve/add targetfilter value in the cache */
+            PRBool valid_filter;
+            struct targetfilter_cached_result *previous_filter_test;
+
+            /* only usefull for debug purpose */
+            if (aclpb->aclpb_curr_attrEval && aclpb->aclpb_curr_attrEval->attrEval_name) {
+                attr_evaluated = aclpb->aclpb_curr_attrEval->attrEval_name;
+            }
+            sdn = slapi_entry_get_sdn(aclpb->aclpb_curr_entry);
+
+            /* The key for the cache is the string representation of the original filter
+             * If the string can not fit into the provided buffer (overwrite redzone)
+             * then the filter is said invalid (for the cache) and it will be evaluated
+             */
+            redzone_idx = sizeof(logbuf) - 1 - strlen(redzone);
+            strcpy(&logbuf[redzone_idx], redzone);
+            filterstr = slapi_filter_to_string(aci->targetFilter, logbuf, sizeof(logbuf));
+
+            /* if the redzone was overwritten that means filterstr is truncated and not valid */
+            valid_filter = (strcmp(&logbuf[redzone_idx], redzone) == 0);
+            if (!valid_filter) {
+                strcpy(&logbuf[50], "...");
+                slapi_log_err(SLAPI_LOG_ACL, "acl__ressource_match_aci", "targetfilter too large (can not be cache) %s\n", logbuf);
+            }
+
+            previous_filter_test = targetfilter_cache_lookup(aclpb, filterstr, valid_filter);
+            if (previous_filter_test) {
+                /* The filter was already evaluated against that same entry */
+                if (previous_filter_test->matching_result == 0) {
+                    slapi_log_err(SLAPI_LOG_ACL, "acl__ressource_match_aci", "cached result for entry %s did NOT match %s (%s)\n",
+                            slapi_sdn_get_ndn(sdn),
+                            filterstr,
+                            attr_evaluated);
+                    filter_matched = ACL_FALSE;
+                } else {
+                    slapi_log_err(SLAPI_LOG_ACL, "acl__ressource_match_aci", "cached result for entry %s did match %s (%s)\n",
+                            slapi_sdn_get_ndn(sdn),
+                            filterstr,
+                            attr_evaluated);
+                }
+            } else {
+                /* The filter has not already been evaluated against that entry
+                 * evaluate it and cache the result
+                 */
+                if (slapi_vattr_filter_test(NULL, aclpb->aclpb_curr_entry,
+                        aci->targetFilter,
+                        0 /*don't do access check*/) != 0) {
+                    filter_matched = ACL_FALSE;
+                    targetfilter_cache_add(aclpb, filterstr, 0, valid_filter); /* does not match */
+                } else {
+                    targetfilter_cache_add(aclpb, filterstr, 1, valid_filter); /* does match */
+                }
+                slapi_log_err(SLAPI_LOG_ACL, "acl__ressource_match_aci", "entry %s %s match %s (%s)\n",
+                        slapi_sdn_get_ndn(sdn),
+                        filter_matched == ACL_FALSE ? "does not" : "does",
+                        filterstr,
+                        attr_evaluated);
             }
         }
 
@@ -2862,7 +2988,7 @@ acl__resource_match_aci_EXIT:
 *    None.
 *
 **************************************************************************/
-static int
+int
 acl__TestRights(Acl_PBlock *aclpb, int access, const char **right, const char **map_generic, aclResultReason_t *result_reason)
 {
     ACLEvalHandle_t *acleval;
