@@ -2029,9 +2029,9 @@ err_out:
         cur.cur = NULL;
     }
     if (return_value) {
-        return_value = dblayer_txn_commit(be, &txn);
+        dblayer_txn_abort(be, &txn);
     } else {
-        return_value = dblayer_txn_abort(be, &txn);
+        return_value = dblayer_txn_commit(be, &txn);
         if (return_value) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "dbmdb_db2index", "%s: Failed to commit txn for db2index\n",
