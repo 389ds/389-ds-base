@@ -115,7 +115,7 @@ dbmdb_get_file_params(const char *dbname, int *flags, MDB_cmp_func **dupsort_fn)
         *flags |= MDB_DUPSORT;
         *dupsort_fn = dbmdb_entryrdn_compare_dups;
     } else if (is_dbfile(fname, ID2ENTRY)) {
-        *flags |= MDB_INTEGERKEY;
+        *flags |= 0;
         *dupsort_fn = NULL;
     } else if (strstr(fname,  DBNAMES)) {
         *flags |= 0;

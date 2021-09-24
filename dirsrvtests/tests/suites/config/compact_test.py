@@ -56,6 +56,7 @@ def test_compact_db_task(topo):
     inst.deleteErrorLogs(restart=False)
 
 
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_compaction_interval_and_time(topo):
     """Test dbcompact is successful when nsslapd-db-compactdb-interval and nsslapd-db-compactdb-time is set
 
