@@ -91,10 +91,11 @@ pbkdf2_sha256_extract(char *hash_in, SECItem *salt, uint32_t *iterations)
 SECStatus
 pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *salt, uint32_t iterations)
 {
-    SECItem *result = NULL;
     SECAlgorithmID *algid = NULL;
     PK11SlotInfo *slot = NULL;
     PK11SymKey *symkey = NULL;
+    SECItem *wrapKeyData = NULL;
+    SECStatus rv = SECFailure;
 
     /* We assume that NSS is already started. */
     algid = PK11_CreatePBEV2AlgorithmID(SEC_OID_PKCS5_PBKDF2, SEC_OID_HMAC_SHA256, SEC_OID_HMAC_SHA256, hash_out_len, iterations, salt);
@@ -104,7 +105,6 @@ pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *s
         slot = PK11_GetBestSlotMultiple(mechanism_array, 2, NULL);
         if (slot != NULL) {
             symkey = PK11_PBEKeyGen(slot, algid, pwd, PR_FALSE, NULL);
-            PK11_FreeSlot(slot);
             if (symkey == NULL) {
                 /* We try to get the Error here but NSS has two or more error interfaces, and sometimes it uses none of them. */
                 int32_t status = PORT_GetError();
@@ -123,18 +123,60 @@ pbkdf2_sha256_hash(char *hash_out, size_t hash_out_len, SECItem *pwd, SECItem *s
         return SECFailure;
     }
 
-    if (PK11_ExtractKeyValue(symkey) == SECSuccess) {
-        result = PK11_GetKeyData(symkey);
-        if (result != NULL && result->len <= hash_out_len) {
-            memcpy(hash_out, result->data, result->len);
-            PK11_FreeSymKey(symkey);
+    /*
+     * First, we need to generate a wrapped key for PK11_Decrypt call:
+     * slot is the same slot we used in PK11_PBEKeyGen()
+     * 256 bits / 8 bit per byte
+     */
+    PK11SymKey *wrapKey = PK11_KeyGen(slot, CKM_AES_ECB, NULL, 256/8, NULL);
+    PK11_FreeSlot(slot);
+    if (wrapKey == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "pbkdf2_sha256_hash", "Unable to generate a wrapped key.\n");
+        return SECFailure;
+	}
+
+    wrapKeyData = (SECItem *)PORT_Alloc(sizeof(SECItem));
+    /* Align the wrapped key with 32 bytes. */
+    wrapKeyData->len = (PK11_GetKeyLength(symkey) + 31) & ~31;
+    /* Allocate the aligned space for pkc5PBE key plus AESKey block */
+    wrapKeyData->data = (unsigned char *)slapi_ch_calloc(wrapKeyData->len, sizeof(unsigned char));
+
+    /* Get symkey wrapped with wrapKey - required for PK11_Decrypt call */
+    rv = PK11_WrapSymKey(CKM_AES_ECB, NULL, wrapKey, symkey, wrapKeyData);
+    if (rv != SECSuccess) {
+        PK11_FreeSymKey(symkey);
+        PK11_FreeSymKey(wrapKey);
+        SECITEM_FreeItem(wrapKeyData, PR_TRUE);
+        slapi_log_err(SLAPI_LOG_ERR, "pbkdf2_sha256_hash", "Unable to wrap the symkey. (%d)\n", rv);
+        return SECFailure;
+    }
+
+    /* Allocate the space for our result */
+    void *result = (char *)slapi_ch_calloc(wrapKeyData->len, sizeof(char));
+    unsigned int result_len = 0;
+
+    /* User wrapKey to decrypt the wrapped contents.
+     * result is the hash that we need;
+     * result_len is the actual lengh of the data;
+     * has_out_len is the maximum (the space we allocted for hash_out)
+     */
+    rv = PK11_Decrypt(wrapKey, CKM_AES_ECB, NULL, result, &result_len, hash_out_len, wrapKeyData->data, wrapKeyData->len);
+    PK11_FreeSymKey(symkey);
+    PK11_FreeSymKey(wrapKey);
+    SECITEM_FreeItem(wrapKeyData, PR_TRUE);
+
+    if (rv == SECSuccess) {
+        if (result != NULL && result_len <= hash_out_len) {
+            memcpy(hash_out, result, result_len);
+            slapi_ch_free((void **)&result);
         } else {
-            PK11_FreeSymKey(symkey);
-            slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Unable to retrieve (get) hash output.\n");
+            slapi_log_err(SLAPI_LOG_ERR, "pbkdf2_sha256_hash", "Unable to retrieve (get) hash output.\n");
+            slapi_ch_free((void **)&result);
             return SECFailure;
         }
     } else {
-        slapi_log_err(SLAPI_LOG_ERR, (char *)schemeName, "Unable to extract hash output.\n");
+        slapi_log_err(SLAPI_LOG_ERR, "pbkdf2_sha256_hash", "Unable to extract hash output. (%d)\n", rv);
+        slapi_ch_free((void **)&result);
         return SECFailure;
     }
 

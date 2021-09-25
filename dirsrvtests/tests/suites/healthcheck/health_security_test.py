@@ -31,16 +31,6 @@ libfaketime.reexec_if_needed()
 log = logging.getLogger(__name__)
 
 
-def is_fips():
-    if os.path.exists('/proc/sys/crypto/fips_enabled'):
-        with open('/proc/sys/crypto/fips_enabled', 'r') as f:
-            state = f.readline().strip()
-            if state == '1':
-                return True
-            else:
-                return False
-
-
 def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searched_code2=None):
     args = FakeArgs()
     args.instance = instance.serverid
