@@ -319,6 +319,8 @@ dblayer_private_open_fn_t dbmdb_public_private_open;
 dblayer_private_close_fn_t dbmdb_public_private_close;
 dblayer_compact_fn_t dbmdb_public_dblayer_compact;
 dblayer_clear_vlv_cache_fn_t dbmdb_public_clear_vlv_cache;
+dblayer_idl_new_fetch_fn_t dbmdb_idl_new_fetch;
+
 
 /* instance functions */
 int dbmdb_instance_cleanup(struct ldbm_instance *inst);

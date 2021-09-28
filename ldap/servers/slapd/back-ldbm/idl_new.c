@@ -22,6 +22,7 @@
  */
 
 #include "back-ldbm.h"
+#include "dblayer.h"
 
 #define DB_USE_BULK_FETCH 1
 #define BULK_FETCH_BUFFER_SIZE (8 * 1024)
@@ -154,11 +155,16 @@ idl_new_fetch(
     dbi_val_t dataret = {0};
     back_txn s_txn = {0};
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    dblayer_private *priv = li->li_dblayer_private;
     char *index_id = get_index_name(be, db, a);
 
     if (NEW_IDL_NOOP == *flag_err) {
         *flag_err = 0;
         return NULL;
+    }
+
+    if (priv->dblayer_idl_new_fetch_fn) {
+        return priv->dblayer_idl_new_fetch_fn(be, db, inkey, txn, a, flag_err, allidslimit);
     }
 
     dblayer_bulk_set_buffer(be, &bulkdata, buffer, sizeof(buffer), DBI_VF_BULK_DATA);

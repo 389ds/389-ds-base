@@ -2789,3 +2789,85 @@ dbmdb_public_delete_db(Slapi_Backend *be, dbi_db_t *db)
 
     return dbmdb_dbi_remove(ctx, &db);
 }
+
+IDList *
+dbmdb_idl_new_fetch(backend *be, dbi_db_t *db, dbi_val_t *inkey, dbi_txn_t *txn, struct attrinfo *a, int *flag_err, int allidslimit)
+{
+    char *index_id = get_index_name(be, db, a);
+    MDB_cursor *cursor = NULL;
+    dbi_txn_t *s_txn = NULL;
+    IDList *idl = NULL;
+    dbmdb_dbi_t *dbi = db;
+    MDB_val data = {0};
+    MDB_val key = {0};
+    size_t count = 0;
+    int rc = 0;
+
+    dbmdb_dbival2dbt(inkey, &key, PR_FALSE);
+    rc = START_TXN(&s_txn, txn, TXNFL_RDONLY);
+    if (rc) {
+        ldbm_nasty("dbmdb_idl_new_fetch - idl_new.c", index_id, 110, rc);
+        goto error;
+    }
+    rc = MDB_CURSOR_OPEN(TXN(s_txn), dbi->dbi, &cursor);
+    if (rc) {
+        ldbm_nasty("dbmdb_idl_new_fetch - idl_new.c", index_id, 120, rc);
+        goto error;
+    }
+    rc = MDB_CURSOR_GET(cursor, &key, &data, MDB_SET_KEY);
+    if (rc == 0) {
+        rc = MDB_CURSOR_GET(cursor, &key, &data, MDB_FIRST_DUP);
+    }
+    if (rc == 0) {
+        rc = mdb_cursor_count(cursor, &count);
+        if (rc) {
+            ldbm_nasty("dbmdb_idl_new_fetch - idl_new.c", index_id, 130, rc);
+            goto error;
+        }
+    }
+
+    if (allidslimit && count >= allidslimit) {
+        idl = idl_allids(be);
+        slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_idl_new_fetch", "%s returns allids (attribute: %s)\n",
+                      (char *)key.mv_data, index_id);
+        goto error;
+    }
+
+    /* Allocate an idlist to populate into */
+    if (count>0) {
+        idl = idl_alloc(count);
+    } else {
+        idl = idl_alloc(IDLIST_MIN_BLOCK_SIZE);
+    }
+    while (rc == 0) {
+        idl_append_extend(&idl, *(ID*)data.mv_data);
+        rc = MDB_CURSOR_GET(cursor, &key, &data, MDB_NEXT_DUP);
+    }
+    if (rc == MDB_NOTFOUND) {
+        rc = 0;
+    }
+error:
+    if (cursor) {
+        MDB_CURSOR_CLOSE(cursor);
+    }
+    if (s_txn) {
+        rc = END_TXN(&s_txn, rc);
+    }
+    if (rc) {
+        idl_free(&idl);
+    }
+    /* check for allids value */
+    if (idl == NULL) {
+        slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_idl_new_fetch", "%s failed (attribute: %s). error is %d (%s).\n",
+                      (char *)key.mv_data, index_id, rc, mdb_strerror(rc));
+    } else if (idl->b_nids == 1 && idl->b_ids[0] == ALLID) {
+        slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_idl_new_fetch", "%s returns allids (attribute: %s)\n",
+                      (char *)key.mv_data, index_id);
+    } else {
+        slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_idl_new_fetch", "%s returns nids=%lu (attribute: %s)\n",
+                      (char *)key.mv_data, (u_long)IDL_NIDS(idl), index_id);
+    }
+
+    *flag_err = rc;
+    return idl;
+}

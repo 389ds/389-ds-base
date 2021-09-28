@@ -1260,14 +1260,14 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
                 /* If it's not, we need to compute it ourselves: */
                 /* Load the IDL matching the key */
                 ret = dbmdb_dbt2dbival(&key, &dbikey, PR_FALSE, 0);
-                ret = NEW_IDL_NO_ALLID;
                 idl = idl_fetch(be, db, &dbikey, NULL, NULL, &ret);
                 dbmdb_dbival2dbt(&dbikey, &key, PR_TRUE);
                 dblayer_value_protect_data(be, &dbikey);
                 if ((NULL == idl) || (0 != ret)) {
                     ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 4, ret);
-                    dblayer_release_index_file(be, ai, db);
-                    return (0 == ret) ? -1 : ret;
+                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_update_subordinatecounts", "idl=%p ret=%d\n", idl, ret);
+                    ret = (0 == ret) ? -1 : ret;
+                    break;
                 }
                 /* The number of IDs in the IDL tells us the number of
                  * subordinates for the entry */

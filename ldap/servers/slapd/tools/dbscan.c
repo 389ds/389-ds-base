@@ -1585,7 +1585,7 @@ main(int argc, char **argv)
             }
             do {
                 display_item(&cursor, &key, &data);
-                ret = dblayer_cursor_op(&cursor, DBI_OP_NEXT_DATA,  &key, &data);
+                ret = dblayer_cursor_op(&cursor, DBI_OP_NEXT,  &key, &data);
             } while (0 == ret);
             dblayer_value_free(be, &key);
             dblayer_value_init(be, &key);
