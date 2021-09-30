@@ -214,6 +214,7 @@ dbmdb_instance_start(backend *be, int mode)
     }
 
     /* Need to duplicate because ldbm_instance_destructor frees both values */
+    slapi_ch_free_string(&inst->inst_dir_name);
     inst->inst_dir_name = slapi_ch_strdup(inst->inst_name);
 
     if (NULL != inst->inst_id2entry) {

@@ -9,6 +9,7 @@
 
 import pytest
 import os
+from contextlib import suppress
 from lib389.backend import Backend, Backends
 from lib389.idm.user import UserAccounts
 from lib389.replica import Changelog, ReplicationManager, Replicas
@@ -108,6 +109,10 @@ def test_healthcheck_replication_replica_not_reachable(topology_m2):
     replica_m1 = Replicas(M1).get(DEFAULT_SUFFIX)
     agmt_m1 = replica_m1.get_agreements().list()[0]
     agmt_m1.replace('nsds5replicaport', '4389')
+    # Should generates updates here to insure that we starts a new replication session
+    # and really try to connect to the consumer
+    with suppress(Exception):
+        repl.wait_for_replication(M1, M2, timeout=5)
 
     run_healthcheck_and_flush_log(topology_m2, M1, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_m2, M1, RET_CODE, json=True)
