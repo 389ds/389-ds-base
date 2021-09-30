@@ -1462,6 +1462,7 @@ void subentry_create_filter(Slapi_Filter **filter);
  */
 void vattr_init(void);
 void vattr_cleanup(void);
+void vattr_check(void);
 
 /*
  * slapd_plhash.c - supplement to NSPR plhash

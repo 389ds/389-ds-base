@@ -1803,7 +1803,7 @@ FrontendConfig_init(void)
     init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_ON;
     cfg->ndn_cache_max_size = SLAPD_DEFAULT_NDN_SIZE;
     init_sasl_mapping_fallback = cfg->sasl_mapping_fallback = LDAP_OFF;
-    init_ignore_vattrs = cfg->ignore_vattrs = LDAP_OFF;
+    init_ignore_vattrs = cfg->ignore_vattrs = LDAP_ON;
     cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
     cfg->unhashed_pw_switch = SLAPD_DEFAULT_UNHASHED_PW_SWITCH;
     init_return_orig_type = cfg->return_orig_type = LDAP_OFF;

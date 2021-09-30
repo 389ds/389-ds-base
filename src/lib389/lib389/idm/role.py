@@ -252,6 +252,8 @@ class FilteredRole(Role):
         self._rdn_attribute = 'cn'
         self._create_objectclasses = ['nsComplexRoleDefinition', 'nsFilteredRoleDefinition']
 
+        self._protected = False
+
 
 
 class FilteredRoles(Roles):
@@ -285,6 +287,7 @@ class ManagedRole(Role):
         self._rdn_attribute = 'cn'
         self._create_objectclasses = ['nsSimpleRoleDefinition', 'nsManagedRoleDefinition']
 
+        self._protected = False
 
 class ManagedRoles(Roles):
     """DSLdapObjects that represents all Managed Roles entries
@@ -320,6 +323,7 @@ class NestedRole(Role):
         self._rdn_attribute = 'cn'
         self._create_objectclasses = ['nsComplexRoleDefinition', 'nsNestedRoleDefinition']
 
+        self._protected = False
 
 class NestedRoles(Roles):
     """DSLdapObjects that represents all NestedRoles entries in suffix.
