@@ -2196,7 +2196,7 @@ check_replicas_are_done_cleaning(cleanruv_data *data)
             current_time.tv_sec += interval;
             pthread_mutex_lock(&notify_lock);
             pthread_cond_timedwait(&notify_cvar, &notify_lock, &current_time);
-            pthread_mutex_lock(&notify_lock);
+            pthread_mutex_unlock(&notify_lock);
         }
 
         interval *= 2;
