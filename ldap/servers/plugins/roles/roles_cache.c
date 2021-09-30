@@ -530,6 +530,15 @@ roles_cache_trigger_update_role(char *dn, Slapi_Entry *roles_entry, Slapi_DN *be
     }
 
     slapi_rwlock_unlock(global_lock);
+    {
+        /* A role definition has been updated, enable vattr handling */
+        char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+        errorbuf[0] = '\0';
+        config_set_ignore_vattrs(CONFIG_IGNORE_VATTRS, "off", errorbuf, 1);
+        slapi_log_err(SLAPI_LOG_INFO,
+                      "roles_cache_trigger_update_role",
+                      "Because of virtual attribute definition (role), %s was set to 'off'\n", CONFIG_IGNORE_VATTRS);
+    }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_trigger_update_role: %p \n", roles_list);
 }

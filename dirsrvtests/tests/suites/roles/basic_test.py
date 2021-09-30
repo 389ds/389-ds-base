@@ -11,6 +11,8 @@
 Importing necessary Modules.
 """
 
+import logging
+import time
 import os
 import pytest
 
@@ -21,6 +23,9 @@ from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.topologies import topology_st as topo
 from lib389.idm.role import FilteredRoles, ManagedRoles, NestedRoles
 from lib389.idm.domain import Domain
+
+logging.getLogger(__name__).setLevel(logging.INFO)
+log = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.tier1
 
@@ -35,7 +40,7 @@ FILTERROLESALESROLE = "cn=FILTERROLESALESROLE,{}".format(DNBASE)
 FILTERROLEENGROLE = "cn=FILTERROLEENGROLE,{}".format(DNBASE)
 
 
-def test_filterrole(topo):
+def test_filterrole(topo, request):
     """Test Filter Role
 
     :id: 8ada4064-786b-11e8-8634-8c16451d917b
@@ -136,8 +141,20 @@ def test_filterrole(topo):
                   SALES_OU, DNBASE]:
         UserAccount(topo.standalone, dn_dn).delete()
 
+    def fin():
+        topo.standalone.restart()
+        try:
+            filtered_roles = FilteredRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in filtered_roles.list():
+                i.delete()
+        except:
+            pass
+        topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'on')
 
-def test_managedrole(topo):
+    request.addfinalizer(fin)
+
+
+def test_managedrole(topo, request):
     """Test Managed Role
 
     :id: d52a9c00-3bf6-11e9-9b7b-8c16451d917b
@@ -209,6 +226,16 @@ def test_managedrole(topo):
     for i in roles.list():
         i.delete()
 
+    def fin():
+        topo.standalone.restart()
+        try:
+            role = ManagedRoles(topo.standalone, DEFAULT_SUFFIX).get('ROLE1')
+            role.delete()
+        except:
+            pass
+        topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'on')
+
+    request.addfinalizer(fin)
 
 @pytest.fixture(scope="function")
 def _final(request, topo):
@@ -220,6 +247,7 @@ def _final(request, topo):
     def finofaci():
         """
         Removes and Restores ACIs and other users after the test.
+        And restore nsslapd-ignore-virtual-attrs to default
         """
         domain = Domain(topo.standalone, DEFAULT_SUFFIX)
         domain.remove_all('aci')
@@ -233,6 +261,8 @@ def _final(request, topo):
 
         for i in aci_list:
             domain.add("aci", i)
+
+        topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'on')
 
     request.addfinalizer(finofaci)
 
@@ -296,6 +326,172 @@ def test_nestedrole(topo, _final):
     conn = users.get('test_user_3').bind(PW_DM)
     assert UserAccounts(conn, DEFAULT_SUFFIX).list()
 
+def test_vattr_on_filtered_role(topo, request):
+    """Test nsslapd-ignore-virtual-attrs configuration attribute
+       The attribute is ON by default. If a filtered role is
+       added it is moved to OFF
+
+    :id: 88b3ad3c-f39a-4eb7-a8c9-07c685f11908
+    :setup: Standalone instance
+    :steps:
+         1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config
+         2. Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON
+         3. Create a filtered role
+         4. Check the value of nsslapd-ignore-virtual-attrs should be OFF
+         5. Check a message "roles_cache_trigger_update_role - Because of virtual attribute.." in error logs
+    :expectedresults:
+         1. This should be successful
+         2. This should be successful
+         3. This should be successful
+         4. This should be successful
+         5. This should be successful
+    """
+
+    log.info("Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs')
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON")
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "on"
+
+    log.info("Create a filtered role")
+    try:
+        Organization(topo.standalone).create(properties={"o": "acivattr"}, basedn=DEFAULT_SUFFIX)
+    except:
+        pass
+    roles = FilteredRoles(topo.standalone, DNBASE)
+    roles.create(properties={'cn': 'FILTERROLEENGROLE', 'nsRoleFilter': 'cn=eng*'})
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
+
+    topo.standalone.stop()
+    assert topo.standalone.searchErrorsLog("roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to \'off\'")
+
+    def fin():
+        topo.standalone.restart()
+        try:
+            filtered_roles = FilteredRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in filtered_roles.list():
+                i.delete()
+        except:
+            pass
+        topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'on')
+
+    request.addfinalizer(fin)
+
+def test_vattr_on_filtered_role_restart(topo, request):
+    """Test nsslapd-ignore-virtual-attrs configuration attribute
+    If it exists a filtered role definition at restart then
+    nsslapd-ignore-virtual-attrs should be set to 'off'
+
+    :id: 972183f7-d18f-40e0-94ab-580e7b7d78d0
+    :setup: Standalone instance
+    :steps:
+         1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config
+         2. Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON
+         3. Create a filtered role
+         4. Check the value of nsslapd-ignore-virtual-attrs should be OFF
+         5. restart the instance
+         6. Check the presence of virtual attribute is detected
+         7. Check the value of nsslapd-ignore-virtual-attrs should be OFF
+    :expectedresults:
+         1. This should be successful
+         2. This should be successful
+         3. This should be successful
+         4. This should be successful
+         5. This should be successful
+         6. This should be successful
+         7. This should be successful
+    """
+
+    log.info("Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs')
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON")
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "on"
+
+    log.info("Create a filtered role")
+    try:
+        Organization(topo.standalone).create(properties={"o": "acivattr"}, basedn=DEFAULT_SUFFIX)
+    except:
+        pass
+    roles = FilteredRoles(topo.standalone, DNBASE)
+    roles.create(properties={'cn': 'FILTERROLEENGROLE', 'nsRoleFilter': 'cn=eng*'})
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
+
+    
+    log.info("Check the virtual attribute definition is found (after a required delay)")
+    topo.standalone.restart()
+    time.sleep(5)
+    assert topo.standalone.searchErrorsLog("Found a role/cos definition in")
+    assert topo.standalone.searchErrorsLog("roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to \'off\'")
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
+
+    def fin():
+        topo.standalone.restart()
+        try:
+            filtered_roles = FilteredRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in filtered_roles.list():
+                i.delete()
+        except:
+            pass
+        topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'on')
+
+    request.addfinalizer(fin)
+
+
+def test_vattr_on_managed_role(topo, request):
+    """Test nsslapd-ignore-virtual-attrs configuration attribute
+       The attribute is ON by default. If a managed role is
+       added it is moved to OFF
+
+    :id: 664b722d-c1ea-41e4-8f6c-f9c87a212346
+    :setup: Standalone instance
+    :steps:
+         1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config
+         2. Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON
+         3. Create a managed role
+         4. Check the value of nsslapd-ignore-virtual-attrs should be OFF
+         5. Check a message "roles_cache_trigger_update_role - Because of virtual attribute.." in error logs
+    :expectedresults:
+         1. This should be successful
+         2. This should be successful
+         3. This should be successful
+         4. This should be successful
+         5. This should be successful
+    """
+
+    log.info("Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs')
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON")
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "on"
+
+    log.info("Create a managed role")
+    roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
+    role = roles.create(properties={"cn": 'ROLE1'})
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
+
+    topo.standalone.stop()
+    assert topo.standalone.searchErrorsLog("roles_cache_trigger_update_role - Because of virtual attribute definition \(role\), nsslapd-ignore-virtual-attrs was set to \'off\'")
+
+    def fin():
+        topo.standalone.restart()
+        try:
+            filtered_roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in filtered_roles.list():
+                i.delete()
+        except:
+            pass
+        topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'on')
+
+    request.addfinalizer(fin)
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)
