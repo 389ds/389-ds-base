@@ -1062,6 +1062,8 @@ main(int argc, char **argv)
         eq_start(); /* must be done after plugins started - DEPRECATED */
         eq_start_rel(); /* must be done after plugins started */
 
+        vattr_check(); /* Check if it exists virtual attribute definitions */
+
 #ifdef HPUX10
         /* HPUX linker voodoo */
         if (collation_init == NULL) {

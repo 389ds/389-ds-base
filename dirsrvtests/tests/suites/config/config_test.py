@@ -331,7 +331,7 @@ def test_ignore_virtual_attrs(topo):
     :setup: Standalone instance
     :steps:
          1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config
-         2. Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF
+         2. Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON
          3. Set the valid values i.e. on/ON and off/OFF for nsslapd-ignore-virtual-attrs
          4. Set invalid value for attribute nsslapd-ignore-virtual-attrs
          5. Set nsslapd-ignore-virtual-attrs=off
@@ -354,8 +354,8 @@ def test_ignore_virtual_attrs(topo):
     log.info("Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config")
     assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs')
 
-    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
-    assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "off"
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON")
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "on"
 
     log.info("Set the valid values i.e. on/ON and off/OFF for nsslapd-ignore-virtual-attrs")
     for attribute_value in ['on', 'off', 'ON', 'OFF']:
@@ -395,6 +395,40 @@ def test_ignore_virtual_attrs(topo):
     log.info("Test if virtual attribute i.e. postal code not shown while nsslapd-ignore-virtual-attrs: on")
     assert not test_user.present('postalcode', '117')
 
+def test_ignore_virtual_attrs_after_restart(topo):
+    """Test nsslapd-ignore-virtual-attrs configuration attribute
+       The attribute is ON by default. If it set to OFF, it keeps
+       its value on restart
+
+    :id: ac368649-4fda-473c-9ef8-e0c728b162af
+    :setup: Standalone instance
+    :steps:
+         1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config
+         2. Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON
+         3. Set nsslapd-ignore-virtual-attrs=off
+         4. restart the instance
+         5. Check the attribute nsslapd-ignore-virtual-attrs is OFF
+    :expectedresults:
+         1. This should be successful
+         2. This should be successful
+         3. This should be successful
+         4. This should be successful
+         5. This should be successful
+    """
+
+    log.info("Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs')
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be ON")
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "on"
+
+    log.info("Set nsslapd-ignore-virtual-attrs = off")
+    topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'off')
+
+    topo.standalone.restart()
+
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
+    assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
 
 @pytest.mark.bz918694
 @pytest.mark.ds408
