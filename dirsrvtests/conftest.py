@@ -3,8 +3,10 @@ import logging
 import pytest
 import shutil
 import glob
+import ldap
 import os
 
+from .report import getReport
 from lib389.paths import Paths
 from enum import Enum
 
@@ -116,3 +118,10 @@ def pytest_runtest_makereport(item, call):
                     instance_name = os.path.basename(os.path.dirname(f)).split("slapd-",1)[1]
                     extra.append(pytest_html.extras.text(text, name=f"{instance_name}-{log_name}"))
         report.extra = extra
+
+
+def pytest_exception_interact(node, call, report):
+    if report.failed:
+        # call.excinfo contains an ExceptionInfo instance
+        if call.excinfo.type is ldap.SERVER_DOWN:
+            report.sections.extend(getReport())
