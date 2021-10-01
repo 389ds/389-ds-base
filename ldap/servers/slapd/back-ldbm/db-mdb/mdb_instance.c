@@ -690,7 +690,13 @@ dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
     MDB_stat st = {0};
     MDB_envinfo info = {0};
     long used_pages = 0;
+    long alloced = 0;
     dbi_txn_t *txn = NULL;
+    char pathmap[MAXPATHLEN];
+    struct stat fst = {0};
+
+    PR_snprintf(pathmap, MAXPATHLEN, "%s/%s", dbhome, DBMAPFILE);
+    stat(pathmap, &fst);
 
     strncpy(ctx.home, dbhome, MAXPATHLEN);
     if (dbmdb_make_env(&ctx, 1, 0644)) {
@@ -712,8 +718,9 @@ dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
     used_pages += st.ms_branch_pages+st.ms_leaf_pages+st.ms_overflow_pages;
     END_TXN(&txn, 0);
     mdb_env_info(ctx.env, &info);
-    PR_snprintf(dbs[i].filename, PATH_MAX, "GLOBAL STATS: pages total=%ld used=%ld size=%d",
-        info.me_mapsize / st.ms_psize, used_pages, st.ms_psize);
+    alloced = fst.st_size / st.ms_psize;
+    PR_snprintf(dbs[i].filename, PATH_MAX, "GLOBAL STATS: pages max=%ld alloced=%ld used=%ld size=%d",
+        info.me_mapsize / st.ms_psize, alloced, used_pages, st.ms_psize);
     dbmdb_ctx_close(&ctx);
     slapi_ch_free((void**)&dbilist);
     return dbs;

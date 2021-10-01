@@ -14,9 +14,18 @@ from lib389.backend import Backends, Backend
 from lib389.mappingTree import MappingTrees
 from lib389.idm.domain import Domain
 from lib389.configurations.sample import create_base_domain
+from lib389.utils import *
+from lib389.config import LMDB_LDBMConfig
 
 @pytest.fixture(scope="function")
 def topology(topology_st):
+    if get_default_db_lib() == "mdb":
+        handler = LMDB_LDBMConfig(topology_st.standalone)
+        # Need at least 1500 dbis for 50 suffixes
+        maxdbi=2000
+        log.info(f'Set lmdb map max dbi to {maxdbi}.')
+        handler.replace('nsslapd-mdb-max-dbs', str(maxdbi))
+        topology_st.standalone.restart()
     bes = Backends(topology_st.standalone)
     bes.delete_all_dangerous()
     mts = MappingTrees(topology_st.standalone)

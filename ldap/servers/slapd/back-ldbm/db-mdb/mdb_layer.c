@@ -737,7 +737,7 @@ dbmdb_delete_db(struct ldbminfo *li)
 {
     char path[MAXPATHLEN];
 
-    PR_snprintf(path, MAXPATHLEN, "%s/data.mdb", MDB_CONFIG(li)->home);
+    PR_snprintf(path, MAXPATHLEN, "%s/%s", MDB_CONFIG(li)->home, DBMAPFILE);
     unlink(path);
     PR_snprintf(path, MAXPATHLEN, "%s/lock.mdb", MDB_CONFIG(li)->home);
     unlink(path);
@@ -2573,12 +2573,13 @@ int find_mdb_home(const char *db_filename, char *home, const char **dbname)
     const char *pt2;
     char *pt;
 
-    strncpy(home, db_filename, MAXPATHLEN);
+    strncpy(home, db_filename, MAXPATHLEN-1);
     for(;;) {
         pt = home + strlen(home);
         if (pt+10 >= &home[MAXPATHLEN])
             return DBI_RC_NOTFOUND;
-        strcpy(pt, "/INFO.mdb");
+        *pt = '/';
+        strcpy(pt+1, DBMAPFILE);
         if (stat(home, &st) == 0) {
             /* Found dbhome */
             *pt = 0;

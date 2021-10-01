@@ -452,9 +452,9 @@ dbmdb_get_nonleaf_ids(backend *be, dbi_txn_t *txn, IDList **idl, ImportJob *job)
      txn = cursor.txn;
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_get_nonleaf_ids", "Gathering ancestorid non-leaf IDs...");
     /* For each key which is an equality key */
-    do {
-        ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_NEXT_NODUP);
-        if ((ret == 0) && (*(char *)key.mv_data == EQ_PREFIX)) {
+    ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_FIRST);
+    while (ret == 0 && !(job->flags & FLAG_ABORT)) {
+        if (*(char *)key.mv_data == EQ_PREFIX) {
             id = (ID)strtoul((char *)key.mv_data + 1, NULL, 10);
             /*
              * TEL 20180711 - switch to idl_append instead of idl_insert because there is no
@@ -478,7 +478,8 @@ dbmdb_get_nonleaf_ids(backend *be, dbi_txn_t *txn, IDList **idl, ImportJob *job)
             }
             started_progress_logging = 1;
         }
-    } while (ret == 0 && !(job->flags & FLAG_ABORT));
+        ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_NEXT_NODUP);
+    }
 
     if (started_progress_logging) {
         /* finish what we started logging */
