@@ -149,6 +149,7 @@ def test_memberof_with_repl(topo):
     M1 = topo.ms["supplier1"]
     H1 = topo.hs["hub1"]
     C1 = topo.cs["consumer1"]
+    repl = ReplicationManager(DEFAULT_SUFFIX)
 
     # Step 1 & 2
     M1.config.enable_log('audit')
@@ -198,7 +199,7 @@ def test_memberof_with_repl(topo):
     grp1_dn = test_groups[1].dn
 
     test_groups[0].add_member(member_dn)
-    time.sleep(2)
+    repl.wait_while_replication_is_progressing(M1, C1)
 
     # Step 5
     for i in [M1, H1, C1]:
@@ -206,7 +207,7 @@ def test_memberof_with_repl(topo):
 
     # Step 6
     test_groups[1].add_member(test_groups[0].dn)
-    time.sleep(2)
+    repl.wait_while_replication_is_progressing(M1, C1)
 
     # Step 7
     for i in [grp0_dn, grp1_dn]:
@@ -244,7 +245,7 @@ def test_memberof_with_repl(topo):
 
     # Step 14
     test_groups[0].add_member(member_dn)
-    time.sleep(2)
+    repl.wait_while_replication_is_progressing(M1, C1)
 
     # Step 15
     for i in [M1, H1]:
