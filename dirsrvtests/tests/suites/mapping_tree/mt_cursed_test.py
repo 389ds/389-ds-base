@@ -22,7 +22,7 @@ def topology(topology_st):
     if get_default_db_lib() == "mdb":
         handler = LMDB_LDBMConfig(topology_st.standalone)
         # Need at least 1500 dbis for 50 suffixes
-        maxdbi=2000
+        maxdbi=5000
         log.info(f'Set lmdb map max dbi to {maxdbi}.')
         handler.replace('nsslapd-mdb-max-dbs', str(maxdbi))
         topology_st.standalone.restart()

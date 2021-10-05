@@ -3011,6 +3011,23 @@ class DirSrv(SimpleLDAPObject, object):
         self.log.debug("Deleting LDIF file: " + del_file)
         os.remove(del_file)
 
+    def is_dbi(self, dbipattern):
+        try:
+            cmd = ["%s/dbscan" % self.get_bin_dir(),
+                    "-D",
+                    self.get_db_lib(),
+                    "-L",
+                    self.ds_paths.db_dir],
+            self.log.debug("DEBUG: starting with %s" % cmd)
+            output = subprocess.check_output(*cmd, text=True, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError:
+            self.log.error('Failed to run dbscan: "%s"' % output)
+            raise ValueError('Failed to run dbscan')
+        self.log.debug("is_dbi output is: ", output)
+
+        return dbipattern in output
+ 
+
     def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False):
         """Wrapper around dbscan tool that analyzes and extracts information
         from an import Directory Server database file

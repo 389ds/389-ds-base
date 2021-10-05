@@ -13,7 +13,6 @@ Will test Import (Offline/Online)
 import os
 import pytest
 import time
-import glob
 import logging
 from lib389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX, TaskWarning
@@ -202,7 +201,7 @@ def test_import_with_index(topo, _import_clean):
         3. Operation successful
     """
     place = topo.standalone.dbdir
-    assert not glob.glob(f'{place}/userRoot/roomNumber.db*', recursive=True)
+    assert not topo.standalone.is_dbi('/userRoot/roomNumber.db')
     # Creating the room number index
     indexes = Indexes(topo.standalone)
     indexes.create(properties={
@@ -213,7 +212,7 @@ def test_import_with_index(topo, _import_clean):
     # Importing online
     _import_online(topo, 5)
     # Import is done -- verifying that it worked
-    assert glob.glob(f'{place}/userRoot/roomNumber.db*', recursive=True)
+    assert topo.standalone.is_dbi('/userRoot/roomNumber.db')
 
 
 
