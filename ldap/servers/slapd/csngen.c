@@ -328,7 +328,7 @@ csngen_adjust_time(CSNGen *gen, const CSN *csn)
 
     remote_offset = remote_time - CSN_CALC_TSTAMP(gen);
     if (remote_offset > 0) {
-        if (!ignore_time_skew && (remote_offset > CSN_MAX_TIME_ADJUST)) {
+        if (!ignore_time_skew && (gen->state.remote_offset + remote_offset > CSN_MAX_TIME_ADJUST)) {
             slapi_log_err(SLAPI_LOG_ERR, "csngen_adjust_time",
                           "Adjustment limit exceeded; value - %ld, limit - %ld\n",
                           remote_offset, (long)CSN_MAX_TIME_ADJUST);
