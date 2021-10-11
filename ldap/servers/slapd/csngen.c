@@ -17,7 +17,6 @@
 #include <string.h>
 #include "prcountr.h"
 #include "slap.h"
-#include <math.h>
 
 
 #define CSN_MAX_SEQNUM 0xffff              /* largest sequence number */
@@ -817,12 +816,24 @@ _csngen_local_tester_main(void *data)
 int _csngen_tester_state;
 int _csngen_tester_state_rid;
 
+static int
+_mynoise(int time, int len, double height)
+{
+   if (((time/len) % 2) == 0) {
+        return -height + 2 * height * ( time % len ) / (len-1);
+   } else {
+        return height - 2 * height * ( time % len ) / (len-1);
+   }
+}
+
+
 int32_t _csngen_tester_gettime(struct timespec *tp)
 {
-    int vtime = _csngen_tester_state / 30;
+    int vtime = _csngen_tester_state ;
     tp->tv_sec = 0x1000000 + vtime + 2 * _csngen_tester_state_rid;
     if (_csngen_tester_state_rid == 3) {
-        tp->tv_sec += ( 0.5 * sin(vtime*1.0) * 1.9 );
+        /* tp->tv_sec += _mynoise(vtime, 10, 1.5); */
+        tp->tv_sec += _mynoise(vtime, 30, 15);
     }
     return 0;
 }
