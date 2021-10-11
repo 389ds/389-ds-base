@@ -17,6 +17,8 @@
 #include <string.h>
 #include "prcountr.h"
 #include "slap.h"
+#include <math.h>
+
 
 #define CSN_MAX_SEQNUM 0xffff              /* largest sequence number */
 #define CSN_MAX_TIME_ADJUST 24 * 60 * 60   /* maximum allowed time adjustment (in seconds) = 1 day */
@@ -63,6 +65,7 @@ typedef struct csngen_state
 struct csngen
 {
     csngen_state state;      /* persistent state of the generator */
+    int32_t (*gettime)(struct timespec *tp); /* Get local time */
     callback_list callbacks; /* list of callbacks registered with the generator */
     Slapi_RWLock *lock;      /* concurrency control */
 };
@@ -78,7 +81,7 @@ static int _csngen_init_callbacks(CSNGen *gen);
 static void _csngen_call_callbacks(const CSNGen *gen, const CSN *csn, PRBool abort);
 static int _csngen_cmp_callbacks(const void *el1, const void *el2);
 static void _csngen_free_callbacks(CSNGen *gen);
-static int _csngen_adjust_local_time(CSNGen *gen, time_t cur_time);
+static int _csngen_adjust_local_time(CSNGen *gen);
 
 /*
  * **************************************************************************
@@ -121,6 +124,7 @@ csngen_new(ReplicaId rid, Slapi_Attr *state)
     _csngen_init_callbacks(gen);
 
     gen->state.rid = rid;
+    gen->gettime = slapi_clock_gettime;
 
     if (state) {
         rc = _csngen_parse_state(gen, state);
@@ -164,10 +168,7 @@ csngen_free(CSNGen **gen)
 int
 csngen_new_csn(CSNGen *gen, CSN **csn, PRBool notify)
 {
-    struct timespec now = {0};
     int rc = CSN_SUCCESS;
-    time_t cur_time;
-    int delta;
 
     if (gen == NULL || csn == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "csngen_new_csn", "Invalid argument\n");
@@ -180,39 +181,13 @@ csngen_new_csn(CSNGen *gen, CSN **csn, PRBool notify)
         return CSN_MEMORY_ERROR;
     }
 
-    if ((rc = slapi_clock_gettime(&now)) != 0) {
-        /* Failed to get system time, we must abort */
-        slapi_log_err(SLAPI_LOG_ERR, "csngen_new_csn",
-                "Failed to get system time (%s)\n",
-                slapd_system_strerror(rc));
-        return CSN_TIME_ERROR;
-    }
-    cur_time = now.tv_sec;
-
     slapi_rwlock_wrlock(gen->lock);
 
-    /* check if the time should be adjusted */
-    delta = cur_time - gen->state.sampled_time;
-    if (delta > _SEC_PER_DAY || delta < (-1 * _SEC_PER_DAY)) {
-        /* We had a jump larger than a day */
-        slapi_log_err(SLAPI_LOG_INFO, "csngen_new_csn",
-                "Detected large jump in CSN time.  Delta: %d (current time: %ld  vs  previous time: %ld)\n",
-                delta, cur_time, gen->state.sampled_time);
+    rc = _csngen_adjust_local_time(gen);
+    if (rc != CSN_SUCCESS) {
+        slapi_rwlock_unlock(gen->lock);
+        return rc;
     }
-    if (delta > 0) {
-        rc = _csngen_adjust_local_time(gen, cur_time);
-        if (rc != CSN_SUCCESS) {
-            slapi_rwlock_unlock(gen->lock);
-            return rc;
-        }
-    }
-    /* if (delta < 0) this means the local system time was set back
-     * the new csn will be generated based on sampled time, which is
-     * ahead of system time and previously generated csns.
-     * the time stamp of the csn will not change until system time
-     * catches up or is corrected by remote csns.
-     * But we need to ensure that the seq_num does not overflow.
-     */
 
     if (gen->state.seq_num == CSN_MAX_SEQNUM) {
         slapi_log_err(SLAPI_LOG_INFO, "csngen_new_csn", "Sequence rollover; "
@@ -307,8 +282,7 @@ csngen_adjust_time(CSNGen *gen, const CSN *csn)
     /* Get last local csn time */
     old_time = CSN_CALC_TSTAMP(gen);
     /* update local offset and sample_time */
-    cur_time = slapi_current_utc_time();
-    rc = _csngen_adjust_local_time(gen, cur_time);
+    rc = _csngen_adjust_local_time(gen);
 
     if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
         cur_time = CSN_CALC_TSTAMP(gen);
@@ -584,19 +558,41 @@ _csngen_cmp_callbacks(const void *el1, const void *el2)
         return 1;
 }
 
+/* Get time and adjust local offset */
 static int
-_csngen_adjust_local_time(CSNGen *gen, time_t cur_time)
+_csngen_adjust_local_time(CSNGen *gen)
 {
     extern int config_get_ignore_time_skew(void);
     int ignore_time_skew = config_get_ignore_time_skew();
-    time_t time_diff = cur_time - gen->state.sampled_time;
+    struct timespec now = {0};
+    time_t time_diff;
+    time_t cur_time;
+    int rc;
 
+    
+    if ((rc = gen->gettime(&now)) != 0) {
+        /* Failed to get system time, we must abort */
+        slapi_log_err(SLAPI_LOG_ERR, "csngen_new_csn",
+                "Failed to get system time (%s)\n",
+                slapd_system_strerror(rc));
+        return CSN_TIME_ERROR;
+    }
+    cur_time = now.tv_sec;
+    time_diff = cur_time - gen->state.sampled_time;
+
+    /* check if the time should be adjusted */
     if (time_diff == 0) {
         /* This is a no op - _csngen_adjust_local_time should never be called
            in this case, because there is nothing to adjust - but just return
            here to protect ourselves
         */
         return CSN_SUCCESS;
+    }
+    if (labs(time_diff) > _SEC_PER_DAY) {
+        /* We had a jump larger than a day */
+        slapi_log_err(SLAPI_LOG_INFO, "csngen_new_csn",
+                "Detected large jump in CSN time.  Delta: %ld (current time: %ld  vs  previous time: %ld)\n",
+                time_diff, cur_time, gen->state.sampled_time);
     }
     if (!ignore_time_skew && (gen->state.local_offset-time_diff > CSN_MAX_TIME_ADJUST)) {
         slapi_log_err(SLAPI_LOG_ERR, "_csngen_adjust_local_time",
@@ -816,4 +812,67 @@ _csngen_local_tester_main(void *data)
     }
 
     PR_AtomicDecrement(&s_thread_count);
+}
+
+int _csngen_tester_state;
+int _csngen_tester_state_rid;
+
+int32_t _csngen_tester_gettime(struct timespec *tp)
+{
+    int vtime = _csngen_tester_state / 30;
+    tp->tv_sec = 0x1000000 + vtime + 2 * _csngen_tester_state_rid;
+    if (_csngen_tester_state_rid == 3) {
+        tp->tv_sec += ( 0.5 * sin(vtime*1.0) * 1.9 );
+    }
+    return 0;
+}
+
+/* Mimic a fully meshed multi suplier topology */
+void csngen_multi_suppliers_test(void)
+{
+#define NB_TEST_MASTERS	6
+#define NB_TEST_STATES	500
+    CSNGen *gen[NB_TEST_MASTERS];
+    struct timespec now = {0};
+    CSN *last_csn = NULL;
+    CSN *csn = NULL;
+    int i,j,rc;
+
+    _csngen_tester_gettime(&now);
+
+    for (i=0; i< NB_TEST_MASTERS; i++) {
+        gen[i] = csngen_new(i+1, NULL);
+        gen[i]->gettime = _csngen_tester_gettime;
+        gen[i]->state.sampled_time = now.tv_sec;
+    }
+
+    for (_csngen_tester_state=0; _csngen_tester_state < NB_TEST_STATES; _csngen_tester_state++) {
+        for (i=0; i< NB_TEST_MASTERS; i++) {
+            _csngen_tester_state_rid = i+1;
+            rc = csngen_new_csn(gen[i], &csn, PR_FALSE);
+            if (rc) {
+                continue;
+            }
+            csngen_dump_state(gen[i], SLAPI_LOG_INFO);
+
+            if (csn_compare(csn, last_csn) <= 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "csngen_multi_suppliers_test",
+                              "CSN generated in disorder state=%d rid=%d\n", _csngen_tester_state, _csngen_tester_state_rid);
+                _csngen_tester_state = NB_TEST_STATES;
+                break;
+            }
+            last_csn = csn;
+
+            for (j=0; j< NB_TEST_MASTERS; j++) {
+                if (i==j) {
+                    continue;
+                }
+                _csngen_tester_state_rid = j+1;
+                rc = csngen_adjust_time(gen[j], csn);
+                if (rc) {
+                    continue;
+                }
+            }
+        }
+    }
 }
