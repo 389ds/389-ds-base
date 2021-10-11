@@ -410,6 +410,9 @@ export XCFLAGS=$RPM_OPT_FLAGS
 
 make %{?_smp_mflags}
 
+# Fix systemd-tmpfiles warning about legacy paths:
+sed -i 's#/var/run#/run#g' %{_builddir}/%{name}-%{version}%{?prerel}/ldap/admin/src/defaults.inf
+
 %install
 rm -rf $RPM_BUILD_ROOT
 
