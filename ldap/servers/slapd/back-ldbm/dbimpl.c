@@ -399,7 +399,7 @@ const char *dblayer_op2str(dbi_op_t op)
 }
 
 /* Open db env, db and db file privately */
-int dblayer_private_open(const char *plgname, const char *dbfilename, Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db)
+int dblayer_private_open(const char *plgname, const char *dbfilename, int rw, Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db)
 {
     struct ldbminfo *li;
     int rc;
@@ -420,7 +420,7 @@ int dblayer_private_open(const char *plgname, const char *dbfilename, Slapi_Back
     /* Then open the env database plugin */
     if (!rc) {
         dblayer_private *priv = li->li_dblayer_private;
-        rc = priv->dblayer_private_open_fn(*be, dbfilename, env, db);
+        rc = priv->dblayer_private_open_fn(*be, dbfilename, rw, env, db);
     }
     if (rc) {
         dblayer_private_close(be, env, db);

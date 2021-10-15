@@ -754,7 +754,7 @@ dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
     int i;
 
     strncpy(ctx.home, dbhome, MAXPATHLEN);
-    if (dbmdb_make_env(&ctx, 1, 0444)) {
+    if (dbmdb_make_env(&ctx, 1, 0644)) {
         return NULL;
     }
     dbs = (dbi_dbslist_t*)slapi_ch_calloc(ctx.nbdbis+1, sizeof (dbi_dbslist_t));

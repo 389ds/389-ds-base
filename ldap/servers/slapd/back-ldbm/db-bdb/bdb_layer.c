@@ -6874,21 +6874,49 @@ bdb_public_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count)
 }
 
 int
-bdb_public_private_open(backend *be, const char *db_filename, dbi_env_t **env, dbi_db_t **db)
+bdb_public_private_open(backend *be, const char *db_filename, int rw, dbi_env_t **env, dbi_db_t **db)
 {
     int rc;
     DB_ENV *bdb_env = NULL;
     DB *bdb_db = NULL;
+    char dbhome[MAXPATHLEN];
+    int flags;
+    struct stat st;
+
+    strncpy(dbhome, db_filename, MAXPATHLEN);
+    if (stat(dbhome, &st) != 0) {
+        perror(dbhome);
+        return EINVAL;
+    }
+
+    if ((st.st_mode & S_IFMT) == S_IFREG) {
+        char *pt = strrchr(dbhome, '/');
+        if (pt) {
+            *pt = 0;
+            pt = strrchr(dbhome, '/');
+        }
+        if (pt) {
+            *pt = 0;
+        }
+    }
+
 
     rc = db_env_create(&bdb_env, 0);
     if (rc == 0) {
-        rc = bdb_env->open(bdb_env, NULL, DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE, 0);
+        if (rw) {
+            flags = DB_CREATE | DB_INIT_MPOOL;
+            rc = bdb_env->open(bdb_env, dbhome, flags, 0);
+        } else {
+            flags = DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE;
+            rc = bdb_env->open(bdb_env, NULL, flags, 0);
+        }
     }
     if (rc == 0) {
         rc = db_create(&bdb_db, bdb_env, 0);
     }
     if (rc == 0) {
-        rc = bdb_db->open(bdb_db, NULL, db_filename, NULL, DB_UNKNOWN, DB_RDONLY, 0);
+        flags = rw ? 0 : DB_RDONLY;
+        rc = bdb_db->open(bdb_db, NULL, db_filename, NULL, DB_UNKNOWN, flags, 0);
     }
     *env = bdb_env;
     *db = bdb_db;

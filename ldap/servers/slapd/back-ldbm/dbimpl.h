@@ -158,7 +158,7 @@ const char *dblayer_strerror(int error);
 const char *dblayer_op2str(dbi_op_t op);
 int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count);
 
-int dblayer_private_open(const char *plgname, const char *dbfilename, Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db);
+int dblayer_private_open(const char *plgname, const char *dbfilename, int rw, Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db);
 int dblayer_private_close(Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db);
 dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome);
 
