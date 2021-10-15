@@ -30,11 +30,26 @@
     filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff39a5dc', endColorstr='#ff0088ce', GradientType=0);
     border-color: #00659c;
     color: #fff;
-    padding: 2px;
-    padding-left: 3px;
-    box-shadow: 0 2px 3px rgba(3,3,3,.1);
+    padding: 3px;
+    box-shadow: 0 3px 3px rgba(3,3,3,.1);
     border-radius: 50%;
     border: 1px solid transparent;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.ds-refresh-sm {
+    background-color: #0088ce;
+    background-image: linear-gradient(to bottom,#39a5dc 0,#0088ce 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff39a5dc', endColorstr='#ff0088ce', GradientType=0);
+    border-color: #00659c;
+    color: #fff;
+    padding: 2px;
+    box-shadow: 0 2px 2px rgba(3,3,3,.1);
+    border-radius: 50%;
+    border: 1px solid transparent;
+    text-align: center;
+    vertical-align: middle;
 }
 
 td {
@@ -66,9 +81,18 @@ td {
     margin-top: 20px;
 }
 
+.ds-editor-tree {
+    max-height: 70vh;
+    overflow: auto;
+}
+
 .ds-disabled {
     pointer-events: none;
     opacity: 0.5;
+}
+
+.ds-hidden {
+    display: none
 }
 
 .ds-error-msg {
@@ -263,6 +287,11 @@ textarea {
 .ds-indent-md {
     margin-left: 20px !important;
     margin-right: 20px !important;
+}
+
+.ds-indent-lg {
+    margin-left: 30px !important;
+    margin-right: 30px !important;
 }
 
 .ds-left-indent {
@@ -485,6 +514,14 @@ input[type="radio"], input[type="checkbox"] {
     fill: green;
 }
 
+.ds-info-icon svg {
+    fill: rgb(57, 165, 220);
+}
+
+.ds-info-color {
+    color: rgb(0, 102, 204); /* rgb(57, 165, 220); */
+}
+
 .ds-icon-sm {
     font-size: 0.7em;
     margin-right: 20px;
@@ -510,4 +547,9 @@ input[type="radio"], input[type="checkbox"] {
 
 .ds-modal-changelog-export {
     min-height: 525px !important;
+}
+
+/* LDAP Editor classes */
+.ds-search-input {
+    min-width: 550px !important;
 }

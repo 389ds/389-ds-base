@@ -1037,7 +1037,7 @@ export class Security extends React.Component {
             securityPage =
                 <div className="ds-margin-bottom-md">
                     <Grid>
-                        <GridItem span={6}>
+                        <GridItem span={12}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     Security Settings
@@ -1054,7 +1054,7 @@ export class Security extends React.Component {
                     </Grid>
                     <div className="ds-tab-table">
                         <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                            <Tab eventKey={0} title={<TabTitleText><b>Security Configuration</b></TabTitleText>}>
+                            <Tab eventKey={0} title={<TabTitleText>Security Configuration</TabTitleText>}>
                                 <Grid className="ds-margin-top-xlg ds-left-indent-md">
                                     <GridItem className="ds-label" span={4}>
                                         <Switch
@@ -1069,7 +1069,7 @@ export class Security extends React.Component {
                                     {configPage}
                                 </Grid>
                             </Tab>
-                            <Tab eventKey={1} title={<TabTitleText><b>Certificate Management</b></TabTitleText>}>
+                            <Tab eventKey={1} title={<TabTitleText>Certificate Management</TabTitleText>}>
                                 <CertificateManagement
                                     serverId={this.props.serverId}
                                     CACerts={this.state.CACerts}
@@ -1077,7 +1077,7 @@ export class Security extends React.Component {
                                     addNotification={this.props.addNotification}
                                 />
                             </Tab>
-                            <Tab eventKey={2} title={<TabTitleText><b>Cipher Preferences</b></TabTitleText>}>
+                            <Tab eventKey={2} title={<TabTitleText>Cipher Preferences</TabTitleText>}>
                                 <div className="ds-indent ds-tab-table">
                                     <Ciphers
                                         serverId={this.props.serverId}

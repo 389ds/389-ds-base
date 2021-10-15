@@ -295,7 +295,7 @@ export class SuffixMonitor extends React.Component {
             content =
                 <div id="monitor-suffix-page">
                     <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                        <Tab eventKey={0} title={<TabTitleText><b>Entry Cache</b></TabTitleText>}>
+                        <Tab eventKey={0} title={<TabTitleText>Entry Cache</TabTitleText>}>
                             <div className="ds-margin-top">
                                 <Grid hasGutter>
                                     <GridItem span={6}>
@@ -355,7 +355,7 @@ export class SuffixMonitor extends React.Component {
                                                             </Text>
                                                         </TextContent>
                                                         <TextContent>
-                                                            <Text className="ds-margin-top" component={TextVariants.h2}>
+                                                            <Text component={TextVariants.h2}>
                                                                 <b>{utilratio}%</b>
                                                             </Text>
                                                         </TextContent>
@@ -444,7 +444,7 @@ export class SuffixMonitor extends React.Component {
                                 </GridItem>
                             </Grid>
                         </Tab>
-                        <Tab eventKey={1} title={<TabTitleText><b>DN Cache</b></TabTitleText>}>
+                        <Tab eventKey={1} title={<TabTitleText>DN Cache</TabTitleText>}>
                             <div className="ds-margin-top">
                                 <Grid hasGutter>
                                     <GridItem span={6}>
@@ -603,7 +603,7 @@ export class SuffixMonitor extends React.Component {
                         <FontAwesomeIcon size="sm" icon={suffixIcon} /> {this.props.suffix} (<b>{this.props.bename}</b>)
                     </Text>
                 </TextContent>
-                <div className="ds-margin-top-xlg">
+                <div className="ds-margin-top-lg">
                     {content}
                 </div>
             </div>

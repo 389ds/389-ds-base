@@ -228,7 +228,7 @@ export class DatabaseMonitor extends React.Component {
 
             content =
                 <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText><b>Database Cache</b></TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>Database Cache</TabTitleText>}>
                         <div className="ds-margin-top">
                             <Card isHoverable>
                                 <CardBody>
@@ -322,7 +322,7 @@ export class DatabaseMonitor extends React.Component {
                         </Grid>
                     </Tab>
 
-                    <Tab eventKey={1} title={<TabTitleText><b>Normalized DN Cache</b></TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>Normalized DN Cache</TabTitleText>}>
                         <div className="ds-margin-top-lg">
                             <Grid hasGutter>
                                 <GridItem span={6}>
@@ -493,7 +493,7 @@ export class DatabaseMonitor extends React.Component {
                         Database Performance Statistics
                     </Text>
                 </TextContent>
-                <div className="ds-margin-top-xlg">
+                <div className="ds-margin-top-lg">
                     {content}
                 </div>
 
