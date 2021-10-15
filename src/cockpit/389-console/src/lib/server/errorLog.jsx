@@ -482,7 +482,7 @@ export class ServerErrorLog extends React.Component {
         let body =
             <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText><b>Settings</b></TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>Settings</TabTitleText>}>
                         <Checkbox
                             className="ds-margin-top-xlg"
                             id="nsslapd-errorlog-logging-enabled"
@@ -539,7 +539,7 @@ export class ServerErrorLog extends React.Component {
                             {saveSettingsName}
                         </Button>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText><b>Rotation Policy</b></TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>Rotation Policy</TabTitleText>}>
                         <Form className="ds-margin-top-lg" isHorizontal>
                             <Grid
                                 className="ds-margin-top"
@@ -641,7 +641,7 @@ export class ServerErrorLog extends React.Component {
                         </Button>
                     </Tab>
 
-                    <Tab eventKey={2} title={<TabTitleText><b>Deletion Policy</b></TabTitleText>}>
+                    <Tab eventKey={2} title={<TabTitleText>Deletion Policy</TabTitleText>}>
                         <Form className="ds-margin-top-lg" isHorizontal>
                             <Grid
                                 className="ds-margin-top"
@@ -747,7 +747,7 @@ export class ServerErrorLog extends React.Component {
         return (
             <div id="server-errorlog-page" className={this.state.loading ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"}>
                 <Grid>
-                    <GridItem span={3}>
+                    <GridItem span={12}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 Error Log Settings <FontAwesomeIcon

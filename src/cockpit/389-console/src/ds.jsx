@@ -8,6 +8,7 @@ import { Replication } from "./replication.jsx";
 import { Server } from "./server.jsx";
 import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import { ManageBackupsModal, SchemaReloadModal, CreateInstanceModal } from "./dsModals.jsx";
+import { LDAPEditor } from "./LDAPEditor.jsx";
 import { log_cmd } from "./lib/tools.jsx";
 import {
     Alert,
@@ -22,6 +23,7 @@ import {
     DropdownSeparator,
     FormSelect,
     FormSelectOption,
+    PageSectionVariants,
     Progress,
     ProgressMeasureLocation,
     Spinner,
@@ -86,6 +88,7 @@ export class DSInstance extends React.Component {
             progressValue: 0,
             loadingOperate: false,
             dropdownIsOpen: false,
+            variant: PageSectionVariants.default,
 
             showDeleteConfirm: false,
             modalSpinning: false,
@@ -128,6 +131,15 @@ export class DSInstance extends React.Component {
                     activeTabKey: tabIndex
                 });
             }
+        };
+
+        this.setPageSectionVariant = isLight => {
+            const variant = isLight
+                ? PageSectionVariants.light
+                : PageSectionVariants.default;
+            this.setState({
+                variant,
+            });
         };
 
         this.handleServerIdChange = this.handleServerIdChange.bind(this);
@@ -639,7 +651,7 @@ export class DSInstance extends React.Component {
                 <div className="ds-margin-top-xlg">
                     <div hidden={pageLoadingState.state === "loading"}>
                         <Tabs isFilled activeKey={activeTabKey} onSelect={this.handleNavSelect}>
-                            <Tab eventKey={1} title={<TabTitleText><b>Server Settings</b></TabTitleText>}>
+                            <Tab eventKey={1} title={<TabTitleText><b>Server</b></TabTitleText>}>
                                 <Server
                                     addNotification={this.addNotification}
                                     serverId={this.state.serverId}
@@ -686,6 +698,13 @@ export class DSInstance extends React.Component {
                                     serverId={this.state.serverId}
                                     wasActiveList={this.state.wasActiveList}
                                     key={this.state.serverId}
+                                />
+                            </Tab>
+                            <Tab eventKey={7} title={<TabTitleText><b>Users & Groups</b></TabTitleText>}>
+                                <LDAPEditor
+                                    key="ldap-editor"
+                                    serverId={this.state.serverId}
+                                    setPageSectionVariant={this.setPageSectionVariant}
                                 />
                             </Tab>
                         </Tabs>

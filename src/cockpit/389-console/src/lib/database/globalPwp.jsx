@@ -1150,8 +1150,8 @@ export class GlobalPwPolicy extends React.Component {
         } else {
             pwp_element =
                 <div className={this.state.loading ? 'ds-fadeout ds-margin-bottom-md' : 'ds-fadein ds-left-margin ds-margin-bottom-md'}>
-                    <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                        <Tab eventKey={0} title={<TabTitleText><b>General Settings</b></TabTitleText>}>
+                    <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                        <Tab eventKey={0} title={<TabTitleText>General Settings</TabTitleText>}>
                             <Form className="ds-margin-left-sm" isHorizontal>
                                 <Grid className="ds-margin-top-xlg" title="Allow subtree/user defined local password policies (nsslapd-pwpolicy-local).">
                                     <GridItem span={12}>
@@ -1343,7 +1343,7 @@ export class GlobalPwPolicy extends React.Component {
                                 {saveBtnName}
                             </Button>
                         </Tab>
-                        <Tab eventKey={1} title={<TabTitleText><b>Expiration</b></TabTitleText>}>
+                        <Tab eventKey={1} title={<TabTitleText>Expiration</TabTitleText>}>
                             <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
                                 <Grid title="Enable a password expiration policy (passwordExp).">
                                     <GridItem span={12}>
@@ -1371,7 +1371,7 @@ export class GlobalPwPolicy extends React.Component {
                                 {saveBtnName}
                             </Button>
                         </Tab>
-                        <Tab eventKey={2} title={<TabTitleText><b>Account Lockout</b></TabTitleText>}>
+                        <Tab eventKey={2} title={<TabTitleText>Account Lockout</TabTitleText>}>
                             <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
                                 <Grid title="Enable account lockout (passwordLockout).">
                                     <GridItem span={12}>
@@ -1399,7 +1399,7 @@ export class GlobalPwPolicy extends React.Component {
                                 {saveBtnName}
                             </Button>
                         </Tab>
-                        <Tab eventKey={3} title={<TabTitleText><b>Syntax Checking</b></TabTitleText>}>
+                        <Tab eventKey={3} title={<TabTitleText>Syntax Checking</TabTitleText>}>
                             <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
                                 <Grid title="Enable password syntax checking (passwordCheckSyntax).">
                                     <GridItem span={12}>
@@ -1436,7 +1436,7 @@ export class GlobalPwPolicy extends React.Component {
                 <Grid>
                     <GridItem span={12}>
                         <TextContent>
-                            <Text component={TextVariants.h2}>
+                            <Text component={TextVariants.h3}>
                                 Global Password Policy <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"

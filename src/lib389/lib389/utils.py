@@ -198,12 +198,12 @@ def selinux_present():
             # We have selinux, lets see if we are allowed to configure it.
             # (just checking the uid for now - we may rather check if semanage command success)
             if os.geteuid() != 0:
-                log.error('Non priviledged user cannot use semanage, will not relabel ports or files.' )
+                log.info('Non privileged user cannot use semanage, will not relabel ports or files.' )
             else:
                 status = True
         else:
             # We have the module, but it's disabled.
-            log.error('selinux is disabled, will not relabel ports or files.' )
+            log.info('selinux is disabled, will not relabel ports or files.' )
     except ImportError:
         # No python module, so who knows what state we are in.
         log.error('selinux python module not found, will not relabel files.' )

@@ -903,7 +903,7 @@ export class ServerSettings extends React.Component {
             body =
                 <div className="ds-margin-bottom-md">
                     <Grid>
-                        <GridItem span={3}>
+                        <GridItem span={12}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     Server Settings <FontAwesomeIcon
@@ -920,7 +920,7 @@ export class ServerSettings extends React.Component {
 
                     <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-left-margin'}>
                         <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                            <Tab eventKey={0} title={<TabTitleText><b>General Settings</b></TabTitleText>}>
+                            <Tab eventKey={0} title={<TabTitleText>General Settings</TabTitleText>}>
                                 <Form className="ds-margin-top-xlg" isHorizontal>
                                     <Grid
                                         title="The version of the Directory Server rpm package"
@@ -1097,7 +1097,7 @@ export class ServerSettings extends React.Component {
                                 </Button>
                             </Tab>
 
-                            <Tab eventKey={1} title={<TabTitleText><b>Directory Manager</b></TabTitleText>}>
+                            <Tab eventKey={1} title={<TabTitleText>Directory Manager</TabTitleText>}>
                                 <Form className="ds-margin-top-xlg" isHorizontal>
                                     <Grid
                                         title="The DN of the unrestricted directory manager (nsslapd-rootdn)."
@@ -1184,7 +1184,7 @@ export class ServerSettings extends React.Component {
                                     {saveBtnName}
                                 </Button>
                             </Tab>
-                            <Tab eventKey={2} title={<TabTitleText><b>Disk Monitoring</b></TabTitleText>}>
+                            <Tab eventKey={2} title={<TabTitleText>Disk Monitoring</TabTitleText>}>
                                 <Form className="ds-margin-left ds-margin-top-xlg">
                                     <Checkbox
                                         id="nsslapd-disk-monitoring"
@@ -1208,7 +1208,7 @@ export class ServerSettings extends React.Component {
                                     {saveBtnName}
                                 </Button>
                             </Tab>
-                            <Tab eventKey={3} title={<TabTitleText><b>Advanced Settings</b></TabTitleText>}>
+                            <Tab eventKey={3} title={<TabTitleText>Advanced Settings</TabTitleText>}>
                                 <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
                                     <Grid>
                                         <GridItem span={5}>

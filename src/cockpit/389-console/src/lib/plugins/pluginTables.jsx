@@ -244,7 +244,6 @@ class PluginTable extends React.Component {
                     <GridItem span={5}>
                         <SearchInput
                             placeholder='Search Plugins'
-                            className="ds-margin-top-lg"
                             value={this.state.value}
                             onChange={this.onSearchChange}
                             onClear={(evt) => this.onSearchChange('', evt)}

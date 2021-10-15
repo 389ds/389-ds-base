@@ -262,7 +262,7 @@ export class ServerTuning extends React.Component {
             body =
                 <div className={this.state.loading ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"}>
                     <Grid>
-                        <GridItem span={3}>
+                        <GridItem span={12}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     Tuning & Limits <FontAwesomeIcon
