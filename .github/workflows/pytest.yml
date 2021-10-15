@@ -50,12 +50,9 @@ jobs:
       run: |
         sudo apt update -y
         sudo apt install -y docker.io containerd runc
-
         sudo cp .github/daemon.json /etc/docker/daemon.json
-
         sudo systemctl unmask docker
         sudo systemctl start docker
-
     - name: Download RPMs
       uses: actions/download-artifact@master
       with:
@@ -70,13 +67,11 @@ jobs:
         CID=$(sudo docker run -d -h server.example.com --privileged --rm -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
         sudo docker exec $CID sh -c "dnf install -y -v dist/rpms/*rpm"
         sudo docker exec $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html -v dirsrvtests/tests/suites/${{ matrix.suite }}
-
     - name: Make the results file readable by all
       if: always()
       run: |
         sudo chmod -f -v -R a+r pytest.*ml assets
         sudo chmod -f -v a+x assets
-
     - name: Sanitize filename
       if: always()
       run: echo "PYTEST_SUITE=$(echo ${{ matrix.suite }} | sed -e 's#\/#-#g')" >> $GITHUB_ENV
@@ -90,4 +85,4 @@ jobs:
           pytest.xml
           pytest.html
           assets
- 
+

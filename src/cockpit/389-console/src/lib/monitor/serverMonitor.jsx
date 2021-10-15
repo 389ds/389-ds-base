@@ -310,7 +310,7 @@ export class ServerMonitor extends React.Component {
                         </TextContent>
                     </GridItem>
                 </Grid>
-                <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeKey} onSelect={this.handleNavSelect}>
+                <Tabs className="ds-margin-top-lg" activeKey={this.state.activeKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>Resource Charts</TabTitleText>}>
                         <Card className="ds-margin-top-lg" isHoverable>
                             <CardBody>

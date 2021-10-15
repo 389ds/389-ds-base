@@ -745,7 +745,7 @@ class AddVLVModal extends React.Component {
                         <GridItem offset={1} className="ds-margin-top-lg ds-margin-bottom" span={10}>
                             <TextContent>
                                 <Text component={TextVariants.h4}>
-                                    After creating this VLV Search entry you can goto
+                                    After creating this VLV Search entry you can go to
                                     the table and add VLV Sort Indexes to this VLV
                                     Search.  After adding the Sort Indexes you will
                                     need to <i>reindex</i> the VLV Index to make it

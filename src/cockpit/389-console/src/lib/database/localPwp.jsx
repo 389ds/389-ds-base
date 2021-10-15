@@ -2521,7 +2521,7 @@ export class LocalPwPolicy extends React.Component {
                 </div>;
         } else {
             edit_tab =
-                <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-margin-left'}>
+                <div className={this.state.loading ? 'ds-fadeout ds-left-margin' : 'ds-fadein ds-left-margin'}>
                     <TextContent>
                         <Text className="ds-margin-top-xlg" component={TextVariants.h4}>
                             <b>{this.state.policyName}</b> <font size="2">({this.state.policyType})</font>
@@ -2762,8 +2762,8 @@ export class LocalPwPolicy extends React.Component {
 
         let body =
             <div className="ds-margin-top-lg">
-                <Tabs className="ds-margin-top-xlg" activeKey={this.state.localActiveTabKey} onSelect={this.handleLocalNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText><b>Local Policy Table</b></TabTitleText>}>
+                <Tabs activeKey={this.state.localActiveTabKey} onSelect={this.handleLocalNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>Local Policy Table</TabTitleText>}>
                         <div className="ds-margin-top-xlg">
                             <PwpTable
                                 key={this.state.rows}
@@ -2773,10 +2773,10 @@ export class LocalPwPolicy extends React.Component {
                             />
                         </div>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText><b>Edit Policy</b></TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>Edit Policy</TabTitleText>}>
                         {edit_tab}
                     </Tab>
-                    <Tab eventKey={2} title={<TabTitleText><b>Create A Policy</b></TabTitleText>}>
+                    <Tab eventKey={2} title={<TabTitleText>Create A Policy</TabTitleText>}>
                         <CreatePolicy
                             handleChange={this.handleCreateChange}
                             handleSelectChange={this.handleCreateSelectChange}
@@ -2822,7 +2822,7 @@ export class LocalPwPolicy extends React.Component {
                 <Grid>
                     <GridItem span={12}>
                         <TextContent>
-                            <Text component={TextVariants.h2}>
+                            <Text component={TextVariants.h3}>
                                 Local Password Policies <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
