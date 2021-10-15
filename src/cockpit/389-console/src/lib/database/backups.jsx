@@ -542,12 +542,12 @@ export class Backups extends React.Component {
         return (
             <div>
                 <TextContent>
-                    <Text className="ds-config-header" component={TextVariants.h2}>
+                    <Text className="ds-config-header" component={TextVariants.h3}>
                         Database Backups & LDIFs
                     </Text>
                 </TextContent>
-                <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText><b>Backups</b> <font size="2">({this.props.backups.length})</font></TabTitleText>}>
+                <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>Backups <font size="2">({this.props.backups.length})</font></TabTitleText>}>
                         <div className="ds-indent">
                             <div className="ds-margin-top-lg">
                                 <BackupTable
@@ -580,7 +580,7 @@ export class Backups extends React.Component {
                             </div>
                         </div>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText><b>LDIFs</b> <font size="2">({this.props.ldifs.length})</font></TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>LDIFs <font size="2">({this.props.ldifs.length})</font></TabTitleText>}>
                         <div className="ds-indent">
                             <div className="ds-margin-top-lg">
                                 <LDIFManageTable

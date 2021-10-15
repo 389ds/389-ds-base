@@ -564,7 +564,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     <Text className="ds-config-header" component={TextVariants.h2}>Database Chaining Settings</Text>
                 </TextContent>
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText><b>Default Creation Settings</b></TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>Default Creation Settings</TabTitleText>}>
                         <div className="ds-indent ds-margin-bottom-md">
                             <Grid
                                 title="The size limit of entries returned over a database link (nsslapd-sizelimit)."
@@ -863,7 +863,7 @@ export class ChainingDatabaseConfig extends React.Component {
                             </Button>
                         </div>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText><b>Controls & Components</b></TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>Controls & Components</TabTitleText>}>
                         <div className="ds-indent">
                             <Grid className="ds-margin-top-xlg">
                                 <GridItem

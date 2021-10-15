@@ -880,7 +880,7 @@ export class Suffix extends React.Component {
 
                 <div className="ds-sub-header">
                     <Tabs activeKey={activeTabKey} onSelect={this.handleNavSelect}>
-                        <Tab eventKey={0} title={<TabTitleText><b>Settings</b></TabTitleText>}>
+                        <Tab eventKey={0} title={<TabTitleText>Settings</TabTitleText>}>
                             <SuffixConfig
                                 cachememsize={this.state.cachememsize}
                                 cachesize={this.state.cachesize}
@@ -895,7 +895,7 @@ export class Suffix extends React.Component {
                                 saveBtnDisabled={this.state.saveBtnDisabled}
                             />
                         </Tab>
-                        <Tab eventKey={1} title={<TabTitleText><b>Referrals</b></TabTitleText>}>
+                        <Tab eventKey={1} title={<TabTitleText>Referrals</TabTitleText>}>
                             <SuffixReferrals
                                 rows={this.props.data.refRows}
                                 suffix={this.props.suffix}
@@ -905,7 +905,7 @@ export class Suffix extends React.Component {
                                 key={this.state.refRows}
                             />
                         </Tab>
-                        <Tab eventKey={2} title={<TabTitleText><b>Indexes</b></TabTitleText>}>
+                        <Tab eventKey={2} title={<TabTitleText>Indexes</TabTitleText>}>
                             <SuffixIndexes
                                 systemIndexRows={this.props.data.systemIndexRows}
                                 indexRows={this.props.data.indexRows}
@@ -915,7 +915,7 @@ export class Suffix extends React.Component {
                                 reload={this.props.reloadIndexes}
                             />
                         </Tab>
-                        <Tab eventKey={3} title={<TabTitleText><b>VLV Indexes</b></TabTitleText>}>
+                        <Tab eventKey={3} title={<TabTitleText>VLV Indexes</TabTitleText>}>
                             <VLVIndexes
                                 suffix={this.props.suffix}
                                 serverId={this.props.serverId}
@@ -926,7 +926,7 @@ export class Suffix extends React.Component {
                                 key={this.props.vlvTableKey}
                             />
                         </Tab>
-                        <Tab eventKey={4} title={<TabTitleText><b>Encrypted Attributes</b></TabTitleText>}>
+                        <Tab eventKey={4} title={<TabTitleText>Encrypted Attributes</TabTitleText>}>
                             <AttrEncryption
                                 rows={this.props.data.encAttrsRows}
                                 suffix={this.props.suffix}
