@@ -145,6 +145,8 @@ def import_changelog(log, be, dblib):
 def dblib_bdb2mdb(inst, log, args):
     if args.tmpdir is None:
         tmpdir = get_ldif_dir(inst)
+    else:
+        tmpdir = args.tmpdir
     try:
         os.makedirs(tmpdir, 0o750, True)
     except OSError as e:
@@ -274,6 +276,8 @@ def dblib_bdb2mdb(inst, log, args):
 def dblib_mdb2bdb(inst, log, args):
     if args.tmpdir is None:
         tmpdir = get_ldif_dir(inst)
+    else:
+        tmpdir = args.tmpdir
     try:
         os.makedirs(tmpdir, 0o750, True)
     except OSError as e:
@@ -349,7 +353,7 @@ def dblib_mdb2bdb(inst, log, args):
     # switch nsslapd-backend-implement in the dse.ldif
     cfgbe = backends['config']
     dn = cfgbe['dn']
-    dse.replace(dn, 'nsslapd-backend-implement', 'mdb')
+    dse.replace(dn, 'nsslapd-backend-implement', 'bdb')
 
     # bdb entries should still be here
 
@@ -370,8 +374,47 @@ def dblib_mdb2bdb(inst, log, args):
     inst.start()
     log.info(f"Migration from ldbm to Berkeley database is done.")
 
+def rm(path):
+    if path is not None:
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+
 def dblib_cleanup(inst, log, args):
-    pass
+    tmpdir = get_ldif_dir(inst)
+    dse = DSEldif(inst)
+    backends = get_backends(log, dse, tmpdir)
+    dbmapdir = backends['config']['dbdir']
+    dblib = backends['config']['dblib']
+
+    # Remove all ldif and changelog file 
+    for bename, be in backends.items():
+        # Keep only backend associated with a db
+        if 'has_id2entry' not in be and be['dbsize'] == 0:
+            continue
+        rm(be['ldifname'])
+        rm(be['cl5name'])
+        dbdir = be['dbdir']
+        if dblib == "mdb":
+            #remove db dir
+            for f in glob.glob(f'{dbdir}/*.db*'):
+                rm(f)
+            rm(f'{dbdir}/DBVERSION')
+            os.rmdir(dbdir)
+            
+
+    if dblib == "bdb":
+        rm(f'{dbmapdir}/INFO.mdb')
+        rm(f'{dbmapdir}/data.mdb')
+        rm(f'{dbmapdir}/lock.mdb')
+    else:
+        for f in glob.glob(f'{dbmapdir}/__db.*'):
+            rm(f)
+        for f in glob.glob(f'{dbmapdir}/log.*'):
+            rm(f)
+        rm(f'{dbmapdir}/DBVERSION')
+        rm(f'{dbmapdir}/guardian')
 
 def create_parser(subparsers):
     dblib_parser = subparsers.add_parser('dblib', help="database library (i.e bdb/lmdb) migration")
