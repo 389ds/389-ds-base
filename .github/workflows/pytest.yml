@@ -63,7 +63,7 @@ jobs:
     - name: Run pytest in a container
       run: |
         set -x
-        CID=$(sudo docker run -d -h server.example.com --privileged --rm -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
+        CID=$(sudo docker run -d -h server.example.com --privileged --rm --shm-size=4gb -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
         sudo docker exec $CID sh -c "dnf install -y -v dist/rpms/*rpm"
         sudo docker exec $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml -v dirsrvtests/tests/suites/${{ matrix.suite }}
 
