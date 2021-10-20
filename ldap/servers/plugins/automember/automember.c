@@ -1217,6 +1217,7 @@ automember_parse_regex_rule(char *rule_string)
                       "automember_parse_regex_rule - Unable to parse "
                       "regex rule (invalid regex).  Error \"%s\".\n",
                       recomp_result ? recomp_result : "unknown");
+        goto bail;
     }
 
     /* Validation has passed, so create the regex rule struct and fill it in.
