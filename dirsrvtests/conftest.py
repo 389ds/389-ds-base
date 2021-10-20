@@ -106,18 +106,20 @@ def pytest_runtest_makereport(item, call):
     report = outcome.get_result()
     extra = getattr(report, 'extra', [])
     if report.when == 'call' and pytest_html is not None:
-        for f in glob.glob(f'{p.run_dir}/ns-slapd-*san*'):
-            with open(f) as asan_report:
-                text = asan_report.read()
-                extra.append(pytest_html.extras.text(text, name=os.path.basename(f)))
-        for f in glob.glob(f'{p.log_dir.split("/slapd",1)[0]}/*/*'):
-            if 'rotationinfo' not in f:
-                with open(f) as dirsrv_log:
-                    text = dirsrv_log.read()
-                    log_name = os.path.basename(f)
-                    instance_name = os.path.basename(os.path.dirname(f)).split("slapd-",1)[1]
-                    extra.append(pytest_html.extras.text(text, name=f"{instance_name}-{log_name}"))
-        report.extra = extra
+        pytest_htmlpath = item.config.getoption('htmlpath')
+        if pytest_htmlpath is not None:
+            for f in glob.glob(f'{p.run_dir}/ns-slapd-*san*'):
+                with open(f) as asan_report:
+                    text = asan_report.read()
+                    extra.append(pytest_html.extras.text(text, name=os.path.basename(f)))
+            for f in glob.glob(f'{p.log_dir.split("/slapd",1)[0]}/*/*'):
+                if 'rotationinfo' not in f:
+                    with open(f) as dirsrv_log:
+                        text = dirsrv_log.read()
+                        log_name = os.path.basename(f)
+                        instance_name = os.path.basename(os.path.dirname(f)).split("slapd-",1)[1]
+                        extra.append(pytest_html.extras.text(text, name=f"{instance_name}-{log_name}"))
+            report.extra = extra
 
 
 def pytest_exception_interact(node, call, report):
