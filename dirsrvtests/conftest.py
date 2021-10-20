@@ -9,6 +9,8 @@ import os
 from .report import getReport
 from lib389.paths import Paths
 from enum import Enum
+from slugify import slugify
+from pathlib import Path
 
 
 pkgs = ['389-ds-base', 'nss', 'nspr', 'openldap', 'cyrus-sasl']
@@ -118,6 +120,14 @@ def pytest_runtest_makereport(item, call):
                     instance_name = os.path.basename(os.path.dirname(f)).split("slapd-",1)[1]
                     extra.append(pytest_html.extras.text(text, name=f"{instance_name}-{log_name}"))
         report.extra = extra
+
+    # Make a screenshot if WebUI test fails
+    if call.when == "call":
+        if call.excinfo is not None and "page" in item.funcargs:
+            page = item.funcargs["page"]
+            screenshot_dir = Path(".playwright-screenshots")
+            screenshot_dir.mkdir(exist_ok=True)
+            page.screenshot(path=str(screenshot_dir / f"{slugify(item.nodeid)}.png"))
 
 
 def pytest_exception_interact(node, call, report):
