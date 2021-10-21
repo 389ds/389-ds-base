@@ -387,6 +387,7 @@ dbi_error_t dbmdb_map_error(const char *funcname, int err);
 dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome);
 int dbmdb_public_in_import(ldbm_instance *inst);
 const char *dbmdb_public_get_db_suffix(void);
+int dbmdb_public_delete_db(Slapi_Backend *be, dbi_db_t *db);
 
 
 /* dbimpl helpers */

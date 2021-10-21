@@ -2786,3 +2786,12 @@ dbmdb_public_clear_vlv_cache(Slapi_Backend *be, dbi_txn_t *txn, dbi_db_t *db)
     slapi_ch_free_string((char**)&rcdbi.dbname);
     return rc;
 }
+
+int
+dbmdb_public_delete_db(Slapi_Backend *be, dbi_db_t *db)
+{
+    struct ldbminfo *li = (struct ldbminfo *)(be->be_database->plg_private);
+    dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+
+    return dbmdb_dbi_remove(ctx, &db);
+}

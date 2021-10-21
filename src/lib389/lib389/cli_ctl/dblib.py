@@ -10,12 +10,7 @@ import os
 import re
 import glob
 import shutil
-from lib389.paths import Paths
-from lib389.backend import Backends
 from lib389.dseldif import DSEldif
-from lib389.replica import Replicas
-import fnmatch
-import logging
 import subprocess
 
 
@@ -30,7 +25,19 @@ MDB_LOCK = "lock.mdb"
 
 LDBM_DN = "cn=config,cn=ldbm database,cn=plugins,cn=config"
 
-def get_ldif_dir(instance): 
+_log = None
+
+
+class FakeArgs(dict):
+    # This calss is used for tests to generate an args
+    # It allows to access a dict key as an attribute
+    # (be cautious not to use a key that is a dict attibute like (keys, items, ... )
+    def __init__(self, *args, **kwargs):
+        super(FakeArgs, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
+
+def get_ldif_dir(instance):
     """
     Get the server's LDIF directory.
     """
@@ -38,6 +45,7 @@ def get_ldif_dir(instance):
     if server_dir is not None:
         return server_dir
     return "/foo"
+
 
 def get_backends(log, dse, tmpdir):
     """
@@ -50,7 +58,7 @@ def get_backends(log, dse, tmpdir):
         found = re.search(r'^dn: cn=([^,]*), *cn=ldbm database.*', entry)
         if found:
             dn = found[0][4:]
-            bename = found[1]
+            bename = found[1].lower()
             suffix = dse.get(dn, "nsslapd-suffix", True)
             dbdir = dse.get(dn, "nsslapd-directory", True)
             dblib = dse.get(dn, "nsslapd-backend-implement", True)
@@ -64,26 +72,27 @@ def get_backends(log, dse, tmpdir):
             for f in glob.glob(f'{dbdir}/*.db*'):
                 dbsize += os.path.getsize(f)
             indexes = dse.get_indexes(bename)
-            # Let estimate the numbe of dbis : id2entry + 1 per regular index + 2 per vlv index
-            dbi = 1 + len(indexes) + len ([index for index in indexes if index.startswith("vlv#")])
+            # Let estimate the number of dbis: id2entry + 1 per regular index + 2 per vlv index
+            dbi = 1 + len(indexes) + len([index for index in indexes if index.startswith("vlv#")])
 
-            res[bename] =( {
-                 'dn'        :  dn,
-                 'bename'    :  bename,
-                 'suffix'    :  suffix,
-                 'dbdir'     :  dbdir,
-                 'dbsize'    :  dbsize,
-                 'dblib'     :  dblib,
-                 'ldifname'  :  ldifname,
-                 'cl5name'   :  cl5name,
-                 'cl5dbname' :  cl5dbname,
-                 'dbsize'    :  dbsize,
-                 'entrysize' :  entrysize,
-                 'indexes'   :  indexes,
-                 'dbi'       :  dbi
+            res[bename] = ({
+                'dn': dn,
+                'bename': bename,
+                'suffix': suffix,
+                'dbdir': dbdir,
+                'dbsize': dbsize,
+                'dblib': dblib,
+                'ldifname': ldifname,
+                'cl5name': cl5name,
+                'cl5dbname': cl5dbname,
+                'dbsize': dbsize,
+                'entrysize': entrysize,
+                'indexes': indexes,
+                'dbi': dbi
             })
-    #log.info(f'get_backends returns: {str(res)}')
+    log.debug(f'lib389.cli_ctl.dblib.get_backends returns: {str(res)}')
     return res
+
 
 def get_mdb_dbis(dbdir):
     # Returns a map  containings associating the backend (Could be None)
@@ -93,7 +102,7 @@ def get_mdb_dbis(dbdir):
     for line in output.split("\n"):
         found = re.search(f'^ {dbdir}/?([^/]*)?/([^/]*) flags: .*state:.([^ ]*).*nb_entries=([0-9]*)', line)
         if (found):
-            bename = found[1]
+            bename = found[1].lower()
             if bename == '':
                 bename = None
             filename = found[2]
@@ -101,48 +110,55 @@ def get_mdb_dbis(dbdir):
             nbentries = found[4]
             if bename not in result:
                 result[bename] = {}
-            result[bename][filename] = { 'bename' : bename, 'filename' : filename, 'state' : state, 'nbentries' : nbentries }
+            result[bename][filename] = {'bename': bename, 'filename': filename, 'state': state, 'nbentries': nbentries}
     return result
 
 
 def size_fmt(num):
-    for unit in [ "B", "KB", "MB", "GB", "TB" ]:
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
         if (num < 1024):
             return f"{num:3.1f} {unit}"
         num /= 1024
     return f"{num:.1f} TB"
 
+
 def run_dbscan(args):
     prefix = os.environ.get('PREFIX', "")
     prog = f'{prefix}/bin/dbscan'
     args.insert(0, prog)
-    output = subprocess.check_output(args, encoding='utf-8', stderr=subprocess.STDOUT)
+    try:
+        output = subprocess.check_output(args, encoding='utf-8', stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        _log.error(f"run_dbscan failed: cmd is {e.cmd} return code is {e.returncode} output is {str(e.output)}")
+        _log.exception(e)
+        raise e
     return output
 
 
-def export_changelog(log, be, dblib):
+def export_changelog(be, dblib):
     # Export backend changelog
     try:
         run_dbscan(['-D', dblib, '-f', be['cl5dbname'], '-X', be['cl5name']])
+        shutil.copy(be['cl5name'], f"{be['cl5name']}_{dblib}_dbg")
         return True
-    except Exception as e:
-        log.exception(e)
+    except subprocess.CalledProcessError as e:
         return False
 
 
-def import_changelog(log, be, dblib):
+def import_changelog(be, dblib):
     # import backend changelog
     try:
         run_dbscan(['-D', dblib, '-f', be['cl5dbname'], '-I', be['cl5name']])
+        shutil.copy(be['cl5name'], f"{be['cl5name']}_{dblib}_dbg1")
+        run_dbscan(['-D', dblib, '-f', be['cl5dbname'], '-X', f"{be['cl5name']}_{dblib}_dbg2"])
         return True
-    except Exception as e:
-        log.exception(e)
+    except subprocess.CalledProcessError as e:
         return False
 
 
-
-
 def dblib_bdb2mdb(inst, log, args):
+    global _log
+    _log = log
     if args.tmpdir is None:
         tmpdir = get_ldif_dir(inst)
     else:
@@ -166,7 +182,7 @@ def dblib_bdb2mdb(inst, log, args):
         log.error(f"Instance {inst.serverid} is already configured with lmdb.")
         return
 
-    # Remove ldif files and mdb files 
+    # Remove ldif files and mdb files
     dblib_cleanup(inst, log, args)
 
     # Compute the needed space and the lmdb map configuration
@@ -183,7 +199,7 @@ def dblib_bdb2mdb(inst, log, args):
 
     # Round up dbmap size
     dbmap_size = DEFAULT_DBMAP_SIZE
-    while ( total_dbsize * DBSIZE_MARGIN > dbmap_size ):
+    while (total_dbsize * DBSIZE_MARGIN > dbmap_size):
         dbmap_size *= 1.25
 
     # Round up number of dbis
@@ -195,14 +211,13 @@ def dblib_bdb2mdb(inst, log, args):
     log.info(f"Required space for DBMAP files is about {size_fmt(dbmap_size)}")
     log.info(f"Required number of dbi is {nbdbis}")
 
-    # Generate the info file (so dbscan could generate the map) 
+    # Generate the info file (so dbscan could generate the map)
     with open(f'{dbmapdir}/{MDB_INFO}', 'w') as f:
-        f.write(f'LIBVERSION=9025\n')
-        f.write(f'DATAVERSION=0\n')
+        f.write('LIBVERSION=9025\n')
+        f.write('DATAVERSION=0\n')
         f.write(f'MAXSIZE={dbmap_size}\n')
-        f.write(f'MAXREADERS=50\n')
+        f.write('MAXREADERS=50\n')
         f.write(f'MAXDBS={nbdbis}\n')
-
 
     if os.stat(dbmapdir).st_dev == os.stat(tmpdir).st_dev:
         total, used, free = shutil.disk_usage(dbmapdir)
@@ -219,19 +234,19 @@ def dblib_bdb2mdb(inst, log, args):
             log.error("Not enough space on {tmpdir} to migrate to lmdb (Need {size_fmt(total_entrysize)}, Have {size_fmt(free)})")
             return
     progress = 0
-    encrypt = False # Should be a args param ?
+    encrypt = False       # Should maybe be a args param
     for bename, be in backends.items():
         # Keep only backend associated with a db
         if be['dbsize'] == 0:
             continue
         log.info(f"Backends exportation {progress*100/total_dbsize:2f}% ({bename})")
         log.debug(f"inst.db2ldif({bename}, None, None, {encrypt}, True, {be['ldifname']})")
-        inst.db2ldif(bename, None, None, encrypt, True, be['ldifname'], True)
-        be['cl5'] = export_changelog(log, be, 'bdb')
+        inst.db2ldif(bename, None, None, encrypt, True, be['ldifname'], False)
+        be['cl5'] = export_changelog(be, 'bdb')
         progress += be['dbsize']
-    log.info(f"Backends exportation 100%")
+    log.info("Backends exportation 100%")
 
-    log.info(f"Updating dse.ldif file")
+    log.info("Updating dse.ldif file")
     # switch nsslapd-backend-implement in the dse.ldif
     cfgbe = backends['config']
     dn = cfgbe['dn']
@@ -243,22 +258,22 @@ def dblib_bdb2mdb(inst, log, args):
         dse.delete_dn(dn)
     except Exception:
         pass
-    dse.add_entry ([
+    dse.add_entry([
         f"dn: {dn}\n",
-        f"objectClass: extensibleobject\n",
-        f"objectClass: top\n",
-        f"cn: mdb\n",
+        "objectClass: extensibleobject\n",
+        "objectClass: top\n",
+        "cn: mdb\n",
         f"nsslapd-mdb-max-size: {dbmap_size}\n",
-        f"nsslapd-mdb-max-readers: 0\n",
+        "nsslapd-mdb-max-readers: 0\n",
         f"nsslapd-mdb-max-dbs: {nbdbis}\n",
-        f"nsslapd-db-durable-transaction: on\n",
-        f"nsslapd-search-bypass-filter-test: on\n",
-        f"nsslapd-serial-lock: on\n"
+        "nsslapd-db-durable-transaction: on\n",
+        "nsslapd-search-bypass-filter-test: on\n",
+        "nsslapd-serial-lock: on\n"
     ])
 
     # Reimport all exported backends and changelog
     progress = 0
-    encrypt = False # Should be a args param ?
+    encrypt = False       # Should maybe be a args param
     for bename, be in backends.items():
         # Keep only backend associated with a db
         if be['dbsize'] == 0:
@@ -267,13 +282,16 @@ def dblib_bdb2mdb(inst, log, args):
         log.debug(f"inst.ldif2db({bename}, None, None, {encrypt}, {be['ldifname']})")
         inst.ldif2db(bename, None, None, encrypt, be['ldifname'])
         if be['cl5'] is True:
-            import_changelog(log, be, 'mdb')
+            import_changelog(be, 'mdb')
         progress += be['dbsize']
-    log.info(f"Backends importation 100%")
+    log.info("Backends importation 100%")
     inst.start()
-    log.info(f"Migration from Berkeley database to lmdb is done.")
+    log.info("Migration from Berkeley database to lmdb is done.")
+
 
 def dblib_mdb2bdb(inst, log, args):
+    global _log
+    _log = log
     if args.tmpdir is None:
         tmpdir = get_ldif_dir(inst)
     else:
@@ -298,7 +316,7 @@ def dblib_mdb2bdb(inst, log, args):
         log.error(f"Instance {inst.serverid} is already configured with bdb.")
         return
 
-    # Remove ldif files and bdb files 
+    # Remove ldif files and bdb files
     dblib_cleanup(inst, log, args)
 
     for be in dbis:
@@ -331,7 +349,7 @@ def dblib_mdb2bdb(inst, log, args):
             log.error("Not enough space on {tmpdir} to migrate to bdb (Need {size_fmt(total_entrysize)}, Have {size_fmt(free)})")
             return
     progress = 0
-    encrypt = False # Should be a args param ?
+    encrypt = False       # Should maybe be a args param
     total_dbsize = 0
     for bename, be in backends.items():
         # Keep only backend associated with a db
@@ -344,12 +362,12 @@ def dblib_mdb2bdb(inst, log, args):
             continue
         log.info(f"Backends exportation {progress*100/total_dbsize:2f}% ({bename})")
         log.debug(f"inst.db2ldif({bename}, None, None, {encrypt}, True, {be['ldifname']})")
-        inst.db2ldif(bename, None, None, encrypt, True, be['ldifname'], True)
-        be['cl5'] = export_changelog(log, be, 'mdb')
+        inst.db2ldif(bename, None, None, encrypt, True, be['ldifname'], False)
+        be['cl5'] = export_changelog(be, 'mdb')
         progress += 1
-    log.info(f"Backends exportation 100%")
+    log.info("Backends exportation 100%")
 
-    log.info(f"Updating dse.ldif file")
+    log.info("Updating dse.ldif file")
     # switch nsslapd-backend-implement in the dse.ldif
     cfgbe = backends['config']
     dn = cfgbe['dn']
@@ -359,7 +377,7 @@ def dblib_mdb2bdb(inst, log, args):
 
     # Reimport all exported backends and changelog
     progress = 0
-    encrypt = False # Should be a args param ?
+    encrypt = False      # Should maybe be a args param
     for bename, be in backends.items():
         # Keep only backend associated with a db
         if 'has_id2entry' not in be:
@@ -368,11 +386,12 @@ def dblib_mdb2bdb(inst, log, args):
         log.debug(f"inst.ldif2db({bename}, None, None, {encrypt}, {be['ldifname']})")
         inst.ldif2db(bename, None, None, encrypt, be['ldifname'])
         if be['cl5'] is True:
-            import_changelog(log, be, 'bdb')
+            import_changelog(be, 'bdb')
         progress += be['dbsize']
-    log.info(f"Backends importation 100%")
+    log.info("Backends importation 100%")
     inst.start()
-    log.info(f"Migration from ldbm to Berkeley database is done.")
+    log.info("Migration from ldbm to Berkeley database is done.")
+
 
 def rm(path):
     if path is not None:
@@ -381,14 +400,17 @@ def rm(path):
         except FileNotFoundError:
             pass
 
+
 def dblib_cleanup(inst, log, args):
+    global _log
+    _log = log
     tmpdir = get_ldif_dir(inst)
     dse = DSEldif(inst)
     backends = get_backends(log, dse, tmpdir)
     dbmapdir = backends['config']['dbdir']
     dblib = backends['config']['dblib']
 
-    # Remove all ldif and changelog file 
+    # Remove all ldif and changelog file
     for bename, be in backends.items():
         # Keep only backend associated with a db
         if 'has_id2entry' not in be and be['dbsize'] == 0:
@@ -397,13 +419,11 @@ def dblib_cleanup(inst, log, args):
         rm(be['cl5name'])
         dbdir = be['dbdir']
         if dblib == "mdb":
-            #remove db dir
+            # remove db dir
             for f in glob.glob(f'{dbdir}/*.db*'):
                 rm(f)
             rm(f'{dbdir}/DBVERSION')
             os.rmdir(dbdir)
-            
-
     if dblib == "bdb":
         rm(f'{dbmapdir}/INFO.mdb')
         rm(f'{dbmapdir}/data.mdb')
@@ -415,6 +435,7 @@ def dblib_cleanup(inst, log, args):
             rm(f)
         rm(f'{dbmapdir}/DBVERSION')
         rm(f'{dbmapdir}/guardian')
+
 
 def create_parser(subparsers):
     dblib_parser = subparsers.add_parser('dblib', help="database library (i.e bdb/lmdb) migration")

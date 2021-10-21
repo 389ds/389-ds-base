@@ -185,6 +185,7 @@ int mdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_get_db_suffix_fn = &dbmdb_public_get_db_suffix;
     priv->dblayer_compact_fn = &dbmdb_public_dblayer_compact;
     priv->dblayer_clear_vlv_cache_fn = &dbmdb_public_clear_vlv_cache;
+    priv->dblayer_delete_db_fn = &dbmdb_public_delete_db;
 
     dbmdb_fake_priv = *priv; /* Copy the callbaks for dbmdb_be() */
     return 0;

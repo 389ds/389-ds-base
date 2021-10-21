@@ -479,3 +479,9 @@ dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome)
     return dbs;
 }
 
+int dblayer_db_remove(Slapi_Backend *be, dbi_db_t *db)
+{
+    dblayer_private *priv = dblayer_get_priv(be);
+    return priv->dblayer_dbi_db_remove_fn(be, db);
+}
+

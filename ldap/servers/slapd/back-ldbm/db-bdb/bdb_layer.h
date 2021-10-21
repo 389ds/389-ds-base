@@ -128,6 +128,7 @@ void bdb_public_config_get(struct ldbminfo *li, char *attrname, char *value);
 int bdb_public_config_set(struct ldbminfo *li, char *attrname, int apply_mod, int mod_op, int phase, char *value);
 int bdb_public_dblayer_compact(Slapi_Backend *be, PRBool just_changelog);
 int bdb_close_file(DB **db);
+int bdb_public_delete_db(backend *be, dbi_db_t *db);
 
 
 /* dbimpl callbacks */

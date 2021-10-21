@@ -1281,20 +1281,23 @@ importdb(const char *dbimpl_name, const char *filename, const char *dump_name)
         return 1;
     }
 
+#if USE_TXN
     ret = dblayer_txn_begin(be, NULL, &txn);
-
+#endif
     while (ret == 0 &&
            !_read_line(dump, &keyword, &key) && keyword == 'k' &&
            !_read_line(dump, &keyword, &data) && keyword == 'v') {
         ret = dblayer_db_op(be, db, txn.txn, DBI_OP_PUT, &key, &data);
+#if USE_TXN
         if (nbrec++ % 1000 == 0) {
             ret = dblayer_txn_commit(be, &txn) |
                 dblayer_txn_begin(be, NULL, &txn);
         }
+#endif
     }
-    if (nbrec % 1000 != 0) {
-        ret = dblayer_txn_commit(be, &txn);
-    }
+#if USE_TXN
+    ret = dblayer_txn_commit(be, &txn);
+#endif
     fclose(dump);
     dblayer_value_free(be, &key);
     dblayer_value_free(be, &data);
@@ -1374,9 +1377,25 @@ exportdb(const char *dbimpl_name, const char *filename, const char *dump_name)
 int
 removedb(const char *dbimpl_name, const char *filename)
 {
+    dbi_env_t *env = NULL;
+    dbi_db_t *db = NULL;
+
+    if (dblayer_private_open(dbimpl_name, filename, 0, &be, &env, &db)) {
+        printf("Can't initialize db plugin: %s\n", dbimpl_name);
+        return 1;
+    }
+
+    if (dblayer_db_remove(be, db)) {
+        printf("Failed to remove db %s\n", filename);
+        return 1;
+    }
+
+    if (dblayer_private_close(&be, &env, &db)) {
+        printf("Unable to shutdown the db plugin: %s\n", dblayer_strerror(1));
+        return 1;
+    }
+    return 0;
 }
-
-
 
 
 int
