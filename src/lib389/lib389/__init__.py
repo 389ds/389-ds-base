@@ -572,7 +572,7 @@ class DirSrv(SimpleLDAPObject, object):
                 self.serverid = args.get(SER_SERVERID_PROP, None)
                 self.isLocal = True
             else:
-            self.isLocal = isLocalHost(self.host)
+                self.isLocal = isLocalHost(self.host)
 
         self.log.debug("Allocate %s with %s:%s", self.__class__, self.host, (self.sslport or self.port))
 
