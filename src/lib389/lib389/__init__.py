@@ -572,7 +572,7 @@ class DirSrv(SimpleLDAPObject, object):
                 self.serverid = args.get(SER_SERVERID_PROP, None)
                 self.isLocal = True
             else:
-                self.isLocal = isLocalHost(self.host)
+            self.isLocal = isLocalHost(self.host)
 
         self.log.debug("Allocate %s with %s:%s", self.__class__, self.host, (self.sslport or self.port))
 
@@ -2717,18 +2717,17 @@ class DirSrv(SimpleLDAPObject, object):
 
         return True
 
-    def db2ldif(self, bename, suffixes, excludeSuffixes, encrypt, replication,
+    def db2ldif(self, bename, suffixes, excludeSuffixes, encrypt, repl_data,
                 outputfile, export_cl=False):
         """
         @param bename - The backend name of the database to export
         @param suffixes - List/tuple of suffixes to export
         @param excludeSuffixes - List/tuple of suffixes to exclude from export
         @param encrypt - Perform attribute encryption
-        @param replication - Export the replication data
+        @param repl_data - Export the replication data
         @param outputfile - The filename for the exported LDIF
         @return - True if export succeeded
         """
-        self.log.debug(f"db2ldif(bename={bename}, suffixes={suffixes}, excludeSuffixes={excludeSuffixes}, encrypt={encrypt}, replication={replication}, outputfile={outputfile}, export_cl={export_cl}")
         DirSrvTools.lib389User(user=DEFAULT_USER)
         prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
 
@@ -2759,7 +2758,7 @@ class DirSrv(SimpleLDAPObject, object):
                 cmd.append(excludeSuffix)
         if encrypt:
             cmd.append('-E')
-        if replication and not export_cl:
+        if repl_data and not export_cl:
             cmd.append('-r')
         if export_cl:
             cmd.append('-R')
@@ -2775,7 +2774,6 @@ class DirSrv(SimpleLDAPObject, object):
             else:
                 ldifname = os.path.join(self.ds_paths.ldif_dir, "%s-%s.ldif" % (self.serverid, tnow))
             cmd.append(ldifname)
-        self.log.debug(f"db2ldif run: {str(cmd)}")
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
