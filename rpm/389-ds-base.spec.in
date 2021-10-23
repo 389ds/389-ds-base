@@ -182,8 +182,10 @@ Requires:         perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $ver
 # Needed by logconv.pl
 Requires:         perl-DB_File
 Requires:         perl-Archive-Tar
+%if 0%{?fedora} >= 33 || 0%{?rhel} >= 9
 Requires:         perl-debugger
 Requires:         perl-sigtrap
+%endif
 # Needed for password dictionary checks
 Requires:         cracklib-dicts
 # Picks up our systemd deps.
