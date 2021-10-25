@@ -449,17 +449,23 @@ class RootDNAccessControl extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Successfully updated the Retro Changelog`
+                        `Successfully updated the RootDN Access Control`
                     );
                     this.props.pluginListHandler();
+                    this.setState({
+                        saving: false
+                    });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to update Retro Changelog Plugin - ${errMsg.desc}`
+                        `Failed to update RootDN Access Control Plugin - ${errMsg.desc}`
                     );
                     this.props.pluginListHandler();
+                    this.setState({
+                        saving: false
+                    });
                 });
     }
 

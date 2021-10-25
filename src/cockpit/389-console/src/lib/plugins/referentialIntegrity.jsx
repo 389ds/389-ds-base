@@ -332,7 +332,6 @@ class ReferentialIntegrity extends React.Component {
 
     saveConfig() {
         const {
-            updateDelay,
             membershipAttr,
             entryScope,
             excludeEntryScope,
@@ -340,6 +339,7 @@ class ReferentialIntegrity extends React.Component {
             logFile,
             referintConfigEntry,
         } = this.state;
+        const updateDelay = this.state.updateDelay.toString();
 
         let cmd = [
             "dsconf",

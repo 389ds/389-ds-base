@@ -210,6 +210,9 @@ class RetroChangelog extends React.Component {
                         `Successfully updated the Retro Changelog`
                     );
                     this.props.pluginListHandler();
+                    this.setState({
+                        saving: false
+                    });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -218,6 +221,9 @@ class RetroChangelog extends React.Component {
                         `Failed to update Retro Changelog Plugin - ${errMsg.desc}`
                     );
                     this.props.pluginListHandler();
+                    this.setState({
+                        saving: false
+                    });
                 });
     }
 
