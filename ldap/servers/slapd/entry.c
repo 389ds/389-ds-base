@@ -3751,6 +3751,10 @@ delete_values_sv_internal(
         if (flags & SLAPI_VALUE_FLAG_IGNOREERROR) {
             return LDAP_SUCCESS;
         }
+if (retVal) {
+ slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
+ slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "Could not delete attribute %s from entry %s\n", type, slapi_entry_get_dn_const(e));
+}
         return (retVal ? LDAP_NO_SUCH_ATTRIBUTE : LDAP_SUCCESS);
     }
 
@@ -3762,6 +3766,7 @@ delete_values_sv_internal(
         if (flags & SLAPI_VALUE_FLAG_IGNOREERROR) {
             return LDAP_SUCCESS;
         }
+slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
         return (LDAP_NO_SUCH_ATTRIBUTE);
     }
 

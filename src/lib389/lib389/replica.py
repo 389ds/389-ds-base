@@ -2460,12 +2460,18 @@ class ReplicationManager(object):
 
         target_csn = from_r.get_maxcsn()
         last_csn = '00000000000000000000'
-        csn = to_r.get_maxcsn(from_r.get_rid())
+        try:
+            csn = to_r.get_maxcsn(from_r.get_rid())
+        except Exception:
+            csn = '00000000000000000000'
         while (csn < target_csn):
             last_csn = csn
             for i in range(0, timeout):
                 time.sleep(1)
-                csn = to_r.get_maxcsn(from_r.get_rid())
+                try:
+                    csn = to_r.get_maxcsn(from_r.get_rid())
+                except Exception:
+                    csn = '00000000000000000000'
                 if csn > last_csn:
                     break
             if csn <= last_csn:

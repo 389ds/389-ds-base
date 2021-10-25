@@ -501,7 +501,7 @@ def test_verify_changelog_online_backup(topo):
 
     # Note: there is no way to check dbi on lmdb backup
     # That said dbscan may perhaps do it ...
-    _check_repl_changelog_backup(topo.ms, backup_dir);
+    _check_repl_changelog_backup(topo.ms['supplier1'], backup_dir);
 
     log.info('Run bak2db to restore directory server')
     try:
@@ -554,7 +554,7 @@ def test_verify_changelog_offline_backup(topo):
         assert False
     topo.ms['supplier1'].start()
 
-    _check_repl_changelog_backup(topo.ms, backup_dir);
+    _check_repl_changelog_backup(topo.ms['supplier1'], backup_dir);
 
     log.info('LDAP operations add, modify, modrdn and delete')
     _perform_ldap_operations(topo)

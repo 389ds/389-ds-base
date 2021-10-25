@@ -74,6 +74,7 @@ ldbm_back_compare(Slapi_PBlock *pb)
         if (0 != err) {
             /* Was the attribute not found ? */
             if (SLAPI_VIRTUALATTRS_NOT_FOUND == err) {
+slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
                 slapi_send_ldap_result(pb, LDAP_NO_SUCH_ATTRIBUTE, NULL, NULL, 0, NULL);
                 ret = 1;
             } else {

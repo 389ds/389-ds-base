@@ -1772,6 +1772,7 @@ dse_compare(Slapi_PBlock *pb)
     /* Format the result as expected. */
     if (err != LDAP_SUCCESS) {
         if (SLAPI_VIRTUALATTRS_NOT_FOUND == err) {
+            slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
             slapi_send_ldap_result(pb, LDAP_NO_SUCH_ATTRIBUTE, NULL, NULL, 0, NULL);
         } else {
             /* Some other problem, call it an operations error */

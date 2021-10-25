@@ -1335,6 +1335,7 @@ valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value 
                 if ((flags & SLAPI_VALUE_FLAG_IGNOREERROR) == 0) {
                     slapi_log_err(SLAPI_LOG_ARGS, "valueset_remove_valuearray",
                                   "Could not find value %d for attr %s\n", i - 1, a->a_type);
+                    slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
                     rc = LDAP_NO_SUCH_ATTRIBUTE;
                 }
             }

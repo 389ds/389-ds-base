@@ -3128,6 +3128,7 @@ slapi_pw_get_entry_ext(Slapi_Entry *entry, Slapi_Value ***vals)
     if ((NULL == extp) || (NULL == extp->pw_entry_values)) {
         slapi_log_err(SLAPI_LOG_TRACE, "slapi_pw_get_entry_ext",
                       "pw_entry_extension is not set\n");
+slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
         return LDAP_NO_SUCH_ATTRIBUTE;
     }
 

@@ -2014,6 +2014,7 @@ modify_schema_dse(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entry
                 *returncode = schema_delete_attributes(entryBefore, mods[i],
                                                        returntext, SLAPI_DSE_RETURNTEXT_SIZE, is_internal_operation);
             } else {
+slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
                 *returncode = LDAP_NO_SUCH_ATTRIBUTE;
                 schema_create_errormsg(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                                        schema_errprefix_generic, mods[i]->mod_type,

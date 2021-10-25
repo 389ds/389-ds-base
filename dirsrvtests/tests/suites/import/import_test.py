@@ -36,12 +36,12 @@ else:
 log = logging.getLogger(__name__)
 
 bdb_values = {
-  'deltat1' : 1
+  'deltat1' : 1,
   'wait30' : 30
 }
 
 mdb_values = {
-  'deltat1' : 4
+  'deltat1' : 4,
   'wait30' : 60
 }
 
