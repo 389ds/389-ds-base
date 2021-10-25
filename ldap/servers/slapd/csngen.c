@@ -20,7 +20,7 @@
 
 
 #define CSN_MAX_SEQNUM 0xffff              /* largest sequence number */
-#define CSN_MAX_TIME_ADJUST 24 * 60 * 60   /* maximum allowed time adjustment (in seconds) = 1 day */
+#define CSN_MAX_TIME_ADJUST _SEC_PER_DAY   /* maximum allowed time adjustment (in seconds) = 1 day */
 #define ATTR_CSN_GENERATOR_STATE "nsState" /* attribute that stores csn state information */
 #define STATE_FORMAT "%8x%8x%8x%4hx%4hx"
 #define STATE_LENGTH 32
@@ -28,6 +28,8 @@
 #define CSN_CALC_TSTAMP(gen) ((gen)->state.sampled_time + \
                               (gen)->state.local_offset + \
                               (gen)->state.remote_offset)
+#define TIME_DIFF_WARNING_DELAY  (30*_SEC_PER_DAY)  /* log an info message when difference
+                                                       between clock is greater than this delay */
 
 /*
  * **************************************************************************
@@ -123,7 +125,7 @@ csngen_new(ReplicaId rid, Slapi_Attr *state)
     _csngen_init_callbacks(gen);
 
     gen->state.rid = rid;
-    gen->gettime = slapi_clock_gettime;
+    gen->gettime = slapi_clock_utc_gettime;
 
     if (state) {
         rc = _csngen_parse_state(gen, state);
@@ -587,16 +589,16 @@ _csngen_adjust_local_time(CSNGen *gen)
         */
         return CSN_SUCCESS;
     }
-    if (labs(time_diff) > _SEC_PER_DAY) {
+    if (labs(time_diff) > TIME_DIFF_WARNING_DELAY) {
         /* We had a jump larger than a day */
         slapi_log_err(SLAPI_LOG_INFO, "csngen_new_csn",
                 "Detected large jump in CSN time.  Delta: %ld (current time: %ld  vs  previous time: %ld)\n",
                 time_diff, cur_time, gen->state.sampled_time);
     }
-    if (!ignore_time_skew && (gen->state.local_offset-time_diff > CSN_MAX_TIME_ADJUST)) {
+    if (!ignore_time_skew && (gen->state.local_offset - time_diff > CSN_MAX_TIME_ADJUST)) {
         slapi_log_err(SLAPI_LOG_ERR, "_csngen_adjust_local_time",
                       "Adjustment limit exceeded; value - %ld, limit - %d\n",
-                      gen->state.local_offset-time_diff, CSN_MAX_TIME_ADJUST);
+                      gen->state.local_offset - time_diff, CSN_MAX_TIME_ADJUST);
         return CSN_LIMIT_EXCEEDED;
     }
 
