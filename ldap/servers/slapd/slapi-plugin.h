@@ -6778,8 +6778,17 @@ time_t slapi_current_time(void) __attribute__((deprecated));
  *
  * \param tp - a timespec struct where the system time is set
  * \return result code, upon success tp is set to the system time
+ * as a clock in UTC timezone. This clock adjusts with ntp steps,
+ * and should NOT be used for timer information.
  */
 int32_t slapi_clock_gettime(struct timespec *tp);
+/* 
+ * slapi_clock_gettime should have better been called
+ * slapi_clock_utc_gettime but sice the function pre-existed
+ * we are just adding an alias (to avoid risking to break
+ * some custom plugins)
+ */
+#define slapi_clock_utc_gettime slapi_clock_gettime
 
 /**
  * Returns the current system time as a hr clock relative to uptime
