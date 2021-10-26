@@ -8,12 +8,11 @@ import {
     Form,
     Grid,
     GridItem,
+    NumberInput,
     Spinner,
-    TextInput,
     Text,
     TextContent,
     TextVariants,
-    ValidatedOptions,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -61,6 +60,29 @@ export class ServerTuning extends React.Component {
             });
         };
 
+        this.maxValue = 2000000000;
+        this.onMinusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validateSaveBtn() });
+        };
+        this.onConfigChange = (event, id, min, max) => {
+            let maxValue = this.maxValue;
+            if (max !== 0) {
+                maxValue = max;
+            }
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            this.setState({
+                [id]: newValue > maxValue ? maxValue : newValue < min ? min : newValue
+            }, () => { this.validateSaveBtn() });
+        };
+        this.onPlusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validateSaveBtn() });
+        }
+
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
@@ -74,39 +96,27 @@ export class ServerTuning extends React.Component {
         }
     }
 
+    validateSaveBtn() {
+        let saveBtnDisabled = true;
+        // Check if a setting was changed, if so enable the save button
+        for (const config_attr of tuning_attrs) {
+            if (this.state[config_attr] != this.state['_' + config_attr]) {
+                saveBtnDisabled = false;
+                break;
+            }
+        }
+        this.setState({
+            saveDisabled: saveBtnDisabled,
+        });
+    }
+
     handleChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
-        let disableSaveBtn = true;
-        let valueErr = false;
-        const errObj = this.state.errObj;
 
-        // Check if a setting was changed, if so enable the save button
-        for (const tuning_attr of tuning_attrs) {
-            if (attr == tuning_attr && this.state['_' + tuning_attr] != value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const tuning_attr of tuning_attrs) {
-            if (attr != tuning_attr && this.state['_' + tuning_attr] != this.state[tuning_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        if (value == "" && e.target.type !== 'checkbox') {
-            valueErr = true;
-            disableSaveBtn = true;
-        }
-        errObj[attr] = valueErr;
         this.setState({
             [attr]: value,
-            saveDisabled: disableSaveBtn,
-            errObj: errObj,
-        });
+        }, () => { this.validateSaveBtn() } );
     }
 
     loadConfig(reloading) {
@@ -281,82 +291,90 @@ export class ServerTuning extends React.Component {
                     <Form className="ds-left-margin" isHorizontal>
                         <Grid
                             className="ds-margin-top-xlg"
-                            title="The number of worker threads that handle database operations (nsslapd-threadnumber)."
+                            title="The number of worker threads that handle database operations.  Set to '-1' for enable auto tuning. (nsslapd-threadnumber)."
                         >
                             <GridItem className="ds-label" span={3}>
                                 Number Of Worker Threads
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <NumberInput
                                     value={this.state['nsslapd-threadnumber']}
-                                    type="number"
-                                    id="nsslapd-threadnumber"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="threadnumber"
-                                    onChange={(str, e) => {
-                                        this.handleChange(e);
-                                    }}
-                                    validated={this.state.errObj['nsslapd-threadnumber'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                    min={-1}
+                                    max={512}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-threadnumber") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-threadnumber", -1, 512) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-threadnumber") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
                                 />
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The maximum number of seconds allocated for a search request (nsslapd-timelimit)."
+                            title="The maximum number of seconds allocated for a search request.  Set to '-1' to disable the time limit (nsslapd-timelimit)."
                         >
                             <GridItem className="ds-label" span={3}>
                                 Search Time Limit
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <NumberInput
                                     value={this.state['nsslapd-timelimit']}
-                                    type="number"
-                                    id="nsslapd-timelimit"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="timelimit"
-                                    onChange={(str, e) => {
-                                        this.handleChange(e);
-                                    }}
-                                    validated={this.state.errObj['nsslapd-timelimit'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                    min={-1}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-timelimit") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-timelimit", -1, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-timelimit") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
                                 />
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The maximum number of entries to return from a search operation (nsslapd-sizelimit)."
+                            title="The maximum number of entries to return from a search operation.  Set to '-1' to disable the size limit (nsslapd-sizelimit)."
                         >
                             <GridItem className="ds-label" span={3}>
                                 Search Size Limit
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <NumberInput
                                     value={this.state['nsslapd-sizelimit']}
-                                    type="number"
-                                    id="nsslapd-sizelimit"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="sizelimit"
-                                    onChange={(str, e) => {
-                                        this.handleChange(e);
-                                    }}
-                                    validated={this.state.errObj['nsslapd-sizelimit'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                    min={-1}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-sizelimit") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-sizelimit", -1, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-sizelimit") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
                                 />
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The maximum number of entries to return from a paged search operation (nsslapd-pagedsizelimit)."
+                            title="The maximum number of entries to return from a paged search operation. Set to '-1' to disable the size limit (nsslapd-pagedsizelimit)."
                         >
                             <GridItem className="ds-label" span={3}>
                                 Paged Search Size Limit
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
-                                    value={this.state['nsslapd-sizelimit']}
-                                    type="number"
-                                    id="nsslapd-pagedsizelimit"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="pagedsizelimit"
-                                    onChange={(str, e) => {
-                                        this.handleChange(e);
-                                    }}
-                                    validated={this.state.errObj['nsslapd-pagedsizelimit'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                <NumberInput
+                                    value={this.state['nsslapd-pagedsizelimit']}
+                                    min={-1}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-pagedsizelimit") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-pagedsizelimit", -1, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-pagedsizelimit") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
                                 />
                             </GridItem>
                         </Grid>
@@ -367,16 +385,18 @@ export class ServerTuning extends React.Component {
                                 Idle Connection Timeout
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <NumberInput
                                     value={this.state['nsslapd-idletimeout']}
-                                    type="number"
-                                    id="nsslapd-idletimeout"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="idletimeout"
-                                    onChange={(str, e) => {
-                                        this.handleChange(e);
-                                    }}
-                                    validated={this.state.errObj['nsslapd-idletimeout'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                    min={0}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-idletimeout") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-idletimeout", 0, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-idletimeout") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
                                 />
                             </GridItem>
                         </Grid>
@@ -387,16 +407,18 @@ export class ServerTuning extends React.Component {
                                 I/O Block Timeout
                             </GridItem>
                             <GridItem span={9}>
-                                <TextInput
+                                <NumberInput
                                     value={this.state['nsslapd-ioblocktimeout']}
-                                    type="number"
-                                    id="nsslapd-ioblocktimeout"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="ioblocktimeout"
-                                    onChange={(str, e) => {
-                                        this.handleChange(e);
-                                    }}
-                                    validated={this.state.errObj['nsslapd-ioblocktimeout'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                    min={0}
+                                    max={this.maxValue}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-ioblocktimeout") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-ioblocktimeout", 0, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-ioblocktimeout") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
                                 />
                             </GridItem>
                         </Grid>
@@ -417,16 +439,18 @@ export class ServerTuning extends React.Component {
                                         Outbound IO Timeout
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <NumberInput
                                             value={this.state['nsslapd-outbound-ldap-io-timeout']}
-                                            type="number"
-                                            id="nsslapd-outbound-ldap-io-timeout"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="outbound-ldap-io-timeout"
-                                            onChange={(str, e) => {
-                                                this.handleChange(e);
-                                            }}
-                                            validated={this.state.errObj['nsslapd-outbound-ldap-io-timeout'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            min={0}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsslapd-outbound-ldap-io-timeout") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-outbound-ldap-io-timeout", 0, 0) }}
+                                            onPlus={() => { this.onPlusConfig("nsslapd-outbound-ldap-io-timeout") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -437,16 +461,18 @@ export class ServerTuning extends React.Component {
                                         Maximum BER Size
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <NumberInput
                                             value={this.state['nsslapd-maxbersize']}
-                                            type="number"
-                                            id="nsslapd-maxbersize"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="maxbersize"
-                                            onChange={(str, e) => {
-                                                this.handleChange(e);
-                                            }}
-                                            validated={this.state.errObj['nsslapd-maxbersize'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            min={0}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsslapd-maxbersize") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-maxbersize", 0, 0) }}
+                                            onPlus={() => { this.onPlusConfig("nsslapd-maxbersize") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -457,16 +483,18 @@ export class ServerTuning extends React.Component {
                                         Maximum SASL IO Size
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <NumberInput
                                             value={this.state['nsslapd-maxsasliosize']}
-                                            type="number"
-                                            id="nsslapd-maxsasliosize"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="maxsasliosize"
-                                            onChange={(str, e) => {
-                                                this.handleChange(e);
-                                            }}
-                                            validated={this.state.errObj['nsslapd-maxsasliosize'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            min={-1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsslapd-maxsasliosize") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-maxsasliosize", -1, 0) }}
+                                            onPlus={() => { this.onPlusConfig("nsslapd-maxsasliosize") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -477,16 +505,18 @@ export class ServerTuning extends React.Component {
                                         Listen Backlog Size
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <NumberInput
                                             value={this.state['nsslapd-listen-backlog-size']}
-                                            type="number"
-                                            id="nsslapd-listen-backlog-size"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="listen-backlog-size"
-                                            onChange={(str, e) => {
-                                                this.handleChange(e);
-                                            }}
-                                            validated={this.state.errObj['nsslapd-listen-backlog-size'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            min={1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsslapd-listen-backlog-size") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-listen-backlog-size", 1, 0) }}
+                                            onPlus={() => { this.onPlusConfig("nsslapd-listen-backlog-size") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -497,16 +527,18 @@ export class ServerTuning extends React.Component {
                                         Maximum Nested Filter Level
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <TextInput
+                                        <NumberInput
                                             value={this.state['nsslapd-max-filter-nest-level']}
-                                            type="number"
-                                            id="nsslapd-max-filter-nest-level"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="max-filter-nest-level"
-                                            onChange={(str, e) => {
-                                                this.handleChange(e);
-                                            }}
-                                            validated={this.state.errObj['nsslapd-max-filter-nest-level'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            min={-1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsslapd-max-filter-nest-level") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-max-filter-nest-level", -1, 0) }}
+                                            onPlus={() => { this.onPlusConfig("nsslapd-max-filter-nest-level") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -574,17 +606,19 @@ export class ServerTuning extends React.Component {
                                         NDN Max Cache Size
                                     </GridItem>
                                     <GridItem span={2}>
-                                        <TextInput
+                                        <NumberInput
                                             isDisabled={!this.state['nsslapd-ndn-cache-enabled']}
                                             value={this.state['nsslapd-ndn-cache-max-size']}
-                                            type="number"
-                                            id="nsslapd-ndn-cache-max-size"
-                                            aria-describedby="horizontal-form-name-helper"
-                                            name="ndn-cache-max-size"
-                                            onChange={(str, e) => {
-                                                this.handleChange(e);
-                                            }}
-                                            validated={this.state.errObj['nsslapd-ndn-cache-max-size'] ? ValidatedOptions.error : ValidatedOptions.default}
+                                            min={-1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsslapd-ndn-cache-max-size") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-ndn-cache-max-size", -1, 0) }}
+                                            onPlus={() => { this.onPlusConfig("nsslapd-ndn-cache-max-size") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
                                         />
                                     </GridItem>
                                 </Grid>
