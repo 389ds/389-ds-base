@@ -1434,3 +1434,17 @@ def is_valid_hostname(hostname):
 
 def get_default_db_lib():
     return os.getenv('NSSLAPD_DB_LIB', default=DEFAULT_DB_LIB)
+
+
+def is_fips():
+    if os.path.exists('/proc/sys/crypto/fips_enabled'):
+        with open('/proc/sys/crypto/fips_enabled', 'r') as f:
+            state = f.readline().strip()
+            if state == '1':
+                return True
+            else:
+                return False
+    else:
+        return False
+
+

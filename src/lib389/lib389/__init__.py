@@ -1548,6 +1548,10 @@ class DirSrv(SimpleLDAPObject, object):
         :param post_open: Open the server connection after restart.
         :type post_open: bool
         """
+        if self.config.get_attr_val_utf8_l("nsslapd-security") == 'on':
+            self.restart(post_open=post_open)
+            return
+
         # If it doesn't exist, create a cadb.
         ssca = NssSsl(dbpath=self.get_ssca_dir())
         if not ssca._db_exists():
