@@ -2895,8 +2895,20 @@ slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt, int s_por
      * is enabled or not. We use NSS for random number generation and
      * other things even if we are not going to accept SSL connections.
      * We also need NSS for attribute encryption/decryption on import and export.
+     *
+     * It's important to remember that while in FIPS mode the administrator should always enable
+     * the security, otherwise we don't call slapd_pk11_authenticate which is a requirement for FIPS mode
      */
+    PRBool isFIPS = slapd_pk11_isFIPS();
     int init_ssl = config_get_security();
+
+    if (isFIPS && !init_ssl) {
+        slapi_log_err(SLAPI_LOG_WARNING, "slapd_do_all_nss_ssl_init",
+                      "ERROR: TLS is not enabled, and the machine is in FIPS mode. "
+                      "Some functionality won't work correctly (for example, "
+                      "users with PBKDF2_SHA256 password scheme won't be able to log in). "
+                      "It's highly advisable to enable TLS on this instance.\n");
+    }
 
     if (slapd_exemode == SLAPD_EXEMODE_SLAPD) {
         init_ssl = init_ssl && (0 != s_port) && (s_port <= LDAP_PORT_MAX);

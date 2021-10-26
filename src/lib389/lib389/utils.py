@@ -1430,3 +1430,16 @@ def is_valid_hostname(hostname):
         hostname = hostname[:-1] # strip exactly one dot from the right, if present
     allowed = re.compile("(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split("."))
+
+
+def is_fips():
+    if os.path.exists('/proc/sys/crypto/fips_enabled'):
+        with open('/proc/sys/crypto/fips_enabled', 'r') as f:
+            state = f.readline().strip()
+            if state == '1':
+                return True
+            else:
+                return False
+    else:
+        return False
+

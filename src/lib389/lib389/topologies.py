@@ -15,7 +15,7 @@ import socket
 import pytest
 
 from lib389 import DirSrv
-from lib389.utils import generate_ds_params
+from lib389.utils import generate_ds_params, is_fips
 from lib389.mit_krb5 import MitKrb5
 from lib389.saslmap import SaslMappings
 from lib389.replica import ReplicationManager, Replicas
@@ -108,6 +108,10 @@ def _create_instances(topo_dict, suffix):
             if role == ReplicaRole.HUB:
                 hs[instance.serverid] = instance
                 instances.update(hs)
+            # We should always enable TLS while in FIPS mode because otherwise NSS database won't be
+            # configured in a FIPS compliant way
+            if is_fips():
+                instance.enable_tls()
             log.info("Instance with parameters {} was created.".format(args_instance))
 
     if "standalone1" in instances and len(instances) == 1:
