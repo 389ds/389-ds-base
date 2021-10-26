@@ -3230,11 +3230,7 @@ get_configured_connection_table_size(void)
 PRFileDesc *
 get_ssl_listener_fd()
 {
-    PRFileDesc *listener;
-
-    listener = the_connection_table->fd[the_connection_table->s_tcps].fd;
-
-    return listener;
+    return tls_listener;
 }
 
 int
