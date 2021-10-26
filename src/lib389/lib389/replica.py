@@ -1403,18 +1403,6 @@ class Replica(DSLdapObject):
             # Must be a hub - set the rid
             rid = CONSUMER_REPLICAID
 
-        # Create the changelog
-        cl = Changelog5(self._instance)
-        try:
-            cl.create(properties={
-                'cn': 'changelog5',
-                'nsslapd-changelogdir': self._instance.get_changelog_dir()
-            })
-        except ldap.ALREADY_EXISTS:
-            pass
-        except ldap.LDAPError as e:
-            raise ValueError('Failed to create changelog: %s' % str(e))
-
         # Check that a RID was provided, and its a valid number
         if newrole == ReplicaRole.SUPPLIER:
             try:
@@ -1919,19 +1907,6 @@ class ReplicationManager(object):
         self._alloc_rids = []
         self._repl_creds = {}
 
-    def _ensure_changelog(self, instance):
-        """Internally guarantee a changelog exists for
-        an instance. Internal only.
-        """
-        cl = Changelog5(instance)
-        try:
-            cl.create(properties={
-                'cn': 'changelog5',
-                'nsslapd-changelogdir': instance.get_changelog_dir()
-            })
-        except ldap.ALREADY_EXISTS:
-            pass
-
     def _inst_to_agreement_name(self, to_instance):
         """From an instance, determine the agreement name that we
         would use for it. Internal only.
@@ -2107,9 +2082,6 @@ class ReplicationManager(object):
         from_replicas = Replicas(from_instance)
         from_r = from_replicas.get(self._suffix)
 
-        # Ensure we have a cl
-        # self._ensure_changelog(to_instance)
-
         # Create our credentials
         repl_dn = self._create_service_account(from_instance, to_instance)
 
@@ -2177,9 +2149,6 @@ class ReplicationManager(object):
         # Make sure we replicate this suffix too ...
         from_replicas = Replicas(from_instance)
         from_r = from_replicas.get(self._suffix)
-
-        # Ensure we have a changelog
-        # self._ensure_changelog(to_instance)
 
         # Create replica on to_instance, with bootstrap details.
         to_r = to_replicas.create(properties={

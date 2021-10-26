@@ -7,14 +7,15 @@ import {
     ExpandableSection,
     Grid,
     GridItem,
-    TextInput,
+    NumberInput,
     Spinner,
     Text,
     TextContent,
+    TextInput,
     TextVariants,
+    TimePicker,
     ValidatedOptions,
 } from "@patternfly/react-core";
-
 import PropTypes from "prop-types";
 
 export class GlobalDatabaseConfig extends React.Component {
@@ -69,7 +70,9 @@ export class GlobalDatabaseConfig extends React.Component {
             _import_cache_auto: this.props.data.import_cache_auto,
         };
 
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
         this.handleChange = this.handleChange.bind(this);
+        this.handleTimeChange = this.handleTimeChange.bind(this);
         this.select_db_locks_monitoring = this.select_db_locks_monitoring.bind(this);
         this.save_db_config = this.save_db_config.bind(this);
 
@@ -78,6 +81,29 @@ export class GlobalDatabaseConfig extends React.Component {
                 isExpanded
             });
         };
+
+        this.maxValue = 2000000000;
+        this.onMinusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validateSaveBtn() });
+        };
+        this.onConfigChange = (event, id, min, max) => {
+            let maxValue = this.maxValue;
+            if (max !== 0) {
+                maxValue = max;
+            }
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            this.setState({
+                [id]: newValue > maxValue ? maxValue : newValue < min ? min : newValue
+            }, () => { this.validateSaveBtn() });
+        };
+        this.onPlusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validateSaveBtn() });
+        }
+
     }
 
     componentDidMount() {
@@ -90,11 +116,8 @@ export class GlobalDatabaseConfig extends React.Component {
         }, this.handleChange(val, e));
     }
 
-    handleChange(str, e) {
-        // Generic
+    validateSaveBtn() {
         let saveBtnDisabled = true;
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
         const check_attrs = [
             "db_cache_auto", "import_cache_auto", "looklimit",
             "idscanlimit", "pagelooklimit", "pagescanlimit",
@@ -104,20 +127,33 @@ export class GlobalDatabaseConfig extends React.Component {
             "dblocksMonitoringPause", "chxpoint", "compactinterval",
             "compacttime", "importcachesize", "importcacheauto",
         ];
-        for (const check_attr of check_attrs) {
-            if (attr != check_attr) {
-                if (this.state[check_attr] != this.state['_' + check_attr]) {
-                    saveBtnDisabled = false;
-                }
-            } else if (value != this.state['_' + check_attr]) {
+
+        // Check if a setting was changed, if so enable the save button
+        for (const config_attr of check_attrs) {
+            if (this.state[config_attr] != this.state['_' + config_attr]) {
                 saveBtnDisabled = false;
+                break;
             }
         }
+        this.setState({
+            saveBtnDisabled: saveBtnDisabled,
+        });
+    }
+
+    handleChange(str, e) {
+        // Generic
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
 
         this.setState({
             [attr]: value,
-            saveBtnDisabled: saveBtnDisabled
-        });
+        }, () => { this.validateSaveBtn() });
+    }
+
+    handleTimeChange() {
+        this.setState({
+            compacttime: value,
+        }, () => { this.validateSaveBtn() });
     }
 
     save_db_config() {
@@ -220,11 +256,11 @@ export class GlobalDatabaseConfig extends React.Component {
                 if (this.state.importcachesize == "0") {
                     cmd.push("--import-cache-autosize=-1");
                 } else {
-                    cmd.push("--import-cache-autosize=" + this.state.importcachesize);
+                    cmd.push("--import-cache-autosize=" + this.state.importcacheauto);
                 }
-            } else if (this.state._importcachesize != this.state.importcachesize) {
+            } else if (this.state._importcacheauto != this.state.importcacheauto) {
                 // Update auto cache settings if it changed
-                cmd.push("--import-cache-autosize=" + this.state.importcachesize);
+                cmd.push("--import-cache-autosize=" + this.state.importcacheauto);
             }
         } else {
             // Auto cache is not selected, check if we need to reset the value
@@ -254,6 +290,11 @@ export class GlobalDatabaseConfig extends React.Component {
                             this.props.addNotification(
                                 "warning",
                                 msg + ". You must restart the Directory Server for these changes to take effect."
+                            );
+                        } else {
+                            this.props.addNotification(
+                                "success",
+                                msg
                             );
                         }
                     })
@@ -287,18 +328,23 @@ export class GlobalDatabaseConfig extends React.Component {
                         title="Sets the DB lock exhaustion value in percentage (valid range is 70-95). If too many locks are acquired, the server will abort the searches while the number of locks are not decreased. It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold)."
                         className="ds-margin-top"
                     >
-                        <GridItem className="ds-label" span={3}>
+                        <GridItem className="ds-label" span={4}>
                             DB Locks Threshold Percentage
                         </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
-                                id="dblocksMonitoringThreshold"
-                                name="dblocksMonitoringThreshold"
-                                type="number"
-                                aria-describedby="dblocksMonitoringThreshold"
+                        <GridItem span={8}>
+                            <NumberInput
                                 value={dblocksThreshold}
-                                onChange={this.handleChange}
-                                validated={parseInt(dblocksThreshold) < 70 || parseInt(dblocksThreshold) > 95 ? ValidatedOptions.error : ValidatedOptions.default}
+                                min={70}
+                                max={95}
+                                onMinus={() => { this.onMinusConfig("dblocksMonitoringThreshold") }}
+                                onChange={(e) => { this.onConfigChange(e, "dblocksMonitoringThreshold", 70, 95) }}
+                                onPlus={() => { this.onPlusConfig("dblocksMonitoringThreshold") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={8}
+                                unit="%"
                             />
                         </GridItem>
                     </Grid>
@@ -306,18 +352,22 @@ export class GlobalDatabaseConfig extends React.Component {
                         title="Sets the amount of time (milliseconds) that the monitoring thread spends waiting between checks. (nsslapd-db-locks-monitoring-pause)."
                         className="ds-margin-top"
                     >
-                        <GridItem className="ds-label" span={3}>
+                        <GridItem className="ds-label" span={4}>
                             DB Locks Pause Milliseconds
                         </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
-                                id="dblocksMonitoringPause"
-                                name="dblocksMonitoringPause"
-                                type="number"
-                                aria-describedby="dblocksMonitoringPause"
+                        <GridItem span={8}>
+                            <NumberInput
                                 value={dblocksPause}
-                                onChange={this.handleChange}
-                                validated={parseInt(dblocksPause) < 1 ? ValidatedOptions.error : ValidatedOptions.default}
+                                min={1}
+                                max={this.maxValue}
+                                onMinus={() => { this.onMinusConfig("dblocksMonitoringPause") }}
+                                onChange={(e) => { this.onConfigChange(e, "dblocksMonitoringPause", 1, 0) }}
+                                onPlus={() => { this.onPlusConfig("dblocksMonitoringPause") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={8}
                             />
                         </GridItem>
                     </Grid>
@@ -335,13 +385,19 @@ export class GlobalDatabaseConfig extends React.Component {
                             Memory Percentage
                         </GridItem>
                         <GridItem span={6}>
-                            <TextInput
+                            <NumberInput
                                 value={this.state.autosize}
-                                type="number"
-                                id="autosize"
-                                aria-describedby="autosize"
-                                name="autosize"
-                                onChange={this.handleChange}
+                                min={1}
+                                max={100}
+                                onMinus={() => { this.onMinusConfig("autosize") }}
+                                onChange={(e) => { this.onConfigChange(e, "autosize", 1, 100) }}
+                                onPlus={() => { this.onPlusConfig("autosize") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={4}
+                                unit="%"
                             />
                         </GridItem>
                     </Grid>
@@ -353,13 +409,19 @@ export class GlobalDatabaseConfig extends React.Component {
                             DB Cache Percentage
                         </GridItem>
                         <GridItem span={6}>
-                            <TextInput
+                            <NumberInput
                                 value={this.state.autosizesplit}
-                                type="number"
-                                id="autosizesplit"
-                                aria-describedby="autosizesplit"
-                                name="autosizesplit"
-                                onChange={this.handleChange}
+                                min={1}
+                                max={100}
+                                onMinus={() => { this.onMinusConfig("autosizesplit") }}
+                                onChange={(e) => { this.onConfigChange(e, "autosizesplit", 1, 100) }}
+                                onPlus={() => { this.onPlusConfig("autosizesplit") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={4}
+                                unit="%"
                             />
                         </GridItem>
                     </Grid>
@@ -375,13 +437,18 @@ export class GlobalDatabaseConfig extends React.Component {
                         Database Cache Size
                     </GridItem>
                     <GridItem span={6}>
-                        <TextInput
+                        <NumberInput
                             value={this.state.dbcachesize}
-                            type="number"
-                            id="dbcachesize"
-                            aria-describedby="dbcachesize"
-                            name="dbcachesize"
-                            onChange={this.handleChange}
+                            min={512000}
+                            max={this.maxValue}
+                            onMinus={() => { this.onMinusConfig("dbcachesize") }}
+                            onChange={(e) => { this.onConfigChange(e, "dbcachesize", 512000, 0) }}
+                            onPlus={() => { this.onPlusConfig("dbcachesize") }}
+                            inputName="input"
+                            inputAriaLabel="number input"
+                            minusBtnAriaLabel="minus"
+                            plusBtnAriaLabel="plus"
+                            widthChars={10}
                         />
                     </GridItem>
                 </Grid>
@@ -400,13 +467,19 @@ export class GlobalDatabaseConfig extends React.Component {
                             Import Cache Autosize
                         </GridItem>
                         <GridItem span={6}>
-                            <TextInput
+                            <NumberInput
                                 value={this.state.importcacheauto}
-                                type="number"
-                                id="importcacheauto"
-                                aria-describedby="importcacheauto"
-                                name="importcacheauto"
-                                onChange={this.handleChange}
+                                min={-1}
+                                max={100}
+                                onMinus={() => { this.onMinusConfig("importcacheauto") }}
+                                onChange={(e) => { this.onConfigChange(e, "importcacheauto", -1, 100) }}
+                                onPlus={() => { this.onPlusConfig("importcacheauto") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={4}
+                                unit={this.state.importcacheauto > 0 ? "%" : ""}
                             />
                         </GridItem>
                     </Grid>
@@ -423,13 +496,18 @@ export class GlobalDatabaseConfig extends React.Component {
                             Import Cache Size
                         </GridItem>
                         <GridItem span={6}>
-                            <TextInput
+                            <NumberInput
                                 value={this.state.importcachesize}
-                                type="number"
-                                id="importcachesize"
-                                aria-describedby="importcachesize"
-                                name="importcachesize"
-                                onChange={this.handleChange}
+                                min={512000}
+                                max={this.maxValue}
+                                onMinus={() => { this.onMinusConfig("importcachesize") }}
+                                onChange={(e) => { this.onConfigChange(e, "importcachesize", 512000, 0) }}
+                                onPlus={() => { this.onPlusConfig("importcachesize") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={10}
                             />
                         </GridItem>
                     </Grid>
@@ -468,19 +546,24 @@ export class GlobalDatabaseConfig extends React.Component {
                     </TextContent>
                     <Grid
                         title="The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit)."
-                        className="ds-margin-top-lg"
+                        className="ds-margin-top-xlg"
                     >
-                        <GridItem className="ds-label" span={3}>
+                        <GridItem className="ds-label" span={4}>
                             Database Look Though Limit
                         </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
+                        <GridItem span={8}>
+                            <NumberInput
                                 value={this.state.looklimit}
-                                type="number"
-                                id="looklimit"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="looklimit"
-                                onChange={this.handleChange}
+                                min={-1}
+                                max={0}
+                                onMinus={() => { this.onMinusConfig("looklimit") }}
+                                onChange={(e) => { this.onConfigChange(e, "looklimit", -1, 0) }}
+                                onPlus={() => { this.onPlusConfig("looklimit") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={8}
                             />
                         </GridItem>
                     </Grid>
@@ -488,17 +571,22 @@ export class GlobalDatabaseConfig extends React.Component {
                         title="The number of entry IDs that are searched during a search operation (nsslapd-idlistscanlimit)."
                         className="ds-margin-top"
                     >
-                        <GridItem className="ds-label" span={3}>
+                        <GridItem className="ds-label" span={4}>
                             ID List Scan Limit
                         </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
+                        <GridItem span={8}>
+                            <NumberInput
                                 value={this.state.idscanlimit}
-                                type="number"
-                                id="idscanlimit"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="idscanlimit"
-                                onChange={this.handleChange}
+                                min={1}
+                                max={this.maxValue}
+                                onMinus={() => { this.onMinusConfig("idscanlimit") }}
+                                onChange={(e) => { this.onConfigChange(e, "idscanlimit", 1, 0) }}
+                                onPlus={() => { this.onPlusConfig("idscanlimit") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={8}
                             />
                         </GridItem>
                     </Grid>
@@ -506,17 +594,22 @@ export class GlobalDatabaseConfig extends React.Component {
                         title="The maximum number of entries that the Directory Server will check when examining candidate entries for a search which uses the simple paged results control (nsslapd-pagedlookthroughlimit)."
                         className="ds-margin-top"
                     >
-                        <GridItem className="ds-label" span={3}>
+                        <GridItem className="ds-label" span={4}>
                             Paged Search Look Through Limit
                         </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
+                        <GridItem span={8}>
+                            <NumberInput
                                 value={this.state.pagelooklimit}
-                                type="number"
-                                id="pagelooklimit"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="pagelooklimit"
-                                onChange={this.handleChange}
+                                min={-1}
+                                max={this.maxValue}
+                                onMinus={() => { this.onMinusConfig("pagelooklimit") }}
+                                onChange={(e) => { this.onConfigChange(e, "pagelooklimit", -1, 0) }}
+                                onPlus={() => { this.onPlusConfig("pagelooklimit") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={8}
                             />
                         </GridItem>
                     </Grid>
@@ -524,17 +617,22 @@ export class GlobalDatabaseConfig extends React.Component {
                         title="The number of entry IDs that are searched, specifically, for a search operation using the simple paged results control (nsslapd-pagedidlistscanlimit)."
                         className="ds-margin-top"
                     >
-                        <GridItem className="ds-label" span={3}>
+                        <GridItem className="ds-label" span={4}>
                             Paged Search ID List Scan Limit
                         </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
+                        <GridItem span={8}>
+                            <NumberInput
                                 value={this.state.pagescanlimit}
-                                type="number"
-                                id="pagescanlimit"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="pagescanlimit"
-                                onChange={this.handleChange}
+                                min={-1}
+                                max={this.maxValue}
+                                onMinus={() => { this.onMinusConfig("pagescanlimit") }}
+                                onChange={(e) => { this.onConfigChange(e, "pagescanlimit", -1, 0) }}
+                                onPlus={() => { this.onPlusConfig("pagescanlimit") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={8}
                             />
                         </GridItem>
                     </Grid>
@@ -542,17 +640,22 @@ export class GlobalDatabaseConfig extends React.Component {
                         title="The maximum number of entries that the Directory Server will check when examining candidate entries in response to a range search request (nsslapd-rangelookthroughlimit)."
                         className="ds-margin-top"
                     >
-                        <GridItem className="ds-label" span={3}>
+                        <GridItem className="ds-label" span={4}>
                             Range Search Look Through Limit
                         </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
+                        <GridItem span={8}>
+                            <NumberInput
                                 value={this.state.rangelooklimit}
-                                type="number"
-                                id="rangelooklimit"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="rangelooklimit"
-                                onChange={this.handleChange}
+                                min={-1}
+                                max={this.maxValue}
+                                onMinus={() => { this.onMinusConfig("rangelooklimit") }}
+                                onChange={(e) => { this.onConfigChange(e, "rangelooklimit", -1, 0) }}
+                                onPlus={() => { this.onPlusConfig("rangelooklimit") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={8}
                             />
                         </GridItem>
                     </Grid>
@@ -614,10 +717,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 title="Database Transaction Log Location (nsslapd-db-logdirectory)."
                                 className="ds-margin-top"
                             >
-                                <GridItem className="ds-label" span={3}>
+                                <GridItem className="ds-label" span={4}>
                                     Transaction Logs Directory
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={8}>
                                     <TextInput
                                         value={this.state.txnlogdir}
                                         type="text"
@@ -632,10 +735,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 title="Location for database memory mapped files.  You must specify a subdirectory of a tempfs type filesystem (nsslapd-db-home-directory)."
                                 className="ds-margin-top"
                             >
-                                <GridItem className="ds-label" span={3}>
+                                <GridItem className="ds-label" span={4}>
                                     Database Home Directory
                                 </GridItem>
-                                <GridItem span={9}>
+                                <GridItem span={8}>
                                     <TextInput
                                         value={this.state.dbhomedir}
                                         type="text"
@@ -647,20 +750,17 @@ export class GlobalDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Amount of time in seconds after which the Directory Server sends a checkpoint entry to the database transaction log (nsslapd-db-checkpoint-interval)."
+                                title="The Time Of Day to perform the database compaction after the compact interval has been met.  Uses the format: 'HH:MM' and defaults to '23:59'. (nsslapd-db-compactdb-time)"
                                 className="ds-margin-top"
                             >
-                                <GridItem className="ds-label" span={3}>
-                                    Database Checkpoint Interval
+                                <GridItem className="ds-label" span={4}>
+                                    Database Compaction Time
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={this.state.chxpoint}
-                                        type="number"
-                                        id="chxpoint"
-                                        aria-describedby="chxpoint"
-                                        name="chxpoint"
-                                        onChange={this.handleChange}
+                                <GridItem span={2}>
+                                    <TimePicker
+                                        time={this.state.compacttime}
+                                        onChange={this.handleTimeChange}
+                                        is24Hour
                                     />
                                 </GridItem>
                             </Grid>
@@ -668,35 +768,45 @@ export class GlobalDatabaseConfig extends React.Component {
                                 title="The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval).  The default is 30 days at midnight."
                                 className="ds-margin-top"
                             >
-                                <GridItem className="ds-label" span={3}>
+                                <GridItem className="ds-label" span={4}>
                                     Database Compaction Interval
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
+                                <GridItem span={8}>
+                                    <NumberInput
                                         value={this.state.compactinterval}
-                                        type="number"
-                                        id="compactinterval"
-                                        aria-describedby="compactinterval"
-                                        name="compactinterval"
-                                        onChange={this.handleChange}
+                                        min={1}
+                                        max={this.maxValue}
+                                        onMinus={() => { this.onMinusConfig("compactinterval") }}
+                                        onChange={(e) => { this.onConfigChange(e, "compactinterval", 1, 0) }}
+                                        onPlus={() => { this.onPlusConfig("compactinterval") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={8}
                                     />
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The Time Of Day to perform the database compaction after the compact interval has been met.  Uses the format: 'HH:MM' and defaults to '23:59'. (nsslapd-db-compactdb-time)"
+                                title="Amount of time in seconds after which the Directory Server sends a checkpoint entry to the database transaction log (nsslapd-db-checkpoint-interval)."
                                 className="ds-margin-top"
                             >
-                                <GridItem className="ds-label" span={3}>
-                                    Database Compaction Time
+                                <GridItem className="ds-label" span={4}>
+                                    Database Checkpoint Interval
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={this.state.compacttime}
-                                        type="text"
-                                        id="compacttime"
-                                        aria-describedby="compacttime"
-                                        name="compacttime"
-                                        onChange={this.handleChange}
+                                <GridItem span={8}>
+                                    <NumberInput
+                                        value={this.state.chxpoint}
+                                        min={1}
+                                        max={this.maxValue}
+                                        onMinus={() => { this.onMinusConfig("chxpoint") }}
+                                        onChange={(e) => { this.onConfigChange(e, "chxpoint", 1, 0) }}
+                                        onPlus={() => { this.onPlusConfig("chxpoint") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={8}
                                     />
                                 </GridItem>
                             </Grid>
@@ -704,17 +814,22 @@ export class GlobalDatabaseConfig extends React.Component {
                                 title="The number of database locks (nsslapd-db-locks)."
                                 className="ds-margin-top"
                             >
-                                <GridItem className="ds-label" span={3}>
-                                    Database Compaction Time
+                                <GridItem className="ds-label" span={4}>
+                                    Database Locks
                                 </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
+                                <GridItem span={8}>
+                                    <NumberInput
                                         value={this.state.dblocks}
-                                        type="number"
-                                        id="dblocks"
-                                        aria-describedby="dblocks"
-                                        name="dblocks"
-                                        onChange={this.handleChange}
+                                        min={10000}
+                                        max={this.maxValue}
+                                        onMinus={() => { this.onMinusConfig("dblocks") }}
+                                        onChange={(e) => { this.onConfigChange(e, "dblocks", 10000, 0) }}
+                                        onPlus={() => { this.onPlusConfig("dblocks") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={8}
                                     />
                                 </GridItem>
                             </Grid>
