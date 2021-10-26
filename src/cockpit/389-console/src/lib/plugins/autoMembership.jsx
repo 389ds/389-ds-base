@@ -91,7 +91,8 @@ class AutoMembership extends React.Component {
         };
 
         // This vastly improves rendering performance during handleChange()
-        this.attrRows = this.props.attributes.map((attr) => (
+        let attrs = [...this.props.attributes, 'dn'].sort();
+        this.attrRows = attrs.map((attr) => (
             <FormSelectOption key={attr} value={attr} label={attr} />
         ));
 
@@ -155,7 +156,7 @@ class AutoMembership extends React.Component {
             if (!this.state.includeOptions.includes(newValue)) {
                 this.setState({
                     includeOptions: [...this.state.includeOptions, newValue],
-                    isRegexExcludeOpen: false
+                    isRegexIncludeOpen: false
                 });
             }
         };
@@ -1313,7 +1314,7 @@ class AutoMembership extends React.Component {
                                     onSelect={this.onRegexIncludeSelect}
                                     onClear={this.clearRegexIncludeSelection}
                                     selections={regexInclusive}
-                                    isOpen={this.state.regexInclusiveSelectExpanded}
+                                    isOpen={this.state.isRegexIncludeOpen}
                                     aria-labelledby="typeAhead-incl-regex"
                                     placeholderText="Type a regex..."
                                     isCreatable

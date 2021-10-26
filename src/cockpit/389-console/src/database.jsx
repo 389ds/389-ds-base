@@ -189,12 +189,12 @@ export class Database extends React.Component {
                     let dbhome = "";
 
                     if ('nsslapd-db-home-directory' in attrs) {
-                        dbhome = attrs['nsslapd-db-home-directory'];
+                        dbhome = attrs['nsslapd-db-home-directory'][0];
                     }
-                    if (attrs['nsslapd-cache-autosize'] !== "0") {
+                    if (attrs['nsslapd-cache-autosize'][0] !== "0") {
                         db_cache_auto = true;
                     }
-                    if (attrs['nsslapd-import-cache-autosize'] !== "0") {
+                    if (attrs['nsslapd-import-cache-autosize'][0] !== "0") {
                         import_cache_auto = true;
                     }
                     if (attrs['nsslapd-db-locks-monitoring-enabled'][0] === "on") {
@@ -208,25 +208,25 @@ export class Database extends React.Component {
                                     loading: false,
                                     db_cache_auto: db_cache_auto,
                                     import_cache_auto: import_cache_auto,
-                                    looklimit: attrs['nsslapd-lookthroughlimit'],
-                                    idscanlimit: attrs['nsslapd-idlistscanlimit'],
-                                    pagelooklimit: attrs['nsslapd-pagedlookthroughlimit'],
-                                    pagescanlimit: attrs['nsslapd-pagedidlistscanlimit'],
-                                    rangelooklimit: attrs['nsslapd-rangelookthroughlimit'],
-                                    autosize: attrs['nsslapd-cache-autosize'],
-                                    autosizesplit: attrs['nsslapd-cache-autosize-split'],
-                                    dbcachesize: attrs['nsslapd-dbcachesize'],
-                                    txnlogdir: attrs['nsslapd-db-logdirectory'],
+                                    looklimit: attrs['nsslapd-lookthroughlimit'][0],
+                                    idscanlimit: attrs['nsslapd-idlistscanlimit'][0],
+                                    pagelooklimit: attrs['nsslapd-pagedlookthroughlimit'][0],
+                                    pagescanlimit: attrs['nsslapd-pagedidlistscanlimit'][0],
+                                    rangelooklimit: attrs['nsslapd-rangelookthroughlimit'][0],
+                                    autosize: attrs['nsslapd-cache-autosize'][0],
+                                    autosizesplit: attrs['nsslapd-cache-autosize-split'][0],
+                                    dbcachesize: attrs['nsslapd-dbcachesize'][0],
+                                    txnlogdir: attrs['nsslapd-db-logdirectory'][0],
                                     dbhomedir: dbhome,
-                                    dblocks: attrs['nsslapd-db-locks'],
+                                    dblocks: attrs['nsslapd-db-locks'][0],
                                     dblocksMonitoring: dblocksMonitoring,
-                                    dblocksMonitoringThreshold: attrs['nsslapd-db-locks-monitoring-threshold'],
-                                    dblocksMonitoringPause: attrs['nsslapd-db-locks-monitoring-pause'],
-                                    chxpoint: attrs['nsslapd-db-checkpoint-interval'],
-                                    compactinterval: attrs['nsslapd-db-compactdb-interval'],
-                                    compacttime: attrs['nsslapd-db-compactdb-time'],
-                                    importcacheauto: attrs['nsslapd-import-cache-autosize'],
-                                    importcachesize: attrs['nsslapd-import-cachesize'],
+                                    dblocksMonitoringThreshold: attrs['nsslapd-db-locks-monitoring-threshold'][0],
+                                    dblocksMonitoringPause: attrs['nsslapd-db-locks-monitoring-pause'][0],
+                                    chxpoint: attrs['nsslapd-db-checkpoint-interval'][0],
+                                    compactinterval: attrs['nsslapd-db-compactdb-interval'][0],
+                                    compacttime: attrs['nsslapd-db-compactdb-time'][0],
+                                    importcacheauto: attrs['nsslapd-import-cache-autosize'][0],
+                                    importcachesize: attrs['nsslapd-import-cachesize'][0],
                                 },
                             configUpdated: 1
                         }), this.setState({ configUpdated: 0 }));
@@ -1450,7 +1450,7 @@ class CreateSuffixModal extends React.Component {
                     >
                         <FormSelect value={initOption} onChange={handleSelectChange} aria-label="FormSelect Input">
                             <FormSelectOption key={1} value="noInit" label="Do Not Initialize Database" />
-                            <FormSelectOption key={2} value="addSuffix" label="Create The Top Sub-Suffix Entry" />
+                            <FormSelectOption key={2} value="addSuffix" label="Create The Top Suffix Entry" />
                             <FormSelectOption key={3} value="addSample" label="Add Sample Entries" />
                         </FormSelect>
                     </FormGroup>
