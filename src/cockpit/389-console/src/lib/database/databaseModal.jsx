@@ -354,6 +354,7 @@ class ExportModal extends React.Component {
             showModal,
             closeHandler,
             handleChange,
+            includeReplData,
             saveHandler,
             spinning,
             error
@@ -406,14 +407,14 @@ class ExportModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="Use StartTLS for the remote server LDAP URL.">
+                    <Grid title="Include the replication metadata needed to restore or initialize another replica.">
                         <GridItem span={12}>
                             <Checkbox
                                 id="includeReplData"
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                title="Include the replication metadata needed to restore or initialize another replica."
+                                isChecked={includeReplData}
                                 label="Include Replication Data"
                             />
                         </GridItem>

@@ -37,6 +37,13 @@ const general_attrs = [
     'nsslapd-certdir'
 ];
 
+const path_attrs = [
+    'nsslapd-bakdir',
+    'nsslapd-ldifdir',
+    'nsslapd-schemadir',
+    'nsslapd-certdir'
+];
+
 const rootdn_attrs = [
     'nsslapd-rootpwstoragescheme',
     'nsslapd-rootpw',
@@ -110,6 +117,7 @@ export class ServerSettings extends React.Component {
             { value: 'CLEAR', label: 'CLEAR', disabled: false },
         ];
 
+        this.validatePaths = this.validatePaths.bind(this);
         this.handleConfigChange = this.handleConfigChange.bind(this);
         this.handleRootDNChange = this.handleRootDNChange.bind(this);
         this.handleDiskMonChange = this.handleDiskMonChange.bind(this);
@@ -136,6 +144,32 @@ export class ServerSettings extends React.Component {
 
     handleNavSelect(key) {
         this.setState({ activeKey: key });
+    }
+
+    validatePaths(disableSaveBtn) {
+        let disableBtn = disableSaveBtn;
+        const errObj = this.state.errObjConfig;
+
+        for (const attr of path_attrs) {
+            const cmd = `[ -d "${this.state[attr]}" ]`
+            cockpit
+                    .script(cmd, [], { superuser: true, err: "message" })
+                    .done(output => {
+                        errObj[attr] = false;
+                        this.setState({
+                            errObjConfig: errObj,
+                            configSaveDisabled: disableBtn
+                        });
+                    })
+                    .fail(err => {
+                        errObj[attr] = true;
+                        disableBtn = true;
+                        this.setState({
+                            configSaveDisabled: disableBtn,
+                            errObjConfig: errObj
+                        });
+                    });
+        }
     }
 
     handleConfigChange(str, e) {
@@ -166,12 +200,12 @@ export class ServerSettings extends React.Component {
             valueErr = true;
             disableSaveBtn = true;
         }
+
         errObj[attr] = valueErr;
         this.setState({
             [attr]: value,
-            configSaveDisabled: disableSaveBtn,
             errObjConfig: errObj,
-        });
+        }, () => { this.validatePaths(disableSaveBtn) });
     }
 
     handleRootDNChange(str, e) {
@@ -362,6 +396,10 @@ export class ServerSettings extends React.Component {
         this.setState({
             loaded: true,
             loading: false,
+            errObjConfig: {},
+            errObjRootDN: {},
+            errObjDiskMon: {},
+            errObjAdv: {},
             // Settings
             'nsslapd-port': attrs['nsslapd-port'][0],
             'nsslapd-secureport': attrs['nsslapd-secureport'][0],
@@ -786,6 +824,10 @@ export class ServerSettings extends React.Component {
                         {
                             configReloading: false,
                             configSaveDisabled: true,
+                            errObjConfig: {},
+                            errObjRootDN: {},
+                            errObjDiskMon: {},
+                            errObjAdv: {},
                             'nsslapd-port': attrs['nsslapd-port'][0],
                             'nsslapd-secureport': attrs['nsslapd-secureport'][0],
                             'nsslapd-localhost': attrs['nsslapd-localhost'][0],
@@ -834,7 +876,7 @@ export class ServerSettings extends React.Component {
             diskMonitor =
                 <Form isHorizontal className="ds-margin-top-lg ds-left-indent-lg ds-margin-bottom">
                     <Grid
-                        title="The available disk space, in bytes, that will trigger the shutdown process. Default is 2mb. Once below half of the threshold then we enter the shutdown mode. (nsslapd-disk-monitoring-threshold)"
+                        title="The available disk space, in bytes, that will trigger the shutdown process. Default is 2mb. Once below half of the threshold then we enter the shutdown mode.  Value range: 4096 - 9223372036854775807 (nsslapd-disk-monitoring-threshold)"
                     >
                         <GridItem className="ds-label" span={3}>
                             Disk Monitoring Threshold
@@ -921,7 +963,7 @@ export class ServerSettings extends React.Component {
                     <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-left-margin'}>
                         <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={0} title={<TabTitleText>General Settings</TabTitleText>}>
-                                <Form className="ds-margin-top-xlg" isHorizontal>
+                                <Form autoComplete="off" className="ds-margin-top-xlg">
                                     <Grid
                                         title="The version of the Directory Server rpm package"
                                     >
@@ -1012,7 +1054,7 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The location where database backups are stored (nsslapd-bakdir)."
+                                        title={this.state.errObjConfig['nsslapd-bakdir'] ? "Invalid backup directory path!" : "The location where database backups are stored (nsslapd-bakdir)."}
                                     >
                                         <GridItem className="ds-label" span={2}>
                                             Backup Directory
@@ -1030,7 +1072,7 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The location where the server's LDIF files are located (nsslapd-ldifdir)."
+                                        title={this.state.errObjConfig['nsslapd-ldifdir'] ? "Invalid LDIF directory path!" : "The location where the server's LDIF files are located (nsslapd-ldifdir)."}
                                     >
                                         <GridItem className="ds-label" span={2}>
                                             LDIF File Directory
@@ -1048,7 +1090,7 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The location for the servers custom schema files. (nsslapd-schemadir)."
+                                        title={this.state.errObjConfig['nsslapd-schemadir'] ? "Invalid schema directory path!" : "The location for the servers custom schema files. (nsslapd-schemadir)."}
                                     >
                                         <GridItem className="ds-label" span={2}>
                                             Schema Directory
@@ -1066,7 +1108,7 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The location of the server's certificates (nsslapd-certdir)."
+                                        title={this.state.errObjConfig['nsslapd-certdir'] ? "Invalid certificate directory path!" : "The location of the server's certificates (nsslapd-certdir)."}
                                     >
                                         <GridItem className="ds-label" span={2}>
                                             Certificate Directory
@@ -1098,7 +1140,7 @@ export class ServerSettings extends React.Component {
                             </Tab>
 
                             <Tab eventKey={1} title={<TabTitleText>Directory Manager</TabTitleText>}>
-                                <Form className="ds-margin-top-xlg" isHorizontal>
+                                <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
                                     <Grid
                                         title="The DN of the unrestricted directory manager (nsslapd-rootdn)."
                                     >
@@ -1117,7 +1159,7 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The maximum number of logs that are archived (nsslapd-accesslog-maxlogsperdir)."
+                                        title="The password for the Root DN/Directory Manager, (nsslapd-rootpw)."
                                     >
                                         <GridItem className="ds-label" span={3}>
                                             Directory Manager Password
@@ -1209,7 +1251,7 @@ export class ServerSettings extends React.Component {
                                 </Button>
                             </Tab>
                             <Tab eventKey={3} title={<TabTitleText>Advanced Settings</TabTitleText>}>
-                                <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
+                                <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
                                     <Grid>
                                         <GridItem span={5}>
                                             <Checkbox

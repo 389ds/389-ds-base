@@ -447,6 +447,9 @@ export class DSInstance extends React.Component {
                     if (action === "remove") {
                         this.addNotification("success", "Instance was successfully removed");
                     } else {
+                        if (action === "stop") {
+                            action = "stopp"; // Fixes typo in notification
+                        }
                         this.addNotification("success", `Instance was successfully ${action}ed`);
                     }
                 })
