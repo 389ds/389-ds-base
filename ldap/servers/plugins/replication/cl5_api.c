@@ -809,6 +809,12 @@ cl5WriteOperationTxn(cldb_Handle *cldb, const slapi_operation_parameters *op, vo
         return CL5_BAD_DATA;
     }
 
+    if (cldb == NULL) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
+                      "cl5WriteOperationTxn - changelog is not initialized\n");
+        return CL5_BAD_DATA;
+    }
+
     pthread_mutex_lock(&(cldb->stLock));
     if (cldb->dbState != CL5_STATE_OPEN) {
         if (cldb->dbState == CL5_STATE_IMPORT) {
@@ -958,6 +964,11 @@ cl5CreateReplayIterator(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL5R
     *iterator = NULL;
 
     cldb = replica_get_cl_info(replica);
+    if (cldb == NULL) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
+                      "cl5CreateReplayIterator - Changelog is not available (NULL)\n");
+        return CL5_BAD_STATE;
+    }
     pthread_mutex_lock(&(cldb->stLock));
     if (cldb->dbState != CL5_STATE_OPEN) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
@@ -4417,6 +4428,10 @@ void
 cl5CleanRUV(ReplicaId rid, Replica *replica)
 {
     cldb_Handle *cldb = replica_get_cl_info(replica);
+
+    if (cldb == NULL) {
+        return;
+    }
     ruv_delete_replica(cldb->purgeRUV, rid);
     ruv_delete_replica(cldb->maxRUV, rid);
 }

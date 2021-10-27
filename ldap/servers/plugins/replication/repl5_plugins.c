@@ -994,6 +994,11 @@ write_changelog_and_ruv(Slapi_PBlock *pb)
 
         /* changelog database information to pass to the write function */
         cldb = replica_get_cl_info(r);
+        if (cldb == NULL) {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
+                          "write_changelog_and_ruv - changelog is not initialized\n");
+            return return_value;
+        }
 
         /* for replicated operations, we log the original, non-urp data which is
            saved in the operation extension */
