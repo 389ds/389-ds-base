@@ -1510,7 +1510,7 @@ class Replica(DSLdapObject):
         :param *replica_dirsrvs: DirSrv instance, DirSrv instance, ...
         :type *replica_dirsrvs: list of DirSrv
 
-        :returns: True - if all servers have recevioed the update by this
+        :returns: True - if all servers have received the update by this
                   replica, otherwise return False
         :raises: LDAPError - when failing to update/search database
         """
