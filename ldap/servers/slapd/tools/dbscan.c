@@ -1266,7 +1266,6 @@ importdb(const char *dbimpl_name, const char *filename, const char *dump_name)
     dbi_env_t *env = NULL;
     dbi_db_t *db = NULL;
     int keyword = 0;
-    int nbrec = 0;
     int ret = 0;
 
     dblayer_init_pvt_txn();
