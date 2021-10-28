@@ -155,6 +155,21 @@ def import_changelog(be, dblib):
     except subprocess.CalledProcessError as e:
         return False
 
+def set_files_owner(inst, backends):
+    # insure that all files in backend directories have the right file owner
+    # ( needed when running dsctl as root )
+    if os.geteuid() != 0:
+        return
+    uid = inst.get_user_uid()
+    gid = inst.get_group_gid()
+    for be in backends:
+        dbdir = backends[be]['dbdir']
+        if dbdir is None:
+            continue
+        os.chown(dbdir, uid, gid)
+        for f in glob.glob(f'{dbdir}/*'):
+            os.chown(f, uid, gid)
+
 
 def dblib_bdb2mdb(inst, log, args):
     global _log
@@ -285,6 +300,7 @@ def dblib_bdb2mdb(inst, log, args):
             import_changelog(be, 'mdb')
         progress += be['dbsize']
     log.info("Backends importation 100%")
+    set_files_owner(inst, backends)
     inst.start()
     log.info("Migration from Berkeley database to lmdb is done.")
 
@@ -389,6 +405,7 @@ def dblib_mdb2bdb(inst, log, args):
             import_changelog(be, 'bdb')
         progress += be['dbsize']
     log.info("Backends importation 100%")
+    set_files_owner(inst, backends)
     inst.start()
     log.info("Migration from ldbm to Berkeley database is done.")
 

@@ -571,6 +571,7 @@ class DirSrv(SimpleLDAPObject, object):
                 # Lets assume that local serverid is provided.
                 self.serverid = args.get(SER_SERVERID_PROP, None)
                 self.isLocal = True
+                self.setup_ldapi()
             else:
                 self.isLocal = isLocalHost(self.host)
 
