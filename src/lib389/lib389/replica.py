@@ -844,6 +844,9 @@ class RUV(object):
                 self._data_generation = pr[1]
             elif pr[0] == 'replica':
                 # replica 1 ldap://ldapkdc.example.com:39001 5a2ffd0f000100010000 5a2ffd0f000200010000
+                # Ignore the ruv if there are no rid or no url
+                if len(pr) < 2:
+                    continue
                 # Don't add rids if they have no csn (no writes) yet.
                 rid = pr[1]
                 self._rids.append(rid)

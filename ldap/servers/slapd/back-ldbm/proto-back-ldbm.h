@@ -36,6 +36,7 @@ void attr_create_empty(backend *be, char *type, struct attrinfo **ai);
 /*
  * cache.c
  */
+void cache_disable(void);
 int cache_init(struct cache *cache, uint64_t maxsize, int64_t maxentries, int type);
 void cache_clear(struct cache *cache, int type);
 void cache_destroy_please(struct cache *cache, int type);

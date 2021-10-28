@@ -800,7 +800,7 @@ display_item(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data)
 }
 
 void
-_entryrdn_dump_rdn_elem(char *key, rdn_elem *elem, int indent)
+_entryrdn_dump_rdn_elem(const char *key, rdn_elem *elem, int indent)
 {
     char *indentp = (char *)malloc(indent + 1);
     char *p, *endp = indentp + indent;
@@ -958,16 +958,15 @@ display_entryrdn_item(dbi_db_t *db, dbi_cursor_t *cursor, dbi_val_t *key)
 {
     rdn_elem *elem = NULL;
     int indent = 2;
-    dbi_bulk_t bulkdata = {0};
-    dbi_val_t dataret = {0};
+    dbi_val_t data = {0};
     int rc = 0;
     char buffer[RDN_BULK_FETCH_BUFFER_SIZE];
     dbi_op_t op = DBI_OP_MOVE_TO_FIRST;
     int find_key_flag = 0;
-    char *keyval = "";
+    const char *keyval = "";
 
     /* Setting the bulk fetch buffer */
-    dblayer_bulk_set_buffer(be, &bulkdata, buffer, (sizeof buffer), DBI_VF_BULK_DATA);
+    dblayer_value_set_buffer(be, &data, buffer, sizeof buffer);
 
     if (key->data) { /* key is given */
         /* Position cursor at the matching key */
@@ -976,17 +975,14 @@ display_entryrdn_item(dbi_db_t *db, dbi_cursor_t *cursor, dbi_val_t *key)
     }
     do {
         /* Position cursor at the matching key */
-        rc = dblayer_cursor_bulkop(cursor, op, key, &bulkdata);
+        rc = dblayer_cursor_op(cursor, op, key, &data);
         keyval = key->data;
 
         if (rc == DBI_RC_SUCCESS) {
-            /* Loop on all records stored in bulk buffer */
-            for(dblayer_bulk_start(&bulkdata); DBI_RC_SUCCESS == dblayer_bulk_nextdata(&bulkdata, &dataret);) {
-                elem = (rdn_elem *)dataret.data;
-                _entryrdn_dump_rdn_elem(keyval, elem, indent);
-                display_entryrdn_children(db, id_stored_to_internal(elem->rdn_elem_id),
-                                          elem->rdn_elem_nrdn_rdn, indent);
-            }
+            elem = (rdn_elem *)data.data;
+            _entryrdn_dump_rdn_elem(keyval, elem, indent);
+            display_entryrdn_children(db, id_stored_to_internal(elem->rdn_elem_id),
+                                      elem->rdn_elem_nrdn_rdn, indent);
             /* Then check if there are more data associated with current key */
             op = DBI_OP_NEXT_DATA;
             continue;
@@ -1002,14 +998,12 @@ display_entryrdn_item(dbi_db_t *db, dbi_cursor_t *cursor, dbi_val_t *key)
         fprintf(stderr, "Entryrdn index is corrupt; "
                         "data item for key %s is too large for our "
                         "buffer (need=%ld actual=%ld)\n",
-                        keyval, dataret.size, dataret.ulen);
+                        keyval, data.size, data.ulen);
     } else if (rc != DBI_RC_NOTFOUND || op == DBI_OP_MOVE_TO_KEY) {
         fprintf(stderr, "Failed to position cursor "
                         "at the key: %s: %s (%d)\n",
                         keyval, dblayer_strerror(rc), rc);
     }
-    dblayer_value_free(be, &dataret);
-    dblayer_bulk_free(&bulkdata);
 }
 
 static int

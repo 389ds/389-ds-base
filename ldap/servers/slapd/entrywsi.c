@@ -627,11 +627,9 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
         if (is_type_forbidden(type)) {
             retVal = LDAP_SUCCESS;
         } else {
-slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
             retVal = LDAP_NO_SUCH_ATTRIBUTE;
         }
 #else
-slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
         retVal = LDAP_NO_SUCH_ATTRIBUTE;
 #endif
     } else if (attr_state == ATTRIBUTE_NOTFOUND) {
@@ -647,7 +645,6 @@ slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_AT
                 slapi_log_err(SLAPI_LOG_ARGS, "entry_delete_present_values_wsi",
                               "could not find attribute %s\n", type);
             }
-slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
             retVal = LDAP_NO_SUCH_ATTRIBUTE;
         }
         if ((LDAP_MOD_REPLACE == mod_op)) {

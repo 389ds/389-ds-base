@@ -238,6 +238,8 @@ bdb_import_get_entry(ldif_context *c, int fd, int *lineno)
             buf = newbuf;
             bufSize = newsize;
         }
+        if (!buf)        /*  This test is always false but make GCC Static Analyzer happy */
+            goto error;
         memmove(buf + bufOffset, c->b + c->offset, i - c->offset);
         bufOffset += (i - c->offset);
         c->offset = i;

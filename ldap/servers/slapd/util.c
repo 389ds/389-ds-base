@@ -588,7 +588,6 @@ slapi_mods2entry(Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
                 slapi_entry_set_uniqueid(*e,
                                          slapi_ch_strdup(slapi_value_get_string(vals[0])));
             } else {
-slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
                 rc = LDAP_NO_SUCH_ATTRIBUTE;
             }
         } else {

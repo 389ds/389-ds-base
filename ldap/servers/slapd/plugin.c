@@ -4307,7 +4307,6 @@ slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset)
         if (0 == rc) { /* type value exists */
             rc = slapi_attr_get_valueset(attr, valueset);
         } else {
-slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
             rc = LDAP_NO_SUCH_ATTRIBUTE;
         }
     }

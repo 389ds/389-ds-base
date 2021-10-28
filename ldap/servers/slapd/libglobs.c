@@ -8239,7 +8239,6 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 #endif
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown attribute %s will be ignored\n", attr);
         slapi_log_err(SLAPI_LOG_ERR, "config_set", "Unknown attribute %s will be ignored\n", attr);
-slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
         return LDAP_NO_SUCH_ATTRIBUTE;
     }
 

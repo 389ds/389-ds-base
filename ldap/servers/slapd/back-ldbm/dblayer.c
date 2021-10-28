@@ -994,6 +994,12 @@ db_strtoull(const char *str, int *err)
     char *p;
     errno = 0;
 
+    if (!str) {
+        if (err) {
+            *err = EINVAL;
+        }
+        return -1L;
+    }
     /*
      * manpage of strtoull: Negative  values  are considered valid input and
      * are silently converted to the equivalent unsigned long int value.
