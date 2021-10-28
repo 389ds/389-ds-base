@@ -21,9 +21,6 @@
 /* #define CACHE_DEBUG * causes slowdown */
 #endif
 
-/* Be sure thayt cache is fully disabled when using mdb */
-static int cache_disabled = PR_FALSE;
-
 
 /* don't let hash be smaller than this # of slots */
 #define MINHASHSIZE 1024
@@ -153,12 +150,6 @@ entry_same_dn(const void *e, const void *k)
     return (strcmp(ndn, (char *)k) == 0);
 }
 
-void
-cache_disable(void)
-{
-    cache_disabled = PR_TRUE;
-}
-
 Hashtable *
 new_hash(u_long size, u_long offset, HashFn hfn, HashTestFn tfn)
 {
@@ -200,10 +191,6 @@ add_hash(Hashtable *ht, void *key, uint32_t keylen, void *entry, void **alt)
     struct backcommon *back_entry = (struct backcommon *)entry;
     u_long val, slot;
     void *e;
-
-    if (cache_disabled) {
-        return 1;
-    }
 
     val = HASH_VALUE(key, keylen);
     slot = (val % ht->size);

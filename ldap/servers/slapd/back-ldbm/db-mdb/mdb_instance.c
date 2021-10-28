@@ -80,7 +80,6 @@ typedef struct {
 int
 dbmdb_entryrdn_compare_dups(const MDB_val *a, const MDB_val *b)
 {
-    int rc = 0;
     if (NULL == a) {
         if (NULL == b) {
             return 0;
@@ -90,15 +89,7 @@ dbmdb_entryrdn_compare_dups(const MDB_val *a, const MDB_val *b)
     } else if (NULL == b) {
         return 1;
     }
-    rc = entryrdn_compare_rdn_elem(a->mv_data, b->mv_data);
-    if (rc == 0) {
-        size_t size = a->mv_size > b->mv_size ? b->mv_size : a->mv_size;
-        rc = memcmp(a->mv_data, b->mv_data, size);
-        if (rc == 0) {
-            rc =  a->mv_size -  b->mv_size;
-        }
-    }
-    return rc;
+    return entryrdn_compare_rdn_elem(a->mv_data, b->mv_data);
 }
 
 static PRBool
