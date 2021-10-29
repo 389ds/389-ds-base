@@ -152,21 +152,6 @@ def import_changelog(be, dblib):
     except subprocess.CalledProcessError as e:
         return False
 
-def set_files_owner(inst, backends):
-    # insure that all files in backend directories have the right file owner
-    # ( needed when running dsctl as root )
-    if os.geteuid() != 0:
-        return
-    uid = inst.get_user_uid()
-    gid = inst.get_group_gid()
-    for be in backends:
-        dbdir = backends[be]['dbdir']
-        if dbdir is None:
-            continue
-        os.chown(dbdir, uid, gid)
-        for f in glob.glob(f'{dbdir}/*'):
-            os.chown(f, uid, gid)
-
 
 def dblib_bdb2mdb(inst, log, args):
     global _log
@@ -255,7 +240,6 @@ def dblib_bdb2mdb(inst, log, args):
         if be['dbsize'] == 0:
             continue
         log.info(f"Backends exportation {progress*100/total_dbsize:2f}% ({bename})")
-        os.chown(be['ldifname'], uid, gid)
         log.debug(f"inst.db2ldif({bename}, None, None, {encrypt}, True, {be['ldifname']})")
         inst.db2ldif(bename, None, None, encrypt, True, be['ldifname'], False)
         be['cl5'] = export_changelog(be, 'bdb')
@@ -295,13 +279,16 @@ def dblib_bdb2mdb(inst, log, args):
         if be['dbsize'] == 0:
             continue
         log.info(f"Backends importation {progress*100/total_dbsize:2f}% ({bename})")
+        os.chown(be['ldifname'], uid, gid)
         log.debug(f"inst.ldif2db({bename}, None, None, {encrypt}, {be['ldifname']})")
         inst.ldif2db(bename, None, None, encrypt, be['ldifname'])
         if be['cl5'] is True:
             import_changelog(be, 'mdb')
         progress += be['dbsize']
+    dbhome=backends["config"]["dbdir"]
+    for f in glob.glob(f'{dbhome}/*.mdb'):
+        os.chown(f, uid, gid)
     log.info("Backends importation 100%")
-    set_files_owner(inst, backends)
     inst.start()
     log.info("Migration from Berkeley database to lmdb is done.")
 
@@ -384,8 +371,13 @@ def dblib_mdb2bdb(inst, log, args):
         log.debug(f"inst.db2ldif({bename}, None, None, {encrypt}, True, {be['ldifname']})")
         inst.db2ldif(bename, None, None, encrypt, True, be['ldifname'], False)
         be['cl5'] = export_changelog(be, 'mdb')
+        for f in glob.glob(f'{dbdir}/*'):
+            os.chown(f, uid, gid)
         progress += 1
     log.info("Backends exportation 100%")
+    dbhome=backends["config"]["dbdir"]
+    for f in glob.glob(f'{dbhome}/*'):
+        os.chown(f, uid, gid)
 
     log.info("Updating dse.ldif file")
     # switch nsslapd-backend-implement in the dse.ldif
