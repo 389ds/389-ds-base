@@ -17,6 +17,7 @@ from lib389.backend import Backends
 
 from lib389.topologies import topology_m1c1 as topo_r # Replication
 from lib389.topologies import topology_i2 as topo_nr # No replication
+from lib389.utils import ldap, os, ds_is_older, get_default_db_lib
 
 from lib389._constants import (ReplicaRole, DEFAULT_SUFFIX, REPLICAID_SUPPLIER_1,
                                 REPLICATION_BIND_DN, REPLICATION_BIND_PW,
@@ -34,6 +35,7 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+@pytest.mark.skipif(get_default_db_lib() != "bdb", reason="Test requires bdb files")
 def test_mail_attr_repl(topo_r):
     """Check that no crash happens during mail attribute replication
 

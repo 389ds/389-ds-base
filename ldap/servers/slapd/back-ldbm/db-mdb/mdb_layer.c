@@ -1607,7 +1607,11 @@ int dbmdb_dbt2dbival(MDB_val *dbt, dbi_val_t *dbi, PRBool isresponse, int rc)
         dbi->size = dbt->mv_size;
         return rc;
     }
-    if (dbt->mv_size > dbi->ulen) {
+    if (dbt->mv_size == 0) {
+        dbi->size = 0;
+        return rc;
+    }
+    if (dbt->mv_size > dbi->ulen || dbi->data == NULL) {
         if (dbi->flags & DBI_VF_DONTGROW) {
             return DBI_RC_BUFFER_SMALL;
         }
