@@ -139,7 +139,6 @@ def export_changelog(be, dblib):
     # Export backend changelog
     try:
         run_dbscan(['-D', dblib, '-f', be['cl5dbname'], '-X', be['cl5name']])
-        shutil.copy(be['cl5name'], f"{be['cl5name']}_{dblib}_dbg")
         return True
     except subprocess.CalledProcessError as e:
         return False
@@ -149,8 +148,6 @@ def import_changelog(be, dblib):
     # import backend changelog
     try:
         run_dbscan(['-D', dblib, '-f', be['cl5dbname'], '-I', be['cl5name']])
-        shutil.copy(be['cl5name'], f"{be['cl5name']}_{dblib}_dbg1")
-        run_dbscan(['-D', dblib, '-f', be['cl5dbname'], '-X', f"{be['cl5name']}_{dblib}_dbg2"])
         return True
     except subprocess.CalledProcessError as e:
         return False
@@ -227,12 +224,15 @@ def dblib_bdb2mdb(inst, log, args):
     log.info(f"Required number of dbi is {nbdbis}")
 
     # Generate the info file (so dbscan could generate the map)
+    uid = inst.get_user_uid()
+    gid = inst.get_group_gid()
     with open(f'{dbmapdir}/{MDB_INFO}', 'w') as f:
         f.write('LIBVERSION=9025\n')
         f.write('DATAVERSION=0\n')
         f.write(f'MAXSIZE={dbmap_size}\n')
         f.write('MAXREADERS=50\n')
         f.write(f'MAXDBS={nbdbis}\n')
+    os.chown(f'{dbmapdir}/{MDB_INFO}', uid, gid)
 
     if os.stat(dbmapdir).st_dev == os.stat(tmpdir).st_dev:
         total, used, free = shutil.disk_usage(dbmapdir)
@@ -255,6 +255,7 @@ def dblib_bdb2mdb(inst, log, args):
         if be['dbsize'] == 0:
             continue
         log.info(f"Backends exportation {progress*100/total_dbsize:2f}% ({bename})")
+        os.chown(be['ldifname'], uid, gid)
         log.debug(f"inst.db2ldif({bename}, None, None, {encrypt}, True, {be['ldifname']})")
         inst.db2ldif(bename, None, None, encrypt, True, be['ldifname'], False)
         be['cl5'] = export_changelog(be, 'bdb')
@@ -372,11 +373,14 @@ def dblib_mdb2bdb(inst, log, args):
         if 'has_id2entry' not in be:
             continue
         total_dbsize += 1
+    uid = inst.get_user_uid()
+    gid = inst.get_group_gid()
     for bename, be in backends.items():
         # Keep only backend associated with a db
         if 'has_id2entry' not in be:
             continue
         log.info(f"Backends exportation {progress*100/total_dbsize:2f}% ({bename})")
+        os.chown(be['ldifname'], uid, gid)
         log.debug(f"inst.db2ldif({bename}, None, None, {encrypt}, True, {be['ldifname']})")
         inst.db2ldif(bename, None, None, encrypt, True, be['ldifname'], False)
         be['cl5'] = export_changelog(be, 'mdb')
