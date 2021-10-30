@@ -1495,6 +1495,7 @@ DNAPlugin.propTypes = {
     savePluginHandler: PropTypes.func,
     pluginListHandler: PropTypes.func,
     addNotification: PropTypes.func,
+    toggleLoadingHandler: PropTypes.func
 };
 
 DNAPlugin.defaultProps = {

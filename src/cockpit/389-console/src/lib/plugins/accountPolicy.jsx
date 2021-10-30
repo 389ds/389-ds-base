@@ -250,6 +250,10 @@ class AccountPolicy extends React.Component {
                         });
                     })
                     .fail(_ => {
+                        this.props.addNotification(
+                            "warning",
+                            `Warning! Account Policy config entry "${this.state.configArea}" doesn't exist!`
+                        );
                         this.setState({
                             sharedConfigExists: false
                         });
@@ -983,6 +987,7 @@ class AccountPolicy extends React.Component {
                                     key="manage"
                                     variant="primary"
                                     onClick={this.openModal}
+                                    isDisabled={saveBtnDisabled}
                                 >
                                     {this.state.sharedConfigExists ? "Manage Config" : "Create Config"}
                                 </Button>
