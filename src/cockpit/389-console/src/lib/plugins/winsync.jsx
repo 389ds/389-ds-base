@@ -60,6 +60,7 @@ class WinSync extends React.Component {
         this.toggleFixupModal = this.toggleFixupModal.bind(this);
         this.validateConfig = this.validateConfig.bind(this);
         this.validateModal = this.validateModal.bind(this);
+        this.savePlugin = this.savePlugin.bind(this);
     }
 
     toggleFixupModal() {

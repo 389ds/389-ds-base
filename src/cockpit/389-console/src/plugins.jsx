@@ -476,6 +476,7 @@ export class Plugins extends React.Component {
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
                         addNotification={this.props.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
                         attributes={this.state.attributes}
                         key={this.props.wasActiveList}
