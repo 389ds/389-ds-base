@@ -89,12 +89,46 @@ class PluginBasicConfig extends React.Component {
                 .done(content => {
                     console.info("savePlugin", "Result", content);
                     pluginListHandler();
-                    addNotification(
-                        "warning",
-                        `${pluginName} plugin was successfully ${new_status}d.
-                        Please, restart the instance.`
-                    );
-                    toggleLoadingHandler();
+                    const successCheckCMD = [
+                        "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + serverId + ".socket",
+                        "config", "get", "nsslapd-dynamic-plugins"
+                    ];
+                    log_cmd("handleSwitchChange", "Get Dynamic Plugins attribute", successCheckCMD);
+                    cockpit
+                            .spawn(successCheckCMD, { superuser: true, err: "message" })
+                            .done(content => {
+                                const config = JSON.parse(content);
+                                let dynamicPluginEnabled;
+                                if (config.attrs["nsslapd-dynamic-plugins"][0] === "on") {
+                                    dynamicPluginEnabled = true;
+                                } else if (config.attrs["nsslapd-dynamic-plugins"][0] === "off") {
+                                    dynamicPluginEnabled = false;
+                                } else {
+                                    console.error(
+                                        "handleSwitchChange failed",
+                                        "wrong nsslapd-dynamic-pluginc attribute value",
+                                        config.attrs["nsslapd-dynamic-plugins"][0]
+                                    );
+                                }
+                                addNotification(
+                                    `${!dynamicPluginEnabled ? 'warning' : 'success'}`,
+                                    `${pluginName} plugin was successfully ${new_status}d.
+                                    ${!dynamicPluginEnabled ? 'Please, restart the instance.' : ''}`
+                                );
+                                toggleLoadingHandler();
+                            })
+                            .fail(err => {
+                                console.error(
+                                    "handleSwitchChange failed",
+                                    "Failed to get nsslapd-dynamic-pluginc attribute value"
+                                );
+                                addNotification(
+                                    "warning",
+                                    `${pluginName} plugin was successfully ${new_status}d.
+                                    Please, restart the instance.`
+                                );
+                                toggleLoadingHandler();
+                            });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
