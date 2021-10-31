@@ -217,17 +217,23 @@ class Paths(object):
                 v = v.split('/')[1].split()[0]
             return v
         # Else get from the config
-        if self._serverid is not None:
-            return ensure_str(self._config.get(SECTION, name).format(instance_name=self._serverid))
+        if self._config:
+            if self._serverid is not None:
+                return ensure_str(self._config.get(SECTION, name).format(instance_name=self._serverid))
+            else:
+                return ensure_str(self._config.get(SECTION, name))
         else:
-            return ensure_str(self._config.get(SECTION, name))
+            raise LookupError("""Invalid state
+No paths config (defaults.inf) could be found.
+This may be because the remote instance is offline, or your /etc/hosts is misconfigured for a local instance
+""")
 
     @property
     def asan_enabled(self):
         if self._defaults_cached is False and self._islocal:
             self._read_defaults()
             self._validate_defaults()
-        if self._config.has_option(SECTION, 'asan_enabled'):
+        if self._config and self._config.has_option(SECTION, 'asan_enabled'):
             if self._config.get(SECTION, 'asan_enabled') == '1':
                 return True
         return False
@@ -240,7 +246,7 @@ class Paths(object):
         if self._is_container:
             # We never have systemd in a container, so check the marker.
             return False
-        if self._config.has_option(SECTION, 'with_systemd'):
+        if self._config and self._config.has_option(SECTION, 'with_systemd'):
             if self._config.get(SECTION, 'with_systemd') == '1':
                 return True
         return False
@@ -250,7 +256,7 @@ class Paths(object):
         if self._defaults_cached is False:
             self._read_defaults()
             self._validate_defaults()
-        if self._config.has_option(SECTION, 'enable_rust'):
+        if self._config and self._config.has_option(SECTION, 'enable_rust'):
             if self._config.get(SECTION, 'enable_rust') == 'no':
                 return False
         return True
