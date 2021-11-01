@@ -52,9 +52,9 @@ def remove_ds_instance(dirsrv, force=False):
     remove_paths['ldif_dir'] = dirsrv.ds_paths.ldif_dir
     remove_paths['lock_dir'] = dirsrv.ds_paths.lock_dir
     remove_paths['log_dir'] = dirsrv.ds_paths.log_dir
-    # remove_paths['run_dir'] = dirsrv.ds_paths.run_dir
     remove_paths['inst_dir'] = dirsrv.ds_paths.inst_dir
     remove_paths['etc_sysconfig'] = "%s/sysconfig/dirsrv-%s" % (dirsrv.ds_paths.sysconf_dir, dirsrv.serverid)
+    remove_paths['ldapi'] = dirsrv.ds_paths.ldapi
 
     tmpfiles_d_path = dirsrv.ds_paths.tmpfiles_d + "/dirsrv-" + dirsrv.serverid + ".conf"
 
@@ -79,14 +79,6 @@ def remove_ds_instance(dirsrv, force=False):
     _log.debug("Found instance marker at %s! Proceeding to remove ..." % dse_ldif_path)
 
     ### ANY NEW REMOVAL ACTION MUST BE BELOW THIS LINE!!!
-
-    # Remove LDAPI socket file
-    ldapi_path = os.path.join(dirsrv.ds_paths.run_dir, "slapd-%s.socket" % dirsrv.serverid)
-    if os.path.exists(ldapi_path):
-        try:
-            os.remove(ldapi_path)
-        except OSError as e:
-            _log.debug(f"Failed to remove LDAPI socket ({ldapi_path})  Error: {str(e)}")
 
     # Remove these paths:
     # for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir',

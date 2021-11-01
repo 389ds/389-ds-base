@@ -34,7 +34,7 @@ sysconf_dir = @sysconfdir@
 initconfig_dir = @initconfigdir@
 config_dir = @instconfigdir@/slapd-{instance_name}
 local_state_dir = @localstatedir@
-run_dir = @localrundir@
+run_dir = @localrundir@/dirsrv
 # This is the expected location of ldapi.
 ldapi = @localrundir@/slapd-{instance_name}.socket
 pid_file = @localrundir@/slapd-{instance_name}.pid
