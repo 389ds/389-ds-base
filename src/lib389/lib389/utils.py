@@ -269,6 +269,8 @@ def selinux_label_port(port, remove_label=False):
     :type remove_label: boolean
     :raises: ValueError: Error message
     """
+    if port is None:
+        return
     try:
         import selinux
     except ImportError:
@@ -665,7 +667,8 @@ def isLocalHost(host_name):
         Uses gethostbyname()
     """
     # first see if this is a "well known" local hostname
-    if host_name == 'localhost' or \
+    if host_name is None or \
+       host_name == 'localhost' or \
        host_name == 'localhost.localdomain' or \
        host_name == socket.gethostname():
         return True
