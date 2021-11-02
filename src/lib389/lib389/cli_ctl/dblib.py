@@ -397,7 +397,7 @@ def dblib_mdb2bdb(inst, log, args):
         inst.ldif2db(bename, None, None, encrypt, be['ldifname'])
         if be['cl5'] is True:
             import_changelog(be, 'bdb')
-        for f in glob.glob(f'{dbdir}/*'):
+        for f in glob.glob(f'{be["dbdir"]}/*'):
             os.chown(f, uid, gid)
         progress += be['dbsize']
     log.info("Backends importation 100%")
