@@ -367,12 +367,9 @@ def dblib_mdb2bdb(inst, log, args):
         if 'has_id2entry' not in be:
             continue
         log.info(f"Backends exportation {progress*100/total_dbsize:2f}% ({bename})")
-        os.chown(be['ldifname'], uid, gid)
         log.debug(f"inst.db2ldif({bename}, None, None, {encrypt}, True, {be['ldifname']})")
         inst.db2ldif(bename, None, None, encrypt, True, be['ldifname'], False)
         be['cl5'] = export_changelog(be, 'mdb')
-        for f in glob.glob(f'{dbdir}/*'):
-            os.chown(f, uid, gid)
         progress += 1
     log.info("Backends exportation 100%")
     dbhome=backends["config"]["dbdir"]
@@ -396,9 +393,12 @@ def dblib_mdb2bdb(inst, log, args):
             continue
         log.info(f"Backends importation {progress*100/total_dbsize:2f}% ({bename})")
         log.debug(f"inst.ldif2db({bename}, None, None, {encrypt}, {be['ldifname']})")
+        os.chown(be['ldifname'], uid, gid)
         inst.ldif2db(bename, None, None, encrypt, be['ldifname'])
         if be['cl5'] is True:
             import_changelog(be, 'bdb')
+        for f in glob.glob(f'{dbdir}/*'):
+            os.chown(f, uid, gid)
         progress += be['dbsize']
     log.info("Backends importation 100%")
     set_files_owner(inst, backends)
