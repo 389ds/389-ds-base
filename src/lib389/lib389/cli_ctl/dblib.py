@@ -401,7 +401,6 @@ def dblib_mdb2bdb(inst, log, args):
             os.chown(f, uid, gid)
         progress += be['dbsize']
     log.info("Backends importation 100%")
-    set_files_owner(inst, backends)
     inst.start()
     log.info("Migration from ldbm to Berkeley database is done.")
 
