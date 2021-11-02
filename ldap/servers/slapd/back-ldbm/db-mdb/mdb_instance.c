@@ -92,6 +92,24 @@ dbmdb_entryrdn_compare_dups(const MDB_val *a, const MDB_val *b)
     return entryrdn_compare_rdn_elem(a->mv_data, b->mv_data);
 }
 
+unsigned int
+dbmdb_val2int(const MDB_val *v)
+{
+    unsigned int iv = 0;
+    int len = v ? v->mv_size : 0;
+    const char *str = v ? v->mv_data : NULL;
+    while (len-- > 0) {
+        iv = 10 * iv + *str++ - '0';
+    }
+    return iv;
+}
+
+int
+dbmdb_compare_string_as_integer(const MDB_val *a, const MDB_val *b)
+{
+    return dbmdb_val2int(a) - dbmdb_val2int(b);
+}
+
 static PRBool
 is_dbfile(const char *dbname, const char *filename)
 {
@@ -103,29 +121,29 @@ is_dbfile(const char *dbname, const char *filename)
     return PR_TRUE;
 }
 
-
 /* Determine mdb open flags according to dbi type */
 static void
-dbmdb_get_file_params(const char *dbname, int *flags, MDB_cmp_func **dupsort_fn)
+dbmdb_get_file_params(const char *dbname, int *flags, MDB_cmp_func **cmp_fn, MDB_cmp_func **dupsort_fn)
 {
     const char *fname = strrchr(dbname, '/');
     fname = fname ? fname+1 : dbname;
 
+    *cmp_fn = NULL;
+    *dupsort_fn = NULL;
     if (is_dbfile(fname, LDBM_ENTRYRDN_STR)) {
         *flags |= MDB_DUPSORT;
         *dupsort_fn = dbmdb_entryrdn_compare_dups;
     } else if (is_dbfile(fname, ID2ENTRY)) {
         *flags |= 0;
-        *dupsort_fn = NULL;
+    } else if (is_dbfile(fname, SLAPI_ATTR_ENTRYUSN)) {
+        *flags |= MDB_DUPSORT + MDB_INTEGERDUP + MDB_DUPFIXED;
+        *cmp_fn = dbmdb_compare_string_as_integer;
     } else if (strstr(fname,  DBNAMES)) {
         *flags |= 0;
-        *dupsort_fn = NULL;
     } else if (strstr(fname,  CHANGELOG_PATTERN)) {
         *flags |= 0;
-        *dupsort_fn = NULL;
     } else {
         *flags |= MDB_DUPSORT + MDB_INTEGERDUP + MDB_DUPFIXED;
-        *dupsort_fn = NULL;
     }
 }
 
@@ -157,6 +175,7 @@ int cmp_dbi_names(const void *i1, const void *i2)
 int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
 {
     MDB_cmp_func *dupsort_fn = NULL;
+    MDB_cmp_func *cmp_fn = NULL;
     dbmdb_ctx_t *ctx = octx->ctx;
     dbmdb_dbi_t treekey = {0};
     dbmdb_dbi_t **node = NULL;
@@ -177,7 +196,7 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
     }
 
     /* let create/open the dbi */
-    dbmdb_get_file_params(treekey.dbname, &flags2, &dupsort_fn);
+    dbmdb_get_file_params(treekey.dbname, &flags2, &cmp_fn, &dupsort_fn);
     treekey.env = ctx->env;
     treekey.state.flags = flags | flags2;
     treekey.state.flags &= ~MDB_RDONLY;
@@ -189,6 +208,9 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
                       treekey.dbname, octx->rc, mdb_strerror(octx->rc));
         slapi_ch_free((void**)&treekey.dbname);
         return octx->rc;
+    }
+    if (cmp_fn) {
+        mdb_set_compare(octx->txn, treekey.dbi, cmp_fn);
     }
     if (dupsort_fn) {
         mdb_set_dupsort(octx->txn, treekey.dbi, dupsort_fn);

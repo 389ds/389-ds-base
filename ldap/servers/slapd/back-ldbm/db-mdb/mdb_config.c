@@ -108,7 +108,7 @@ int mdb_init(struct ldbminfo *li, config_info *config_array)
     dbmdb_componentid = generate_componentid(NULL, "db-mdb");
 
     li->li_dblayer_config = conf;
-    strncpy(conf->home, li->li_directory, MAXPATHLEN);
+    strncpy(conf->home, li->li_directory, MAXPATHLEN-1);
     pthread_mutex_init(&conf->dbis_lock, NULL);
     pthread_mutex_init(&conf->rcmutex, NULL);
     pthread_rwlock_init(&conf->dbmdb_env_lock, NULL);
@@ -216,7 +216,7 @@ dbmdb_ctx_t_add_dse_entries(struct ldbminfo *li, char **entries, char *string1, 
         util_pb = slapi_pblock_new();
         PR_snprintf(entry_string, 512, entries[x], string1, string2, string3);
         e = slapi_str2entry(entry_string, 0);
-        PL_strncpyz(ebuf, slapi_entry_get_dn_const(e), sizeof(ebuf)); /* for logging */
+        PL_strncpyz(ebuf, slapi_entry_get_dn_const(e), sizeof(ebuf)-1); /* for logging */
         slapi_add_entry_internal_set_pb(util_pb, e, NULL, li->li_identity, 0);
         slapi_pblock_set(util_pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING,
                          &dont_write_file);
