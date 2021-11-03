@@ -6874,24 +6874,78 @@ bdb_public_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count)
 }
 
 int
-bdb_public_private_open(backend *be, const char *db_filename, dbi_env_t **env, dbi_db_t **db)
+bdb_public_private_open(backend *be, const char *db_filename, int rw, dbi_env_t **env, dbi_db_t **db)
 {
-    int rc;
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    dblayer_private *priv = li->li_dblayer_private;
+    bdb_config *conf = (bdb_config *)li->li_dblayer_config;
+    bdb_db_env **ppEnv = (bdb_db_env**)&priv->dblayer_env;
+    char dbhome[MAXPATHLEN];
     DB_ENV *bdb_env = NULL;
     DB *bdb_db = NULL;
+    struct stat st;
+    int flags;
+    char *pt;
+    int rc;
 
-    rc = db_env_create(&bdb_env, 0);
+    strncpy(dbhome, db_filename, MAXPATHLEN);
+    pt = dbhome + strlen(dbhome);
+    if (stat(dbhome, &st) != 0 || ((st.st_mode & S_IFMT) == S_IFREG)) {
+        /* remove the file name to get li_directory */
+        while (--pt > dbhome && *pt != '/');
+        *pt = 0;
+    }
+    li->li_directory = slapi_ch_strdup(dbhome);
+    /* Now lets find the dbhome */
+    while (pt > dbhome) {
+        strcpy(pt, "/DBVERSION");
+        if (stat(dbhome, &st) == 0) {
+            /* Found the dbhome */
+            *pt = 0;
+            break;
+        }
+        while (--pt >= dbhome && *pt != '/');
+    }
+    if (pt <= dbhome) {
+        fprintf(stderr, "bdb_public_private_open: Unable to determine dbhome from %s\n", db_filename);
+        return EINVAL;
+    }
+    *pt = 0;
+    li->li_config_mutex = PR_NewLock();
+    conf->bdb_dbhome_directory = slapi_ch_strdup(dbhome);
+    if (rw) {
+        /* Setup a fully transacted environment */
+        priv->dblayer_env = NULL;
+        conf->bdb_enable_transactions = 1;
+        conf->bdb_enable_transactions = 0;
+        conf->bdb_tx_max = 50;
+        rc = bdb_start(li, DBLAYER_NORMAL_MODE);
+    } else {
+        /* Setup minimal environment */
+        rc = db_env_create(&bdb_env, 0);
+        if (rc == 0) {
+            flags = DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE;
+            rc = bdb_env->open(bdb_env, NULL, flags, 0);
+        }
+    }
+
     if (rc == 0) {
-        rc = bdb_env->open(bdb_env, NULL, DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE, 0);
+        rc = db_create((DB**)db, bdb_env, 0);
+        bdb_db = *db;
     }
     if (rc == 0) {
-        rc = db_create(&bdb_db, bdb_env, 0);
+        if (rw) {
+            DB_OPEN((*ppEnv)->bdb_openflags,
+                    (DB*)*db, NULL /* txnid */, db_filename, NULL /* subname */, DB_BTREE,
+                    DB_CREATE | DB_THREAD, priv->dblayer_file_mode, rc);
+        } else {
+            rc = bdb_db->open(bdb_db, NULL, db_filename, NULL, DB_UNKNOWN, DB_RDONLY, 0);
+        }
     }
-    if (rc == 0) {
-        rc = bdb_db->open(bdb_db, NULL, db_filename, NULL, DB_UNKNOWN, DB_RDONLY, 0);
-    }
+
     *env = bdb_env;
     *db = bdb_db;
+
     return bdb_map_error(__FUNCTION__, rc);
 }
 
@@ -7121,4 +7175,15 @@ bdb_compact(struct ldbminfo *li, PRBool just_changelog)
     slapi_log_err(SLAPI_LOG_NOTICE, "bdb_compact", "Compacting databases finished.\n");
 
     return rc;
+}
+
+int
+bdb_public_delete_db(backend *be, dbi_db_t *db)
+{
+    /* Used in dbscan context */
+    char dbName[MAXPATHLEN];
+
+    strncpy(dbName, bdb_public_get_db_filename(db), MAXPATHLEN);
+    bdb_close_file((DB**)&db);
+    return unlink(dbName);
 }

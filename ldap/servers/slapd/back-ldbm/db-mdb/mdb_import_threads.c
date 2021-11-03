@@ -3022,7 +3022,7 @@ dbmdb_import_worker(void *param)
             }
             if (is_objectclass_attribute) {
                 ret = index_addordel_string(be, SLAPI_ATTR_OBJECTCLASS,
-                                            SLAPI_ATTR_VALUE_TOMBSTONE, ep->ep_id, BE_INDEX_ADD, NULL);
+                                            SLAPI_ATTR_VALUE_TOMBSTONE, ep->ep_id, BE_INDEX_ADD, dbmdb_get_wctx(job, info, WCTX_GENERIC));
                 if (0 != ret) {
                     /* Something went wrong, eg disk filled up */
                     goto error;
@@ -3060,7 +3060,7 @@ dbmdb_import_worker(void *param)
                 if (tomb_csn) {
                     csn_as_string(tomb_csn, PR_FALSE, tomb_csnstr);
                     ret = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN,
-                                                tomb_csnstr, ep->ep_id, BE_INDEX_ADD, NULL);
+                                                tomb_csnstr, ep->ep_id, BE_INDEX_ADD, dbmdb_get_wctx(job, info, WCTX_GENERIC));
                     if (0 != ret) {
                         /* Something went wrong, eg disk filled up */
                         goto error;

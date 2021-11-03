@@ -110,7 +110,7 @@ typedef int dblayer_dbi_txn_commit_fn_t(dbi_txn_t *txn);
 typedef int dblayer_dbi_txn_abort_fn_t(dbi_txn_t *txn);
 typedef int dblayer_get_entries_count_fn_t(dbi_db_t *db, dbi_txn_t *txn, int *count);
 typedef int dblayer_cursor_get_count_fn_t(dbi_cursor_t *cursor, dbi_recno_t *count);
-typedef int dblayer_private_open_fn_t(backend *be, const char *db_filename, dbi_env_t **env, dbi_db_t **db);
+typedef int dblayer_private_open_fn_t(backend *be, const char *db_filename, int rw, dbi_env_t **env, dbi_db_t **db);
 typedef int dblayer_private_close_fn_t(dbi_env_t **env, dbi_db_t **db);
 typedef int ldbm_back_wire_import_fn_t(Slapi_PBlock *pb);
 typedef int dblayer_restore_file_init_fn_t(struct ldbminfo *li);
@@ -120,6 +120,7 @@ typedef dbi_dbslist_t *dblayer_list_dbs_fn_t(const char *dbhome);
 typedef int dblayer_in_import_fn_t(ldbm_instance *inst);
 typedef const char *dblayer_get_db_suffix_fn_t(void);
 typedef int dblayer_clear_vlv_cache_fn_t(backend *be, dbi_txn_t *txn, dbi_db_t *db);
+typedef int dblayer_dbi_db_remove_fn_t(backend *be, dbi_db_t *db);
 
 struct dblayer_private
 {
@@ -200,6 +201,7 @@ struct dblayer_private
     dblayer_get_db_suffix_fn_t *dblayer_get_db_suffix_fn;
     dblayer_compact_fn_t *dblayer_compact_fn;
     dblayer_clear_vlv_cache_fn_t *dblayer_clear_vlv_cache_fn;
+    dblayer_dbi_db_remove_fn_t *dblayer_dbi_db_remove_fn;
 };
 
 #define DBLAYER_PRIV_SET_DATA_DIR 0x1

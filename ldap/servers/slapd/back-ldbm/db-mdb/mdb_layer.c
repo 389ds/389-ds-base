@@ -2581,7 +2581,7 @@ int find_mdb_home(const char *db_filename, char *home, const char **dbname)
         pt = home + strlen(home);
         if (pt+10 >= &home[MAXPATHLEN])
             return DBI_RC_NOTFOUND;
-        strcpy(pt, "/data.mdb");
+        strcpy(pt, "/INFO.mdb");
         if (stat(home, &st) == 0) {
             /* Found dbhome */
             *pt = 0;
@@ -2602,7 +2602,7 @@ int find_mdb_home(const char *db_filename, char *home, const char **dbname)
 }
 
 int
-dbmdb_public_private_open(backend *be, const char *db_filename, dbi_env_t **env, dbi_db_t **db)
+dbmdb_public_private_open(backend *be, const char *db_filename, int rw, dbi_env_t **env, dbi_db_t **db)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     dbmdb_ctx_t *ctx = (dbmdb_ctx_t*) slapi_ch_calloc(1, sizeof *ctx);
@@ -2614,13 +2614,13 @@ dbmdb_public_private_open(backend *be, const char *db_filename, dbi_env_t **env,
     if (rc)
         return DBI_RC_NOTFOUND;
 
-    rc = dbmdb_make_env(ctx, 1, 0444);
+    rc = dbmdb_make_env(ctx, rw?0:1, 0644);
     if (rc) {
         return dbmdb_map_error(__FUNCTION__, rc);
     }
     *env = ctx->env;
 
-    rc = dbmdb_open_dbi_from_filename(&dbi, be, dbname, NULL, MDB_OPEN_DIRTY_DBI);
+    rc = dbmdb_open_dbi_from_filename(&dbi, be, dbname, NULL, MDB_OPEN_DIRTY_DBI | rw ?  MDB_CREATE : 0);
     if (rc) {
         return dbmdb_map_error(__FUNCTION__, rc);
     }
@@ -2785,4 +2785,13 @@ dbmdb_public_clear_vlv_cache(Slapi_Backend *be, dbi_txn_t *txn, dbi_db_t *db)
     slapi_ch_free_string(&rcdbname);
     slapi_ch_free_string((char**)&rcdbi.dbname);
     return rc;
+}
+
+int
+dbmdb_public_delete_db(Slapi_Backend *be, dbi_db_t *db)
+{
+    struct ldbminfo *li = (struct ldbminfo *)(be->be_database->plg_private);
+    dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+
+    return dbmdb_dbi_remove(ctx, &db);
 }

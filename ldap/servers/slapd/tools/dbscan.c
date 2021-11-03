@@ -17,6 +17,7 @@
  * TODO: indirect indexes
  */
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -52,6 +53,9 @@
 #define SHOWSUMMARY 0x8
 #define LISTDBS 0x10
 #define ASCIIDATA 0x20
+#define EXPORT 0x40
+#define IMPORT 0x80
+#define REMOVE 0x100
 
 /* stolen from slapi-plugin.h */
 #define SLAPI_OPERATION_BIND 0x00000001UL
@@ -93,6 +97,20 @@ typedef struct
     uint32_t id[1];
 } IDL;
 
+/* back-ldbm.h and proto-back-ldbm.h cannot be easily included here
+ * so let redefines the minimum to use txn
+ */
+typedef struct backend backend;
+typedef void *back_txnid;
+typedef struct back_txn {
+    void *txn;
+    void *foo[1];    /* just reserve enough space to store a txn */
+} back_txn;
+int dblayer_txn_begin(backend *be, back_txnid parent_txn, back_txn *txn);
+int dblayer_txn_commit(backend *be, back_txn *txn);
+int dblayer_txn_abort(backend *be, back_txn *txn);
+void dblayer_init_pvt_txn();
+
 #define RDN_BULK_FETCH_BUFFER_SIZE (8 * 1024)
 typedef struct _rdn_elem
 {
@@ -124,6 +142,7 @@ long match_cnt = 0;
 long ind_cnt = 0;
 long allids_cnt = 0;
 long other_cnt = 0;
+char *dump_name = NULL; 
 
 static Slapi_Backend *be = NULL; /* Pseudo backend used to interact with db */
 
@@ -1077,6 +1096,8 @@ usage(char *argv0)
     printf("    -n              display ID list lengths\n");
     printf("    -r              display the conents of ID list\n");
     printf("    -s              Summary of index counts\n");
+    printf("    -I file         Import database content from file\n");
+    printf("    -X file         Export database content in file\n");
     printf("  sample usages:\n");
     printf("    # list the db files\n");
     printf("    %s -D mdb -L /var/lib/dirsrv/slapd-i/db/\n", p0);
@@ -1145,6 +1166,237 @@ int dump_ascii(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data)
     return rc;
 }
 
+static int
+_file_format_error()
+{
+    fprintf(stderr, "importdb failed: Invalid file format.\n");
+    return -2;
+}
+
+static void
+_push_val(const char *v, dbi_val_t *val)
+{
+    if (val->size >= val->ulen) {
+        if (val->ulen <= 0) {
+            val->ulen = 200;
+        } else {
+            val->ulen *= 2;
+        }
+        val->data = slapi_ch_realloc(val->data, val->ulen);
+    }
+    ((char*)(val->data))[val->size++] = strtol(v, NULL, 16);
+}
+
+
+static int
+_read_line(FILE *file, int *keyword, dbi_val_t *val)
+{
+    char v[3] = {0};
+    int c;
+
+    *keyword = -1;
+    val->size = 0;
+    enum { ST_POS0, ST_POS1, ST_POS2, ST_COMMENT, ST_VAL1, ST_VAL2 } state;
+    state = ST_POS0;
+    while ((c = fgetc(file)) != EOF) {
+        switch (state) {
+            case ST_COMMENT:
+                if (c == '\n') {
+                    state = ST_POS0;
+                }
+                continue;
+            case ST_VAL1:
+                if (c == '\n') {
+                    return 0;
+                }
+                if (!isxdigit(c)) {
+                    return _file_format_error();
+                }
+                v[0] = c;
+                state = ST_VAL2;
+                continue;
+            case ST_VAL2:
+                if (!isxdigit(c)) {
+                    return _file_format_error();
+                }
+                v[1] = c;
+                state = ST_VAL1;
+                _push_val(v, val);
+                continue;
+            case ST_POS0:
+                switch (c) {
+                    case '\n':
+                        continue;
+                    case '#':
+                        state = ST_COMMENT;
+                        continue;
+                    case 'k':
+                    case 'v':
+                    case 'e':
+                        state = ST_POS1;
+                        *keyword = c;
+                        continue;
+                    default:
+                        return _file_format_error();
+                }
+                /* NOTREACHED */
+            case ST_POS1:
+                if (c!= ':') {
+                    return _file_format_error();
+                }
+                state = ST_POS2;
+                continue;
+            case ST_POS2:
+                if (c!= ' ') {
+                    return _file_format_error();
+                }
+                state = ST_VAL1;
+                continue;
+        }
+    }
+    return EOF;
+}
+
+int
+importdb(const char *dbimpl_name, const char *filename, const char *dump_name)
+{
+    FILE *dump = fopen(dump_name, "r");
+    dbi_val_t key = {0}, data = {0};
+    struct back_txn txn = {0};
+    dbi_env_t *env = NULL;
+    dbi_db_t *db = NULL;
+    int keyword = 0;
+    int ret = 0;
+
+    dblayer_init_pvt_txn();
+
+    if (!dump) {
+        printf("Failed to open dump file %s. Error %d: %s\n", dump_name, errno, strerror(errno));
+        return 1;
+    }
+
+    if (dblayer_private_open(dbimpl_name, filename, 1, &be, &env, &db)) {
+        printf("Can't initialize db plugin: %s\n", dbimpl_name);
+        return 1;
+    }
+
+#if USE_TXN
+    ret = dblayer_txn_begin(be, NULL, &txn);
+#endif
+    while (ret == 0 &&
+           !_read_line(dump, &keyword, &key) && keyword == 'k' &&
+           !_read_line(dump, &keyword, &data) && keyword == 'v') {
+        ret = dblayer_db_op(be, db, txn.txn, DBI_OP_PUT, &key, &data);
+#if USE_TXN
+        if (nbrec++ % 1000 == 0) {
+            ret = dblayer_txn_commit(be, &txn) |
+                dblayer_txn_begin(be, NULL, &txn);
+        }
+#endif
+    }
+#if USE_TXN
+    ret = dblayer_txn_commit(be, &txn);
+#endif
+    fclose(dump);
+    dblayer_value_free(be, &key);
+    dblayer_value_free(be, &data);
+    if (dblayer_private_close(&be, &env, &db)) {
+        printf("Unable to shutdown the db plugin: %s\n", dblayer_strerror(1));
+        return 1;
+    }
+    return ret;
+}
+
+void print_value(FILE *dump, char *keyword, unsigned char *data, int len) 
+{
+    fprintf(dump,"%s", keyword);
+    while (len-- >0) {
+        fprintf(dump,"%02x", *data++);
+    }
+    fprintf(dump,"\n");
+}
+
+int
+exportdb(const char *dbimpl_name, const char *filename, const char *dump_name)
+{
+    FILE *dump = fopen(dump_name, "w");
+    dbi_val_t key = {0}, data = {0};
+    dbi_cursor_t cursor = {0};
+    dbi_env_t *env = NULL;
+    dbi_db_t *db = NULL;
+    int ret = 0;
+
+    if (!dump) {
+        printf("Failed to open dump file %s. Error %d: %s\n", dump_name, errno, strerror(errno));
+        return 1;
+    }
+
+    if (dblayer_private_open(dbimpl_name, filename, 0, &be, &env, &db)) {
+        printf("Can't initialize db plugin: %s\n", dbimpl_name);
+        return 1;
+    }
+
+    /* cursor through the db */
+
+    ret = dblayer_new_cursor(be, db, NULL, &cursor);
+    if (ret != 0) {
+        printf("Can't create db cursor: %s\n", dblayer_strerror(ret));
+        return 1;
+    }
+
+    fprintf(dump, "# %s\n", filename);
+
+    /* Position cursor at the matching key */
+    ret = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_FIRST,  &key, &data);
+    while (ret == DBI_RC_SUCCESS) {
+        print_value(dump, "k: ", key.data, key.size);
+        print_value(dump, "v: ", data.data, data.size);
+        fprintf(dump, "\n");
+        if (ferror(dump)) {
+            printf("Failed to write in dump file %s. Error %d: %s\n", dump_name, errno, strerror(errno));
+            break;
+        }
+        ret = dblayer_cursor_op(&cursor, DBI_OP_NEXT,  &key, &data);
+    }
+    if (ret == DBI_RC_NOTFOUND) {
+        fprintf(dump, "e: \n");
+        ret = 0;
+    }
+    fclose(dump);
+    dblayer_value_free(be, &key);
+    dblayer_value_free(be, &data);
+    dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
+    if (dblayer_private_close(&be, &env, &db)) {
+        printf("Unable to shutdown the db plugin: %s\n", dblayer_strerror(1));
+        return 1;
+    }
+    return ret;
+}
+
+int
+removedb(const char *dbimpl_name, const char *filename)
+{
+    dbi_env_t *env = NULL;
+    dbi_db_t *db = NULL;
+
+    if (dblayer_private_open(dbimpl_name, filename, 0, &be, &env, &db)) {
+        printf("Can't initialize db plugin: %s\n", dbimpl_name);
+        return 1;
+    }
+
+    if (dblayer_db_remove(be, db)) {
+        printf("Failed to remove db %s\n", filename);
+        return 1;
+    }
+
+    if (dblayer_private_close(&be, &env, &db)) {
+        printf("Unable to shutdown the db plugin: %s\n", dblayer_strerror(1));
+        return 1;
+    }
+    return 0;
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -1159,7 +1411,7 @@ main(int argc, char **argv)
     char * dbimpl_name = "bdb";
     int c;
 
-    while ((c = getopt(argc, argv, "Af:RL:l:nG:srk:K:hvt:D:")) != EOF) {
+    while ((c = getopt(argc, argv, "Af:RL:l:nG:srk:K:hvt:D:X:I:d")) != EOF) {
         switch (c) {
         case 'A':
             display_mode |= ASCIIDATA;
@@ -1214,10 +1466,33 @@ main(int argc, char **argv)
         case 'D':
             dbimpl_name = optarg;
             break;
+        case 'X':
+            display_mode |= EXPORT;
+            dump_name = optarg;
+            break;
+        case 'I':
+            display_mode |= IMPORT;
+            dump_name = optarg;
+            break;
+        case 'd':
+            display_mode |= REMOVE;
+            break;
         case 'h':
         default:
             usage(argv[0]);
         }
+    }
+
+    if (display_mode & EXPORT) {
+        return exportdb(dbimpl_name, filename, dump_name);
+    }
+
+    if (display_mode & IMPORT) {
+        return importdb(dbimpl_name, filename, dump_name);
+    }
+
+    if (display_mode & REMOVE) {
+        return removedb(dbimpl_name, filename);
     }
 
     if (display_mode & LISTDBS) {
@@ -1250,7 +1525,7 @@ main(int argc, char **argv)
         }
     }
 
-    if (dblayer_private_open(dbimpl_name, filename, &be, &env, &db)) {
+    if (dblayer_private_open(dbimpl_name, filename, 0, &be, &env, &db)) {
         printf("Can't initialize db plugin: %s\n", dbimpl_name);
         ret = 1;
         goto done;

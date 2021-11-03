@@ -567,7 +567,13 @@ class DirSrv(SimpleLDAPObject, object):
                 DirSrvTools.searchHostsFile(self.host, None)
         # Check if we are local only if we haven't found that yet
         if not self.isLocal:
-            self.isLocal = isLocalHost(self.host)
+            if self.host is None and SER_SERVERID_PROP in args:
+                # Lets assume that local serverid is provided.
+                self.serverid = args.get(SER_SERVERID_PROP, None)
+                self.isLocal = True
+                self.setup_ldapi()
+            else:
+                self.isLocal = isLocalHost(self.host)
 
         self.log.debug("Allocate %s with %s:%s", self.__class__, self.host, (self.sslport or self.port))
 

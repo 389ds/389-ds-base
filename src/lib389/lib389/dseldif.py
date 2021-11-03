@@ -159,6 +159,20 @@ class DSEldif(DSLint):
 
         return indexes
 
+
+    def add_entry(self, entry):
+        """Add a new entry
+
+        :param entry: the entry to add in ldif format
+        :type value: str list
+        """
+
+        if self._contents[-1] != "\n":
+            self._contents.append("\n")
+        self._contents.extend(entry)
+        self._update()
+
+
     def add(self, entry_dn, attr, value):
         """Add an attribute under a given entry
 
