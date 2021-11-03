@@ -448,7 +448,7 @@ def dblib_cleanup(inst, log, args):
         for f in glob.glob(f'{dbmapdir}/log.*'):
             rm(f)
         rm(f'{dbhome}/DBVERSION')
-        rm(f'{dbhome}/guardian')
+        rm(f'{dbmapdir}/guardian')
 
 
 def create_parser(subparsers):
