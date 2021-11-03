@@ -420,6 +420,7 @@ def dblib_cleanup(inst, log, args):
     dse = DSEldif(inst)
     backends = get_backends(log, dse, tmpdir)
     dbmapdir = backends['config']['dbdir']
+    dbhome = inst.ds_paths.db_home_dir
     dblib = backends['config']['dblib']
 
     # Remove all ldif and changelog file
@@ -436,6 +437,11 @@ def dblib_cleanup(inst, log, args):
                 rm(f)
             rm(f'{dbdir}/DBVERSION')
             os.rmdir(dbdir)
+        if dbhome != dbdir:
+            for f in glob.glob(f'{dbhome}/*.db*'):
+                rm(f)
+            rm(f'{dbhome}/DBVERSION')
+
     if dblib == "bdb":
         rm(f'{dbmapdir}/INFO.mdb')
         rm(f'{dbmapdir}/data.mdb')
