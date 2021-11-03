@@ -437,22 +437,18 @@ def dblib_cleanup(inst, log, args):
                 rm(f)
             rm(f'{dbdir}/DBVERSION')
             os.rmdir(dbdir)
-        if dbhome != dbdir:
-            for f in glob.glob(f'{dbhome}/*.db*'):
-                rm(f)
-            rm(f'{dbhome}/DBVERSION')
 
     if dblib == "bdb":
         rm(f'{dbmapdir}/INFO.mdb')
         rm(f'{dbmapdir}/data.mdb')
         rm(f'{dbmapdir}/lock.mdb')
     else:
-        for f in glob.glob(f'{dbmapdir}/__db.*'):
+        for f in glob.glob(f'{dbhome}/__db.*'):
             rm(f)
         for f in glob.glob(f'{dbmapdir}/log.*'):
             rm(f)
-        rm(f'{dbmapdir}/DBVERSION')
-        rm(f'{dbmapdir}/guardian')
+        rm(f'{dbhome}/DBVERSION')
+        rm(f'{dbhome}/guardian')
 
 
 def create_parser(subparsers):
