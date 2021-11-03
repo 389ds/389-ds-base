@@ -58,7 +58,7 @@ def _check_db(inst, log, impl):
 
     db_files = os.listdir(inst.dbdir)
     if inst.ds_paths.db_home_dir is not None and inst.ds_paths.db_home_dir != inst.dbdir:
-        db_files.append(os.listdir(inst.ds_paths.db_home_dir))
+        db_files.extend(os.listdir(inst.ds_paths.db_home_dir))
     mdb_list = ['data.mdb', 'INFO.mdb', 'lock.mdb']
     bdb_list = ['__db.001', 'DBVERSION', '__db.003', 'userRoot', 'log.0000000001', '__db.002']
     mdb_list.sort()
