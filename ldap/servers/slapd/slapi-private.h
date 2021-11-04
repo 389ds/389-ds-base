@@ -439,6 +439,8 @@ char *slapi_filter_to_string_internal(const struct slapi_filter *f, char *buf, s
 #define OP_FLAG_ACTION_SKIP_PWDPOLICY 0x02000000 /* Skip applying pw policy rules to the password
                                                   * change operation, as it's from an upgrade on
                                                   * bind rather than a normal password change */
+#define OP_FLAG_SUBENTRIES_FALSE 0x04000000      /* Normal entries are visible and subentries are not */
+#define OP_FLAG_SUBENTRIES_TRUE 0x08000000       /* Subentries are visible and normal entries are not */
 
 /* reverse search states */
 #define REV_STARTED 1
