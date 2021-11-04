@@ -72,6 +72,9 @@ init_controls(void)
                                          SLAPI_OPERATION_MODDN);
     slapi_register_supported_control(LDAP_X_CONTROL_PWPOLICY_REQUEST,
                                      SLAPI_OPERATION_SEARCH | SLAPI_OPERATION_COMPARE | SLAPI_OPERATION_ADD | SLAPI_OPERATION_DELETE | SLAPI_OPERATION_MODIFY | SLAPI_OPERATION_MODDN);
+    slapi_register_supported_control(LDAP_CONTROL_SUBENTRIES,
+                                     SLAPI_OPERATION_SEARCH);
+
     /*
     We do not register the password policy response because it has
     the same oid as the request (and it was being reported twice in

@@ -51,6 +51,7 @@ do_search(Slapi_PBlock *pb)
     char **gerattrs = NULL;
     int psearch = 0;
     struct berval *psbvp;
+    struct berval *sebvp;
     ber_int_t changetypes;
     int send_entchg_controls;
     int changesonly = 0;
@@ -362,6 +363,27 @@ do_search(Slapi_PBlock *pb)
             send_entchg_controls = 0;
         } else if (changesonly) {
             operation_set_flag(operation, OP_FLAG_PS_CHANGESONLY);
+        }
+    }
+
+    /* Whether or not to return subentries vs normal entries */
+    int is_subentries_critical = 0;
+    if (slapi_control_present(operation->o_params.request_controls,
+                              LDAP_CONTROL_SUBENTRIES, &sebvp, &is_subentries_critical)) {
+        int subentries_visibility = subentries_parse_request_control(sebvp);
+        if (subentries_visibility < 0) {
+            /* Something went wrong decoding subenrties control */
+            log_search_access(pb, base, scope, fstr, "failed to decode LDAP Subentries control");
+            if (is_subentries_critical) {
+                send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
+                goto free_and_return;
+            }
+        } else {
+            if (subentries_visibility == 0) {
+                operation_set_flag(operation, OP_FLAG_SUBENTRIES_FALSE);
+            } else if (subentries_visibility == 1) {
+                operation_set_flag(operation, OP_FLAG_SUBENTRIES_TRUE);
+            }
         }
     }
 

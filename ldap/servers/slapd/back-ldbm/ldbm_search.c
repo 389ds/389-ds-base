@@ -1673,71 +1673,71 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
                 /* If it is from bulk import, no need to check. */
                 filter_test = 0;
                 slimit = -1; /* no sizelimit applied */
-            } else if ((slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_LDAPSUBENTRY) &&
-                        !filter_flag_is_set(filter, SLAPI_FILTER_LDAPSUBENTRY)) ||
-                       (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) &&
-                        ((!isroot && !filter_flag_is_set(filter, SLAPI_FILTER_RUV)) ||
-                         !filter_flag_is_set(filter, SLAPI_FILTER_TOMBSTONE))))
-            {
-                /* If the entry is an LDAP subentry and filter don't filter subentries OR
-                 * the entry is a TombStone and filter don't filter Tombstone
-                 * don't return the entry.  We make a special case to allow a non-root user
-                 * to search for the RUV entry using a filter of:
-                 *
-                 *     "(&(objectclass=nstombstone)(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff))"
-                 *
-                 * For this RUV case, we let the ACL check apply.
-                 */
+            } else {
                 /* ugaston - we don't want to mistake this filter failure with the one below due to ACL,
                  * because whereas the former should be read as 'no entry must be returned', the latter
                  * might still lead to return an empty entry. */
-                filter_test = -1;
-            } else {
-                /* it's a regular entry, check if it matches the filter, and passes the ACL check */
-                /*
-                 * Remember, MUST_APPLY is set during a shortcut condition from the IDL backend,
-                 * which means we can NOT ignore it! When it's 0, we assume that IDL fully resolved
-                 * which means we then check the ACL only, we have a decision about if we do the
-                 * test based on the configuration.
-                 */
-                if (0 == (sr->sr_flags & SR_FLAG_MUST_APPLY_FILTER_TEST)) {
-                    /*
-                     * Since we do access control checking in the filter test we need to check access now
-                     * This checks access to the filter as INTENDED by the user - not the query that
-                     * we have messed with internally - remember, our internal changes are safe!
+                if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_LDAPSUBENTRY)) {
+                    /* If the entry is an LDAP subentry and RFC 3672 Subentries control is present
+                     * and its value is set to false OR filter don't filter subentries
                      */
-                    slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
-                                  "Bypassing filter test\n");
-                    if (ACL_CHECK_FLAG) {
-                        filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
+                    if (!operation_is_flag_set(op, OP_FLAG_SUBENTRIES_TRUE) &&
+                        (operation_is_flag_set(op, OP_FLAG_SUBENTRIES_FALSE) ||
+                        !filter_flag_is_set(filter, SLAPI_FILTER_LDAPSUBENTRY)))
+                    {
+                        filter_test = -1;
                     } else {
                         filter_test = 0;
                     }
-
-                    /* If we don't check this, we could stomp the filter_test aci denied result. */
-                    if (filter_test == 0 && li->li_filter_bypass_check) {
-                        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry", "Checking bypass\n");
-                        filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, 0);
-                        if (filter_test != 0) {
-                            /* Oops ! This means that we thought we could bypass the filter test, but noooo... */
-                            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry",
-                                          "Filter bypass ERROR on entry %s\n", backentry_get_ndn(e));
-                        }
-                    }
                 } else {
-                    /* MUST APPLY - This occurs when we have a partial candidate set */
-                    /*
-                     * IMPORTANT - there is a large and important difference between "filter as intended"
-                     * and filter as executed. The filter as executed is what we optimised to, and this
-                     * can importantly include items like parentid in a one level search. The filter as
-                     * intended however is what the user ASKED for. We shouldn't penalise the user because
-                     * we mucked with their filter, so we check the ACI with the "filter as intended", but
-                     * we need to STILL apply the filter test with "as executed" in case of a test threshold
-                     * shortcut (lest we accidentally prevent the user seeing what they wanted ....)
+                    /* If the entry is a normal LDAP entry and RFC 3672 Subentries control
+                     * is present and its value is set to true OR the entry is a TombStone and
+                     * filter don't filter Tombstone don't return the entry.
+                     * We make a special case to allow a non-root user
+                     * to search for the RUV entry using a filter of:
+                     *
+                     *     "(&(objectclass=nstombstone)(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff))"
+                     *
+                     * For this RUV case, we let the ACL check apply.
                      */
-                    filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
-                    if (filter_test == 0) {
-                        filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, 0);
+                    if (operation_is_flag_set(op, OP_FLAG_SUBENTRIES_TRUE) ||
+                        (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) &&
+                            ((!isroot && !filter_flag_is_set(filter, SLAPI_FILTER_RUV)) ||
+                            !filter_flag_is_set(filter, SLAPI_FILTER_TOMBSTONE))))
+                    {
+                        filter_test = -1;
+                    } else {
+                        filter_test = 0;
+                    }
+                }
+                if (filter_test == 0) {
+                    /* check if the entry matches the filter, and passes the ACL check */
+                    filter_test = -1;
+                    if (0 != (sr->sr_flags & SR_FLAG_CAN_SKIP_FILTER_TEST)) {
+                        /* Since we do access control checking in the filter test (?Why?) we need to check access now */
+                        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
+                                    "Bypassing filter test\n");
+                        if (ACL_CHECK_FLAG) {
+                            filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
+                        } else {
+                            filter_test = 0;
+                        }
+                        if (li->li_filter_bypass_check) {
+                            int ft_rc;
+
+                            slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry", "Checking bypass\n");
+                            ft_rc = slapi_vattr_filter_test(pb, e->ep_entry, filter,
+                                                            ACL_CHECK_FLAG);
+                            if (filter_test != ft_rc) {
+                                /* Oops ! This means that we thought we could bypass the filter test, but noooo... */
+                                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry",
+                                            "Filter bypass ERROR on entry %s\n", backentry_get_ndn(e));
+                                filter_test = ft_rc; /* Fix the error */
+                            }
+                        }
+                    } else {
+                        /* Old-style case---we need to do a filter test */
+                        filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, ACL_CHECK_FLAG);
                     }
                 }
             }
