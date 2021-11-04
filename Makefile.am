@@ -1901,7 +1901,8 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/strdup.c \
 	ldap/servers/slapd/stubs.c \
 	ldap/servers/slapd/tempnam.c  \
-	ldap/servers/slapd/unbind.c
+	ldap/servers/slapd/unbind.c \
+	ldap/servers/slapd/subentries.c
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(SVRCORE_INCLUDES) $(CFI_CFLAGS)
 # We need our libraries to come first, then our externals libraries second.

@@ -1588,4 +1588,9 @@ int pagedresults_set_search_result_pb(Slapi_PBlock *pb, void *sr, int locked);
  */
 int sort_make_sort_response_control(Slapi_PBlock *pb, int code, char *error_type);
 
+/*
+ * subentries.c
+ */
+int subentries_parse_request_control(struct berval *subentries_spec_ber);
+
 #endif /* _PROTO_SLAP */
