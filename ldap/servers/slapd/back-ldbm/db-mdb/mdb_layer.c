@@ -415,7 +415,7 @@ dbmdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, d
     if (dbmdb_public_in_import(inst))
         open_flags |= MDB_OPEN_DIRTY_DBI;
 
-    return_value = dbmdb_open_dbi_from_filename(&cur.dbi, be, indexname, NULL, open_flags);
+    return_value = dbmdb_open_dbi_from_filename(&cur.dbi, be, indexname, ai, open_flags);
     if (0 != return_value)
         goto out;
 

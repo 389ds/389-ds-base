@@ -12,6 +12,9 @@
 #endif
 #include "mdb_layer.h"
 #include <search.h>
+#include <dlfcn.h>
+#include "mdb_dbicmp.h"
+
 
 /* Info file used to check version and get parameters needed to open the db in dbscan case */
 
@@ -26,6 +29,8 @@
 /* Flags allowed in mdb_dbi_open */
 #define MDB_DBIOPEN_MASK (MDB_REVERSEKEY | MDB_DUPSORT | MDB_INTEGERKEY |  \
                 MDB_DUPFIXED | MDB_INTEGERDUP | MDB_REVERSEDUP | MDB_CREATE)
+
+#define RETRO_CHANGELOG_DB    "changelog/changenumber.db"
 
 
 #define TST(thecmd) do { rc = (thecmd); if (rc) { errinfo.file = __FILE__; errinfo.line = __LINE__; \
@@ -62,6 +67,7 @@ typedef struct {
         /* For dbi_list() */
     dbmdb_dbi_t **dbilist;
     int dbilistidx;
+    struct attrinfo *ai;
 } dbi_open_ctx_t;
 
 /* Error context */
@@ -70,6 +76,16 @@ typedef struct {
     char *file;
     int line;
 } errinfo_t;
+
+/*
+ * Global reference to dbi slot table (used for debug purpose and for
+ * dbmdb_dbicmp function. dbi are not closed (until either
+ * backend/index get deleted) or if the whole db environment get closed.
+ * In these cases there should not have any operations using the dbi
+ * so we can access the slot table without using locks.
+ */
+static dbmdb_dbi_t *dbi_slots;    /* The alloced slots */
+static int dbi_nbslots;           /* Number of available slots in dbi_slots */
 
 /*
  * Rules:
@@ -104,12 +120,6 @@ dbmdb_val2int(const MDB_val *v)
     return iv;
 }
 
-int
-dbmdb_compare_string_as_integer(const MDB_val *a, const MDB_val *b)
-{
-    return dbmdb_val2int(a) - dbmdb_val2int(b);
-}
-
 static PRBool
 is_dbfile(const char *dbname, const char *filename)
 {
@@ -123,22 +133,16 @@ is_dbfile(const char *dbname, const char *filename)
 
 /* Determine mdb open flags according to dbi type */
 static void
-dbmdb_get_file_params(const char *dbname, int *flags, MDB_cmp_func **cmp_fn, MDB_cmp_func **dupsort_fn)
+dbmdb_get_file_params(const char *dbname, int *flags, MDB_cmp_func **dupsort_fn)
 {
     const char *fname = strrchr(dbname, '/');
     fname = fname ? fname+1 : dbname;
 
-    *cmp_fn = NULL;
     *dupsort_fn = NULL;
     if (is_dbfile(fname, LDBM_ENTRYRDN_STR)) {
         *flags |= MDB_DUPSORT;
         *dupsort_fn = dbmdb_entryrdn_compare_dups;
     } else if (is_dbfile(fname, ID2ENTRY)) {
-        *flags |= 0;
-    } else if (is_dbfile(fname, SLAPI_ATTR_ENTRYUSN)) {
-        *flags |= MDB_DUPSORT + MDB_INTEGERDUP + MDB_DUPFIXED;
-        *cmp_fn = dbmdb_compare_string_as_integer;
-    } else if (strstr(fname,  DBNAMES)) {
         *flags |= 0;
     } else if (strstr(fname,  CHANGELOG_PATTERN)) {
         *flags |= 0;
@@ -172,10 +176,39 @@ int cmp_dbi_names(const void *i1, const void *i2)
     return strcmp(e1->dbname, e2->dbname);
 }
 
+int dbmdb_update_dbi_cmp_fn(dbmdb_ctx_t *ctx, dbmdb_dbi_t *dbi, value_compare_fn_type cmp_fn, MDB_txn *txn)
+{
+    MDB_cmp_func *cmp_fn2 = dbmdb_get_dbicmp(dbi->dbi);
+    int has_txn = (txn != NULL);
+    dbi_txn_t *txn2 = NULL;
+    int rc = 0;
+
+    if (!cmp_fn2) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_update_dbi_cmp_fn", "Failed to get a compare function slot "
+                      "while trying to open a database instance "
+                      "(Hardcoded limit of %d open dbi has been reached)).\n", MAX_DBIS);
+        return MDB_DBS_FULL;
+    }
+
+    if (!has_txn) {
+        rc = START_TXN(&txn2, NULL, 0);
+        if (rc) {
+           return rc;
+        }
+        txn = TXN(txn2);
+    }
+    mdb_set_compare(txn, dbi->dbi, cmp_fn2);
+    MDB_DBG_SET_FN("mdb_set_compare", dbi->dbname, txn, dbi->dbi, cmp_fn2);
+    dbi->cmp_fn = cmp_fn;
+
+    if (!has_txn)
+        rc = END_TXN(&txn2, rc);
+    return rc;
+}
+
 int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
 {
     MDB_cmp_func *dupsort_fn = NULL;
-    MDB_cmp_func *cmp_fn = NULL;
     dbmdb_ctx_t *ctx = octx->ctx;
     dbmdb_dbi_t treekey = {0};
     dbmdb_dbi_t **node = NULL;
@@ -196,7 +229,7 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
     }
 
     /* let create/open the dbi */
-    dbmdb_get_file_params(treekey.dbname, &flags2, &cmp_fn, &dupsort_fn);
+    dbmdb_get_file_params(treekey.dbname, &flags2, &dupsort_fn);
     treekey.env = ctx->env;
     treekey.state.flags = flags | flags2;
     treekey.state.flags &= ~MDB_RDONLY;
@@ -209,11 +242,16 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
         slapi_ch_free((void**)&treekey.dbname);
         return octx->rc;
     }
-    if (cmp_fn) {
-        mdb_set_compare(octx->txn, treekey.dbi, cmp_fn);
+    if (octx->ai && octx->ai->ai_key_cmp_fn) {
+		octx->rc = dbmdb_update_dbi_cmp_fn(ctx, &treekey, octx->ai->ai_key_cmp_fn, octx->txn);
+        if (octx->rc) {
+            return octx->rc;
+        }
     }
+
     if (dupsort_fn) {
         mdb_set_dupsort(octx->txn, treekey.dbi, dupsort_fn);
+        MDB_DBG_SET_FN("mdb_set_dupsort", treekey.dbname, octx->txn, treekey.dbi, dupsort_fn);
     }
     /* And register it in DBNAMES */
     key.mv_data = (void*)(treekey.dbname);
@@ -249,19 +287,23 @@ add_index_dbi(struct attrinfo *ai, dbi_open_ctx_t *octx)
     char *rcdbname = NULL;
 
     slapi_log_error(SLAPI_LOG_DEBUG, "add_index_dbi", "ai_type = %s ai_indexmask=0x%x.\n", ai->ai_type, ai->ai_indexmask);
+    octx->ai = ai;
 
     if (ai->ai_indexmask & INDEX_VLV) {
         rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, ai->ai_type);
         octx->rc = add_dbi(octx, octx->be, rcdbname, flags);
         slapi_ch_free_string(&rcdbname);
         if (octx->rc) {
+            octx->ai = NULL;
             return STOP_AVL_APPLY;
         }
     }
     if (ai->ai_indexmask & INDEX_ANY) {
         octx->rc = add_dbi(octx, octx->be, ai->ai_type, flags);
+        octx->ai = NULL;
         return octx->rc ? STOP_AVL_APPLY : 0;
     } else {
+        octx->ai = NULL;
         return 0;
     }
 }
@@ -309,6 +351,8 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
 
     if (!ctx->dbi_slots) {
         ctx->dbi_slots = (dbmdb_dbi_t*)slapi_ch_calloc(ctx->startcfg.max_dbs, sizeof (dbmdb_dbi_t));
+        dbi_slots = ctx->dbi_slots;
+        dbi_nbslots = ctx->startcfg.max_dbs;
     }
     valid_slots = (int*) slapi_ch_calloc(ctx->startcfg.max_dbs, sizeof (int));
     for (i=0; i < ctx->startcfg.max_dbs; i++) {
@@ -630,6 +674,8 @@ void dbmdb_ctx_close(dbmdb_ctx_t *ctx)
         for (i=0; i<ctx->startcfg.max_dbs; i++)
             slapi_ch_free((void**)&ctx->dbi_slots[i].dbname);
         slapi_ch_free((void**)&ctx->dbi_slots);
+        dbi_slots = NULL;
+        dbi_nbslots = 0;
         pthread_mutex_destroy(&ctx->dbis_lock);
         pthread_mutex_destroy(&ctx->rcmutex);
         pthread_rwlock_destroy(&ctx->dbmdb_env_lock);
@@ -1039,6 +1085,7 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
             octx.ctx = ctx;
             octx.be = be;
             octx.txn = TXN(txn);
+            octx.ai = ai;
             pthread_mutex_lock(&ctx->dbis_lock);
             rc = add_dbi(&octx, be, filename, flags & ~custom_flags);
             pthread_mutex_unlock(&ctx->dbis_lock);
@@ -1052,10 +1099,17 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
     if (!*dbi) {
         return MDB_NOTFOUND;
     }
+    if (ai && ai->ai_key_cmp_fn != (*dbi)->cmp_fn) {
+        if (! (*dbi)->cmp_fn) {
+            rc = dbmdb_update_dbi_cmp_fn(ctx, *dbi, ai->ai_key_cmp_fn, NULL);
+        }
+        (*dbi)->cmp_fn = ai->ai_key_cmp_fn;
+    }
+
     if (((*dbi)->state.state & DBIST_DIRTY) && !(flags & MDB_OPEN_DIRTY_DBI)) {
         return MDB_NOTFOUND;
     }
-    if (!((*dbi)->state.state & DBIST_DIRTY) && (flags & MDB_MARK_DIRTY_DBI)) {
+    if (!rc && !((*dbi)->state.state & DBIST_DIRTY) && (flags & MDB_MARK_DIRTY_DBI)) {
            dbistate_t st = (*dbi)->state;
            st.state |= DBIST_DIRTY;
            rc = dbmdb_update_dbi_state(ctx, *dbi, &st, NULL, PR_FALSE);
@@ -1252,3 +1306,37 @@ dbmdb_reset_vlv_file(backend *be, const char *filename)
     return rc;
 }
 
+dbmdb_dbi_t *
+dbmdb_get_dbi_from_slot(int dbi)
+{
+    return (dbi_slots && dbi>=0 && dbi<dbi_nbslots) ? &dbi_slots[dbi] : NULL;
+}
+
+/* Compare two index values (similar to bdb_bt_compare) */
+int
+dbmdb_dbicmp(int dbi, const MDB_val *v1, const MDB_val *v2)
+{
+    dbmdb_dbi_t *dbi1 = dbmdb_get_dbi_from_slot(dbi);
+    value_compare_fn_type cmp_fn = dbi1 ? dbi1->cmp_fn : NULL;
+    struct berval bv1, bv2;
+    int rc;
+
+    bv1.bv_val = (char *)v1->mv_data;
+    bv1.bv_len = (ber_len_t)v1->mv_size;
+    bv2.bv_val = (char *)v2->mv_data;
+    bv2.bv_len = (ber_len_t)v2->mv_size;
+
+    if (cmp_fn && bv1.bv_len>0 && bv2.bv_len>0 &&
+        bv1.bv_val[0] == EQ_PREFIX &&
+        bv2.bv_val[0] == EQ_PREFIX) {
+        bv1.bv_val++;
+        bv1.bv_len--;
+        bv2.bv_val++;
+        bv2.bv_len--;
+        rc = cmp_fn(&bv1, &bv2);
+slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dbicmp", "DBG dbmdb_dbicmp(%d <%s>, %s, %s) = %d\n", dbi, dbi1->dbname, bv1.bv_val-1, bv2.bv_val-1, rc);
+        return rc;
+    } else {
+        return slapi_berval_cmp(&bv1, &bv2);
+    }
+}

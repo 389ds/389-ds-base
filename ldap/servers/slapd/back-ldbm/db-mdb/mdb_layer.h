@@ -120,6 +120,7 @@ typedef struct
     const char *dbname;           /* database name (for example userroot/entryid.db) */
     dbistate_t state;             /* state (also stored in __DBNAMES database) */
     MDB_dbi dbi;                  /* The handle */
+    value_compare_fn_type cmp_fn; /* Key compare function (from syntax plugins) */
 } dbmdb_dbi_t;
 
 /* dbmdb_dbi_stat_t flags */
@@ -327,6 +328,7 @@ int dbmdb_instance_cleanup(struct ldbm_instance *inst);
 int dbmdb_instance_config_set(ldbm_instance *inst, char *attrname, int mod_apply, int mod_op, int phase, struct berval *value);
 int dbmdb_instance_create(struct ldbm_instance *inst);
 int dbmdb_instance_search_callback(Slapi_Entry *e, int *returncode, char *returntext, ldbm_instance *inst);
+dbmdb_dbi_t *dbmdb_get_dbi_from_slot(int dbi);
 
 /* function for autotuning */
 int dbmdb_start_autotune(struct ldbminfo *li);
