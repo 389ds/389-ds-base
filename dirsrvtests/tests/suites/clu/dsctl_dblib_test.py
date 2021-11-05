@@ -108,7 +108,7 @@ def test_dblib_migration(topo_m2, init_user):
         repl.test_replication_topology([s1, s2])
     else:
         dblib_mdb2bdb(s1, log, args)
-        dblib_cleanup(s1, log, args)
+        # dblib_cleanup(s1, log, args)
         _check_db(s1, log, 'bdb')
         repl.test_replication_topology([s1, s2])
         dblib_bdb2mdb(s1, log, args)

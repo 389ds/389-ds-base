@@ -156,17 +156,20 @@ char *dbmdb_build_dbname(backend *be, const char *filename)
     int len = strlen(filename) - strlen(LDBM_FILENAME_SUFFIX);
     int has_suffix = (len > 0 && strcmp(filename+len, LDBM_FILENAME_SUFFIX) == 0);
     const char *suffix = has_suffix ? "" : LDBM_FILENAME_SUFFIX;
+    char *res, *pt;
 
     PR_ASSERT(filename[0] != '/');
     if (strchr(filename, '/')) {
-        return slapi_ch_smprintf("%s%s", filename, suffix);
-    }
-    if (!be) {
+        res = slapi_ch_smprintf("%s%s", filename, suffix);
+    } else if (!be) {
         return slapi_ch_strdup(filename);
     } else {
         ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-        return slapi_ch_smprintf("%s/%s%s", inst->inst_name, filename, suffix);
+        res = slapi_ch_smprintf("%s/%s%s", inst->inst_name, filename, suffix);
     }
+    pt = (char*)slapi_utf8StrToLower((unsigned char*)res);
+    slapi_ch_free_string(&res);
+    return pt;
 }
 
 int cmp_dbi_names(const void *i1, const void *i2)

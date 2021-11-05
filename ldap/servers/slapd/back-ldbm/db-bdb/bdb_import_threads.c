@@ -2902,7 +2902,7 @@ bdb_import_worker(void *param)
         if (finished)
             continue;
 
-        if (!slapi_entry_flag_is_set(fi->entry->ep_entry,
+        if (!slapi_entry_flag_is_set(ep->ep_entry,
                                      SLAPI_ENTRY_FLAG_TOMBSTONE)) {
             /* This is not a tombstone entry. */
             /* Is this a VLV index ? */
@@ -2926,7 +2926,7 @@ bdb_import_worker(void *param)
                     Slapi_Value *value = NULL;
                     const struct berval *bval = NULL;
                     Slapi_Attr *key_to_del =
-                        attrlist_remove(&fi->entry->ep_entry->e_aux_attrs,
+                        attrlist_remove(&ep->ep_entry->e_aux_attrs,
                                         info->index_info->name);
 
                     if (key_to_del) {
@@ -2941,7 +2941,7 @@ bdb_import_worker(void *param)
                             ret = index_addordel_string(be,
                                                         info->index_info->name,
                                                         bval->bv_val,
-                                                        fi->entry->ep_id,
+                                                        ep->ep_id,
                                                         BE_INDEX_DEL | BE_INDEX_EQUALITY |
                                                             BE_INDEX_NORMALIZED,
                                                         NULL);

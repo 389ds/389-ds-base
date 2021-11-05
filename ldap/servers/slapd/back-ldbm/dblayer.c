@@ -924,12 +924,18 @@ db_strtoul(const char *str, int *err)
     char *p;
     errno = 0;
 
+    if (!str) {
+        if (err) {
+            *err = EINVAL;
+        }
+        return val;
+    }
     /*
      * manpage of strtoul: Negative  values  are considered valid input and
      * are silently converted to the equivalent unsigned long int value.
      */
     /* We don't want to make it happen. */
-    for (p = (char *)str; p && *p && (*p == ' ' || *p == '\t'); p++)
+    for (p = (char *)str; *p && (*p == ' ' || *p == '\t'); p++)
         ;
     if ('-' == *p) {
         if (err) {
@@ -1005,7 +1011,7 @@ db_strtoull(const char *str, int *err)
      * are silently converted to the equivalent unsigned long int value.
      */
     /* We don't want to make it happen. */
-    for (p = (char *)str; p && *p && (*p == ' ' || *p == '\t'); p++)
+    for (p = (char *)str; *p && (*p == ' ' || *p == '\t'); p++)
         ;
     if ('-' == *p) {
         if (err) {

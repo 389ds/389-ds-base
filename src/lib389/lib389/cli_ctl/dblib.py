@@ -61,6 +61,8 @@ def get_backends(log, dse, tmpdir):
             bename = found[1].lower()
             suffix = dse.get(dn, "nsslapd-suffix", True)
             dbdir = dse.get(dn, "nsslapd-directory", True)
+            if dbdir is None and 'config' in res:
+                dbdir = f"{res['config']['dbdir']}/{bename}"
             dblib = dse.get(dn, "nsslapd-backend-implement", True)
             ldifname = f'{tmpdir}/{DBLIB_LDIF_PREFIX}{bename}.ldif'
             cl5name = f'{tmpdir}/{DBLIB_LDIF_PREFIX}{bename}.cl5.dbtxt'

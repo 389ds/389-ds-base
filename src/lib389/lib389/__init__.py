@@ -574,7 +574,7 @@ class DirSrv(SimpleLDAPObject, object):
                 # Lets assume that local serverid is provided.
                 self.serverid = args.get(SER_SERVERID_PROP, None)
                 self.isLocal = True
-                self.setup_ldapi()
+                #self.setup_ldapi()
             else:
                 self.isLocal = isLocalHost(self.host)
 
@@ -1751,7 +1751,7 @@ class DirSrv(SimpleLDAPObject, object):
         if not obj:
             raise NoSuchEntryError("no such entry for %r", [args])
 
-        self.log.debug("Retrieved entry %s", obj)
+        self.log.debug("Retrieved entry %s", str(obj))
         if isinstance(obj, Entry):
             return obj
         else:  # assume list/tuple

@@ -109,7 +109,7 @@ typedef struct back_txn {
 int dblayer_txn_begin(backend *be, back_txnid parent_txn, back_txn *txn);
 int dblayer_txn_commit(backend *be, back_txn *txn);
 int dblayer_txn_abort(backend *be, back_txn *txn);
-void dblayer_init_pvt_txn();
+void dblayer_init_pvt_txn(void);
 
 #define RDN_BULK_FETCH_BUFFER_SIZE (8 * 1024)
 typedef struct _rdn_elem
@@ -142,7 +142,7 @@ long match_cnt = 0;
 long ind_cnt = 0;
 long allids_cnt = 0;
 long other_cnt = 0;
-char *dump_name = NULL; 
+char *dump_filename = NULL; 
 
 static Slapi_Backend *be = NULL; /* Pseudo backend used to interact with db */
 
@@ -1274,23 +1274,11 @@ importdb(const char *dbimpl_name, const char *filename, const char *dump_name)
         return 1;
     }
 
-#if USE_TXN
-    ret = dblayer_txn_begin(be, NULL, &txn);
-#endif
     while (ret == 0 &&
            !_read_line(dump, &keyword, &key) && keyword == 'k' &&
            !_read_line(dump, &keyword, &data) && keyword == 'v') {
         ret = dblayer_db_op(be, db, txn.txn, DBI_OP_PUT, &key, &data);
-#if USE_TXN
-        if (nbrec++ % 1000 == 0) {
-            ret = dblayer_txn_commit(be, &txn) |
-                dblayer_txn_begin(be, NULL, &txn);
-        }
-#endif
     }
-#if USE_TXN
-    ret = dblayer_txn_commit(be, &txn);
-#endif
     fclose(dump);
     dblayer_value_free(be, &key);
     dblayer_value_free(be, &data);
@@ -1301,7 +1289,7 @@ importdb(const char *dbimpl_name, const char *filename, const char *dump_name)
     return ret;
 }
 
-void print_value(FILE *dump, char *keyword, unsigned char *data, int len) 
+void print_value(FILE *dump, const char *keyword, const unsigned char *data, int len) 
 {
     fprintf(dump,"%s", keyword);
     while (len-- >0) {
@@ -1402,7 +1390,7 @@ main(int argc, char **argv)
     int ret = 0;
     char *find_key = NULL;
     uint32_t entry_id = 0xffffffff;
-    char * dbimpl_name = "bdb";
+    char *dbimpl_name = (char*) "bdb";
     int c;
 
     while ((c = getopt(argc, argv, "Af:RL:l:nG:srk:K:hvt:D:X:I:d")) != EOF) {
@@ -1462,11 +1450,11 @@ main(int argc, char **argv)
             break;
         case 'X':
             display_mode |= EXPORT;
-            dump_name = optarg;
+            dump_filename = optarg;
             break;
         case 'I':
             display_mode |= IMPORT;
-            dump_name = optarg;
+            dump_filename = optarg;
             break;
         case 'd':
             display_mode |= REMOVE;
@@ -1478,11 +1466,11 @@ main(int argc, char **argv)
     }
 
     if (display_mode & EXPORT) {
-        return exportdb(dbimpl_name, filename, dump_name);
+        return exportdb(dbimpl_name, filename, dump_filename);
     }
 
     if (display_mode & IMPORT) {
-        return importdb(dbimpl_name, filename, dump_name);
+        return importdb(dbimpl_name, filename, dump_filename);
     }
 
     if (display_mode & REMOVE) {

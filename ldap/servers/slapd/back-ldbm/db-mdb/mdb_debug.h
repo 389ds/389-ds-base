@@ -22,7 +22,6 @@ void log_stack(int loglvl);
 void dbmdb_dbg_set_dbi_slots(dbmdb_dbi_t *slots);
 
 /* #define DBMDB_DEBUG 1 */
-#define DBMDB_DEBUG 1
 #define DBGMDB_LEVEL_DEFAULT DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_TXN+DBGMDB_LEVEL_IMPORT
 
 /* Define the wrapper associated with each log level */
