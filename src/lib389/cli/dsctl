@@ -155,7 +155,7 @@ if __name__ == '__main__':
             log.error("Unable to access instance information. Are you running as the correct user? (usually dirsrv or root)")
         sys.exit(1)
 
-    inst.allocate(insts[0])
+    inst.local_simple_allocate(insts[0]['server-id'])
     log.debug('Instance allocated')
 
     try:
