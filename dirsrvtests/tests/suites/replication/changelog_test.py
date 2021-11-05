@@ -46,6 +46,19 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+def _check_repl_changelog_backup(instance, backup_dir):
+    # Note: there is no way to check dbi on lmdb backup
+    # That said dbscan may perhaps do it ...
+    if instance.get_db_lib() is 'bdb':
+        if ds_supports_new_changelog():
+            backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, BDB_CL_FILENAME)
+        else:
+            backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
+        if glob.glob(f'{backup_checkdir}*'):
+            log.info('Database backup is created successfully')
+        else:
+            log.fatal('test_changelog5: backup directory does not exist : {}*'.format(backup_checkdir))
+            assert False
 
 def _perform_ldap_operations(topo):
     """Add a test user, modify description, modrdn user and delete it"""
@@ -486,15 +499,9 @@ def test_verify_changelog_online_backup(topo):
         log.fatal('test_changelog5: Online backup failed')
         assert False
 
-    if ds_supports_new_changelog():
-        backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, BDB_CL_FILENAME)
-    else:
-        backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
-    if glob.glob(f'{backup_checkdir}*'):
-        log.info('Database backup is created successfully')
-    else:
-        log.fatal('test_changelog5: backup directory does not exist : {}*'.format(backup_checkdir))
-        assert False
+    # Note: there is no way to check dbi on lmdb backup
+    # That said dbscan may perhaps do it ...
+    _check_repl_changelog_backup(topo.ms, backup_dir);
 
     log.info('Run bak2db to restore directory server')
     try:
@@ -547,15 +554,7 @@ def test_verify_changelog_offline_backup(topo):
         assert False
     topo.ms['supplier1'].start()
 
-    if ds_supports_new_changelog():
-        backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, BDB_CL_FILENAME)
-    else:
-        backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
-    if glob.glob(f'{backup_checkdir}*'):
-        log.info('Database backup is created successfully')
-    else:
-        log.fatal('test_changelog5: backup directory does not exist : {}*'.format(backup_checkdir))
-        assert False
+    _check_repl_changelog_backup(topo.ms, backup_dir);
 
     log.info('LDAP operations add, modify, modrdn and delete')
     _perform_ldap_operations(topo)
