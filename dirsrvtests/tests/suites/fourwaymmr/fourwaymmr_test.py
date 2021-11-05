@@ -12,7 +12,7 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m4 as topo_m4
 from lib389.replica import *
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, UserAccount
 from lib389.agreement import *
 from contextlib import suppress
 
@@ -145,8 +145,6 @@ def test_delete_a_few_entries_in_m4(topo_m4, _cleanupentris):
         topo_m4.ms["supplier4"], topo_m4.ms["supplier3"], 30
     )
 
-#unstable or unstatus tests, skipped for now
-@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_replicated_multivalued_entries(topo_m4):
     """Replicated multivalued entries are ordered the same way on all consumers
 
@@ -175,7 +173,10 @@ def test_replicated_multivalued_entries(topo_m4):
     testuser.set("mail", ["test1", "test2", "test3"])
     # Now we check the entry on each consumer, making sure the order of the
     # multi-valued mail attribute is the same on all server instances
-    repl.wait_for_replication(topo_m4.ms["supplier4"], topo_m4.ms["supplier1"])
+    # Make sure the entry has been replicated everywhere
+    repl.wait_for_replication(topo_m4.ms["supplier1"], topo_m4.ms["supplier2"])
+    repl.wait_for_replication(topo_m4.ms["supplier1"], topo_m4.ms["supplier3"])
+    repl.wait_for_replication(topo_m4.ms["supplier1"], topo_m4.ms["supplier4"])
     assert topo_m4.ms["supplier1"].search_s("uid=test_replicated_multivalued_entries,ou=People,dc=example,dc=com",
                                           ldap.SCOPE_SUBTREE, '(objectclass=*)', ['mail']) == topo_m4.ms[
                "supplier2"].search_s("uid=test_replicated_multivalued_entries,ou=People,dc=example,dc=com",
@@ -409,15 +410,23 @@ def test_bob_acceptance_tests(topo_m4):
     repl = ReplicationManager(DEFAULT_SUFFIX)
     users.create_test_user()
     users.create_test_user(uid=2)
-    for _ in range(100):
+    # 2*30 MORDRDN looks enough
+    for _ in range(30):
         topo_m4.ms["supplier1"].modrdn_s("uid=test_user_1000,ou=People,{}".format(DEFAULT_SUFFIX), "uid=userB", 1)
         topo_m4.ms["supplier1"].modrdn_s("uid=userB,ou=People,{}".format(DEFAULT_SUFFIX), "uid=test_user_1000", 1)
     repl.wait_for_replication(topo_m4.ms["supplier1"], topo_m4.ms["supplier2"])
-    for i in range(100):
+
+    # 2*30 MORDRDN looks enough
+    for i in range(30):
         topo_m4.ms["supplier2"].modrdn_s("uid=test_user_2,ou=People,{}".format(DEFAULT_SUFFIX), "uid=userB", 1)
         topo_m4.ms["supplier2"].modrdn_s("uid=userB,ou=People,{}".format(DEFAULT_SUFFIX), "uid=test_user_2", 1)
     assert topo_m4.ms["supplier1"].status() == True
     assert topo_m4.ms["supplier2"].status() == True
+
+    # Now make sure replication is in-sync to prevent impacting
+    # the following testcases
+    repl.wait_for_replication(topo_m4.ms["supplier1"], topo_m4.ms["supplier2"])
+    repl.wait_for_replication(topo_m4.ms["supplier2"], topo_m4.ms["supplier1"])
 
 
 @pytest.mark.bz830335
@@ -440,13 +449,16 @@ def test_replica_backup_and_restore(topo_m4):
         5. Should success
     """
     # Testing bug #830335: Taking a replica backup and Restore on M1 after deleting few entries from M1 nad M2
+    # Make sure to update S1 to avoid useless replication delay
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    users = UserAccounts(topo_m4.ms["supplier3"], DEFAULT_SUFFIX)
+    users = UserAccounts(topo_m4.ms["supplier1"], DEFAULT_SUFFIX)
     for i in range(20, 25):
         users.create_test_user(uid=i)
         time.sleep(1)
     repl.wait_for_replication(topo_m4.ms["supplier1"], topo_m4.ms["supplier2"])
     repl.test_replication(topo_m4.ms["supplier1"], topo_m4.ms["supplier2"], 30)
+
+    # Get a backup
     topo_m4.ms["supplier1"].stop()
     topo_m4.ms["supplier1"].db2ldif(
         bename=DEFAULT_BENAME,
@@ -456,6 +468,9 @@ def test_replica_backup_and_restore(topo_m4):
         repl_data=True,
         outputfile="/tmp/output_file",
     )
+
+    # Do some updates (that are not in the backup
+    # and restore the backup
     topo_m4.ms["supplier1"].start()
     for i in users.list(): topo_m4.ms["supplier1"].delete_s(i.dn)
     repl.wait_for_replication(topo_m4.ms["supplier1"], topo_m4.ms["supplier2"])
@@ -469,7 +484,23 @@ def test_replica_backup_and_restore(topo_m4):
         import_file="/tmp/output_file",
     )
     topo_m4.ms["supplier1"].start()
-    for i in range(20, 25):
+
+    # Check that the updates (DEL) are no longer there
+    for i in users.list():
+        testuser = UserAccount(topo_m4.ms["supplier1"], i.dn)
+        assert testuser.exists()
+
+    # Here the changelog of supplier1 has been cleared.
+    # Let's wait the supplier2 resync supplier1 BEFORE doing
+    # any update to supplier1.
+    # Else (a new update on S1), the others supplier will not update
+    # it and the changelog of S1 will not contain the starting points
+    # of the others suppliers.
+    repl.wait_for_replication(topo_m4.ms["supplier2"], topo_m4.ms["supplier1"])
+    repl.wait_for_replication(topo_m4.ms["supplier3"], topo_m4.ms["supplier1"])
+    repl.wait_for_replication(topo_m4.ms["supplier4"], topo_m4.ms["supplier1"])
+
+    for i in range(31, 35):
         users.create_test_user(uid=i)
         time.sleep(1)
     repl.wait_for_replication(topo_m4.ms["supplier1"], topo_m4.ms["supplier2"])
