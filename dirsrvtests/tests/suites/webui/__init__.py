@@ -21,11 +21,10 @@ RHEL = 'Red Hat Enterprise Linux'
 
 # in cockpit-250 some selectors got renamed so this function returns True if cockpit version is 250 or higher
 def check_cockpit_version_is_higher():
-    f = os.popen('rpm -q cockpit')
-    arq = f.readline()
-    version = arq.split("-")[1]
+    f = os.popen("rpm -q --queryformat '%{VERSION}' cockpit")
+    version = f.readline()
 
-    return int(version) >= 250
+    return version >= '250'
 
 
 # the iframe selection differs for chromium and firefox browser
