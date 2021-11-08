@@ -15,6 +15,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include <signal.h>
 #include <sys/stat.h>
 #include "ldap-agent.h"
