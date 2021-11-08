@@ -2838,7 +2838,7 @@ slapd_debug_level_log(int level)
     }
 
     /* second pass: construct the debug level string */
-    p = msg = slapi_ch_malloc(len);
+    p = msg = slapi_ch_calloc(1, len);
     count = 0;
     for (i = 0; NULL != slapd_debug_level_map[i].dle_string; ++i) {
         if (!slapd_debug_level_map[i].dle_hide &&
