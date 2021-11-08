@@ -418,7 +418,26 @@ export class DSInstance extends React.Component {
     }
 
     removeInstance() {
-        this.operateInstance();
+        this.setState({
+            loadingOperate: true
+        });
+
+        const cmd = ["dsctl", "-j", this.state.serverId, "remove", "--do-it"];
+        log_cmd("removeInstance", `Remove the instance`, cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(_ => {
+                    this.loadInstanceList();
+                    this.addNotification("success", "Instance was successfully removed");
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.loadInstanceList();
+                    this.addNotification(
+                        "error",
+                        `Error during instance remove operation - ${errMsg.desc}`
+                    );
+                });
         this.closeDeleteConfirm();
     }
 
@@ -427,37 +446,49 @@ export class DSInstance extends React.Component {
             loadingOperate: true
         });
 
-        if (action === undefined) {
-            action = "remove";
-        }
-
-        let cmd = ["dsctl", "-j", this.state.serverId, action];
-        if (action === "remove") {
-            cmd = [...cmd, "--do-it"];
-        }
-        log_cmd("operateInstance", `Do ${action} the instance`, cmd);
+        const cmdStatus = ["dsctl", "-j", this.state.serverId, "status"];
+        log_cmd("operateInstance", `Check instance status`, cmdStatus);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(_ => {
-                    if (action === "remove") {
-                        this.loadInstanceList();
+                .spawn(cmdStatus, { superuser: true, err: "message" })
+                .done(status_data => {
+                    const status_json = JSON.parse(status_data);
+                    if (status_json.running && action === "start") {
+                        this.addNotification("success", `Instance is already running`);
+                        this.setState({
+                            loadingOperate: false
+                        });
+                    } else if (!status_json.running && action === "stop") {
+                        this.addNotification("success", `Instance is already stopped`);
+                        this.setState({
+                            loadingOperate: false
+                        });
                     } else {
-                        this.loadInstanceList(this.state.serverId, action);
-                    }
-                    if (action === "remove") {
-                        this.addNotification("success", "Instance was successfully removed");
-                    } else {
-                        if (action === "stop") {
-                            action = "stopp"; // Fixes typo in notification
-                        }
-                        this.addNotification("success", `Instance was successfully ${action}ed`);
+                        const cmd = ["dsctl", "-j", this.state.serverId, action];
+                        log_cmd("operateInstance", `Do ${action} the instance`, cmd);
+                        cockpit
+                                .spawn(cmd, { superuser: true, err: "message" })
+                                .done(_ => {
+                                    this.loadInstanceList(this.state.serverId, action);
+                                    if (action === "stop") {
+                                        action = "stopp"; // Fixes typo in notification
+                                    }
+                                    this.addNotification("success", `Instance was successfully ${action}ed`);
+                                })
+                                .fail(err => {
+                                    const errMsg = JSON.parse(err);
+                                    this.addNotification(
+                                        "error",
+                                        `Error during instance ${action} operation - ${errMsg.desc}`
+                                    );
+                                    this.loadInstanceList(this.state.serverId, action);
+                                });
                     }
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.addNotification(
                         "error",
-                        `Error during instance ${action} operation - ${errMsg.desc}`
+                        `Error during instance check status operation - ${errMsg.desc}`
                     );
                     this.loadInstanceList(this.state.serverId, action);
                 });
