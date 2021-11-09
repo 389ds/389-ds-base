@@ -108,7 +108,7 @@ static PRInt64 log__getfilesize(LOGFD fp);
 static PRInt64 log__getfilesize_with_filename(char *filename);
 static int log__enough_freespace(char *path);
 
-static int vslapd_log_error(LOGFD fp, int sev_level, char *subsystem, char *fmt, va_list ap, int locked);
+static int vslapd_log_error(LOGFD fp, int sev_level, const char *subsystem, char *fmt, va_list ap, int locked);
 static int vslapd_log_access(char *fmt, va_list ap);
 static void log_convert_time(time_t ctime, char *tbuf, int type);
 static time_t log_reverse_convert_time(char *tbuf);
