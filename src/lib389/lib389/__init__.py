@@ -750,7 +750,7 @@ class DirSrv(SimpleLDAPObject, object):
                 instances.append(_parse_configfile(dse_ldif, serverid))
             else:
                 # it's not=
-                self.log.debug("list instance not found in {}: {}\n".format(dse_ldif, serverid))
+                self.log.debug(f"list() {serverid} instance not found: missing {dse_ldif}\n")
         else:
             # For each dir that starts with slapd-*
             inst_path = self.ds_paths.sysconf_dir + "/dirsrv"

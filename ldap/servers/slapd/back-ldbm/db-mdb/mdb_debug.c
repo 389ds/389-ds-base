@@ -302,6 +302,8 @@ dbg_mdb_cursor_close(const char *file, int lineno, const char *funcname, MDB_cur
 int
 dbg_mdb_cursor_get(const char *file, int lineno, const char *funcname, MDB_cursor *cursor, MDB_val *key, MDB_val *data, MDB_cursor_op op)
 {
+    char oldkeystr[DBGVAL2STRMAXSIZE];
+    char olddatastr[DBGVAL2STRMAXSIZE];
     char keystr[DBGVAL2STRMAXSIZE];
     char datastr[DBGVAL2STRMAXSIZE];
     char flagsstr[DBGVAL2STRMAXSIZE];
@@ -309,18 +311,22 @@ dbg_mdb_cursor_get(const char *file, int lineno, const char *funcname, MDB_curso
     char dbistr[DBGVAL2STRMAXSIZE];
     if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
         dbi_str(cursor, 0, dbistr);
-        dbgval2str(keystr, sizeof keystr, key);
-        dbgval2str(datastr, sizeof datastr, data);
+        dbgval2str(oldkeystr, sizeof keystr, key);
+        dbgval2str(olddatastr, sizeof datastr, data);
         dbgcursor2str(cursorstr, sizeof cursorstr, cursor);
         append_enum(flagsstr, sizeof flagsstr, 0, "op", op, mdb_cursor_op_desc);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "CALLING mdb_cursor_get(cursor: %s, key: %s,data: %s, %s) %s", cursorstr, keystr, datastr, flagsstr, dbistr);
     }
     int rc = mdb_cursor_get(cursor, key, data, op);
     if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
         dbgval2str(keystr, sizeof keystr, key);
         dbgval2str(datastr, sizeof datastr, data);
-        append_enum(flagsstr, sizeof flagsstr, 0, "op", op, mdb_cursor_op_desc);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_get(cursor: %s, key: %s,data: %s, %s)=%d", cursorstr, keystr, datastr, flagsstr, rc);
+        if (*oldkeystr && strcmp(oldkeystr, keystr)) {
+            dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_get requested key was: %s", oldkeystr);
+        }
+        if (*olddatastr && strcmp(olddatastr, datastr)) {
+            dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_get requested data was: %s", olddatastr);
+        }
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_get(cursor: %s, key: %s,data: %s, %s)=%d %s", cursorstr, keystr, datastr, flagsstr, rc, dbistr);
     }
     return rc;
 }

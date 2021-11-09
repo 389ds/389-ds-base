@@ -63,7 +63,8 @@ def _check_db(inst, log, impl):
     bdb_list = ['__db.001', 'DBVERSION', '__db.003', 'userRoot', 'log.0000000001', '__db.002']
     mdb_list.sort()
     bdb_list.sort()
-    db_files.sort()
+    db_files = sorted(set(db_files))
+    log.debug(f"INFO: _check_db db_home={inst.ds_paths.db_home_dir}")
     log.debug(f"INFO: _check_db dbdir={inst.dbdir}")
     log.debug(f"INFO: _check_db db_files={db_files}")
     log.debug(f"INFO: _check_db mdb_list={mdb_list}")
@@ -108,7 +109,7 @@ def test_dblib_migration(topo_m2, init_user):
         repl.test_replication_topology([s1, s2])
     else:
         dblib_mdb2bdb(s1, log, args)
-        # dblib_cleanup(s1, log, args)
+        dblib_cleanup(s1, log, args)
         _check_db(s1, log, 'bdb')
         repl.test_replication_topology([s1, s2])
         dblib_bdb2mdb(s1, log, args)

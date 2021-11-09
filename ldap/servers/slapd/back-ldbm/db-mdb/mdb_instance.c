@@ -90,7 +90,7 @@ static int dbi_nbslots;           /* Number of available slots in dbi_slots */
 /*
  * Rules:
  * NULL comes before anything else.
- * Otherwise, strcmp(elem_a->rdn_elem_nrdn_rdn - elem_b->rdn_elem_nrdn_rdn) is
+ * Otherwise, strcasecmp(elem_a->rdn_elem_nrdn_rdn - elem_b->rdn_elem_nrdn_rdn) is
  * returned.
  */
 int
@@ -124,9 +124,9 @@ static PRBool
 is_dbfile(const char *dbname, const char *filename)
 {
     int len = strlen(filename);
-    if (strncmp(dbname, filename, len))
+    if (strncasecmp(dbname, filename, len))
         return PR_FALSE;
-    if (dbname[len] && strcmp(&dbname[len], LDBM_FILENAME_SUFFIX))
+    if (dbname[len] && strcasecmp(&dbname[len], LDBM_FILENAME_SUFFIX))
         return PR_FALSE;
     return PR_TRUE;
 }
@@ -154,7 +154,7 @@ dbmdb_get_file_params(const char *dbname, int *flags, MDB_cmp_func **dupsort_fn)
 char *dbmdb_build_dbname(backend *be, const char *filename)
 {
     int len = strlen(filename) - strlen(LDBM_FILENAME_SUFFIX);
-    int has_suffix = (len > 0 && strcmp(filename+len, LDBM_FILENAME_SUFFIX) == 0);
+    int has_suffix = (len > 0 && strcasecmp(filename+len, LDBM_FILENAME_SUFFIX) == 0);
     const char *suffix = has_suffix ? "" : LDBM_FILENAME_SUFFIX;
     char *res, *pt;
 
@@ -176,7 +176,7 @@ int cmp_dbi_names(const void *i1, const void *i2)
 {
     const dbmdb_dbi_t *e1 = i1;
     const dbmdb_dbi_t *e2 = i2;
-    return strcmp(e1->dbname, e2->dbname);
+    return strcasecmp(e1->dbname, e2->dbname);
 }
 
 int dbmdb_update_dbi_cmp_fn(dbmdb_ctx_t *ctx, dbmdb_dbi_t *dbi, value_compare_fn_type cmp_fn, MDB_txn *txn)
@@ -261,7 +261,7 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
     key.mv_size = strlen(treekey.dbname)+1;
     data.mv_data = &treekey.state;
     data.mv_size = sizeof treekey.state;
-    if (strcmp(DBNAMES, treekey.dbname) == 0) {
+    if (strcasecmp(DBNAMES, treekey.dbname) == 0) {
         ctx->dbinames_dbi = treekey.dbi;
     }
     if (treekey.state.flags & MDB_CREATE) {
@@ -439,7 +439,7 @@ static dbmdb_descinfo_t *get_descinfo(const char *line)
         if (!pti->namelen) {
             pti->namelen = strlen(pti->name);
         }
-        if (line[pti->namelen] == '=' && strncmp(line, pti->name, pti->namelen) == 0) {
+        if (line[pti->namelen] == '=' && strncasecmp(line, pti->name, pti->namelen) == 0) {
             return pti;
         }
     }
@@ -702,7 +702,7 @@ dbi_list_insert(const void *nodep, VISIT which, void *closure)
                 return;    /* Not the wanted dbi */
             if (be) {
                 int len = strlen(be->be_name);
-                if (strncmp(dbi->dbname, be->be_name, len) || dbi->dbname[len] != '/')
+                if (strncasecmp(dbi->dbname, be->be_name, len) || dbi->dbname[len] != '/')
                     return;  /* Not an instance of wanted backend */
             }
 
@@ -947,7 +947,7 @@ int dbmdb_dbi_set_dirty(dbmdb_ctx_t *ctx, dbmdb_dbi_t *dbi, int dirty_flags)
     int rc = 0;
 
     PR_ASSERT(ctx->dbi_slots[dbi->dbi].dbi == dbi->dbi);
-    PR_ASSERT(strcmp(ctx->dbi_slots[dbi->dbi].dbname, dbi->dbname) == 0);
+    PR_ASSERT(strcasecmp(ctx->dbi_slots[dbi->dbi].dbname, dbi->dbname) == 0);
     octx.dbi = &ctx->dbi_slots[dbi->dbi];
 
     rc = START_TXN(&txn, NULL, TXNFL_DBI);
