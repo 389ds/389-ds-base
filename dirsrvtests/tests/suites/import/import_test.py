@@ -217,7 +217,7 @@ def test_import_with_index(topo, _import_clean):
         3. Operation successful
     """
     place = topo.standalone.dbdir
-    assert not topo.standalone.is_dbi('/userRoot/roomNumber.db')
+    assert not topo.standalone.is_dbi('userRoot/roomNumber.db')
     # Creating the room number index
     indexes = Indexes(topo.standalone)
     indexes.create(properties={
@@ -228,7 +228,7 @@ def test_import_with_index(topo, _import_clean):
     # Importing online
     _import_online(topo, 5)
     # Import is done -- verifying that it worked
-    assert topo.standalone.is_dbi('/userRoot/roomNumber.db')
+    assert topo.standalone.is_dbi('userRoot/roomNumber.db')
 
 
 

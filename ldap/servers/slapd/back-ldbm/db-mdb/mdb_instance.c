@@ -1337,7 +1337,6 @@ dbmdb_dbicmp(int dbi, const MDB_val *v1, const MDB_val *v2)
         bv2.bv_val++;
         bv2.bv_len--;
         rc = cmp_fn(&bv1, &bv2);
-slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dbicmp", "DBG dbmdb_dbicmp(%d <%s>, %s, %s) = %d\n", dbi, dbi1->dbname, bv1.bv_val-1, bv2.bv_val-1, rc);
         return rc;
     } else {
         return slapi_berval_cmp(&bv1, &bv2);
