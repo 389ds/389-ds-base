@@ -2118,7 +2118,7 @@ slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_AT
 
     switch (config->config_type) {
     case CONFIG_TYPE_INT:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             str_val = config->config_default_value;
         } else {
             str_val = bval->bv_val;
@@ -2150,7 +2150,7 @@ slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_AT
         retval = config->config_set_fn(arg, (void *)((uintptr_t)int_val), err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_INT_OCTAL:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             int_val = (int)strtol(config->config_default_value, NULL, 8);
         } else {
             int_val = (int)strtol((char *)bval->bv_val, NULL, 8);
@@ -2158,7 +2158,7 @@ slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_AT
         retval = config->config_set_fn(arg, (void *)((uintptr_t)int_val), err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_LONG:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             str_val = config->config_default_value;
         } else {
             str_val = bval->bv_val;
@@ -2192,7 +2192,7 @@ slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_AT
         retval = config->config_set_fn(arg, (void *)long_val, err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_SIZE_T:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             str_val = config->config_default_value;
         } else {
             str_val = bval->bv_val;
@@ -2221,7 +2221,7 @@ slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_AT
 
 
     case CONFIG_TYPE_UINT64:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             str_val = config->config_default_value;
         } else {
             str_val = bval->bv_val;
@@ -2247,14 +2247,14 @@ slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_AT
         retval = config->config_set_fn(arg, (void *)sz_val, err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_STRING:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             retval = config->config_set_fn(arg, config->config_default_value, err_buf, phase, apply_mod);
         } else {
             retval = config->config_set_fn(arg, bval->bv_val, err_buf, phase, apply_mod);
         }
         break;
     case CONFIG_TYPE_ONOFF:
-        if (use_default) {
+        if (use_default || bval == NULL) {
             int_val = !strcasecmp(config->config_default_value, "on");
         } else {
             int_val = !strcasecmp((char *)bval->bv_val, "on");

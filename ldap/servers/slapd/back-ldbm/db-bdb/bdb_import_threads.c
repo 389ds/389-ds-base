@@ -2899,7 +2899,7 @@ bdb_import_worker(void *param)
                 id++;
             }
         }
-        if (finished)
+        if (finished || !ep)
             continue;
 
         if (!slapi_entry_flag_is_set(ep->ep_entry,
