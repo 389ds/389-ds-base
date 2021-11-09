@@ -273,7 +273,7 @@ void *csngen_register_callbacks(CSNGen *gen, GenCSNFn genFn, void *genArg, Abort
 void csngen_unregister_callbacks(CSNGen *gen, void *cookie);
 
 /* debugging function */
-void csngen_dump_state(const CSNGen *gen);
+void csngen_dump_state(const CSNGen *gen, int severity);
 
 /* this function tests csn generator */
 void csngen_test(void);
