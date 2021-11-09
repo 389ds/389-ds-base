@@ -1161,7 +1161,7 @@ int dump_ascii(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data)
 }
 
 static int
-_file_format_error()
+_file_format_error(void)
 {
     fprintf(stderr, "importdb failed: Invalid file format.\n");
     return -2;

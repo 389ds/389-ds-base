@@ -2378,7 +2378,7 @@ static int
 vslapd_log_error(
     LOGFD fp,
     int sev_level,
-    char *subsystem, /* omitted if NULL */
+    const char *subsystem, /* omitted if NULL */
     char *fmt,
     va_list ap,
     int locked)
@@ -2483,7 +2483,7 @@ vslapd_log_error(
  * severity - LOG_ERR, LOG_WARNING, LOG_INFO, etc
  */
 int
-slapi_log_error(int loglevel, char *subsystem, char *fmt, ...)
+slapi_log_error(int loglevel, const char *subsystem, char *fmt, ...)
 {
     va_list ap_err;
     va_list ap_file;
@@ -2544,7 +2544,7 @@ slapi_log_error(int loglevel, char *subsystem, char *fmt, ...)
 }
 
 int
-slapi_log_error_ext(int loglevel, char *subsystem, char *fmt, va_list varg1, va_list varg2)
+slapi_log_error_ext(int loglevel, const char *subsystem, char *fmt, va_list varg1, va_list varg2)
 {
     int rc = 0;
 
