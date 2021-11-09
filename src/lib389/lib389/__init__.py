@@ -364,7 +364,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.ldclt = Ldclt(self)
         self.saslmaps = SaslMappings(self)
 
-    def __init__(self, verbose=False, external_log=None):
+    def __init__(self, verbose=False, external_log=None, containerised=False):
         """
             This method does various initialization of DirSrv object:
             parameters:
@@ -388,6 +388,9 @@ class DirSrv(SimpleLDAPObject, object):
         self.uuid = str(uuid.uuid4())
         self.verbose = verbose
         self.serverid = None
+        # Are we a container? We get containerised in setup.py during SetupDs, and
+        # in other cases we use the marker to tell us.
+        self._containerised = os.path.exists(DSRC_CONTAINER) or containerised
 
         # If we have an external logger, use it!
         self.log = logger
@@ -1112,29 +1115,32 @@ class DirSrv(SimpleLDAPObject, object):
                         "-D",
                         self.ds_paths.config_dir,
                         "-i",
-                        self.ds_paths.pid_file],
+                        self.pid_file()],
                 self.log.debug("DEBUG: starting with %s" % cmd)
                 output = subprocess.check_output(*cmd, env=env, stderr=subprocess.STDOUT)
-            except subprocess.CalledProcessError:
-                self.log.error('Failed to start ns-slapd: "%s"' % output)
+            except subprocess.CalledProcessError as e:
+                self.log.error('Failed to start ns-slapd: "%s"' % e.output.decode())
+                self.log.error(e)
                 raise ValueError('Failed to start DS')
             count = timeout
-            pid = pid_from_file(self.ds_paths.pid_file)
+            pid = pid_from_file(self.pid_file())
             while (pid is None) and count > 0:
                 count -= 1
                 time.sleep(1)
-                pid = pid_from_file(self.ds_paths.pid_file)
+                pid = pid_from_file(self.pid_file())
             if pid == 0 or pid is None:
+                self.log.error("Unable to find pid (%s) of ns-slapd process" % self.pid_file())
                 raise ValueError('Failed to start DS')
             # Wait
             while not pid_exists(pid) and count > 0:
                 # It looks like DS changes the value in here at some point ...
                 # It's probably a DS bug, but if we "keep checking" the file, eventually
                 # we get the main server pid, and it's ready to go.
-                pid = pid_from_file(self.ds_paths.pid_file)
+                pid = pid_from_file(self.pid_file())
                 time.sleep(1)
                 count -= 1
             if not pid_exists(pid):
+                self.log.error("pid (%s) of ns-slapd process does not exist" % pid)
                 raise ValueError("Failed to start DS")
         if post_open:
             self.open()
@@ -1168,7 +1174,7 @@ class DirSrv(SimpleLDAPObject, object):
             # TODO: Make the pid path in the files things
             # TODO: use the status call instead!!!!
             count = timeout
-            pid = pid_from_file(self.ds_paths.pid_file)
+            pid = pid_from_file(self.pid_file())
             if pid == 0 or pid is None:
                 raise ValueError("Failed to stop DS")
             os.kill(pid, signal.SIGTERM)
@@ -1201,8 +1207,8 @@ class DirSrv(SimpleLDAPObject, object):
             return False
         else:
             self.log.debug("systemd status -> False")
-            pid = pid_from_file(self.ds_paths.pid_file)
-            self.log.debug("pid file %s -> %s" % (self.ds_paths.pid_file, pid))
+            pid = pid_from_file(self.pid_file())
+            self.log.debug("pid file %s -> %s" % (self.pid_file(), pid))
             if pid is None:
                 self.log.debug("No pidfile found for %s", self.serverid)
                 # No pidfile yet ...
@@ -1687,6 +1693,11 @@ class DirSrv(SimpleLDAPObject, object):
         if self.systemd_override is not None:
             return self.systemd_override
         return self.ds_paths.with_systemd
+
+    def pid_file(self):
+        if self._containerised:
+            return "/data/run/slapd-localhost.pid"
+        return self.ds_paths.pid_file
 
     def get_server_tls_subject(self):
         """ Get the servers TLS subject line for enrollment purposes.

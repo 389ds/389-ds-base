@@ -499,15 +499,22 @@ write_start_pid_file(void)
      * admin programs. Please do not make changes here without
      * consulting the start/stop code for the admin code.
      */
-    if ((start_pid_file != NULL) && (fp = fopen(start_pid_file, "w")) != NULL) {
+    if (start_pid_file == NULL) {
+        return 0;
+    } else if ((fp = fopen(start_pid_file, "w")) != NULL) {
         fprintf(fp, "%d\n", getpid());
         fclose(fp);
         if (chmod(start_pid_file, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH) != 0) {
+            int rerrno = errno;
+            slapi_log_err(SLAPI_LOG_ERR, "write_start_pid_file", "file (%s) chmod failed (%d)\n", start_pid_file, rerrno);
             unlink(start_pid_file);
+            return -2;
         } else {
             return 0;
         }
     }
+    int rerrno = errno;
+    slapi_log_err(SLAPI_LOG_ERR, "write_start_pid_file", "file (%s) fopen failed (%d)\n", start_pid_file, rerrno);
     return -1;
 }
 
@@ -949,7 +956,12 @@ main(int argc, char **argv)
     * This removes the blank stares all round from start-slapd when the server
     * fails to start for some reason
     */
-    write_start_pid_file();
+    if (write_start_pid_file() != 0) {
+        slapi_log_err(SLAPI_LOG_CRIT, "main",
+                      "Shutting down as we are unable to write to the pid file location\n");
+        return_value = 1;
+        goto cleanup;
+    }
 
     /* Make sure we aren't going to run slapd in
      * a mode that is going to conflict with other
