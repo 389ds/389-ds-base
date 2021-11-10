@@ -734,7 +734,7 @@ class SetupDs(object):
         # Check if we are in a container, if so don't use /dev/shm for the db home dir
         # as containers typically don't allocate enough space for dev/shm and we don't
         # want to unexpectedly break the server after an upgrade
-        container_result = subprocess.run(["systemd-detect-virt", "-c"], capture_output=True)
+        container_result = subprocess.run(["systemd-detect-virt", "-c"], stdout=subprocess.PIPE)
         if container_result.returncode == 0:
             # In a container, set the db_home_dir to the db path
             self.log.debug("Container detected setting db home directory to db directory.")
