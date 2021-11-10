@@ -773,11 +773,18 @@ vlvIndex_equal(const struct vlvIndex *p1, const sort_spec *sort_control)
 static void
 vlvIndex_checkforindex(struct vlvIndex *p, backend *be)
 {
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     dbi_db_t *db = NULL;
 
+
     /* if the vlv index is offline (being generated), don't even look */
-    if (!p->vlv_online)
+    if (!p->vlv_online) {
+        /* In lmdb case, always open the dbi */
+        if (li->li_flags & LI_LMDB_IMPL) {
+            dblayer_get_index_file(be, p->vlv_attrinfo, &db, 0) ;
+        }
         return;
+    }
 
     if (dblayer_get_index_file(be, p->vlv_attrinfo, &db, 0) == 0) {
         p->vlv_enabled = 1;

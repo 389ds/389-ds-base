@@ -289,7 +289,7 @@ add_index_dbi(struct attrinfo *ai, dbi_open_ctx_t *octx)
     int flags = octx->ctx->readonly ? MDB_RDONLY: MDB_CREATE;
     char *rcdbname = NULL;
 
-    slapi_log_error(SLAPI_LOG_DEBUG, "add_index_dbi", "ai_type = %s ai_indexmask=0x%x.\n", ai->ai_type, ai->ai_indexmask);
+    slapi_log_error(SLAPI_LOG_DBGMDB, "add_index_dbi", "ai_type = %s ai_indexmask=0x%x.\n", ai->ai_type, ai->ai_indexmask);
     octx->ai = ai;
 
     if (ai->ai_indexmask & INDEX_VLV) {
@@ -316,7 +316,6 @@ void free_dbi_node(void *node)
 {
     /* as the tree points on ctx->dbi_slots slots, there is nothing to do here */
 }
-
 
 /* Open/creat all the dbis to avoid opening the db in operation towards this backend
  *  There are nasty issues if file is created but its parent txn get aborted
@@ -395,6 +394,7 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
         if (avl_apply(inst->inst_attrs, add_index_dbi, &octx, STOP_AVL_APPLY, AVL_INORDER)) {
             TST(octx.rc);
         }
+        vlv_getindices((IFP)add_index_dbi, &octx, be);
     }
 
 error:

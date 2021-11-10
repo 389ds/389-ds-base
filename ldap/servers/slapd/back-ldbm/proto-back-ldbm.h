@@ -319,7 +319,7 @@ void add_update_entrydn_operational_attributes(struct backentry *ep);
 /*
  * misc.c
  */
-void ldbm_nasty(char *func, const char *str, int c, int err);
+void ldbm_nasty(const char *func, const char *str, int c, int err);
 void ldbm_log_access_message(Slapi_PBlock *pblock, char *string);
 int return_on_disk_full(struct ldbminfo *li);
 int ldbm_attribute_always_indexed(const char *attrtype);

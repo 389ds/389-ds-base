@@ -2899,7 +2899,14 @@ bdb_import_worker(void *param)
                 id++;
             }
         }
-        if (finished || !ep)
+        if (finished)
+            continue;
+        /* Although following test is always false (the while loop implies
+         *  that !(!finished && !ep) i.e finished || ep and the previous if
+         *  means that we are in !finished case so we are in ep!=NULL case)
+         *  it prevent static analyzer to log some false positive warning
+         */
+        if (!ep)
             continue;
 
         if (!slapi_entry_flag_is_set(ep->ep_entry,

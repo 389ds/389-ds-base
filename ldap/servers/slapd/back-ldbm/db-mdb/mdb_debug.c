@@ -28,7 +28,6 @@
 
 int dbgmdb_level = DBGMDB_LEVEL_DEFAULT;
 
-#define SLAPI_LOG_DBGMDB SLAPI_LOG_INFO
 #define DBGVAL2STRMAXSIZE     40
 
 
@@ -441,7 +440,7 @@ int dbg_txn_begin(const char *file, int lineno, const char *funcname, MDB_env *e
     }
     char strflags[100];
     dbmdb_envflags2str(flags, strflags, sizeof strflags);
-    dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "TXN_BEGIN[%d]. txn_parent=%p, %s, stack is:\n", pthread_gettid(), parent_txn, strflags);
+    dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "TXN_BEGIN[%d]. txn_parent=%p, %s, stack is:", pthread_gettid(), parent_txn, strflags);
     log_stack(SLAPI_LOG_DBGMDB);
     dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "Waiting ...\n");
     int rc = mdb_txn_begin(env, parent_txn, flags, txn);
@@ -463,10 +462,10 @@ int dbg_txn_end(const char *file, int lineno, const char *funcname, MDB_txn *txn
     int rc = 0;
     if (iscommit) {
         rc = mdb_txn_commit(txn);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "TXN_COMMIT[%d] (txn=0x%p) returned %d. stack is:\n", pthread_gettid(), txn, rc);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "TXN_COMMIT[%d] (txn=0x%p) returned %d. stack is:", pthread_gettid(), txn, rc);
     } else {
         mdb_txn_abort(txn);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "TXN_ABORT[%d] (txn=0x%p). stack is:\n", pthread_gettid(), txn);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "TXN_ABORT[%d] (txn=0x%p). stack is:", pthread_gettid(), txn);
     }
     log_stack(SLAPI_LOG_DBGMDB);
     return rc;

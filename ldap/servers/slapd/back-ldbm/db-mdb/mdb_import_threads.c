@@ -2838,16 +2838,19 @@ dbmdb_import_worker(void *param)
     }
 
     if (dbmdb_start_txn(__FUNCTION__, NULL, TXNFL_RDONLY, &info->txn)) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_worker", "dbmdb_start_txn failed at line %d.\n", __LINE__);
         goto error;
     }
 
     if (dbmdb_import_writer_create_dbi(info, WCTX_GENERIC, info->index_info->name, PR_FALSE)) {
-       goto error;
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_worker", "dbmdb_import_writer_create_dbi failed at line %d..\n", __LINE__);
+        goto error;
     }
 
     if (INDEX_VLV == info->index_info->ai->ai_indexmask) {
         vlv_index = vlv_find_indexname(info->index_info->name, be);
         if (NULL == vlv_index) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_worker", "vlv_find_indexname failed at line %d.\n", __LINE__);
             goto error;
         }
     }
@@ -3008,6 +3011,7 @@ dbmdb_import_worker(void *param)
 
                     if (0 != ret) {
                         /* Something went wrong, eg disk filled up */
+                        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_worker", "index_addordel_values_ext_sv failed at line %d.\n", __LINE__);
                         goto error;
                     }
                 }
@@ -3026,6 +3030,7 @@ dbmdb_import_worker(void *param)
                                             dbmdb_get_wctx(job, info, WCTX_GENERIC));
                 if (0 != ret) {
                     /* Something went wrong, eg disk filled up */
+                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_worker", "index_addordel_string failed at line %d.\n", __LINE__);
                     goto error;
                 }
             }
@@ -3034,6 +3039,7 @@ dbmdb_import_worker(void *param)
                                             SLAPI_ATTR_VALUE_TOMBSTONE, ep->ep_id, BE_INDEX_ADD, dbmdb_get_wctx(job, info, WCTX_GENERIC));
                 if (0 != ret) {
                     /* Something went wrong, eg disk filled up */
+                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_worker", "index_addordel_string objectclass failed at line %d.\n", __LINE__);
                     goto error;
                 }
             }
@@ -3058,6 +3064,7 @@ dbmdb_import_worker(void *param)
 
                     if (0 != ret) {
                         /* Something went wrong, eg disk filled up */
+                        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_worker", "index_addordel_values_ext_sv failed at line %d.\n", __LINE__);
                         goto error;
                     }
                 }
@@ -3072,6 +3079,7 @@ dbmdb_import_worker(void *param)
                                                 tomb_csnstr, ep->ep_id, BE_INDEX_ADD, dbmdb_get_wctx(job, info, WCTX_GENERIC));
                     if (0 != ret) {
                         /* Something went wrong, eg disk filled up */
+                        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_worker", "index_addordel_values_ext_sv failed at line %d.\n", __LINE__);
                         goto error;
                     }
                 }
@@ -3097,6 +3105,7 @@ dbmdb_import_worker(void *param)
                                  inst->inst_be, NULL,
                                  info->index_info->ai);
         if (0 != ret) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_worker", "index_buffer_flush failed at line %d.\n", __LINE__);
             goto error;
         }
     }
