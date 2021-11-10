@@ -253,7 +253,7 @@ def begin_magic():
         s2b.set('ldif_dir', '/data/ldif')
         s2b.set('run_dir', '/data/run')
         s2b.set('lock_dir', '/data/run/lock')
-        s2b.set('ldapi', '/data/run/slapd.socket')
+        s2b.set('ldapi', '/data/run/slapd-localhost.socket')
 
         s2b.set('log_dir', '/data/logs')
         s2b.set('access_log', '/data/logs/access')
