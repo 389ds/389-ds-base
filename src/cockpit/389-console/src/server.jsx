@@ -52,6 +52,7 @@ export class Server extends React.Component {
         };
 
         this.loadTree = this.loadTree.bind(this);
+        this.reloadConfig = this.reloadConfig.bind(this);
         this.enableTree = this.enableTree.bind(this);
         this.handleTreeClick = this.handleTreeClick.bind(this);
     }
@@ -101,6 +102,30 @@ export class Server extends React.Component {
                     this.props.addNotification(
                         "error",
                         `Error loading server configuration - ${errMsg.desc}`
+                    );
+                });
+    }
+
+    reloadConfig() {
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get"
+        ];
+        log_cmd("reloadConfig", "Reload server configuration", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
+                    this.setState({
+                        attrs: attrs
+                    });
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        `Error reloading server configuration - ${errMsg.desc}`
                     );
                 });
     }
@@ -249,6 +274,7 @@ export class Server extends React.Component {
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
+                        reloadConfig={this.reloadConfig}
                     />
                 );
             } else if (this.state.node_name === "audit-log-config") {
@@ -258,6 +284,7 @@ export class Server extends React.Component {
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
+                        reloadConfig={this.reloadConfig}
                     />
                 );
             } else if (this.state.node_name === "auditfail-log-config") {
@@ -267,6 +294,7 @@ export class Server extends React.Component {
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
+                        reloadConfig={this.reloadConfig}
                     />
                 );
             } else if (this.state.node_name === "error-log-config") {
@@ -276,6 +304,7 @@ export class Server extends React.Component {
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
+                        reloadConfig={this.reloadConfig}
                     />
                 );
             }

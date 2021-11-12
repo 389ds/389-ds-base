@@ -749,17 +749,21 @@ class MatchingRulesTable extends React.Component {
 
         for (const row of this.props.rows) {
             const val = value.toLowerCase();
+            let name = "";
             // Check for matches of all the parts
-            if (val != "" && row.name[0].toLowerCase().indexOf(val) == -1 &&
-                row.oid[0].toLowerCase().indexOf(val) == -1 &&
-                row.syntax[0].toLowerCase().indexOf(val) == -1) {
+            if (row.names.length > 0) {
+                name = row.name[0].toLowerCase();
+            }
+            if (val != "" && name.indexOf(val) == -1 &&
+                row.oid[0].indexOf(val) == -1 &&
+                row.syntax[0].indexOf(val) == -1) {
                 // Not a match
                 continue;
             }
             rows.push(
                 {
                     isOpen: false,
-                    cells: [row.name[0], row.oid[0], row.syntax[0]],
+                    cells: [{title: name === "" ? <i>&lt;No Name&gt;</i> : name}, row.oid[0], row.syntax[0]],
                 },
                 {
                     parent: count,

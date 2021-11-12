@@ -4,6 +4,7 @@ import { log_cmd } from "../tools.jsx";
 import {
     Button,
     Checkbox,
+    ExpandableSection,
     Form,
     FormGroup,
     FormSelect,
@@ -69,7 +70,7 @@ export class ServerAccessLog extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            loading: false,
+            loading: true,
             loaded: false,
             activeTabKey: 0,
             saveSettingsDisabled: true,
@@ -77,6 +78,7 @@ export class ServerAccessLog extends React.Component {
             saveExpDisabled: true,
             attrs: this.props.attrs,
             canSelectAll: false,
+            isExpanded: false,
             rows: [
                 { cells: ['Default Logging'], level: 256, selected: true },
                 { cells: ['Internal Operations'], level: 4, selected: false },
@@ -94,10 +96,16 @@ export class ServerAccessLog extends React.Component {
             });
         };
 
+        this.onToggle = isExpanded => {
+            this.setState({
+                isExpanded
+            });
+        };
+
         this.handleChange = this.handleChange.bind(this);
         this.handleTimeChange = this.handleTimeChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
-        this.reloadConfig = this.reloadConfig.bind(this);
+        this.refreshConfig = this.refreshConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
         this.onSelect = this.onSelect.bind(this);
     }
@@ -247,7 +255,7 @@ export class ServerAccessLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.reloadConfig();
+                    this.props.reloadConfig();
                     this.setState({
                         loading: false
                     });
@@ -258,7 +266,7 @@ export class ServerAccessLog extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.reloadConfig();
+                    this.props.reloadConfig();
                     this.setState({
                         loading: false
                     });
@@ -269,17 +277,17 @@ export class ServerAccessLog extends React.Component {
                 });
     }
 
-    reloadConfig(refresh) {
+    refreshConfig(refesh) {
         this.setState({
-            loading: refresh,
-            loaded: !refresh,
+            loading: true,
+            loaded: false,
         });
 
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
-        log_cmd("reloadConfig", "load Access Log configuration", cmd);
+        log_cmd("refreshConfig", "load Access Log configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -304,48 +312,46 @@ export class ServerAccessLog extends React.Component {
                         }
                     }
 
-                    this.setState(() => (
-                        {
-                            loading: false,
-                            loaded: true,
-                            saveSettingsDisabled: true,
-                            saveRotationDisabled: true,
-                            saveExpDisabled: true,
-                            'nsslapd-accesslog': attrs['nsslapd-accesslog'][0],
-                            'nsslapd-accesslog-level': attrs['nsslapd-accesslog-level'][0],
-                            'nsslapd-accesslog-logbuffering': buffering,
-                            'nsslapd-accesslog-logexpirationtime': attrs['nsslapd-accesslog-logexpirationtime'][0],
-                            'nsslapd-accesslog-logexpirationtimeunit': attrs['nsslapd-accesslog-logexpirationtimeunit'][0],
-                            'nsslapd-accesslog-logging-enabled': enabled,
-                            'nsslapd-accesslog-logmaxdiskspace': attrs['nsslapd-accesslog-logmaxdiskspace'][0],
-                            'nsslapd-accesslog-logminfreediskspace': attrs['nsslapd-accesslog-logminfreediskspace'][0],
-                            'nsslapd-accesslog-logrotationsync-enabled': attrs['nsslapd-accesslog-logrotationsync-enabled'][0],
-                            'nsslapd-accesslog-logrotationsynchour': attrs['nsslapd-accesslog-logrotationsynchour'][0],
-                            'nsslapd-accesslog-logrotationsyncmin': attrs['nsslapd-accesslog-logrotationsyncmin'][0],
-                            'nsslapd-accesslog-logrotationtime': attrs['nsslapd-accesslog-logrotationtime'][0],
-                            'nsslapd-accesslog-logrotationtimeunit': attrs['nsslapd-accesslog-logrotationtimeunit'][0],
-                            'nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
-                            'nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
-                            rows: rows,
-                            // Record original values
-                            _rows:  JSON.parse(JSON.stringify(rows)),
-                            '_nsslapd-accesslog': attrs['nsslapd-accesslog'][0],
-                            '_nsslapd-accesslog-level': attrs['nsslapd-accesslog-level'][0],
-                            '_nsslapd-accesslog-logbuffering': buffering,
-                            '_nsslapd-accesslog-logexpirationtime': attrs['nsslapd-accesslog-logexpirationtime'][0],
-                            '_nsslapd-accesslog-logexpirationtimeunit': attrs['nsslapd-accesslog-logexpirationtimeunit'][0],
-                            '_nsslapd-accesslog-logging-enabled': enabled,
-                            '_nsslapd-accesslog-logmaxdiskspace': attrs['nsslapd-accesslog-logmaxdiskspace'][0],
-                            '_nsslapd-accesslog-logminfreediskspace': attrs['nsslapd-accesslog-logminfreediskspace'][0],
-                            '_nsslapd-accesslog-logrotationsync-enabled': attrs['nsslapd-accesslog-logrotationsync-enabled'][0],
-                            '_nsslapd-accesslog-logrotationsynchour': attrs['nsslapd-accesslog-logrotationsynchour'][0],
-                            '_nsslapd-accesslog-logrotationsyncmin': attrs['nsslapd-accesslog-logrotationsyncmin'][0],
-                            '_nsslapd-accesslog-logrotationtime': attrs['nsslapd-accesslog-logrotationtime'][0],
-                            '_nsslapd-accesslog-logrotationtimeunit': attrs['nsslapd-accesslog-logrotationtimeunit'][0],
-                            '_nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
-                            '_nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
-                        })
-                    );
+                    this.setState({
+                        loading: false,
+                        loaded: true,
+                        saveSettingsDisabled: true,
+                        saveRotationDisabled: true,
+                        saveExpDisabled: true,
+                        'nsslapd-accesslog': attrs['nsslapd-accesslog'][0],
+                        'nsslapd-accesslog-level': attrs['nsslapd-accesslog-level'][0],
+                        'nsslapd-accesslog-logbuffering': buffering,
+                        'nsslapd-accesslog-logexpirationtime': attrs['nsslapd-accesslog-logexpirationtime'][0],
+                        'nsslapd-accesslog-logexpirationtimeunit': attrs['nsslapd-accesslog-logexpirationtimeunit'][0],
+                        'nsslapd-accesslog-logging-enabled': enabled,
+                        'nsslapd-accesslog-logmaxdiskspace': attrs['nsslapd-accesslog-logmaxdiskspace'][0],
+                        'nsslapd-accesslog-logminfreediskspace': attrs['nsslapd-accesslog-logminfreediskspace'][0],
+                        'nsslapd-accesslog-logrotationsync-enabled': attrs['nsslapd-accesslog-logrotationsync-enabled'][0],
+                        'nsslapd-accesslog-logrotationsynchour': attrs['nsslapd-accesslog-logrotationsynchour'][0],
+                        'nsslapd-accesslog-logrotationsyncmin': attrs['nsslapd-accesslog-logrotationsyncmin'][0],
+                        'nsslapd-accesslog-logrotationtime': attrs['nsslapd-accesslog-logrotationtime'][0],
+                        'nsslapd-accesslog-logrotationtimeunit': attrs['nsslapd-accesslog-logrotationtimeunit'][0],
+                        'nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
+                        'nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
+                        rows: rows,
+                        // Record original values
+                        _rows:  JSON.parse(JSON.stringify(rows)),
+                        '_nsslapd-accesslog': attrs['nsslapd-accesslog'][0],
+                        '_nsslapd-accesslog-level': attrs['nsslapd-accesslog-level'][0],
+                        '_nsslapd-accesslog-logbuffering': buffering,
+                        '_nsslapd-accesslog-logexpirationtime': attrs['nsslapd-accesslog-logexpirationtime'][0],
+                        '_nsslapd-accesslog-logexpirationtimeunit': attrs['nsslapd-accesslog-logexpirationtimeunit'][0],
+                        '_nsslapd-accesslog-logging-enabled': enabled,
+                        '_nsslapd-accesslog-logmaxdiskspace': attrs['nsslapd-accesslog-logmaxdiskspace'][0],
+                        '_nsslapd-accesslog-logminfreediskspace': attrs['nsslapd-accesslog-logminfreediskspace'][0],
+                        '_nsslapd-accesslog-logrotationsync-enabled': attrs['nsslapd-accesslog-logrotationsync-enabled'][0],
+                        '_nsslapd-accesslog-logrotationsynchour': attrs['nsslapd-accesslog-logrotationsynchour'][0],
+                        '_nsslapd-accesslog-logrotationsyncmin': attrs['nsslapd-accesslog-logrotationsyncmin'][0],
+                        '_nsslapd-accesslog-logrotationtime': attrs['nsslapd-accesslog-logrotationtime'][0],
+                        '_nsslapd-accesslog-logrotationtimeunit': attrs['nsslapd-accesslog-logrotationtimeunit'][0],
+                        '_nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
+                        '_nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
+                    });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -495,7 +501,7 @@ export class ServerAccessLog extends React.Component {
                             title="Enable access logging (nsslapd-accesslog-logging-enabled)."
                             label="Enable Access Logging"
                         />
-                        <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
+                        <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal>
                             <FormGroup
                                 label="Access Log Location"
                                 fieldId="nsslapd-accesslog"
@@ -514,7 +520,7 @@ export class ServerAccessLog extends React.Component {
                             </FormGroup>
                         </Form>
                         <Checkbox
-                            className="ds-margin-left ds-margin-top-lg"
+                            className="ds-left-margin-md ds-margin-top-lg"
                             id="nsslapd-accesslog-logbuffering"
                             isChecked={this.state['nsslapd-accesslog-logbuffering']}
                             onChange={(checked, e) => {
@@ -523,18 +529,28 @@ export class ServerAccessLog extends React.Component {
                             title="Disable access log buffering for faster troubleshooting, but this will impact server performance (nsslapd-accesslog-logbuffering)."
                             label="Access Log Buffering Enabled"
                         />
-                        <Table
-                            className="ds-left-indent-md ds-margin-top-xlg"
-                            onSelect={this.onSelect}
-                            canSelectAll={this.state.canSelectAll}
-                            variant={TableVariant.compact}
-                            aria-label="Selectable Table"
-                            cells={this.state.columns}
-                            rows={this.state.rows}
+
+
+                        <ExpandableSection
+                            className="ds-left-margin-md ds-margin-top-lg ds-font-size-md"
+                            toggleText={this.state.isExpanded ? 'Hide Logging Levels' : 'Show Logging Levels'}
+                            onToggle={this.onToggle}
+                            isExpanded={this.state.isExpanded}
                         >
-                            <TableHeader />
-                            <TableBody />
-                        </Table>
+                            <Table
+                                className="ds-left-margin"
+                                onSelect={this.onSelect}
+                                canSelectAll={this.state.canSelectAll}
+                                variant={TableVariant.compact}
+                                aria-label="Selectable Table"
+                                cells={this.state.columns}
+                                rows={this.state.rows}
+                            >
+                                <TableHeader />
+                                <TableBody />
+                            </Table>
+                        </ExpandableSection>
+
                         <Button
                             key="save settings"
                             isDisabled={this.state.saveSettingsDisabled}
@@ -767,7 +783,7 @@ export class ServerAccessLog extends React.Component {
                                     icon={faSyncAlt}
                                     title="Refresh log settings"
                                     onClick={() => {
-                                        this.reloadConfig(true);
+                                        this.refreshConfig();
                                     }}
                                 />
                             </Text>
