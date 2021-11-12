@@ -171,7 +171,7 @@ def security_ciphers_disable(inst, basedn, log, args):
 
 def security_ciphers_set(inst, basedn, log, args):
     enc = Encryption(inst)
-    enc.ciphers = args.cipher_string.split(',')
+    enc.ciphers = args.cipher_string.lstrip().split(',')
 
 
 def security_ciphers_get(inst, basedn, log, args):
@@ -476,7 +476,7 @@ def create_parser(subparsers):
     ciphers_set = ciphers_sub.add_parser('set', help='Set ciphers attribute', description=(
         'Use this command to directly set nsSSL3Ciphers attribute. It is a comma separated list '
         'of cipher names (prefixed with + or -), optionally including +all or -all. The attribute '
-        'may optionally be prefixed by keyword default. Please refer to documentation of '
+        'may optionally be set to keyword default. Please refer to documentation of '
         'the attribute for a more detailed description.'))
     ciphers_set.set_defaults(func=security_ciphers_set)
     ciphers_set.add_argument('cipher_string', metavar='cipher-string')

@@ -1497,7 +1497,7 @@ int32_t connection_has_psearch(Connection *c);
  * saslbind.c
  */
 int ids_sasl_init(void);
-char **ids_sasl_listmech(Slapi_PBlock *pb);
+char **ids_sasl_listmech(Slapi_PBlock *pb, PRBool get_all_mechs);
 void ids_sasl_check_bind(Slapi_PBlock *pb);
 void ids_sasl_server_new(Connection *conn);
 int slapd_ldap_sasl_interactive_bind(

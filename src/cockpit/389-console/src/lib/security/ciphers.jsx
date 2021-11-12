@@ -177,6 +177,7 @@ export class Ciphers extends React.Component {
                         saving: false,
                         disableSaveBtn: true,
                     });
+                    this.props.reload();
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);

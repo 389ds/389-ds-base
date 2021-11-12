@@ -1,7 +1,7 @@
 import cockpit from "cockpit";
 import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, listsEqual } from "../tools.jsx";
 import {
     Button,
     Checkbox,
@@ -66,6 +66,24 @@ export class ServerSASL extends React.Component {
                 isAllowedMechOpen,
             });
         };
+        this.onSelect = (event, selection) => {
+            const { allowedMechs } = this.state;
+            if (allowedMechs.includes(selection)) {
+                this.setState(
+                    prevState => ({
+                        allowedMechs: prevState.allowedMechs.filter(item => item !== selection),
+                        isOpen: false
+                    }), () => { this.validateSaveBtn() }
+                );
+            } else {
+                this.setState(
+                    prevState => ({
+                        allowedMechs: [...prevState.allowedMechs, selection],
+                        isOpen: false,
+                    }), () => { this.validateSaveBtn() }
+                );
+            }
+        };
         this.onAllowedMechClear = () => {
             this.setState({
                 allowedMechs: [],
@@ -73,9 +91,11 @@ export class ServerSASL extends React.Component {
             });
         };
 
+        this.validateRegex = this.validateRegex.bind(this);
+        this.validateModal = this.validateModal.bind(this);
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleModalChange = this.handleModalChange.bind(this);
-        this.handleModalAddChange = this.handleModalAddChange.bind(this);
         this.handleTestRegex = this.handleTestRegex.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.loadMechs = this.loadMechs.bind(this);
@@ -100,213 +120,136 @@ export class ServerSASL extends React.Component {
         }
     }
 
+    normalizeRegex(regex_str) {
+        return regex_str.replace(/\\\(/g, '(').replace(/\\\)/g, ')');
+    }
+
+    validateRegex(regex) {
+        // Just check that the regex itself is valid
+        let errObj = this.state.saslErrObj;
+        if (this.state.saslMapRegex === "") {
+            errObj.saslMapRegex = true;
+        } else {
+            try {
+                RegExp(this.state.saslMapRegex);
+                errObj.saslMapRegex = false;
+            } catch (e) {
+                // Bad regex
+                errObj.saslMapRegex = true;
+            }
+        }
+        this.setState({
+            saslErrObj: errObj
+        });
+        return !errObj.saslMapRegex;
+    }
+
     handleTestRegex() {
         const test_string = this.state.saslTestText;
-        const regex = this.state.saslMapRegex;
-        const cleaned_regex = regex.replace(/\\\(/g, '(').replace(/\\\)/g, ')');
-        const sasl_regex = RegExp(cleaned_regex);
-        if (sasl_regex.test(test_string)) {
-            this.props.addNotification(
-                "success",
-                "The test string matches the Regular Expression"
-            );
-        } else {
-            this.props.addNotification(
-                "warning",
-                "The test string does not match the Regular Expression"
-            );
-        }
-    }
-
-    handleChange(e, selection) {
-        let attr = "";
-        let value = "";
-        let isArray = false;
-        let chkBox = false;
-        let disableSaveBtn = true;
-        let valueErr = false;
-        const errObj = this.state.errObj;
-
-        // Could be a typeahead change, check selection
-        if (selection) {
-            isArray = true;
-            attr = "allowedMechs";
-            value = selection;
-        } else {
-            value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-            attr = e.target.id;
-            if (e.target.type === 'checkbox') {
-                chkBox = true;
-            }
-        }
-        // Check if a setting was changed, if so enable the save button
-        if (attr == 'mappingFallback' && this.state._mappingFallback != value) {
-            disableSaveBtn = false;
-        } else if (attr == 'maxBufSize' && this.state._maxBufSize != value) {
-            disableSaveBtn = false;
-        } else if (attr == 'allowedMechs' && !this.state._allowedMechs.includes(value)) {
-            if (this.state._allowedMechs.length > value.length) {
-                // The way allow mechanisms work if that once you set it initially
-                // you can't edit it without removing all the current mechanisms.  So
-                // if we remove one, just remove them all and make the user start over.
-                // !! THIS DOES NOT WORK
-                value = [];
-            }
-            disableSaveBtn = false;
-        }
-
-        // Now check for differences in values that we did not touch
-        if (attr != 'mappingFallback' && this.state._mappingFallback != this.state.mappingFallback) {
-            disableSaveBtn = false;
-        } else if (attr != 'maxBufSize' && this.state._maxBufSize != this.state.maxBufSize) {
-            disableSaveBtn = false;
-        } else if (attr != 'allowedMechs' && this.state._allowedMechs.join(' ') != this.state.allowedMechs.join(' ')) {
-            disableSaveBtn = false;
-        }
-
-        if (!isArray && !chkBox && value == "") {
-            valueErr = true;
-            disableSaveBtn = true;
-        }
-
-        errObj[attr] = valueErr;
-        if (isArray) {
-            if (this.state[attr].includes(value)) {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: prevState[attr].filter((item) => item !== value),
-                        saveDisabled: disableSaveBtn,
-                        errObj: errObj,
-                        isAllowedMechOpen: false
-                    }),
+        if (this.validateRegex()) {
+            const cleaned_regex = this.normalizeRegex(this.state.saslMapRegex);
+            const sasl_regex = RegExp(cleaned_regex);
+            if (sasl_regex.test(test_string)) {
+                this.props.addNotification(
+                    "success",
+                    "The test string matches the Regular Expression"
                 );
             } else {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: [...prevState[attr], value],
-                        saveDisabled: disableSaveBtn,
-                        errObj: errObj,
-                        isAllowedMechOpen: false
-                    }),
+                this.props.addNotification(
+                    "warning",
+                    "The test string does not match the Regular Expression"
                 );
             }
         } else {
-            this.setState({
-                [attr]: value,
-                saveDisabled: disableSaveBtn,
-                errObj: errObj,
-                isAllowedMechOpen: false
-            });
+            this.props.addNotification(
+                "error",
+                "Invalid regular expression"
+            );
         }
     }
 
-    handleModalAddChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
+    validateSaveBtn() {
+        const attrs = ['mappingFallback', 'maxBufSize'];
+        let disableSaveBtn = true;
+
+        for (const attr of attrs) {
+            if (this.state[attr] !== this.state['_' + attr]) {
+                disableSaveBtn = false;
+                break;
+            }
+        }
+
+        const orig_mechs = [...this.state._allowedMechs];
+        const new_mechs = [...this.state.allowedMechs];
+        if (!listsEqual(orig_mechs, new_mechs)) {
+            disableSaveBtn = false;
+        }
+
+        this.setState({
+            saveDisabled: disableSaveBtn,
+        });
+    }
+
+    handleChange(e) {
+        let attr = "";
+        let value = "";
+
+        value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        attr = e.target.id;
+
+        this.setState({
+            [attr]: value,
+            isAllowedMechOpen: false
+        }, () => { this.validateSaveBtn() });
+    }
+
+    validateModal() {
         let disableSaveBtn = true;
         let disableRegexTestBtn = true;
         const valueErr = false;
-        const errObj = this.state.errObj;
+        const errObj = this.state.saslErrObj;
+        let error = false;
 
-        // Check if a setting was changed, if so enable the save button
-        if (attr == 'saslMapName' && value != "") {
-            disableSaveBtn = false;
-        } else if (attr == 'saslMapRegex' && value != "") {
-            disableSaveBtn = false;
-        } else if (attr == 'saslBase' && value != "") {
-            disableSaveBtn = false;
-        } else if (attr == 'saslPriority' && value != "0") {
-            disableSaveBtn = false;
-        } else if (attr == 'saslFilter' && value != "") {
-            disableSaveBtn = false;
+        const attrs = ['saslMapName','saslMapRegex','saslBase', 'saslPriority', 'saslFilter'];
+        for (const attr of attrs) {
+            if (this.state[attr] === "" || (attr === 'saslPriority' && this.state[attr] == "0")) {
+                errObj[attr] = true;
+                error = true;
+            } else {
+                // attr value is good
+                errObj[attr] = false;
+            }
         }
-        if (!disableSaveBtn) {
-            // Make sure every other field is set
-            if (attr != 'saslMapName' && this.state.saslMapName == "") {
-                disableSaveBtn = true;
-            }
-            if (attr != 'saslMapRegex' && this.state.saslMapRegex == "") {
-                disableSaveBtn = true;
-            }
-            if (attr != 'saslBase' && this.state.saslBase == "") {
-                disableSaveBtn = true;
-            }
-            if (attr != 'saslFilter' && this.state.saslFilter == "") {
-                disableSaveBtn = true;
+
+        if (!error) {
+            // Check for changes in values
+            for (const attr of attrs) {
+                if (this.state[attr] !== this.state['_' + attr]) {
+                    disableSaveBtn = false;
+                    break;
+                }
             }
         }
 
         // Handle Test Text field and buttons
-        if (attr == 'saslTestText' && value != "" && this.state.saslMapRegex != "") {
-            disableRegexTestBtn = false;
-        }
-        if (attr != 'saslTestText' && this.state.saslMapRegex != "" && this.state.saslTestText != "") {
+        if (this.state.saslMapRegex != "" && this.state.saslTestText != "") {
             disableRegexTestBtn = false;
         }
 
-        errObj[attr] = valueErr;
         this.setState({
-            [attr]: value,
             saveMappingDisabled: disableSaveBtn,
             testBtnDisabled: disableRegexTestBtn,
-            errObj: errObj,
-        });
+            saslErrObj: errObj,
+        }, () => { this.validateRegex() });
     }
 
     handleModalChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
-        let disableSaveBtn = true;
-        let disableRegexTestBtn = true;
-        let valueErr = false;
-        const errObj = this.state.errObj;
 
-        // Check if a setting was changed, if so enable the save button
-        if (attr == 'saslMapName' && this.state._saslMapName != value) {
-            disableSaveBtn = false;
-        } else if (attr == 'saslMapRegex' && this.state._saslMapRegex != value) {
-            disableSaveBtn = false;
-        } else if (attr == 'saslBase' && this.state._saslBase != value) {
-            disableSaveBtn = false;
-        } else if (attr == 'saslFilter' && this.state._saslFilter != value) {
-            disableSaveBtn = false;
-        } else if (attr == 'saslPriority' && this.state._saslPriority != value) {
-            disableSaveBtn = false;
-        }
-
-        // Now check for differences in values that we did not touch
-        if (attr != 'saslMapName' && this.state._saslMapName != this.state.saslMapName) {
-            disableSaveBtn = false;
-        } else if (attr != 'saslMapRegex' && this.state._saslMapRegex != this.state.saslMapRegex) {
-            disableSaveBtn = false;
-        } else if (attr != 'saslBase' && this.state._saslBase != this.state.saslBase) {
-            disableSaveBtn = false;
-        } else if (attr != 'saslFilter' && this.state._saslFilter != this.state.saslFilter) {
-            disableSaveBtn = false;
-        } else if (attr != 'saslPriority' && this.state._saslPriority != this.state.saslPriority) {
-            disableSaveBtn = false;
-        }
-
-        // Handle TEst Text filed and buttons
-        if (attr == 'saslTestText' && value != "" && this.state.saslMapRegex != "") {
-            disableRegexTestBtn = false;
-        }
-        if (attr != 'saslTestText' && this.state.saslMapRegex != "" && this.state.saslTestText != "") {
-            disableRegexTestBtn = false;
-        }
-
-        if (value == "" && attr != "saslTestText") {
-            valueErr = true;
-            disableSaveBtn = true;
-        }
-
-        errObj[attr] = valueErr;
         this.setState({
             [attr]: value,
-            saveMappingDisabled: disableSaveBtn,
-            testBtnDisabled: disableRegexTestBtn,
-            errObj: errObj,
-        });
+        }, () => { this.validateModal() });
     }
 
     loadConfig() {
@@ -327,13 +270,13 @@ export class ServerSASL extends React.Component {
                     if (attrs['nsslapd-sasl-mapping-fallback'][0] == "on") {
                         fallback = true;
                     }
-                    if (allowedMechsVal != "") {
+                    if (allowedMechsVal !== "") {
                         // Could be space or comma separated
                         if (allowedMechsVal.indexOf(',') > -1) {
                             allowedMechsVal = allowedMechsVal.trim();
                             allowedMechs = allowedMechsVal.split(',');
                         } else {
-                            allowedMechs = allowedMechsVal.split();
+                            allowedMechs = allowedMechsVal.split(' ');
                         }
                     }
 
@@ -352,7 +295,7 @@ export class ServerSASL extends React.Component {
 
     loadMechs() {
         const cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", "sasl", 'get-mechs'
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", "sasl", 'get-available-mechs'
         ];
         log_cmd("loadMechs", "Get supported SASL mechanisms", cmd);
         cockpit
@@ -602,13 +545,22 @@ export class ServerSASL extends React.Component {
 
         // Build up the command list
         const cmd = [
-            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'config'
         ];
 
         const mech_str_new = this.state.allowedMechs.join(' ');
         const mech_str_orig = this.state._allowedMechs.join(' ');
         if (mech_str_orig != mech_str_new) {
-            cmd.push("nsslapd-allowed-sasl-mechanisms=" + mech_str_new);
+            if (mech_str_new.length === 0) {
+                cmd.push('delete')
+                cmd.push("nsslapd-allowed-sasl-mechanisms");
+            } else {
+                cmd.push('replace')
+                cmd.push("nsslapd-allowed-sasl-mechanisms=" + mech_str_new);
+            }
+        } else {
+            // The rest of the settings always have values to replace
+            cmd.push('replace')
         }
         if (this.state._mappingFallback != this.state.mappingFallback) {
             let value = "off";
@@ -706,7 +658,7 @@ export class ServerSASL extends React.Component {
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type SASL mechanism to allow"
                                     onToggle={this.onAllowedMechToggle}
-                                    onSelect={(e, selection) => { this.handleChange(e, selection) }}
+                                    onSelect={this.onSelect}
                                     onClear={this.onAllowedMechClear}
                                     selections={this.state.allowedMechs}
                                     isOpen={this.state.isAllowedMechOpen}
@@ -782,7 +734,7 @@ export class ServerSASL extends React.Component {
                     testBtnDisabled={this.state.testBtnDisabled}
                     saveDisabled={this.state.saveMappingDisabled}
                     closeHandler={this.closeMapping}
-                    handleChange={this.state.saslModalType == "Create" ? this.handleModalAddChange : this.handleModalChange}
+                    handleChange={this.handleModalChange}
                     handleTestRegex={this.handleTestRegex}
                     saveHandler={this.state.saslModalType == "Create" ? this.createMapping : this.editMapping}
                     error={this.state.saslErrObj}

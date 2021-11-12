@@ -63,7 +63,7 @@ export class ServerAuditLog extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            loading: false,
+            loading: true,
             loaded: false,
             activeTabKey: 0,
             saveSettingsDisabled: true,
@@ -82,7 +82,7 @@ export class ServerAuditLog extends React.Component {
         this.handleChange = this.handleChange.bind(this);
         this.handleTimeChange = this.handleTimeChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
-        this.reloadConfig = this.reloadConfig.bind(this);
+        this.refreshConfig = this.refreshConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
     }
 
@@ -207,7 +207,7 @@ export class ServerAuditLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.reloadConfig();
+                    this.props.reloadConfig();
                     this.setState({
                         loading: false
                     });
@@ -218,7 +218,7 @@ export class ServerAuditLog extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.reloadConfig();
+                    this.props.reloadConfig();
                     this.setState({
                         loading: false
                     });
@@ -229,17 +229,16 @@ export class ServerAuditLog extends React.Component {
                 });
     }
 
-    reloadConfig(refresh) {
+    refreshConfig() {
         this.setState({
-            loading: refresh,
-            loaded: !refresh,
+            loading: true,
+            loaded: false,
         });
-
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
-        log_cmd("reloadConfig", "load Audit Log configuration", cmd);
+        log_cmd("refreshConfig", "load Audit Log configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -251,42 +250,40 @@ export class ServerAuditLog extends React.Component {
                         enabled = true;
                     }
 
-                    this.setState(() => (
-                        {
-                            loading: false,
-                            loaded: true,
-                            saveSettingsDisabled: true,
-                            saveRotationDisabled: true,
-                            saveExpDisabled: true,
-                            'nsslapd-auditlog': attrs['nsslapd-auditlog'][0],
-                            'nsslapd-auditlog-logexpirationtime': attrs['nsslapd-auditlog-logexpirationtime'][0],
-                            'nsslapd-auditlog-logexpirationtimeunit': attrs['nsslapd-auditlog-logexpirationtimeunit'][0],
-                            'nsslapd-auditlog-logging-enabled': enabled,
-                            'nsslapd-auditlog-logmaxdiskspace': attrs['nsslapd-auditlog-logmaxdiskspace'][0],
-                            'nsslapd-auditlog-logminfreediskspace': attrs['nsslapd-auditlog-logminfreediskspace'][0],
-                            'nsslapd-auditlog-logrotationsync-enabled': attrs['nsslapd-auditlog-logrotationsync-enabled'][0],
-                            'nsslapd-auditlog-logrotationsynchour': attrs['nsslapd-auditlog-logrotationsynchour'][0],
-                            'nsslapd-auditlog-logrotationsyncmin': attrs['nsslapd-auditlog-logrotationsyncmin'][0],
-                            'nsslapd-auditlog-logrotationtime': attrs['nsslapd-auditlog-logrotationtime'][0],
-                            'nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
-                            'nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
-                            'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
-                            // Record original values
-                            '_nsslapd-auditlog': attrs['nsslapd-auditlog'][0],
-                            '_nsslapd-auditlog-logexpirationtime': attrs['nsslapd-auditlog-logexpirationtime'][0],
-                            '_nsslapd-auditlog-logexpirationtimeunit': attrs['nsslapd-auditlog-logexpirationtimeunit'][0],
-                            '_nsslapd-auditlog-logging-enabled': enabled,
-                            '_nsslapd-auditlog-logmaxdiskspace': attrs['nsslapd-auditlog-logmaxdiskspace'][0],
-                            '_nsslapd-auditlog-logminfreediskspace': attrs['nsslapd-auditlog-logminfreediskspace'][0],
-                            '_nsslapd-auditlog-logrotationsync-enabled': attrs['nsslapd-auditlog-logrotationsync-enabled'][0],
-                            '_nsslapd-auditlog-logrotationsynchour': attrs['nsslapd-auditlog-logrotationsynchour'][0],
-                            '_nsslapd-auditlog-logrotationsyncmin': attrs['nsslapd-auditlog-logrotationsyncmin'][0],
-                            '_nsslapd-auditlog-logrotationtime': attrs['nsslapd-auditlog-logrotationtime'][0],
-                            '_nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
-                            '_nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
-                            '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
-                        })
-                    );
+                    this.setState({
+                        loading: false,
+                        loaded: true,
+                        saveSettingsDisabled: true,
+                        saveRotationDisabled: true,
+                        saveExpDisabled: true,
+                        'nsslapd-auditlog': attrs['nsslapd-auditlog'][0],
+                        'nsslapd-auditlog-logexpirationtime': attrs['nsslapd-auditlog-logexpirationtime'][0],
+                        'nsslapd-auditlog-logexpirationtimeunit': attrs['nsslapd-auditlog-logexpirationtimeunit'][0],
+                        'nsslapd-auditlog-logging-enabled': enabled,
+                        'nsslapd-auditlog-logmaxdiskspace': attrs['nsslapd-auditlog-logmaxdiskspace'][0],
+                        'nsslapd-auditlog-logminfreediskspace': attrs['nsslapd-auditlog-logminfreediskspace'][0],
+                        'nsslapd-auditlog-logrotationsync-enabled': attrs['nsslapd-auditlog-logrotationsync-enabled'][0],
+                        'nsslapd-auditlog-logrotationsynchour': attrs['nsslapd-auditlog-logrotationsynchour'][0],
+                        'nsslapd-auditlog-logrotationsyncmin': attrs['nsslapd-auditlog-logrotationsyncmin'][0],
+                        'nsslapd-auditlog-logrotationtime': attrs['nsslapd-auditlog-logrotationtime'][0],
+                        'nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
+                        'nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
+                        'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+                        // Record original values
+                        '_nsslapd-auditlog': attrs['nsslapd-auditlog'][0],
+                        '_nsslapd-auditlog-logexpirationtime': attrs['nsslapd-auditlog-logexpirationtime'][0],
+                        '_nsslapd-auditlog-logexpirationtimeunit': attrs['nsslapd-auditlog-logexpirationtimeunit'][0],
+                        '_nsslapd-auditlog-logging-enabled': enabled,
+                        '_nsslapd-auditlog-logmaxdiskspace': attrs['nsslapd-auditlog-logmaxdiskspace'][0],
+                        '_nsslapd-auditlog-logminfreediskspace': attrs['nsslapd-auditlog-logminfreediskspace'][0],
+                        '_nsslapd-auditlog-logrotationsync-enabled': attrs['nsslapd-auditlog-logrotationsync-enabled'][0],
+                        '_nsslapd-auditlog-logrotationsynchour': attrs['nsslapd-auditlog-logrotationsynchour'][0],
+                        '_nsslapd-auditlog-logrotationsyncmin': attrs['nsslapd-auditlog-logrotationsyncmin'][0],
+                        '_nsslapd-auditlog-logrotationtime': attrs['nsslapd-auditlog-logrotationtime'][0],
+                        '_nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
+                        '_nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
+                        '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+                    });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -634,7 +631,7 @@ export class ServerAuditLog extends React.Component {
                                     icon={faSyncAlt}
                                     title="Refresh log settings"
                                     onClick={() => {
-                                        this.reloadConfig(true);
+                                        this.refreshConfig();
                                     }}
                                 />
                             </Text>

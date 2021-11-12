@@ -2,6 +2,7 @@ import React from "react";
 import {
     Button,
     Form,
+    FormHelperText,
     Grid,
     GridItem,
     Modal,
@@ -51,7 +52,7 @@ export class SASLMappingModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal>
+                <Form isHorizontal autoComplete="off">
                     <Grid
                         title="SASL Mapping entry name"
                         className="ds-margin-top"
@@ -72,13 +73,16 @@ export class SASLMappingModal extends React.Component {
                                 validated={this.props.error.saslMapName ? ValidatedOptions.error : ValidatedOptions.default}
                                 isRequired
                             />
+                            <FormHelperText isError isHidden={!this.props.error.saslMapName}>
+                                You must provide a name for this mapping
+                            </FormHelperText>
                         </GridItem>
                     </Grid>
                     <Grid
-                        title="SASL mapping Regular Expression"
+                        title="SASL Mapping Regular Expression"
                     >
                         <GridItem className="ds-label" span={3}>
-                            SASL mapping Regular Expression
+                            Regular Expression
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -93,6 +97,9 @@ export class SASLMappingModal extends React.Component {
                                 isRequired
                                 validated={this.props.error.saslMapRegex ? ValidatedOptions.error : ValidatedOptions.default}
                             />
+                            <FormHelperText isError isHidden={!this.props.error.saslMapRegex}>
+                                You must provide a valid regular expression
+                            </FormHelperText>
                         </GridItem>
                     </Grid>
                     <Grid
@@ -144,6 +151,9 @@ export class SASLMappingModal extends React.Component {
                                 isRequired
                                 validated={this.props.error.saslBase ? ValidatedOptions.error : ValidatedOptions.default}
                             />
+                            <FormHelperText isError isHidden={!this.props.error.saslBase}>
+                                You must provide a search base
+                            </FormHelperText>
                         </GridItem>
                     </Grid>
                     <Grid
@@ -165,6 +175,9 @@ export class SASLMappingModal extends React.Component {
                                 isRequired
                                 validated={this.props.error.saslFilter ? ValidatedOptions.error : ValidatedOptions.default}
                             />
+                            <FormHelperText isError isHidden={!this.props.error.saslFilter}>
+                                You must provide an LDAP search filter
+                            </FormHelperText>
                         </GridItem>
                     </Grid>
                     <Grid
@@ -185,6 +198,9 @@ export class SASLMappingModal extends React.Component {
                                 }}
                                 validated={this.props.error.saslPriority ? ValidatedOptions.error : ValidatedOptions.default}
                             />
+                            <FormHelperText isError isHidden={!this.props.error.saslPriority}>
+                                Priority must be between 1 and 100
+                            </FormHelperText>
                         </GridItem>
                     </Grid>
                 </Form>

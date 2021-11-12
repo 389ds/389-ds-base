@@ -492,6 +492,10 @@ pre {
     font-size: 12px !important;
 }
 
+.ds-font-size-md {
+    font-size: 14px !important;
+}
+
 /* This can be removed once PF3 is completely removed */
 input[type="radio"], input[type="checkbox"] {
     margin-top: 0px !important;

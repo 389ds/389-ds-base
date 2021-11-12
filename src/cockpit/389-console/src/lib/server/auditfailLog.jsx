@@ -62,7 +62,7 @@ export class ServerAuditFailLog extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            loading: false,
+            loading: true,
             loaded: false,
             activeTabKey: 0,
             saveSettingsDisabled: true,
@@ -81,7 +81,7 @@ export class ServerAuditFailLog extends React.Component {
         this.handleChange = this.handleChange.bind(this);
         this.handleTimeChange = this.handleTimeChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
-        this.reloadConfig = this.reloadConfig.bind(this);
+        this.refreshConfig = this.refreshConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
     }
 
@@ -206,7 +206,7 @@ export class ServerAuditFailLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.reloadConfig();
+                    this.props.reloadConfig();
                     this.setState({
                         loading: false
                     });
@@ -217,7 +217,7 @@ export class ServerAuditFailLog extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.reloadConfig();
+                    this.props.reloadConfig();
                     this.setState({
                         loading: false
                     });
@@ -228,17 +228,17 @@ export class ServerAuditFailLog extends React.Component {
                 });
     }
 
-    reloadConfig(refresh) {
+    refreshConfig() {
         this.setState({
-            loading: refresh,
-            loaded: !refresh,
+            loading: true,
+            loaded: false,
         });
 
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
-        log_cmd("reloadConfig", "load Audit Fail Log configuration", cmd);
+        log_cmd("refreshConfig", "load Audit Fail Log configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -632,7 +632,7 @@ export class ServerAuditFailLog extends React.Component {
                                     icon={faSyncAlt}
                                     title="Refresh log settings"
                                     onClick={() => {
-                                        this.reloadConfig(true);
+                                        this.refreshConfig();
                                     }}
                                 />
                             </Text>

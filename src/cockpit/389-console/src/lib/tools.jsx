@@ -215,8 +215,8 @@ export function displayKBytes(kbytes) {
 
 export function listsEqual(list1, list2) {
     if (Array.isArray(list1) && Array.isArray(list2)) {
-        const list1_sorted = [...list1];
-        const list2_sorted = [...list2];
+        const list1_sorted = [...list1].sort();
+        const list2_sorted = [...list2].sort();
         if (list1_sorted.length != list2_sorted.length) {
             return false;
         }

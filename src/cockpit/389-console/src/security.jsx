@@ -105,21 +105,10 @@ export class Security extends React.Component {
 
         // Server Cert
         this.handleServerCertSelect = (event, selection) => {
-            if (this.state.nssslpersonalityssl.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        nssslpersonalityssl: prevState.nssslpersonalityssl.filter((item) => item !== selection),
-                        isServerCertOpen: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        nssslpersonalityssl: [...prevState.nssslpersonalityssl, selection],
-                        isServerCertOpen: false
-                    }),
-                );
-            }
+            this.setState({
+                nssslpersonalityssl: selection,
+                isServerCertOpen: false
+            });
         };
         this.handleServerCertToggle = isServerCertOpen => {
             this.setState({
@@ -128,7 +117,7 @@ export class Security extends React.Component {
         };
         this.handleServerCertClear = () => {
             this.setState({
-                nssslpersonalityssl: [],
+                nssslpersonalityssl: '',
                 isServerCertOpen: false
             });
         };
@@ -626,6 +615,7 @@ export class Security extends React.Component {
                     this.setState({
                         securityEnabled: false,
                         modalSpinning: false,
+                        showConfirmDisable: false,
                     });
                 })
                 .fail(err => {
@@ -640,6 +630,7 @@ export class Security extends React.Component {
                     );
                     this.setState({
                         modalSpinning: false,
+                        showConfirmDisable: false,
                     });
                 });
     }
@@ -840,7 +831,7 @@ export class Security extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The name, or nickname, of the server certificate inthe NSS datgabase the server should use (nsSSLPersonalitySSL)."
+                                title="The name, or nickname, of the server certificate inthe NSS database the server should use (nsSSLPersonalitySSL)."
                             >
                                 <GridItem className="ds-label" span={3}>
                                     Server Certificate Name
@@ -1080,11 +1071,13 @@ export class Security extends React.Component {
                             <Tab eventKey={2} title={<TabTitleText>Cipher Preferences</TabTitleText>}>
                                 <div className="ds-indent ds-tab-table">
                                     <Ciphers
+                                        key={this.state.cipherPref}
                                         serverId={this.props.serverId}
                                         supportedCiphers={this.state.supportedCiphers}
                                         cipherPref={this.state.cipherPref}
                                         enabledCiphers={this.state.enabledCiphers}
                                         addNotification={this.props.addNotification}
+                                        reload={this.loadSecurityConfig}
                                     />
                                 </div>
                             </Tab>

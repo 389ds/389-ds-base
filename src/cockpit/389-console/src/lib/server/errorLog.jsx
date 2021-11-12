@@ -4,6 +4,7 @@ import { log_cmd } from "../tools.jsx";
 import {
     Button,
     Checkbox,
+    ExpandableSection,
     Form,
     FormGroup,
     FormSelect,
@@ -68,7 +69,7 @@ export class ServerErrorLog extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            loading: false,
+            loading: true,
             loaded: false,
             activeTabKey: 0,
             saveSettingsDisabled: true,
@@ -76,6 +77,7 @@ export class ServerErrorLog extends React.Component {
             saveExpDisabled: true,
             attrs: this.props.attrs,
             canSelectAll: false,
+            isExpanded: false,
             rows: [
                 { cells: ['Trace Function Calls'], level: 1, selected: false },
                 { cells: ['Packet Handling'], level: 2, selected: false },
@@ -97,6 +99,12 @@ export class ServerErrorLog extends React.Component {
             ],
         };
 
+        this.onToggle = isExpanded => {
+            this.setState({
+                isExpanded
+            });
+        };
+
         // Toggle currently active tab
         this.handleNavSelect = (event, tabIndex) => {
             this.setState({
@@ -107,7 +115,7 @@ export class ServerErrorLog extends React.Component {
         this.handleChange = this.handleChange.bind(this);
         this.handleTimeChange = this.handleTimeChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
-        this.reloadConfig = this.reloadConfig.bind(this);
+        this.refreshConfig = this.refreshConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
         this.onSelect = this.onSelect.bind(this);
     }
@@ -257,7 +265,7 @@ export class ServerErrorLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.reloadConfig();
+                    this.props.reloadConfig();
                     this.setState({
                         loading: false
                     });
@@ -268,7 +276,7 @@ export class ServerErrorLog extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.reloadConfig();
+                    this.props.reloadConfig();
                     this.setState({
                         loading: false
                     });
@@ -279,17 +287,17 @@ export class ServerErrorLog extends React.Component {
                 });
     }
 
-    reloadConfig(refresh) {
+    refreshConfig() {
         this.setState({
-            loading: refresh,
-            loaded: !refresh,
+            loading: true,
+            loaded: false,
         });
 
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
-        log_cmd("reloadConfig", "load Error Log configuration", cmd);
+        log_cmd("refreshConfig", "load Error Log configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -493,7 +501,7 @@ export class ServerErrorLog extends React.Component {
                             title="Enable Error logging (nsslapd-errorlog-logging-enabled)."
                             label="Enable Error Logging"
                         />
-                        <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
+                        <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal>
                             <FormGroup
                                 label="Error Log Location"
                                 fieldId="nsslapd-errorlog"
@@ -512,18 +520,26 @@ export class ServerErrorLog extends React.Component {
                             </FormGroup>
                         </Form>
 
-                        <Table
-                            className="ds-left-indent-md ds-margin-top-xlg"
-                            onSelect={this.onSelect}
-                            canSelectAll={this.state.canSelectAll}
-                            variant={TableVariant.compact}
-                            aria-label="Selectable Table"
-                            cells={this.state.columns}
-                            rows={this.state.rows}
+                        <ExpandableSection
+                            className="ds-left-margin-md ds-margin-top-lg ds-font-size-md"
+                            toggleText={this.state.isExpanded ? 'Hide Verbose Logging Levels' : 'Show Verbose Logging Levels'}
+                            onToggle={this.onToggle}
+                            isExpanded={this.state.isExpanded}
                         >
-                            <TableHeader />
-                            <TableBody />
-                        </Table>
+                            <Table
+                                className="ds-left-margin"
+                                onSelect={this.onSelect}
+                                canSelectAll={this.state.canSelectAll}
+                                variant={TableVariant.compact}
+                                aria-label="Selectable Table"
+                                cells={this.state.columns}
+                                rows={this.state.rows}
+                            >
+                                <TableHeader />
+                                <TableBody />
+                            </Table>
+                        </ExpandableSection>
+
                         <Button
                             key="save settings"
                             isDisabled={this.state.saveSettingsDisabled}
@@ -756,7 +772,7 @@ export class ServerErrorLog extends React.Component {
                                     icon={faSyncAlt}
                                     title="Refresh log settings"
                                     onClick={() => {
-                                        this.reloadConfig(true);
+                                        this.refreshConfig();
                                     }}
                                 />
                             </Text>
