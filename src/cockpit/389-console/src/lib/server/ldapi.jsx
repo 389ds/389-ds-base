@@ -24,7 +24,6 @@ import '@fortawesome/fontawesome-svg-core/styles.css';
 import PropTypes from "prop-types";
 
 const ldapi_attrs = [
-    'nsslapd-ldapimaptoentries',
     'nsslapd-ldapifilepath',
     'nsslapd-ldapimaprootdn',
     'nsslapd-ldapientrysearchbase',
@@ -55,7 +54,7 @@ export class ServerLDAPI extends React.Component {
             this.setState({
                 'nsslapd-ldapiuidnumbertype': selection,
                 isUIDOpen: false
-            });
+            }, () => { this.validateSaveBtn() });
         };
 
         this.onGIDToggle = isGIDOpen => {
@@ -68,9 +67,10 @@ export class ServerLDAPI extends React.Component {
             this.setState({
                 'nsslapd-ldapigidnumbertype': selection,
                 isGIDOpen: false
-            });
+            }, () => { this.validateSaveBtn() });
         };
 
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
@@ -112,31 +112,32 @@ export class ServerLDAPI extends React.Component {
                 });
     }
 
-    handleChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
+    validateSaveBtn () {
         let disableSaveBtn = true;
-
-        // Check if a setting was changed, if so enable the save button
-        for (const ldapi_attr of ldapi_attrs) {
-            if (attr == ldapi_attr && this.state['_' + ldapi_attr] != value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
 
         // Now check for differences in values that we did not touch
         for (const ldapi_attr of ldapi_attrs) {
-            if (attr != ldapi_attr && this.state['_' + ldapi_attr] != this.state[ldapi_attr]) {
+            if (this.state['_' + ldapi_attr].toLowerCase() !== this.state[ldapi_attr].toLowerCase()) {
                 disableSaveBtn = false;
                 break;
             }
         }
+        if (this.state['nsslapd-ldapimaptoentries'] !== this.state['_nsslapd-ldapimaptoentries']) {
+            disableSaveBtn = false;
+        }
+
+        this.setState({
+            saveDisabled: disableSaveBtn,
+        });
+    }
+
+    handleChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
 
         this.setState({
             [attr]: value,
-            saveDisabled: disableSaveBtn,
-        });
+        }, () => { this.validateSaveBtn() });
     }
 
     loadConfig() {
@@ -205,7 +206,7 @@ export class ServerLDAPI extends React.Component {
             'config', 'replace'
         ];
 
-        for (const attr of ldapi_attrs) {
+        for (const attr of [...ldapi_attrs, 'nsslapd-ldapimaptoentries']) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {

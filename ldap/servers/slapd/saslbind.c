@@ -808,10 +808,10 @@ ids_sasl_server_step(Connection *conn, struct berval *cred,
  * caller must free returned charray.
  */
 char **
-ids_sasl_listmech(Slapi_PBlock *pb)
+ids_sasl_listmech(Slapi_PBlock *pb, PRBool get_all_mechs)
 {
     char **ret;
-    char **config_ret;
+    char **config_ret = NULL;
     char **sup_ret;
     char **others;
     const char *str;
@@ -857,7 +857,7 @@ ids_sasl_listmech(Slapi_PBlock *pb)
     config_ret = config_get_allowed_sasl_mechs_array();
 
     /* Remove any content that isn't in the allowed list */
-    if (config_ret != NULL) {
+    if (config_ret != NULL && !get_all_mechs) {
         /* Get the set of supported mechs in the intersection of the two */
         ret = charray_intersection(sup_ret, config_ret);
         charray_free(sup_ret);
@@ -892,7 +892,7 @@ static int
 ids_sasl_mech_supported(Slapi_PBlock *pb, const char *mech)
 {
     Connection *pb_conn = NULL;
-    char **allowed_mechs = ids_sasl_listmech(pb);
+    char **allowed_mechs = ids_sasl_listmech(pb, PR_FALSE);
 
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
     slapi_log_err(SLAPI_LOG_CONNS,

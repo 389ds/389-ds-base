@@ -1991,7 +1991,7 @@ export class LocalPwPolicy extends React.Component {
                             pwUserAttrs = attrs.passworduserattributes[0].trim();
                             pwUserAttrs = pwUserAttrs.split(',');
                         } else {
-                            pwUserAttrs = attrs.passworduserattributes[0].split();
+                            pwUserAttrs = attrs.passworduserattributes[0].split(' ');
                         }
                     }
 
