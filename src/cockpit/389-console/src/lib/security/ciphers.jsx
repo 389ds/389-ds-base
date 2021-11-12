@@ -5,6 +5,7 @@ import {
     Form,
     FormSelect,
     FormSelectOption,
+    FormHelperText,
     Grid,
     GridItem,
     Select,
@@ -147,11 +148,13 @@ export class Ciphers extends React.Component {
             saving: true
         });
         let prefs = this.state.cipherPref;
-        for (const cipher of this.state.allowCiphers) {
-            prefs += ",+" + cipher;
-        }
-        for (const cipher of this.state.denyCiphers) {
-            prefs += ",-" + cipher;
+        if (this.state.cipherPref !== "default") {
+            for (const cipher of this.state.allowCiphers) {
+                prefs += ",+" + cipher;
+            }
+            for (const cipher of this.state.denyCiphers) {
+                prefs += ",-" + cipher;
+            }
         }
 
         const cmd = [
@@ -408,6 +411,9 @@ export class Ciphers extends React.Component {
                                     <FormSelectOption key="2" value="+all" label="All Ciphers" />
                                     <FormSelectOption key="3" value="-all" label="No Ciphers" />
                                 </FormSelect>
+                                <FormHelperText isHidden={this.state.cipherPref !== "default"}>
+                                    Default cipher suite is chosen. It enables the default ciphers advertised by NSS except weak ciphers.{(this.state.allowCiphers.length !== 0 || this.state.denyCiphers.length !== 0) ? " Any data in the 'Allow Specific Ciphers' and 'Deny Specific Ciphers' fields will be cleaned after the restart." : ""}
+                                </FormHelperText>
                             </GridItem>
                         </Grid>
                         <Grid>
@@ -418,6 +424,7 @@ export class Ciphers extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a cipher"
+                                    isDisabled={this.state.cipherPref === "default"}
                                     onToggle={this.onAllowCipherToggle}
                                     onSelect={this.handleAllowCipherChange}
                                     onClear={this.onAllowCipherClear}
@@ -445,6 +452,7 @@ export class Ciphers extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a cipher"
+                                    isDisabled={this.state.cipherPref === "default"}
                                     onToggle={this.onDenyCipherToggle}
                                     onSelect={this.handleDenyCipherChange}
                                     onClear={this.onDenyCipherClear}
