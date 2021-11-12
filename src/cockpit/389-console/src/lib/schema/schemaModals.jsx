@@ -113,6 +113,7 @@ class ObjectClassModal extends React.Component {
                                     name="ocName"
                                     onChange={(str, e) => { handleFieldChange(e) }}
                                     validated={error.ocName ? ValidatedOptions.error : ValidatedOptions.default}
+                                    isDisabled={!newOcEntry}
                                 />
                             </GridItem>
                         </Grid>
@@ -400,7 +401,7 @@ class AttributeTypeModal extends React.Component {
                                     id="atName"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="atName"
-                                    isDisabled={atModalViewOnly}
+                                    isDisabled={!newAtEntry}
                                     onChange={(str, e) => { handleFieldChange(e) }}
                                     validated={error.atName ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
