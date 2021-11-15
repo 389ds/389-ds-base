@@ -161,7 +161,6 @@ dbmdb_import_get_entry(ldif_context *c, int fd, int *lineno)
     char *buf = NULL;
 
     while (!done) {
-
         /* If there's no data in the buffer, get some */
         if ((c->size == 0) || (c->offset == c->size)) {
             /* Do we even have a buffer ? */
@@ -259,6 +258,12 @@ dbmdb_import_get_entry(ldif_context *c, int fd, int *lineno)
             }
             buf = newbuf;
             bufSize = newsize;
+        }
+        if (!buf) {
+            /* Test always false (buf get initialized in first iteration 
+             * but it makes gcc -fanalyzer happy
+             */
+            return NULL;
         }
         memmove(buf + bufOffset, c->b + c->offset, i - c->offset);
         bufOffset += (i - c->offset);
@@ -2931,6 +2936,10 @@ dbmdb_import_worker(void *param)
         }
         if (finished)
             continue;
+        if (!ep) {
+            /* Test always false but it makes gcc -fanalyzer happy */
+            break;
+        }
 
         if (!slapi_entry_flag_is_set(fi->entry->ep_entry,
                                      SLAPI_ENTRY_FLAG_TOMBSTONE)) {
@@ -4488,6 +4497,11 @@ error:
 int
 dbmdb_import_writer_create_dbi(ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id, const char *filename, PRBool delayed)
 {
+/* Lets ignore gcc static analysis false positive 
+ * (file is closed outside the function by dbmdb_writer_cleanup or handle_delayed_slots
+ */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-file-leak"
     pseudo_back_txn_t **ptxn = dbmdb_get_ptwctx(info->job, info, wctx_id);
     global_writer_ctx_t *gwctx = info->job->writer_ctx;
     long slot = PR_ATOMIC_INCREMENT(&gwctx->last_wqslot);
@@ -4518,6 +4532,7 @@ dbmdb_import_writer_create_dbi(ImportWorkerInfo *info, dbmdb_wctx_id_t wctx_id, 
     /* Lets associate the slot and the dbi */
     rc = dbmdb_open_dbi_from_filename(&wqslot->dbi, info->job->inst->inst_be, filename, NULL, MDB_OPEN_DIRTY_DBI);
     return rc;
+#pragma GCC diagnostic pop
 }
 
 /* Perform a synchronous write operation */

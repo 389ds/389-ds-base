@@ -168,7 +168,7 @@ int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_
     PERF_UNLOCK();
 
     if (rc == 0) {
-        ltxn = calloc(1, sizeof *ltxn);
+        ltxn = (dbmdb_txn_t *) slapi_ch_calloc(1, sizeof *ltxn);
         ltxn->magic[0] = TXN_MAGIC0;
         ltxn->magic[1] = TXN_MAGIC1;
         ltxn->refcnt = 1;
