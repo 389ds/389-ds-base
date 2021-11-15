@@ -696,7 +696,7 @@ class DirSrv(SimpleLDAPObject, object):
             ldifconn = LDIFConn(filename)
             configentry = ldifconn.get(DN_CONFIG)
             for key in args_dse_keys:
-                prop[key] = configentry.getValue(args_dse_keys[key])
+                prop[key] = ensure_str(configentry.getValue(args_dse_keys[key]))
                 # SER_HOST            (host) nsslapd-localhost
                 # SER_PORT            (port) nsslapd-port
                 # SER_SECURE_PORT     (sslport) nsslapd-secureport
