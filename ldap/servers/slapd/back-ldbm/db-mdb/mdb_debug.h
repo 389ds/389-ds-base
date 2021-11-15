@@ -23,10 +23,10 @@ void dbmdb_dbg_set_dbi_slots(dbmdb_dbi_t *slots);
 
 /* #define DBMDB_DEBUG 1 */
 #define DBGMDB_LEVEL_DEFAULT DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_TXN+DBGMDB_LEVEL_IMPORT
-#define SLAPI_LOG_DBGMDB SLAPI_LOG_INFO
 
 /* Define the wrapper associated with each log level */
 #ifdef DBMDB_DEBUG
+#define SLAPI_LOG_DBGMDB SLAPI_LOG_INFO
 #define MDB_CURSOR_OPEN(txn,dbi,cursor) dbg_mdb_cursor_open(__FILE__,__LINE__,__FUNCTION__,txn,dbi,cursor)
 #define MDB_CURSOR_CLOSE(cursor) dbg_mdb_cursor_close(__FILE__,__LINE__,__FUNCTION__,cursor)
 #define MDB_CURSOR_GET(cursor,key,data,op) dbg_mdb_cursor_get(__FILE__,__LINE__,__FUNCTION__,cursor,key,data,op)
@@ -67,6 +67,7 @@ void dbmdb_log_dbi_set_fn(const char *file, int lineno, const char *funcname, co
 
 #else /* DBMDB_DEBUG */
 
+#define SLAPI_LOG_DBGMDB 0
 #define MDB_CURSOR_OPEN(txn,dbi,cursor) mdb_cursor_open(txn,dbi,cursor)
 #define MDB_CURSOR_CLOSE(cursor) mdb_cursor_close(cursor)
 #define MDB_CURSOR_GET(cursor,key,data,op) mdb_cursor_get(cursor,key,data,op)

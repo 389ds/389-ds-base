@@ -3025,7 +3025,7 @@ class DirSrv(SimpleLDAPObject, object):
             raise ValueError('Failed to run dbscan')
         self.log.debug("is_dbi output is: ", output)
 
-        return dbipattern in output
+        return dbipattern.lower() in output.lower()
  
 
     def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False):

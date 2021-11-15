@@ -6,6 +6,10 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+#
+# This module handles dsconf libdb sub-commands
+#
+
 import os
 import re
 import glob
@@ -99,6 +103,7 @@ def get_backends(log, dse, tmpdir):
                 'ecbename': ecbename,
                 'suffix': suffix,
                 'dbdir': dbdir,
+                'ecdbdir': ecdbdir,
                 'dbsize': dbsize,
                 'dblib': dblib,
                 'ldifname': ldifname,
@@ -176,6 +181,17 @@ def import_changelog(be, dblib):
         return True
     except subprocess.CalledProcessError as e:
         return False
+
+
+def set_owner(list, uid, gid):
+    global _log
+    _log.debug(f"set_owner: {list} {uid} {gid}")
+    for f in list:
+        try:
+            _log.debug(f"set_owner: {f} {uid} {gid}")
+            os.chown(f, uid, gid)
+        except OSError:
+            pass
 
 
 def dblib_bdb2mdb(inst, log, args):
@@ -311,8 +327,7 @@ def dblib_bdb2mdb(inst, log, args):
             import_changelog(be, 'mdb')
         progress += be['dbsize']
     dbhome=backends["config"]["dbdir"]
-    for f in glob.glob(f'{dbhome}/*.mdb'):
-        os.chown(f, uid, gid)
+    set_owner(glob.glob(f'{dbhome}/*.mdb'), uid, gid)
     log.info("Backends importation 100%")
     inst.start()
     log.info("Migration from Berkeley database to lmdb is done.")
@@ -338,6 +353,7 @@ def dblib_mdb2bdb(inst, log, args):
     dse = DSEldif(inst)
     backends = get_backends(log, dse, tmpdir)
     dbmapdir = backends['config']['dbdir']
+    dbhome = inst.ds_paths.db_home_dir
     dblib = backends['config']['dblib']
     dbis = get_mdb_dbis(dbmapdir)
 
@@ -397,9 +413,7 @@ def dblib_mdb2bdb(inst, log, args):
         be['cl5'] = export_changelog(be, 'mdb')
         progress += 1
     log.info("Backends exportation 100%")
-    dbhome=backends["config"]["dbdir"]
-    for f in glob.glob(f'{dbhome}/*'):
-        os.chown(f, uid, gid)
+    set_owner(glob.glob(f'{dbmapdir}/*'), uid, gid)
 
     log.info("Updating dse.ldif file")
     # switch nsslapd-backend-implement in the dse.ldif
@@ -418,13 +432,20 @@ def dblib_mdb2bdb(inst, log, args):
             continue
         log.info(f"Backends importation {progress*100/total_dbsize:2f}% ({bename})")
         log.debug(f"inst.ldif2db({be['ecbename']}, None, None, {encrypt}, {be['ldifname']})")
+        log.debug(f'dbdir={be["dbdir"]}')
         os.chown(be['ldifname'], uid, gid)
         inst.ldif2db(be['ecbename'], None, None, encrypt, be['ldifname'])
         if be['cl5'] is True:
             import_changelog(be, 'bdb')
-        for f in glob.glob(f'{be["dbdir"]}/*'):
-            os.chown(f, uid, gid)
+        set_owner(glob.glob(f'{be["ecdbdir"]}/*'), uid, gid)
         progress += be['dbsize']
+
+    set_owner(glob.glob(f'{dbhome}/__db.*'), uid, gid)
+    set_owner(glob.glob(f'{dbmapdir}/__db.*'), uid, gid)
+    set_owner(glob.glob(f'{dbhome}/log.*'), uid, gid)
+    set_owner(glob.glob(f'{dbmapdir}/log.*'), uid, gid)
+    set_owner((f'{dbhome}/DBVERSION', f'{dbmapdir}/DBVERSION', f'{dbhome}/guardian', '{dbmapdir}/guardian'), uid, gid)
+
     log.info("Backends importation 100%")
     inst.start()
     log.info("Migration from ldbm to Berkeley database is done.")

@@ -87,6 +87,12 @@ CONFIG_MAP = {
     'version': ('', 'vendorVersion'),
 }
 
+#Alternate map if attribute is not found in CONFIG_MAP
+
+CONFIG_MAP2 = {
+    'db_home_dir' : ('cn=config,cn=ldbm database,cn=plugins,cn=config', 'nsslapd-db-home-directory'),
+}
+
 DSE_MAP = {
     'nsslapd-bakdir': 'backup_dir',
     'nsslapd-schemadir': 'schema_dir',
@@ -203,10 +209,20 @@ class Paths(object):
             self._read_defaults()
             self._validate_defaults()
         # Are we online? Is our key in the config map?
-        if name in CONFIG_MAP and self._instance is not None and self._instance.state == DIRSRV_STATE_ONLINE:
+        while name in CONFIG_MAP and self._instance is not None and self._instance.state == DIRSRV_STATE_ONLINE:
             # Get the online value.
             (dn, attr) = CONFIG_MAP[name]
-            ent = self._instance.getEntry(dn, attrlist=[attr,])
+            try:
+                ent = self._instance.getEntry(dn, attrlist=[attr,])
+            except ldap.NO_SUCH_OBJECT as e:
+                if name in CONFIG_MAP2:
+                    (dn, attr) = CONFIG_MAP[name]
+                    ent = self._instance.getEntry(dn, attrlist=[attr,])
+                else:
+                    raise e
+            except ldap.SERVER_DOWN as e:
+                self._instance.state = DIRSRV_STATE_OFFLINE
+                continue
             # If the server doesn't have it, fall back to our configuration.
             if attr is not None:
                 v = ensure_str(ent.getValue(attr))
