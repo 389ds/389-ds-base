@@ -218,14 +218,14 @@ class Paths(object):
                 ent = self._instance.getEntry(dn, attrlist=[attr,])
             except LDAPError as e:
                 err = e
-            if err is instanceof ldap.NO_SUCH_OBJECT and name in CONFIG_MAP2:
+            if isinstance(err, ldap.NO_SUCH_OBJECT) and name in CONFIG_MAP2:
                 try:
                     (dn, attr) = CONFIG_MAP2[name]
                     ent = self._instance.getEntry(dn, attrlist=[attr,])
                     err = None
                 except LDAPError as e:
                     err = e
-            if err is instanceof ldap.SERVER_DOWN:
+            if isinstance(err, ldap.SERVER_DOWN):
                 # Search in config.
                 break
             if err is not None:
