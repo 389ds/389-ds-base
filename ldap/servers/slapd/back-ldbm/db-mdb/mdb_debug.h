@@ -67,7 +67,7 @@ void dbmdb_log_dbi_set_fn(const char *file, int lineno, const char *funcname, co
 
 #else /* DBMDB_DEBUG */
 
-#define SLAPI_LOG_DBGMDB 0
+#define SLAPI_LOG_DBGMDB SLAPI_LOG_TRACE
 #define MDB_CURSOR_OPEN(txn,dbi,cursor) mdb_cursor_open(txn,dbi,cursor)
 #define MDB_CURSOR_CLOSE(cursor) mdb_cursor_close(cursor)
 #define MDB_CURSOR_GET(cursor,key,data,op) mdb_cursor_get(cursor,key,data,op)

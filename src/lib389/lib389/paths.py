@@ -212,18 +212,24 @@ class Paths(object):
         # Are we online? Is our key in the config map?
         while name in CONFIG_MAP and self._instance is not None and self._instance.state == DIRSRV_STATE_ONLINE:
             # Get the online value.
-            (dn, attr) = CONFIG_MAP[name]
+            err = None
             try:
+                (dn, attr) = CONFIG_MAP[name]
                 ent = self._instance.getEntry(dn, attrlist=[attr,])
-            except ldap.NO_SUCH_OBJECT as e:
-                if name in CONFIG_MAP2:
-                    (dn, attr) = CONFIG_MAP[name]
+            except LDAPError as e:
+                err = e
+            if err is instanceof ldap.NO_SUCH_OBJECT and name in CONFIG_MAP2:
+                try:
+                    (dn, attr) = CONFIG_MAP2[name]
                     ent = self._instance.getEntry(dn, attrlist=[attr,])
-                else:
-                    raise e
-            except ldap.SERVER_DOWN as e:
-                self._instance.state = DIRSRV_STATE_OFFLINE
-                continue
+                    err = None
+                except LDAPError as e:
+                    err = e
+            if err is instanceof ldap.SERVER_DOWN:
+                # Search in config.
+                break
+            if err is not None:
+                raise err
             # If the server doesn't have it, fall back to our configuration.
             if attr is not None:
                 v = ensure_str(ent.getValue(attr))
