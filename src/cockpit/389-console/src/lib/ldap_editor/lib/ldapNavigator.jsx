@@ -29,15 +29,9 @@ class LdapNavigator extends React.Component {
             }],
             activeItems: [],
             ldapFailure: false
-            // updatingTree: false
         };
 
         this.treeOnClick = (evt, treeViewItem, parentItem) => {
-            // console.log(treeViewItem);
-            // console.log(this.state.allItems);
-            // console.log(`this.state.ldapFailure = ${this.state.ldapFailure}`);
-            // console.log(`this.state.updatingTree = ${this.state.updatingTree}`);
-
             if (this.state.ldapFailure) {
                 const result = ldapPing(this.props.editorLdapServer,
                     (res, obj) => {
@@ -60,6 +54,11 @@ class LdapNavigator extends React.Component {
                 return;
             }
 
+            if (this.state.activeItems.length > 0 && treeViewItem.dn === this.state.activeItems[0].dn) {
+                // node was already clicked, just return
+                return;
+            }
+
             this.setState({
                 activeItems: [treeViewItem, parentItem]
                 // updatingTree: true
@@ -68,7 +67,7 @@ class LdapNavigator extends React.Component {
                 if (typeof this.props.showTreeLoadingState === 'function') {
                     this.props.showTreeLoadingState(true);
                 }
-                this.refreshNode(treeViewItem);
+                this.refreshNode(treeViewItem, true);
             });
         };
 
@@ -106,6 +105,7 @@ class LdapNavigator extends React.Component {
                                 ? '(|(&(numSubordinates=*)(numSubordinates>=1))(objectClass=organizationalunit)(objectClass=organization))'
                                 : null // getOneLevelEntries() will use its default filter '(|(objectClass=*)(objectClass=ldapSubEntry))'
                         };
+
                         if (this.props.skipLeafEntries) {
                             // updateDirectChildren() will call processDirectChildren() with the updated children array.
                             getOneLevelEntries(params, this.updateDirectChildren);
@@ -210,7 +210,6 @@ class LdapNavigator extends React.Component {
         // This is fine since the first entries are root suffixes
         // so the tree is not yet nested.
         this.setState({ allItems: [...this.props.treeItems] });
-        // console.log('In LdapNavigator - componentDidMount()');
     }
 
     componentDidUpdate (prevProps) {
@@ -256,6 +255,7 @@ class LdapNavigator extends React.Component {
             case 'DELETE': {
                 const currentActiveNode = this.state.activeItems[0];
                 const nodeId = currentActiveNode.id;
+
                 if (nodeId.indexOf('.') === -1) { // No dot in the id ==> Entry is a root node in the tree.
                     // Update the tree data after a suffix deletion.
                     this.updateRootSuffixNode(false);
