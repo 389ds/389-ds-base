@@ -30,7 +30,8 @@ TEST_PARAMS = [(DN_ROOT, False, [
                 'nsBackendSuffix', 'subschemaSubentry',
                 'supportedControl', 'supportedExtension',
                 'supportedFeatures', 'supportedLDAPVersion',
-                'supportedSASLMechanisms', 'vendorName', 'vendorVersion'
+                'supportedSASLMechanisms', 'availableSASLMechanisms',
+                'vendorName', 'vendorVersion'
                ]),
                (DN_ROOT, True, [
                 'createTimestamp', 'creatorsName',
@@ -38,7 +39,8 @@ TEST_PARAMS = [(DN_ROOT, False, [
                 'nsBackendSuffix', 'subschemaSubentry',
                 'supportedControl', 'supportedExtension',
                 'supportedFeatures', 'supportedLDAPVersion',
-                'supportedSASLMechanisms', 'vendorName', 'vendorVersion'
+                'supportedSASLMechanisms', 'availableSASLMechanisms',
+                'vendorName', 'vendorVersion'
                ]),
                (DN_PEOPLE, False, [
                 'aci', 'createTimestamp', 'creatorsName', 'entrydn',
