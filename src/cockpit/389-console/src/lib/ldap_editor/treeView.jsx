@@ -113,6 +113,10 @@ class EditorTreeView extends React.Component {
 
         this.handleNodeOnClick = (treeViewItem) => {
             console.log('handleNodeOnClick - treeViewItem: ', treeViewItem);
+            if (treeViewItem && treeViewItem.dn === this.state.entryDn) {
+                // Clicking on already selected node, just return
+                return;
+            }
             this.setState({
                 searching: true,
             }, () => {
@@ -544,7 +548,7 @@ class EditorTreeView extends React.Component {
                     }
 
                     <Grid hasGutter className="ds-margin-top-lg ds-indent">
-                        <GridItem span={this.props.hideSelectedEntry ? 12 : 6}>
+                        <GridItem span={6}>
                             <Label icon={<CatalogIcon />} color="blue">
                                 <strong>{this.props.treeViewRootSuffixes.length > 1 ? "Suffix Trees" : "Suffix Tree"}</strong>
                                 <Button
@@ -556,6 +560,7 @@ class EditorTreeView extends React.Component {
                             </Label>
                             { !loading &&
                                 <LdapNavigator
+                                    key={this.props.loading}
                                     treeItems={[...this.props.treeViewRootSuffixes]}
                                     timeOfCompletion={this.props.timeOfCompletion}
                                     editorLdapServer={this.props.editorLdapServer}
@@ -569,152 +574,149 @@ class EditorTreeView extends React.Component {
                                 />
                             }
                         </GridItem>
-
-                        { !this.props.hideSelectedEntry &&
-                            <GridItem span={6}>
-                                { firstClickOnTree &&
-                                    <Label icon={<InfoCircleIcon />} color="blue" >
-                                        <strong>Entry Details</strong>
-                                        <Tooltip
-                                            position="top"
-                                            content={
-                                                <div>Reload the LDAP entry.</div>
-                                            }
-                                        >
-                                            <Button
-                                                variant="link"
-                                                icon={<SyncAltIcon />}
-                                                onClick={() => this.setState({ refreshButtonTriggerTime: Date.now() })}
-                                            />
-                                        </Tooltip>
-                                    </Label>
-                                }
-                                <div className= "ds-margin-bottom-md" />
-
-                                { (!firstClickOnTree || loading) &&
-                                    <Card isHoverable>
-                                        <CardHeader>
-                                            <CardHeaderMain>
-                                                <Label variant="outline" color="blue" icon={<DatabaseIcon />}>
-                                                    Root Suffixes
-                                                </Label>
-                                            </CardHeaderMain>
-                                        </CardHeader>
-                                        <CardBody>
-                                            <TextContent>
-                                                <TextList component={TextListVariants.dl}>
-                                                    <TextListItem component={TextListItemVariants.dt}>Total</TextListItem>
-                                                    <TextListItem component={TextListItemVariants.dd}>
-                                                        {loading
-                                                            ? <Spinner size="md"/>
-                                                            : this.props.treeViewRootSuffixes.length
-                                                        }
-                                                    </TextListItem>
-                                                </TextList>
-                                            </TextContent>
-                                        </CardBody>
-                                    </Card>
-                                }
-
-                                { searching && loadingStateComponent }
-
-                                { firstClickOnTree && !loading && !searching && isValidData &&
-                                    <Card isHoverable>
-                                        <CardHeader>
-                                            <CardActions>
-                                                <Dropdown
-                                                    onSelect={this.props.onSelectEntryOptions}
-                                                    toggle={<KebabToggle
-                                                        isDisabled={isEmptySuffix || (entryDn === '')}
-                                                        onToggle={this.props.onToggleEntryMenu}
-                                                    />}
-                                                    isOpen={this.props.entryMenuIsOpen}
-                                                    isPlain
-                                                    dropdownItems={dropdownItems}
-                                                    position={'right'}
-                                                />
-                                            </CardActions>
-                                            <CardHeaderMain>
-                                                {entryIcon}
-                                            </CardHeaderMain>
-                                            <Title headingLevel="h6" size="md">
-                                                <span>&ensp;{entryDn}</span>
-                                            </Title>
-                                        </CardHeader>
-                                        { isEntryTooLarge &&
-                                            <CardTitle>
-                                                <Label color="orange" icon={<InfoCircleIcon />} >
-                                                    Entry is too large - Table is truncated.
-                                                </Label>
-                                            </CardTitle>
+                        <GridItem span={6}>
+                            { firstClickOnTree &&
+                                <Label icon={<InfoCircleIcon />} color="blue" >
+                                    <strong>Entry Details</strong>
+                                    <Tooltip
+                                        position="top"
+                                        content={
+                                            <div>Reload the LDAP entry.</div>
                                         }
+                                    >
+                                        <Button
+                                            variant="link"
+                                            icon={<SyncAltIcon />}
+                                            onClick={() => this.setState({ refreshButtonTriggerTime: Date.now() })}
+                                        />
+                                    </Tooltip>
+                                </Label>
+                            }
+                            <div className= "ds-margin-bottom-md" />
 
-                                        <CardBody>
-                                            <GenericPagination
-                                                columns={entryColumns}
-                                                rows={entryRows}
-                                                tableModificationTime={tableModificationTime}
-                                                ariaLabel="Entry details table with pagination"
-                                            />
-
-                                            { isEmptySuffix &&
-                                                <EmptyState variant={EmptyStateVariant.small}>
-                                                    <EmptyStateIcon icon={ResourcesEmptyIcon} />
-                                                    <Title headingLevel="h2" size="lg">
-                                                        Empty suffix!
-                                                    </Title>
-                                                    <EmptyStateBody>
-                                                        <Label variant="outline" color="orange" icon={<InfoCircleIcon />}>
-                                                            The suffix is configured, but it has no entries.
-                                                        </Label>
-                                                        <Button
-                                                            className="ds-margin-top-lg"
-                                                            variant="link"
-                                                            isLarge
-                                                            onClick={this.handleEmptySuffixToggle}
-                                                        >
-                                                            Create the root suffix entry <ArrowRightIcon />
-                                                        </Button>
-                                                    </EmptyStateBody>
-                                                </EmptyState>
-                                            }
-                                            { showEmptySuffixModal &&
-                                                <CreateRootSuffix
-                                                    showEmptySuffixModal={showEmptySuffixModal}
-                                                    handleEmptySuffixToggle={this.handleEmptySuffixToggle}
-                                                    suffixDn={entryDn}
-                                                    editorLdapServer={this.props.editorLdapServer}
-                                                    updateEntryRows={this.updateEntryRows}
-                                                />
-                                            }
-                                        </CardBody>
-                                        { !isEmptySuffix && (entryModTime.length > 0) &&
-                                            <CardFooter>
-                                                Last Modified Time: {entryModTime}
-                                                <div className="ds-margin-bottom-md" />
-                                                <Divider />
-                                                <div className="ds-margin-bottom-md" />
-                                                <Label variant="outline" color="blue" >
-                                                    Last Refresh at {(new Date(latestEntryRefreshTime)).toLocaleString()}
-                                                </Label>
-                                                <Tooltip
-                                                    position="top"
-                                                    content={
-                                                        <div>Reload the LDAP entry.</div>
+                            { (!firstClickOnTree || loading) &&
+                                <Card isHoverable>
+                                    <CardHeader>
+                                        <CardHeaderMain>
+                                            <Label variant="outline" color="blue" icon={<DatabaseIcon />}>
+                                                Root Suffixes
+                                            </Label>
+                                        </CardHeaderMain>
+                                    </CardHeader>
+                                    <CardBody>
+                                        <TextContent>
+                                            <TextList component={TextListVariants.dl}>
+                                                <TextListItem component={TextListItemVariants.dt}>Total</TextListItem>
+                                                <TextListItem component={TextListItemVariants.dd}>
+                                                    {loading
+                                                        ? <Spinner size="md"/>
+                                                        : this.props.treeViewRootSuffixes.length
                                                     }
-                                                >
+                                                </TextListItem>
+                                            </TextList>
+                                        </TextContent>
+                                    </CardBody>
+                                </Card>
+                            }
+
+                            { searching && loadingStateComponent }
+
+                            { firstClickOnTree && !loading && !searching && isValidData &&
+                                <Card isHoverable>
+                                    <CardHeader>
+                                        <CardActions>
+                                            <Dropdown
+                                                onSelect={this.props.onSelectEntryOptions}
+                                                toggle={<KebabToggle
+                                                    isDisabled={isEmptySuffix || (entryDn === '')}
+                                                    onToggle={this.props.onToggleEntryMenu}
+                                                />}
+                                                isOpen={this.props.entryMenuIsOpen}
+                                                isPlain
+                                                dropdownItems={dropdownItems}
+                                                position={'right'}
+                                            />
+                                        </CardActions>
+                                        <CardHeaderMain>
+                                            {entryIcon}
+                                        </CardHeaderMain>
+                                        <Title headingLevel="h6" size="md">
+                                            <span>&ensp;{entryDn}</span>
+                                        </Title>
+                                    </CardHeader>
+                                    { isEntryTooLarge &&
+                                        <CardTitle>
+                                            <Label color="orange" icon={<InfoCircleIcon />} >
+                                                Entry is too large - Table is truncated.
+                                            </Label>
+                                        </CardTitle>
+                                    }
+
+                                    <CardBody>
+                                        <GenericPagination
+                                            columns={entryColumns}
+                                            rows={entryRows}
+                                            tableModificationTime={tableModificationTime}
+                                            ariaLabel="Entry details table with pagination"
+                                        />
+
+                                        { isEmptySuffix &&
+                                            <EmptyState variant={EmptyStateVariant.small}>
+                                                <EmptyStateIcon icon={ResourcesEmptyIcon} />
+                                                <Title headingLevel="h2" size="lg">
+                                                    Empty suffix!
+                                                </Title>
+                                                <EmptyStateBody>
+                                                    <Label variant="outline" color="orange" icon={<InfoCircleIcon />}>
+                                                        The suffix is configured, but it has no entries.
+                                                    </Label>
                                                     <Button
+                                                        className="ds-margin-top-lg"
                                                         variant="link"
-                                                        icon={<SyncAltIcon />}
-                                                        onClick={() => this.setState({ refreshButtonTriggerTime: Date.now() })}
-                                                    />
-                                                </Tooltip>
-                                            </CardFooter>
+                                                        isLarge
+                                                        onClick={this.handleEmptySuffixToggle}
+                                                    >
+                                                        Create the root suffix entry <ArrowRightIcon />
+                                                    </Button>
+                                                </EmptyStateBody>
+                                            </EmptyState>
                                         }
-                                    </Card>
-                                }
-                            </GridItem>
-                        }
+                                        { showEmptySuffixModal &&
+                                            <CreateRootSuffix
+                                                showEmptySuffixModal={showEmptySuffixModal}
+                                                handleEmptySuffixToggle={this.handleEmptySuffixToggle}
+                                                suffixDn={entryDn}
+                                                editorLdapServer={this.props.editorLdapServer}
+                                                updateEntryRows={this.updateEntryRows}
+                                            />
+                                        }
+                                    </CardBody>
+                                    { !isEmptySuffix && (entryModTime.length > 0) &&
+                                        <CardFooter>
+                                            Last Modified Time: {entryModTime}
+                                            <div className="ds-margin-bottom-md" />
+                                            <Divider />
+                                            <div className="ds-margin-bottom-md" />
+                                            <Label variant="outline" color="blue" >
+                                                Last Refresh at {(new Date(latestEntryRefreshTime)).toLocaleString()}
+                                            </Label>
+                                            <Tooltip
+                                                position="top"
+                                                content={
+                                                    <div>Reload the LDAP entry.</div>
+                                                }
+                                            >
+                                                <Button
+                                                    variant="link"
+                                                    icon={<SyncAltIcon />}
+                                                    onClick={() => this.setState({ refreshButtonTriggerTime: Date.now() })}
+                                                />
+                                            </Tooltip>
+                                        </CardFooter>
+                                    }
+                                </Card>
+                            }
+                        </GridItem>
                     </Grid>
                 </div>;
         }
