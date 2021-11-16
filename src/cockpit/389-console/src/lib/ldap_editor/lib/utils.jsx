@@ -7,6 +7,7 @@ import {
   LDAP_PING_TIME_LIMIT,
   LDIF_MAX_CHAR_PER_LINE
 } from './constants.jsx';
+import { log_cmd } from "../../tools.jsx";
 
 export function generateUniqueId () {
   return Math.random().toString(36).substring(2, 15);
@@ -62,7 +63,7 @@ export function getUserSuffixes (serverId, suffixCallback) {
     'list',
     '--suffix'
   ];
-
+  log_cmd("getUserSuffixes", "list suffixes", suffixCmd);
   cockpit
     .spawn(suffixCmd, { superuser: true })
     .done(content => {
@@ -91,8 +92,7 @@ export function ldapPing (serverId, pingCallback) {
     '1.1'
   ];
 
-  console.log('Command = ' + cmd.toString());
-
+  log_cmd("ldapPing", "", cmd);
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
     .done(() => {
@@ -135,7 +135,8 @@ export function getRootSuffixEntryDetails (params, entryDetailsCallback) {
     // Doesn't work!! Some entries don't have an entryID (cn=config and its children for instance).
   ];
 
-  console.log('Command = ' + cmd.toString());
+  log_cmd("getRootSuffixEntryDetails", "", cmd);
+
   let dn = null; // The Root DSE DN is an empty one.
   let numSubordinates = '';
   let modifyTimestamp = '';
@@ -210,16 +211,6 @@ function getResourceLimits () {
     limits.push('-z', sizeLimit);
   }
 
-  /* const timeLimit = getTimeLimit();
-  const sizeLimit = getSizeLimit();
-  let myLimits = '';
-  // console.log(`sizeLimit = ${sizeLimit}`);
-  // console.log(`timeLimit = ${timeLimit}`);
-  myLimits = timeLimit > 0 ? `-l ${timeLimit}` : '';
-  if (sizeLimit > 0) {
-    myLimits = myLimits.concat(` -z ${sizeLimit}`);
-  }
-  console.log(`myLimits = ${myLimits}`); */
   return limits;
 }
 
@@ -252,7 +243,7 @@ export function getSearchEntries (params, resultCallback) {
     '+'
   ];
 
-  console.log('getSearchEntries command = ' + cmd.toString());
+  log_cmd("getSearchEntries", "", cmd);
   let dn = '';
   let numSubordinates = '0';
   let modifyTimestamp = '';
@@ -362,7 +353,8 @@ export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCa
     0
     [root@cette ~]#
   */
-  console.log('Command = ' + cmd.toString());
+
+  log_cmd("getBaseLevelEntryAttributes", "", cmd);
   const entryArray = [];
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
@@ -440,7 +432,7 @@ export function getBaseLevelEntryFullAttributes (serverId, baseDn, entryAttribut
     '+'
   ];
 
-  console.log('Command = ' + cmd.toString());
+  log_cmd("getBaseLevelEntryFullAttributes", "", cmd);
   const entryArray = [];
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
@@ -511,7 +503,7 @@ export function getOneLevelEntries (params, oneLevelCallback) {
     'objectclass'
   ];
 
-  console.log('Command = ' + cmd.toString());
+  log_cmd("getOneLevelEntries", "", cmd);
   let dn = '';
   let numSubordinates = '';
   let modifyTimestamp = '';
@@ -610,7 +602,7 @@ export function runGenericSearch (params, searchCallback) {
     params.attributes
   ];
 
-  console.log('Command = ' + cmd.toString());
+  log_cmd("runGenericSearch", "", cmd);
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
     .done(data => {
@@ -648,7 +640,7 @@ export function getMonitoringInfo (serverId, monitorEntryCallback) {
     'startTime'
   ];
 
-  console.log('Command = ' + cmd.toString());
+  log_cmd("getMonitoringInfo", "", cmd);
   // TODO: Use an object
   // monitorObject = {version: version, threads: threads, ...}
   let version = '';
@@ -730,7 +722,7 @@ export function listAccessLogs (logDirectory, logListCallback) {
     './access* | grep -v access.rotationinfo'
   ];
 
-  console.log('Command = ' + cmd.toString());
+  log_cmd("listAccessLogs", "", cmd);
 
   const logDataArray = [];
 
@@ -785,7 +777,7 @@ export function modifyLdapEntry (params, ldifArray, modifyEntryCallback) {
   ];
 
   let result = {};
-  console.log('Command = ' + cmd.toString());
+  log_cmd("modifyLdapEntry", "", cmd);
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
     .done(data => {
@@ -828,7 +820,7 @@ export function getAllObjectClasses (serverId, allOcCallback) {
     'list'
   ];
   const result = [];
-  console.log('Command = ' + cmd.toString());
+  log_cmd("getAllObjectClasses", "", cmd);
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
     .done(data => {
@@ -860,7 +852,7 @@ export function getSingleValuedAttributes (serverId, svCallback) {
     'list'
   ];
   const result = [];
-  console.log('Command = ' + cmd.toString());
+  log_cmd("getSingleValuedAttributes", "", cmd);
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
     .done(data => {
@@ -890,7 +882,7 @@ export function getAttributesNameAndOid (serverId, attrCallback) {
     'list'
   ];
   const result = [];
-  console.log('Command = ' + cmd.toString());
+  log_cmd("getAttributesNameAndOid", "", cmd);
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
     .done(data => {
@@ -921,7 +913,7 @@ export function deleteLdapData (serverId, entryDN, numSubordinates, deleteCallba
   }
 
   let result = {};
-  console.log('Command = ' + cmd.toString());
+  log_cmd("deleteLdapData", "", cmd);
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
     .done(data => {

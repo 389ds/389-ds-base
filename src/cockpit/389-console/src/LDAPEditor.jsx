@@ -64,10 +64,10 @@ export class LDAPEditor extends React.Component {
             onRootSuffixes: true,
             numberSuffixes: 0,
             entryMenuIsOpen: false,
-            hideSelectedEntry: false,
             wizardOperationInfo: { operationType: '', resultCode: -1, time: 0 },
             wizardName: '',
             isWizardOpen: false,
+            isTreeWizardOpen: false,
             wizardEntryDn: '',
             treeViewRootSuffixes: [],
             searchBase: "",
@@ -110,6 +110,7 @@ export class LDAPEditor extends React.Component {
         };
 
         this.handleSelectEntryOptions = event => {
+            // Tree view update
             const aTarget = event.target;
 
             // No need to use a wizard for the Refresh operation.
@@ -127,13 +128,22 @@ export class LDAPEditor extends React.Component {
                 });
                 return;
             }
-
             this.setState({
                 entryMenuIsOpen: !this.state.entryMenuIsOpen,
                 wizardName: aTarget.name,
-                isWizardOpen: !this.state.isWizardOpen,
-                wizardEntryDn: aTarget.value
+                isTreeWizardOpen: !this.state.isTreeWizardOpen,
+                wizardEntryDn: aTarget.value,
             });
+        };
+
+        this.toggleOpenTreeWizard = () => {
+            this.setState({
+                isTreeWizardOpen: !this.state.isTreeWizardOpen
+            });
+        };
+
+        this.handleReloadNoop = () => {
+            // Treeview does not require a reload
         };
 
         this.toggleOpenWizard = () => {
@@ -147,7 +157,9 @@ export class LDAPEditor extends React.Component {
             // typeAndResult is an object with two fields (opType and result)
             // eg: {operationType: 'MODRDN', resultCode: 0, time: 1613090160492}
             const wizardOperationInfo = { ...opInfo };
-            this.setState({ wizardOperationInfo });
+            this.setState({
+                wizardOperationInfo,
+            });
         };
 
         // Show entry details table when user first clicks on the tree:
@@ -777,9 +789,9 @@ export class LDAPEditor extends React.Component {
             loading,
             navItems,
             entryMenuIsOpen,
-            hideSelectedEntry,
             wizardOperationInfo,
             isWizardOpen,
+            isTreeWizardOpen,
             wizardName,
             wizardEntryDn,
             treeViewRootSuffixes,
@@ -806,6 +818,19 @@ export class LDAPEditor extends React.Component {
                         allObjectclasses={this.state.allObjectclasses}
                     />
                 )}
+                {isTreeWizardOpen && (
+                    <GenericWizard
+                        wizardName={wizardName}
+                        isWizardOpen={isTreeWizardOpen}
+                        toggleOpenWizard={this.toggleOpenTreeWizard}
+                        wizardEntryDn={wizardEntryDn}
+                        editorLdapServer={this.props.serverId}
+                        {...treeItemsProps}
+                        setWizardOperationInfo={this.setWizardOperationInfo}
+                        onReload={this.handleReloadNoop}
+                        allObjectclasses={this.state.allObjectclasses}
+                    />
+                )}
                 <Tabs isBox className="ds-margin-top-lg ds-indent" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>Tree View</TabTitleText>}>
                         <EditorTreeView
@@ -817,7 +842,6 @@ export class LDAPEditor extends React.Component {
                             loading={loading}
                             timeOfCompletion={this.state.timeOfCompletion}
                             setTreeFirstClicked={this.setTreeFirstClicked}
-                            hideSelectedEntry={hideSelectedEntry}
                             editorLdapServer={this.props.serverId}
                             wizardOperationInfo={wizardOperationInfo}
                             refreshEntryTime={refreshEntryTime}

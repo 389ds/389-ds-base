@@ -36,7 +36,7 @@ export function log_cmd(js_func, desc, cmd_array) {
         let converted_pw = false;
 
         for (const idx in cmd_array) {
-            const cmd = cmd_array[idx];
+            const cmd = cmd_array[idx].toString();
             converted_pw = false;
             for (var arg_idx in pw_args) {
                 if (cmd.startsWith(pw_args[arg_idx])) {
