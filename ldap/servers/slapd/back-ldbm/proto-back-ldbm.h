@@ -36,6 +36,7 @@ void attr_create_empty(backend *be, char *type, struct attrinfo **ai);
 /*
  * cache.c
  */
+void cache_disable(void);
 int cache_init(struct cache *cache, uint64_t maxsize, int64_t maxentries, int type);
 void cache_clear(struct cache *cache, int type);
 void cache_destroy_please(struct cache *cache, int type);
@@ -229,7 +230,7 @@ int idl_get_tune(void);
 size_t idl_get_allidslimit(struct attrinfo *a, int allidslimit);
 int idl_get_idl_new(void);
 IDList *idl_new_range_fetch(backend *be, dbi_db_t *db, dbi_val_t *lowerkey, dbi_val_t *upperkey, dbi_txn_t *txn, struct attrinfo *a, int *flag_err, int allidslimit, int sizelimit, struct timespec *expire_time, int lookthrough_limit, int operator);
-
+char *get_index_name(backend *be, dbi_db_t *db, struct attrinfo *a);
 
 int64_t idl_compare(IDList *a, IDList *b);
 
@@ -318,7 +319,7 @@ void add_update_entrydn_operational_attributes(struct backentry *ep);
 /*
  * misc.c
  */
-void ldbm_nasty(char *func, const char *str, int c, int err);
+void ldbm_nasty(const char *func, const char *str, int c, int err);
 void ldbm_log_access_message(Slapi_PBlock *pblock, char *string);
 int return_on_disk_full(struct ldbminfo *li);
 int ldbm_attribute_always_indexed(const char *attrtype);

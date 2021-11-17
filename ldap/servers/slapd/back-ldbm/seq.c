@@ -177,7 +177,7 @@ retry:
                 for (retry_count = 0; retry_count < IDL_FETCH_RETRY_COUNT; retry_count++) {
                     err = NEW_IDL_DEFAULT;
                     idl_free(&idl);
-                    idl = idl_fetch(be, db, &key, parent_txn, ai, &err);
+                    idl = idl_fetch(be, db, &key, txn.back_txn_txn, ai, &err);
                     if (err == DBI_RC_RETRY) {
                         ldbm_nasty("ldbm_back_seq", "deadlock retry", 1600, err);
                         if (txn.back_txn_txn) {

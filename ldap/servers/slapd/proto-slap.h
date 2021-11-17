@@ -810,9 +810,9 @@ int lock_fclose(FILE *fp, FILE *lfp);
 extern int slapd_ldap_debug;
 
 int loglevel_is_set(int level);
-int slapd_log_error_proc(int sev_level, char *subsystem, char *fmt, ...);
+int slapd_log_error_proc(int sev_level, const char *subsystem, const char *fmt, ...);
 
-int slapi_log_access(int level, char *fmt, ...)
+int slapi_log_access(int level, const char *fmt, ...)
 #ifdef __GNUC__
     __attribute__((format(printf, 2, 3)));
 #else

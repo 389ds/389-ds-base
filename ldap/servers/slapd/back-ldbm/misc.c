@@ -37,7 +37,7 @@ ldbm_set_error(Slapi_PBlock *pb, int retval, int *ldap_result_code, char **ldap_
 /* Takes a return code supposed to be errno or from lidb
    which we don't expect to see and prints a handy log message */
 void
-ldbm_nasty(char *func, const char *str, int c, int err)
+ldbm_nasty(const char *func, const char *str, int c, int err)
 {
     const char *msg = NULL;
     char buffer[200];

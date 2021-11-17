@@ -108,7 +108,7 @@ int mdb_init(struct ldbminfo *li, config_info *config_array)
     dbmdb_componentid = generate_componentid(NULL, "db-mdb");
 
     li->li_dblayer_config = conf;
-    strncpy(conf->home, li->li_directory, MAXPATHLEN);
+    strncpy(conf->home, li->li_directory, MAXPATHLEN-1);
     pthread_mutex_init(&conf->dbis_lock, NULL);
     pthread_mutex_init(&conf->rcmutex, NULL);
     pthread_rwlock_init(&conf->dbmdb_env_lock, NULL);
@@ -186,6 +186,7 @@ int mdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_compact_fn = &dbmdb_public_dblayer_compact;
     priv->dblayer_clear_vlv_cache_fn = &dbmdb_public_clear_vlv_cache;
     priv->dblayer_dbi_db_remove_fn = &dbmdb_public_delete_db;
+    priv->dblayer_idl_new_fetch_fn = &dbmdb_idl_new_fetch;
 
     dbmdb_fake_priv = *priv; /* Copy the callbaks for dbmdb_be() */
     return 0;
@@ -215,7 +216,7 @@ dbmdb_ctx_t_add_dse_entries(struct ldbminfo *li, char **entries, char *string1, 
         util_pb = slapi_pblock_new();
         PR_snprintf(entry_string, 512, entries[x], string1, string2, string3);
         e = slapi_str2entry(entry_string, 0);
-        PL_strncpyz(ebuf, slapi_entry_get_dn_const(e), sizeof(ebuf)); /* for logging */
+        PL_strncpyz(ebuf, slapi_entry_get_dn_const(e), sizeof(ebuf)-1); /* for logging */
         slapi_add_entry_internal_set_pb(util_pb, e, NULL, li->li_identity, 0);
         slapi_pblock_set(util_pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING,
                          &dont_write_file);
@@ -509,7 +510,7 @@ dbmdb_ctx_t_serial_lock_set(void *arg,
 static config_info dbmdb_ctx_t_param[] = {
     {CONFIG_MDB_MAX_SIZE, CONFIG_TYPE_UINT64, "0", &dbmdb_ctx_t_db_max_size_get, &dbmdb_ctx_t_db_max_size_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_MDB_MAX_READERS, CONFIG_TYPE_INT, "0", &dbmdb_ctx_t_db_max_readers_get, &dbmdb_ctx_t_db_max_readers_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_MDB_MAX_DBS, CONFIG_TYPE_INT, "128", &dbmdb_ctx_t_db_max_dbs_get, &dbmdb_ctx_t_db_max_dbs_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_MDB_MAX_DBS, CONFIG_TYPE_INT, "512", &dbmdb_ctx_t_db_max_dbs_get, &dbmdb_ctx_t_db_max_dbs_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_MAXPASSBEFOREMERGE, CONFIG_TYPE_INT, "100", &dbmdb_ctx_t_maxpassbeforemerge_get, &dbmdb_ctx_t_maxpassbeforemerge_set, 0},
     {CONFIG_DB_DURABLE_TRANSACTIONS, CONFIG_TYPE_ONOFF, "on", &dbmdb_ctx_t_db_durable_transactions_get, &dbmdb_ctx_t_db_durable_transactions_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_BYPASS_FILTER_TEST, CONFIG_TYPE_STRING, "on", &dbmdb_ctx_t_get_bypass_filter_test, &dbmdb_ctx_t_set_bypass_filter_test, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
@@ -993,13 +994,14 @@ dbmdb_ctx_t_set(void *arg, char *attr_name, config_info *config_array, struct be
         if (PL_strncmp(buf, bval->bv_val, bval->bv_len)) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
                                   "value [%s] for attribute %s does not match existing value [%s].\n", bval->bv_val, attr_name, buf);
+slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
             return LDAP_NO_SUCH_ATTRIBUTE;
         }
     }
 
     switch (config->config_type) {
     case CONFIG_TYPE_INT:
-        if (use_default) {
+        if (use_default || !bval) {
             str_val = config->config_default_value;
         } else {
             str_val = bval->bv_val;
@@ -1031,7 +1033,7 @@ dbmdb_ctx_t_set(void *arg, char *attr_name, config_info *config_array, struct be
         retval = config->config_set_fn(arg, (void *)((uintptr_t)int_val), err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_INT_OCTAL:
-        if (use_default) {
+        if (use_default || !bval) {
             int_val = (int)strtol(config->config_default_value, NULL, 8);
         } else {
             int_val = (int)strtol((char *)bval->bv_val, NULL, 8);
@@ -1039,7 +1041,7 @@ dbmdb_ctx_t_set(void *arg, char *attr_name, config_info *config_array, struct be
         retval = config->config_set_fn(arg, (void *)((uintptr_t)int_val), err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_LONG:
-        if (use_default) {
+        if (use_default || !bval) {
             str_val = config->config_default_value;
         } else {
             str_val = bval->bv_val;
@@ -1073,7 +1075,7 @@ dbmdb_ctx_t_set(void *arg, char *attr_name, config_info *config_array, struct be
         retval = config->config_set_fn(arg, (void *)long_val, err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_SIZE_T:
-        if (use_default) {
+        if (use_default || !bval) {
             str_val = config->config_default_value;
         } else {
             str_val = bval->bv_val;
@@ -1102,7 +1104,7 @@ dbmdb_ctx_t_set(void *arg, char *attr_name, config_info *config_array, struct be
 
 
     case CONFIG_TYPE_UINT64:
-        if (use_default) {
+        if (use_default || !bval) {
             str_val = config->config_default_value;
         } else {
             str_val = bval->bv_val;
@@ -1128,14 +1130,14 @@ dbmdb_ctx_t_set(void *arg, char *attr_name, config_info *config_array, struct be
         retval = config->config_set_fn(arg, (void *)sz_val, err_buf, phase, apply_mod);
         break;
     case CONFIG_TYPE_STRING:
-        if (use_default) {
+        if (use_default || !bval) {
             retval = config->config_set_fn(arg, config->config_default_value, err_buf, phase, apply_mod);
         } else {
             retval = config->config_set_fn(arg, bval->bv_val, err_buf, phase, apply_mod);
         }
         break;
     case CONFIG_TYPE_ONOFF:
-        if (use_default) {
+        if (use_default || !bval) {
             int_val = !strcasecmp(config->config_default_value, "on");
         } else {
             int_val = !strcasecmp((char *)bval->bv_val, "on");

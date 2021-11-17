@@ -15,7 +15,7 @@
 #include "back-ldbm.h"
 #include "import.h"
 
-static char *sourcefile = "ancestorid.c";
+static const char *sourcefile = "ancestorid.c";
 
 static int
 ancestorid_addordel(

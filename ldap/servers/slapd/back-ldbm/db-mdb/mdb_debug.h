@@ -18,12 +18,15 @@ void dbmdb_format_dbslist_info(char *info, dbmdb_dbi_t *dbi);
 extern int dbgmdb_level; /* defined in mdb_debug.c */
 void dbg_log(const char *file, int lineno, const char *funcname, int loglevel, char *fmt, ...);
 void dbgval2str(char *buff, size_t bufsiz, MDB_val *val);
+void log_stack(int loglvl);
+void dbmdb_dbg_set_dbi_slots(dbmdb_dbi_t *slots);
 
 /* #define DBMDB_DEBUG 1 */
-#define DBGMDB_LEVEL_DEFAULT DBGMDB_LEVEL_MDBAPI
+#define DBGMDB_LEVEL_DEFAULT DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_TXN+DBGMDB_LEVEL_IMPORT
 
 /* Define the wrapper associated with each log level */
 #ifdef DBMDB_DEBUG
+#define SLAPI_LOG_DBGMDB SLAPI_LOG_INFO
 #define MDB_CURSOR_OPEN(txn,dbi,cursor) dbg_mdb_cursor_open(__FILE__,__LINE__,__FUNCTION__,txn,dbi,cursor)
 #define MDB_CURSOR_CLOSE(cursor) dbg_mdb_cursor_close(__FILE__,__LINE__,__FUNCTION__,cursor)
 #define MDB_CURSOR_GET(cursor,key,data,op) dbg_mdb_cursor_get(__FILE__,__LINE__,__FUNCTION__,cursor,key,data,op)
@@ -33,7 +36,7 @@ void dbgval2str(char *buff, size_t bufsiz, MDB_val *val);
 #define MDB_CURSOR_PUT(cursor,key,data,flags) dbg_mdb_cursor_put(__FILE__,__LINE__,__FUNCTION__,cursor,key,data,flags)
 #define MDB_DBI_OPEN(txn,dbname,flags,dbi) dbg_mdb_dbi_open(__FILE__,__LINE__,__FUNCTION__,txn,dbname,flags,dbi)
 #define MDB_DROP(txn, dbi, del) dbg_mdb_drop(__FILE__,__LINE__,__FUNCTION__,txn,dbi,del)
-
+#define MDB_DBG_SET_FN(action, dbname, txn, dbi, fn) dbmdb_log_dbi_set_fn(__FILE__,__LINE__,__FUNCTION__, action, dbname, txn, dbi, fn)
 
 #define TXN_BEGIN(env, parent_txn, flags, txn) dbg_txn_begin(__FILE__,__LINE__,__FUNCTION__, env, parent_txn, flags, txn)
 #define TXN_COMMIT(txn) dbg_txn_end(__FILE__,__LINE__,__FUNCTION__, txn, 1)
@@ -57,9 +60,14 @@ int dbg_mdb_drop(const char *file, int lineno, const char *funcname, MDB_txn *tx
 
 int dbg_txn_begin(const char *file, int lineno, const char *funcname, MDB_env *env, MDB_txn *parent_txn, int flags, MDB_txn **txn);
 int dbg_txn_end(const char *file, int lineno, const char *funcname, MDB_txn *txn, int iscommit);
+void debug_txn_dbi(MDB_txn *txn, MDB_dbi dbi);
+
+void dbmdb_log_dbi_set_fn(const char *file, int lineno, const char *funcname, const char *action, const char *dbname, MDB_txn *txn, int dbi, MDB_cmp_func *fn);
+
 
 #else /* DBMDB_DEBUG */
 
+#define SLAPI_LOG_DBGMDB SLAPI_LOG_TRACE
 #define MDB_CURSOR_OPEN(txn,dbi,cursor) mdb_cursor_open(txn,dbi,cursor)
 #define MDB_CURSOR_CLOSE(cursor) mdb_cursor_close(cursor)
 #define MDB_CURSOR_GET(cursor,key,data,op) mdb_cursor_get(cursor,key,data,op)
@@ -69,6 +77,7 @@ int dbg_txn_end(const char *file, int lineno, const char *funcname, MDB_txn *txn
 #define MDB_CURSOR_PUT(cursor,key,data,flags) mdb_cursor_put(cursor,key,data,flags)
 #define MDB_DBI_OPEN(txn,dbname,flags,dbi) mdb_dbi_open(txn,dbname,flags,dbi)
 #define MDB_DROP(txn, dbi, del) mdb_drop(txn,dbi,del)
+#define MDB_DBG_SET_FN(action, dbname, txn, dbi, fn)
 
 #define TXN_BEGIN(env, parent_txn, flags, txn) mdb_txn_begin(env, parent_txn, flags, txn)
 #define TXN_COMMIT(txn) mdb_txn_commit(txn)

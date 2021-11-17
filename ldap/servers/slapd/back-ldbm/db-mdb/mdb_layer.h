@@ -120,6 +120,7 @@ typedef struct
     const char *dbname;           /* database name (for example userroot/entryid.db) */
     dbistate_t state;             /* state (also stored in __DBNAMES database) */
     MDB_dbi dbi;                  /* The handle */
+    value_compare_fn_type cmp_fn; /* Key compare function (from syntax plugins) */
 } dbmdb_dbi_t;
 
 /* dbmdb_dbi_stat_t flags */
@@ -166,8 +167,9 @@ typedef struct dbmdb_ctx_t
     pthread_mutex_t dbis_lock;     /* protects dbis access */
     pthread_mutex_t rcmutex;       /* recnum cache mutex */
     pthread_mutex_t perf_lock;     /* txn perf mutex */
-    dbmdb_dbi_t *dbis;             /* sorted by name instances array with startcfg.dbmdb_max_dbs slots */
-    int nbdbis;                    /* number of used slots in dbilist */
+    dbmdb_dbi_t *dbi_slots;        /* dbi instances array directly indexed by mdb dbi indices (startcfg.dbmdb_max_dbs slots) */
+                                   /* Note: element in above table are only removed when db env get closed */
+    void *dbis_treeroot;           /* dbi name to slot btree root (cf man tsearch) */
     MDB_dbi dbinames_dbi;          /* __DBNAMES database handler */
     MDB_env *env;
     int readonly;                  /* Tells that env is open in readonly mode */
@@ -183,7 +185,7 @@ typedef struct dbmdb_ctx_t
  */
 typedef struct dbmdb_cursor_t
 {
-    dbmdb_dbi_t dbi;
+    dbmdb_dbi_t *dbi;
     dbi_txn_t *txn;
     MDB_cursor *cur;
 } dbmdb_cursor_t;
@@ -211,8 +213,8 @@ typedef struct {
     dbi_cursor_t *cursor;       /* Initial cursor on vlv index */
     MDB_txn *cursortxn;
     MDB_val cache_key;
-    dbmdb_dbi_t rcdbi;          /* recno cache dbi */
-    dbmdb_dbi_t dbi;            /* vlv index dbi */
+    dbmdb_dbi_t *rcdbi;          /* recno cache dbi */
+    dbmdb_dbi_t *dbi;            /* vlv index dbi */
     char *rcdbname;
     MDB_env *env;
     MDB_val data;
@@ -246,6 +248,7 @@ typedef enum {
     WCTX_ENTRYDN,
     WCTX_ENTRYID,
     WCTX_PARENTID,
+    WCTX_UNIQUEID,
     WCTX_GENERIC    /* Must be last one */
 } dbmdb_wctx_id_t;  /* Allow to identify predefined writer context for some well known index */
 
@@ -317,12 +320,15 @@ dblayer_private_open_fn_t dbmdb_public_private_open;
 dblayer_private_close_fn_t dbmdb_public_private_close;
 dblayer_compact_fn_t dbmdb_public_dblayer_compact;
 dblayer_clear_vlv_cache_fn_t dbmdb_public_clear_vlv_cache;
+dblayer_idl_new_fetch_fn_t dbmdb_idl_new_fetch;
+
 
 /* instance functions */
 int dbmdb_instance_cleanup(struct ldbm_instance *inst);
 int dbmdb_instance_config_set(ldbm_instance *inst, char *attrname, int mod_apply, int mod_op, int phase, struct berval *value);
 int dbmdb_instance_create(struct ldbm_instance *inst);
 int dbmdb_instance_search_callback(Slapi_Entry *e, int *returncode, char *returntext, ldbm_instance *inst);
+dbmdb_dbi_t *dbmdb_get_dbi_from_slot(int dbi);
 
 /* function for autotuning */
 int dbmdb_start_autotune(struct ldbminfo *li);
@@ -452,24 +458,26 @@ double dbmdb_writer_get_progress(ImportJob *job);
 int dbmdb_count_config_entries(char *filter, int *nbentries);
 
 /* mdb_instance.c */
-int dbmdb_open_dbi_from_filename(dbmdb_dbi_t *dbi, backend *be, const char *filename, struct attrinfo *ai, int flags);
+int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *filename, struct attrinfo *ai, int flags);
+int dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be);
+dbmdb_dbi_t **dbmdb_list_dbis(dbmdb_ctx_t *ctx, backend *be, char *fname, int islocked, int *size);
 int dbmdb_open_cursor(dbmdb_cursor_t *dbicur, dbmdb_ctx_t *ctx, dbmdb_dbi_t *dbi, int flags);
 int dbmdb_close_cursor(dbmdb_cursor_t *dbicur, int rc);
 int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode);
 void dbmdb_ctx_close(dbmdb_ctx_t *ctx);
-void dbmdb_close_dbi(dbi_db_t **db);
 int dbmdb_dbitxn_begin(dbmdb_cursor_t *dbicur, const char *funcname, MDB_txn *parent, int readonly);
 int dbmdb_dbitxn_end(dbmdb_cursor_t *dbicur, const char *funcname, int return_code);
-void dbmdb_mdbdbi2dbi_db(const dbmdb_dbi_t *dbi, dbi_db_t **ppDB);
 dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome);
 void dbmdb_envflags2str(int flags, char *str, int maxlen);
+int dbmdb_dbi_reset(dbmdb_ctx_t *conf, dbi_db_t *db);
 int dbmdb_dbi_remove(dbmdb_ctx_t *conf, dbi_db_t **db);
-int dbmdb_dbi_rmdir(dbmdb_ctx_t *conf, const char *dirname);
-int dbmdb_clear_dirty_flags(dbmdb_ctx_t *conf, const char *dirname);
+int dbmdb_dbi_rmdir(backend *be);
+int dbmdb_clear_dirty_flags(backend *be);
 int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx);
 int dbmdb_cmp_vals(MDB_val *v1, MDB_val *v2);
-dbmdb_stats_t *dbdmd_gather_stats(dbmdb_ctx_t *conf, const char *instance_name);
+dbmdb_stats_t *dbdmd_gather_stats(dbmdb_ctx_t *conf, backend *be);
 void dbmdb_free_stats(dbmdb_stats_t **stats);
+int dbmdb_reset_vlv_file(backend *be, const char *filename);
 
 /* mdb_txn.c */
 int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_txn_t **txn);

@@ -6,8 +6,8 @@
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
-#ifndef _DBIMPL_H
-#define _DBIMPL_H
+#ifndef _DBIMPL_H_
+#define _DBIMPL_H_
 
 #include "../slapi-plugin.h"
 #include <limits.h>

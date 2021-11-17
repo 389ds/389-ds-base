@@ -775,6 +775,7 @@ clcache_adjust_anchorcsn(CLC_Buffer *buf, dbi_op_t *dbop)
     } else {
         csn_init_by_csn(buf->buf_current_csn, anchorcsn);
         buf->buf_key.data = csn_as_string(buf->buf_current_csn, 0, (char *)buf->buf_key.data);
+        buf->buf_key.size = CSN_STRSIZE;
         slapi_log_err(SLAPI_LOG_REPL, buf->buf_agmt_name,
                       "clcache_adjust_anchorcsn - anchor is now: %s\n", (char *)buf->buf_key.data);
     }

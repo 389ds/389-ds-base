@@ -108,8 +108,8 @@ static PRInt64 log__getfilesize(LOGFD fp);
 static PRInt64 log__getfilesize_with_filename(char *filename);
 static int log__enough_freespace(char *path);
 
-static int vslapd_log_error(LOGFD fp, int sev_level, char *subsystem, char *fmt, va_list ap, int locked);
-static int vslapd_log_access(char *fmt, va_list ap);
+static int vslapd_log_error(LOGFD fp, int sev_level, const char *subsystem, const char *fmt, va_list ap, int locked);
+static int vslapd_log_access(const char *fmt, va_list ap);
 static void log_convert_time(time_t ctime, char *tbuf, int type);
 static time_t log_reverse_convert_time(char *tbuf);
 static LogBufferInfo *log_create_buffer(size_t sz);
@@ -166,8 +166,8 @@ loglevel_is_set(int level)
 static int
 slapd_log_error_proc_internal(
     int loglevel,
-    char *subsystem, /* omitted if NULL */
-    char *fmt,
+    const char *subsystem, /* omitted if NULL */
+    const char *fmt,
     va_list ap_err,
     va_list ap_file);
 
@@ -2216,8 +2216,8 @@ slapd_log_auditfail_internal(
 int
 slapd_log_error_proc(
     int sev_level,
-    char *subsystem, /* omitted if NULL */
-    char *fmt,
+    const char *subsystem, /* omitted if NULL */
+    const char *fmt,
     ...)
 {
     int rc = LDAP_SUCCESS;
@@ -2260,8 +2260,8 @@ slapd_log_error_proc(
 static int
 slapd_log_error_proc_internal(
     int sev_level,
-    char *subsystem, /* omitted if NULL */
-    char *fmt,
+    const char *subsystem, /* omitted if NULL */
+    const char *fmt,
     va_list ap_err,
     va_list ap_file)
 {
@@ -2378,8 +2378,8 @@ static int
 vslapd_log_error(
     LOGFD fp,
     int sev_level,
-    char *subsystem, /* omitted if NULL */
-    char *fmt,
+    const char *subsystem, /* omitted if NULL */
+    const char *fmt,
     va_list ap,
     int locked)
 {
@@ -2483,7 +2483,7 @@ vslapd_log_error(
  * severity - LOG_ERR, LOG_WARNING, LOG_INFO, etc
  */
 int
-slapi_log_error(int loglevel, char *subsystem, char *fmt, ...)
+slapi_log_error(int loglevel, const char *subsystem, const char *fmt, ...)
 {
     va_list ap_err;
     va_list ap_file;
@@ -2544,7 +2544,7 @@ slapi_log_error(int loglevel, char *subsystem, char *fmt, ...)
 }
 
 int
-slapi_log_error_ext(int loglevel, char *subsystem, char *fmt, va_list varg1, va_list varg2)
+slapi_log_error_ext(int loglevel, const char *subsystem, const char *fmt, va_list varg1, va_list varg2)
 {
     int rc = 0;
 
@@ -2573,7 +2573,7 @@ slapi_is_loglevel_set(const int loglevel)
 * write in the access log
 ******************************************************************************/
 static int
-vslapd_log_access(char *fmt, va_list ap)
+vslapd_log_access(const char *fmt, va_list ap)
 {
     char buffer[SLAPI_LOG_BUFSIZ];
     char vbuf[SLAPI_LOG_BUFSIZ];
@@ -2647,7 +2647,7 @@ vslapd_log_access(char *fmt, va_list ap)
 
 int
 slapi_log_access(int level,
-                 char *fmt,
+                 const char *fmt,
                  ...)
 {
     va_list ap;

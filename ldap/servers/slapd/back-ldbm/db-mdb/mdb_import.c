@@ -26,9 +26,9 @@
 
 static char *sourcefile = "dbmdb_import.c";
 
-static int dbmdb_ancestorid_create_index(backend *be, ImportJob *job, dbi_txn_t * txn);
-static int dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job, dbi_txn_t * txn);
-static int dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job, dbi_txn_t * txn);
+static int dbmdb_ancestorid_create_index(backend *be, ImportJob *job);
+static int dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job);
+static int dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job);
 
 /* Start of definitions for a simple cache using a hash table */
 
@@ -452,9 +452,9 @@ dbmdb_get_nonleaf_ids(backend *be, dbi_txn_t *txn, IDList **idl, ImportJob *job)
      txn = cursor.txn;
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_get_nonleaf_ids", "Gathering ancestorid non-leaf IDs...");
     /* For each key which is an equality key */
-    do {
-        ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_NEXT_NODUP);
-        if ((ret == 0) && (*(char *)key.mv_data == EQ_PREFIX)) {
+    ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_FIRST);
+    while (ret == 0 && !(job->flags & FLAG_ABORT)) {
+        if (*(char *)key.mv_data == EQ_PREFIX) {
             id = (ID)strtoul((char *)key.mv_data + 1, NULL, 10);
             /*
              * TEL 20180711 - switch to idl_append instead of idl_insert because there is no
@@ -478,7 +478,8 @@ dbmdb_get_nonleaf_ids(backend *be, dbi_txn_t *txn, IDList **idl, ImportJob *job)
             }
             started_progress_logging = 1;
         }
-    } while (ret == 0 && !(job->flags & FLAG_ABORT));
+        ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_NEXT_NODUP);
+    }
 
     if (started_progress_logging) {
         /* finish what we started logging */
@@ -548,9 +549,9 @@ out:
  *
  */
 static int
-dbmdb_ancestorid_create_index(backend *be, ImportJob *job, dbi_txn_t * txn)
+dbmdb_ancestorid_create_index(backend *be, ImportJob *job)
 {
-    return (idl_get_idl_new()) ? dbmdb_ancestorid_new_idl_create_index(be, job, txn) : dbmdb_ancestorid_default_create_index(be, job, txn);
+    return (idl_get_idl_new()) ? dbmdb_ancestorid_new_idl_create_index(be, job) : dbmdb_ancestorid_default_create_index(be, job);
 }
 
 /*
@@ -560,7 +561,7 @@ dbmdb_ancestorid_create_index(backend *be, ImportJob *job, dbi_txn_t * txn)
  * when the new mode is used, particularly with large databases.
  */
 static int
-dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job, dbi_txn_t * txn)
+dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job)
 {
     int key_count = 0;
     int ret = 0;
@@ -577,6 +578,7 @@ dbmdb_ancestorid_default_create_index(backend *be, ImportJob *job, dbi_txn_t * t
     id2idl_hash *ht = NULL;
     dbmdb_id2idl *ididl;
     int started_progress_logging = 0;
+    dbi_txn_t * txn = NULL;
 
     /*
      * We need to iterate depth-first through the non-leaf nodes
@@ -775,7 +777,7 @@ out:
  * large databases.  Cf. bug 469800.
  */
 static int
-dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job, dbi_txn_t * txn)
+dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
 {
     int key_count = 0;
     int ret = 0;
@@ -790,6 +792,7 @@ dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job, dbi_txn_t * t
     NIDS nids;
     ID id, parentid;
     int started_progress_logging = 0;
+    dbi_txn_t *txn = NULL;
 
     /*
      * We need to iterate depth-first through the non-leaf nodes
@@ -811,7 +814,7 @@ dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job, dbi_txn_t * t
     }
 
     /* Get the non-leaf node IDs */
-    ret = dbmdb_get_nonleaf_ids(be, txn, &nodes, job);
+    ret = dbmdb_get_nonleaf_ids(be, NULL, &nodes, job);
     if (ret != 0)
         return ret;
 
@@ -842,6 +845,13 @@ dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job, dbi_txn_t * t
     ret = dblayer_get_index_file(be, ai_pid, (dbi_db_t**)&db_pid, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("dbmdb_ancestorid_new_idl_create_index", sourcefile, 13060, ret);
+        goto out;
+    }
+
+    ret = START_TXN(&txn,NULL,0);  /* Start a rw txn to update the index */
+    if (ret) {
+        import_log_notice(job,SLAPI_LOG_ERR,"dbmdb_public_dbmdb_import_main",
+                      "Failed to begin a transaction");
         goto out;
     }
 
@@ -944,6 +954,9 @@ dbmdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job, dbi_txn_t * t
     }
 
 out:
+    if (txn) {
+        ret = END_TXN(&txn, ret);
+    }
     if (ret == 0) {
         if (started_progress_logging) {
             /* finish what we started logging */
@@ -993,26 +1006,6 @@ dbmdb_import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id, 
     return 0;
 }
 
-/* Look for a subordinate count in a hint list, given the parent's ID */
-static int
-dbmdb_import_subcount_mothers_lookup(import_subcount_stuff *mothers,
-                               ID parent_id,
-                               size_t *count)
-{
-    size_t stored_count = 0;
-
-    *count = 0;
-    /* Lookup hash table for ID */
-    stored_count = (size_t)PL_HashTableLookup(mothers->hashtable,
-                                              (void *)((uintptr_t)parent_id));
-    /* If present, return the count found */
-    if (0 != stored_count) {
-        *count = stored_count;
-        return 0;
-    }
-    return -1;
-}
-
 /* Update subordinate count in a hint list, given the parent's ID */
 int
 dbmdb_import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id)
@@ -1030,7 +1023,7 @@ dbmdb_import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id)
 }
 
 static int
-dbmdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, int isencrypted)
+dbmdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, int isencrypted, back_txn *txn)
 {
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     int ret = 0;
@@ -1041,7 +1034,7 @@ dbmdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, i
     char *numsub_str = numsubordinates;
 
     /* Get hold of the parent */
-    e = id2entry(be, parentid, NULL, &ret);
+    e = id2entry(be, parentid, txn, &ret);
     if ((NULL == e) || (0 != ret)) {
         ldbm_nasty("dbmdb_import_update_entry_subcount", sourcefile, 5, ret);
         return (0 == ret) ? -1 : ret;
@@ -1070,86 +1063,13 @@ dbmdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, i
     }
     if (0 == ret || LDAP_TYPE_OR_VALUE_EXISTS == ret) {
         /* This will correctly index subordinatecount: */
-        ret = modify_update_all(be, NULL, &mc, NULL);
+        ret = modify_update_all(be, NULL, &mc, txn);
         if (0 == ret) {
             modify_switch_entries(&mc, be);
         }
     }
     /* entry is unlocked and returned to the cache in modify_term */
     modify_term(&mc, be);
-    return ret;
-}
-struct _import_subcount_trawl_info
-{
-    struct _import_subcount_trawl_info *next;
-    ID id;
-    size_t sub_count;
-};
-typedef struct _import_subcount_trawl_info import_subcount_trawl_info;
-
-static void
-dbmdb_import_subcount_trawl_add(import_subcount_trawl_info **list, ID id)
-{
-    import_subcount_trawl_info *new_info = CALLOC(import_subcount_trawl_info);
-
-    new_info->next = *list;
-    new_info->id = id;
-    *list = new_info;
-}
-
-static int
-dbmdb_import_subcount_trawl(backend *be,
-                      import_subcount_trawl_info *trawl_list,
-                      int isencrypted)
-{
-    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    ID id = 1;
-    int ret = 0;
-    import_subcount_trawl_info *current = NULL;
-    char value_buffer[20]; /* enough digits for 2^64 children */
-
-    /* OK, we do */
-    /* We open id2entry and iterate through it */
-    /* Foreach entry, we check to see if its parentID matches any of the
-     * values in the trawl list . If so, we bump the sub count for that
-     * parent in the list.
-     */
-    while (1) {
-        struct backentry *e = NULL;
-
-        /* Get the next entry */
-        e = id2entry(be, id, NULL, &ret);
-        if ((NULL == e) || (0 != ret)) {
-            if (MDB_NOTFOUND == ret) {
-                break;
-            } else {
-                ldbm_nasty("dbmdb_import_subcount_trawl", sourcefile, 8, ret);
-                return ret;
-            }
-        }
-        for (current = trawl_list; current != NULL; current = current->next) {
-            sprintf(value_buffer, "%lu", (u_long)current->id);
-            if (slapi_entry_attr_hasvalue(e->ep_entry, LDBM_PARENTID_STR, value_buffer)) {
-                /* If this entry's parent ID matches one we're trawling for,
-                 * bump its count */
-                current->sub_count++;
-            }
-        }
-        /* Free the entry */
-        CACHE_REMOVE(&inst->inst_cache, e);
-        CACHE_RETURN(&inst->inst_cache, &e);
-        id++;
-    }
-    /* Now update the parent entries from the list */
-    for (current = trawl_list; current != NULL; current = current->next) {
-        /* Update the parent entry with the correctly counted subcount */
-        ret = dbmdb_import_update_entry_subcount(be, current->id,
-                                           current->sub_count, isencrypted);
-        if (0 != ret) {
-            ldbm_nasty("dbmdb_import_subcount_trawl", sourcefile, 10, ret);
-            break;
-        }
-    }
     return ret;
 }
 
@@ -1162,7 +1082,6 @@ dbmdb_import_subcount_trawl(backend *be,
 static int
 dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
 {
-    import_subcount_stuff *mothers = job->mothers;
     int isencrypted = job->encrypt;
     int started_progress_logging = 0;
     int key_count = 0;
@@ -1171,11 +1090,10 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
     MDB_cursor *dbc = NULL;
     struct attrinfo *ai = NULL;
     MDB_val key = {0};
-    dbi_val_t dbikey = {0};
     MDB_val data = {0};
-    import_subcount_trawl_info *trawl_list = NULL;
     dbmdb_cursor_t cursor = {0};
     struct ldbminfo *li = (struct ldbminfo*)be->be_database->plg_private;
+	back_txn btxn = {0};
 
     /* Open the parentid index */
     ainfo_get(be, LDBM_PARENTID_STR, &ai);
@@ -1185,7 +1103,7 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
         ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 67, ret);
         return (ret);
     }
-    /* Get a cursor so we can walk through the parentid */
+    /* Get a cursor with r/w txn so we can walk through the parentid */
     ret = dbmdb_open_cursor(&cursor, MDB_CONFIG(li), db, 0);
     if (ret != 0) {
         ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 68, ret);
@@ -1194,25 +1112,17 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
     }
     dbc = cursor.cur;
     txn = cursor.txn;
+    btxn.back_txn_txn = txn;
+    ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_FIRST);
 
     /* Walk along the index */
-    while (1) {
+    while (ret != MDB_NOTFOUND) {
         size_t sub_count = 0;
-        int found_count = 1;
         ID parentid = 0;
 
-        /* Foreach key which is an equality key : */
-        ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_NEXT_NODUP);
-        if (NULL!=data.mv_data) {
-            data.mv_data = NULL;
-        }
         if (0 != ret) {
             key.mv_data=NULL;
-            if (ret != MDB_NOTFOUND) {
-                ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 62, ret);
-            } else {
-                ret = 0;
-            }
+            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 62, ret);
             break;
         }
         /* check if we need to abort */
@@ -1241,43 +1151,19 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
             idptr = (((char *)key.mv_data) + 1);
             parentid = (ID)atol(idptr);
             PR_ASSERT(0 != parentid);
-            ret = dbmdb_import_subcount_mothers_lookup(mothers, parentid, &sub_count);
-            if (0 != ret) {
-                IDList *idl = NULL;
-
-                /* If it's not, we need to compute it ourselves: */
-                /* Load the IDL matching the key */
-                ret = dbmdb_dbt2dbival(&key, &dbikey, PR_FALSE, 0);
-                ret = NEW_IDL_NO_ALLID;
-                idl = idl_fetch(be, db, &dbikey, NULL, NULL, &ret);
-                dbmdb_dbival2dbt(&dbikey, &key, PR_TRUE);
-                dblayer_value_protect_data(be, &dbikey);
-                if ((NULL == idl) || (0 != ret)) {
-                    ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 4, ret);
-                    dblayer_release_index_file(be, ai, db);
-                    return (0 == ret) ? -1 : ret;
-                }
-                /* The number of IDs in the IDL tells us the number of
-                 * subordinates for the entry */
-                /* Except, the number might be above the allidsthreshold,
-                 * in which case */
-                if (ALLIDS(idl)) {
-                    /* We add this ID to the list for which to trawl */
-                    dbmdb_import_subcount_trawl_add(&trawl_list, parentid);
-                    found_count = 0;
-                } else {
-                    /* We get the count from the IDL */
-                    sub_count = idl->b_nids;
-                }
-                idl_free(&idl);
+            ret = mdb_cursor_count(dbc, &sub_count);
+            if (ret) {
+                ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 63, ret);
+                break;
             }
-            /* Did we get the count ? */
-            if (found_count) {
-                PR_ASSERT(0 != sub_count);
-                /* If so, update the parent now */
-                dbmdb_import_update_entry_subcount(be, parentid, sub_count, isencrypted);
+            PR_ASSERT(0 != sub_count);
+            ret = dbmdb_import_update_entry_subcount(be, parentid, sub_count, isencrypted, &btxn);
+            if (ret) {
+                ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 64, ret);
+                break;
             }
         }
+        ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_NEXT_NODUP);
     }
     if (started_progress_logging) {
         /* Finish what we started... */
@@ -1286,18 +1172,13 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
                           key_count);
         job->numsubordinates = key_count;
     }
+    if (ret == MDB_NOTFOUND) {
+        ret = 0;
+    }
 
     dbmdb_close_cursor(&cursor, ret);
     dblayer_release_index_file(be, ai, db);
 
-    /* Now see if we need to go trawling through id2entry for the info
-     * we need */
-    if (NULL != trawl_list) {
-        ret = dbmdb_import_subcount_trawl(be, trawl_list, isencrypted);
-        if (0 != ret) {
-            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 7, ret);
-        }
-    }
     return (ret);
 }
 
@@ -2005,8 +1886,6 @@ dbmdb_public_dbmdb_import_main(void *arg)
     int aborted = 0;
     ImportWorkerInfo *producer = NULL;
     char *opstr = "Import";
-    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    dbi_txn_t *txn = NULL;
 
     if (job->task) {
         slapi_task_inc_refcount(job->task);
@@ -2037,6 +1916,9 @@ dbmdb_public_dbmdb_import_main(void *arg)
                   (caddr_t)job, -1, AVL_INORDER);
         vlv_getindices((IFP)dbmdb_import_attr_callback, (void *)job, be);
     }
+
+    /* insure all dbi get open */
+    dbmdb_open_all_files(NULL, job->inst->inst_be);
 
     /* Determine how much index buffering space to allocate to each index */
     dbmdb_import_set_index_buffer_size(job);
@@ -2178,12 +2060,6 @@ dbmdb_public_dbmdb_import_main(void *arg)
         }
     }
 
-    ret = START_TXN(&txn,NULL,0);  /* Start a rw txn to update some indexes */
-    if(ret){
-        import_log_notice(job,SLAPI_LOG_ERR,"dbmdb_public_dbmdb_import_main",
-                          "Failedtobeginatransaction");
-        goto error;
-    }
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_public_dbmdb_import_main", "Indexing complete.  Post-processing...");
     /* Now do the numsubordinates attribute */
     /* [610066] reindexed db cannot be used in the following backup/restore */
@@ -2205,7 +2081,7 @@ dbmdb_public_dbmdb_import_main(void *arg)
 
         ainfo_get(be, "ancestorid", &ai);
         dblayer_erase_index_file(be, ai, PR_TRUE, 0);
-        if ((ret = dbmdb_ancestorid_create_index(be, job, txn)) != 0) {
+        if ((ret = dbmdb_ancestorid_create_index(be, job)) != 0) {
             import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_public_dbmdb_import_main", "Failed to create ancestorid index");
             goto error;
         }
@@ -2222,7 +2098,6 @@ dbmdb_public_dbmdb_import_main(void *arg)
 error:
     /* If we fail, the database is now in a mess, so we delete it
        except dry run mode */
-    ret = END_TXN(&txn, ret);
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_public_dbmdb_import_main", "Closing files...");
     cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
     if (entryrdn_get_switch()) {
@@ -2365,7 +2240,7 @@ error:
     if((!ret) && (job->skipped)) {
         ret |= WARN_SKIPPED_IMPORT_ENTRY;
     }
-    dbmdb_clear_dirty_flags(MDB_CONFIG(li), inst->inst_name);
+    dbmdb_clear_dirty_flags(be);
 
     /* This instance isn't busy anymore */
     instance_set_not_busy(job->inst);

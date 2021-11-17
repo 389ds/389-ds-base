@@ -13,7 +13,6 @@ Will test Import (Offline/Online)
 import os
 import pytest
 import time
-import glob
 import logging
 from lib389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX, TaskWarning
@@ -23,7 +22,7 @@ from lib389.index import Indexes
 from lib389.monitor import Monitor
 from lib389.backend import Backends
 from lib389.config import LDBMConfig
-from lib389.utils import ds_is_newer
+from lib389.utils import ds_is_newer, get_default_db_lib
 from lib389.idm.user import UserAccount
 from lib389.idm.account import Accounts
 
@@ -35,6 +34,22 @@ if DEBUGGING:
 else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
+
+bdb_values = {
+  'deltat1' : 1,
+  'wait30' : 30
+}
+
+mdb_values = {
+  'deltat1' : 4,
+  'wait30' : 60
+}
+
+if get_default_db_lib() is 'bdb':
+    values = bdb_values
+else:
+    values = mdb_values
+
 
 def _generate_ldif(topo, no_no):
     """
@@ -202,7 +217,7 @@ def test_import_with_index(topo, _import_clean):
         3. Operation successful
     """
     place = topo.standalone.dbdir
-    assert not glob.glob(f'{place}/userRoot/roomNumber.db*', recursive=True)
+    assert not topo.standalone.is_dbi('userRoot/roomNumber.db')
     # Creating the room number index
     indexes = Indexes(topo.standalone)
     indexes.create(properties={
@@ -213,7 +228,7 @@ def test_import_with_index(topo, _import_clean):
     # Importing online
     _import_online(topo, 5)
     # Import is done -- verifying that it worked
-    assert glob.glob(f'{place}/userRoot/roomNumber.db*', recursive=True)
+    assert topo.standalone.is_dbi('userRoot/roomNumber.db')
 
 
 
@@ -310,6 +325,7 @@ def test_ldif2db_syntax_check(topo, _import_clean):
     topo.standalone.start()
 
 
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not cache size over mdb")
 def test_issue_a_warning_if_the_cache_size_is_smaller(topo, _import_clean):
     """Report during startup if nsslapd-cachememsize is too small
 
@@ -369,12 +385,12 @@ def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
         2. Measure offline import time duration total_time1
         3. Now nsslapd-db-private-import-mem:off
         4. Measure offline import time duration total_time2
-        5. total_time1 < total_time2
+        5. (total_time2 - total_time1) < values['deltat1']
         6. Set nsslapd-db-private-import-mem:on, nsslapd-import-cache-autosize: -1
         7. Measure offline import time duration total_time1
         8. Now nsslapd-db-private-import-mem:off
         9. Measure offline import time duration total_time2
-        10. total_time1 < total_time2
+        10. (total_time2 - total_time1) < values['deltat1']
     :expected results:
         1. Operation successful
         2. Operation successful
@@ -401,7 +417,7 @@ def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
     # total_time1 < total_time2
     log.info("total_time1 = %f" % total_time1)
     log.info("total_time2 = %f" % total_time2)
-    assert total_time1 < total_time2
+    assert (total_time2 - total_time1) < values['deltat1']
 
     # Set nsslapd-db-private-import-mem:on, nsslapd-import-cache-autosize: -1
     config.replace_many(
@@ -420,7 +436,7 @@ def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
     # total_time1 < total_time2
     log.info("toral_time1 = %f" % total_time1)
     log.info("total_time2 = %f" % total_time2)
-    assert total_time1 < total_time2
+    assert (total_time2 - total_time1) < values['deltat1']
 
 
 @pytest.mark.bz175063
@@ -492,7 +508,7 @@ def test_import_perf_after_failure(topo):
     time.sleep(1)
     import_task = ImportTask(topo.standalone)
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
-    import_task.wait(30)  # If things go wrong import takes a lot longer than this
+    import_task.wait(values['wait30'])  # If things go wrong import takes a lot longer than this
     assert import_task.is_complete()
 
     # Restart server

@@ -72,8 +72,8 @@
 typedef struct
 {
     dbi_dbslist_t *list;
+    size_t maxdbs;               /* Number of files */
     size_t nbdbs;                /* Number of files */
-    size_t pos;                  /* Current position in list */
 } dbi_dbslist_ctx_t;
 
 static int bdb_perf_threadmain(void *param);
@@ -5805,6 +5805,7 @@ bdb__import_file_name(ldbm_instance *inst)
     char *fname = slapi_ch_smprintf("%s/.import_%s",
                                     inst->inst_parent_dir_name,
                                     inst->inst_dir_name);
+slapi_log_err(SLAPI_LOG_INFO, "bdb__import_file_name", "DBG: fname=%s\n", fname);
     return fname;
 }
 
@@ -6873,6 +6874,21 @@ bdb_public_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count)
     return bdb_map_error(__FUNCTION__, rc);
 }
 
+static void
+getdir(char *path, char **eod)
+{
+    char *pt = strrchr(path, '/');
+    if (pt) {
+        if (eod) {
+            *eod = pt;
+        }
+        *pt = 0;
+    } else if (path[0]) {
+        strcpy(path, ".");
+    }
+}
+
+
 int
 bdb_public_private_open(backend *be, const char *db_filename, int rw, dbi_env_t **env, dbi_db_t **db)
 {
@@ -6883,34 +6899,35 @@ bdb_public_private_open(backend *be, const char *db_filename, int rw, dbi_env_t 
     char dbhome[MAXPATHLEN];
     DB_ENV *bdb_env = NULL;
     DB *bdb_db = NULL;
-    struct stat st;
+    struct stat st = {0};
     int flags;
-    char *pt;
     int rc;
 
+    /* Either filename is an existing regular file
+     *  or the "home" directory where txn logs are
+     */
+
     strncpy(dbhome, db_filename, MAXPATHLEN);
-    pt = dbhome + strlen(dbhome);
-    if (stat(dbhome, &st) != 0 || ((st.st_mode & S_IFMT) == S_IFREG)) {
-        /* remove the file name to get li_directory */
-        while (--pt > dbhome && *pt != '/');
-        *pt = 0;
-    }
-    li->li_directory = slapi_ch_strdup(dbhome);
-    /* Now lets find the dbhome */
-    while (pt > dbhome) {
-        strcpy(pt, "/DBVERSION");
-        if (stat(dbhome, &st) == 0) {
-            /* Found the dbhome */
-            *pt = 0;
-            break;
+    if (stat(dbhome, &st) == 0) {
+        if (S_ISDIR(st.st_mode)) {
+            li->li_directory = slapi_ch_strdup(dbhome);
+        } else if (S_ISREG(st.st_mode)) {
+            getdir(dbhome, NULL);
+            li->li_directory = slapi_ch_strdup(db_filename);
+            getdir(dbhome, NULL);
+        } else {
+            fprintf(stderr, "bdb_public_private_open: Unable to determine dbhome from %s\n", db_filename);
+            return EINVAL;
         }
-        while (--pt >= dbhome && *pt != '/');
+    } else {
+        getdir(dbhome, NULL);
+        li->li_directory = slapi_ch_strdup(dbhome);
+        getdir(dbhome, NULL);
+        if (stat(dbhome, &st) || ((st.st_mode & S_IFMT) != S_IFDIR)) {
+            fprintf(stderr, "bdb_public_private_open: Unable to determine dbhome from %s\n", db_filename);
+            return EINVAL;
+        }
     }
-    if (pt <= dbhome) {
-        fprintf(stderr, "bdb_public_private_open: Unable to determine dbhome from %s\n", db_filename);
-        return EINVAL;
-    }
-    *pt = 0;
     li->li_config_mutex = PR_NewLock();
     conf->bdb_dbhome_directory = slapi_ch_strdup(dbhome);
     if (rw) {
@@ -7037,6 +7054,7 @@ static void
 dbslist_count_space_to_reserve(const char * dbname, void *cbctx)
 {
     dbi_dbslist_ctx_t *ctx = cbctx;
+    ctx->maxdbs++;
     ctx->nbdbs++;
 }
 
@@ -7044,26 +7062,22 @@ static void
 dbslist_store_a_db(const char * dbname, void *cbctx)
 {
     dbi_dbslist_ctx_t *ctx = cbctx;
-    ctx->nbdbs++;
-    if (ctx->pos < ctx->nbdbs)
-        {
-            strncpy (ctx->list[ctx->pos++].filename, dbname,
-                     MAXPATHLEN);
-        }
+    if (ctx->nbdbs < ctx->maxdbs) {
+        strncpy (ctx->list[ctx->nbdbs++].filename, dbname, MAXPATHLEN);
+    }
 }
 
 dbi_dbslist_t *
 bdb_list_dbs (const char * dbhome)
 {
     dbi_dbslist_ctx_t cbctx = { 0 };
-    int rc = bdb_walk_dbfiles (dbhome, NULL,
-                          dbslist_count_space_to_reserve,
-                          &cbctx);
+    int rc = bdb_walk_dbfiles (dbhome, NULL, dbslist_count_space_to_reserve, &cbctx);
     if (rc) {
         return NULL;
     }
     cbctx.nbdbs++;              /* Reserve space for empty filename that marks end of list */
-    cbctx.list = (dbi_dbslist_t *) slapi_ch_calloc (cbctx.nbdbs, sizeof (dbi_dbslist_ctx_t));
+    cbctx.list = (dbi_dbslist_t *) slapi_ch_calloc (cbctx.nbdbs, sizeof (dbi_dbslist_t));
+    cbctx.nbdbs = 0;
     bdb_walk_dbfiles (dbhome, NULL, dbslist_store_a_db, &cbctx);
     if (rc) {
         slapi_ch_free ((void **) &cbctx.list);

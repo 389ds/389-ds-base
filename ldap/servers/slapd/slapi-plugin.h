@@ -6030,14 +6030,14 @@ int slapi_register_plugin_ext(const char *plugintype, int enabled, const char *i
 /*
  * logging
  */
-int slapi_log_error(int loglevel, char *subsystem, char *fmt, ...)
+int slapi_log_error(int loglevel, const char *subsystem, const char *fmt, ...)
 #ifdef __GNUC__
     __attribute__((format(printf, 3, 4)));
 #else
     ;
 #endif
 
-int slapi_log_error_ext(int loglevel, char *subsystem, char *fmt, va_list varg1, va_list varg2);
+int slapi_log_error_ext(int loglevel, const char *subsystem, const char *fmt, va_list varg1, va_list varg2);
 
 /* allowed values for the "severity" parameter */
 #define SLAPI_LOG_FATAL       0

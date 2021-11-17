@@ -238,6 +238,8 @@ bdb_import_get_entry(ldif_context *c, int fd, int *lineno)
             buf = newbuf;
             bufSize = newsize;
         }
+        if (!buf)        /*  This test is always false but make GCC Static Analyzer happy */
+            goto error;
         memmove(buf + bufOffset, c->b + c->offset, i - c->offset);
         bufOffset += (i - c->offset);
         c->offset = i;
@@ -2899,8 +2901,15 @@ bdb_import_worker(void *param)
         }
         if (finished)
             continue;
+        /* Although following test is always false (the while loop implies
+         *  that !(!finished && !ep) i.e finished || ep and the previous if
+         *  means that we are in !finished case so we are in ep!=NULL case)
+         *  it prevent static analyzer to log some false positive warning
+         */
+        if (!ep)
+            continue;
 
-        if (!slapi_entry_flag_is_set(fi->entry->ep_entry,
+        if (!slapi_entry_flag_is_set(ep->ep_entry,
                                      SLAPI_ENTRY_FLAG_TOMBSTONE)) {
             /* This is not a tombstone entry. */
             /* Is this a VLV index ? */
@@ -2924,7 +2933,7 @@ bdb_import_worker(void *param)
                     Slapi_Value *value = NULL;
                     const struct berval *bval = NULL;
                     Slapi_Attr *key_to_del =
-                        attrlist_remove(&fi->entry->ep_entry->e_aux_attrs,
+                        attrlist_remove(&ep->ep_entry->e_aux_attrs,
                                         info->index_info->name);
 
                     if (key_to_del) {
@@ -2939,7 +2948,7 @@ bdb_import_worker(void *param)
                             ret = index_addordel_string(be,
                                                         info->index_info->name,
                                                         bval->bv_val,
-                                                        fi->entry->ep_id,
+                                                        ep->ep_id,
                                                         BE_INDEX_DEL | BE_INDEX_EQUALITY |
                                                             BE_INDEX_NORMALIZED,
                                                         NULL);

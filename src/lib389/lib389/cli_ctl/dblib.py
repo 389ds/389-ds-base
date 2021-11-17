@@ -6,6 +6,10 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+#
+# This module handles dsconf libdb sub-commands
+#
+
 import os
 import re
 import glob
@@ -54,17 +58,35 @@ def get_backends(log, dse, tmpdir):
           So lets directly parse the data from the ldif file
     """
     res = {}
+    ic2ec = {}
+    # Lets be sure to keep config backend info
+    ic2ec['config'] = 'config'
+    update_dse = []
     for entry in dse._contents:
+        found = re.search(r'^nsslapd-backend: (.*)', entry)
+        if found:
+            ic2ec[found[1].lower()] = found[1]
         found = re.search(r'^dn: cn=([^,]*), *cn=ldbm database.*', entry)
         if found:
             dn = found[0][4:]
             bename = found[1].lower()
+            if not bename in ic2ec:
+                # Not a mapping tree backend 
+                continue
+            ecbename = ic2ec[bename]
             suffix = dse.get(dn, "nsslapd-suffix", True)
             dbdir = dse.get(dn, "nsslapd-directory", True)
+            ecdbdir = dbdir
+            if dbdir is None and 'config' in res:
+                dbdir = f"{res['config']['dbdir']}/{bename}"
+                ecdbdir = f"{res['config']['dbdir']}/{ecbename}"
+                # bdb requires nsslapd-directory so lets add it once reading is done.
+                update_dse.append((dn, ecdbdir))
             dblib = dse.get(dn, "nsslapd-backend-implement", True)
             ldifname = f'{tmpdir}/{DBLIB_LDIF_PREFIX}{bename}.ldif'
             cl5name = f'{tmpdir}/{DBLIB_LDIF_PREFIX}{bename}.cl5.dbtxt'
             cl5dbname = f'{dbdir}/replication_changelog.db'
+            eccl5dbname = f'{ecdbdir}/replication_changelog.db'
             dbsize = 0
             entrysize = 0
             for f in glob.glob(f'{dbdir}/id2entry.db*'):
@@ -78,18 +100,24 @@ def get_backends(log, dse, tmpdir):
             res[bename] = ({
                 'dn': dn,
                 'bename': bename,
+                'ecbename': ecbename,
                 'suffix': suffix,
                 'dbdir': dbdir,
+                'ecdbdir': ecdbdir,
                 'dbsize': dbsize,
                 'dblib': dblib,
                 'ldifname': ldifname,
                 'cl5name': cl5name,
                 'cl5dbname': cl5dbname,
+                'eccl5dbname': eccl5dbname,
                 'dbsize': dbsize,
                 'entrysize': entrysize,
                 'indexes': indexes,
                 'dbi': dbi
             })
+    # now that we finish reading the dse.ldif we may update it if needed.
+    for dn, dir in update_dse:
+        dse.replace(dn, 'nsslapd-directory', dir)
     log.debug(f'lib389.cli_ctl.dblib.get_backends returns: {str(res)}')
     return res
 
@@ -138,7 +166,8 @@ def run_dbscan(args):
 def export_changelog(be, dblib):
     # Export backend changelog
     try:
-        run_dbscan(['-D', dblib, '-f', be['cl5dbname'], '-X', be['cl5name']])
+        cl5dbname = be['eccl5dbname'] if dblib == "bdb" else be['cl5dbname']
+        run_dbscan(['-D', dblib, '-f', cl5dbname, '-X', be['cl5name']])
         return True
     except subprocess.CalledProcessError as e:
         return False
@@ -147,10 +176,22 @@ def export_changelog(be, dblib):
 def import_changelog(be, dblib):
     # import backend changelog
     try:
-        run_dbscan(['-D', dblib, '-f', be['cl5dbname'], '-I', be['cl5name']])
+        cl5dbname = be['eccl5dbname'] if dblib == "bdb" else be['cl5dbname']
+        run_dbscan(['-D', dblib, '-f', cl5dbname, '-I', be['cl5name']])
         return True
     except subprocess.CalledProcessError as e:
         return False
+
+
+def set_owner(list, uid, gid):
+    global _log
+    _log.debug(f"set_owner: {list} {uid} {gid}")
+    for f in list:
+        try:
+            _log.debug(f"set_owner: {f} {uid} {gid}")
+            os.chown(f, uid, gid)
+        except OSError:
+            pass
 
 
 def dblib_bdb2mdb(inst, log, args):
@@ -286,8 +327,7 @@ def dblib_bdb2mdb(inst, log, args):
             import_changelog(be, 'mdb')
         progress += be['dbsize']
     dbhome=backends["config"]["dbdir"]
-    for f in glob.glob(f'{dbhome}/*.mdb'):
-        os.chown(f, uid, gid)
+    set_owner(glob.glob(f'{dbhome}/*.mdb'), uid, gid)
     log.info("Backends importation 100%")
     inst.start()
     log.info("Migration from Berkeley database to lmdb is done.")
@@ -313,6 +353,7 @@ def dblib_mdb2bdb(inst, log, args):
     dse = DSEldif(inst)
     backends = get_backends(log, dse, tmpdir)
     dbmapdir = backends['config']['dbdir']
+    dbhome = inst.ds_paths.db_home_dir
     dblib = backends['config']['dblib']
     dbis = get_mdb_dbis(dbmapdir)
 
@@ -372,9 +413,7 @@ def dblib_mdb2bdb(inst, log, args):
         be['cl5'] = export_changelog(be, 'mdb')
         progress += 1
     log.info("Backends exportation 100%")
-    dbhome=backends["config"]["dbdir"]
-    for f in glob.glob(f'{dbhome}/*'):
-        os.chown(f, uid, gid)
+    set_owner(glob.glob(f'{dbmapdir}/*'), uid, gid)
 
     log.info("Updating dse.ldif file")
     # switch nsslapd-backend-implement in the dse.ldif
@@ -392,14 +431,21 @@ def dblib_mdb2bdb(inst, log, args):
         if 'has_id2entry' not in be:
             continue
         log.info(f"Backends importation {progress*100/total_dbsize:2f}% ({bename})")
-        log.debug(f"inst.ldif2db({bename}, None, None, {encrypt}, {be['ldifname']})")
+        log.debug(f"inst.ldif2db({be['ecbename']}, None, None, {encrypt}, {be['ldifname']})")
+        log.debug(f'dbdir={be["dbdir"]}')
         os.chown(be['ldifname'], uid, gid)
-        inst.ldif2db(bename, None, None, encrypt, be['ldifname'])
+        inst.ldif2db(be['ecbename'], None, None, encrypt, be['ldifname'])
         if be['cl5'] is True:
             import_changelog(be, 'bdb')
-        for f in glob.glob(f'{be["dbdir"]}/*'):
-            os.chown(f, uid, gid)
+        set_owner(glob.glob(f'{be["ecdbdir"]}/*'), uid, gid)
         progress += be['dbsize']
+
+    set_owner(glob.glob(f'{dbhome}/__db.*'), uid, gid)
+    set_owner(glob.glob(f'{dbmapdir}/__db.*'), uid, gid)
+    set_owner(glob.glob(f'{dbhome}/log.*'), uid, gid)
+    set_owner(glob.glob(f'{dbmapdir}/log.*'), uid, gid)
+    set_owner((f'{dbhome}/DBVERSION', f'{dbmapdir}/DBVERSION', f'{dbhome}/guardian', '{dbmapdir}/guardian'), uid, gid)
+
     log.info("Backends importation 100%")
     inst.start()
     log.info("Migration from ldbm to Berkeley database is done.")
@@ -422,6 +468,7 @@ def dblib_cleanup(inst, log, args):
     dbmapdir = backends['config']['dbdir']
     dbhome = inst.ds_paths.db_home_dir
     dblib = backends['config']['dblib']
+    log.info(f"cleanup dbmapdir={dbmapdir} dbhome={dbhome} dblib={dblib}")
 
     # Remove all ldif and changelog file
     for bename, be in backends.items():
@@ -445,9 +492,15 @@ def dblib_cleanup(inst, log, args):
     else:
         for f in glob.glob(f'{dbhome}/__db.*'):
             rm(f)
+        for f in glob.glob(f'{dbmapdir}/__db.*'):
+            rm(f)
+        for f in glob.glob(f'{dbhome}/log.*'):
+            rm(f)
         for f in glob.glob(f'{dbmapdir}/log.*'):
             rm(f)
         rm(f'{dbhome}/DBVERSION')
+        rm(f'{dbmapdir}/DBVERSION')
+        rm(f'{dbhome}/guardian')
         rm(f'{dbmapdir}/guardian')
 
 

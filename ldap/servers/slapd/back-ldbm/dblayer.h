@@ -121,6 +121,8 @@ typedef int dblayer_in_import_fn_t(ldbm_instance *inst);
 typedef const char *dblayer_get_db_suffix_fn_t(void);
 typedef int dblayer_clear_vlv_cache_fn_t(backend *be, dbi_txn_t *txn, dbi_db_t *db);
 typedef int dblayer_dbi_db_remove_fn_t(backend *be, dbi_db_t *db);
+typedef IDList *dblayer_idl_new_fetch_fn_t(backend *be, dbi_db_t *db, dbi_val_t *inkey, dbi_txn_t *txn,
+                                  struct attrinfo *a, int *flag_err, int allidslimit);
 
 struct dblayer_private
 {
@@ -202,6 +204,7 @@ struct dblayer_private
     dblayer_compact_fn_t *dblayer_compact_fn;
     dblayer_clear_vlv_cache_fn_t *dblayer_clear_vlv_cache_fn;
     dblayer_dbi_db_remove_fn_t *dblayer_dbi_db_remove_fn;
+    dblayer_idl_new_fetch_fn_t *dblayer_idl_new_fetch_fn;
 };
 
 #define DBLAYER_PRIV_SET_DATA_DIR 0x1

@@ -1550,6 +1550,10 @@ common_return:
                       "leave conn=%" PRIu64 " op=%d\n",
                       pb_conn->c_connid, operation->o_opid);
     }
+    if (li->li_flags & LI_LMDB_IMPL) {
+        cache_clear(&inst->inst_dncache, 1);
+        cache_clear(&inst->inst_cache, 0);
+    }
     return retval;
 }
 

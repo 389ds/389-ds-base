@@ -574,7 +574,7 @@ class DirSrv(SimpleLDAPObject, object):
                 # Lets assume that local serverid is provided.
                 self.serverid = args.get(SER_SERVERID_PROP, None)
                 self.isLocal = True
-                self.setup_ldapi()
+                #self.setup_ldapi()
             else:
                 self.isLocal = isLocalHost(self.host)
 
@@ -750,7 +750,7 @@ class DirSrv(SimpleLDAPObject, object):
                 instances.append(_parse_configfile(dse_ldif, serverid))
             else:
                 # it's not=
-                self.log.debug("list instance not found in {}: {}\n".format(dse_ldif, serverid))
+                self.log.debug(f"list() {serverid} instance not found: missing {dse_ldif}\n")
         else:
             # For each dir that starts with slapd-*
             inst_path = self.ds_paths.sysconf_dir + "/dirsrv"
@@ -1751,7 +1751,7 @@ class DirSrv(SimpleLDAPObject, object):
         if not obj:
             raise NoSuchEntryError("no such entry for %r", [args])
 
-        self.log.debug("Retrieved entry %s", obj)
+        self.log.debug("Retrieved entry %s", str(obj))
         if isinstance(obj, Entry):
             return obj
         else:  # assume list/tuple
@@ -3010,6 +3010,23 @@ class DirSrv(SimpleLDAPObject, object):
         del_file = ldifdir + "/" + ldifname
         self.log.debug("Deleting LDIF file: " + del_file)
         os.remove(del_file)
+
+    def is_dbi(self, dbipattern):
+        try:
+            cmd = ["%s/dbscan" % self.get_bin_dir(),
+                    "-D",
+                    self.get_db_lib(),
+                    "-L",
+                    self.ds_paths.db_dir],
+            self.log.debug("DEBUG: starting with %s" % cmd)
+            output = subprocess.check_output(*cmd, text=True, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError:
+            self.log.error('Failed to run dbscan: "%s"' % output)
+            raise ValueError('Failed to run dbscan')
+        self.log.debug("is_dbi output is: ", output)
+
+        return dbipattern.lower() in output.lower()
+ 
 
     def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False):
         """Wrapper around dbscan tool that analyzes and extracts information

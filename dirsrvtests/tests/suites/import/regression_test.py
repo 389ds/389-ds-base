@@ -22,6 +22,7 @@ from lib389.idm.user import UserAccounts
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.dbgen import *
 from lib389.utils import *
+from lib389.config import LMDB_LDBMConfig
 
 pytestmark = pytest.mark.tier1
 
@@ -39,6 +40,24 @@ TEST_BACKEND2 = "importest2"
 TEST_DEFAULT_SUFFIX = "dc=default,dc=com"
 TEST_DEFAULT_NAME = "default"
 
+BIG_MAP_SIZE = 35 * 1024 * 1024 * 1024
+
+def _check_disk_space():
+    if get_default_db_lib() == "mdb":
+        statvfs = os.statvfs(os.environ.get('PREFIX', "/"))
+        available = statvfs.f_frsize * statvfs.f_bavail
+        return available >= BIG_MAP_SIZE
+    return True
+
+
+@pytest.fixture(scope="function")
+def _set_mdb_map_size(request, topo):
+    if get_default_db_lib() == "mdb":
+        handler = LMDB_LDBMConfig(topo.standalone)
+        mapsize = BIG_MAP_SIZE
+        log.info(f'Set lmdb map size to {mapsize}.')
+        handler.replace('nsslapd-mdb-max-size', str(mapsize))
+        topo.standalone.restart()
 
 class AddDelUsers(threading.Thread):
     def __init__(self, inst):
@@ -304,8 +323,9 @@ ou: myDups00001
 
 @pytest.mark.bz1749595
 @pytest.mark.tier2
+@pytest.mark.xfail(not _check_disk_space(), reason="not enough disk space for lmdb map")
 @pytest.mark.xfail(ds_is_older("1.3.10.1"), reason="bz1749595 not fixed on versions older than 1.3.10.1")
-def test_large_ldif2db_ancestorid_index_creation(topo):
+def test_large_ldif2db_ancestorid_index_creation(topo, _set_mdb_map_size):
     """Import with ldif2db a large file - check that the ancestorid index creation phase has a correct performance
 
     :id: fe7f78f6-6e60-425d-ad47-b39b67e29113

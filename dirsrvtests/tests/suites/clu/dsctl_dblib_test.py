@@ -63,7 +63,8 @@ def _check_db(inst, log, impl):
     bdb_list = ['__db.001', 'DBVERSION', '__db.003', 'userRoot', 'log.0000000001', '__db.002']
     mdb_list.sort()
     bdb_list.sort()
-    db_files.sort()
+    db_files = sorted(set(db_files))
+    log.debug(f"INFO: _check_db db_home={inst.ds_paths.db_home_dir}")
     log.debug(f"INFO: _check_db dbdir={inst.dbdir}")
     log.debug(f"INFO: _check_db db_files={db_files}")
     log.debug(f"INFO: _check_db mdb_list={mdb_list}")
