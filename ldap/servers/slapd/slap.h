@@ -1606,9 +1606,15 @@ typedef int (*Conn_IO_Layer_cb)(struct conn *, void *data);
 struct Conn_Private;
 typedef struct Conn_private Conn_private;
 
+typedef enum _conn_state {
+    CONN_STATE_FREE = 0,
+    CONN_STATE_INIT = 1,
+} conn_state;
+
 typedef struct conn
 {
     Sockbuf *c_sb;                   /* ber connection stuff          */
+    conn_state c_state;              /* Used in connection table and done to see what's free or not. Later we could use this for other state handlings. */
     int c_sd;                        /* the actual socket descriptor      */
     int c_ldapversion;               /* version of LDAP protocol       */
     char *c_dn;                      /* current DN bound to this conn  */
@@ -1633,7 +1639,7 @@ typedef struct conn
     uint64_t c_anonlimits_set;       /* default anon limits are set */
     PRInt32 c_threadnumber;          /* # threads used in this conn    */
     int c_refcnt;                    /* # ops refering to this conn    */
-    PRMonitor *c_mutex;              /* protect each conn structure; need to be re-entrant */
+    pthread_mutex_t c_mutex;         /* protect each conn structure; need to be re-entrant */
     PRLock *c_pdumutex;              /* only write one pdu at a time   */
     time_t c_idlesince;              /* last time of activity on conn  */
     int c_idletimeout;               /* local copy of idletimeout */

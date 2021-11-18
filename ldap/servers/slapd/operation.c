@@ -583,7 +583,7 @@ slapi_connection_acquire(Slapi_Connection *conn)
 {
     int rc;
 
-    PR_EnterMonitor(conn->c_mutex);
+    pthread_mutex_lock(&(conn->c_mutex));
     /* rc = connection_acquire_nolock(conn); */
     /* connection in the closing state can't be acquired */
     if (conn->c_flags & CONN_FLAG_CLOSING) {
@@ -596,7 +596,7 @@ slapi_connection_acquire(Slapi_Connection *conn)
         conn->c_refcnt++;
         rc = 0;
     }
-    PR_ExitMonitor(conn->c_mutex);
+    pthread_mutex_unlock(&(conn->c_mutex));
     return (rc);
 }
 
@@ -606,7 +606,7 @@ slapi_connection_remove_operation(Slapi_PBlock *pb __attribute__((unused)), Slap
     int rc = 0;
     Slapi_Operation **olist = &conn->c_ops;
     Slapi_Operation **tmp;
-    PR_EnterMonitor(conn->c_mutex);
+    pthread_mutex_lock(&(conn->c_mutex));
     /* connection_remove_operation_ext(pb, conn,op); */
     for (tmp = olist; *tmp != NULL && *tmp != op; tmp = &(*tmp)->o_next)
         ; /* NULL */
@@ -635,7 +635,7 @@ slapi_connection_remove_operation(Slapi_PBlock *pb __attribute__((unused)), Slap
             rc = 0;
         }
     }
-    PR_ExitMonitor(conn->c_mutex);
+    pthread_mutex_unlock(&(conn->c_mutex));
     return (rc);
 }
 

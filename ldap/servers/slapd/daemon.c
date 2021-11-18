@@ -1555,7 +1555,6 @@ clear_signal(struct POLL_STRUCT *fds)
     if (fds[FDS_SIGNAL_PIPE].out_flags & SLAPD_POLL_FLAGS) {
         char buf[200];
 
-        slapi_log_err(SLAPI_LOG_CONNS, "clear_signal", "Listener got signaled\n");
         if (read(readsignalpipe, buf, 200) < 1) {
             slapi_log_err(SLAPI_LOG_ERR, "clear_signal", "Listener could not clear signal pipe\n");
         }
@@ -1595,13 +1594,13 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
     c = connection_table_get_first_active_connection(ct);
     while (c) {
         next = connection_table_get_next_active_connection(ct, c);
-        if (c->c_mutex == NULL) {
+        if (c->c_state == CONN_STATE_FREE) {
             connection_table_move_connection_out_of_active_list(ct, c);
         } else {
             /* we try to acquire the connection mutex, if it is already
              * acquired by another thread, don't wait
              */
-            if (PR_FALSE == MY_TestAndEnterMonitor((MY_PRMonitor *)c->c_mutex)) {
+            if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
                 c = next;
                 continue;
             }
@@ -1642,7 +1641,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
                     c->c_fdi = SLAPD_INVALID_SOCKET_INDEX;
                 }
             }
-            PR_ExitMonitor(c->c_mutex);
+            pthread_mutex_unlock(&(c->c_mutex));
         }
         c = next;
     }
@@ -1684,12 +1683,12 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused
      */
     for (c = connection_table_get_first_active_connection(ct); c != NULL;
          c = connection_table_get_next_active_connection(ct, c)) {
-        if (c->c_mutex != NULL) {
+        if (c->c_state != CONN_STATE_FREE) {
             /* this check can be done without acquiring the mutex */
             if (c->c_gettingber)
                 continue;
 
-            PR_EnterMonitor(c->c_mutex);
+            pthread_mutex_lock(&(c->c_mutex));
             if (connection_is_active_nolock(c) && c->c_gettingber == 0) {
                 PRInt16 out_flags;
                 short readready;
@@ -1739,7 +1738,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused
                                               SLAPD_DISCONNECT_IDLE_TIMEOUT, EAGAIN);
                 }
             }
-            PR_ExitMonitor(c->c_mutex);
+            pthread_mutex_unlock(&(c->c_mutex));
         }
     }
 }
@@ -1773,7 +1772,7 @@ ns_handle_closure(struct ns_job_t *job)
     Connection *c = (Connection *)ns_job_get_data(job);
     int do_yield = 0;
 
-    PR_EnterMonitor(c->c_mutex);
+    pthread_mutex_lock(&(c->c_mutex));
     /* Assert we really have the right job state. */
     PR_ASSERT(job == c->c_job);
 
@@ -1783,7 +1782,7 @@ ns_handle_closure(struct ns_job_t *job)
     /* Because handle closure will add a new job, we need to detach our current one. */
     c->c_job = NULL;
     do_yield = ns_handle_closure_nomutex(c);
-    PR_ExitMonitor(c->c_mutex);
+    pthread_mutex_unlock(&(c->c_mutex));
     /* Remove this task now. */
     ns_job_done(job);
     if (do_yield) {
@@ -1961,7 +1960,7 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
     int maxthreads = config_get_maxthreadsperconn();
     Connection *c = (Connection *)ns_job_get_data(job);
 
-    PR_EnterMonitor(c->c_mutex);
+    pthread_mutex_lock(&(c->c_mutex));
     /* Assert we really have the right job state. */
     PR_ASSERT(job == c->c_job);
 
@@ -2027,7 +2026,7 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
                       c->c_connid, c->c_sd);
     }
     /* Since we call done on the job, we need to remove it here. */
-    PR_ExitMonitor(c->c_mutex);
+    pthread_mutex_unlock(&(c->c_mutex));
     ns_job_done(job);
     return;
 }
@@ -2506,7 +2505,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
         PR_Close(pr_acceptfd);
         return -1;
     }
-    PR_EnterMonitor(conn->c_mutex);
+    pthread_mutex_lock(&(conn->c_mutex));
 
     /*
      * Set the default idletimeout and the handle.  We'll update c_idletimeout
@@ -2600,7 +2599,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
         connection_table_move_connection_on_to_active_list(the_connection_table, conn);
     }
 
-    PR_ExitMonitor(conn->c_mutex);
+    pthread_mutex_unlock(&(conn->c_mutex));
 
     g_increment_current_conn_count();
 
@@ -2651,9 +2650,9 @@ ns_handle_new_connection(struct ns_job_t *job)
      * that poll() was avoided, even at the expense of putting this new fd back
      * in nunc-stans to poll for read ready.
      */
-    PR_EnterMonitor(c->c_mutex);
+    pthread_mutex_lock(&(c->c_mutex));
     ns_connection_post_io_or_closing(c);
-    PR_ExitMonitor(c->c_mutex);
+    pthread_mutex_unlock(&(c->c_mutex));
     return;
 }
 

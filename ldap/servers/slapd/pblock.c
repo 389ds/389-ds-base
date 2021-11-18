@@ -427,9 +427,9 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
                           "slapi_pblock_get", "Connection is NULL and hence cannot access SLAPI_CONN_DN \n");
             return (-1);
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         (*(char **)value) = (NULL == pblock->pb_conn->c_dn ? NULL : slapi_ch_strdup(pblock->pb_conn->c_dn));
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
     case SLAPI_CONN_AUTHTYPE: /* deprecated */
         if (pblock->pb_conn == NULL) {
@@ -437,9 +437,9 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
                           "slapi_pblock_get", "Connection is NULL and hence cannot access SLAPI_CONN_AUTHTYPE \n");
             return (-1);
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         authtype = pblock->pb_conn->c_authtype;
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         if (authtype == NULL) {
             (*(char **)value) = NULL;
         } else if (strcasecmp(authtype, SLAPD_AUTH_NONE) == 0) {
@@ -464,52 +464,52 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
                           "slapi_pblock_get", "Connection is NULL and hence cannot access SLAPI_CONN_AUTHMETHOD \n");
             return (-1);
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         (*(char **)value) = pblock->pb_conn->c_authtype ? slapi_ch_strdup(pblock->pb_conn->c_authtype) : NULL;
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
     case SLAPI_CONN_CLIENTNETADDR:
         if (pblock->pb_conn == NULL) {
             memset(value, 0, sizeof(PRNetAddr));
             break;
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         if (pblock->pb_conn->cin_addr == NULL) {
             memset(value, 0, sizeof(PRNetAddr));
         } else {
             (*(PRNetAddr *)value) =
                 *(pblock->pb_conn->cin_addr);
         }
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
 	case SLAPI_CONN_CLIENTNETADDR_ACLIP:
         if (pblock->pb_conn == NULL) {
             break;
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         (*(PRNetAddr **) value) = pblock->pb_conn->cin_addr_aclip;
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
     case SLAPI_CONN_SERVERNETADDR:
         if (pblock->pb_conn == NULL) {
             memset(value, 0, sizeof(PRNetAddr));
             break;
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         if (pblock->pb_conn->cin_destaddr == NULL) {
             memset(value, 0, sizeof(PRNetAddr));
         } else {
             (*(PRNetAddr *)value) =
                 *(pblock->pb_conn->cin_destaddr);
         }
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
     case SLAPI_CONN_CLIENTIP:
         if (pblock->pb_conn == NULL) {
             memset(value, 0, sizeof(struct in_addr));
             break;
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         if (pblock->pb_conn->cin_addr == NULL) {
             memset(value, 0, sizeof(struct in_addr));
         } else {
@@ -524,14 +524,14 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
                 memset(value, 0, sizeof(struct in_addr));
             }
         }
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
     case SLAPI_CONN_SERVERIP:
         if (pblock->pb_conn == NULL) {
             memset(value, 0, sizeof(struct in_addr));
             break;
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         if (pblock->pb_conn->cin_destaddr == NULL) {
             memset(value, 0, sizeof(PRNetAddr));
         } else {
@@ -546,7 +546,7 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
                 memset(value, 0, sizeof(struct in_addr));
             }
         }
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
     case SLAPI_CONN_IS_REPLICATION_SESSION:
         if (pblock->pb_conn == NULL) {
@@ -554,9 +554,9 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
                           "slapi_pblock_get", "Connection is NULL and hence cannot access SLAPI_CONN_IS_REPLICATION_SESSION \n");
             return (-1);
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         (*(int *)value) = pblock->pb_conn->c_isreplication_session;
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
     case SLAPI_CONN_IS_SSL_SESSION:
         if (pblock->pb_conn == NULL) {
@@ -564,9 +564,9 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
                           "slapi_pblock_get", "Connection is NULL and hence cannot access SLAPI_CONN_IS_SSL_SESSION \n");
             return (-1);
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         (*(int *)value) = pblock->pb_conn->c_flags & CONN_FLAG_SSL;
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
     case SLAPI_CONN_SASL_SSF:
         if (pblock->pb_conn == NULL) {
@@ -574,9 +574,9 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
                           "slapi_pblock_get", "Connection is NULL and hence cannot access SLAPI_CONN_SASL_SSF \n");
             return (-1);
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         (*(int *)value) = pblock->pb_conn->c_sasl_ssf;
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
     case SLAPI_CONN_SSL_SSF:
         if (pblock->pb_conn == NULL) {
@@ -584,9 +584,9 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
                           "slapi_pblock_get", "Connection is NULL and hence cannot access SLAPI_CONN_SSL_SSF \n");
             return (-1);
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         (*(int *)value) = pblock->pb_conn->c_ssl_ssf;
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
     case SLAPI_CONN_LOCAL_SSF:
         if (pblock->pb_conn == NULL) {
@@ -594,9 +594,9 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
                           "slapi_pblock_get", "Connection is NULL and hence cannot access SLAPI_CONN_LOCAL_SSF \n");
             return (-1);
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         (*(int *)value) = pblock->pb_conn->c_local_ssf;
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
     case SLAPI_CONN_CERT:
         if (pblock->pb_conn == NULL) {
@@ -2574,19 +2574,19 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
                           "Connection is NULL and hence cannot access SLAPI_CONN_AUTHMETHOD \n");
             return (-1);
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         slapi_ch_free((void **)&pblock->pb_conn->c_authtype);
         pblock->pb_conn->c_authtype = slapi_ch_strdup((char *)value);
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
     case SLAPI_CONN_CLIENTNETADDR_ACLIP:
         if (pblock->pb_conn == NULL) {
             break;
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         slapi_ch_free((void **)&pblock->pb_conn->cin_addr_aclip);
         pblock->pb_conn->cin_addr_aclip = (PRNetAddr *)value;
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
     case SLAPI_CONN_IS_REPLICATION_SESSION:
         if (pblock->pb_conn == NULL) {
@@ -2595,9 +2595,9 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
                           "Connection is NULL and hence cannot access SLAPI_CONN_IS_REPLICATION_SESSION \n");
             return (-1);
         }
-        PR_EnterMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         pblock->pb_conn->c_isreplication_session = *((int *)value);
-        PR_ExitMonitor(pblock->pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
         break;
 
     /* stuff related to config file processing */
@@ -4208,7 +4208,7 @@ void
 bind_credentials_clear(Connection *conn, PRBool lock_conn, PRBool clear_externalcreds)
 {
     if (lock_conn) {
-        PR_EnterMonitor(conn->c_mutex);
+        pthread_mutex_lock(&(conn->c_mutex));
     }
 
     if (conn->c_dn != NULL) {                   /* a non-anonymous bind has occurred */
@@ -4234,7 +4234,7 @@ bind_credentials_clear(Connection *conn, PRBool lock_conn, PRBool clear_external
     }
 
     if (lock_conn) {
-        PR_ExitMonitor(conn->c_mutex);
+        pthread_mutex_unlock(&(conn->c_mutex));
     }
 }
 
@@ -4397,10 +4397,10 @@ slapi_pblock_set_op_stack_elem(Slapi_PBlock *pb, void *stack_elem)
 void
 bind_credentials_set(Connection *conn, char *authtype, char *normdn, char *extauthtype, char *externaldn, CERTCertificate *clientcert, Slapi_Entry *bind_target_entry)
 {
-    PR_EnterMonitor(conn->c_mutex);
+    pthread_mutex_lock(&(conn->c_mutex));
     bind_credentials_set_nolock(conn, authtype, normdn,
                                 extauthtype, externaldn, clientcert, bind_target_entry);
-    PR_ExitMonitor(conn->c_mutex);
+    pthread_mutex_unlock(&(conn->c_mutex));
 }
 
 void

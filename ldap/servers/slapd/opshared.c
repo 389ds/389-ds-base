@@ -668,7 +668,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
        * In async paged result case, the search result might be released
        * by other theads.  We need to double check it in the locked region.
        */
-            PR_EnterMonitor(pb_conn->c_mutex);
+            pthread_mutex_lock(&(pb_conn->c_mutex));
             pr_search_result = pagedresults_get_search_result(pb_conn, operation, 1 /*locked*/, pr_idx);
             if (pr_search_result) {
                 if (pagedresults_is_abandoned_or_notavailable(pb_conn, 1 /*locked*/, pr_idx)) {
@@ -676,7 +676,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     /* Previous operation was abandoned and the simplepaged object is not in use. */
                     send_ldap_result(pb, 0, NULL, "Simple Paged Results Search abandoned", 0, NULL);
                     rc = LDAP_SUCCESS;
-                    PR_ExitMonitor(pb_conn->c_mutex);
+                    pthread_mutex_unlock(&(pb_conn->c_mutex));
                     goto free_and_return;
                 } else {
                     slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, pr_search_result);
@@ -690,7 +690,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                 pr_stat = PAGEDRESULTS_SEARCH_END;
                 rc = LDAP_SUCCESS;
             }
-            PR_ExitMonitor(pb_conn->c_mutex);
+            pthread_mutex_unlock(&(pb_conn->c_mutex));
             pagedresults_unlock(pb_conn, pr_idx);
 
             if ((PAGEDRESULTS_SEARCH_END == pr_stat) || (0 == pnentries)) {
@@ -811,10 +811,10 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                 /* PAGED RESULTS */
                 if (op_is_pagedresults(operation)) {
                     /* cleanup the slot */
-                    PR_EnterMonitor(pb_conn->c_mutex);
+                    pthread_mutex_lock(&(pb_conn->c_mutex));
                     pagedresults_set_search_result(pb_conn, operation, NULL, 1, pr_idx);
                     rc = pagedresults_set_current_be(pb_conn, NULL, pr_idx, 1);
-                    PR_ExitMonitor(pb_conn->c_mutex);
+                    pthread_mutex_unlock(&(pb_conn->c_mutex));
                 }
                 if (1 == flag_no_such_object) {
                     break;
@@ -855,11 +855,11 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
                     if ((PAGEDRESULTS_SEARCH_END == pr_stat) || (0 == pnentries)) {
                         /* no more entries, but at least another backend */
-                        PR_EnterMonitor(pb_conn->c_mutex);
+                        pthread_mutex_lock(&(pb_conn->c_mutex));
                         pagedresults_set_search_result(pb_conn, operation, NULL, 1, pr_idx);
                         be->be_search_results_release(&sr);
                         rc = pagedresults_set_current_be(pb_conn, next_be, pr_idx, 1);
-                        PR_ExitMonitor(pb_conn->c_mutex);
+                        pthread_mutex_unlock(&(pb_conn->c_mutex));
                         pr_stat = PAGEDRESULTS_SEARCH_END; /* make sure stat is SEARCH_END */
                         if (NULL == next_be) {
                             /* no more entries && no more backends */
@@ -887,9 +887,9 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     next_be = NULL; /* to break the loop */
                     if (operation->o_status & SLAPI_OP_STATUS_ABANDONED) {
                         /* It turned out this search was abandoned. */
-                        PR_EnterMonitor(pb_conn->c_mutex);
+                        pthread_mutex_lock(&(pb_conn->c_mutex));
                         pagedresults_free_one_msgid_nolock(pb_conn, operation->o_msgid);
-                        PR_ExitMonitor(pb_conn->c_mutex);
+                        pthread_mutex_unlock(&(pb_conn->c_mutex));
                         /* paged-results-request was abandoned; making an empty cookie. */
                         pagedresults_set_response_control(pb, 0, estimate, -1, pr_idx);
                         send_ldap_result(pb, 0, NULL, "Simple Paged Results Search abandoned", 0, NULL);

@@ -144,11 +144,9 @@ connection_done(Connection *conn)
     connection_cleanup(conn);
     /* free the private content, the buffer has been freed by above connection_cleanup */
     slapi_ch_free((void **)&conn->c_private);
+    pthread_mutex_destroy(&(conn->c_mutex));
     if (NULL != conn->c_sb) {
         ber_sockbuf_free(conn->c_sb);
-    }
-    if (NULL != conn->c_mutex) {
-        PR_DestroyMonitor(conn->c_mutex);
     }
     if (NULL != conn->c_pdumutex) {
         PR_DestroyLock(conn->c_pdumutex);
@@ -745,15 +743,18 @@ connection_acquire_nolock(Connection *conn)
 int
 connection_is_free(Connection *conn, int use_lock)
 {
-    int rc;
+    int rc = 0;
 
     if (use_lock) {
-        PR_EnterMonitor(conn->c_mutex);
+        /* If the lock is held, someone owns this! */
+        if (pthread_mutex_trylock(&(conn->c_mutex)) != 0) {
+            return 0;
+        }
     }
     rc = conn->c_sd == SLAPD_INVALID_SOCKET && conn->c_refcnt == 0 &&
          !(conn->c_flags & CONN_FLAG_CLOSING);
     if (use_lock) {
-        PR_ExitMonitor(conn->c_mutex);
+        pthread_mutex_unlock(&(conn->c_mutex));
     }
 
     return rc;
@@ -1149,7 +1150,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     size_t buffer_data_avail;
     int conn_closed = 0;
 
-    PR_EnterMonitor(conn->c_mutex);
+    pthread_mutex_lock(&(conn->c_mutex));
     /*
      * if the socket is still valid, get the ber element
      * waiting for us on this connection. timeout is handled
@@ -1343,16 +1344,16 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     }
     op->o_tag = *tag;
 done:
-    PR_ExitMonitor(conn->c_mutex);
+    pthread_mutex_unlock(&(conn->c_mutex));
     return ret;
 }
 
 void
 connection_make_readable(Connection *conn)
 {
-    PR_EnterMonitor(conn->c_mutex);
+    pthread_mutex_lock(&(conn->c_mutex));
     conn->c_gettingber = 0;
-    PR_ExitMonitor(conn->c_mutex);
+    pthread_mutex_unlock(&(conn->c_mutex));
     signal_listner();
 }
 
@@ -1376,7 +1377,7 @@ connection_check_activity_level(Connection *conn)
 {
     int current_count = 0;
     int delta_count = 0;
-    PR_EnterMonitor(conn->c_mutex);
+    pthread_mutex_lock(&(conn->c_mutex));
     /* get the current op count */
     current_count = conn->c_opscompleted;
     /* compare to the previous op count */
@@ -1387,7 +1388,7 @@ connection_check_activity_level(Connection *conn)
     conn->c_private->previous_op_count = current_count;
     /* update the last checked time */
     conn->c_private->previous_count_check_time = slapi_current_utc_time();
-    PR_ExitMonitor(conn->c_mutex);
+    pthread_mutex_unlock(&(conn->c_mutex));
     slapi_log_err(SLAPI_LOG_CONNS, "connection_check_activity_level", "conn %" PRIu64 " activity level = %d\n", conn->c_connid, delta_count);
 }
 
@@ -1435,7 +1436,7 @@ connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int *new_
     int connection_count = 0;
     int our_rank = 0;
     int threshold_rank = 0;
-    PR_EnterMonitor(conn->c_mutex);
+    pthread_mutex_lock(&(conn->c_mutex));
     /* We can already be in turbo mode, or not */
     current_mode = current_turbo_flag;
     if (pagedresults_in_use_nolock(conn)) {
@@ -1480,7 +1481,7 @@ connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int *new_
             new_mode = 1;
         }
     }
-    PR_ExitMonitor(conn->c_mutex);
+    pthread_mutex_unlock(&(conn->c_mutex));
     if (current_mode != new_mode) {
         if (current_mode) {
             slapi_log_err(SLAPI_LOG_CONNS, "connection_enter_leave_turbo", "conn %" PRIu64 " leaving turbo mode\n", conn->c_connid);
@@ -1561,7 +1562,7 @@ connection_threadmain()
                     return;
                 }
 
-                PR_EnterMonitor(pb_conn->c_mutex);
+                pthread_mutex_lock(&(pb_conn->c_mutex));
                 if (pb_conn->c_anonlimits_set == 0) {
                     /*
                      * We have a new connection, set the anonymous reslimit idletimeout
@@ -1594,7 +1595,7 @@ connection_threadmain()
                     slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
                                   "Could not add/remove IO layers from connection\n");
                 }
-		PR_ExitMonitor(pb_conn->c_mutex);
+		pthread_mutex_unlock(&(pb_conn->c_mutex));
                 break;
             default:
                 break;
@@ -1606,14 +1607,14 @@ connection_threadmain()
             */
             PR_Sleep(PR_INTERVAL_NO_WAIT);
 
-            PR_EnterMonitor(conn->c_mutex);
+            pthread_mutex_lock(&(conn->c_mutex));
             /* Make our own pb in turbo mode */
             connection_make_new_pb(pb, conn);
             if (connection_call_io_layer_callbacks(conn)) {
                 slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
                               "Could not add/remove IO layers from connection\n");
             }
-            PR_ExitMonitor(conn->c_mutex);
+            pthread_mutex_unlock(&(conn->c_mutex));
             if (!config_check_referral_mode()) {
                 slapi_counter_increment(ops_initiated);
                 slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsInOps);
@@ -1728,9 +1729,9 @@ connection_threadmain()
         if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !replication_connection) {
             if (!more_data) {
                 conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
-                PR_EnterMonitor(conn->c_mutex);
+                pthread_mutex_lock(&(conn->c_mutex));
                 connection_make_readable_nolock(conn);
-                PR_ExitMonitor(conn->c_mutex);
+                pthread_mutex_unlock(&(conn->c_mutex));
                 /* once the connection is readable, another thread may access conn,
                  * so need locking from here on */
                 signal_listner();
@@ -1742,7 +1743,7 @@ connection_threadmain()
                  */
             } else if (!enable_nunc_stans) { /* more data in conn - just put back on work_q - bypass poll */
                 bypasspollcnt++;
-                PR_EnterMonitor(conn->c_mutex);
+                pthread_mutex_lock(&(conn->c_mutex));
                 /* don't do this if it would put us over the max threads per conn */
                 if (conn->c_threadnumber < maxthreads) {
                     /* for turbo, c_idlesince is set above - for !turbo and
@@ -1758,7 +1759,7 @@ connection_threadmain()
                     /* keep count of how many times maxthreads has blocked an operation */
                     conn->c_maxthreadsblocked++;
                 }
-                PR_ExitMonitor(conn->c_mutex);
+                pthread_mutex_unlock(&(conn->c_mutex));
             }
         }
 
@@ -1794,14 +1795,14 @@ connection_threadmain()
 
     done:
         if (doshutdown) {
-            PR_EnterMonitor(conn->c_mutex);
+            pthread_mutex_lock(&(conn->c_mutex));
             connection_remove_operation_ext(pb, conn, op);
             connection_make_readable_nolock(conn);
             conn->c_threadnumber--;
             slapi_counter_decrement(conns_in_maxthreads);
             slapi_counter_decrement(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
             connection_release_nolock(conn);
-            PR_ExitMonitor(conn->c_mutex);
+            pthread_mutex_unlock(&(conn->c_mutex));
             signal_listner();
             slapi_pblock_destroy(pb);
             return;
@@ -1826,9 +1827,9 @@ connection_threadmain()
              * continues to hold the connection
              */
             if (!thread_turbo_flag && !more_data) {
-                PR_EnterMonitor(conn->c_mutex);
+                pthread_mutex_lock(&(conn->c_mutex));
                 connection_release_nolock(conn); /* psearch acquires ref to conn - release this one now */
-                PR_ExitMonitor(conn->c_mutex);
+                pthread_mutex_unlock(&(conn->c_mutex));
             }
             /* ps_add makes a shallow copy of the pb - so we
                  * can't free it or init it here - just set operation to NULL.
@@ -1839,7 +1840,7 @@ connection_threadmain()
         } else {
             /* delete from connection operation queue & decr refcnt */
             int conn_closed = 0;
-            PR_EnterMonitor(conn->c_mutex);
+            pthread_mutex_lock(&(conn->c_mutex));
             connection_remove_operation_ext(pb, conn, op);
 
             /* If we're in turbo mode, we keep our reference to the connection alive */
@@ -1890,7 +1891,7 @@ connection_threadmain()
                     signal_listner();
                 }
             }
-            PR_ExitMonitor(conn->c_mutex);
+            pthread_mutex_unlock(&(conn->c_mutex));
         }
     } /* while (1) */
 }
@@ -2146,7 +2147,7 @@ op_copy_identity(Connection *conn, Operation *op)
     size_t dnlen;
     size_t typelen;
 
-    PR_EnterMonitor(conn->c_mutex);
+    pthread_mutex_lock(&(conn->c_mutex));
     dnlen = conn->c_dn ? strlen(conn->c_dn) : 0;
     typelen = conn->c_authtype ? strlen(conn->c_authtype) : 0;
 
@@ -2178,14 +2179,14 @@ op_copy_identity(Connection *conn, Operation *op)
         op->o_ssf = conn->c_local_ssf;
     }
 
-    PR_ExitMonitor(conn->c_mutex);
+    pthread_mutex_unlock(&(conn->c_mutex));
 }
 
 /* Sets the SSL SSF in the connection struct. */
 static void
 connection_set_ssl_ssf(Connection *conn)
 {
-    PR_EnterMonitor(conn->c_mutex);
+    pthread_mutex_lock(&(conn->c_mutex));
 
     if (conn->c_flags & CONN_FLAG_SSL) {
         SSL_SecurityStatus(conn->c_prfd, NULL, NULL, NULL, &(conn->c_ssl_ssf), NULL, NULL);
@@ -2193,7 +2194,7 @@ connection_set_ssl_ssf(Connection *conn)
         conn->c_ssl_ssf = 0;
     }
 
-    PR_ExitMonitor(conn->c_mutex);
+    pthread_mutex_unlock(&(conn->c_mutex));
 }
 
 static int
@@ -2245,9 +2246,9 @@ log_ber_too_big_error(const Connection *conn, ber_len_t ber_len, ber_len_t maxbe
 void
 disconnect_server(Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error)
 {
-    PR_EnterMonitor(conn->c_mutex);
+    pthread_mutex_lock(&(conn->c_mutex));
     disconnect_server_nomutex(conn, opconnid, opid, reason, error);
-    PR_ExitMonitor(conn->c_mutex);
+    pthread_mutex_unlock(&(conn->c_mutex));
 }
 
 static ps_wakeup_all_fn_ptr ps_wakeup_all_fn = NULL;
