@@ -1013,7 +1013,7 @@ class ManagedEntries extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form className="ds-margin-top-xlg" isHorizontal>
+                    <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
                         <FormGroup
                             label="Definition Name"
                             fieldId="configName"
@@ -1140,7 +1140,7 @@ class ManagedEntries extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form className="ds-margin-top-xlg" isHorizontal>
+                    <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
                         <FormGroup
                             label="Template DN"
                             fieldId="templateDN"
@@ -1194,7 +1194,7 @@ class ManagedEntries extends React.Component {
                             </Select>
                         </FormGroup>
                     </Form>
-                    <Form className="ds-margin-top-lg">
+                    <Form className="ds-margin-top-lg" autoComplete="off">
                         <FormGroup
                             label="Mapped Attributes"
                             fieldId="templateDN"
@@ -1298,7 +1298,7 @@ class ManagedEntries extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form className="ds-margin-top">
+                    <Form className="ds-margin-top" autoComplete="off">
                         <FormGroup
                             label="Static Attribute"
                             fieldId="staticAttr"
@@ -1363,7 +1363,7 @@ class ManagedEntries extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form className="ds-margin-top">
+                    <Form className="ds-margin-top" autoComplete="off">
                         <FormGroup
                             label="Mapped Attribute"
                             fieldId="mappedAttr"
@@ -1505,7 +1505,7 @@ eventKey={2} title={
                                 </Tab>
                             </Tabs>
                             <hr />
-                            <Form className="ds-margin-top-xlg" isHorizontal>
+                            <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
                                 <FormGroup
                                     label="Shared Config Area"
                                     fieldId="configArea"

@@ -25,9 +25,16 @@ class GenericWizard extends React.Component {
                     treeViewRootSuffixes={this.props.treeViewRootSuffixes}
                     />;
             case ENTRY_MENU.new:
-                return <NewEntryWizard {...wizardProps } />;
+                return <NewEntryWizard
+                    {...wizardProps }
+                    treeViewRootSuffixes={this.props.treeViewRootSuffixes}
+                />;
             case ENTRY_MENU.edit:
-                return <EditEntryWizard {...wizardProps } allObjectclasses={this.props.allObjectclasses} />;
+                return <EditEntryWizard
+                    {...wizardProps }
+                    allObjectclasses={this.props.allObjectclasses}
+                    treeViewRootSuffixes={this.props.treeViewRootSuffixes}
+                />;
             case ENTRY_MENU.delete:
                 return <DeleteOperationWizard {...wizardProps } />;
             default:

@@ -501,7 +501,7 @@ export class ServerAccessLog extends React.Component {
                             title="Enable access logging (nsslapd-accesslog-logging-enabled)."
                             label="Enable Access Logging"
                         />
-                        <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal>
+                        <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal autoComplete="off">
                             <FormGroup
                                 label="Access Log Location"
                                 fieldId="nsslapd-accesslog"
@@ -567,7 +567,7 @@ export class ServerAccessLog extends React.Component {
                         </Button>
                     </Tab>
                     <Tab eventKey={1} title={<TabTitleText>Rotation Policy</TabTitleText>}>
-                        <Form className="ds-margin-top-lg" isHorizontal>
+                        <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
                                 title="The maximum number of logs that are archived (nsslapd-accesslog-maxlogsperdir)."
@@ -669,7 +669,7 @@ export class ServerAccessLog extends React.Component {
                     </Tab>
 
                     <Tab eventKey={2} title={<TabTitleText>Deletion Policy</TabTitleText>}>
-                        <Form className="ds-margin-top-lg" isHorizontal>
+                        <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
                                 title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-accesslog-logmaxdiskspace)."
