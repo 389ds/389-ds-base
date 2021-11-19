@@ -61,7 +61,7 @@ class CreateLinkModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal>
+                <Form isHorizontal autoComplete="off">
                     <Grid className="ds-margin-top" title="The RDN of the link suffix.">
                         <GridItem className="ds-label" span={3}>
                             Link Sub-Suffix
@@ -279,7 +279,7 @@ class CreateSubSuffixModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal>
+                <Form isHorizontal autoComplete="off">
                     <Grid className="ds-margin-top" title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)">
                         <GridItem className="ds-label" span={3}>
                             Sub-Suffix DN
@@ -389,7 +389,7 @@ class ExportModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal>
+                <Form isHorizontal autoComplete="off">
                     <Grid title="Name of exported LDIF file.">
                         <GridItem className="ds-label" span={3}>
                             LDIF File Name
@@ -460,7 +460,7 @@ class ImportModal extends React.Component {
                     confirmImport={this.props.showConfirmImport}
                 />
                 <hr />
-                <Form isHorizontal>
+                <Form isHorizontal autoComplete="off">
                     <Grid title="The full path to the LDIF file.  The server must have permissions to read it.">
                         <GridItem className="ds-label" span={4}>
                             Or, enter LDIF location

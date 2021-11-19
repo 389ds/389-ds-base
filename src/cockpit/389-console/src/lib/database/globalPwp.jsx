@@ -1152,7 +1152,7 @@ export class GlobalPwPolicy extends React.Component {
                 <div className={this.state.loading ? 'ds-fadeout ds-margin-bottom-md' : 'ds-fadein ds-left-margin ds-margin-bottom-md'}>
                     <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab eventKey={0} title={<TabTitleText>General Settings</TabTitleText>}>
-                            <Form className="ds-margin-left-sm" isHorizontal>
+                            <Form className="ds-margin-left-sm" isHorizontal autoComplete="off">
                                 <Grid className="ds-margin-top-xlg" title="Allow subtree/user defined local password policies (nsslapd-pwpolicy-local).">
                                     <GridItem span={12}>
                                         <Checkbox
@@ -1344,7 +1344,7 @@ export class GlobalPwPolicy extends React.Component {
                             </Button>
                         </Tab>
                         <Tab eventKey={1} title={<TabTitleText>Expiration</TabTitleText>}>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
+                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid title="Enable a password expiration policy (passwordExp).">
                                     <GridItem span={12}>
                                         <Checkbox
@@ -1372,7 +1372,7 @@ export class GlobalPwPolicy extends React.Component {
                             </Button>
                         </Tab>
                         <Tab eventKey={2} title={<TabTitleText>Account Lockout</TabTitleText>}>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
+                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid title="Enable account lockout (passwordLockout).">
                                     <GridItem span={12}>
                                         <Checkbox
@@ -1400,7 +1400,7 @@ export class GlobalPwPolicy extends React.Component {
                             </Button>
                         </Tab>
                         <Tab eventKey={3} title={<TabTitleText>Syntax Checking</TabTitleText>}>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
+                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid title="Enable password syntax checking (passwordCheckSyntax).">
                                     <GridItem span={12}>
                                         <Checkbox

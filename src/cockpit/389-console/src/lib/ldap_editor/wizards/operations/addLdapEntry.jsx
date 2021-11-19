@@ -980,7 +980,7 @@ class AddLdapEntry extends React.Component {
                         {commandOutput}
                     </Alert>
                 </div>
-                <div>
+                {resultVariant === 'danger' &&
                     <Card isHoverable>
                         <CardTitle>LDIF Data</CardTitle>
                         <CardBody>
@@ -989,7 +989,7 @@ class AddLdapEntry extends React.Component {
                             ))}
                         </CardBody>
                     </Card>
-                </div>
+                }
             </div>
         );
 

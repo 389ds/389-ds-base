@@ -1298,7 +1298,7 @@ class DNAPlugin extends React.Component {
                                     <a className="ds-font-size-sm">What is a Shared Config Entry?</a>
                                 </Tooltip>
                             </div>
-                            <Form className="ds-margin-top-lg" isHorizontal>
+                            <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
                                 <Grid title="Defines a container entry DN for DNA remote server configuration that the servers can use to transfer ranges between one another (dnaSharedCfgDN)">
                                     <GridItem span={3} className="ds-label">
                                         Shared Config Entry DN

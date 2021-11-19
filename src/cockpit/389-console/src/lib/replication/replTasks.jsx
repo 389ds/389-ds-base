@@ -392,7 +392,7 @@ export class ReplRUV extends React.Component {
                         Replication Change Log Tasks
                     </Text>
                 </TextContent>
-                <Form className="ds-margin-top-lg ds-left-indent-md" isHorizontal>
+                <Form className="ds-margin-top-lg ds-left-indent-md" isHorizontal autoComplete="off">
                     <Grid>
                         <GridItem
                             span={3}
