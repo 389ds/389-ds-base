@@ -543,7 +543,7 @@ export class ReplConfig extends React.Component {
         return (
             <div className={this.state.saving ? "ds-disabled" : ""}>
                 <div className="ds-margin-top-xxlg ds-left-margin">
-                    <Form isHorizontal>
+                    <Form isHorizontal autoComplete="off">
                         <Grid>
                             <GridItem className="ds-label" span={2}>
                                 Replica Role

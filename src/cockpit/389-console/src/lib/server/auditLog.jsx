@@ -381,7 +381,7 @@ export class ServerAuditLog extends React.Component {
                             title="Enable audit logging (nsslapd-auditlog-logging-enabled)."
                             label="Enable Audit Logging"
                         />
-                        <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
+                        <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
                             <FormGroup
                                 label="Audit Log Location"
                                 fieldId="nsslapd-auditlog"
@@ -415,7 +415,7 @@ export class ServerAuditLog extends React.Component {
                         </Button>
                     </Tab>
                     <Tab eventKey={1} title={<TabTitleText>Rotation Policy</TabTitleText>}>
-                        <Form className="ds-margin-top-lg" isHorizontal>
+                        <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
                                 title="The maximum number of logs that are archived (nsslapd-auditlog-maxlogsperdir)."
@@ -517,7 +517,7 @@ export class ServerAuditLog extends React.Component {
                     </Tab>
 
                     <Tab eventKey={2} title={<TabTitleText>Deletion Policy</TabTitleText>}>
-                        <Form className="ds-margin-top-lg" isHorizontal>
+                        <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
                                 title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-auditlog-logmaxdiskspace)."

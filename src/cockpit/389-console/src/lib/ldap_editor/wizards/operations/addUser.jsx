@@ -129,7 +129,7 @@ class AddUser extends React.Component {
                     (result) => {
                         this.setState({
                             commandOutput: result.output,
-                            resultVariant: result.errorCode === 0 ? 'info' : 'danger'
+                            resultVariant: result.errorCode === 0 ? 'success' : 'danger'
                         }, () => {
                             this.props.onReload();
                         });
@@ -556,16 +556,18 @@ class AddUser extends React.Component {
                 >
                     {commandOutput}
                 </Alert>
-                <Card isHoverable>
-                    <CardTitle>
-                        LDIF Data
-                    </CardTitle>
-                    <CardBody>
-                        {ldifLines.map((line) => (
-                            <h6 key={line.id}>{line.data}</h6>
-                        ))}
-                    </CardBody>
-                </Card>
+                {resultVariant === 'danger' &&
+                    <Card isHoverable>
+                        <CardTitle>
+                            LDIF Data
+                        </CardTitle>
+                        <CardBody>
+                            {ldifLines.map((line) => (
+                                <h6 key={line.id}>{line.data}</h6>
+                            ))}
+                        </CardBody>
+                    </Card>
+                }
             </div>
         );
 

@@ -76,6 +76,8 @@ class AddNewAci extends React.Component {
       selectedEntryType: null,
       searchPattern: '',
       newAciName: '',
+      isTreeLoading: false,
+      searching: false,
       // Users
       usersSearchBaseDn: this.props.wizardEntryDn,
       isSearchRunning: false,
@@ -230,13 +232,13 @@ class AddNewAci extends React.Component {
       const pattern = this.state.searchPattern;
       if (searchArea === 'Users') {
         filter = pattern === ''
-          ? '(objectClass=person)'
-          : `(&(objectClass=person)(|(cn=*${pattern}*)(uid=${pattern})))`;
+          ? '(|(objectClass=person)(objectClass=nsPerson))'
+          : `(&(|(objectClass=person)(objectClass=nsPerson)(objectClass=nsAccount)(objectClass=nsOrgPerson)(objectClass=posixAccount))(|(cn=*${pattern}*)(uid=${pattern})))`;
         attrs = 'cn uid'
       } else if (searchArea === 'Groups') {
         filter = pattern === ''
-          ? '(objectClass=groupofuniquenames)'
-          : `(&(objectClass=groupofuniquenames)(cn=*${pattern}*))`;
+          ? '(|(objectClass=groupofuniquenames)(objectClass=groupofnames))'
+          : `(&(|(objectClass=groupofuniquenames)(objectClass=groupofnames))(cn=*${pattern}*))`;
         attrs = 'cn';
       } else if (searchArea === 'Roles') {
         filter = pattern === ''
@@ -518,6 +520,13 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
     // End constructor().
   }
 
+  showTreeLoadingState = (isTreeLoading) => {
+      this.setState({
+          isTreeLoading,
+          searching: isTreeLoading ? true : false
+      });
+  }
+
   render () {
     const {
       editVisually, isAciSyntaxValid,
@@ -559,7 +568,7 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
           <GridItem span={9}>
             <InputGroup>
               <InputGroupText id="aciname" aria-label="ACI Name">
-                    ACI Name
+                ACI Name
               </InputGroupText>
               <TextInput
                 validated={newAciName === '' ? ValidatedOptions.error : ValidatedOptions.default }
@@ -569,6 +578,7 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
                 onChange={this.handleAciName}
                 aria-label="Text input ACI name"
                 isDisabled={!editVisually}
+                autoComplete="off"
               />
             </InputGroup>
 
@@ -584,7 +594,7 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
           </GridItem>
         </Grid>
 
-        <div className="ds-addons-bottom-margin" />
+        <div className="ds-margin-bottom-md" />
         {/* <Divider inset={{ default: 'insetMd' }} /> */}
         <Divider />
       </>
@@ -601,13 +611,14 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
           </DrawerActions>
         </DrawerHead>
 
-        <Card isHoverable>
+        <Card isHoverable className="ds-indent ds-margin-bottom-md">
           <CardBody>
             <LdapNavigator
               treeItems={[...this.props.treeViewRootSuffixes]}
               editorLdapServer={this.props.editorLdapServer}
               skipLeafEntries={true}
               handleNodeOnClick={this.handleBaseDnSelection}
+              showTreeLoadingState={this.showTreeLoadingState}
             />
           </CardBody>
         </Card>
@@ -618,7 +629,7 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
     const userDrawerContent = (
       <>
         <Divider />
-        <div className="ds-addons-bottom-margin" />
+        <div className="ds-margin-bottom-md" />
 
         <DualListSelector
           availableOptions={usersAvailableOptions}
@@ -634,8 +645,7 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
     const usersComponent = (
       <React.Fragment>
         {aciNameComponent}
-        <div className="ds-addons-bottom-margin" />
-        <Grid hasGutter>
+        <Grid hasGutter className="ds-margin-top">
           <GridItem span={3}>
             <Select
               variant={SelectVariant.single}
@@ -663,6 +673,7 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
                 value={searchPattern}
                 onChange={this.handleSearchPattern}
                 isDisabled={(selectedEntryType === null) || (selectedEntryType === this.specialRights)}
+                autoComplete="off"
               />
               <Button
                 id="buttonSearchPattern"
@@ -677,29 +688,18 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
           </GridItem>
         </Grid>
 
-        <div className="ds-addons-bottom-margin" />
+        <div className="ds-margin-bottom-md" />
 
         {(selectedEntryType !== null) && (selectedEntryType !== this.specialRights) &&
           <>
-            <Label variant="outline" color="blue" icon={<InfoCircleIcon />}>
-              Search Base DN:
+            <Label onClick={this.onUsersDrawerClick} href="#" variant="outline" color="blue" icon={<InfoCircleIcon />}>
+              Search Base DN
             </Label>
-            <strong>&nbsp;{usersSearchBaseDn}</strong>
-            <br/>
-            <Button
-              aria-expanded={isUsersDrawerExpanded}
-              onClick={this.onUsersDrawerClick}
-              variant="link"
-              icon={isUsersDrawerExpanded ? <TimesIcon /> : <ArrowRightIcon />}
-              iconPosition="right"
-            >
-              {isUsersDrawerExpanded ? 'Close the LDAP Tree' : 'Change the Search Base DN'}
-
-            </Button>
+            <strong>&nbsp;&nbsp;{usersSearchBaseDn}</strong>
           </>
         }
 
-        <Drawer isExpanded={isUsersDrawerExpanded} onExpand={this.onDrawerExpand}>
+        <Drawer className="ds-margin-top" isExpanded={isUsersDrawerExpanded} onExpand={this.onDrawerExpand}>
           <DrawerContent panelContent={usersPanelContent}>
             <DrawerContentBody>{userDrawerContent}</DrawerContentBody>
           </DrawerContent>
@@ -731,7 +731,7 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
 
         <ExpandableSection toggleText={`Target Directory Entry: "${this.props.wizardEntryDn}"`}
         >
-          <Card isHoverable>
+          <Card isHoverable className="ds-indent ds-margin-bottom-md">
             <CardTitle>LDAP Tree</CardTitle>
             <CardBody>
               <LdapNavigator
@@ -746,7 +746,7 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
           </Card>
         </ExpandableSection>
         <Divider />
-        <div className="ds-addons-bottom-margin" />
+        <div className="ds-margin-bottom-md" />
 
         <GenericPagination
           columns={this.targetsColumns}
@@ -763,7 +763,7 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
         />
 
         { targetsRows.length === 0 &&
-        // <div className="ds-addons-bottom-margin" />
+        // <div className="ds-margin-bottom-md" />
         <Bullseye>
           <Title headingLevel="h2" size="lg">
           Loading...
@@ -776,11 +776,11 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
     const hostsComponent = (
       <>
         {aciNameComponent}
-        <div className="ds-addons-bottom-margin" />
+        <div className="ds-margin-bottom-md" />
         {hostFilterFound &&
         <>
           <Alert variant="danger" title="This host filter is already added." />
-          <div className="ds-addons-bottom-margin" />
+          <div className="ds-margin-bottom-md" />
         </>
         }
         <Grid hasGutter>
@@ -828,7 +828,7 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
             </InputGroup>
           </GridItem>
         </Grid>
-        <div className="ds-addons-bottom-margin" />
+        <div className="ds-margin-bottom-md" />
         <Table
           aria-label="Table Host Filter"
           cells={this.hostsColumns}
@@ -845,7 +845,7 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
     const timesComponent = (
       <>
         {aciNameComponent}
-        <div className="ds-addons-bottom-margin" />
+        <div className="ds-margin-bottom-md" />
         <Table
           onSelect={this.timesOnSelect}
           aria-label="Selectable Table Access Times"
@@ -890,14 +890,7 @@ aci: (targetattr = "*") (version 3.0;acl "Deny example.com"; deny (all)
       },
       {
         id: 2,
-        name: 'Users',
-        component: usersComponent,
-        canJumpTo: stepIdReachedVisual >= 2,
-        enableNext: !isUsersDrawerExpanded && usersChosenOptions.length > 0
-      },
-      {
-        id: 2,
-        name: 'Users',
+        name: 'Bind Rules',
         component: usersComponent,
         canJumpTo: stepIdReachedVisual >= 2,
         enableNext: !isUsersDrawerExpanded && usersChosenOptions.length > 0

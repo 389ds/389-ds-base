@@ -592,32 +592,7 @@ class EditorTreeView extends React.Component {
                                     </Tooltip>
                                 </Label>
                             }
-                            <div className= "ds-margin-bottom-md" />
-
-                            { (!firstClickOnTree || loading) &&
-                                <Card isHoverable>
-                                    <CardHeader>
-                                        <CardHeaderMain>
-                                            <Label variant="outline" color="blue" icon={<DatabaseIcon />}>
-                                                Root Suffixes
-                                            </Label>
-                                        </CardHeaderMain>
-                                    </CardHeader>
-                                    <CardBody>
-                                        <TextContent>
-                                            <TextList component={TextListVariants.dl}>
-                                                <TextListItem component={TextListItemVariants.dt}>Total</TextListItem>
-                                                <TextListItem component={TextListItemVariants.dd}>
-                                                    {loading
-                                                        ? <Spinner size="md"/>
-                                                        : this.props.treeViewRootSuffixes.length
-                                                    }
-                                                </TextListItem>
-                                            </TextList>
-                                        </TextContent>
-                                    </CardBody>
-                                </Card>
-                            }
+                            <div className= "ds-margin-bottom" />
 
                             { searching && loadingStateComponent }
 

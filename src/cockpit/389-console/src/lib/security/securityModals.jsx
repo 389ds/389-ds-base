@@ -150,7 +150,7 @@ export class SecurityAddCertModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal>
+                <Form isHorizontal autoComplete="off">
                     <TextContent>
                         <Text component={TextVariants.h4}>
                             Add A Certificate To The Security Database.
@@ -248,7 +248,7 @@ export class SecurityEnableModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal>
+                <Form isHorizontal autoComplete="off">
                     <TextContent>
                         <Text component={TextVariants.h4}>
                             You are choosing to enable security for the Directory Server which
@@ -257,7 +257,7 @@ export class SecurityEnableModal extends React.Component {
                         </Text>
                     </TextContent>
                     <hr />
-                    <Grid className="ds-margin-top" title="The server certificate the Directory Server will use">
+                    <Grid className="ds-margin-top" title="The server certificates the Directory Server can use">
                         <GridItem className="ds-label" span={4}>
                             Available Certificates
                         </GridItem>

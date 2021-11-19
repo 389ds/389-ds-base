@@ -798,10 +798,6 @@ export class LDAPEditor extends React.Component {
             refreshEntryTime
         } = this.state;
 
-        const treeItemsProps = wizardName === 'acis'
-            ? { treeViewRootSuffixes: this.state.treeViewRootSuffixes }
-            : {};
-
         return (
 
             <>
@@ -812,7 +808,7 @@ export class LDAPEditor extends React.Component {
                         toggleOpenWizard={this.toggleOpenWizard}
                         wizardEntryDn={wizardEntryDn}
                         editorLdapServer={this.props.serverId}
-                        {...treeItemsProps}
+                        treeViewRootSuffixes={this.state.treeViewRootSuffixes}
                         setWizardOperationInfo={this.setWizardOperationInfo}
                         onReload={this.handleReload}
                         allObjectclasses={this.state.allObjectclasses}
@@ -825,7 +821,7 @@ export class LDAPEditor extends React.Component {
                         toggleOpenWizard={this.toggleOpenTreeWizard}
                         wizardEntryDn={wizardEntryDn}
                         editorLdapServer={this.props.serverId}
-                        {...treeItemsProps}
+                        treeViewRootSuffixes={this.state.treeViewRootSuffixes}
                         setWizardOperationInfo={this.setWizardOperationInfo}
                         onReload={this.handleReloadNoop}
                         allObjectclasses={this.state.allObjectclasses}

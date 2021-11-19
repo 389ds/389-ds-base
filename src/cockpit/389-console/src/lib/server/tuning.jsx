@@ -288,7 +288,7 @@ export class ServerTuning extends React.Component {
                             </TextContent>
                         </GridItem>
                     </Grid>
-                    <Form className="ds-left-margin" isHorizontal>
+                    <Form className="ds-left-margin" isHorizontal autoComplete="off">
                         <Grid
                             className="ds-margin-top-xlg"
                             title="The number of worker threads that handle database operations.  Set to '-1' for enable auto tuning. (nsslapd-threadnumber)."
@@ -430,7 +430,7 @@ export class ServerTuning extends React.Component {
                         isExpanded={this.state.isExpanded}
                     >
                         <div className="ds-margin-top ds-indent">
-                            <Form isHorizontal>
+                            <Form isHorizontal autoComplete="off">
                                 <Grid
                                     className="ds-margin-top"
                                     title="Sets the I/O wait time for all outbound LDAP connections (nsslapd-outbound-ldap-io-timeout)."

@@ -180,10 +180,6 @@ class EditorGenericView extends React.Component {
       </DropdownGroup>
     ];
 
-    const treeItemsProps = wizardName === 'acis'
-        ? { treeViewRootSuffixes: this.props.treeViewRootSuffixes }
-        : {};
-
     return (
       <React.Fragment>
         {isWizardOpen &&
@@ -193,7 +189,7 @@ class EditorGenericView extends React.Component {
             toggleOpenWizard={this.toggleOpenWizard}
             wizardEntryDn={wizardEntryDn}
             editorLdapServer={this.props.serverId}
-            {...treeItemsProps}
+            treeViewRootSuffixes={this.props.treeViewRootSuffixes}
             setWizardOperationInfo={this.setWizardOperationInfo}
           />
         }
