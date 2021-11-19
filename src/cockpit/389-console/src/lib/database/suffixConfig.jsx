@@ -18,7 +18,7 @@ export class SuffixConfig extends React.Component {
             const cacheValue = this.props.cachesize + "  (auto-sized)";
             const cachememValue = this.props.cachememsize + "  (auto-sized)";
             cacheInputs =
-                <Form isHorizontal>
+                <Form isHorizontal autoComplete="off">
                     <Grid title="The entry cache size in bytes setting is being auto-sized and is read-only - see Global Database Configuration">
                         <GridItem className="ds-label" span={3}>
                             Entry Cache Size
@@ -69,7 +69,7 @@ export class SuffixConfig extends React.Component {
                 </Form>;
         } else {
             cacheInputs =
-                <Form isHorizontal>
+                <Form isHorizontal autoComplete="off">
                     <Grid title="The size for the available memory space in bytes for the entry cache (nsslapd-cachememsize).">
                         <GridItem className="ds-label" span={4}>
                             Entry Cache Size
@@ -133,7 +133,7 @@ export class SuffixConfig extends React.Component {
         return (
             <div className="ds-margin-top-lg">
                 {cacheInputs}
-                <Form isHorizontal>
+                <Form isHorizontal autoComplete="off">
                     <Grid
                         className="ds-margin-top-lg"
                         title="Set the backend type.  Warning, changing this setting could lead to unexpected database behavior."

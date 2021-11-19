@@ -1401,7 +1401,7 @@ class CreateSuffixModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal>
+                <Form isHorizontal autoComplete="off">
                     <FormGroup
                         label="Suffix DN"
                         fieldId="createSuffix"

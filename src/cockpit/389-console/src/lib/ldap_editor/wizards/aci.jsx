@@ -217,9 +217,9 @@ class AciWizard extends React.Component {
 
             {(this.state.getStartedStepRadio !== 'New') &&
               <React.Fragment>
-                <div className="ds-addons-bottom-margin" />
+                <div className="ds-margin-bottom-md" />
                 <Divider inset={{ default: 'insetMd' }} />
-                <div className="ds-addons-bottom-margin" />
+                <div className="ds-margin-bottom-md" />
 
                 <Select
                   variant={SelectVariant.single}
@@ -239,14 +239,14 @@ class AciWizard extends React.Component {
 
                 {(this.state.selected !== null) &&
                   <React.Fragment>
-                    <div className="ds-addons-bottom-margin" />
+                    <div className="ds-margin-bottom-md" />
                     {
                       (this.state.selected.entryDn !== null) &&
                       <Label variant="outline" color="red" icon={<InfoCircleIcon />}>
                         Inherited ACIs cannot be edited or removed.
                       </Label>
                     }
-                    <div className="ds-addons-bottom-margin" />
+                    <div className="ds-margin-bottom-md" />
                     <TextContent>
                       <TextList component={TextListVariants.dl}>
                         {(this.state.selected.entryDn !== null) &&

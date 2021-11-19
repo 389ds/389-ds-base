@@ -264,7 +264,7 @@ class USNPlugin extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Form isHorizontal>
+                    <Form isHorizontal autoComplete="off">
                         <Grid title="Gives the suffix in the Directory Server to run the cleanup operation against">
                             <GridItem span={4}>
                                 Cleanup Suffix

@@ -119,7 +119,7 @@ class AciManualEdition extends React.Component {
     ];
 
     const editStep = (
-      <Form>
+      <Form autoComplete="off">
         <FormGroup
           label="Access Control Instruction:"
           type="string"
@@ -149,7 +149,7 @@ class AciManualEdition extends React.Component {
          component: (
            <>
              {this.props.aciNameComponent}
-             <div className="ds-addons-bottom-margin" />
+             <div className="ds-margin-bottom-md" />
              {editStep}
            </>
          ),
@@ -165,7 +165,7 @@ class AciManualEdition extends React.Component {
          component: (
            <>
              {this.props.aciNameComponent}
-             <div className="ds-addons-bottom-margin" />
+             <div className="ds-margin-bottom-md" />
              <Table
                aria-label="Simple Table"
                variant="compact"

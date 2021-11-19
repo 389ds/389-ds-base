@@ -121,7 +121,7 @@ class CreatePolicy extends React.Component {
 
         return (
             <div className="ds-margin-bottom-md">
-                <Form className="ds-margin-left ds-margin-top-xlg" isHorizontal>
+                <Form className="ds-margin-left ds-margin-top-xlg" isHorizontal autoComplete="off">
                     <TextContent>
                         <Text className="ds-center" component={TextVariants.h3}>
                             Create A New Local Password Policy
@@ -2529,7 +2529,7 @@ export class LocalPwPolicy extends React.Component {
                     </TextContent>
                     <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab eventKey={0} title={<TabTitleText>General Settings</TabTitleText>}>
-                            <Form className="ds-margin-left-sm ds-margin-top-lg" isHorizontal>
+                            <Form className="ds-margin-left-sm ds-margin-top-lg" isHorizontal autoComplete="off">
                                 <Grid title="Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime).">
                                     <GridItem span={12}>
                                         <Checkbox
@@ -2673,7 +2673,7 @@ export class LocalPwPolicy extends React.Component {
                             </Button>
                         </Tab>
                         <Tab eventKey={1} title={<TabTitleText>Expiration</TabTitleText>}>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
+                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid title="Enable a password expiration policy (passwordExp).">
                                     <GridItem span={12}>
                                         <Checkbox
@@ -2701,7 +2701,7 @@ export class LocalPwPolicy extends React.Component {
                             </Button>
                         </Tab>
                         <Tab eventKey={2} title={<TabTitleText>Account Lockout</TabTitleText>}>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
+                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid title="Enable account lockout (passwordLockout).">
                                     <GridItem span={12}>
                                         <Checkbox
@@ -2729,7 +2729,7 @@ export class LocalPwPolicy extends React.Component {
                             </Button>
                         </Tab>
                         <Tab eventKey={3} title={<TabTitleText>Syntax Checking</TabTitleText>}>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal>
+                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid title="Enable password syntax checking (passwordCheckSyntax).">
                                     <GridItem span={12}>
                                         <Checkbox
