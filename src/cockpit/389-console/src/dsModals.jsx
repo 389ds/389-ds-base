@@ -435,7 +435,7 @@ export class CreateInstanceModal extends React.Component {
             >
                 <div className={loadingCreate ? "ds-disabled" : ""}>
                     <Form isHorizontal autoComplete="off">
-                        <Grid className="ds-margin-top" title="The instance name, this is what gets appended to 'slapi-'. The instance name can only contain letters, numbers, and:  # @ : - _">
+                        <Grid className="ds-margin-top" title="The instance name, this is what gets appended to 'slapi-'. The instance name can only contain letters, numbers, and: # @ : - _">
                             <GridItem className="ds-label" span={4}>
                                 Instance Name
                             </GridItem>
@@ -456,7 +456,7 @@ export class CreateInstanceModal extends React.Component {
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="The server port number">
+                        <Grid title="The server port number should be in the range of 1 to 65534.">
                             <GridItem className="ds-label" span={4}>
                                 Port
                             </GridItem>
@@ -476,7 +476,7 @@ export class CreateInstanceModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top" title="The secure port number for TLS connections">
+                        <Grid className="ds-margin-top" title="The secure port number for TLS connections. It should be in the range of 1 to 65534.">
                             <GridItem className="ds-label" span={4}>
                                 Secure Port
                             </GridItem>
@@ -496,7 +496,7 @@ export class CreateInstanceModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top" title="Create a self-signed certificate database">
+                        <Grid className="ds-margin-top" title="Create a self-signed certificate database in /etc/dirsrc/ssca directory.">
                             <GridItem className="ds-label" span={4}>
                                 Create Self-Signed TLS Certificate
                             </GridItem>
@@ -531,7 +531,7 @@ export class CreateInstanceModal extends React.Component {
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Directory Manager password.">
+                        <Grid title="Directory Manager password must be at least 8 characters in length.">
                             <GridItem className="ds-label" span={4}>
                                 Directory Manager Password
                             </GridItem>
@@ -548,11 +548,11 @@ export class CreateInstanceModal extends React.Component {
                                     validated={errObj.createDMPassword ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!errObj.createDMPassword}>
-                                    Password must be set and it must match the confirmation password
+                                    Password must be set and it must match the confirmation password.
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Confirm password.">
+                        <Grid title="Confirm the previously entered password.">
                             <GridItem className="ds-label" span={4}>
                                 Confirm Password
                             </GridItem>
@@ -569,12 +569,12 @@ export class CreateInstanceModal extends React.Component {
                                     validated={errObj.createDMPasswordConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!errObj.createDMPasswordConfirm}>
-                                    Confirmation password must be set and it must match the first password
+                                    Confirmation password must be set and it must match the first password.
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
                         <hr />
-                        <Grid title="Create the Database">
+                        <Grid title="Create a database during the instalation.">
                             <Checkbox
                                 id="createDBCheckbox"
                                 label="Create Database"

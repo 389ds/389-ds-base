@@ -11,6 +11,7 @@ import {
     FormSelectOption,
     Grid,
     GridItem,
+    NumberInput,
     Spinner,
     Tab,
     Tabs,
@@ -108,6 +109,28 @@ export class ServerAccessLog extends React.Component {
         this.refreshConfig = this.refreshConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
         this.onSelect = this.onSelect.bind(this);
+        this.onMinusConfig = (id, nav_tab) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        };
+        this.onConfigChange = (event, id, min, max, nav_tab) => {
+            let maxValue = this.maxValue;
+            if (max !== 0) {
+                maxValue = max;
+            }
+            let newValue = isNaN(event.target.value) ? min : Number(event.target.value);
+            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue
+            this.setState({
+                [id]: newValue
+            }, () => { this.validateSaveBtn(nav_tab, id, newValue) });
+        };
+        this.onPlusConfig = (id, nav_tab) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        }
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
     }
 
     componentDidMount() {
@@ -119,40 +142,7 @@ export class ServerAccessLog extends React.Component {
         }
     }
 
-    handleTimeChange(time_str) {
-        let disableSaveBtn = true;
-        const time_parts = time_str.split(":");
-        let hour = time_parts[0];
-        let min = time_parts[1];
-        if (hour.length == 2 && hour[0] == "0") {
-            hour = hour[1];
-        }
-        if (min.length == 2 && min[0] == "0") {
-            min = min[1];
-        }
-
-        // Start doing the Save button checking
-        for (const config_attr of rotation_attrs_no_time) {
-            if (this.state[config_attr] != this.state['_' + config_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-        if (hour != this.state['_nsslapd-accesslog-logrotationsynchour'] ||
-            min != this.state['_nsslapd-accesslog-logrotationsyncmin']) {
-            disableSaveBtn = false;
-        }
-
-        this.setState({
-            'nsslapd-accesslog-logrotationsynchour': hour,
-            'nsslapd-accesslog-logrotationsyncmin': min,
-            saveRotationDisabled: disableSaveBtn,
-        });
-    }
-
-    handleChange(e, nav_tab) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
+    validateSaveBtn(nav_tab, attr, value) {
         let disableSaveBtn = true;
         let disableBtnName = "";
         let config_attrs = [];
@@ -195,8 +185,47 @@ export class ServerAccessLog extends React.Component {
         }
 
         this.setState({
+            [disableBtnName]: disableSaveBtn
+        });
+    }
+
+    handleChange(e, nav_tab) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+
+        this.setState({
             [attr]: value,
-            [disableBtnName]: disableSaveBtn,
+        }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
+    }
+
+    handleTimeChange(time_str) {
+        let disableSaveBtn = true;
+        const time_parts = time_str.split(":");
+        let hour = time_parts[0];
+        let min = time_parts[1];
+        if (hour.length == 2 && hour[0] == "0") {
+            hour = hour[1];
+        }
+        if (min.length == 2 && min[0] == "0") {
+            min = min[1];
+        }
+
+        // Start doing the Save button checking
+        for (const config_attr of rotation_attrs_no_time) {
+            if (this.state[config_attr] != this.state['_' + config_attr]) {
+                disableSaveBtn = false;
+                break;
+            }
+        }
+        if (hour != this.state['_nsslapd-accesslog-logrotationsynchour'] ||
+            min != this.state['_nsslapd-accesslog-logrotationsyncmin']) {
+            disableSaveBtn = false;
+        }
+
+        this.setState({
+            'nsslapd-accesslog-logrotationsynchour': hour,
+            'nsslapd-accesslog-logrotationsyncmin': min,
+            saveRotationDisabled: disableSaveBtn,
         });
     }
 
@@ -255,7 +284,7 @@ export class ServerAccessLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reloadConfig();
+                    this.refreshConfig();
                     this.setState({
                         loading: false
                     });
@@ -266,7 +295,7 @@ export class ServerAccessLog extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.props.reloadConfig();
+                    this.refreshConfig();
                     this.setState({
                         loading: false
                     });
@@ -576,15 +605,18 @@ export class ServerAccessLog extends React.Component {
                                     Maximum Number Of Logs
                                 </GridItem>
                                 <GridItem span={3}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-accesslog-maxlogsperdir']}
-                                        type="number"
-                                        id="nsslapd-accesslog-maxlogsperdir"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-accesslog-maxlogsperdir"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "rotation");
-                                        }}
+                                        min={1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-accesslog-maxlogsperdir", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-accesslog-maxlogsperdir", 1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-accesslog-maxlogsperdir", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
                             </Grid>
@@ -593,15 +625,18 @@ export class ServerAccessLog extends React.Component {
                                     Maximum Log Size (in MB)
                                 </GridItem>
                                 <GridItem span={3}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-accesslog-maxlogsize']}
-                                        type="number"
-                                        id="nsslapd-accesslog-maxlogsize"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-accesslog-maxlogsize"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "rotation");
-                                        }}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-accesslog-maxlogsize", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-accesslog-maxlogsize", -1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-accesslog-maxlogsize", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
                             </Grid>
@@ -611,18 +646,21 @@ export class ServerAccessLog extends React.Component {
                                     Create New Log Every ...
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-accesslog-logrotationtime']}
-                                        type="number"
-                                        id="nsslapd-accesslog-logrotationtime"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-accesslog-logrotationtime"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "rotation");
-                                        }}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-accesslog-logrotationtime", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-accesslog-logrotationtime", -1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-accesslog-logrotationtime", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
-                                <GridItem span={2} className="ds-left-margin">
+                                <GridItem span={1}>
                                     <FormSelect
                                         id="nsslapd-accesslog-logrotationtimeunit"
                                         value={this.state['nsslapd-accesslog-logrotationtimeunit']}
@@ -678,15 +716,18 @@ export class ServerAccessLog extends React.Component {
                                     Log Archive Exceeds (in MB)
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-accesslog-logmaxdiskspace']}
-                                        type="number"
-                                        id="nsslapd-accesslog-logmaxdiskspace"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-accesslog-logmaxdiskspace"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "exp");
-                                        }}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-accesslog-logmaxdiskspace", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-accesslog-logmaxdiskspace", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-accesslog-logmaxdiskspace", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
                             </Grid>
@@ -697,15 +738,18 @@ export class ServerAccessLog extends React.Component {
                                     Free Disk Space (in MB)
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-accesslog-logminfreediskspace']}
-                                        type="number"
-                                        id="nsslapd-accesslog-logminfreediskspace"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-accesslog-logminfreediskspace"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "exp");
-                                        }}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-accesslog-logminfreediskspace", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-accesslog-logminfreediskspace", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-accesslog-logminfreediskspace", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
                             </Grid>
@@ -716,18 +760,21 @@ export class ServerAccessLog extends React.Component {
                                     Log File is Older Than ...
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-accesslog-logexpirationtime']}
-                                        type="number"
-                                        id="nsslapd-accesslog-logexpirationtime"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-accesslog-logexpirationtime"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "exp");
-                                        }}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-accesslog-logexpirationtime", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-accesslog-logexpirationtime", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-accesslog-logexpirationtime", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
-                                <GridItem span={2} className="ds-left-margin">
+                                <GridItem span={1}>
                                     <FormSelect
                                         id="nsslapd-accesslog-logexpirationtimeunit"
                                         value={this.state['nsslapd-accesslog-logexpirationtimeunit']}

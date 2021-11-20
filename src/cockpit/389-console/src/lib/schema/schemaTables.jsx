@@ -499,6 +499,7 @@ class AttributesTable extends React.Component {
                 },
                 {
                     parent: count,
+                    fullWidth: true,
                     cells: [{ title: this.getExpandedRow(row) }]
                 },
             );
@@ -767,6 +768,7 @@ class MatchingRulesTable extends React.Component {
                 },
                 {
                     parent: count,
+                    fullWidth: true,
                     cells: [{ title: this.getExpandedRow(row) }]
                 },
             );

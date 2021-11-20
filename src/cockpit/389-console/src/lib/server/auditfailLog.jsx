@@ -9,6 +9,7 @@ import {
     FormSelectOption,
     Grid,
     GridItem,
+    NumberInput,
     Spinner,
     Tab,
     Tabs,
@@ -83,6 +84,28 @@ export class ServerAuditFailLog extends React.Component {
         this.loadConfig = this.loadConfig.bind(this);
         this.refreshConfig = this.refreshConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
+        this.onMinusConfig = (id, nav_tab) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        };
+        this.onConfigChange = (event, id, min, max, nav_tab) => {
+            let maxValue = this.maxValue;
+            if (max !== 0) {
+                maxValue = max;
+            }
+            let newValue = isNaN(event.target.value) ? min : Number(event.target.value);
+            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue
+            this.setState({
+                [id]: newValue
+            }, () => { this.validateSaveBtn(nav_tab, id, newValue) });
+        };
+        this.onPlusConfig = (id, nav_tab) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        }
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
     }
 
     componentDidMount() {
@@ -94,9 +117,7 @@ export class ServerAuditFailLog extends React.Component {
         }
     }
 
-    handleChange(e, nav_tab) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
+    validateSaveBtn(nav_tab, attr, value) {
         let disableSaveBtn = true;
         let disableBtnName = "";
         let config_attrs = [];
@@ -128,10 +149,19 @@ export class ServerAuditFailLog extends React.Component {
         }
 
         this.setState({
-            [attr]: value,
-            [disableBtnName]: disableSaveBtn,
+            [disableBtnName]: disableSaveBtn
         });
     }
+
+    handleChange(e, nav_tab) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+
+        this.setState({
+            [attr]: value,
+        }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
+    }
+
 
     handleTimeChange(time_str) {
         let disableSaveBtn = true;
@@ -425,15 +455,18 @@ export class ServerAuditFailLog extends React.Component {
                                     Maximum Number Of Logs
                                 </GridItem>
                                 <GridItem span={3}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-auditfaillog-maxlogsperdir']}
-                                        type="number"
-                                        id="nsslapd-auditfaillog-maxlogsperdir"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-auditfaillog-maxlogsperdir"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "rotation");
-                                        }}
+                                        min={1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-maxlogsperdir", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-maxlogsperdir", 1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-maxlogsperdir", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
                             </Grid>
@@ -442,15 +475,18 @@ export class ServerAuditFailLog extends React.Component {
                                     Maximum Log Size (in MB)
                                 </GridItem>
                                 <GridItem span={3}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-auditfaillog-maxlogsize']}
-                                        type="number"
-                                        id="nsslapd-auditfaillog-maxlogsize"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-auditfaillog-maxlogsize"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "rotation");
-                                        }}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-maxlogsize", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-maxlogsize", -1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-maxlogsize", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
                             </Grid>
@@ -460,18 +496,21 @@ export class ServerAuditFailLog extends React.Component {
                                     Create New Log Every ...
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-auditfaillog-logrotationtime']}
-                                        type="number"
-                                        id="nsslapd-auditfaillog-logrotationtime"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-auditfaillog-logrotationtime"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "rotation");
-                                        }}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-logrotationtime", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-logrotationtime", -1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-logrotationtime", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
-                                <GridItem span={2} className="ds-left-margin">
+                                <GridItem span={1}>
                                     <FormSelect
                                         id="nsslapd-auditfaillog-logrotationtimeunit"
                                         value={this.state['nsslapd-auditfaillog-logrotationtimeunit']}
@@ -527,15 +566,18 @@ export class ServerAuditFailLog extends React.Component {
                                     Log Archive Exceeds (in MB)
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-auditfaillog-logmaxdiskspace']}
-                                        type="number"
-                                        id="nsslapd-auditfaillog-logmaxdiskspace"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-auditfaillog-logmaxdiskspace"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "exp");
-                                        }}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-logmaxdiskspace", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-logmaxdiskspace", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-logmaxdiskspace", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
                             </Grid>
@@ -546,15 +588,18 @@ export class ServerAuditFailLog extends React.Component {
                                     Free Disk Space (in MB)
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-auditfaillog-logminfreediskspace']}
-                                        type="number"
-                                        id="nsslapd-auditfaillog-logminfreediskspace"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-auditfaillog-logminfreediskspace"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "exp");
-                                        }}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-logminfreediskspace", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-logminfreediskspace", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-logminfreediskspace", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
                             </Grid>
@@ -565,18 +610,21 @@ export class ServerAuditFailLog extends React.Component {
                                     Log File is Older Than ...
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-auditfaillog-logexpirationtime']}
-                                        type="number"
-                                        id="nsslapd-auditfaillog-logexpirationtime"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-auditfaillog-logexpirationtime"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "exp");
-                                        }}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-auditfaillog-logexpirationtime", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditfaillog-logexpirationtime", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-auditfaillog-logexpirationtime", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
-                                <GridItem span={2} className="ds-left-margin">
+                                <GridItem span={1}>
                                     <FormSelect
                                         id="nsslapd-auditfaillog-logexpirationtimeunit"
                                         value={this.state['nsslapd-auditfaillog-logexpirationtimeunit']}

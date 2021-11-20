@@ -1956,6 +1956,7 @@ export class ExportCLModal extends React.Component {
                         <Checkbox
                             id="decodeCL"
                             isChecked={decodeCL}
+                            isDisabled={exportCSN}
                             onChange={(checked, e) => {
                                 handleChange(e);
                             }}
@@ -1966,6 +1967,7 @@ export class ExportCLModal extends React.Component {
                         <Checkbox
                             id="exportCSN"
                             isChecked={exportCSN}
+                            isDisabled={decodeCL}
                             onChange={(checked, e) => {
                                 handleChange(e);
                             }}
