@@ -36,12 +36,10 @@ else:
 log = logging.getLogger(__name__)
 
 bdb_values = {
-  'deltat1' : 1,
   'wait30' : 30
 }
 
 mdb_values = {
-  'deltat1' : 4,
   'wait30' : 60
 }
 
@@ -385,12 +383,12 @@ def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
         2. Measure offline import time duration total_time1
         3. Now nsslapd-db-private-import-mem:off
         4. Measure offline import time duration total_time2
-        5. (total_time2 - total_time1) < values['deltat1']
+        5. total_time1 < total_time2
         6. Set nsslapd-db-private-import-mem:on, nsslapd-import-cache-autosize: -1
         7. Measure offline import time duration total_time1
         8. Now nsslapd-db-private-import-mem:off
         9. Measure offline import time duration total_time2
-        10. (total_time2 - total_time1) < values['deltat1']
+        10. total_time1 < total_time2
     :expected results:
         1. Operation successful
         2. Operation successful
@@ -417,7 +415,7 @@ def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
     # total_time1 < total_time2
     log.info("total_time1 = %f" % total_time1)
     log.info("total_time2 = %f" % total_time2)
-    assert (total_time2 - total_time1) < values['deltat1']
+    assert total_time1 < total_time2
 
     # Set nsslapd-db-private-import-mem:on, nsslapd-import-cache-autosize: -1
     config.replace_many(
@@ -436,7 +434,7 @@ def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
     # total_time1 < total_time2
     log.info("toral_time1 = %f" % total_time1)
     log.info("total_time2 = %f" % total_time2)
-    assert (total_time2 - total_time1) < values['deltat1']
+    assert total_time1 < total_time2
 
 
 @pytest.mark.bz175063
