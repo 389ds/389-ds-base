@@ -493,38 +493,39 @@ l
                                 <GridItem className="ds-label" span={3}>
                                     Create New Log Every ...
                                 </GridItem>
-                                <GridItem span={2}>
-                                    <NumberInput
-                                        value={this.state['nsslapd-auditlog-logrotationtime']}
-                                        min={-1}
-                                        max={2147483647}
-                                        onMinus={() => { this.onMinusConfig("nsslapd-auditlog-logrotationtime", "rotation") }}
-                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditlog-logrotationtime", -1, 2147483647, "rotation") }}
-                                        onPlus={() => { this.onPlusConfig("nsslapd-auditlog-logrotationtime", "rotation") }}
-                                        inputName="input"
-                                        inputAriaLabel="number input"
-                                        minusBtnAriaLabel="minus"
-                                        plusBtnAriaLabel="plus"
-                                        widthChars={6}
-                                    />
+                                <GridItem span={9}>
+                                    <div className="ds-container">
+                                        <NumberInput
+                                            value={this.state['nsslapd-auditlog-logrotationtime']}
+                                            min={-1}
+                                            max={2147483647}
+                                            onMinus={() => { this.onMinusConfig("nsslapd-auditlog-logrotationtime", "rotation") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-auditlog-logrotationtime", -1, 2147483647, "rotation") }}
+                                            onPlus={() => { this.onPlusConfig("nsslapd-auditlog-logrotationtime", "rotation") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={3}
+                                        />
+                                        <GridItem span={2} className="ds-left-indent">
+                                            <FormSelect
+                                                id="nsslapd-auditlog-logrotationtimeunit"
+                                                value={this.state['nsslapd-auditlog-logrotationtimeunit']}
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "rotation");
+                                                }}
+                                                aria-label="FormSelect Input"
+                                            >
+                                                <FormSelectOption key="0" value="minute" label="minute" />
+                                                <FormSelectOption key="1" value="hour" label="hour" />
+                                                <FormSelectOption key="2" value="day" label="day" />
+                                                <FormSelectOption key="3" value="week" label="week" />
+                                                <FormSelectOption key="4" value="month" label="month" />
+                                            </FormSelect>
+                                        </GridItem>
+                                    </div>
                                 </GridItem>
-                                <GridItem span={2}>
-                                    <FormSelect
-                                        id="nsslapd-auditlog-logrotationtimeunit"
-                                        value={this.state['nsslapd-auditlog-logrotationtimeunit']}
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "rotation");
-                                        }}
-                                        aria-label="FormSelect Input"
-                                    >
-                                        <FormSelectOption key="0" value="minute" label="minute" />
-                                        <FormSelectOption key="1" value="hour" label="hour" />
-                                        <FormSelectOption key="2" value="day" label="day" />
-                                        <FormSelectOption key="3" value="week" label="week" />
-                                        <FormSelectOption key="4" value="month" label="month" />
-                                    </FormSelect>
-                                </GridItem>
-                                <GridItem span={5}/>
                             </Grid>
                             <Grid title="The time when the log should be rotated (nsslapd-auditlog-logrotationsynchour, nsslapd-auditlog-logrotationsyncmin).">
                                 <GridItem className="ds-label" span={3}>
@@ -608,36 +609,37 @@ l
                                 <GridItem className="ds-label" span={3}>
                                     Log File is Older Than ...
                                 </GridItem>
-                                <GridItem span={2}>
-                                    <NumberInput
-                                        value={this.state['nsslapd-auditlog-logexpirationtime']}
-                                        min={-1}
-                                        max={2147483647}
-                                        onMinus={() => { this.onMinusConfig("nsslapd-auditlog-logexpirationtime", "exp") }}
-                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-auditlog-logexpirationtime", -1, 2147483647, "exp") }}
-                                        onPlus={() => { this.onPlusConfig("nsslapd-auditlog-logexpirationtime", "exp") }}
-                                        inputName="input"
-                                        inputAriaLabel="number input"
-                                        minusBtnAriaLabel="minus"
-                                        plusBtnAriaLabel="plus"
-                                        widthChars={6}
-                                    />
+                                <GridItem span={9}>
+                                    <div className="ds-container">
+                                        <NumberInput
+                                            value={this.state['nsslapd-auditlog-logexpirationtime']}
+                                            min={-1}
+                                            max={2147483647}
+                                            onMinus={() => { this.onMinusConfig("nsslapd-auditlog-logexpirationtime", "exp") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-auditlog-logexpirationtime", -1, 2147483647, "exp") }}
+                                            onPlus={() => { this.onPlusConfig("nsslapd-auditlog-logexpirationtime", "exp") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={3}
+                                        />
+                                        <GridItem span={2} className="ds-left-indent">
+                                            <FormSelect
+                                                id="nsslapd-auditlog-logexpirationtimeunit"
+                                                value={this.state['nsslapd-auditlog-logexpirationtimeunit']}
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "exp");
+                                                }}
+                                                aria-label="FormSelect Input"
+                                            >
+                                                <FormSelectOption key="2" value="day" label="day" />
+                                                <FormSelectOption key="3" value="week" label="week" />
+                                                <FormSelectOption key="4" value="month" label="month" />
+                                            </FormSelect>
+                                        </GridItem>
+                                    </div>
                                 </GridItem>
-                                <GridItem span={2}>
-                                    <FormSelect
-                                        id="nsslapd-auditlog-logexpirationtimeunit"
-                                        value={this.state['nsslapd-auditlog-logexpirationtimeunit']}
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "exp");
-                                        }}
-                                        aria-label="FormSelect Input"
-                                    >
-                                        <FormSelectOption key="2" value="day" label="day" />
-                                        <FormSelectOption key="3" value="week" label="week" />
-                                        <FormSelectOption key="4" value="month" label="month" />
-                                    </FormSelect>
-                                </GridItem>
-                                <GridItem span={5}/>
                             </Grid>
                         </Form>
                         <Button
