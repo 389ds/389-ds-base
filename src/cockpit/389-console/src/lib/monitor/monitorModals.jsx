@@ -983,7 +983,7 @@ ReportCredentialsModal.propTypes = {
     closeHandler: PropTypes.func,
     handleFieldChange: PropTypes.func,
     hostname: PropTypes.string,
-    port: PropTypes.string,
+    port: PropTypes.number,
     binddn: PropTypes.string,
     bindpw: PropTypes.string,
     pwInputInterractive: PropTypes.bool,
@@ -995,7 +995,7 @@ ReportCredentialsModal.propTypes = {
 ReportCredentialsModal.defaultProps = {
     showModal: false,
     hostname: "",
-    port: "",
+    port: 389,
     binddn: "",
     bindpw: "",
     pwInputInterractive: false,

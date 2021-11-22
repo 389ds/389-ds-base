@@ -574,7 +574,7 @@ export class CreateInstanceModal extends React.Component {
                             </GridItem>
                         </Grid>
                         <hr />
-                        <Grid title="Create a database during the instalation.">
+                        <Grid title="Create a database during the installation.">
                             <Checkbox
                                 id="createDBCheckbox"
                                 label="Create Database"

@@ -493,7 +493,7 @@ l
                                 <GridItem className="ds-label" span={3}>
                                     Create New Log Every ...
                                 </GridItem>
-                                <GridItem span={1}>
+                                <GridItem span={2}>
                                     <NumberInput
                                         value={this.state['nsslapd-auditlog-logrotationtime']}
                                         min={-1}
@@ -508,7 +508,7 @@ l
                                         widthChars={6}
                                     />
                                 </GridItem>
-                                <GridItem span={1}>
+                                <GridItem span={2}>
                                     <FormSelect
                                         id="nsslapd-auditlog-logrotationtimeunit"
                                         value={this.state['nsslapd-auditlog-logrotationtimeunit']}
@@ -524,12 +524,13 @@ l
                                         <FormSelectOption key="4" value="month" label="month" />
                                     </FormSelect>
                                 </GridItem>
+                                <GridItem span={5}/>
                             </Grid>
                             <Grid title="The time when the log should be rotated (nsslapd-auditlog-logrotationsynchour, nsslapd-auditlog-logrotationsyncmin).">
                                 <GridItem className="ds-label" span={3}>
                                     Time Of Day
                                 </GridItem>
-                                <GridItem span={3}>
+                                <GridItem span={1}>
                                     <TimePicker
                                         time={rotationTime}
                                         onChange={this.handleTimeChange}
@@ -607,7 +608,7 @@ l
                                 <GridItem className="ds-label" span={3}>
                                     Log File is Older Than ...
                                 </GridItem>
-                                <GridItem span={1}>
+                                <GridItem span={2}>
                                     <NumberInput
                                         value={this.state['nsslapd-auditlog-logexpirationtime']}
                                         min={-1}
@@ -622,7 +623,7 @@ l
                                         widthChars={6}
                                     />
                                 </GridItem>
-                                <GridItem span={1}>
+                                <GridItem span={2}>
                                     <FormSelect
                                         id="nsslapd-auditlog-logexpirationtimeunit"
                                         value={this.state['nsslapd-auditlog-logexpirationtimeunit']}
@@ -636,6 +637,7 @@ l
                                         <FormSelectOption key="4" value="month" label="month" />
                                     </FormSelect>
                                 </GridItem>
+                                <GridItem span={5}/>
                             </Grid>
                         </Form>
                         <Button

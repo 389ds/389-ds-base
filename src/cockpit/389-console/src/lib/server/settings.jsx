@@ -243,17 +243,21 @@ export class ServerSettings extends React.Component {
             if (attr == 'nsslapd-rootpw') {
                 if (value != this.state.confirmRootpw) {
                     disableSaveBtn = true;
+                    valueErr = true;
                     errObj['nsslapd-rootpw'] = true;
                 } else {
+                    errObj.confirmRootpw = false;
                     errObj['nsslapd-rootpw'] = false;
                 }
             }
             if (attr == 'confirmRootpw') {
                 if (value != this.state['nsslapd-rootpw']) {
                     disableSaveBtn = true;
+                    valueErr = true;
                     errObj.confirmRootpw = true;
                 } else {
                     errObj.confirmRootpw = false;
+                    errObj['nsslapd-rootpw'] = false;
                 }
             }
 
@@ -269,6 +273,7 @@ export class ServerSettings extends React.Component {
         } else if (nav_tab == "adv") {
             // Handle special cases for anon limit dn
             if (attr == 'nsslapd-anonlimitsdn' && !valid_dn(value)) {
+                valueErr = true;
                 errObj[attr] = true;
             }
             if (value == "" && attr != 'nsslapd-anonlimitsdn' && (typeof value !== "boolean")) {
