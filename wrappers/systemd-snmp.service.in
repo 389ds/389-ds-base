@@ -11,6 +11,18 @@ After=network.target
 Type=forking
 PIDFile=/run/dirsrv/ldap-agent.pid
 ExecStart=@sbindir@/ldap-agent @configdir@/ldap-agent.conf
+PrivateTmp=on
+# https://en.opensuse.org/openSUSE:Security_Features#Systemd_hardening_effort
+ProtectSystem=full
+ProtectHome=true
+PrivateDevices=true
+ProtectHostname=true
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictRealtime=true
 
 [Install]
 WantedBy=multi-user.target

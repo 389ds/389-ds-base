@@ -43,12 +43,6 @@ TimeoutStopSec=600
 # this as DS will autodetect your threads / cpus and adjust as needed.
 #LimitNPROC=
 
-# Possible hardening options:
-#PrivateDevices=yes
-#ProtectSystem=yes
-#ProtectHome=yes
-#PrivateTmp=yes
-
 # Preload jemalloc
 Environment=LD_PRELOAD=@libdir@/@package_name@/lib/libjemalloc.so.2
 
