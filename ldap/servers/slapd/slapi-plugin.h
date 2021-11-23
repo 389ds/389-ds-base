@@ -6030,14 +6030,32 @@ int slapi_register_plugin_ext(const char *plugintype, int enabled, const char *i
 /*
  * logging
  */
-int slapi_log_error(int loglevel, char *subsystem, const char *fmt, ...)
+#ifdef _SLDAPD_H_
+/*
+ * Use modern definition that avoid complaint about removing const from string literal
+ * ( Note: this is binary compatible with old API definition so no problem here )
+ */
+int slapi_log_error(int loglevel, const char *subsystem, const char *fmt, ...)
 #ifdef __GNUC__
     __attribute__((format(printf, 3, 4)));
 #else
     ;
 #endif
 
-int slapi_log_error_ext(int loglevel, char *subsystem, const char *fmt, va_list varg1, va_list varg2);
+int slapi_log_error_ext(int loglevel, const char *subsystem, const char *fmt, va_list varg1, va_list varg2);
+#else
+/* Use the old legacy definition because some external tester redefine these functions
+ * and changing the prototype would break their compilation
+ */
+int slapi_log_error(int loglevel, char *subsystem, char *fmt, ...)
+#ifdef __GNUC__
+    __attribute__((format(printf, 3, 4)));
+#else
+    ;
+#endif
+
+int slapi_log_error_ext(int loglevel, char *subsystem, char *fmt, va_list varg1, va_list varg2);
+#endif
 
 /* allowed values for the "severity" parameter */
 #define SLAPI_LOG_FATAL       0
