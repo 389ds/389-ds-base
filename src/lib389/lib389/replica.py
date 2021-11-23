@@ -979,7 +979,7 @@ class ChangelogLDIF(object):
                         line = line.split("\n")[0]
                         if "ruv:" in line:
                             ruv = RUV([line.split("ruv: ")[1]])
-                            ruv_dict = ruv.parse_ruv()
+                            ruv_dict = ruv.format_ruv()
                             csn = ruv_dict["csn"]
                             maxcsn = ruv_dict["maxcsn"]
                             modts = ruv_dict["modts"]
