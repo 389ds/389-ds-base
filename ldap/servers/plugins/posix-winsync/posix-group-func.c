@@ -88,11 +88,11 @@ getEntry(const char *udn, char **attrs)
         if (result != NULL) {
             return result; /* Must be freed */
         } else {
-            slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                          "getEntry: %s not found\n", udn);
+            slapi_log_err(SLAPI_LOG_ERR, POSIX_WINSYNC_PLUGIN_NAME,
+                          "getEntry: %s internal search result not found\n", udn);
         }
     } else {
-        slapi_log_err(SLAPI_LOG_ERR, POSIX_WINSYNC_PLUGIN_NAME,
+        slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                       "getEntry: error searching for uid %s: %d\n", udn, rc);
     }
 
@@ -380,8 +380,9 @@ getMembershipFromDownward(Slapi_Entry *entry, Slapi_ValueSet *muid_vs, Slapi_Val
         Slapi_Entry *child = getEntry(uid_dn, attrs);
 
         if (!child) {
-            slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                          "getMembershipFromDownward end: child not found: %s\n", uid_dn);
+            slapi_log_err(SLAPI_LOG_WARNING, POSIX_WINSYNC_PLUGIN_NAME,
+                          "getMembershipFromDownward end: local group member %s not found for group %s\n",
+                          uid_dn, slapi_entry_get_dn_const(entry));
         } else {
             /* PosixGroups except for the top one are already fully mapped out */
             if ((!hasObjectClass(entry, "posixGroup") || (depth == 0)) &&
@@ -828,9 +829,9 @@ modGroupMembership(Slapi_Entry *entry, Slapi_Mods *smods, int *do_modify, int ne
                         muid_tempnested = NULL;
                     }
                 } else {
-                    slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                                  "modGroupMembership: entry not found for dn: %s\n",
-                                  smod_adduids[j]);
+                    slapi_log_err(SLAPI_LOG_WARNING, POSIX_WINSYNC_PLUGIN_NAME,
+                                  "modGroupMembership (nested): local group member %s not found for group %s\n",
+                                  smod_adduids[j], slapi_entry_get_dn_const(entry));
                 }
             }
 
