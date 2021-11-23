@@ -11,6 +11,7 @@ import {
     FormSelectOption,
     Grid,
     GridItem,
+    NumberInput,
     Spinner,
     Tab,
     Tabs,
@@ -118,6 +119,28 @@ export class ServerErrorLog extends React.Component {
         this.refreshConfig = this.refreshConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
         this.onSelect = this.onSelect.bind(this);
+        this.onMinusConfig = (id, nav_tab) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        };
+        this.onConfigChange = (event, id, min, max, nav_tab) => {
+            let maxValue = this.maxValue;
+            if (max !== 0) {
+                maxValue = max;
+            }
+            let newValue = isNaN(event.target.value) ? min : Number(event.target.value);
+            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue
+            this.setState({
+                [id]: newValue
+            }, () => { this.validateSaveBtn(nav_tab, id, newValue) });
+        };
+        this.onPlusConfig = (id, nav_tab) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        }
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
     }
 
     componentDidMount() {
@@ -129,40 +152,7 @@ export class ServerErrorLog extends React.Component {
         }
     }
 
-    handleTimeChange(time_str) {
-        let disableSaveBtn = true;
-        const time_parts = time_str.split(":");
-        let hour = time_parts[0];
-        let min = time_parts[1];
-        if (hour.length == 2 && hour[0] == "0") {
-            hour = hour[1];
-        }
-        if (min.length == 2 && min[0] == "0") {
-            min = min[1];
-        }
-
-        // Start doing the Save button checking
-        for (const config_attr of rotation_attrs_no_time) {
-            if (this.state[config_attr] != this.state['_' + config_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-        if (hour != this.state['_nsslapd-errorlog-logrotationsynchour'] ||
-            min != this.state['_nsslapd-errorlog-logrotationsyncmin']) {
-            disableSaveBtn = false;
-        }
-
-        this.setState({
-            'nsslapd-errorlog-logrotationsynchour': hour,
-            'nsslapd-errorlog-logrotationsyncmin': min,
-            saveRotationDisabled: disableSaveBtn,
-        });
-    }
-
-    handleChange(e, nav_tab) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
+    validateSaveBtn(nav_tab, attr, value) {
         let disableSaveBtn = true;
         let disableBtnName = "";
         let config_attrs = [];
@@ -205,8 +195,47 @@ export class ServerErrorLog extends React.Component {
         }
 
         this.setState({
+            [disableBtnName]: disableSaveBtn
+        });
+    }
+
+    handleChange(e, nav_tab) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+
+        this.setState({
             [attr]: value,
-            [disableBtnName]: disableSaveBtn,
+        }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
+    }
+
+    handleTimeChange(time_str) {
+        let disableSaveBtn = true;
+        const time_parts = time_str.split(":");
+        let hour = time_parts[0];
+        let min = time_parts[1];
+        if (hour.length == 2 && hour[0] == "0") {
+            hour = hour[1];
+        }
+        if (min.length == 2 && min[0] == "0") {
+            min = min[1];
+        }
+
+        // Start doing the Save button checking
+        for (const config_attr of rotation_attrs_no_time) {
+            if (this.state[config_attr] != this.state['_' + config_attr]) {
+                disableSaveBtn = false;
+                break;
+            }
+        }
+        if (hour != this.state['_nsslapd-errorlog-logrotationsynchour'] ||
+            min != this.state['_nsslapd-errorlog-logrotationsyncmin']) {
+            disableSaveBtn = false;
+        }
+
+        this.setState({
+            'nsslapd-errorlog-logrotationsynchour': hour,
+            'nsslapd-errorlog-logrotationsyncmin': min,
+            saveRotationDisabled: disableSaveBtn,
         });
     }
 
@@ -565,15 +594,18 @@ export class ServerErrorLog extends React.Component {
                                     Maximum Number Of Logs
                                 </GridItem>
                                 <GridItem span={3}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-errorlog-maxlogsperdir']}
-                                        type="number"
-                                        id="nsslapd-errorlog-maxlogsperdir"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-errorlog-maxlogsperdir"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "rotation");
-                                        }}
+                                        min={1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-errorlog-maxlogsperdir", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-errorlog-maxlogsperdir", 1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-errorlog-maxlogsperdir", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
                             </Grid>
@@ -582,15 +614,18 @@ export class ServerErrorLog extends React.Component {
                                     Maximum Log Size (in MB)
                                 </GridItem>
                                 <GridItem span={3}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-errorlog-maxlogsize']}
-                                        type="number"
-                                        id="nsslapd-errorlog-maxlogsize"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-errorlog-maxlogsize"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "rotation");
-                                        }}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-errorlog-maxlogsize", "rotation") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-errorlog-maxlogsize", -1, 2147483647, "rotation") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-errorlog-maxlogsize", "rotation") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
                             </Grid>
@@ -599,40 +634,45 @@ export class ServerErrorLog extends React.Component {
                                 <GridItem className="ds-label" span={3}>
                                     Create New Log Every ...
                                 </GridItem>
-                                <GridItem span={1}>
-                                    <TextInput
-                                        value={this.state['nsslapd-errorlog-logrotationtime']}
-                                        type="number"
-                                        id="nsslapd-errorlog-logrotationtime"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-errorlog-logrotationtime"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "rotation");
-                                        }}
-                                    />
-                                </GridItem>
-                                <GridItem span={2} className="ds-left-margin">
-                                    <FormSelect
-                                        id="nsslapd-errorlog-logrotationtimeunit"
-                                        value={this.state['nsslapd-errorlog-logrotationtimeunit']}
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "rotation");
-                                        }}
-                                        aria-label="FormSelect Input"
-                                    >
-                                        <FormSelectOption key="0" value="minute" label="minute" />
-                                        <FormSelectOption key="1" value="hour" label="hour" />
-                                        <FormSelectOption key="2" value="day" label="day" />
-                                        <FormSelectOption key="3" value="week" label="week" />
-                                        <FormSelectOption key="4" value="month" label="month" />
-                                    </FormSelect>
+                                <GridItem span={9}>
+                                    <div className="ds-container">
+                                        <NumberInput
+                                            value={this.state['nsslapd-errorlog-logrotationtime']}
+                                            min={-1}
+                                            max={2147483647}
+                                            onMinus={() => { this.onMinusConfig("nsslapd-errorlog-logrotationtime", "rotation") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-errorlog-logrotationtime", -1, 2147483647, "rotation") }}
+                                            onPlus={() => { this.onPlusConfig("nsslapd-errorlog-logrotationtime", "rotation") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={3}
+                                        />
+                                        <GridItem span={2} className="ds-left-indent">
+                                            <FormSelect
+                                                id="nsslapd-errorlog-logrotationtimeunit"
+                                                value={this.state['nsslapd-errorlog-logrotationtimeunit']}
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "rotation");
+                                                }}
+                                                aria-label="FormSelect Input"
+                                            >
+                                                <FormSelectOption key="0" value="minute" label="minute" />
+                                                <FormSelectOption key="1" value="hour" label="hour" />
+                                                <FormSelectOption key="2" value="day" label="day" />
+                                                <FormSelectOption key="3" value="week" label="week" />
+                                                <FormSelectOption key="4" value="month" label="month" />
+                                            </FormSelect>
+                                        </GridItem>
+                                    </div>
                                 </GridItem>
                             </Grid>
                             <Grid title="The time when the log should be rotated (nsslapd-errorlog-logrotationsynchour, nsslapd-errorlog-logrotationsyncmin).">
                                 <GridItem className="ds-label" span={3}>
                                     Time Of Day
                                 </GridItem>
-                                <GridItem span={3}>
+                                <GridItem span={1}>
                                     <TimePicker
                                         time={rotationTime}
                                         onChange={this.handleTimeChange}
@@ -667,15 +707,18 @@ export class ServerErrorLog extends React.Component {
                                     Log Archive Exceeds (in MB)
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-errorlog-logmaxdiskspace']}
-                                        type="number"
-                                        id="nsslapd-errorlog-logmaxdiskspace"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-errorlog-logmaxdiskspace"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "exp");
-                                        }}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-errorlog-logmaxdiskspace", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-errorlog-logmaxdiskspace", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-errorlog-logmaxdiskspace", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
                             </Grid>
@@ -686,15 +729,18 @@ export class ServerErrorLog extends React.Component {
                                     Free Disk Space (in MB)
                                 </GridItem>
                                 <GridItem span={1}>
-                                    <TextInput
+                                    <NumberInput
                                         value={this.state['nsslapd-errorlog-logminfreediskspace']}
-                                        type="number"
-                                        id="nsslapd-errorlog-logminfreediskspace"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-errorlog-logminfreediskspace"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "exp");
-                                        }}
+                                        min={-1}
+                                        max={2147483647}
+                                        onMinus={() => { this.onMinusConfig("nsslapd-errorlog-logminfreediskspace", "exp") }}
+                                        onChange={(e) => { this.onConfigChange(e, "nsslapd-errorlog-logminfreediskspace", -1, 2147483647, "exp") }}
+                                        onPlus={() => { this.onPlusConfig("nsslapd-errorlog-logminfreediskspace", "exp") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={6}
                                     />
                                 </GridItem>
                             </Grid>
@@ -704,31 +750,36 @@ export class ServerErrorLog extends React.Component {
                                 <GridItem className="ds-label" span={3}>
                                     Log File is Older Than ...
                                 </GridItem>
-                                <GridItem span={1}>
-                                    <TextInput
-                                        value={this.state['nsslapd-errorlog-logexpirationtime']}
-                                        type="number"
-                                        id="nsslapd-errorlog-logexpirationtime"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-errorlog-logexpirationtime"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "exp");
-                                        }}
-                                    />
-                                </GridItem>
-                                <GridItem span={2} className="ds-left-margin">
-                                    <FormSelect
-                                        id="nsslapd-errorlog-logexpirationtimeunit"
-                                        value={this.state['nsslapd-errorlog-logexpirationtimeunit']}
-                                        onChange={(str, e) => {
-                                            this.handleChange(e, "exp");
-                                        }}
-                                        aria-label="FormSelect Input"
-                                    >
-                                        <FormSelectOption key="2" value="day" label="day" />
-                                        <FormSelectOption key="3" value="week" label="week" />
-                                        <FormSelectOption key="4" value="month" label="month" />
-                                    </FormSelect>
+                                <GridItem span={9}>
+                                    <div className="ds-container">
+                                        <NumberInput
+                                            value={this.state['nsslapd-errorlog-logexpirationtime']}
+                                            min={-1}
+                                            max={2147483647}
+                                            onMinus={() => { this.onMinusConfig("nsslapd-errorlog-logexpirationtime", "exp") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsslapd-errorlog-logexpirationtime", -1, 2147483647, "exp") }}
+                                            onPlus={() => { this.onPlusConfig("nsslapd-errorlog-logexpirationtime", "exp") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={3}
+                                        />
+                                        <GridItem span={2} className="ds-left-indent">
+                                            <FormSelect
+                                                id="nsslapd-errorlog-logexpirationtimeunit"
+                                                value={this.state['nsslapd-errorlog-logexpirationtimeunit']}
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "exp");
+                                                }}
+                                                aria-label="FormSelect Input"
+                                            >
+                                                <FormSelectOption key="2" value="day" label="day" />
+                                                <FormSelectOption key="3" value="week" label="week" />
+                                                <FormSelectOption key="4" value="month" label="month" />
+                                            </FormSelect>
+                                        </GridItem>
+                                    </div>
                                 </GridItem>
                             </Grid>
                         </Form>

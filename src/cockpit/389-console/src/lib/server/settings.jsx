@@ -13,6 +13,7 @@ import {
     Tab,
     Tabs,
     TabTitleText,
+    NumberInput,
     TextInput,
     Text,
     TextContent,
@@ -118,10 +119,7 @@ export class ServerSettings extends React.Component {
         ];
 
         this.validatePaths = this.validatePaths.bind(this);
-        this.handleConfigChange = this.handleConfigChange.bind(this);
-        this.handleRootDNChange = this.handleRootDNChange.bind(this);
-        this.handleDiskMonChange = this.handleDiskMonChange.bind(this);
-        this.handleAdvChange = this.handleAdvChange.bind(this);
+        this.handleChange = this.handleChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
         this.reloadConfig = this.reloadConfig.bind(this);
@@ -131,6 +129,28 @@ export class ServerSettings extends React.Component {
         this.reloadDiskMonitoring = this.reloadDiskMonitoring.bind(this);
         this.saveAdvanced = this.saveAdvanced.bind(this);
         this.reloadAdvanced = this.reloadAdvanced.bind(this);
+        this.onMinusConfig = (id, nav_tab) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        };
+        this.onConfigChange = (event, id, min, max, nav_tab) => {
+            let maxValue = this.maxValue;
+            if (max !== 0) {
+                maxValue = max;
+            }
+            let newValue = isNaN(event.target.value) ? min : Number(event.target.value);
+            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue
+            this.setState({
+                [id]: newValue
+            }, () => { this.validateSaveBtn(nav_tab, id, newValue) });
+        };
+        this.onPlusConfig = (id, nav_tab) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        }
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
     }
 
     componentDidMount() {
@@ -172,168 +192,111 @@ export class ServerSettings extends React.Component {
         }
     }
 
-    handleConfigChange(str, e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
+    validateSaveBtn(nav_tab, attr, value) {
         let disableSaveBtn = true;
+        let disableBtnName = "";
+        let config_attrs = [];
         let valueErr = false;
-        const errObj = this.state.errObjConfig;
+        let errObj;
+        if (nav_tab == "config") {
+            config_attrs = general_attrs;
+            disableBtnName = "configSaveDisabled";
+            errObj = this.state.errObjConfig;
+        } else if (nav_tab == "rootdn") {
+            disableBtnName = "rootDNSaveDisabled";
+            config_attrs = rootdn_attrs;
+            errObj = this.state.errObjRootDN;
+        } else if (nav_tab == "diskmon") {
+            disableBtnName = "diskMonSaveDisabled";
+            config_attrs = disk_attrs;
+            errObj = this.state.errObjDiskMon;
+        } else if (nav_tab == "adv") {
+            disableBtnName = "advSaveDisabled";
+            config_attrs = adv_attrs;
+            errObj = this.state.errObjAdv;
+        }
 
         // Check if a setting was changed, if so enable the save button
-        for (const general_attr of general_attrs) {
-            if (attr == general_attr && this.state['_' + general_attr] != value) {
+        for (const config_attr of config_attrs) {
+            if (attr == config_attr && this.state['_' + config_attr] != value) {
                 disableSaveBtn = false;
                 break;
             }
         }
 
         // Now check for differences in values that we did not touch
-        for (const general_attr of general_attrs) {
-            if (attr != general_attr && this.state['_' + general_attr] != this.state[general_attr]) {
+        for (const config_attr of config_attrs) {
+            if (attr != config_attr && this.state['_' + config_attr] != this.state[config_attr]) {
                 disableSaveBtn = false;
                 break;
             }
         }
 
-        if (attr != 'nsslapd-listenhost' && value == "") {
-            // Only listenhost is allowed to be blank
-            valueErr = true;
-            disableSaveBtn = true;
+        if (nav_tab == "config") {
+            if (attr != 'nsslapd-listenhost' && value == "") {
+                // Only listenhost is allowed to be blank
+                valueErr = true;
+                disableSaveBtn = true;
+            }
+        } else if (nav_tab == "rootdn") {
+            // Handle validating passwords are in sync
+            if (attr == 'nsslapd-rootpw') {
+                if (value != this.state.confirmRootpw) {
+                    disableSaveBtn = true;
+                    valueErr = true;
+                    errObj['nsslapd-rootpw'] = true;
+                } else {
+                    errObj.confirmRootpw = false;
+                    errObj['nsslapd-rootpw'] = false;
+                }
+            }
+            if (attr == 'confirmRootpw') {
+                if (value != this.state['nsslapd-rootpw']) {
+                    disableSaveBtn = true;
+                    valueErr = true;
+                    errObj.confirmRootpw = true;
+                } else {
+                    errObj.confirmRootpw = false;
+                    errObj['nsslapd-rootpw'] = false;
+                }
+            }
+
+            if (value == "") {
+                disableSaveBtn = true;
+                valueErr = true;
+            }
+        } else if (nav_tab == "diskmon") {
+            if (value == "" && (typeof value !== "boolean")) {
+                valueErr = true;
+                disableSaveBtn = true;
+            }
+        } else if (nav_tab == "adv") {
+            // Handle special cases for anon limit dn
+            if (attr == 'nsslapd-anonlimitsdn' && !valid_dn(value)) {
+                valueErr = true;
+                errObj[attr] = true;
+            }
+            if (value == "" && attr != 'nsslapd-anonlimitsdn' && (typeof value !== "boolean")) {
+                valueErr = true;
+                disableSaveBtn = true;
+            }
         }
 
         errObj[attr] = valueErr;
         this.setState({
             [attr]: value,
             errObjConfig: errObj,
+            [disableBtnName]: disableSaveBtn
         }, () => { this.validatePaths(disableSaveBtn) });
     }
 
-    handleRootDNChange(str, e) {
-        const value = e.target.value;
-        const attr = e.target.id;
-        let disableSaveBtn = true;
-        let valueErr = false;
-        const errObj = this.state.errObjRootDN;
-
-        // Check if a setting was changed, if so enable the save button
-        for (const rootdn_attr of rootdn_attrs) {
-            if (attr == rootdn_attr && this.state['_' + rootdn_attr] != value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const rootdn_attr of rootdn_attrs) {
-            if (attr != rootdn_attr && this.state['_' + rootdn_attr] != this.state[rootdn_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Handle validating passwords are in sync
-        if (attr == 'nsslapd-rootpw') {
-            if (value != this.state.confirmRootpw) {
-                disableSaveBtn = true;
-                errObj['nsslapd-rootpw'] = true;
-            } else {
-                errObj['nsslapd-rootpw'] = false;
-            }
-        }
-        if (attr == 'confirmRootpw') {
-            if (value != this.state['nsslapd-rootpw']) {
-                disableSaveBtn = true;
-                errObj.confirmRootpw = true;
-            } else {
-                errObj.confirmRootpw = false;
-            }
-        }
-
-        if (value == "") {
-            disableSaveBtn = true;
-            valueErr = true;
-        }
-        errObj[attr] = valueErr;
-        this.setState({
-            [attr]: value,
-            rootDNSaveDisabled: disableSaveBtn,
-            errObjRootDN: errObj
-        });
-    }
-
-    handleDiskMonChange(e) {
+    handleChange(e, nav_tab) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
-        let disableSaveBtn = true;
-        let valueErr = false;
-        const errObj = this.state.errObjDiskMon;
 
-        // Check if a setting was changed, if so enable the save button
-        for (const disk_attr of disk_attrs) {
-            if (attr == disk_attr && this.state['_' + disk_attr] != value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const disk_attr of disk_attrs) {
-            if (attr != disk_attr && this.state['_' + disk_attr] != this.state[disk_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        if (value == "" && e.target.type !== 'checkbox') {
-            valueErr = true;
-            disableSaveBtn = true;
-        }
-        errObj[attr] = valueErr;
         this.setState({
             [attr]: value,
-            diskMonSaveDisabled: disableSaveBtn,
-            errObjDiskMon: errObj
-        });
-    }
-
-    handleAdvChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
-        let disableSaveBtn = true;
-        let valueErr = false;
-        const errObj = this.state.errObjAdv;
-
-        // Check if a setting was changed, if so enable the save button
-        for (const adv_attr of adv_attrs) {
-            if (attr == adv_attr && this.state['_' + adv_attr] != value) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Now check for differences in values that we did not touch
-        for (const adv_attr of adv_attrs) {
-            if (attr != adv_attr && this.state['_' + adv_attr] != this.state[adv_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Handle special cases for anon limit dn
-        if (attr == 'nsslapd-anonlimitsdn' && !valid_dn(value)) {
-            errObj[attr] = true;
-        }
-        if (value == "" && attr != 'nsslapd-anonlimitsdn' && e.target.type !== 'checkbox') {
-            valueErr = true;
-            disableSaveBtn = true;
-        }
-
-        errObj[attr] = valueErr;
-        this.setState({
-            [attr]: value,
-            advSaveDisabled: disableSaveBtn,
-            errObjAdv: errObj,
-        });
+        }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
     }
 
     loadConfig() {
@@ -876,21 +839,24 @@ export class ServerSettings extends React.Component {
             diskMonitor =
                 <Form isHorizontal autoComplete="off" className="ds-margin-top-lg ds-left-indent-lg ds-margin-bottom">
                     <Grid
-                        title="The available disk space, in bytes, that will trigger the shutdown process. Default is 2mb. Once below half of the threshold then we enter the shutdown mode.  Value range: 4096 - 9223372036854775807 (nsslapd-disk-monitoring-threshold)"
+                        title="The available disk space, in bytes, that will trigger the shutdown process. Default is 2mb. Once below half of the threshold then we enter the shutdown mode. Value range: 4096 - 9223372036854775807. (nsslapd-disk-monitoring-threshold)"
                     >
                         <GridItem className="ds-label" span={3}>
                             Disk Monitoring Threshold
                         </GridItem>
                         <GridItem span={9}>
-                            <TextInput
+                            <NumberInput
                                 value={this.state['nsslapd-disk-monitoring-threshold']}
-                                type="number"
-                                id="nsslapd-disk-monitoring-threshold"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="monthreshold"
-                                onChange={(str, e) => {
-                                    this.handleDiskMonChange(e);
-                                }}
+                                min={4096}
+                                max={9223372036854775807}
+                                onMinus={() => { this.onMinusConfig("nsslapd-disk-monitoring-threshold", "diskmon") }}
+                                onChange={(e) => { this.onConfigChange(e, "nsslapd-disk-monitoring-threshold", 4096, 9223372036854775807, "diskmon") }}
+                                onPlus={() => { this.onPlusConfig("nsslapd-disk-monitoring-threshold", "diskmon") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={8}
                                 validated={this.state.errObjDiskMon.diskThreshold ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
@@ -902,29 +868,32 @@ export class ServerSettings extends React.Component {
                             Disk Monitoring Grace Period
                         </GridItem>
                         <GridItem span={9}>
-                            <TextInput
+                            <NumberInput
                                 value={this.state['nsslapd-disk-monitoring-grace-period']}
-                                type="number"
-                                id="nsslapd-disk-monitoring-grace-period"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="monthreahold"
-                                onChange={(str, e) => {
-                                    this.handleDiskMonChange(e);
-                                }}
-                                validated={this.state.errObjDiskMon.diskGracePeriod ? ValidatedOptions.error : ValidatedOptions.default}
+                                min={1}
+                                max={2147483647}
+                                onMinus={() => { this.onMinusConfig("nsslapd-disk-monitoring-grace-period", "diskmon") }}
+                                onChange={(e) => { this.onConfigChange(e, "nsslapd-disk-monitoring-grace-period", 1, 2147483647, "diskmon") }}
+                                onPlus={() => { this.onPlusConfig("nsslapd-disk-monitoring-grace-period", "diskmon") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={8}
+                                validated={this.state.errObjDiskMon.diskThreshold ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
                     <Grid
                         className="ds-margin-top"
-                        title="When disk space gets critically low do not remove logs to free up disk space (nsslapd-disk-monitoring-logging-critical)."
+                        title="When disk space gets critically low do not remove logs to free up disk space. (nsslapd-disk-monitoring-logging-critical)"
                     >
                         <GridItem span={9}>
                             <Checkbox
                                 id="nsslapd-disk-monitoring-logging-critical"
                                 isChecked={this.state['nsslapd-disk-monitoring-logging-critical']}
-                                onChange={(checked, e) => {
-                                    this.handleDiskMonChange(e);
+                                onChange={(str, e) => {
+                                    this.handleChange(e, "diskmon");
                                 }}
                                 label="Preserve Logs Even If Disk Space Gets Low"
                             />
@@ -994,7 +963,9 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-localhost"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-hostname"
-                                                onChange={this.handleConfigChange}
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "config");
+                                                }}
                                                 validated={this.state.errObjConfig['nsslapd-localhost'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                         </GridItem>
@@ -1006,13 +977,18 @@ export class ServerSettings extends React.Component {
                                             LDAP Port
                                         </GridItem>
                                         <GridItem span={10}>
-                                            <TextInput
+                                            <NumberInput
                                                 value={this.state['nsslapd-port']}
-                                                type="number"
-                                                id="nsslapd-port"
-                                                aria-describedby="horizontal-form-name-helper"
-                                                name="server-port"
-                                                onChange={this.handleConfigChange}
+                                                min={1}
+                                                max={65534}
+                                                onMinus={() => { this.onMinusConfig("nsslapd-port", "config") }}
+                                                onChange={(e) => { this.onConfigChange(e, "nsslapd-port", 1, 65534, "config") }}
+                                                onPlus={() => { this.onPlusConfig("nsslapd-port", "config") }}
+                                                inputName="input"
+                                                inputAriaLabel="number input"
+                                                minusBtnAriaLabel="minus"
+                                                plusBtnAriaLabel="plus"
+                                                widthChars={8}
                                                 validated={this.state.errObjConfig['nsslapd-port'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                         </GridItem>
@@ -1024,13 +1000,18 @@ export class ServerSettings extends React.Component {
                                             LDAPS Port
                                         </GridItem>
                                         <GridItem span={10}>
-                                            <TextInput
+                                            <NumberInput
                                                 value={this.state['nsslapd-secureport']}
-                                                type="number"
-                                                id="nsslapd-secureport"
-                                                aria-describedby="horizontal-form-name-helper"
-                                                name="server-secureport"
-                                                onChange={this.handleConfigChange}
+                                                min={1}
+                                                max={65534}
+                                                onMinus={() => { this.onMinusConfig("nsslapd-secureport", "config") }}
+                                                onChange={(e) => { this.onConfigChange(e, "nsslapd-secureport", 1, 65534, "config") }}
+                                                onPlus={() => { this.onPlusConfig("nsslapd-secureport", "config") }}
+                                                inputName="input"
+                                                inputAriaLabel="number input"
+                                                minusBtnAriaLabel="minus"
+                                                plusBtnAriaLabel="plus"
+                                                widthChars={8}
                                                 validated={this.state.errObjConfig['nsslapd-secureport'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                         </GridItem>
@@ -1048,7 +1029,9 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-listenhost"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-listenhost"
-                                                onChange={this.handleConfigChange}
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "config");
+                                                }}
                                                 validated={this.state.errObjConfig['nsslapd-listenhost'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                         </GridItem>
@@ -1066,7 +1049,9 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-bakdir"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-bakdir"
-                                                onChange={this.handleConfigChange}
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "config");
+                                                }}
                                                 validated={this.state.errObjConfig['nsslapd-bakdir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                         </GridItem>
@@ -1084,7 +1069,9 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-ldifdir"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-ldifdir"
-                                                onChange={this.handleConfigChange}
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "config");
+                                                }}
                                                 validated={this.state.errObjConfig['nsslapd-ldifdir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                         </GridItem>
@@ -1102,7 +1089,9 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-schemadir"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-schemadir"
-                                                onChange={this.handleConfigChange}
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "config");
+                                                }}
                                                 validated={this.state.errObjConfig['nsslapd-schemadir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                         </GridItem>
@@ -1120,7 +1109,9 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-certdir"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-certdir"
-                                                onChange={this.handleConfigChange}
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "config");
+                                                }}
                                                 validated={this.state.errObjConfig['nsslapd-certdir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                         </GridItem>
@@ -1159,7 +1150,7 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The password for the Root DN/Directory Manager, (nsslapd-rootpw)."
+                                        title="The password for the Root DN/Directory Manager (nsslapd-rootpw)."
                                     >
                                         <GridItem className="ds-label" span={3}>
                                             Directory Manager Password
@@ -1171,7 +1162,9 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-rootpw"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="nsslapd-rootpw"
-                                                onChange={this.handleRootDNChange}
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "rootdn");
+                                                }}
                                                 validated={this.state.errObjRootDN['nsslapd-rootpw'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                         </GridItem>
@@ -1189,7 +1182,9 @@ export class ServerSettings extends React.Component {
                                                 id="confirmRootpw"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="confirmRootpw"
-                                                onChange={this.handleRootDNChange}
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "rootdn");
+                                                }}
                                                 validated={this.state.errObjRootDN.confirmRootpw ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                         </GridItem>
@@ -1204,7 +1199,9 @@ export class ServerSettings extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-rootpwstoragescheme"
                                                 value={this.state['nsslapd-rootpwstoragescheme']}
-                                                onChange={this.handleRootDNChange}
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "rootdn");
+                                                }}
                                                 aria-label="FormSelect Input"
                                             >
                                                 {this.options.map((option, index) => (
@@ -1231,8 +1228,8 @@ export class ServerSettings extends React.Component {
                                     <Checkbox
                                         id="nsslapd-disk-monitoring"
                                         isChecked={this.state['nsslapd-disk-monitoring']}
-                                        onChange={(checked, e) => {
-                                            this.handleDiskMonChange(e);
+                                        onChange={(str, e) => {
+                                            this.handleChange(e, "diskmon");
                                         }}
                                         label="Enable Disk Space Monitoring"
                                     />
@@ -1257,8 +1254,8 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-schemacheck"
                                                 isChecked={this.state['nsslapd-schemacheck']}
-                                                onChange={(checked, e) => {
-                                                    this.handleAdvChange(e);
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "adv");
                                                 }}
                                                 title="Enable schema checking (nsslapd-schemacheck)."
                                                 aria-label="uncontrolled checkbox example"
@@ -1269,8 +1266,8 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-syntaxcheck"
                                                 isChecked={this.state['nsslapd-syntaxcheck']}
-                                                onChange={(checked, e) => {
-                                                    this.handleAdvChange(e);
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "adv");
                                                 }}
                                                 title="Enable attribute syntax checking (nsslapd-syntaxcheck)."
                                                 label="Enable Attribute Syntax Checking"
@@ -1282,8 +1279,8 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-plugin-logging"
                                                 isChecked={this.state['nsslapd-plugin-logging']}
-                                                onChange={(checked, e) => {
-                                                    this.handleAdvChange(e);
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "adv");
                                                 }}
                                                 title="Enable plugins to log access and audit events.  (nsslapd-plugin-logging)."
                                                 label="Enable Plugin Logging"
@@ -1293,8 +1290,8 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-syntaxlogging"
                                                 isChecked={this.state['nsslapd-syntaxlogging']}
-                                                onChange={(checked, e) => {
-                                                    this.handleAdvChange(e);
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "adv");
                                                 }}
                                                 title="Enable syntax logging (nsslapd-syntaxlogging)."
                                                 label="Enable Attribute Syntax Logging"
@@ -1306,8 +1303,8 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-plugin-binddn-tracking"
                                                 isChecked={this.state['nsslapd-plugin-binddn-tracking']}
-                                                onChange={(checked, e) => {
-                                                    this.handleAdvChange(e);
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "adv");
                                                 }}
                                                 label="Enable Plugin Bind DN Tracking"
                                                 title="Enabling this feature will write new operational attributes to the modified entry: internalModifiersname & internalCreatorsname. These new attributes contain the plugin DN, while modifiersname will be the original binding entry that triggered the update. (nsslapd-plugin-binddn-tracking)."
@@ -1317,8 +1314,8 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-attribute-name-exceptions"
                                                 isChecked={this.state['nsslapd-attribute-name-exceptions']}
-                                                onChange={(checked, e) => {
-                                                    this.handleAdvChange(e);
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "adv");
                                                 }}
                                                 title="Allows non-standard characters in attribute names to be used for backwards compatibility with older servers (nsslapd-attribute-name-exceptions)."
                                                 label="Allow Attribute Naming Exceptions"
@@ -1330,8 +1327,8 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-dn-validate-strict"
                                                 isChecked={this.state['nsslapd-dn-validate-strict']}
-                                                onChange={(checked, e) => {
-                                                    this.handleAdvChange(e);
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "adv");
                                                 }}
                                                 label="Strict DN Syntax Validation"
                                                 title="Enables strict syntax validation for DNs, according to section 3 in RFC 4514 (nsslapd-dn-validate-strict)."
@@ -1341,8 +1338,8 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-entryusn-global"
                                                 isChecked={this.state['nsslapd-entryusn-global']}
-                                                onChange={(checked, e) => {
-                                                    this.handleAdvChange(e);
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "adv");
                                                 }}
                                                 title="For USN plugin - maintain unique USNs across all back end databases (nsslapd-entryusn-global)."
                                                 label="Maintain Unique USNs Across All Backends"
@@ -1354,8 +1351,8 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-ignore-time-skew"
                                                 isChecked={this.state['nsslapd-ignore-time-skew']}
-                                                onChange={(checked, e) => {
-                                                    this.handleAdvChange(e);
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "adv");
                                                 }}
                                                 title="Ignore replication time skew when acquiring a replica to start a replciation session (nsslapd-ignore-time-skew)."
                                                 label="Ignore CSN Time Skew"
@@ -1365,8 +1362,8 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-readonly"
                                                 isChecked={this.state['nsslapd-readonly']}
-                                                onChange={(checked, e) => {
-                                                    this.handleAdvChange(e);
+                                                onChange={(str, e) => {
+                                                    this.handleChange(e, "adv");
                                                 }}
                                                 title="Make entire server read-only (nsslapd-readonly)"
                                                 label="Server Read-Only"
@@ -1385,7 +1382,7 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-allow-anonymous-access"
                                                 value={this.state['nsslapd-allow-anonymous-access']}
                                                 onChange={(str, e) => {
-                                                    this.handleAdvChange(e);
+                                                    this.handleChange(e, "adv");
                                                 }}
                                                 aria-label="FormSelect Input"
                                             >
@@ -1414,7 +1411,7 @@ export class ServerSettings extends React.Component {
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="nsslapd-anonlimitsdn"
                                                 onChange={(str, e) => {
-                                                    this.handleAdvChange(e);
+                                                    this.handleChange(e, "adv");
                                                 }}
                                                 validated={this.state.errObjAdv.anonLimitsDN ? ValidatedOptions.error : ValidatedOptions.default}
                                             />

@@ -91,7 +91,7 @@ export class ReplMonitor extends React.Component {
             inputLoginData: false,
 
             credsHostname: "",
-            credsPort: "",
+            credsPort: 389,
             credsBinddn: "cn=Directory Manager",
             credsBindpw: "",
             pwInputInterractive: false,
@@ -814,7 +814,7 @@ export class ReplMonitor extends React.Component {
             oldCredsHostname: "",
             oldCredsPort: "",
             credsHostname: "",
-            credsPort: "",
+            credsPort: 389,
             credsBinddn: "cn=Directory Manager",
             credsBindpw: "",
             pwInputInterractive: false
@@ -828,7 +828,7 @@ export class ReplMonitor extends React.Component {
             oldCredsHostname: connData.split(':')[0],
             oldCredsPort: connData.split(':')[1],
             credsHostname: connData.split(':')[0],
-            credsPort: connData.split(':')[1],
+            credsPort: parseInt(connData.split(':')[1]),
             credsBinddn: bindDN,
             credsBindpw: bindPW,
             pwInputInterractive: pwInteractive

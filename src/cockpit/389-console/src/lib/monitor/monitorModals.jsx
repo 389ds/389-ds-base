@@ -433,9 +433,9 @@ class ReportCredentialsModal extends React.Component {
                                     <TextInput
                                         value={hostname}
                                         type="text"
-                                        id="hostname"
+                                        id="credsHostname"
                                         aria-describedby="cachememsize"
-                                        name="hostname"
+                                        name="credsHostname"
                                         onChange={(str, e) => {
                                             handleFieldChange(e);
                                         }}
@@ -451,9 +451,9 @@ class ReportCredentialsModal extends React.Component {
                                         value={port}
                                         min={1}
                                         max={65534}
-                                        onMinus={() => { onMinusConfig("port") }}
-                                        onChange={(e) => { onConfigChange(e, "port", 1) }}
-                                        onPlus={() => { onPlusConfig("port") }}
+                                        onMinus={() => { onMinusConfig("credsPort") }}
+                                        onChange={(e) => { onConfigChange(e, "credsPort", 1) }}
+                                        onPlus={() => { onPlusConfig("credsPort") }}
                                         inputName="input"
                                         inputAriaLabel="number input"
                                         minusBtnAriaLabel="minus"
@@ -470,9 +470,9 @@ class ReportCredentialsModal extends React.Component {
                                     <TextInput
                                         value={binddn}
                                         type="text"
-                                        id="binddn"
+                                        id="credsBinddn"
                                         aria-describedby="cachememsize"
-                                        name="binddn"
+                                        name="credsBinddn"
                                         onChange={(str, e) => {
                                             handleFieldChange(e);
                                         }}
@@ -487,9 +487,9 @@ class ReportCredentialsModal extends React.Component {
                                     <TextInput
                                         value={bindpw}
                                         type="password"
-                                        id="bindpw"
+                                        id="credsBindpw"
                                         aria-describedby="cachememsize"
-                                        name="bindpw"
+                                        name="credsBindpw"
                                         isDisabled={pwInputInterractive}
                                         onChange={(str, e) => {
                                             handleFieldChange(e);
@@ -569,9 +569,9 @@ class ReportAliasesModal extends React.Component {
                                     <TextInput
                                         value={alias}
                                         type="text"
-                                        id="alias"
-                                        aria-describedby="alias"
-                                        name="alias"
+                                        id="aliasName"
+                                        aria-describedby="aliasName"
+                                        name="aliasName"
                                         onChange={(str, e) => {
                                             handleFieldChange(e);
                                         }}
@@ -586,9 +586,9 @@ class ReportAliasesModal extends React.Component {
                                     <TextInput
                                         value={hostname}
                                         type="text"
-                                        id="hostname"
-                                        aria-describedby="hostname"
-                                        name="hostname"
+                                        id="aliasHostname"
+                                        aria-describedby="aliasHostname"
+                                        name="aliasHostname"
                                         onChange={(str, e) => {
                                             handleFieldChange(e);
                                         }}
@@ -604,9 +604,9 @@ class ReportAliasesModal extends React.Component {
                                         value={port}
                                         min={1}
                                         max={65534}
-                                        onMinus={() => { onMinusConfig("port") }}
-                                        onChange={(e) => { onConfigChange(e, "port", 1) }}
-                                        onPlus={() => { onPlusConfig("port") }}
+                                        onMinus={() => { onMinusConfig("aliasPort") }}
+                                        onChange={(e) => { onConfigChange(e, "aliasPort", 1) }}
+                                        onPlus={() => { onPlusConfig("aliasPort") }}
                                         inputName="input"
                                         inputAriaLabel="number input"
                                         minusBtnAriaLabel="minus"
@@ -983,7 +983,7 @@ ReportCredentialsModal.propTypes = {
     closeHandler: PropTypes.func,
     handleFieldChange: PropTypes.func,
     hostname: PropTypes.string,
-    port: PropTypes.string,
+    port: PropTypes.number,
     binddn: PropTypes.string,
     bindpw: PropTypes.string,
     pwInputInterractive: PropTypes.bool,
@@ -995,7 +995,7 @@ ReportCredentialsModal.propTypes = {
 ReportCredentialsModal.defaultProps = {
     showModal: false,
     hostname: "",
-    port: "",
+    port: 389,
     binddn: "",
     bindpw: "",
     pwInputInterractive: false,
