@@ -2306,8 +2306,8 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
                              slapd_pr_strerror(reason));
         } else {
             slapi_log_access(LDAP_DEBUG_STATS,
-                             "conn=%" PRIu64 " op=%d fd=%d closed %s - %s\n",
-                             conn->c_connid, opid, conn->c_sd, str_reason,
+                             "conn=%" PRIu64 " op=%d fd=%d closed - %s\n",
+                             conn->c_connid, opid, conn->c_sd,
                              slapd_pr_strerror(reason));
         }
 
