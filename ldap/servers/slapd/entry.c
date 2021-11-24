@@ -779,8 +779,6 @@ str2entry_dupcheck(const char *rawdn, const char *s, int flags, int read_statein
     /* Check if we should be performing strict validation. */
     strict = config_get_dn_validate_strict();
 
-    slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck", "==>\n");
-
     e = slapi_entry_alloc();
     slapi_entry_init(e, NULL, NULL);
     next = s;

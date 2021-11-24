@@ -958,9 +958,6 @@ attr_get_value_cmp_fn(const Slapi_Attr *attr, value_compare_fn_type *compare_fn)
 {
     int rc = LDAP_PROTOCOL_ERROR;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "attr_get_value_cmp_fn",
-                  "=> attr_get_value_cmp_fn\n");
-
     *compare_fn = NULL;
 
     if (attr == NULL) {
@@ -1001,7 +998,6 @@ attr_get_value_cmp_fn(const Slapi_Attr *attr, value_compare_fn_type *compare_fn)
     rc = LDAP_SUCCESS;
 
 done:
-    slapi_log_err(SLAPI_LOG_TRACE, "attr_get_value_cmp_fn", "<= attr_get_value_cmp_fn \n");
     return rc;
 }
 

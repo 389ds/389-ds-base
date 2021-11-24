@@ -784,10 +784,7 @@ pagedresults_cleanup_all(Connection *conn, int needlock)
     int i;
     PagedResults *prp = NULL;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_cleanup_all", "=>\n");
-
     if (NULL == conn) {
-        slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_cleanup_all", "<= Connection is NULL\n");
         return 0;
     }
 
@@ -814,7 +811,6 @@ pagedresults_cleanup_all(Connection *conn, int needlock)
     if (needlock) {
         pthread_mutex_unlock(&(conn->c_mutex));
     }
-    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_cleanup_all", "<= %d\n", rc);
     return rc;
 }
 
