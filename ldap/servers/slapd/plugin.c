@@ -2681,6 +2681,36 @@ plugin_free(struct slapdplugin *plugin)
     slapi_ch_free((void **)&plugin);
 }
 
+/*
+ * Check if a plugin is critical or not.
+ * The plugins not critical are statically listed either
+ * with their name or with the plugin path
+ *  - GOST_YESCRYPT (name)
+ *  - entryuuid (name)
+ *  - libpwdchan (rust
+ * Returns:
+ *   1 - critical
+ *   0 - non critical
+ */
+static int
+plugin_load_critical(struct slapdplugin *plugin)
+{
+    char *non_critical_plugin_name[] = {"GOST_YESCRYPT", "entryuuid", NULL };
+    char *non_critical_plugin_libpath[] = {"libpwdchan-plugin", NULL};
+    for (int32_t i = 0; non_critical_plugin_name[i]; i++) {
+        if (strcasecmp(plugin->plg_name, non_critical_plugin_name[i]) == 0) {
+            /* this plugin in *not* critical */
+            return 0;
+        }
+    }
+    for (int32_t i = 0; non_critical_plugin_libpath[i]; i++) {
+        if (strcasecmp(plugin->plg_libpath, non_critical_plugin_libpath[i]) == 0) {
+            /* this plugin in *not* critical */
+            return 0;
+        }
+    }
+    return 1;
+}
 /***********************************
 This is the main entry point for plugin configuration.  The plugin_entry argument
 should already contain the necessary fields required to initialize the plugin and
@@ -2877,12 +2907,22 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
         /*
          * load the plugin's init function
          */
-        if ((initfunc = (slapi_plugin_init_fnptr)sym_load_with_flags(plugin->plg_libpath,
-                                                                     plugin->plg_initfunc, plugin->plg_name, 1 /* report errors */,
-                                                                     loadNow, loadGlobal)) == NULL) {
-            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to load plugin's init function.");
-            status = -1;
-            goto PLUGIN_CLEANUP;
+        initfunc = (slapi_plugin_init_fnptr)sym_load_with_flags(plugin->plg_libpath,
+                                                                plugin->plg_initfunc, plugin->plg_name, 1 /* report errors */,
+                                                                loadNow, loadGlobal);
+        if (initfunc == NULL) {
+            /* failure to load that plugin or find its initfunct, let's fail only if it is critical */
+            if (plugin_load_critical(plugin)) {
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to load plugin's init function.");
+                status = -1;
+                goto PLUGIN_CLEANUP;
+            } else {
+                /* This plugin is not critical, just ignore it and continue */
+                slapi_log_err(SLAPI_LOG_ERR,
+                              "plugin_setup", "\"%s\" plugin in library \"%s\" not initialized and ignored\n",
+                              plugin->plg_name, plugin->plg_libpath);
+                enabled = 0;
+            }
         }
     }
 
@@ -2952,11 +2992,18 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
     slapi_pblock_set(pb, SLAPI_CONFIG_DIRECTORY, configdir);
 
     /* see if the plugin is enabled or not */
-    if ((value = (char *)slapi_entry_attr_get_ref(plugin_entry, ATTR_PLUGIN_ENABLED)) &&
-        !strcasecmp(value, "off")) {
-        enabled = 0;
-    } else {
-        enabled = 1;
+    /*
+     * By default enabled is 1, so if all is good, this allows us to check the enabled
+     * status. But if plg_libpath was in the removed list, enabled is 0, so we now don't
+     * check the enabled attr here as we are force-disabling the plugin.
+     */
+    if (enabled) {
+        if ((value = (char *)slapi_entry_attr_get_ref(plugin_entry, ATTR_PLUGIN_ENABLED)) &&
+            !strcasecmp(value, "off")) {
+            enabled = 0;
+        } else {
+            enabled = 1;
+        }
     }
 
     slapi_pblock_set(pb, SLAPI_PLUGIN_ENABLED, &enabled);
