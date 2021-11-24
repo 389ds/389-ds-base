@@ -587,7 +587,6 @@ slapi_attr_values2keys_sv_pb(
     struct slapdplugin *pi = NULL;
     IFP v2k_fn = NULL;
 
-    slapi_log_err(SLAPI_LOG_FILTER, "slapi_attr_values2keys_sv_pb", "=>\n");
     if ((sattr->a_plugin == NULL)) {
         /* could be lazy plugin initialization, get it now */
         slapi_attr_init_syntax((Slapi_Attr *)sattr);
@@ -629,8 +628,6 @@ slapi_attr_values2keys_sv_pb(
     }
 
 done:
-    slapi_log_err(SLAPI_LOG_FILTER,
-                  "slapi_attr_values2keys_sv_pb", "<= %d\n", rc);
     return (rc);
 }
 

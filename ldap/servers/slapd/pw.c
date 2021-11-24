@@ -3184,8 +3184,6 @@ pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e)
     struct slapi_pw_entry_ext *dest_extp = NULL;
 
     if ((-1 == pw_entry_objtype) || (-1 == pw_entry_handle)) {
-        slapi_log_err(SLAPI_LOG_TRACE, "pw_copy_entry_ext",
-                      "pw_entry_extension is not registered\n");
         return LDAP_OPERATIONS_ERROR;
     }
 
@@ -3194,8 +3192,6 @@ pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e)
         src_e,
         pw_entry_handle);
     if (NULL == src_extp) {
-        slapi_log_err(SLAPI_LOG_TRACE, "pw_copy_entry_ext",
-                      "Source pw_entry_extension is not set\n");
         return LDAP_NO_SUCH_ATTRIBUTE;
     }
 
@@ -3206,8 +3202,6 @@ pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e)
         pw_entry_handle);
     if (NULL == dest_extp) {
         slapi_rwlock_unlock(src_extp->pw_entry_lock);
-        slapi_log_err(SLAPI_LOG_TRACE, "pw_copy_entry_ext",
-                      "dest pw_entry_extension is not set\n");
         return LDAP_NO_SUCH_ATTRIBUTE;
     }
 
