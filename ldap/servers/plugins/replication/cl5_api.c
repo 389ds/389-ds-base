@@ -897,7 +897,7 @@ cl5CreateReplayIteratorEx(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL
 
     replica = prp->replica;
     if (replica == NULL || consumerRuv == NULL || iterator == NULL) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "cl5CreateReplayIteratorEx - Invalid parameter\n");
         return CL5_BAD_DATA;
     }
@@ -905,10 +905,20 @@ cl5CreateReplayIteratorEx(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL
     *iterator = NULL;
 
     cldb = replica_get_cl_info(replica);
+    if (cldb == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cl5CreateReplayIteratorEx - Changelog is not available (NULL) for %s\n",
+                      replica_get_name(replica)
+        );
+        return CL5_BAD_STATE;
+    }
+
     pthread_mutex_lock(&(cldb->stLock));
     if (cldb->dbState != CL5_STATE_OPEN) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5CreateReplayIteratorEx - Changelog is not initialized\n");
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cl5CreateReplayIteratorEx - Changelog is not available for %s (dbState: %d)\n",
+                      replica_get_name(replica),
+                      cldb->dbState);
         pthread_mutex_unlock(&(cldb->stLock));
         return CL5_BAD_STATE;
     }
@@ -946,7 +956,7 @@ cl5CreateReplayIterator(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL5R
 
     replica = prp->replica;
     if (replica == NULL || consumerRuv == NULL || iterator == NULL) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "cl5CreateReplayIterator - Invalid parameter\n");
         return CL5_BAD_DATA;
     }
@@ -955,15 +965,17 @@ cl5CreateReplayIterator(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL5R
 
     cldb = replica_get_cl_info(replica);
     if (cldb == NULL) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5CreateReplayIterator - Changelog is not available (NULL)\n");
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cl5CreateReplayIterator - Changelog is not available (NULL) for %s\n",
+                      replica_get_name(replica));
         return CL5_BAD_STATE;
     }
     pthread_mutex_lock(&(cldb->stLock));
     if (cldb->dbState != CL5_STATE_OPEN) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5CreateReplayIterator - Changelog is not available (dbState: %d)\n",
-					  cldb->dbState);
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cl5CreateReplayIterator - Changelog is not available for %s (dbState: %d)\n",
+                      replica_get_name(replica),
+                      cldb->dbState);
         pthread_mutex_unlock(&(cldb->stLock));
         return CL5_BAD_STATE;
     }
@@ -1245,6 +1257,8 @@ cldb_SetReplicaDB(Replica *replica, void *arg)
         cldb->be = be;
         cldb->ident = ruv_get_replica_generation((RUV*)object_get_data (ruv_obj));
         if (_cldb_CheckAndSetEnv(be, cldb) != CL5_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                          "cldb_SetReplicaDB - Failed to check be environment\n");
             return CL5_SYSTEM_ERROR;
         }
         _cl5ReadRUV(cldb, PR_TRUE);
