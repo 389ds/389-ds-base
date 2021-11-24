@@ -429,6 +429,15 @@ def test_bob_acceptance_tests(topo_m4):
     repl.wait_for_replication(topo_m4.ms["supplier2"], topo_m4.ms["supplier1"])
 
 
+def list_agmt_towards(topo_m4, serverid):
+    res = []
+    for inst in topo_m4:
+        for agmt in Agreements(inst).list():
+            if agmt.get_attr_val_utf8(AGMT_PORT) == topo_m4.ms[serverid].port:
+                res.append(agmt)
+    return res
+
+
 @pytest.mark.bz830335
 def test_replica_backup_and_restore(topo_m4):
     """Test Backup and restore
@@ -483,12 +492,19 @@ def test_replica_backup_and_restore(topo_m4):
         suffixes=[DEFAULT_SUFFIX],
         import_file="/tmp/output_file",
     )
+    # disable the agmt to avoid the DEL get replayed too early
+    for agmt in list_agmt_towards(topo_m4, "supplier1"):
+        agmt.pause()
     topo_m4.ms["supplier1"].start()
 
     # Check that the updates (DEL) are no longer there
     for i in users.list():
         testuser = UserAccount(topo_m4.ms["supplier1"], i.dn)
         assert testuser.exists()
+
+    # Re enable the agmts
+    for agmt in list_agmt_towards(topo_m4, "supplier1"):
+        agmt.resume()
 
     # Here the changelog of supplier1 has been cleared.
     # Let's wait the supplier2 resync supplier1 BEFORE doing
