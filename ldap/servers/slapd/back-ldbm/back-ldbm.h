@@ -59,7 +59,6 @@ typedef unsigned char u_int8_t;
 typedef unsigned int u_int32_t;
 typedef unsigned short u_int16_t;
 #endif
-#include "dbimpl.h"
 
 #define dptr  data
 #define dsize size
@@ -76,6 +75,7 @@ typedef unsigned short u_int16_t;
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "slapi-private.h"
+#include "dbimpl.h"
 #include "avl.h"
 #include "portable.h"
 #include "proto-slap.h"
