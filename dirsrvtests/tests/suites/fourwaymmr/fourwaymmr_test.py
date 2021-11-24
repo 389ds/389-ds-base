@@ -430,6 +430,7 @@ def test_bob_acceptance_tests(topo_m4):
 
 
 def list_agmt_towards(topo_m4, serverid):
+    # Note: all instances must be started to use that.
     res = []
     for inst in topo_m4:
         for agmt in Agreements(inst).list():
@@ -484,6 +485,9 @@ def test_replica_backup_and_restore(topo_m4):
     for i in users.list(): topo_m4.ms["supplier1"].delete_s(i.dn)
     repl.wait_for_replication(topo_m4.ms["supplier1"], topo_m4.ms["supplier2"])
     repl.test_replication(topo_m4.ms["supplier1"], topo_m4.ms["supplier2"], 30)
+    # disable the agmt (while server is up) to avoid the DEL get replayed too early
+    for agmt in list_agmt_towards(topo_m4, "supplier1"):
+        agmt.pause()
     topo_m4.ms["supplier1"].stop()
     topo_m4.ms["supplier1"].ldif2db(
         bename=None,
@@ -492,9 +496,6 @@ def test_replica_backup_and_restore(topo_m4):
         suffixes=[DEFAULT_SUFFIX],
         import_file="/tmp/output_file",
     )
-    # disable the agmt to avoid the DEL get replayed too early
-    for agmt in list_agmt_towards(topo_m4, "supplier1"):
-        agmt.pause()
     topo_m4.ms["supplier1"].start()
 
     # Check that the updates (DEL) are no longer there
