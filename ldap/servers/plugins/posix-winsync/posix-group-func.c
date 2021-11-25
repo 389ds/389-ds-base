@@ -88,7 +88,7 @@ getEntry(const char *udn, char **attrs)
         if (result != NULL) {
             return result; /* Must be freed */
         } else {
-            slapi_log_err(SLAPI_LOG_ERR, POSIX_WINSYNC_PLUGIN_NAME,
+            slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                           "getEntry: %s internal search result not found\n", udn);
         }
     } else {
