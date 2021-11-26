@@ -452,6 +452,7 @@ free_and_return:
 static int32_t
 rootdn_check_access(Slapi_PBlock *pb)
 {
+    PRNetAddr *server_addr = NULL;
     PRNetAddr *client_addr = NULL;
     PRHostEnt *host_entry = NULL;
     time_t curr_time;
@@ -513,6 +514,22 @@ rootdn_check_access(Slapi_PBlock *pb)
             return -1;
         }
     }
+
+    server_addr = (PRNetAddr *)slapi_ch_malloc(sizeof(PRNetAddr));
+    if (slapi_pblock_get(pb, SLAPI_CONN_SERVERNETADDR, server_addr) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM,
+                "rootdn_check_access - Could not get server address.\n");
+        rc = -1;
+        goto free_and_return;
+    }
+    /*
+     *  Remaining checks are only relevant for AF_INET/AF_INET6 connections
+     */
+    if (PR_NetAddrFamily(server_addr) == PR_AF_LOCAL) {
+        rc = 0;
+        goto free_and_return;
+    }
+
     /*
      *  Check the host restrictions, deny always overrides allow
      */
@@ -688,6 +705,7 @@ rootdn_check_access(Slapi_PBlock *pb)
     }
 
 free_and_return:
+    slapi_ch_free((void **)&server_addr);
     slapi_ch_free((void **)&client_addr);
     slapi_ch_free((void **)&host_entry);
     slapi_ch_free_string(&dnsName);
