@@ -3013,6 +3013,23 @@ class DirSrv(SimpleLDAPObject, object):
         self.log.debug("Deleting LDIF file: " + del_file)
         os.remove(del_file)
 
+    def is_dbi_supported(self):
+        # check if -D and -L options are supported
+        try:
+            cmd = ["%s/dbscan" % self.get_bin_dir(),
+                    "--help"]
+            self.log.debug("DEBUG: checking dbscan supported options %s" % cmd)
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        except subprocess.CalledProcessError:
+            pass
+        output, stderr = p.communicate()
+        self.log.debug("is_dbi_supported output " + output.decode())
+        if "-D <dbimpl>" in output.decode() and "-L <dbhome>" in output.decode():
+            return True
+        else:
+            return False
+
+
     def is_dbi(self, dbipattern):
         try:
             cmd = ["%s/dbscan" % self.get_bin_dir(),
@@ -3025,7 +3042,7 @@ class DirSrv(SimpleLDAPObject, object):
         except subprocess.CalledProcessError:
             self.log.error('Failed to run dbscan: "%s"' % output)
             raise ValueError('Failed to run dbscan')
-        self.log.debug("is_dbi output is: ", output)
+        self.log.debug("is_dbi output is: " + output)
 
         return dbipattern.lower() in output.lower()
  
