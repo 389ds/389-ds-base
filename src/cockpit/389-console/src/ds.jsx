@@ -259,10 +259,15 @@ export class DSInstance extends React.Component {
                                             }
                                         },
                                         () => {
-                                            this.setState({
-                                                serverId: serverId,
-                                                wasActiveList: []
-                                            });
+                                            this.setState(
+                                                {
+                                                    serverId: serverId,
+                                                    wasActiveList: []
+                                                },
+                                                () => {
+                                                    this.loadBackups();
+                                                }
+                                            );
                                         }
                                     );
                                 });
@@ -275,10 +280,15 @@ export class DSInstance extends React.Component {
                                 }
                             },
                             () => {
-                                this.setState({
-                                    serverId: serverId,
-                                    wasActiveList: []
-                                });
+                                this.setState(
+                                    {
+                                        serverId: serverId,
+                                        wasActiveList: []
+                                    },
+                                    () => {
+                                        this.loadBackups();
+                                    }
+                                );
                             }
                         );
                     }
@@ -294,10 +304,15 @@ export class DSInstance extends React.Component {
                             }
                         },
                         () => {
-                            this.setState({
-                                serverId: serverId,
-                                wasActiveList: []
-                            });
+                            this.setState(
+                                {
+                                    serverId: serverId,
+                                    wasActiveList: []
+                                },
+                                () => {
+                                    this.loadBackups();
+                                }
+                            );
                         }
                     );
                 });
@@ -385,13 +400,19 @@ export class DSInstance extends React.Component {
             // Get the server version from the monitor
             cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.state.serverId + ".socket", "monitor", "server"];
             log_cmd("loadBackups", "Get the server version", cmd);
-            cockpit.spawn(cmd, { superuser: true, err: "message" }).done(content => {
-                const monitor = JSON.parse(content);
-                this.setState({
-                    backupRows: rows,
-                    version: monitor.attrs.version[0],
-                });
-            });
+            cockpit
+                    .spawn(cmd, { superuser: true, err: "message" }).done(content => {
+                        const monitor = JSON.parse(content);
+                        this.setState({
+                            backupRows: rows,
+                            version: monitor.attrs.version[0],
+                        });
+                    })
+                    .fail(_ => {
+                        this.setState({
+                            backupRows: rows,
+                        });
+                    });
         });
     }
 

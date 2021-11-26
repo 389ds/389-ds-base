@@ -367,13 +367,35 @@ export class Suffix extends React.Component {
                 .spawn(export_cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.props.reloadLDIFs();
-                    this.props.addNotification(
-                        "success",
-                        `Database export complete`
-                    );
                     this.setState({
                         showExportModal: false,
                     });
+                    const cmd = [
+                        "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                        "config", "get", "nsslapd-ldifdir"
+                    ];
+                    log_cmd("doExport", "Get the backup directory", cmd);
+                    cockpit
+                            .spawn(cmd, { superuser: true, err: "message" })
+                            .done(content => {
+                                const config = JSON.parse(content);
+                                const attrs = config.attrs;
+                                this.props.addNotification(
+                                    "success",
+                                    `Database export complete. You can find the LDIF file in ${attrs['nsslapd-ldifdir'][0]} directory on the server machine.`
+                                );
+                            })
+                            .fail(err => {
+                                const errMsg = JSON.parse(err);
+                                this.props.addNotification(
+                                    "success",
+                                    `Database export complete.`
+                                );
+                                this.props.addNotification(
+                                    "error",
+                                    `Error while trying to get the server's LDIF directory- ${errMsg.desc}`
+                                );
+                            });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);

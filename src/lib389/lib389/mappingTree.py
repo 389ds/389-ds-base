@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
-from ldap.dn import str2dn, dn2str
+from ldap.dn import str2dn, dn2str, is_dn
 from lib389._constants import *
 from lib389.properties import *
 from lib389.utils import suffixfilt, normalizeDN
@@ -448,3 +448,20 @@ class MappingTrees(DSLdapObjects):
             else:
                 processing = False
         raise ldap.NO_SUCH_OBJECT(f"{entry_dn} doesn't belong to any suffix")
+
+    def get(self, selector=[], dn=None, json=False):
+        """Create a test user with uid=test_user_UID rdn
+
+        :param uid: User id
+        :type uid: int
+        :param gid: Group id
+        :type gid: int
+
+        :returns: DSLdapObject of the created entry
+        """
+
+        # Normalise escaped characters
+        if is_dn(selector):
+            selector = dn2str(str2dn(selector))
+
+        return super(MappingTrees, self).get(selector, dn, json)
