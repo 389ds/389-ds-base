@@ -2284,29 +2284,15 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
         conn->c_flags |= CONN_FLAG_CLOSING;
         g_decrement_current_conn_count();
 
-        /*
-         * Provide info on the error captured above.
-         */
-        switch(reason) {
-            case SLAPD_DISCONNECT_IDLE_TIMEOUT:
-                str_reason = "Idle timeout (nsslapd-idletimeout)";
-                break;
-            case SLAPD_DISCONNECT_IO_TIMEOUT:
-                str_reason = "IO timeout (nsslapd-ioblocktimeout)";
-                break;
-            default:
-                str_reason = "error";
-                break;
-        }
         if(error) {
             slapi_log_access(LDAP_DEBUG_STATS,
-                             "conn=%" PRIu64 " op=%d fd=%d closed %s %d (%s) - %s\n",
-                             conn->c_connid, opid, conn->c_sd, str_reason, error,
+                             "conn=%" PRIu64 " op=%d fd=%d Disconnect - %s - %s\n",
+                             conn->c_connid, opid, conn->c_sd,
                              slapd_system_strerror(error),
                              slapd_pr_strerror(reason));
         } else {
             slapi_log_access(LDAP_DEBUG_STATS,
-                             "conn=%" PRIu64 " op=%d fd=%d closed - %s\n",
+                             "conn=%" PRIu64 " op=%d fd=%d Disconnect - %s\n",
                              conn->c_connid, opid, conn->c_sd,
                              slapd_pr_strerror(reason));
         }
