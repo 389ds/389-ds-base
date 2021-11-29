@@ -171,25 +171,7 @@ connection_table_get_connection(Connection_Table *ct, int sd)
         PR_ASSERT(c->c_next == NULL);
         PR_ASSERT(c->c_prev == NULL);
         PR_ASSERT(c->c_extension == NULL);
-        
-	if(c->c_state == CONN_STATE_INIT) {
-		c->c_state = CONN_STATE_INIT;
 
-		pthread_mutexattr_t monitor_attr = {0};
-		pthread_mutexattr_init(&monitor_attr);
-		pthread_mutexattr_settype(&monitor_attr, PTHREAD_MUTEX_RECURSIVE);
-		if (pthread_mutex_init(&(c->c_mutex), &monitor_attr) != 0) {
-			slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "pthread_mutex_init failed\n");
-			exit(1);
-		}
-
-		c->c_pdumutex = PR_NewLock();
-		if (c->c_pdumutex == NULL) {
-			c->c_pdumutex = NULL;
-			slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "PR_NewLock failed\n");
-			exit(1);
-		}
-	}
         /* Let's make sure there's no cruft left on there from the last time this connection was used. */
         /* Note: no need to lock c->c_mutex because this function is only
          * called by one thread (the slapd_daemon thread), and if we got this
