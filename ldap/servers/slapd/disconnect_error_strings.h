@@ -20,7 +20,7 @@
 #define __DISCONNECT_ERROR_STRINGS_H_
 
 ER2(SLAPD_DISCONNECT_ABORT, "Connection aborted - A1")
-ER2(SLAPD_DISCONNECT_BAD_BER_TAG, "Bad Ber Tag - B1")
+ER2(SLAPD_DISCONNECT_BAD_BER_TAG, "Bad Ber Tag or uncleanly closed connection - B1")
 ER2(SLAPD_DISCONNECT_BER_TOO_BIG, "Ber Too Big (nsslapd-maxbersize) - B2")
 ER2(SLAPD_DISCONNECT_BER_PEEK, "Ber peak tag - B3")
 ER2(SLAPD_DISCONNECT_BER_FLUSH, "Server failed to flush response back to Client - B4")
