@@ -15,7 +15,8 @@ from lib389.cli_idm.account import *
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
-from .. import setup_page, remove_instance_through_lib, check_cockpit_version_is_higher, check_frame_assignment
+from .. import setup_page, remove_instance_through_lib, check_cockpit_version_is_higher, check_frame_assignment, \
+    setup_login, check_cockpit_version_is_lower
 
 pytestmark = pytest.mark.skipif(os.getenv('WEBUI') is None, reason="These tests are only for WebUI environment")
 pytest.importorskip('playwright')
@@ -83,7 +84,7 @@ def test_login_no_instance(topology_st, page, browser_name):
     assert frame.is_visible("#no-inst-create-btn")
 
 
-def test_logout(topology_st, page, setup_page):
+def test_logout(topology_st, page):
     """ Test logout from WebUI is successful
 
     :id: a7e71179-3ef0-4e4e-baca-a36beeef71b6
@@ -102,14 +103,21 @@ def test_logout(topology_st, page, setup_page):
          5. We are at login page
     """
 
+    setup_login(page)
     assert page.url == "http://localhost:9090/389-console"
 
+    # checking cockpit versions because selector ids got renamed in between
     log.info('Let us log out')
-    if check_cockpit_version_is_higher():
+    if check_cockpit_version_is_higher('258'):
+        page.click('#toggle-menu')
+        page.click('#logout')
+    elif check_cockpit_version_is_higher('250') and check_cockpit_version_is_lower('257'):
         page.click('#navbar-dropdown')
+        page.click('#go-logout')
     else:
         page.click('#content-user-name')
-    page.click('#go-logout')
+        page.click('#go-logout')
+
     page.wait_for_selector('#login-user-input')
     assert page.is_visible('#login-user-input')
     log.info('Log out successful')

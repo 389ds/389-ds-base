@@ -19,12 +19,19 @@ pytest.importorskip('playwright')
 RHEL = 'Red Hat Enterprise Linux'
 
 
-# in cockpit-250 some selectors got renamed so this function returns True if cockpit version is 250 or higher
-def check_cockpit_version_is_higher():
+# in some cockpit versions the selectors got renamed, these functions help to check the versions
+def check_cockpit_version_is_higher(version):
     f = os.popen("rpm -q --queryformat '%{VERSION}' cockpit")
-    version = f.readline()
+    installed_version = f.readline()
 
-    return version >= '250'
+    return installed_version >= version
+
+
+def check_cockpit_version_is_lower(version):
+    f = os.popen("rpm -q --queryformat '%{VERSION}' cockpit")
+    installed_version = f.readline()
+
+    return installed_version <= version
 
 
 # the iframe selection differs for chromium and firefox browser
@@ -59,8 +66,8 @@ def remove_instance_through_lib(topology):
         topology.standalone.delete()
 
 
-def remove_instance_through_webui(topology, page):
-    frame = page.frame('cockpit1:localhost/389-console')
+def remove_instance_through_webui(topology, page, browser_name):
+    frame = check_frame_assignment(page, browser_name)
 
     log.info('Check if instance exist')
     if topology.standalone.exists():
@@ -70,7 +77,8 @@ def remove_instance_through_webui(topology, page):
         frame.click('#remove-ds')
         frame.check('#modalChecked')
         frame.click('//button[normalize-space(.)=\'Remove Instance\']')
-        frame.wait_for_selector("#no-inst-create-btn")
+        frame = check_frame_assignment(page, browser_name)
+        frame.is_visible("#no-inst-create-btn")
         log.info('Instance deleted')
 
 
@@ -98,12 +106,12 @@ def setup_login(page):
 
 
 @pytest.fixture(scope="function")
-def setup_page(topology_st, page, request):
+def setup_page(topology_st, page, browser_name, request):
     # remove instance if it exists before starting tests
     remove_instance_through_lib(topology_st)
     setup_login(page)
 
     def fin():
-        remove_instance_through_webui(topology_st, page)
+        remove_instance_through_webui(topology_st, page, browser_name)
 
     request.addfinalizer(fin)
