@@ -1657,6 +1657,8 @@ class DirSrv(SimpleLDAPObject, object):
         return self.ds_paths.config_dir
 
     def get_cert_dir(self):
+        if self._containerised:
+            return "/data/config"
         return self.ds_paths.cert_dir
 
     def get_sysconf_dir(self):
