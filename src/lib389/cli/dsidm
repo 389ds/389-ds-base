@@ -24,6 +24,7 @@ from lib389.cli_idm import posixgroup as cli_posixgroup
 from lib389.cli_idm import user as cli_user
 from lib389.cli_idm import client_config as cli_client_config
 from lib389.cli_idm import role as cli_role
+from lib389.cli_idm import service as cli_service
 from lib389.cli_base import connect_instance, disconnect_instance, setup_script_logger
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
 from lib389.cli_base import format_error_to_dict
@@ -76,6 +77,7 @@ cli_posixgroup.create_parser(subparsers)
 cli_user.create_parser(subparsers)
 cli_client_config.create_parser(subparsers)
 cli_role.create_parser(subparsers)
+cli_service.create_parser(subparsers)
 
 argcomplete.autocomplete(parser)
 
