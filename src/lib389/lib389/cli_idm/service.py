@@ -1,12 +1,13 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389.idm.user import nsUserAccount, nsUserAccounts
+from lib389.idm.services import ServiceAccount, ServiceAccounts
 from lib389.cli_base import populate_attr_arguments, _generic_modify
 from lib389.cli_idm import (
     _generic_list,
@@ -20,9 +21,9 @@ from lib389.cli_idm import (
     _warn,
     )
 
-SINGULAR = nsUserAccount
-MANY = nsUserAccounts
-RDN = 'uid'
+SINGULAR = ServiceAccount
+MANY = ServiceAccounts
+RDN = 'cn'
 
 # These are a generic specification, try not to tamper with them
 
@@ -56,9 +57,9 @@ def rename(inst, basedn, log, args, warn=True):
     _generic_rename(inst, basedn, log.getChild('_generic_rename'), MANY, rdn, args)
 
 def create_parser(subparsers):
-    user_parser = subparsers.add_parser('user', help='Manage posix users')
+    service_parser = subparsers.add_parser('service', help='Manage service accounts')
 
-    subcommands = user_parser.add_subparsers(help='action')
+    subcommands = service_parser.add_subparsers(help='action')
 
     list_parser = subcommands.add_parser('list', help='list')
     list_parser.set_defaults(func=list)
@@ -83,8 +84,8 @@ def create_parser(subparsers):
     rename_parser = subcommands.add_parser('rename', help='rename the object')
     rename_parser.set_defaults(func=rename)
     rename_parser.add_argument('selector', help='The %s to modify' % RDN)
-    rename_parser.add_argument('new_name', help='A new user name')
-    rename_parser.add_argument('--keep-old-rdn', action='store_true', help="Specify whether the old RDN (i.e. 'cn: old_user') should be kept as an attribute of the entry or not")
+    rename_parser.add_argument('new_name', help='A new service name')
+    rename_parser.add_argument('--keep-old-rdn', action='store_true', help="Specify whether the old RDN (i.e. 'cn: old_service') should be kept as an attribute of the entry or not")
 
     delete_parser = subcommands.add_parser('delete', help='deletes the object')
     delete_parser.set_defaults(func=delete)
