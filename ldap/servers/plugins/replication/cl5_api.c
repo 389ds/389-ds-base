@@ -1234,7 +1234,7 @@ cl5CreateReplayIteratorEx(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL
 
     replica = prp->replica;
     if (replica == NULL || consumerRuv == NULL || iterator == NULL) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "cl5CreateReplayIteratorEx - Invalid parameter\n");
         return CL5_BAD_DATA;
     }
@@ -1242,8 +1242,10 @@ cl5CreateReplayIteratorEx(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL
     *iterator = NULL;
 
     if (s_cl5Desc.dbState == CL5_STATE_NONE) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5CreateReplayIteratorEx - Changelog is not initialized\n");
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cl5CreateReplayIteratorEx - Changelog is not initialized for %s\n",
+                      replica_get_name(replica)
+        );
         return CL5_BAD_STATE;
     }
 
@@ -1291,16 +1293,33 @@ cl5CreateReplayIterator(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL5R
 
     replica = prp->replica;
     if (replica == NULL || consumerRuv == NULL || iterator == NULL) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "cl5CreateReplayIterator - Invalid parameter\n");
         return CL5_BAD_DATA;
     }
 
     *iterator = NULL;
 
+<<<<<<< HEAD
     if (s_cl5Desc.dbState == CL5_STATE_NONE) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                       "cl5CreateReplayIterator - Changelog is not initialized\n");
+=======
+    cldb = replica_get_cl_info(replica);
+    if (cldb == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cl5CreateReplayIterator - Changelog is not available (NULL) for %s\n",
+                      replica_get_name(replica));
+        return CL5_BAD_STATE;
+    }
+    pthread_mutex_lock(&(cldb->stLock));
+    if (cldb->dbState != CL5_STATE_OPEN) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cl5CreateReplayIterator - Changelog is not available for %s (dbState: %d)\n",
+                      replica_get_name(replica),
+                      cldb->dbState);
+        pthread_mutex_unlock(&(cldb->stLock));
+>>>>>>> 66ed68369 (Issue 5024 - BUG - windows ro replica sigsegv (#5027))
         return CL5_BAD_STATE;
     }
 
@@ -1570,8 +1589,124 @@ _cl5Open(const char *dir, const CL5DBConfig *config, CL5OpenMode openMode)
         _cl5SetDefaultDBConfig();
     }
 
+<<<<<<< HEAD
     /* initialize trimming */
     rc = _cl5TrimInit();
+=======
+    /* Cleanup the pthread mutexes and friends */
+    pthread_mutex_destroy(&(cldb->stLock));
+    pthread_mutex_destroy(&(cldb->clLock));
+    pthread_condattr_destroy(&(cldb->clCAttr));
+    pthread_cond_destroy(&(cldb->clCvar));
+
+    /* Clear the cl encryption data (if configured) */
+    rc = clcrypt_destroy(cldb->clcrypt_handle, be);
+
+    if (cldb->deleteFile) {
+        _cldb_DeleteDB(replica);
+    }
+
+    slapi_counter_destroy(&cldb->clThreads);
+
+    rc = replica_set_cl_info(replica, NULL);
+
+    slapi_ch_free_string(&cldb->ident);
+    slapi_ch_free((void **)&cldb);
+
+    return rc;
+}
+
+int
+cldb_SetReplicaDB(Replica *replica, void *arg)
+{
+    int rc = -1;
+    dbi_db_t *pDB = NULL;
+    cldb_Handle *cldb = NULL;
+    int openMode = 0;
+
+    if (!replica_is_flag_set(replica, REPLICA_LOG_CHANGES)) {
+        /* replica does not have a changelog */
+        return 0;
+    }
+
+    if (arg) {
+        openMode = *(int *)arg;
+    }
+
+    cldb = replica_get_cl_info(replica);
+    if (cldb) {
+        slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name_cl,
+                      "cldb_SetReplicaDB - DB already set to replica\n");
+        return 0;
+    }
+
+    Slapi_Backend *be = slapi_be_select(replica_get_root(replica));
+    Object *ruv_obj = replica_get_ruv(replica);
+ 
+    rc = slapi_back_get_info(be, BACK_INFO_DBENV_CLDB, (void **)&pDB);
+    if (rc == 0) {
+        cldb = (cldb_Handle *)slapi_ch_calloc(1, sizeof(cldb_Handle));
+        cldb->db = pDB;
+        cldb->be = be;
+        cldb->ident = ruv_get_replica_generation((RUV*)object_get_data (ruv_obj));
+        if (_cldb_CheckAndSetEnv(be, cldb) != CL5_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                          "cldb_SetReplicaDB - Failed to check be environment\n");
+            return CL5_SYSTEM_ERROR;
+        }
+        _cl5ReadRUV(cldb, PR_TRUE);
+        _cl5ReadRUV(cldb, PR_FALSE);
+        _cl5GetEntryCount(cldb);
+    }
+    object_release(ruv_obj);
+
+    if (arg) {
+        cldb->dbOpenMode = openMode;
+    } else {
+        cldb->dbOpenMode = CL5_OPEN_NORMAL;
+    }
+    cldb->clThreads = slapi_counter_new();
+    cldb->dbState = CL5_STATE_OPEN;
+
+    if (pthread_mutex_init(&(cldb->stLock), NULL) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cldb_SetReplicaDB - Failed to create on state lock\n");
+        return CL5_SYSTEM_ERROR;
+    }
+    if (pthread_mutex_init(&(cldb->clLock), NULL) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cldb_SetReplicaDB - Failed to create on close lock\n");
+        return CL5_SYSTEM_ERROR;
+    }
+
+    /* Set up the condition variable */
+	pthread_condattr_init(&(cldb->clCAttr));
+	pthread_condattr_setclock(&(cldb->clCAttr), CLOCK_MONOTONIC);
+    if (pthread_cond_init(&(cldb->clCvar), &(cldb->clCAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cldb_SetReplicaDB - Failed to create cvar\n");
+        return CL5_SYSTEM_ERROR;
+    }
+    replica_set_cl_info(replica, cldb);
+
+    /* get cl configuration for backend */
+    back_info_config_entry config_entry = {0};
+    config_entry.dn = "cn=changelog";
+    changelog5Config config = {};
+    rc = slapi_back_ctrl_info(be, BACK_INFO_CLDB_GET_CONFIG, (void *)&config_entry);
+    if (rc !=0 || config_entry.ce == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cldb_SetReplicaDB - failed to read config for changelog\n");
+        return CL5_BAD_DATA;
+    }
+
+    changelog5_extract_config(config_entry.ce, &config);
+    changelog5_register_config_callbacks(slapi_entry_get_dn_const(config_entry.ce), replica);
+    slapi_entry_free(config_entry.ce);
+
+    /* set trimming parameters */
+    rc = cl5ConfigTrimming(replica, config.maxEntries, config.maxAge, config.trimInterval);
+>>>>>>> 66ed68369 (Issue 5024 - BUG - windows ro replica sigsegv (#5027))
     if (rc != CL5_SUCCESS) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                       "_cl5Open - Failed to initialize trimming\n");
