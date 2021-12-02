@@ -482,8 +482,20 @@ agmt_new_from_entry(Slapi_Entry *e)
 
     /* DBDB: review this code */
     if (slapi_entry_attr_hasvalue(e, "objectclass", "nsDSWindowsReplicationAgreement")) {
-        ra->agreement_type = REPLICA_TYPE_WINDOWS;
-        windows_init_agreement_from_entry(ra, e);
+        if (replica_get_type(replica) == REPLICA_TYPE_PRIMARY) {
+            ra->agreement_type = REPLICA_TYPE_WINDOWS;
+            windows_init_agreement_from_entry(ra, e);
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                          "agmt_new_from_entry: failed to initialise windows replication"
+                          "agreement \"%s\" - replica is not a supplier (may be hub or consumer).\n",
+                          agmt_get_long_name(ra));
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                          "To proceed, you MUST promote this server to a supplier with: "
+                          "dsconf INSTANCENAME replication promote --suffix \"%s\" --newrole supplier --replica-id=NEW_REPLICA_ID\n",
+                          slapi_sdn_get_dn(ra->replarea));
+            goto loser;
+        }
     } else {
         ra->agreement_type = REPLICA_TYPE_MULTISUPPLIER;
         repl_session_plugin_call_agmt_init_cb(ra);
@@ -565,8 +577,10 @@ agmt_new_from_entry(Slapi_Entry *e)
      * This should not with the new per backend changelog design */
     if (!cldb_is_open(replica)) {
         slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "agmt_new_from_entry: "
-                                                           "Replication agreement added but there is no changelog configured. "
-                                                           "No change will be replicated until a changelog is configured.\n");
+                                                           "Replication agreement (%s) added but there is no changelog configured. "
+                                                           "No change will be replicated until a changelog is configured.\n",
+                                                           replica_get_name(replica)
+        );
     }
 
     /*
