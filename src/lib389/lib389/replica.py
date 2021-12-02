@@ -724,10 +724,11 @@ class ReplicaLegacy(object):
         #
         # Create the changelog
         #
-        try:
-            self.conn.changelog.create()
-        except ldap.LDAPError as e:
-            raise ValueError('Failed to create changelog: %s' % str(e))
+        if not ds_supports_new_changelog():
+            try:
+                self.conn.changelog.create()
+            except ldap.LDAPError as e:
+                raise ValueError('Failed to create changelog: %s' % str(e))
 
         #
         # Check that a RID was provided, and its a valid number
