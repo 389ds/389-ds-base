@@ -5,6 +5,16 @@ on:
   pull_request:
   schedule:
     - cron:  '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      pytest_tests:
+        description: 'Run only specified suites or test modules delimited by space, for example "basic/basic_test.py replication"'
+        required: false
+        default: false
+      debug_enabled:
+        description: 'Set to "true" to enable debugging with tmate (https://github.com/marketplace/actions/debugging-with-tmate)'     
+        required: false
+        default: false
 
 jobs:
   build:
@@ -20,7 +30,7 @@ jobs:
 
       - name: Get a list of all test suites
         id: set-matrix
-        run: echo "::set-output name=matrix::$(python3 .github/scripts/generate_matrix.py)"
+        run: echo "::set-output name=matrix::$(python3 .github/scripts/generate_matrix.py ${{ github.event.inputs.pytest_tests }})"
 
       - name: Build RPMs
         run: cd $GITHUB_WORKSPACE && SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
@@ -46,6 +56,12 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true
+      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled }}
+
     - name: Install dependencies
       run: |
         sudo apt update -y
@@ -53,6 +69,7 @@ jobs:
         sudo cp .github/daemon.json /etc/docker/daemon.json
         sudo systemctl unmask docker
         sudo systemctl start docker
+
     - name: Download RPMs
       uses: actions/download-artifact@master
       with:
