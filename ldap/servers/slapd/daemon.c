@@ -66,6 +66,7 @@
 
 int slapd_wakeup_timer = SLAPD_WAKEUP_TIMER; /* time in ms to wakeup */
 int slapd_accept_wakeup_timer = SLAPD_ACCEPT_WAKEUP_TIMER; /* time in ms to wakeup */
+int slapd_ct_thread_wakeup_timer = SLAPD_WAKEUP_TIMER; /* time in ms to wakeup */
 #ifdef notdef                                /* GGOODREPL */
 /*
  * time in secs to do housekeeping:
@@ -74,17 +75,19 @@ int slapd_accept_wakeup_timer = SLAPD_ACCEPT_WAKEUP_TIMER; /* time in ms to wake
 short slapd_housekeeping_timer = 10;
 #endif /* notdef GGOODREPL */
 
-PRFileDesc *signalpipe[2];
-static int writesignalpipe = SLAPD_INVALID_SOCKET;
-static int readsignalpipe = SLAPD_INVALID_SOCKET;
 #define FDS_SIGNAL_PIPE 0
 
+#define NUM_CT_LISTS 2
+static signal_pipe signalpipes[NUM_CT_LISTS]; /* One signal pipe per connection table list */
+static PRInt32 ct_shutdown = 0;
 static PRThread *disk_thread_p = NULL;
 static PRThread *accept_thread_p = NULL;
 static pthread_cond_t diskmon_cvar;
 static pthread_mutex_t diskmon_mutex;
 
 void disk_monitoring_stop(void);
+void init_ct_list_threads(void);
+void ct_thread_cleanup(void);
 
 typedef struct listener_info
 {
@@ -116,13 +119,13 @@ static const char *netaddr2string(const PRNetAddr *addr, char *addrbuf, size_t a
 static void set_shutdown(int);
 static void setup_pr_ct_firsttime_pds(Connection_Table *ct);
 static PRIntn setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, struct POLL_STRUCT **fds);
-static PRIntn setup_pr_read_pds(Connection_Table *ct);
+static PRIntn setup_pr_read_pds(Connection_Table *ct, int num_ct_lists);
 
 #ifdef HPUX10
 static void *catch_signals();
 #endif
 
-static int createsignalpipe(void);
+static int createsignalpipe(int num_ct_lists);
 
 static char *
 get_pid_file(void)
@@ -152,8 +155,8 @@ accept_and_configure(int s __attribute__((unused)), PRFileDesc *pr_acceptfd, PRN
  * This is the shiny new re-born daemon function, without all the hair
  */
 static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local, Connection **newconn);
-static void handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll);
-static int clear_signal(struct POLL_STRUCT *fds);
+static void handle_pr_read_ready(Connection_Table *ct, int list_id, PRIntn num_poll);
+static int clear_signal(struct POLL_STRUCT *fds, int list_id);
 static void unfurl_banners(Connection_Table *ct, daemon_ports_t *ports, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix);
 static int write_pid_file(void);
 static int init_shutdown_detect(void);
@@ -768,6 +771,7 @@ handle_listeners(struct POLL_STRUCT *fds)
 {
     Connection_Table *ct = the_connection_table;
     size_t idx;
+    int ctlist = 0;
     for (idx = 0; idx < listeners; ++idx) {
         int fdidx = listener_idxs[idx].idx;
         PRFileDesc *listenfd = listener_idxs[idx].listenfd;
@@ -778,14 +782,14 @@ handle_listeners(struct POLL_STRUCT *fds)
             PR_ASSERT(listenfd == fds[fdidx].fd);
             if (SLAPD_POLL_LISTEN_READY(fds[fdidx].out_flags)) {
                 /* accept() the new connection, put it on the active list for handle_pr_read_ready */
-                int rc = handle_new_connection(ct, SLAPD_INVALID_SOCKET, listenfd, secure, local, NULL);
-                if (rc) {
+                ctlist = handle_new_connection(ct, SLAPD_INVALID_SOCKET, listenfd, secure, local, NULL);
+                if (ctlist < 0) {
                     slapi_log_err(SLAPI_LOG_CONNS, "handle_listeners", "Error accepting new connection listenfd=%d\n",
                                   PR_FileDesc2NativeHandle(listenfd));
                     continue;
                 } else {
                     /* Wake up the main event loop to handle this immediately. */
-                    signal_listner();
+                    signal_listner(ctlist);
                 }
             }
         }
@@ -922,8 +926,6 @@ slapd_daemon(daemon_ports_t *ports)
     PRFileDesc **s_tcps = NULL;
     PRFileDesc **i_unix = NULL;
     PRFileDesc **fdesp = NULL;
-    PRIntn num_poll = 0;
-    PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_wakeup_timer);
     uint64_t threads;
     int in_referral_mode = config_check_referral_mode();
     int connection_table_size = get_configured_connection_table_size();
@@ -958,7 +960,7 @@ slapd_daemon(daemon_ports_t *ports)
     i_unix = ports->i_socket;
 #endif /* ENABLE_LDAPI */
 
-    createsignalpipe();
+    createsignalpipe(NUM_CT_LISTS);
     /* Setup our signal interception. */
     init_shutdown_detect();
 
@@ -972,6 +974,7 @@ slapd_daemon(daemon_ports_t *ports)
         exit(1);
     }
 
+    init_ct_list_threads();
     init_op_threads();
 
     /* Start the SNMP collator if counters are enabled. */
@@ -1112,33 +1115,10 @@ slapd_daemon(daemon_ports_t *ports)
                   "MAINPID=%lu",
                   (unsigned long)getpid());
 #endif
-
     /* The meat of the operation is in a loop on a call to select */
     while (!g_get_shutdown()) {
-        int select_return = 0;
-        PRErrorCode prerr;
 
-        num_poll = setup_pr_read_pds(the_connection_table);
-        select_return = POLL_FN(the_connection_table->fd, num_poll, pr_timeout);
-        switch (select_return) {
-        case 0: /* Timeout */
-            break;
-        case -1: /* Error */
-            prerr = PR_GetError();
-            slapi_log_err(SLAPI_LOG_TRACE, "slapd_daemon", "PR_Poll() failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                          prerr, slapd_system_strerror(prerr));
-            break;
-        default: /* some new data ready */
-            /* handle new connections from the listeners */
-            /*
-             *  Now done in accept_thread
-             * handle_listeners(the_connection_table);
-             */
-            /* handle new data ready */
-            handle_pr_read_ready(the_connection_table, connection_table_size);
-            clear_signal(the_connection_table->fd);
-            break;
-        }
+        usleep(250);
     }
     /* We get here when the server is shutting down */
     /* Do what we have to do before death */
@@ -1154,6 +1134,7 @@ slapd_daemon(daemon_ports_t *ports)
     }
 
     op_thread_cleanup();
+    ct_thread_cleanup();
     housekeeping_stop(); /* Run this after op_thread_cleanup() logged sth */
     disk_monitoring_stop();
 
@@ -1178,7 +1159,7 @@ slapd_daemon(daemon_ports_t *ports)
     threads = g_get_active_threadcnt();
     if (threads > 0) {
         slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon",
-                      "slapd shutting down - waiting for %" PRIu64 " thread%s to terminate\n",
+                       "slapd shutting down - waiting for %" PRIu64 " thread%s to terminate\n",
                       threads, (threads > 1) ? "s" : "");
     }
 
@@ -1187,28 +1168,32 @@ slapd_daemon(daemon_ports_t *ports)
         PRPollDesc xpd;
         char x;
         int spe = 0;
+        int i = 0;
 
         /* try to read from the signal pipe, in case threads are
          * blocked on it. */
-        xpd.fd = signalpipe[0];
-        xpd.in_flags = PR_POLL_READ;
-        xpd.out_flags = 0;
-        spe = PR_Poll(&xpd, 1, PR_INTERVAL_NO_WAIT);
-        if (spe > 0) {
-            spe = PR_Read(signalpipe[0], &x, 1);
-            if (spe < 0) {
+        for(i = 0; i < the_connection_table->list_num; i++)
+        {
+            xpd.fd = signalpipes[i].signalpipe[0];
+            xpd.in_flags = PR_POLL_READ;
+            xpd.out_flags = 0;
+            spe = PR_Poll(&xpd, 1, PR_INTERVAL_NO_WAIT);
+            if (spe > 0) {
+                spe = PR_Read(signalpipes[i].signalpipe[0], &x, 1);
+                if (spe < 0) {
+                    PRErrorCode prerr = PR_GetError();
+                    slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon", "listener could not clear signal pipe, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                                  prerr, slapd_system_strerror(prerr));
+                    break;
+                }
+            } else if (spe == -1) {
                 PRErrorCode prerr = PR_GetError();
-                slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon", "listener could not clear signal pipe, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon", "PR_Poll() failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                               prerr, slapd_system_strerror(prerr));
                 break;
+            } else {
+                /* no data */
             }
-        } else if (spe == -1) {
-            PRErrorCode prerr = PR_GetError();
-            slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon", "PR_Poll() failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                          prerr, slapd_system_strerror(prerr));
-            break;
-        } else {
-            /* no data */
         }
         DS_Sleep(PR_INTERVAL_NO_WAIT);
         if (threads != g_get_active_threadcnt()) {
@@ -1283,30 +1268,99 @@ slapd_daemon(daemon_ports_t *ports)
     }
 }
 
+
+void
+ct_thread_cleanup(void)
+{
+    int i = 0;
+    int list_threads = the_connection_table->list_num;
+    slapi_log_err(SLAPI_LOG_INFO, "ct_thread_cleanup",
+                  "slapd shutting down - signaling connection table threads\n");
+
+    PR_AtomicIncrement(&ct_shutdown);
+    for (i = 0; i < list_threads; i++) {
+        g_decr_active_threadcnt();
+    }
+}
+
+void
+ct_list_thread(uint64_t threadnum)
+{
+    uint64_t threadid = (uint64_t) threadnum;
+
+       while (!ct_shutdown) {
+            int select_return = 0;
+            PRIntn num_poll = 0;
+            PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_ct_thread_wakeup_timer);
+            int connection_table_size = get_configured_connection_table_size();
+            PRErrorCode prerr;
+            num_poll = setup_pr_read_pds(the_connection_table, threadid);
+            select_return = POLL_FN(the_connection_table->fd[threadid], num_poll, pr_timeout);
+            switch (select_return) {
+            case 0: /* Timeout */
+                break;
+            case -1: /* Error */
+                prerr = PR_GetError();
+                slapi_log_err(SLAPI_LOG_TRACE, "ct_list_thread", "PR_Poll() failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                            prerr, slapd_system_strerror(prerr));
+                break;
+            default: /* some new data ready */
+                /* handle new data ready */
+                handle_pr_read_ready(the_connection_table, threadid, connection_table_size);
+                clear_signal(the_connection_table->fd[threadid], threadid);
+                break;
+            }
+       }
+}
+
+/* Create thread for each connection table list */
+void
+init_ct_list_threads(void)
+{
+    int ctlists = the_connection_table->list_num;
+
+    /* start the connection table threads, one thread per CT list */
+    for (uint64_t i = 0; i < ctlists; i++) {
+        if(PR_CreateThread(PR_SYSTEM_THREAD,
+                            (VFP)(void *)ct_list_thread, (void *) i,
+                            PR_PRIORITY_URGENT, PR_GLOBAL_THREAD,
+                            PR_JOINABLE_THREAD,
+                            SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL) {
+            int prerr = PR_GetError();
+            slapi_log_err(SLAPI_LOG_ERR, "init_ct_list_threads",
+                          "PR_CreateThread failed - Shutting Down (" SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                          prerr, slapd_pr_strerror(prerr));
+                          g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
+        } else {
+            g_incr_active_threadcnt();
+        }
+    }
+}
+
 int
-signal_listner()
+signal_listner(int list_num)
 {
     /* Replaces previous macro---called to bump the thread out of select */
-    if (write(writesignalpipe, "", 1) != 1) {
+    if (write(signalpipes[list_num].writesignalpipe, "", 1) != 1) {
         /* this now means that the pipe is full
-         * this is not a problem just go-on
-         */
+        * this is not a problem just go-on
+        */
         slapi_log_err(SLAPI_LOG_CONNS,
-                      "signal_listner", "Listener could not write to signal pipe %d\n",
-                      errno);
+                    "signal_listner", "Listener could not write to signal pipe %d\n",
+                    errno);
     }
     return (0);
 }
 
 static int
-clear_signal(struct POLL_STRUCT *fds)
+clear_signal(struct POLL_STRUCT *fds, int list_num)
 {
     if (fds[FDS_SIGNAL_PIPE].out_flags & SLAPD_POLL_FLAGS) {
         char buf[200];
 
-        slapi_log_err(SLAPI_LOG_CONNS, "clear_signal", "Listener got signaled\n");
-        if (read(readsignalpipe, buf, 200) < 1) {
-            slapi_log_err(SLAPI_LOG_ERR, "clear_signal", "Listener could not clear signal pipe\n");
+        if (read(signalpipes[list_num].readsignalpipe, buf, 200) < 1) {
+            slapi_log_err(SLAPI_LOG_ERR, "clear_signal", "Listener %d could not clear signal pipe\n",
+            list_num);
         }
     }
     return 0;
@@ -1407,18 +1461,21 @@ setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_uni
 static void
 setup_pr_ct_firsttime_pds(Connection_Table *ct)
 {
-    for (size_t i = 0; i < ct->size; i++) {
-        ct->c[i].c_fdi = SLAPD_INVALID_SOCKET_INDEX;
+    for (size_t j = 0; j < ct->list_num; j++) {
+        for (size_t i = 0; i < ct->size; i++) {
+            ct->c[j][i].c_fdi = SLAPD_INVALID_SOCKET_INDEX;
+        }
+
+        /* The fds entry for the signalpipe is always FDS_SIGNAL_PIPE (== 0) */
+        PRIntn count = FDS_SIGNAL_PIPE;
+        ct->fd[j][count].fd = signalpipes[j].signalpipe[0];
+        ct->fd[j][count].in_flags = SLAPD_POLL_FLAGS;
+        ct->fd[j][count].out_flags = 0;
     }
-    /* The fds entry for the signalpipe is always FDS_SIGNAL_PIPE (== 0) */
-    PRIntn count = FDS_SIGNAL_PIPE;
-    ct->fd[count].fd = signalpipe[0];
-    ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
-    ct->fd[count].out_flags = 0;
 }
 
 static PRIntn
-setup_pr_read_pds(Connection_Table *ct)
+setup_pr_read_pds(Connection_Table *ct, int listnum)
 {
     Connection *c = NULL;
     Connection *next = NULL;
@@ -1431,7 +1488,7 @@ setup_pr_read_pds(Connection_Table *ct)
      * out which connections we should poll over.  If a connection
      * is no longer in use, we should remove it from the linked
      * list. */
-    c = connection_table_get_first_active_connection(ct);
+    c = connection_table_get_first_active_connection(ct, listnum);
     while (c && count < ct->size) {
         next = connection_table_get_next_active_connection(ct, c);
         if (c->c_state == CONN_STATE_FREE) {
@@ -1467,8 +1524,8 @@ setup_pr_read_pds(Connection_Table *ct)
                         add_fd = 0; /* do not poll on this fd */
                     }
                     if (add_fd) {
-                        ct->fd[count].fd = c->c_prfd;
-                        ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
+                        ct->fd[listnum][count].fd = c->c_prfd;
+                        ct->fd[listnum][count].in_flags = SLAPD_POLL_FLAGS;
                         /* slot i of the connection table is mapped to slot
                          * count of the fds array */
                         c->c_fdi = count;
@@ -1510,7 +1567,7 @@ daemon_register_reslimits(void)
 }
 
 static void
-handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused)))
+handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attribute__((unused)))
 {
     Connection *c;
     time_t curtime = slapi_current_rel_time_t();
@@ -1526,7 +1583,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused
      * This function is called for all connections, so we traverse the entire
      * active connection list to find any errors, activity, etc.
      */
-    for (c = connection_table_get_first_active_connection(ct); c != NULL;
+    for (c = connection_table_get_first_active_connection(ct, list_num); c != NULL;
          c = connection_table_get_next_active_connection(ct, c)) {
         if (c->c_state != CONN_STATE_FREE) {
             /* this check can be done without acquiring the mutex */
@@ -1540,7 +1597,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused
                 short readready;
 
                 if (c->c_fdi != SLAPD_INVALID_SOCKET_INDEX) {
-                    out_flags = ct->fd[c->c_fdi].out_flags;
+                    out_flags = ct->fd[list_num][c->c_fdi].out_flags;
                 } else {
                     out_flags = 0;
                 }
@@ -1780,7 +1837,9 @@ handle_closed_connection(Connection *conn)
     ber_sockbuf_remove_io(conn->c_sb, &openldap_sockbuf_io, LBER_SBIOD_LEVEL_PROVIDER);
 }
 
-/* NOTE: this routine is not reentrant */
+/* NOTE: this routine is not reentrant
+ * this function returns the connection table list the new connection is in
+ */
 static int
 handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local, Connection **newconn)
 {
@@ -1890,7 +1949,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
      * This must be done as the very last thing before we unlock the mutex, because once it
      * is added to the active list, it is live. */
     if (conn != NULL && conn->c_next == NULL && conn->c_prev == NULL) {
-        /* Now give the new connection to the connection code */
+        /* Now give the new connection to the connection code*/
         connection_table_move_connection_on_to_active_list(the_connection_table, conn);
     }
 
@@ -1901,7 +1960,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
     if (newconn) {
         *newconn = conn;
     }
-    return 0;
+    return conn->c_ct_list;
 }
 
 static int
@@ -2370,28 +2429,34 @@ netaddr2string(const PRNetAddr *addr, char *addrbuf, size_t addrbuflen)
 
 
 static int
-createsignalpipe(void)
+createsignalpipe(int numsigpipes)
 {
-    if (PR_CreatePipe(&signalpipe[0], &signalpipe[1]) != 0) {
-        PRErrorCode prerr = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "createsignalpipe",
-                      "PR_CreatePipe() failed, %s error %d (%s)\n",
-                      SLAPI_COMPONENT_NAME_NSPR, prerr, slapd_pr_strerror(prerr));
-        return (-1);
-    }
-    writesignalpipe = PR_FileDesc2NativeHandle(signalpipe[1]);
-    readsignalpipe = PR_FileDesc2NativeHandle(signalpipe[0]);
-    if (fcntl(writesignalpipe, F_SETFD, O_NONBLOCK) == -1) {
-        slapi_log_err(SLAPI_LOG_ERR, "createsignalpipe",
-                      "Failed to set FD for write pipe (%d).\n", errno);
-    }
-    if (fcntl(readsignalpipe, F_SETFD, O_NONBLOCK) == -1) {
-        slapi_log_err(SLAPI_LOG_ERR, "createsignalpipe",
-                      "Failed to set FD for read pipe (%d).\n", errno);
+    int i;
+    /* there is a signal pipe for each ct list/thread mapping */
+    for (i = 0; i < numsigpipes; i++) {
+        if (PR_CreatePipe(&signalpipes[i].signalpipe[0], &signalpipes[i].signalpipe[1]) != 0) {
+            PRErrorCode prerr = PR_GetError();
+            slapi_log_err(SLAPI_LOG_ERR, "createsignalpipe",
+                          "PR_CreatePipe() failed, %s error %d (%s)\n",
+                          SLAPI_COMPONENT_NAME_NSPR, prerr, slapd_pr_strerror(prerr));
+            return (-1);
+        }
+
+        signalpipes[i].readsignalpipe = PR_FileDesc2NativeHandle(signalpipes[i].signalpipe[0]);
+        signalpipes[i].writesignalpipe = PR_FileDesc2NativeHandle(signalpipes[i].signalpipe[1]);
+
+        if (fcntl(signalpipes[i].readsignalpipe, F_SETFD, O_NONBLOCK) == -1) {
+            slapi_log_err(SLAPI_LOG_ERR, "createsignalpipe",
+                          "Failed to set FD for read pipe (%d).\n", errno);
+        }
+
+        if (fcntl(signalpipes[i].writesignalpipe, F_SETFD, O_NONBLOCK) == -1) {
+            slapi_log_err(SLAPI_LOG_ERR, "createsignalpipe",
+                          "Failed to set FD for write pipe (%d).\n", errno);
+        }
     }
     return (0);
 }
-
 
 #ifdef HPUX10
 #include <pthread.h> /* for sigwait */
@@ -2457,7 +2522,6 @@ get_configured_connection_table_size(void)
     if (maxdesc >= 0 && size > maxdesc) {
         size = maxdesc;
     }
-
     return size;
 }
 

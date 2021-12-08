@@ -1706,6 +1706,7 @@ typedef struct conn
     Conn_IO_Layer_cb c_pop_io_layer_cb;  /* callback to pop an IO layer off of the conn->c_prfd */
     void *c_io_layer_cb_data;        /* callback data */
     struct connection_table *c_ct;   /* connection table that this connection belongs to */
+    int c_ct_list;                   /* ct active list this conn is part of */
     int c_ns_close_jobs;             /* number of current close jobs */
     char *c_ipaddr;                  /* ip address str - used by monitor */
     /* per conn static config */
