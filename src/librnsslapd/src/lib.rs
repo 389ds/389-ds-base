@@ -7,7 +7,7 @@
 extern crate libc;
 use libc::c_char;
 use slapd;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 
 #[no_mangle]
 pub extern "C" fn do_nothing_again_rust() -> usize {
@@ -29,12 +29,7 @@ pub extern "C" fn fernet_generate_token(dn: *const c_char, raw_key: *const c_cha
                 Ok(tok) => {
                     // We have to move string memory ownership by copying so the system
                     // allocator has it.
-                    let raw = tok.into_raw();
-                    let dup_tok = unsafe { libc::strdup(raw) };
-                    unsafe {
-                        CString::from_raw(raw);
-                    };
-                    dup_tok
+                    unsafe { libc::strdup(tok.as_c_str().as_ptr()) }
                 }
                 Err(_) => std::ptr::null_mut(),
             }
