@@ -185,7 +185,7 @@ defbackend_bind(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_BIND_METHOD, &method);
     slapi_pblock_get(pb, SLAPI_BIND_CREDENTIALS, &cred);
     if (method == LDAP_AUTH_SIMPLE && cred->bv_len == 0) {
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsAnonymousBinds);
         rc = SLAPI_BIND_ANONYMOUS;
     } else {
         slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, DEFBE_NO_SUCH_SUFFIX);
