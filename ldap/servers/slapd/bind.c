@@ -331,7 +331,7 @@ do_bind(Slapi_PBlock *pb)
          * All SASL auth methods are categorized as strong binds,
          * although they are not necessarily stronger than simple.
          */
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsStrongAuthBinds);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsStrongAuthBinds);
         if (saslmech == NULL || *saslmech == '\0') {
             send_ldap_result(pb, LDAP_AUTH_METHOD_NOT_SUPPORTED, NULL,
                              "SASL mechanism absent", 0, NULL);
@@ -447,7 +447,7 @@ do_bind(Slapi_PBlock *pb)
         }
         break;
     case LDAP_AUTH_SIMPLE:
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsSimpleAuthBinds);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsSimpleAuthBinds);
 
         /* Check if the minimum SSF requirement has been met. */
         minssf = config_get_minssf();
@@ -464,16 +464,16 @@ do_bind(Slapi_PBlock *pb)
             send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                              "Minimum SSF not met.", 0, NULL);
             /* increment BindSecurityErrorcount */
-            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+            slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
             goto free_and_return;
         }
 
         /* accept null binds */
         if (dn == NULL || *dn == '\0') {
-            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds);
+            slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsAnonymousBinds);
             /* by definition anonymous is also unauthenticated so increment
                that counter */
-            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+            slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsUnAuthBinds);
 
             /* Refuse the operation if anonymous access is disabled.  We need to allow
              * an anonymous bind through if only root DSE anonymous access is set too. */
@@ -481,7 +481,7 @@ do_bind(Slapi_PBlock *pb)
                 send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL,
                                  "Anonymous access is not allowed", 0, NULL);
                 /* increment BindSecurityErrorcount */
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 goto free_and_return;
             }
 
@@ -505,14 +505,14 @@ do_bind(Slapi_PBlock *pb)
             /* Check if unauthenticated binds are allowed. */
         } else if (cred.bv_len == 0) {
             /* Increment unauthenticated bind counter */
-            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+            slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsUnAuthBinds);
 
             /* Refuse the operation if anonymous access is disabled. */
             if (config_get_anon_access_switch() != SLAPD_ANON_ACCESS_ON) {
                 send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL,
                                  "Anonymous access is not allowed", 0, NULL);
                 /* increment BindSecurityErrorcount */
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 goto free_and_return;
             }
 
@@ -524,7 +524,7 @@ do_bind(Slapi_PBlock *pb)
                 send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                                  "Unauthenticated binds are not allowed", 0, NULL);
                 /* increment BindSecurityErrorcount */
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 goto free_and_return;
             }
             /* Check if simple binds are allowed over an insecure channel.  We only check
@@ -553,7 +553,7 @@ do_bind(Slapi_PBlock *pb)
                 (sasl_ssf <= 1) && (local_ssf <= 1)) {
                 send_ldap_result(pb, LDAP_CONFIDENTIALITY_REQUIRED, NULL,
                                  "Operation requires a secure connection", 0, NULL);
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 goto free_and_return;
             }
         }
@@ -583,7 +583,7 @@ do_bind(Slapi_PBlock *pb)
             if (plugin_call_plugins(pb, SLAPI_PLUGIN_INTERNAL_PRE_BIND_FN) != 0) {
                 send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                                  "RootDN access control violation", 0, NULL);
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 value_done(&cv);
                 goto free_and_return;
             }
@@ -603,7 +603,7 @@ do_bind(Slapi_PBlock *pb)
                 slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Invalid credentials");
                 send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL);
                 /* increment BindSecurityErrorcount */
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 value_done(&cv);
                 goto free_and_return;
             }
@@ -842,11 +842,11 @@ do_bind(Slapi_PBlock *pb)
         account_locked:
             if (cred.bv_len == 0) {
                 /* its an UnAuthenticated Bind, DN specified but no pw */
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsUnAuthBinds);
             } else {
                 /* password must have been invalid */
                 /* increment BindSecurityError count */
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
             }
         }
 

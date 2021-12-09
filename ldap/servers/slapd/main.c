@@ -628,6 +628,9 @@ main(int argc, char **argv)
      * consideration of rust etc)
      */
     slapi_td_init();
+    
+    /* Init the global counters */
+    alloc_global_snmp_vars();
 
     if (mcfg.slapd_exemode == SLAPD_EXEMODE_REFERRAL) {
         slapdFrontendConfig = getFrontendConfig();
@@ -990,11 +993,6 @@ main(int argc, char **argv)
 
         eq_init(); /* DEPRECATED */
         eq_init_rel(); /* must be done before plugins started */
-
-        /* Start the SNMP collator if counters are enabled. */
-        if (config_get_slapi_counters()) {
-            snmp_collator_start();
-        }
 
         ps_init_psearch_system(); /* must come before plugin_startall() */
 

@@ -963,6 +963,11 @@ slapd_daemon(daemon_ports_t *ports)
 
     init_op_threads();
 
+    /* Start the SNMP collator if counters are enabled. */
+    if (config_get_slapi_counters()) {
+        snmp_collator_start();
+    }
+
     /*
      *  If we are monitoring disk space, then create the mutex, the cvar,
      *  and the monitoring thread.

@@ -1882,6 +1882,124 @@ g_get_slapd_security_on(void)
 }
 
 static struct snmp_vars_t global_snmp_vars;
+static PRUintn thread_private_snmp_vars_idx;
+/*
+ * https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSPR/Reference/PR_NewThreadPrivateIndex
+ * It is called each time:
+ *  - PR_SetThreadPrivate is called with a not NULL private value
+ *  - on thread exit
+ */
+static void
+snmp_vars_idx_free(void *ptr)
+{
+    int *idx = ptr;
+    if (idx) {
+        slapi_ch_free((void **)&idx);
+    }
+}
+/* Define a per thread private area that is used to store
+ * in the (workers) thread the index in per_thread_snmp_vars
+ * of the set of counters
+ */
+void
+init_thread_private_snmp_vars()
+{
+    if (PR_NewThreadPrivateIndex(&thread_private_snmp_vars_idx, snmp_vars_idx_free) != PR_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ALERT,
+              "init_thread_private_snmp_vars", "Failure to per thread snmp counters !\n");
+        PR_ASSERT(0);
+    }
+}
+int
+thread_private_snmp_vars_get_idx(void)
+{
+    int *idx;
+    idx = (int *) PR_GetThreadPrivate(thread_private_snmp_vars_idx);
+    if (idx == NULL) {
+        /* if it was not initialized set it to zero */
+        return 0;
+    }
+    return *idx;
+}
+void
+thread_private_snmp_vars_set_idx(int32_t idx)
+{
+    int *val;
+    val = (int32_t *) PR_GetThreadPrivate(thread_private_snmp_vars_idx);
+    if (val == NULL) {
+        /* if it was not initialized set it to zero */
+        val = (int *) slapi_ch_calloc(1, sizeof(int32_t));
+        PR_SetThreadPrivate(thread_private_snmp_vars_idx, (void *) val);
+    }
+    *val = idx;
+}
+
+static struct snmp_vars_t *per_thread_snmp_vars = NULL; /* array of counters */
+static int max_slots_snmp_vars = 0;                     /* no slots array of counters */
+struct snmp_vars_t *
+g_get_per_thread_snmp_vars(void)
+{
+    int thread_vars = thread_private_snmp_vars_get_idx();
+    if (thread_vars < 0 || thread_vars >= max_slots_snmp_vars) {
+        /* fallback to the global one */
+        thread_vars = 0;
+    }
+    return &per_thread_snmp_vars[thread_vars];
+}
+
+
+struct snmp_vars_t *
+g_get_first_thread_snmp_vars(int *cookie)
+{
+    *cookie = 0;
+    if (max_slots_snmp_vars == 0) {
+        /* not yet initialized */
+        return NULL;
+    }
+    return &per_thread_snmp_vars[0];
+}
+
+struct snmp_vars_t *
+g_get_next_thread_snmp_vars(int *cookie)
+{
+    int index = *cookie;
+    if (index < 0 || index >= (max_slots_snmp_vars - 1)) {
+        return NULL;
+    }
+    *cookie = index + 1;
+    return &per_thread_snmp_vars[index + 1];
+}
+
+/* Allocated the first slot of arrays of counters
+ * The first slot contains counters that are not specific to counters
+ */
+struct snmp_vars_t *
+alloc_global_snmp_vars()
+{
+    PR_ASSERT(max_slots_snmp_vars == 0);
+    if (max_slots_snmp_vars == 0) {
+        max_slots_snmp_vars = 1;
+        per_thread_snmp_vars = (struct snmp_vars_t *) slapi_ch_calloc(max_slots_snmp_vars, sizeof(struct snmp_vars_t));
+    }
+
+}
+
+/* Allocated the next slots of the arrays of counters
+ * with a slot per worker thread
+ */
+struct snmp_vars_t *
+alloc_per_thread_snmp_vars(int32_t maxthread)
+{
+    PR_ASSERT(max_slots_snmp_vars == 1);
+    if (max_slots_snmp_vars == 1) {
+        max_slots_snmp_vars += maxthread; /* one extra slot for the global counters */
+        per_thread_snmp_vars = (struct snmp_vars_t *) slapi_ch_realloc((char *) per_thread_snmp_vars,
+                                                                       max_slots_snmp_vars * sizeof (struct snmp_vars_t));
+
+        /* make sure to zeroed the new alloacted counters */
+        memset(&per_thread_snmp_vars[1], 0, (max_slots_snmp_vars - 1) * sizeof (struct snmp_vars_t));
+    }
+}
 
 struct snmp_vars_t *
 g_get_global_snmp_vars(void)

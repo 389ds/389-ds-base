@@ -1041,9 +1041,9 @@ void reslimit_cleanup(void);
 /*
  * result.c
  */
-void g_set_num_entries_sent(Slapi_Counter *counter);
+PRUint64 g_get_num_ops_initiated(void);
+PRUint64 g_get_num_ops_completed(void);
 PRUint64 g_get_num_entries_sent(void);
-void g_set_num_bytes_sent(Slapi_Counter *counter);
 PRUint64 g_get_num_bytes_sent(void);
 void g_set_default_referral(struct berval **ldap_url);
 struct berval **g_get_default_referral(void);
@@ -1265,6 +1265,13 @@ int c_get_shutdown(void);
 int g_get_global_lastmod(void);
 /* Ref_Array *g_get_global_referrals(void); */
 struct snmp_vars_t *g_get_global_snmp_vars(void);
+struct snmp_vars_t *alloc_global_snmp_vars();
+struct snmp_vars_t *alloc_per_thread_snmp_vars(int32_t maxthread);
+void thread_private_snmp_vars_set_idx(int32_t idx);
+struct snmp_vars_t *g_get_per_thread_snmp_vars(void);
+struct snmp_vars_t *g_get_first_thread_snmp_vars(int *cookie);
+struct snmp_vars_t *g_get_next_thread_snmp_vars(int *cookie);
+void init_thread_private_snmp_vars();
 void FrontendConfig_init(void);
 int g_get_slapd_security_on(void);
 char *config_get_versionstring(void);
