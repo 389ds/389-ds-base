@@ -1,5 +1,5 @@
 // This exposes C-FFI capable bindings for the concread concurrently readable cache.
-use concread::arcache::{ARCache, ARCacheReadTxn, ARCacheWriteTxn};
+use concread::arcache::{ARCache, ARCacheBuilder, ARCacheReadTxn, ARCacheWriteTxn};
 use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ffi::{CStr, CString};
@@ -19,9 +19,12 @@ pub struct ARCacheCharWrite<'a> {
 
 #[no_mangle]
 pub extern "C" fn cache_char_create(max: usize, read_max: usize) -> *mut ARCacheChar {
-    let cache: Box<ARCacheChar> = Box::new(ARCacheChar {
-        inner: ARCache::new_size(max, read_max),
-    });
+    let inner = if let Some(cache) = ARCacheBuilder::new().set_size(max, read_max).build() {
+        cache
+    } else {
+        return std::ptr::null_mut();
+    };
+    let cache: Box<ARCacheChar> = Box::new(ARCacheChar { inner });
     Box::into_raw(cache)
 }
 
@@ -58,7 +61,9 @@ pub extern "C" fn cache_char_stats(
     *reader_hits = stats.reader_hits.try_into().unwrap();
     *reader_includes = stats.reader_includes.try_into().unwrap();
     *write_hits = stats.write_hits.try_into().unwrap();
-    *write_inc_or_mod = stats.write_inc_or_mod.try_into().unwrap();
+    *write_inc_or_mod = (stats.write_includes + stats.write_modifies)
+        .try_into()
+        .unwrap();
     *shared_max = stats.shared_max.try_into().unwrap();
     *freq = stats.freq.try_into().unwrap();
     *recent = stats.recent.try_into().unwrap();
