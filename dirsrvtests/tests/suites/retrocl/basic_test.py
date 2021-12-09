@@ -16,7 +16,7 @@ from lib389.utils import *
 from lib389.tasks import *
 from lib389.cli_base import FakeArgs, connect_instance, disconnect_instance
 from lib389.cli_base.dsrc import dsrc_arg_concat
-from lib389.cli_conf.plugins.retrochangelog import retrochangelog_add_attr
+from lib389.cli_conf.plugins.retrochangelog import retrochangelog_add
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.domain import Domain
 from lib389._mapped_object import DSLdapObjects
@@ -119,7 +119,7 @@ def test_retrocl_exclude_attr_add(topology_st):
     args.bindpw = None
     args.prompt = False
     args.exclude_attrs = ATTR_HOMEPHONE
-    args.func = retrochangelog_add_attr
+    args.func = retrochangelog_add
     dsrc_inst = dsrc_arg_concat(args, None)
     inst = connect_instance(dsrc_inst, False, args)
     result = args.func(inst, None, log, args)
@@ -252,7 +252,7 @@ def test_retrocl_exclude_attr_mod(topology_st):
     args.bindpw = None
     args.prompt = False
     args.exclude_attrs = ATTR_CARLICENSE
-    args.func = retrochangelog_add_attr
+    args.func = retrochangelog_add
     dsrc_inst = dsrc_arg_concat(args, None)
     inst = connect_instance(dsrc_inst, False, args)
     result = args.func(inst, None, log, args)
