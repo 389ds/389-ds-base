@@ -77,7 +77,7 @@ do_add(Slapi_PBlock *pb)
     ber = operation->o_ber;
 
     /* count the add request */
-    slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsAddEntryOps);
+    slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsAddEntryOps);
 
     /*
      * Parse the add request.  It looks like this:

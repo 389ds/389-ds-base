@@ -56,7 +56,7 @@ do_modrdn(Slapi_PBlock *pb)
     slapi_log_err(SLAPI_LOG_TRACE, "do_modrdn", "=>\n");
 
     /* count the modrdn request */
-    slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsModifyRDNOps);
+    slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsModifyRDNOps);
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
     ber = operation->o_ber;

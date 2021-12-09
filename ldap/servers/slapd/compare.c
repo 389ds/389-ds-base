@@ -67,7 +67,7 @@ do_compare(Slapi_PBlock *pb)
     ber = pb_op->o_ber;
 
     /* count the compare request */
-    slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsCompareOps);
+    slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsCompareOps);
 
     /*
      * Parse the compare request.  It looks like this:
