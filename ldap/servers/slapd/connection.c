@@ -28,7 +28,7 @@
 #endif
 
 typedef Connection work_q_item;
-static void connection_threadmain(void);
+static void connection_threadmain(void *arg);
 static void connection_add_operation(Connection *conn, Operation *op);
 static void connection_free_private_buffer(Connection *conn);
 static void op_copy_identity(Connection *conn, Operation *op);
@@ -277,8 +277,8 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     conn->c_connid = slapi_counter_increment(num_conns);
 
     if (!in_referral_mode) {
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq);
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnections);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionSeq);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsConnections);
     }
 
     /*
@@ -429,6 +429,7 @@ init_op_threads()
     pthread_condattr_t condAttr;
     int32_t max_threads = config_get_threadnumber();
     int32_t rc;
+    int32_t *threads_indexes;
 
     /* Initialize the locks and cv */
     if ((rc = pthread_mutex_init(&work_q_lock, NULL)) != 0) {
@@ -457,12 +458,20 @@ init_op_threads()
 
     work_q_stack = PR_CreateStack("connection_work_q");
     op_stack = PR_CreateStack("connection_operation");
+    alloc_per_thread_snmp_vars(max_threads);
+    init_thread_private_snmp_vars();
+    
 
+    threads_indexes = (int32_t *) slapi_ch_calloc(max_threads, sizeof(int32_t));
+    for (size_t i = 0; i < max_threads; i++) {
+        threads_indexes[i] = i + 1; /* idx 0 is reserved for global snmp_vars */
+    }
+    
     /* start the operation threads */
     for (size_t i = 0; i < max_threads; i++) {
         PR_SetConcurrency(4);
         if (PR_CreateThread(PR_USER_THREAD,
-                            (VFP)(void *)connection_threadmain, NULL,
+                            (VFP)(void *)connection_threadmain, (void *) &threads_indexes[i],
                             PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                             PR_UNJOINABLE_THREAD,
                             SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL) {
@@ -474,6 +483,10 @@ init_op_threads()
             g_incr_active_threadcnt();
         }
     }
+    /* Here we should free thread_indexes, but because of the dynamic of the new
+     * threads (connection_threadmain) we are not sure when it can be freed.
+     * Let's accept that unique initialization leak (typically 32 to 64 bytes)
+     */
 }
 
 static void
@@ -1477,9 +1490,10 @@ connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int *new_
 }
 
 static void
-connection_threadmain()
+connection_threadmain(void *arg)
 {
     Slapi_PBlock *pb = slapi_pblock_new();
+    int32_t *snmp_vars_idx = (int32_t *) arg;
     /* wait forever for new pb until one is available or shutdown */
     int32_t interval = 0; /* used be  10 seconds */
     Connection *conn = NULL;
@@ -1497,6 +1511,7 @@ connection_threadmain()
     /* Arrange to ignore SIGPIPE signals. */
     SIGNAL(SIGPIPE, SIG_IGN);
 #endif
+    thread_private_snmp_vars_set_idx(*snmp_vars_idx);
 
     while (1) {
         int is_timedout = 0;
@@ -1598,8 +1613,8 @@ connection_threadmain()
             }
             pthread_mutex_unlock(&(conn->c_mutex));
             if (!config_check_referral_mode()) {
-                slapi_counter_increment(ops_initiated);
-                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsInOps);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpInitiated);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsInOps);
             }
         }
         /* Once we're here we have a pb */
@@ -1791,7 +1806,7 @@ connection_threadmain()
             connection_make_readable_nolock(conn);
             conn->c_threadnumber--;
             slapi_counter_decrement(conns_in_maxthreads);
-            slapi_counter_decrement(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+            slapi_counter_decrement(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
             connection_release_nolock(conn);
             pthread_mutex_unlock(&(conn->c_mutex));
             signal_listner();
@@ -1808,7 +1823,7 @@ connection_threadmain()
         /* number of ops on this connection */
         PR_AtomicIncrement(&conn->c_opscompleted);
         /* total number of ops for the server */
-        slapi_counter_increment(ops_completed);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpCompleted);
         /* If this op isn't a persistent search, remove it */
         if (op->o_flags & OP_FLAG_PS) {
             /* Release the connection (i.e. decrease refcnt) at the condition
@@ -1870,7 +1885,7 @@ connection_threadmain()
                     if (conn->c_threadnumber == maxthreads) {
                         conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
                         slapi_counter_decrement(conns_in_maxthreads);
-                        slapi_counter_decrement(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+                        slapi_counter_decrement(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
                     }
                     conn->c_threadnumber--;
                     connection_release_nolock(conn);
@@ -1916,8 +1931,8 @@ connection_activity(Connection *conn, int maxthreads)
         conn->c_maxthreadscount++;
         slapi_counter_increment(max_threads_count);
         slapi_counter_increment(conns_in_maxthreads);
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsMaxThreadsHits);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsMaxThreadsHits);
     }
     op_stack_obj = connection_get_operation();
     connection_add_operation(conn, op_stack_obj->op);
@@ -1926,8 +1941,8 @@ connection_activity(Connection *conn, int maxthreads)
     add_work_q((work_q_item *)conn, op_stack_obj);
 
     if (!config_check_referral_mode()) {
-        slapi_counter_increment(ops_initiated);
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsInOps);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpInitiated);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsInOps);
     }
     return 0;
 }
@@ -2312,7 +2327,7 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
         }
 
         if (!config_check_referral_mode()) {
-            slapi_counter_decrement(g_get_global_snmp_vars()->ops_tbl.dsConnections);
+            slapi_counter_decrement(g_get_per_thread_snmp_vars()->ops_tbl.dsConnections);
         }
 
         conn->c_gettingber = 0;

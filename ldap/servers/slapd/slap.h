@@ -1977,6 +1977,14 @@ struct snmp_entries_tbl_t
     Slapi_Counter *dsSlaveHits;
 };
 
+struct snmp_server_tbl_t
+{
+    /* general purpose counters */
+    Slapi_Counter *dsOpInitiated;
+    Slapi_Counter *dsOpCompleted;
+    Slapi_Counter *dsEntriesSent;
+    Slapi_Counter *dsBytesSent;
+};
 struct snmp_int_tbl_t
 {
     /* interaction table */
@@ -1996,6 +2004,7 @@ struct snmp_vars_t
 {
     struct snmp_ops_tbl_t ops_tbl;
     struct snmp_entries_tbl_t entries_tbl;
+    struct snmp_server_tbl_t server_tbl;
     struct snmp_int_tbl_t int_tbl[NUM_SNMP_INT_TBL_ROWS];
 };
 

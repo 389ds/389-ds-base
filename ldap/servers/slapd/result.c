@@ -53,28 +53,61 @@ static char *op_to_string(int tag);
 #define SLAPI_SEND_VATTR_FLAG_REALONLY 0x01
 #define SLAPI_SEND_VATTR_FLAG_VIRTUALONLY 0x02
 
-void
-g_set_num_entries_sent(Slapi_Counter *counter)
+
+PRUint64
+g_get_num_ops_initiated()
 {
-    num_entries_sent = counter;
+    int cookie;
+    struct snmp_vars_t *snmp_vars;
+    PRUint64 total;
+    for (total = 0, snmp_vars = g_get_first_thread_snmp_vars(&cookie); snmp_vars; snmp_vars = g_get_next_thread_snmp_vars(&cookie)) {
+        if (snmp_vars->server_tbl.dsOpInitiated) {
+            total += slapi_counter_get_value(snmp_vars->server_tbl.dsOpInitiated);
+        }
+    }
+    return (total);
+}
+
+PRUint64
+g_get_num_ops_completed()
+{
+    int cookie;
+    struct snmp_vars_t *snmp_vars;
+    PRUint64 total;
+    for (total = 0, snmp_vars = g_get_first_thread_snmp_vars(&cookie); snmp_vars; snmp_vars = g_get_next_thread_snmp_vars(&cookie)) {
+        if (snmp_vars->server_tbl.dsOpCompleted) {
+            total += slapi_counter_get_value(snmp_vars->server_tbl.dsOpCompleted);
+        }
+    }
+    return (total);
 }
 
 PRUint64
 g_get_num_entries_sent()
 {
-    return (slapi_counter_get_value(num_entries_sent));
-}
-
-void
-g_set_num_bytes_sent(Slapi_Counter *counter)
-{
-    num_bytes_sent = counter;
+    int cookie;
+    struct snmp_vars_t *snmp_vars;
+    PRUint64 total;
+    for (total = 0, snmp_vars = g_get_first_thread_snmp_vars(&cookie); snmp_vars; snmp_vars = g_get_next_thread_snmp_vars(&cookie)) {
+        if (snmp_vars->server_tbl.dsEntriesSent) {
+            total += slapi_counter_get_value(snmp_vars->server_tbl.dsEntriesSent);
+        }
+    }
+    return (total);
 }
 
 PRUint64
 g_get_num_bytes_sent()
 {
-    return (slapi_counter_get_value(num_bytes_sent));
+    int cookie;
+    struct snmp_vars_t *snmp_vars;
+    PRUint64 total;
+    for (total = 0, snmp_vars = g_get_first_thread_snmp_vars(&cookie); snmp_vars; snmp_vars = g_get_next_thread_snmp_vars(&cookie)) {
+        if (snmp_vars->server_tbl.dsBytesSent) {
+            total += slapi_counter_get_value(snmp_vars->server_tbl.dsBytesSent);
+        }
+    }
+    return (total);
 }
 
 static void
@@ -375,14 +408,14 @@ send_ldap_result_ext(
         /* count the error for snmp */
         /* first check for security errors */
         if (err == LDAP_INVALID_CREDENTIALS || err == LDAP_INAPPROPRIATE_AUTH || err == LDAP_AUTH_METHOD_NOT_SUPPORTED || err == LDAP_STRONG_AUTH_NOT_SUPPORTED || err == LDAP_STRONG_AUTH_REQUIRED || err == LDAP_CONFIDENTIALITY_REQUIRED || err == LDAP_INSUFFICIENT_ACCESS || err == LDAP_AUTH_UNKNOWN) {
-            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsSecurityErrors);
+            slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsSecurityErrors);
         } else if (err != LDAP_REFERRAL && err != LDAP_OPT_REFERRALS && err != LDAP_PARTIAL_RESULTS) {
             /*madman man spec says not to count as normal errors
                 --security errors
                 --referrals
                 -- partially seviced operations will not be conted as an error
                       */
-            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsErrors);
+            slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsErrors);
         }
     }
 
@@ -467,7 +500,7 @@ send_ldap_result_ext(
             int len;
 
             /* count the referral */
-            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsReferrals);
+            slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsReferrals);
 
             /*
              * figure out how much space we need
@@ -539,7 +572,7 @@ send_ldap_result_ext(
          */
         /* count the referral */
         if (!config_check_referral_mode())
-            slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsReferrals);
+            slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsReferrals);
         rc = ber_printf(ber, "{it{esst{s", operation->o_msgid, tag, err,
                         matched ? matched : "", text ? text : "", LDAP_TAG_REFERRAL,
                         urls[0]->bv_val);
@@ -910,7 +943,7 @@ send_ldap_referral(
     Connection *pb_conn;
 
     /* count the referral */
-    slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsReferrals);
+    slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsReferrals);
 
     attrs[0] = refAttr;
     if (e != NULL &&
@@ -1796,13 +1829,13 @@ flush_ber(
             slapi_log_err(SLAPI_LOG_BER, "flush_ber",
                           "Wrote %lu bytes to socket %d\n", bytes, conn->c_sd);
             LL_I2L(b, bytes);
-            slapi_counter_add(num_bytes_sent, b);
+            slapi_counter_add(g_get_per_thread_snmp_vars()->server_tbl.dsBytesSent, b);
 
             if (type == _LDAP_SEND_ENTRY) {
-                slapi_counter_increment(num_entries_sent);
+                slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsEntriesSent);
             }
             if (!config_check_referral_mode())
-                slapi_counter_add(g_get_global_snmp_vars()->ops_tbl.dsBytesSent, bytes);
+                slapi_counter_add(g_get_per_thread_snmp_vars()->ops_tbl.dsBytesSent, bytes);
         }
     }
 
@@ -1811,11 +1844,11 @@ flush_ber(
         plugin_call_plugins(pb, SLAPI_PLUGIN_POST_RESULT_FN);
         break;
     case _LDAP_SEND_REFERRAL:
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsReferralsReturned);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsReferralsReturned);
         plugin_call_plugins(pb, SLAPI_PLUGIN_POST_REFERRAL_FN);
         break;
     case _LDAP_SEND_ENTRY:
-        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsEntriesReturned);
+        slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsEntriesReturned);
         plugin_call_plugins(pb, SLAPI_PLUGIN_POST_ENTRY_FN);
         break;
     case _LDAP_SEND_INTERMED:
