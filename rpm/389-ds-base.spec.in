@@ -394,7 +394,7 @@ autoreconf -fiv
            --enable-cmocka
 
 # Avoid "Unknown key name 'XXX' in section 'Service', ignoring." warnings from systemd on older releases
-%if 0%{?rhel} < 9
+%if 0%{?rhel} && 0%{?rhel} < 9
   sed -r -i '/^(Protect(Home|Hostname|KernelLogs)|PrivateMounts)=/d' %{_builddir}/%{name}-%{version}%{?prerel}/wrappers/*.service.in
 %endif
 
