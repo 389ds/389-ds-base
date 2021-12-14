@@ -486,6 +486,8 @@ agmt_new_from_entry(Slapi_Entry *e)
             ra->agreement_type = REPLICA_TYPE_WINDOWS;
             windows_init_agreement_from_entry(ra, e);
         } else {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                          "agmt_new_from_entry: type -> %d\n", replica_get_type(replica));
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                           "agmt_new_from_entry: failed to initialise windows replication"
                           "agreement \"%s\" - replica is not a supplier (may be hub or consumer).\n",

@@ -776,14 +776,26 @@ send_dirsync_search(Repl_Connection *conn)
         slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name, "send_dirsync_search - Calling dirsync search request plugin\n");
         userfilter = windows_private_get_windows_userfilter(conn->agmt);
         if (userfilter) {
-            filter = slapi_ch_strdup(userfilter);
+            /*
+             * When we have a userfilter, we encounter an issue where a previously
+             * matching object that is *deleted* that we had synced, was not being
+             * deleted. This is because in the unfiltered case, we relied on the
+             * objectClass=*  to get everything, but when we apply a filter we are
+             * removing items that were deleted, especially if they were members of
+             * a group. As a result, we need to *always* request the isDeleted flag
+             * so that we can correct delete any remnants on our side.
+             */
+            size_t buflen = 18 + strlen(userfilter);
+            filter = slapi_ch_calloc(1, buflen);
+            snprintf(filter, buflen, "(|(isDeleted=*)%s)", userfilter);
         } else {
             filter = slapi_ch_strdup("(objectclass=*)");
         }
 
         winsync_plugin_call_dirsync_search_params_cb(conn->agmt, old_dn, &dn, &scope, &filter,
                                                      &attrs, &server_controls);
-        slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name, "send_dirsync_search - Sending dirsync search request\n");
+        slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name, "send_dirsync_search - Sending dirsync search request %s %d %s\n",
+            dn, scope, filter);
 
         rc = ldap_search_ext(conn->ld, dn, scope, filter, attrs, PR_FALSE, server_controls,
                              NULL /* ClientControls */, 0, 0, &msgid);
