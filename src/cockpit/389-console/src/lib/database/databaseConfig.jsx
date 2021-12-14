@@ -82,7 +82,7 @@ export class GlobalDatabaseConfig extends React.Component {
             });
         };
 
-        this.maxValue = 2000000000;
+        this.maxValue = 2147483647;
         this.onMinusConfig = (id) => {
             this.setState({
                 [id]: Number(this.state[id]) - 1
@@ -358,10 +358,10 @@ export class GlobalDatabaseConfig extends React.Component {
                         <GridItem span={8}>
                             <NumberInput
                                 value={dblocksPause}
-                                min={1}
+                                min={0}
                                 max={this.maxValue}
                                 onMinus={() => { this.onMinusConfig("dblocksMonitoringPause") }}
-                                onChange={(e) => { this.onConfigChange(e, "dblocksMonitoringPause", 1, 0) }}
+                                onChange={(e) => { this.onConfigChange(e, "dblocksMonitoringPause", 0, 0) }}
                                 onPlus={() => { this.onPlusConfig("dblocksMonitoringPause") }}
                                 inputName="input"
                                 inputAriaLabel="number input"
@@ -378,7 +378,7 @@ export class GlobalDatabaseConfig extends React.Component {
             db_cache_form =
                 <div className="ds-margin-left">
                     <Grid
-                        title="Enable database and entry cache auto-tuning using a percentage of the system's current resources (nsslapd-cache-autosize)."
+                        title="Enable database and entry cache auto-tuning using a percentage of the system's current resources (nsslapd-cache-autosize). If 0 is set, the default value is used instead."
                         className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={6}>
@@ -387,10 +387,10 @@ export class GlobalDatabaseConfig extends React.Component {
                         <GridItem span={6}>
                             <NumberInput
                                 value={this.state.autosize}
-                                min={1}
+                                min={0}
                                 max={100}
                                 onMinus={() => { this.onMinusConfig("autosize") }}
-                                onChange={(e) => { this.onConfigChange(e, "autosize", 1, 100) }}
+                                onChange={(e) => { this.onConfigChange(e, "autosize", 0, 100) }}
                                 onPlus={() => { this.onPlusConfig("autosize") }}
                                 inputName="input"
                                 inputAriaLabel="number input"
@@ -402,7 +402,7 @@ export class GlobalDatabaseConfig extends React.Component {
                         </GridItem>
                     </Grid>
                     <Grid
-                        title="Sets the percentage of memory that is used for the database cache. The remaining percentage is used for the entry cache (nsslapd-cache-autosize-split)."
+                        title="Sets the percentage of memory that is used for the database cache. The remaining percentage is used for the entry cache (nsslapd-cache-autosize-split). If 0 is set, the default value is used instead."
                         className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={6}>
@@ -412,9 +412,9 @@ export class GlobalDatabaseConfig extends React.Component {
                             <NumberInput
                                 value={this.state.autosizesplit}
                                 min={1}
-                                max={100}
+                                max={99}
                                 onMinus={() => { this.onMinusConfig("autosizesplit") }}
-                                onChange={(e) => { this.onConfigChange(e, "autosizesplit", 1, 100) }}
+                                onChange={(e) => { this.onConfigChange(e, "autosizesplit", 1, 99) }}
                                 onPlus={() => { this.onPlusConfig("autosizesplit") }}
                                 inputName="input"
                                 inputAriaLabel="number input"
@@ -577,10 +577,10 @@ export class GlobalDatabaseConfig extends React.Component {
                         <GridItem span={8}>
                             <NumberInput
                                 value={this.state.idscanlimit}
-                                min={1}
+                                min={100}
                                 max={this.maxValue}
                                 onMinus={() => { this.onMinusConfig("idscanlimit") }}
-                                onChange={(e) => { this.onConfigChange(e, "idscanlimit", 1, 0) }}
+                                onChange={(e) => { this.onConfigChange(e, "idscanlimit", 100, 0) }}
                                 onPlus={() => { this.onPlusConfig("idscanlimit") }}
                                 inputName="input"
                                 inputAriaLabel="number input"
@@ -765,7 +765,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval).  The default is 30 days at midnight."
+                                title="The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval). The default is 30 days at midnight. 0 is no compaction."
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={4}>
@@ -774,10 +774,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 <GridItem span={8}>
                                     <NumberInput
                                         value={this.state.compactinterval}
-                                        min={1}
+                                        min={0}
                                         max={this.maxValue}
                                         onMinus={() => { this.onMinusConfig("compactinterval") }}
-                                        onChange={(e) => { this.onConfigChange(e, "compactinterval", 1, 0) }}
+                                        onChange={(e) => { this.onConfigChange(e, "compactinterval", 0, 0) }}
                                         onPlus={() => { this.onPlusConfig("compactinterval") }}
                                         inputName="input"
                                         inputAriaLabel="number input"
@@ -797,10 +797,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 <GridItem span={8}>
                                     <NumberInput
                                         value={this.state.chxpoint}
-                                        min={1}
-                                        max={this.maxValue}
+                                        min={10}
+                                        max={300}
                                         onMinus={() => { this.onMinusConfig("chxpoint") }}
-                                        onChange={(e) => { this.onConfigChange(e, "chxpoint", 1, 0) }}
+                                        onChange={(e) => { this.onConfigChange(e, "chxpoint", 10, 0) }}
                                         onPlus={() => { this.onPlusConfig("chxpoint") }}
                                         inputName="input"
                                         inputAriaLabel="number input"

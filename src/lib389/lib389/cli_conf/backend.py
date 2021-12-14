@@ -30,6 +30,7 @@ from lib389.cli_base import (
     )
 import json
 import ldap
+from ldap.dn import str2dn
 
 arg_to_attr = {
         'lookthroughlimit': 'nsslapd-lookthroughlimit',
@@ -93,7 +94,7 @@ def _search_backend_dn(inst, be_name):
         cn = ensure_str(be.get_attr_val('cn')).lower()
         suffix = ensure_str(be.get_attr_val('nsslapd-suffix')).lower()
         del_be_name = be_name.lower()
-        if cn == del_be_name or suffix == del_be_name:
+        if cn == del_be_name or str2dn(suffix) == str2dn(del_be_name):
             dn = be.dn
             found = True
             break
@@ -106,7 +107,7 @@ def _get_backend(inst, name):
     for be in be_insts:
         be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix')).lower()
         cn = ensure_str(be.get_attr_val_utf8_l('cn')).lower()
-        if be_suffix == name.lower() or cn == name.lower():
+        if str2dn(be_suffix) == str2dn(name.lower()) or cn == name.lower():
             return be
 
     raise ValueError('Could not find backend suffix: {}'.format(name))
@@ -117,7 +118,7 @@ def _get_index(inst, bename, attr):
     for be in be_insts:
         be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix'))
         cn = ensure_str(be.get_attr_val_utf8_l('cn')).lower()
-        if be_suffix == bename.lower() or cn == bename.lower():
+        if str2dn(be_suffix) == str2dn(bename.lower()) or cn == bename.lower():
             for index in be.get_indexes().list():
                 idx_name = index.get_attr_val_utf8_l('cn').lower()
                 if idx_name == attr.lower():

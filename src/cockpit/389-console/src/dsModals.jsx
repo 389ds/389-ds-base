@@ -322,7 +322,7 @@ export class CreateInstanceModal extends React.Component {
                                              */
                                             const cmd = [
                                                 '/bin/sh', '-c',
-                                                '/usr/bin/echo -e "' + setup_inf + '" >> ' + setup_file
+                                                '/usr/bin/echo -e \'' + setup_inf + '\' >> ' + setup_file
                                             ];
 
                                             // Do not log inf file as it contains the DM password
@@ -357,7 +357,7 @@ export class CreateInstanceModal extends React.Component {
                                                                     });
                                                                     addNotification(
                                                                         "error",
-                                                                        `${errMsg}`
+                                                                        `${errMsg.desc}`
                                                                     );
                                                                 })
                                                                 .done(_ => {
@@ -927,7 +927,32 @@ export class ManageBackupsModal extends React.Component {
                                 .done(content => {
                                     this.props.reload();
                                     this.closeBackupModal();
-                                    this.props.addNotification("success", `Server has been backed up`);
+                                    const cmd = [
+                                        "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                                        "config", "get", "nsslapd-bakdir"
+                                    ];
+                                    log_cmd("doBackup", "Get the backup directory", cmd);
+                                    cockpit
+                                            .spawn(cmd, { superuser: true, err: "message" })
+                                            .done(content => {
+                                                const config = JSON.parse(content);
+                                                const attrs = config.attrs;
+                                                this.props.addNotification(
+                                                    "success",
+                                                    `Server has been backed up. You can find the backup in ${attrs['nsslapd-bakdir'][0]} directory on the server machine.`
+                                                );
+                                            })
+                                            .fail(err => {
+                                                const errMsg = JSON.parse(err);
+                                                this.props.addNotification(
+                                                    "success",
+                                                    `Server has been backed up.`
+                                                );
+                                                this.props.addNotification(
+                                                    "error",
+                                                    `Error while trying to get the server's backup directory- ${errMsg.desc}`
+                                                );
+                                            });
                                 })
                                 .fail(err => {
                                     const errMsg = JSON.parse(err);
