@@ -395,7 +395,7 @@ autoreconf -fiv
 
 # Avoid "Unknown key name 'XXX' in section 'Service', ignoring." warnings from systemd on older releases
 %if 0%{?rhel} < 9
-  sed -r -i '/^(Protect(Home|Hostname|KernelLogs)|PrivateMounts)=/d' src/unit/fonehome.service
+  sed -r -i '/^(Protect(Home|Hostname|KernelLogs)|PrivateMounts)=/d' %{_builddir}/%{name}-%{version}%{?prerel}/wrappers/*.service.in
 %endif
 
 %if 0%{?rhel} > 7 || 0%{?fedora}
