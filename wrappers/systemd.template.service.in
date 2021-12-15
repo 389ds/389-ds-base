@@ -16,6 +16,19 @@ PIDFile=/run/@package_name@/slapd-%i.pid
 ExecStartPre=@libexecdir@/ds_systemd_ask_password_acl @instconfigdir@/slapd-%i/dse.ldif
 ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i /run/@package_name@/slapd-%i.pid
 PrivateTmp=on
+# https://en.opensuse.org/openSUSE:Security_Features#Systemd_hardening_effort
+ProtectSystem=full
+# Protectsystem full mounts /etc ro, so we need to allow /etc/dirsrv to be writeable here.
+ReadWritePaths=@instconfigdir@
+ProtectHome=true
+PrivateDevices=true
+ProtectHostname=true
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictRealtime=true
 
 [Install]
 WantedBy=multi-user.target
