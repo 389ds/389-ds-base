@@ -434,7 +434,7 @@ def list_agmt_towards(topo_m4, serverid):
     res = []
     for inst in topo_m4:
         for agmt in Agreements(inst).list():
-            if agmt.get_attr_val_utf8(AGMT_PORT) == topo_m4.ms[serverid].port:
+            if agmt.get_attr_val_int(AGMT_PORT) == topo_m4.ms[serverid].port:
                 res.append(agmt)
     return res
 
