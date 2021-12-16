@@ -6,8 +6,6 @@ import {
     CardBody,
     CardFooter,
     CardTitle,
-    Form,
-    FormGroup,
     Pagination,
     Popover,
     SimpleList,
@@ -662,10 +660,14 @@ class GenericUpdate extends React.Component {
 
         // TODO - Update this for groups, roles, cos, etc
         const wizardTitle = this.props.entryType === ENTRY_TYPE.user
-            ? 'Add a new User Entry'
+            ? 'Add A New User'
             : this.props.entryType === ENTRY_TYPE.ou
-                ? 'Add an Organizational Unit Entry'
-                : 'Add a new LDAP Entry';
+                ? 'Add An Organizational Unit'
+                : 'Add A New LDAP Entry';
+
+        const desc = <>
+            Parent DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+        </>;
 
         return (
             <Wizard
@@ -674,7 +676,7 @@ class GenericUpdate extends React.Component {
                 onNext={this.onNext}
                 onBack={this.onBack}
                 title={wizardTitle}
-                description={`Parent DN: ${this.props.wizardEntryDn}`}
+                description={desc}
                 steps={addSteps}
             />
         );

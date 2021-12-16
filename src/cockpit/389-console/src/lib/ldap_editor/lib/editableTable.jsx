@@ -35,6 +35,7 @@ import {
     generateUniqueId,
     getRdnInfo,
 } from './utils.jsx';
+import PropTypes from "prop-types";
 
 class EditableTable extends React.Component {
     constructor (props) {
@@ -58,6 +59,8 @@ class EditableTable extends React.Component {
             namingRowID: 0,
             isPasswordField: false,
             showPassword: false,
+            pwdValue: "",
+            pwdRowIndex: -1,
             fileValue: null,
             fileName: '',
             encodedValueIsEmpty: true,
@@ -80,6 +83,32 @@ class EditableTable extends React.Component {
             this.setState(({ isPasswordField }) => ({
                 isPasswordField: !isPasswordField
             }));
+        };
+
+        this.handlePwdChange = (str, e) => {
+            this.setState({
+                pwdValue: str
+            });
+        };
+
+        this.handlePwdSave = () => {
+            const newRows = [...this.state.tableRows];
+            if (this.state.pwdRowIndex !== -1) {
+                newRows[this.state.pwdRowIndex].cells[1].props.value = this.state.pwdValue;
+                this.setState({
+                    tableRows: newRows,
+                    isPasswordField: false
+                }, () => {
+                    const foundEmptyValue = newRows.find(el => el.cells[1].props.value === '');
+                    if (foundEmptyValue === undefined) {
+                        this.props.enableNextStep(true);
+                    } else {
+                        this.props.enableNextStep(false);
+                    }
+                    const rowDataToSave = this.buildRowDataToSave();
+                    this.props.saveCurrentRows(rowDataToSave, this.state.namingRowID);
+                });
+            }
         };
 
         this.showOrHidePassword = () => {
@@ -202,11 +231,8 @@ class EditableTable extends React.Component {
     } // End constructor().
 
     componentDidMount() {
-        console.log('In EditableTable - componentDidMount()');
         this.createTableRows();
-
         const foundEmptyValue = this.props.editableTableData.find(el => el.val === '');
-        // this.enableNextStepInWizard(foundEmptyValue === undefined);
         this.props.enableNextStep(foundEmptyValue === undefined);
     }
 
@@ -246,7 +272,10 @@ class EditableTable extends React.Component {
             const myCellData = this.state.tableRows[rowIndex].cells[0];
             const myAttr = (myCellData.props.value).toLowerCase();
             if (myAttr === 'userpassword') {
-                this.setState({ isPasswordField: true });
+                this.setState({
+                    isPasswordField: true,
+                    pwdRowIndex: rowIndex
+                 });
                 return;
             } else if (BINARY_ATTRIBUTES.includes(myAttr)) {
                 this.setState({
@@ -304,7 +333,11 @@ class EditableTable extends React.Component {
             const obj = {
                 id: datum.cells[0].props.name,
                 attr: datum.cells[0].props.value,
-                val: datum.cells[1].props.value
+                val: datum.cells[1].props.value,
+                namingAttr: datum.namingAttr,
+                required: datum.required,
+                objectClass: datum.objectClass,
+                rowEditValidationRules: [...datum.rowEditValidationRules],
             }
             // Save the encoded (base64) value if it's present.
             if (datum.cells[1].props.encodedValue) {
@@ -336,83 +369,120 @@ class EditableTable extends React.Component {
         const attrName = myData.attr;
         const attrId = myData.id;
 
-        return ({
-            objectClass: myData.obj,
-            required: myData.required,
-            namingAttr: myData.namingAttr,
-            rowEditValidationRules: this.attributeValidationRules,
-            cells: [
-                {
-                    title: (value, rowIndex, cellIndex, props) => (
-                        <React.Fragment>
-                            <EditableTextCell
-                                value={value}
-                                rowIndex={rowIndex}
-                                cellIndex={cellIndex}
-                                props={props}
-                                handleTextInputChange={this.handleTextInputChange}
-                                isDisabled
-                                inputAriaLabel={attrName}
-                            />
-                            {
-                                (attrId === this.state.namingRowID || myData.namingAttr) &&
-                                <Popover
-                                    headerContent={<div>Naming Attribute</div>}
-                                    bodyContent={
-                                        <div>
-                                            This attribute and value are part of
-                                            the entry's DN and can not be changed
-                                            except by doing a Rename (modrdn) operation
-                                            on the entry.
-                                        </div>
-                                    }
-                                >
-                                    <a href="#" className="ds-font-size-sm">Naming Attribute</a>
-                                </Popover>
-                            }
-                        </React.Fragment>
-                    ),
-                    props: {
-                        value: attrName,
-                        name: attrId,
+        if (attrName.toLowerCase() === 'userpassword') {
+            return ({
+                objectClass: myData.obj,
+                required: myData.required,
+                namingAttr: myData.namingAttr,
+                rowEditValidationRules: this.attributeValidationRules,
+                cells: [
+                    {
+                        title: (value, rowIndex, cellIndex, props) => (
+                            <React.Fragment>
+                                <EditableTextCell
+                                    value={value}
+                                    rowIndex={rowIndex}
+                                    cellIndex={cellIndex}
+                                    props={props}
+                                    handleTextInputChange={this.handleTextInputChange}
+                                    isDisabled
+                                    inputAriaLabel={attrName}
+                                />
+                            </React.Fragment>
+                        ),
+                        props: {
+                            value: attrName,
+                            name: attrId,
+                        }
+                    },
+                    {
+
+                        title: (value, rowIndex, cellIndex, props) => (
+                            <React.Fragment>
+                                <EditableTextCell
+                                    // isDisabled={myData.isDisabled}
+                                    value={value !== "" ? "********" : ""}
+                                    rowIndex={rowIndex}
+                                    cellIndex={cellIndex}
+                                    props={props}
+                                    handleTextInputChange={this.handleTextInputChange}
+                                    inputAriaLabel={'_' + value} // To avoid empty property when value is empty.
+                                />
+                                { value === '' && <Label color="red" icon={<InfoCircleIcon />}> Empty value! </Label> }
+                            </React.Fragment>
+                        ),
+                        props: {
+                            value: myData.val,
+                            name: `${attrId}_val`
+                        }
                     }
-                },
-                {
-                    title: (value, rowIndex, cellIndex, props) => (
-                        <React.Fragment>
-                            <EditableTextCell
-                                // isDisabled={myData.isDisabled}
-                                value={value}
-                                rowIndex={rowIndex}
-                                cellIndex={cellIndex}
-                                props={props}
-                                handleTextInputChange={this.handleTextInputChange}
-                                inputAriaLabel={'_' + value} // To avoid empty property when value is empty.
-                            />
-                            {/*
-                               myRowData.attr.toLowerCase() === 'userpassword' &&
-                              <Button
-                                variant="link"
-                                icon={this.state.passwordIcon}
-                                name={randomId}
-                                onClick={this.showOrHidePassword}
-                              >
+                ]
+            });
+        } else {
+            return ({
+                objectClass: myData.obj,
+                required: myData.required,
+                namingAttr: myData.namingAttr,
+                rowEditValidationRules: this.attributeValidationRules,
+                cells: [
+                    {
+                        title: (value, rowIndex, cellIndex, props) => (
+                            <React.Fragment>
+                                <EditableTextCell
+                                    value={value}
+                                    rowIndex={rowIndex}
+                                    cellIndex={cellIndex}
+                                    props={props}
+                                    handleTextInputChange={this.handleTextInputChange}
+                                    isDisabled
+                                    inputAriaLabel={attrName}
+                                />
                                 {
-                                  randomId in this.state.rowRandomIdObject
-                                    ? 'Show'
-                                    : 'Hide'
+                                    (attrId === this.state.namingRowID || myData.namingAttr) &&
+                                    <Popover
+                                        headerContent={<div>Naming Attribute</div>}
+                                        bodyContent={
+                                            <div>
+                                                This attribute and value are part of
+                                                the entry's DN and can not be changed
+                                                except by doing a Rename (modrdn) operation
+                                                on the entry.
+                                            </div>
+                                        }
+                                    >
+                                        <a href="#" className="ds-font-size-sm">Naming Attribute</a>
+                                    </Popover>
                                 }
-                              </Button>
-                            */}
-                        </React.Fragment>
-                    ),
-                    props: {
-                        value: myData.val,
-                        name: `${attrId}_val`
+                            </React.Fragment>
+                        ),
+                        props: {
+                            value: attrName,
+                            name: attrId,
+                        }
+                    },
+                    {
+                        title: (value, rowIndex, cellIndex, props) => (
+                            <React.Fragment>
+                                <EditableTextCell
+                                    // isDisabled={myData.isDisabled}
+                                    value={value}
+                                    rowIndex={rowIndex}
+                                    cellIndex={cellIndex}
+                                    props={props}
+                                    handleTextInputChange={this.handleTextInputChange}
+                                    inputAriaLabel={'_' + value} // To avoid empty property when value is empty.
+                                />
+                                { value === '' && <Label color="red" icon={<InfoCircleIcon />}> Empty value! </Label> }
+                            </React.Fragment>
+                        ),
+                        props: {
+                            value: myData.val,
+                            name: `${attrId}_val`
+                        }
                     }
-                }
-            ]
-        });
+                ]
+            });
+        }
     };
 
     createTableRows = () => {
@@ -436,7 +506,8 @@ class EditableTable extends React.Component {
             // There should not be an actions for the DN
             return [];
         }
-        const namingAction = myName === this.state.namingRowID
+
+        const namingAction = myName === this.state.namingRowID || this.props.disableNamingChange
             ? []
             : (this.props.namingAttr && myAttr !== this.props.namingAttr) || this.props.namingAttr === ""
                 ? [{
@@ -596,8 +667,7 @@ class EditableTable extends React.Component {
                     >
                         You cannot modify the RDN ( Relative Distinguished Name ) in the <strong>Quick Update</strong> mode.
                         <br />
-                        If you want to modify the RDN, please use the <strong>Rename Entry</strong> option
-                        in the first Step of this Wizard.
+                        If you want to modify the RDN, please use the <strong>Rename</strong> action option
                     </Modal>
                 }
 
@@ -610,7 +680,7 @@ class EditableTable extends React.Component {
                         onClose={this.handlePasswordToggle}
                         actions={[
                             <Button key="confirm" variant="primary" name="confirm"
-                                onClick={this.handlePasswordToggle}
+                                onClick={this.handlePwdSave}
                             >
                                 Confirm
                             </Button>,
@@ -626,6 +696,7 @@ class EditableTable extends React.Component {
                                 name="passwordField"
                                 id="passwordField"
                                 type={showPassword ? 'text' : 'password'}
+                                onChange={this.handlePwdChange}
                                 aria-label="password field"
                             />
                             <Button
@@ -726,10 +797,12 @@ class EditableTable extends React.Component {
                 <Table
                     actionResolver={this.actionResolver}
                     onRowEdit={this.updateEditableRows}
+                    dropdownDirection="up"
                     aria-label="Editable Rows Table"
                     variant={TableVariant.compact}
                     cells={this.columns}
                     rows={tableRows}
+                    className="ds-margin-top"
                 >
                     <TableHeader />
                     <TableBody />
@@ -738,5 +811,23 @@ class EditableTable extends React.Component {
         );
     }
 }
+
+EditableTable.propTypes = {
+    wizardEntryDn: PropTypes.string,
+    editableTableData: PropTypes.array,
+    isAttributeSingleValued: PropTypes.func,
+    isAttributeRequired: PropTypes.func,
+    enableNextStep: PropTypes.func,
+    saveCurrentRows: PropTypes.func,
+    allObjectclasses: PropTypes.array,
+    disableNamingChange: PropTypes.bool,
+};
+
+EditableTable.defaultProps = {
+    wizardEntryDn: "",
+    editableTableData: [],
+    allObjectclasses: [],
+    disableNamingChange: false
+};
 
 export default EditableTable;
