@@ -15,6 +15,7 @@ import {
     runGenericSearch,
     ldapPing
 } from './utils.jsx';
+import PropTypes from "prop-types";
 
 class LdapNavigator extends React.Component {
     constructor (props) {
@@ -209,7 +210,9 @@ class LdapNavigator extends React.Component {
     componentDidMount () {
         // This is fine since the first entries are root suffixes
         // so the tree is not yet nested.
-        this.setState({ allItems: [...this.props.treeItems] });
+        this.setState({
+            allItems: [...this.props.treeItems],
+        });
     }
 
     componentDidUpdate (prevProps) {
@@ -483,5 +486,19 @@ class LdapNavigator extends React.Component {
         );
     }
 }
+
+LdapNavigator.propTypes = {
+    editorLdapServer: PropTypes.string,
+    treeItems: PropTypes.array,
+    skipLeafEntries: PropTypes.bool,
+    showTreeLoadingState: PropTypes.func,
+    handleNodeOnClick: PropTypes.func,
+};
+
+LdapNavigator.defaultProps = {
+    editorLdapServer: "",
+    treeItems: [],
+    skipLeafEntries: false,
+};
 
 export default LdapNavigator;

@@ -758,12 +758,18 @@ export function modifyLdapEntry (params, ldifArray, modifyEntryCallback) {
   const serverId = params.serverId;
   const addOption = params.isAddOp ? '-a' : '';
   let ldifData = '';
+  let logLdifData = '';
   if (ldifArray.length === 0) {
     console.log('modifyLdapEntry() ==> Empty array! Nothing to do.');
     return;
   }
   for (const line of ldifArray) {
     ldifData += `${line}\n`;
+    if (line.toLowerCase().startsWith("userpassword")) {
+        logLdifData += `userPassword: ********\n`;
+    } else {
+        logLdifData += `${line}\n`;
+    }
   };
   const cmd = [
     '/usr/bin/sh',
@@ -775,9 +781,19 @@ export function modifyLdapEntry (params, ldifArray, modifyEntryCallback) {
     ldifData +
     'END_LDIF'
   ];
+  const cmd_copy = [
+    '/usr/bin/sh',
+    '-c',
+    `ldapmodify ${addOption} -Y EXTERNAL -H ` +
+    `ldapi://%2fvar%2frun%2fslapd-${serverId}.socket ` +
+    // Putting in 3 lines to ease readability.
+    '<< END_LDIF\n' +
+    logLdifData +  // hides userpassword value from console log
+    'END_LDIF'
+  ];
 
   let result = {};
-  log_cmd("modifyLdapEntry", "", cmd);
+  log_cmd("modifyLdapEntry", "", cmd_copy);
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
     .done(data => {

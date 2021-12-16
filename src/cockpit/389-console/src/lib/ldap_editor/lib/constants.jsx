@@ -5,6 +5,7 @@ export const ENTRY_MENU = {
   search: 'search',
   edit: 'edit',
   new: 'new',
+  rename: 'rename',
   acis: 'acis',
   delete: 'delete',
   refresh: 'refresh'
