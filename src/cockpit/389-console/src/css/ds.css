@@ -459,6 +459,11 @@ textarea {
 
 .ds-no-padding {
     padding-right: 0 !important;
+    padding-top: 0 !important;
+}
+
+.ds-dropdown-padding button {
+    padding-top: 2px !important;
 }
 
 .ds-instance-select {

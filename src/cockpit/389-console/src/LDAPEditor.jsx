@@ -128,8 +128,9 @@ export class LDAPEditor extends React.Component {
                 });
                 return;
             }
+
             this.setState({
-                entryMenuIsOpen: !this.state.entryMenuIsOpen,
+                entryMenuIsOpen: true,
                 wizardName: aTarget.name,
                 isTreeWizardOpen: !this.state.isTreeWizardOpen,
                 wizardEntryDn: aTarget.value,
@@ -178,6 +179,7 @@ export class LDAPEditor extends React.Component {
             serverId: this.props.serverId,
             baseDn: this.state.baseDN
         };
+
         this.setState({
             searching: true,
             loading: refresh
@@ -447,7 +449,7 @@ export class LDAPEditor extends React.Component {
                             {entryArray.map((line) => (
                                 <div key={line.attribute + line.value}>
                                     <strong>{line.attribute}</strong>
-                                    {line.value.toLowerCase() === ": ldapsubentry" ? <span className="ds-info-color">{line.value}</span> : line.value}
+                                    {line.value.toLowerCase() === ": ldapsubentry" ? <span className="ds-info-color">{line.value}</span> : line.attribute.toLowerCase() === "userpassword" ? ": ********" : line.value}
                                 </div>
                             ))}
                         </>
@@ -729,6 +731,18 @@ export class LDAPEditor extends React.Component {
                 }
             },
             {
+                title: 'Rename ...',
+                isDisabled: rowData.customRowId === 0, // can not rename root suffix
+                onClick:
+                () => {
+                    this.setState({
+                        wizardName: ENTRY_MENU.rename,
+                        wizardEntryDn: rowData.rawdn,
+                        isWizardOpen: true
+                    });
+                }
+            },
+            {
                 title: 'ACIs ...',
                 onClick:
                 () => {
@@ -811,7 +825,9 @@ export class LDAPEditor extends React.Component {
                         treeViewRootSuffixes={this.state.treeViewRootSuffixes}
                         setWizardOperationInfo={this.setWizardOperationInfo}
                         onReload={this.handleReload}
+                        onModrdnReload={this.handleReload}
                         allObjectclasses={this.state.allObjectclasses}
+                        addNotification={this.props.addNotification}
                     />
                 )}
                 {isTreeWizardOpen && (
@@ -824,7 +840,9 @@ export class LDAPEditor extends React.Component {
                         treeViewRootSuffixes={this.state.treeViewRootSuffixes}
                         setWizardOperationInfo={this.setWizardOperationInfo}
                         onReload={this.handleReloadNoop}
+                        onModrdnReload={this.handleReload}
                         allObjectclasses={this.state.allObjectclasses}
+                        addNotification={this.props.addNotification}
                     />
                 )}
                 <Tabs isBox className="ds-margin-top-lg ds-indent" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>

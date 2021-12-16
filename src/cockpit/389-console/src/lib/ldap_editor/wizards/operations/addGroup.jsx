@@ -473,14 +473,18 @@ class AddGroup extends React.Component {
             }
         ];
 
+        const title = <>
+            Parent DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+        </>;
+
         return (
             <Wizard
                 isOpen={this.props.isWizardOpen}
                 onClose={this.props.toggleOpenWizard}
                 onNext={this.onNext}
                 onBack={this.onBack}
-                title="Add a Group"
-                description={`Parent DN: ${this.props.wizardEntryDn}`}
+                title="Add A Group"
+                description={title}
                 steps={addGroupSteps}
             />
         );

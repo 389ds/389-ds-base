@@ -86,6 +86,7 @@ class EditorTreeView extends React.Component {
             entryIsLoading: true,
             entryIcon: null,
             entryDn: '',
+            isSuffixEntry: false,
             entryModTime: '',
             isEmptySuffix: false,
             showPagination: false,
@@ -112,9 +113,9 @@ class EditorTreeView extends React.Component {
         };
 
         this.handleNodeOnClick = (treeViewItem) => {
-            console.log('handleNodeOnClick - treeViewItem: ', treeViewItem);
             if (treeViewItem && treeViewItem.dn === this.state.entryDn) {
                 // Clicking on already selected node, just return
+                this.updateEntryRows(treeViewItem);
                 return;
             }
             this.setState({
@@ -200,6 +201,7 @@ class EditorTreeView extends React.Component {
         const isEmptySuffix = treeViewItem.isEmptySuffix;
         let entryIcon = treeViewItem.icon; // Only already set for special suffixes.
         const entryDn = treeViewItem.dn === '' ? 'Root DSE' : treeViewItem.dn;
+        const isSuffixEntry = treeViewItem.id === "0";
         const entryModTime = treeViewItem.modTime;
         const fullEntry = treeViewItem.fullEntry;
         const encodedValues = [];
@@ -225,6 +227,10 @@ class EditorTreeView extends React.Component {
                             val = b64DecodeUnicode(line.value.substring(3));
                         }
                     }
+                }
+
+                if (attr.toLowerCase() === "userpassword") {
+                    val = "********";
                 }
 
                 entryRows.push([{ title: <strong>{attr}</strong> }, val]);
@@ -264,6 +270,7 @@ class EditorTreeView extends React.Component {
         this.setState({
             entryRows,
             entryDn,
+            isSuffixEntry,
             entryModTime,
             isEmptySuffix,
             entryIsLoading,
@@ -310,23 +317,6 @@ class EditorTreeView extends React.Component {
                         numberDecoded++;
 
                         this.setState({ entryIcon: myPhoto });
-                        break;
-                    }
-
-                    case 'userpassword':
-                    {
-                        const pwdData = b64DecodeUnicode(encVal);
-                        const pos = pwdData.indexOf('}');
-                        decodedValue =
-                            <React.Fragment>
-                                <div>
-                                    <strong>{pwdData.substring(0, pos + 1)}</strong>
-                                    {pwdData.substring(pos + 1)}
-                                </div>
-                            </React.Fragment>;
-                        const newRow = [{ title: <strong>{attr}</strong> }, decodedValue];
-                        finalRows.splice(myObj.index, 1, newRow);
-                        numberDecoded++;
                         break;
                     }
 
@@ -409,7 +399,7 @@ class EditorTreeView extends React.Component {
 
     render () {
         const {
-            alerts, searching,
+            alerts, searching, isSuffixEntry,
             firstClickOnTree, entryColumns, entryRows, entryIcon, entryDn, entryModTime, isEmptySuffix,
             entryIsLoading, isEntryTooLarge, tableModificationTime, showEmptySuffixModal,
             newSuffixData, isTreeLoading, refreshButtonTriggerTime, latestEntryRefreshTime
@@ -445,6 +435,15 @@ class EditorTreeView extends React.Component {
                 value={entryDn}
             >
                 New ...
+            </DropdownItem>,
+            <DropdownItem
+                key="tree-view-rename"
+                component="button"
+                name={ENTRY_MENU.rename}
+                value={entryDn}
+                isDisabled={isSuffixEntry}
+            >
+                Rename ...
             </DropdownItem>,
             <DropdownItem
                 key="tree-view-acis"

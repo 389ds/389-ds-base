@@ -758,6 +758,7 @@ export class DSInstance extends React.Component {
                             <Tab eventKey={7} title={<TabTitleText><b>Users & Groups</b></TabTitleText>}>
                                 <LDAPEditor
                                     key="ldap-editor"
+                                    addNotification={this.addNotification}
                                     serverId={this.state.serverId}
                                     setPageSectionVariant={this.setPageSectionVariant}
                                 />

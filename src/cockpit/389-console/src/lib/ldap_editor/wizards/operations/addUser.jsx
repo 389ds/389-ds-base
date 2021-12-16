@@ -1,26 +1,22 @@
 import React from 'react';
 import {
     Alert,
+    BadgeToggle,
     Card,
     CardHeader,
     CardBody,
     CardFooter,
     CardTitle,
+    Dropdown, DropdownItem, DropdownPosition,
     Form,
-    FormGroup,
-    FormSelect,
-    FormSelectOption,
     Grid,
     GridItem,
     Pagination,
-    Popover,
     SimpleList,
     SimpleListItem,
     Text,
     TextContent,
-    TextInput,
     TextVariants,
-    ValidatedOptions,
     Wizard,
 } from '@patternfly/react-core';
 import {
@@ -77,6 +73,7 @@ class AddUser extends React.Component {
             namingAttr: '',
             namingVal: '',
             ldifArray: [],
+            cleanLdifArray: [],
             savedRows: [],
             commandOutput: '',
             resultVariant: 'default',
@@ -93,13 +90,13 @@ class AddUser extends React.Component {
             rowsUser: [],
             pagedRowsUser: [],
             selectedAttributes: ['cn', 'sn'],
+            isAttrDropDownOpen: false,
             // Values
             noEmptyValue: false,
             columnsValues: [
                 'Attribute',
                 'Value'
             ],
-            rowsValues: [],
             // Review step
             reviewValue: '',
             reviewInvalidText: 'Invalid LDIF',
@@ -372,7 +369,7 @@ class AddUser extends React.Component {
         let namingVal = "";
         let rows = this.state.savedRows;
 
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = this.state.editableTableData
         }
         for (const row of rows) {
@@ -391,6 +388,41 @@ class AddUser extends React.Component {
             namingVal,
         });
     };
+
+    onAttrDropDownToggle = isOpen => {
+        this.setState({
+            isAttrDropDownOpen: isOpen
+        });
+    };
+
+    onAttrDropDownSelect = event => {
+        this.setState((prevState, props) => {
+            return { isAttrDropDownOpen: !prevState.isAttrDropDownOpen };
+        });
+    };
+
+    buildAttrDropdown = () => {
+        const { isAttrDropDownOpen, selectedAttributes } = this.state;
+        const numSelected = selectedAttributes.length;
+        const items = selectedAttributes.map((attr) =>
+            <DropdownItem key={attr}>{attr}</DropdownItem>
+        );
+
+        return (
+            <Dropdown
+                className="ds-dropdown-padding"
+                onSelect={this.onAttrDropDownSelect}
+                position={DropdownPosition.left}
+                toggle={
+                    <BadgeToggle id="toggle-attr-select" onToggle={this.onAttrDropDownToggle}>
+                        {numSelected !== 0 ? <>{numSelected} selected </> : <>0 selected </>}
+                    </BadgeToggle>
+                }
+                isOpen={isAttrDropDownOpen}
+                dropdownItems={items}
+            />
+        );
+    }
 
     saveCurrentRows = (savedRows, namingID) => {
         this.setState({ savedRows },
@@ -432,14 +464,23 @@ class AddUser extends React.Component {
             ...objectClassData,
             ...valueData
         ];
-        this.setState({ ldifArray });
+
+        let cleanLdifArray = [...ldifArray];
+        for (let idx in cleanLdifArray) {
+            if (cleanLdifArray[idx].toLowerCase().startsWith("userpassword")) {
+                cleanLdifArray[idx] = "userpassword: ********";
+                break;
+            }
+        }
+
+        this.setState({ ldifArray, cleanLdifArray });
     }
 
     render () {
         const {
             commandOutput,
             itemCountAddUser, pageAddUser, perPageAddUser, columnsUser, pagedRowsUser,
-            ldifArray, columnsValues, rowsValues, noEmptyValue, alertVariant,
+            ldifArray, cleanLdifArray, columnsValues, noEmptyValue, alertVariant,
             namingAttrVal, namingAttr, namingVal, resultVariant, editableTableData,
             stepIdReached
         } = this.state;
@@ -450,12 +491,15 @@ class AddUser extends React.Component {
             : 'DN ( Distinguished Name )';
 
         const userAttributesStep = (
-            <div>
-                <TextContent>
-                    <Text component={TextVariants.h3}>
-                        Select Entry Attributes
-                    </Text>
-                </TextContent>
+            <>
+                <div className="ds-container">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Select Entry Attributes
+                        </Text>
+                    </TextContent>
+                    {this.buildAttrDropdown()}
+                </div>
                 <Pagination
                     itemCount={itemCountAddUser}
                     page={pageAddUser}
@@ -475,7 +519,7 @@ class AddUser extends React.Component {
                     <TableHeader />
                     <TableBody />
                 </Table>
-            </div>
+            </>
         );
 
         const userValuesStep = (
@@ -517,7 +561,7 @@ class AddUser extends React.Component {
             </React.Fragment>
         );
 
-        const ldifListItems = ldifArray.map((line, index) =>
+        const ldifListItems = cleanLdifArray.map((line, index) =>
             <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
@@ -596,7 +640,7 @@ class AddUser extends React.Component {
                 id: 4,
                 name: 'Create User',
                 component: userCreationStep,
-                nextButtonText: 'Create',
+                nextButtonText: 'Create User',
                 canJumpTo: stepIdReached >= 4 && stepIdReached < 5
             },
             {
@@ -609,14 +653,18 @@ class AddUser extends React.Component {
             }
         ];
 
+        const title = <>
+            Parent DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+        </>;
+
         return (
             <Wizard
                 isOpen={this.props.isWizardOpen}
                 onClose={this.props.toggleOpenWizard}
                 onNext={this.onNext}
                 onBack={this.onBack}
-                title="Add a new User Entry"
-                description={`Parent DN: ${this.props.wizardEntryDn}`}
+                title="Add A User"
+                description={title}
                 steps={addUserSteps}
             />
         );
