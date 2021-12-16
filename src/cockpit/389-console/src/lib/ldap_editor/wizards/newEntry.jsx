@@ -4,8 +4,6 @@ import {
     Card,
     CardTitle,
     CardBody,
-    Form,
-    FormGroup,
     Pagination,
     Radio,
     TextArea,
@@ -94,7 +92,7 @@ class NewEntryWizard extends React.Component {
                             isChecked={this.state.getStartedStepRadio === 'Group'}
                             onChange={this.handleOnChange}
                             label="Create a new Group"
-                            description="Add a new Group (Static or Dynamic)"
+                            description="Add a new Group (GroupOfNames/GroupOfUniqueNames objectClass)"
                             name="group"
                             id="radio-new-step-start-2"
                         />
@@ -206,6 +204,7 @@ class NewEntryWizard extends React.Component {
             ];
         } else {
             return <AddLdapEntry
+                allObjectclasses={this.props.allObjectclasses}
                 {...wizardProps}
             />
         }

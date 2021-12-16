@@ -8,8 +8,6 @@ import {
     CardTitle,
     ClipboardCopy,
     ClipboardCopyVariant,
-    Form,
-    FormGroup,
     Pagination,
     Popover,
     SimpleList,
