@@ -117,6 +117,7 @@ typedef int dblayer_restore_file_init_fn_t(struct ldbminfo *li);
 typedef void dblayer_restore_file_update_fn_t(struct ldbminfo *li, const char *directory);
 typedef int dblayer_import_file_check_fn_t(ldbm_instance *inst);
 typedef dbi_dbslist_t *dblayer_list_dbs_fn_t(const char *dbhome);
+typedef int dblayer_show_stat_fn_t(const char *dbhome, FILE *fout, FILE *ferr);
 typedef int dblayer_in_import_fn_t(ldbm_instance *inst);
 typedef const char *dblayer_get_db_suffix_fn_t(void);
 typedef int dblayer_clear_vlv_cache_fn_t(backend *be, dbi_txn_t *txn, dbi_db_t *db);
@@ -199,6 +200,7 @@ struct dblayer_private
     dblayer_restore_file_update_fn_t *dblayer_restore_file_update_fn;
     dblayer_import_file_check_fn_t *dblayer_import_file_check_fn;
     dblayer_list_dbs_fn_t *dblayer_list_dbs_fn;
+    dblayer_show_stat_fn_t *dblayer_show_stat_fn;
     dblayer_in_import_fn_t *dblayer_in_import_fn;
     dblayer_get_db_suffix_fn_t *dblayer_get_db_suffix_fn;
     dblayer_compact_fn_t *dblayer_compact_fn;

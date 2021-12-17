@@ -1501,42 +1501,50 @@ util_is_cachesize_sane(slapi_pal_meminfo *mi, uint64_t *cachesize)
 }
 
 long
-util_get_hardware_threads(void)
+util_get_capped_hardware_threads(long min, long max)
 {
-    long threads = MIN_THREADS;
+    long threads = min;
 #ifdef LINUX
-    long hw_threads = sysconf(_SC_NPROCESSORS_ONLN);
-
+    /* A new version that rely on sched_getaffinity rather than on sysconf
+     * to take in account the affinity
+     */
+    cpu_set_t cs = {0};
+    sched_getaffinity(0, sizeof(cs), &cs);
+    threads = CPU_COUNT(&cs);
+    if (threads == 0) {
+        threads = sysconf(_SC_NPROCESSORS_ONLN);
+	}
     slapi_log_err(SLAPI_LOG_TRACE, "util_get_hardware_threads",
-             "Detected %ld hardware threads\n", hw_threads);
+             "Detected %ld hardware threads\n", threads);
 
-    if (hw_threads == -1) {
-        /* sysconf failed, use MIN_THREADS */
-        slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads",
-                "Failed to get hardware threads.  Error (%d) %s\n",
-                errno, slapd_system_strerror(errno));
-    } else if (hw_threads == 0) {
-        /* sysconf failed to find any processors, use MIN_THREADS */
-        slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads",
-                "Cannot detect any hardware threads.\n");
-    } else if (hw_threads > MIN_THREADS) {
-        if (hw_threads < MAX_THREADS) {
-            threads = hw_threads;
-        } else {
-            /* Cap at 512 for now ... */
-            threads = MAX_THREADS;
+    if (threads < min){
+        if (threads == -1) {
+            /* sysconf failed, use MIN_THREADS */
+            slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads",
+                    "Failed to get hardware threads.  Error (%d) %s\n",
+                    errno, slapd_system_strerror(errno));
+        } else if (threads == 0) {
+            /* sysconf failed to find any processors, use MIN_THREADS */
+            slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads",
+                    "Cannot detect any hardware threads.\n");
         }
+        threads = min;
+    } else if (threads > max) {
+        threads = max;
     }
-
-    slapi_log_err(SLAPI_LOG_INFO, "util_get_hardware_threads", "Automatically configuring %ld threads\n", threads);
-
-    return threads;
 #else
     slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads",
             "ERROR: Cannot detect hardware threads on this platform. This is probably a bug!\n");
     /* Can't detect threads on this platform!  Return the default thread number */
-    return threads;
 #endif
+    return threads;
+}
+
+long
+util_get_hardware_threads(void)
+{
+    /* Cap at 512 for now ... */
+    return util_get_capped_hardware_threads(MIN_THREADS, MAX_THREADS);
 }
 
 void
@@ -1657,7 +1665,7 @@ mkdir_p(char *dir, unsigned int mode)
 
 /*
  * Standard openldap ldif_getline function does modify the input buffer in place
- * which leads to SIGSEGV if buffer is directly comming from mdb data 
+ * which leads to SIGSEGV if buffer is directly comming from mdb data
  *  (because the database memory is write protected). So lets have a read only version.
  */
 const char *ldif_getline_ro( const char **next)
@@ -1705,7 +1713,7 @@ void dup_ldif_line(struct berval *copy, const char *line, const char *endline)
     PR_ASSERT( endline == NULL || *endline == 0 || endline[-1] == '\n' );
 
     while (pt && pt < ptend) {
-        line = pt; 
+        line = pt;
         /* Search end of line */
 		while (pt < ptend && *pt != '\n' && *pt != 0) {
 			pt++;

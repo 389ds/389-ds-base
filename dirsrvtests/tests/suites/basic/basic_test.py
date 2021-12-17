@@ -61,6 +61,19 @@ def import_example_ldif(topology_st):
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
     import_task.wait()
 
+def check_db_sanity(topology_st):
+    try:
+        entries = topology_st.standalone.search_s(DEFAULT_SUFFIX,
+                                                  ldap.SCOPE_SUBTREE,
+                                                  '(uid=scarter)')
+        if entries is None:
+            log.fatal('Unable to find user uid=scarter. DB or indexes are probably corrupted !')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('test_basic_acl: Search suffix failed: ' + e.args[0]['desc'])
+        assert False
+
+
 
 @pytest.fixture(params=ROOTDSE_DEF_ATTR_LIST)
 def rootdse_attr(topology_st, request):
@@ -243,6 +256,7 @@ def test_basic_ops(topology_st, import_example_ldif):
     except ldap.LDAPError as e:
         log.error('Failed to delete test entry3: ' + e.args[0]['desc'])
         assert False
+    check_db_sanity(topology_st)
     log.info('test_basic_ops: PASSED')
 
 
@@ -344,6 +358,7 @@ def test_basic_import_export(topology_st, import_example_ldif):
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
     import_task.wait()
 
+    check_db_sanity(topology_st)
     log.info('test_basic_import_export: PASSED')
 
 
@@ -400,6 +415,7 @@ def test_basic_backup(topology_st, import_example_ldif):
         assert False
     topology_st.standalone.start()
 
+    check_db_sanity(topology_st)
     log.info('test_basic_backup: PASSED')
 
 def test_basic_db2index(topology_st):
@@ -432,6 +448,7 @@ def test_basic_db2index(topology_st):
 
     log.info('Start the server')
     topology_st.standalone.start()
+    check_db_sanity(topology_st)
 
     log.info('Offline reindex, stopping the server')
     topology_st.standalone.stop()
@@ -442,6 +459,7 @@ def test_basic_db2index(topology_st):
 
     log.info('Restart the server to clear the logs')
     topology_st.standalone.start()
+    check_db_sanity(topology_st)
     topology_st.standalone.stop()
 
     log.info('Reindex with multiple attributes')
@@ -452,10 +470,12 @@ def test_basic_db2index(topology_st):
 
     log.info('Restart the server to clear the logs')
     topology_st.standalone.start()
+    check_db_sanity(topology_st)
     topology_st.standalone.stop()
 
     log.info('Start the server and get all indexes for specified backend')
     topology_st.standalone.start()
+    check_db_sanity(topology_st)
     dse_ldif = DSEldif(topology_st.standalone)
     indexes = dse_ldif.get_indexes(DEFAULT_BENAME)
     numIndexes = len(indexes)
@@ -476,6 +496,8 @@ def test_basic_db2index(topology_st):
     assert indexNum+1 == numIndexes
 
     topology_st.standalone.start()
+    check_db_sanity(topology_st)
+    log.info('test_basic_db2index: PASSED')
 
 
 def test_basic_acl(topology_st, import_example_ldif):

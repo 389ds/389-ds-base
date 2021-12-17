@@ -3428,6 +3428,7 @@ bdb_ldbm_back_wire_import(Slapi_PBlock *pb)
     ImportJob *job = NULL;
     PRThread *thread;
     int state;
+    int rc;
     Connection *pb_conn;
 
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
@@ -3442,13 +3443,14 @@ bdb_ldbm_back_wire_import(Slapi_PBlock *pb)
     slapi_pblock_set(pb, SLAPI_LDIF2DB_ENCRYPT, &li->li_online_import_encrypt);
     if (state == SLAPI_BI_STATE_START) {
         /* starting a new import */
-        int rc = bdb_bulk_import_start(pb);
+        rc = bdb_bulk_import_start(pb);
         if (!rc) {
             /* job must be available since bdb_bulk_import_start was successful */
             job = (ImportJob *)slapi_get_object_extension(li->li_bulk_import_object, pb_conn, li->li_bulk_import_handle);
             /* Get entryusn, if needed. */
             _get_import_entryusn(job, &(job->usn_value));
         }
+        slapi_log_err(SLAPI_LOG_REPL, "bdb_ldbm_back_wire_import", "bdb_bulk_import_start returned %d\n", rc);
         return rc;
     }
 
@@ -3470,10 +3472,15 @@ bdb_ldbm_back_wire_import(Slapi_PBlock *pb)
             /* silently skip */
             /* We need to consume pb->pb_import_entry on success, so we free it here. */
             slapi_entry_free(pb_import_entry);
+            slapi_log_err(SLAPI_LOG_REPL, "bdb_ldbm_back_wire_import", "Skipping entry %s\n",
+                          slapi_sdn_get_dn(slapi_entry_get_sdn(pb_import_entry)));
             return 0;
         }
 
-        return bdb_bulk_import_queue(job, pb_import_entry);
+        rc = bdb_bulk_import_queue(job, pb_import_entry);
+        slapi_log_err(SLAPI_LOG_REPL, "bdb_ldbm_back_wire_import", "bdb_bulk_import_queue returned %d with entry %s\n",
+                      rc, slapi_sdn_get_dn(slapi_entry_get_sdn(pb_import_entry)));
+        return rc;
     }
 
     thread = job->main_thread;
@@ -3488,6 +3495,7 @@ bdb_ldbm_back_wire_import(Slapi_PBlock *pb)
         /* wait for bdb_import_main to finish... */
         PR_JoinThread(thread);
         slapi_set_object_extension(li->li_bulk_import_object, pb_conn, li->li_bulk_import_handle, NULL);
+        slapi_log_err(SLAPI_LOG_REPL, "bdb_ldbm_back_wire_import", "Bulk import is finished.\n");
         return 0;
     }
 

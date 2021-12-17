@@ -11,7 +11,6 @@
 #include <config.h>
 #endif
 #include "mdb_layer.h"
-#include "mdb_import_threads.h"
 
 #include <execinfo.h>
 #include <stdio.h>
@@ -287,6 +286,16 @@ dbg_mdb_cursor_open(const char *file, int lineno, const char *funcname, MDB_txn 
     return rc;
 }
 
+int
+dbg_mdb_cursor_renew(const char *file, int lineno, const char *funcname, MDB_txn *txn, MDB_cursor *cursor)
+{
+    int rc = mdb_cursor_renew(txn, cursor);
+    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_renew(txn: %p, cursor: %p)=%d", txn, cursor, rc);
+    }
+    return rc;
+}
+
 void
 dbg_mdb_cursor_close(const char *file, int lineno, const char *funcname, MDB_cursor *cursor)
 {
@@ -471,84 +480,20 @@ int dbg_txn_end(const char *file, int lineno, const char *funcname, MDB_txn *txn
     return rc;
 }
 
-void
-dbg_import_elmt(const char *file, int lineno, const char *funcname, const char *msg, void *elmt)
+
+void dbg_txn_reset(const char *file, int lineno, const char *funcname, MDB_txn *txn)
 {
-#define S(v) ((v)?(v):"")
-    wqelem_t *elmt2 = elmt;
-    char keystr[DBGVAL2STRMAXSIZE];
-    char datastr[DBGVAL2STRMAXSIZE];
-    char *actions[]={
-        "NONE",
-        "IMPORT_WRITE_ACTION_RMDIR",
-        "IMPORT_WRITE_ACTION_OPEN",
-        "IMPORT_WRITE_ACTION_ADD_INDEX",
-        "IMPORT_WRITE_ACTION_DEL_INDEX",
-        "IMPORT_WRITE_ACTION_ADD_VLV",
-        "IMPORT_WRITE_ACTION_DEL_VLV",
-        "IMPORT_WRITE_ACTION_ADD_ENTRYRDN",
-        "IMPORT_WRITE_ACTION_DEL_ENTRYRDN",
-        "IMPORT_WRITE_ACTION_ADD",
-        "IMPORT_WRITE_ACTION_CLOSE"
-    };
-    const char *dbi_str = NULL;
-    char *key_str = NULL;
-    char *data_str = NULL;
-    char *iupd_str = NULL;
-    index_update_t iupd;
-    MDB_val data;
-    MDB_val key;
-    Slapi_RDN *srdn = NULL;
+    mdb_txn_reset(txn);
+    dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "TXN_RESET[%d] (txn=0x%p). stack is:", pthread_gettid(), txn);
+    log_stack(SLAPI_LOG_DBGMDB);
+}
 
-    if (DBGMDB_LEVEL_IMPORT & dbgmdb_level) {
-        return;
-    }
-
-    if (elmt2->flags & WQFL_SYNC_OP) {
-        key = ((MDB_val*)(elmt2->values))[0];
-        data = ((MDB_val*)(elmt2->values))[1];
-    } else {
-        key.mv_data = elmt2->values;
-        key.mv_size = elmt2->keylen;
-        data.mv_data = &elmt2->values[key.mv_size];
-        data.mv_size = elmt2->data_len;
-    }
-
-    dbgval2str(keystr, sizeof keystr, &key);
-    dbgval2str(datastr, sizeof datastr, &data);
-
-    if (elmt2->slot->dbi) {
-        dbi_str = elmt2->slot->dbi->dbname;
-    }
-    if (!dbi_str) {
-        dbi_str = "???";
-    }
-
-    switch (elmt2->action) {
-        case IMPORT_WRITE_ACTION_ADD_INDEX:
-        case IMPORT_WRITE_ACTION_DEL_INDEX:
-            memcpy(&iupd, data.mv_data, data.mv_size);
-            iupd_str = slapi_ch_smprintf(" ID%dai=%s", iupd.id, iupd.a->ai_type);
-            break;
-        case IMPORT_WRITE_ACTION_ADD_ENTRYRDN:
-        case IMPORT_WRITE_ACTION_DEL_ENTRYRDN:
-            memcpy(&iupd.id, data.mv_data, sizeof iupd.id);
-            srdn = key.mv_data;
-            slapi_ch_free_string(&key_str);
-            slapi_ch_free_string(&data_str);
-            iupd_str = slapi_ch_smprintf(" ID%drdn=%s", iupd.id, slapi_rdn_get_rdn(srdn));
-            break;
-        default:
-            break;
-    }
-
-    if (elmt2->action < IMPORT_WRITE_ACTION_RMDIR || elmt2->action > IMPORT_WRITE_ACTION_CLOSE) {
-        slapi_log_err(SLAPI_LOG_DBGMDB, "dbmdb_import_writer", "%p: %s UNKNOWN ACTION %d", elmt2, msg, elmt2->action);
-    } else {
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_IMPORT,  "%p: %s %s dbi = %s%s key(%ld):\n%s\ndata(%ld):\n%s",
-                elmt2, msg, actions[elmt2->action], dbi_str, S(iupd_str), key.mv_size, keystr, data.mv_size, datastr);
-    }
-    slapi_ch_free_string(&iupd_str);
+int dbg_txn_renew(const char *file, int lineno, const char *funcname, MDB_txn *txn)
+{
+    int rc = mdb_txn_renew(txn);
+    dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "TXN_RENEW[%d] (txn=0x%p) returned %d. stack is:", pthread_gettid(), txn, rc);
+    log_stack(SLAPI_LOG_DBGMDB);
+    return rc;
 }
 
 void dbmdb_log_dbi_set_fn(const char *file, int lineno, const char *funcname, const char *action, const char *dbname, MDB_txn *txn, int dbi, MDB_cmp_func *fn)

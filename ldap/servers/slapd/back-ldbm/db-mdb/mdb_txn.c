@@ -85,6 +85,14 @@ static dbmdb_txn_t *pop_mdbtxn(void)
     return txn;
 }
 
+/* Determine if current thread has already a pending txn */
+int dbmdb_has_a_txn(void)
+{
+    dbmdb_txn_t **anchor = get_mdbtxnanchor();
+    return (*anchor != NULL);
+}
+
+
 int dbmdb_is_read_only_txn_thread(void)
 {
     dbmdb_txn_t *ltxn = *get_mdbtxnanchor();

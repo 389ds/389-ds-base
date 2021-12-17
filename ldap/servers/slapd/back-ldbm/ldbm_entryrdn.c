@@ -94,6 +94,7 @@ static int _entryrdn_index_read(backend *be, dbi_cursor_t *cursor, Slapi_RDN *sr
 static int _entryrdn_append_childidl(dbi_cursor_t *cursor, const char *nrdn, ID id, IDList **affectedidl, dbi_txn_t *db_txn);
 static void _entryrdn_cursor_print_error(char *fn, void *key, size_t need, size_t actual, int rc);
 
+
 static int entryrdn_warning_on_encryption = 1;
 
 /*
@@ -275,6 +276,52 @@ bail:
     slapi_log_err(SLAPI_LOG_TRACE, "entryrdn_index_entry",
                   "<-- entryrdn_index_entry\n");
     return rc;
+}
+
+/* Convert internal values to rdnentry dbi record */
+void *entryrdn_encode_data(backend *be, size_t *rdn_elem_len, ID id, const char *nrdn, const char *rdn)
+{
+    size_t rdn_len = 0;
+    size_t nrdn_len = 0;
+    rdn_elem *re = NULL;
+
+    /* If necessary, encrypt this index key */
+    rdn_len = strlen(rdn) + 1;
+    nrdn_len = strlen(nrdn) + 1;
+    *rdn_elem_len = sizeof(rdn_elem) + rdn_len + nrdn_len;
+    re = (rdn_elem *)slapi_ch_malloc(*rdn_elem_len);
+    id_internal_to_stored(id, re->rdn_elem_id);
+    sizeushort_internal_to_stored(nrdn_len, re->rdn_elem_nrdn_len);
+    sizeushort_internal_to_stored(rdn_len, re->rdn_elem_rdn_len);
+    PL_strncpyz(re->rdn_elem_nrdn_rdn, nrdn, nrdn_len);
+    PL_strncpyz(RDN_ADDR(re), rdn, rdn_len);
+    return re;
+}
+
+/* Convert raw data from rdnentry dbi record to internal values. */
+void
+entryrdn_decode_data(backend *be, void *rdn_elem, ID *id, int *nrdnlen, char **nrdn, int *rdnlen, char **rdn)
+{
+    /* 'be' is unused for now may will be useful if we code entryrdn encryption */
+    /* warning 'be' may be null (when coming from dbscan) */
+    struct _rdn_elem *elem = rdn_elem;
+    int len = sizeushort_stored_to_internal(elem->rdn_elem_nrdn_len);
+
+    if (id) {
+        *id = id_stored_to_internal(elem->rdn_elem_id);
+    }
+    if (nrdnlen) {
+        *nrdnlen = len;
+    }
+    if (rdnlen) {
+        *rdnlen = sizeushort_stored_to_internal(elem->rdn_elem_rdn_len);
+    }
+    if (nrdn) {
+        *nrdn = elem->rdn_elem_nrdn_rdn;
+    }
+    if (rdn) {
+        *rdn = &elem->rdn_elem_nrdn_rdn[len];
+    }
 }
 
 /*
@@ -847,7 +894,9 @@ entryrdn_get_subordinates(backend *be,
                           "Failed to convert \"%s\" to Slapi_RDN\n", slapi_sdn_get_dn(sdn));
             rc = LDAP_INVALID_DN_SYNTAX;
         } else if (rc > 0) {
-            slapi_log_err(SLAPI_LOG_TRACE, "entryrdn_get_subordinates",
+              slapi_log_err(SLAPI_LOG_ERR, "entryrdn_get_subordinates",
+                          "Failed to convert \"%s\" to Slapi_RDN\n", slapi_sdn_get_dn(sdn));
+          slapi_log_err(SLAPI_LOG_TRACE, "entryrdn_get_subordinates",
                           "%s does not belong to the db\n", slapi_sdn_get_dn(sdn));
             rc = DBI_RC_NOTFOUND;
         }
@@ -1362,8 +1411,6 @@ _entryrdn_new_rdn_elem(backend *be,
 {
     const char *rdn = NULL;
     const char *nrdn = NULL;
-    size_t rdn_len = 0;
-    size_t nrdn_len = 0;
     rdn_elem *re = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_new_rdn_elem",
@@ -1385,16 +1432,7 @@ _entryrdn_new_rdn_elem(backend *be,
         *length = 0;
         return NULL;
     }
-    /* If necessary, encrypt this index key */
-    rdn_len = strlen(rdn) + 1;
-    nrdn_len = strlen(nrdn) + 1;
-    *length = sizeof(rdn_elem) + rdn_len + nrdn_len;
-    re = (rdn_elem *)slapi_ch_malloc(*length);
-    id_internal_to_stored(id, re->rdn_elem_id);
-    sizeushort_internal_to_stored(nrdn_len, re->rdn_elem_nrdn_len);
-    sizeushort_internal_to_stored(rdn_len, re->rdn_elem_rdn_len);
-    PL_strncpyz(re->rdn_elem_nrdn_rdn, nrdn, nrdn_len);
-    PL_strncpyz(RDN_ADDR(re), rdn, rdn_len);
+    re = entryrdn_encode_data(be, length, id, nrdn, rdn);
 
     slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_new_rdn_elem",
                   "<-- _entryrdn_new_rdn_elem\n");
