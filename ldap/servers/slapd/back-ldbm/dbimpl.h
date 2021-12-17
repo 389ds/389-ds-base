@@ -1,13 +1,13 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
-#ifndef _DBIMPL_H_
-#define _DBIMPL_H_
+#ifndef DBIMPL_H_
+#define DBIMPL_H_
 
 #include "../slapi-plugin.h"
 #include <limits.h>
@@ -164,4 +164,4 @@ dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome);
 int dblayer_db_remove(Slapi_Backend *be, dbi_db_t *db);
 
 
-#endif /* _DBIMPL_H */
+#endif /* DBIMPL_H_ */

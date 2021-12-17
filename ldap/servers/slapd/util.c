@@ -551,7 +551,7 @@ slapi_mods2entry(Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
     PR_ASSERT(*e);
     slapi_entry_init(*e, slapi_ch_strdup(idn), NULL);
 
-    for (i = 0; rc == LDAP_SUCCESS && attrs[i] != NULL; i++) {
+    for (i = 0; rc == LDAP_SUCCESS && attrs && attrs[i]; i++) {
         char *normtype;
         Slapi_Value **vals;
 

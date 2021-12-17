@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -92,7 +92,7 @@ ldbm_ancestorid_index_update(
     slapi_sdn_init(&nextsdn);
 
     /* Open the ancestorid index */
-    ainfo_get(be, LDBM_ANCESTORID_STR, &ai);
+    ainfo_get(be, (char *)LDBM_ANCESTORID_STR, &ai);
     ret = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("ldbm_ancestorid_index_update", sourcefile, 13130, ret);
@@ -380,7 +380,7 @@ ldbm_ancestorid_read_ext(
     bv.bv_val = keybuf;
     bv.bv_len = PR_snprintf(keybuf, sizeof(keybuf), "%lu", (u_long)id);
 
-    *idl = index_read_ext_allids(NULL, be, LDBM_ANCESTORID_STR, indextype_EQUALITY, &bv, txn, &ret, NULL, allidslimit);
+    *idl = index_read_ext_allids(NULL, be, (char *)LDBM_ANCESTORID_STR, indextype_EQUALITY, &bv, txn, &ret, NULL, allidslimit);
 
     return ret;
 }

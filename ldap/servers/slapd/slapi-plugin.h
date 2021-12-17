@@ -20,8 +20,8 @@
  */
 
 
-#ifndef _SLAPIPLUGIN
-#define _SLAPIPLUGIN
+#ifndef SLAPIPLUGIN_H_
+#define SLAPIPLUGIN_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -537,7 +537,7 @@ typedef struct pw_scheme PWScheme;
  * never changes, providing a good way to refer unambiguously to an entry in a
  * distributed/replicated environment.
  */
-typedef struct _guid_t Slapi_UniqueID;
+typedef struct guid_t_ Slapi_UniqueID;
 
 /**
  * Represents an operation pending from an LDAP client.
@@ -1370,7 +1370,6 @@ void slapi_entry_set_dn(Slapi_Entry *e, char *dn);
  * This function sets the DN pointer in the specified entry to the DN that you supply. The DN should have been normalized.
  *
  * \param e Entry to which you want to assign the DN.
- * \param dn Distinguished name you want assigned to the entry.
  * \warning The dn will be freed eventually when slapi_entry_free() is called.
  * \warning A copy of dn should be passed. For example:
  *
@@ -6697,7 +6696,7 @@ void slapi_task_log_status(Slapi_Task *task, char *format, ...)
     ;
 #endif
 
-void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
+void slapi_task_log_notice(Slapi_Task *task, const char *format, ...)
 #ifdef __GNUC__
     __attribute__((format(printf, 2, 3)));
 #else
@@ -8477,4 +8476,4 @@ void slapi_search_get_entry_done(Slapi_PBlock **pb);
 }
 #endif
 
-#endif /* _SLAPIPLUGIN */
+#endif /* SLAPIPLUGIN_H_ */

@@ -1265,13 +1265,13 @@ int c_get_shutdown(void);
 int g_get_global_lastmod(void);
 /* Ref_Array *g_get_global_referrals(void); */
 struct snmp_vars_t *g_get_global_snmp_vars(void);
-struct snmp_vars_t *alloc_global_snmp_vars();
-struct snmp_vars_t *alloc_per_thread_snmp_vars(int32_t maxthread);
+void alloc_global_snmp_vars(void);
+void alloc_per_thread_snmp_vars(int32_t maxthread);
 void thread_private_snmp_vars_set_idx(int32_t idx);
 struct snmp_vars_t *g_get_per_thread_snmp_vars(void);
 struct snmp_vars_t *g_get_first_thread_snmp_vars(int *cookie);
 struct snmp_vars_t *g_get_next_thread_snmp_vars(int *cookie);
-void init_thread_private_snmp_vars();
+void init_thread_private_snmp_vars(void);
 void FrontendConfig_init(void);
 int g_get_slapd_security_on(void);
 char *config_get_versionstring(void);

@@ -353,7 +353,7 @@ slapi_ct_memcmp(const void *p1, const void *p2, size_t n)
 #define SYS_CACHELINE_SIZE_FILE "/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size"
 #define CPU_CACHE_LINE_SZ_DEFAULT 64
 static
-size_t cache_line_size() 
+size_t cache_line_size(void)
 {
     PRFileDesc *prfd;
     char buf[10] = {0};

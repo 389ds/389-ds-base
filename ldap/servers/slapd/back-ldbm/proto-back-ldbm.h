@@ -256,7 +256,7 @@ int index_addordel_values_sv(backend *be, const char *type, Slapi_Value **vals, 
 int index_addordel_values_ext_sv(backend *be, const char *type, Slapi_Value **vals, Slapi_Value **evals, ID id, int flags, back_txn *txn, int *idl_disposition, void *buffer_handle);
 int id_array_init(Id_Array *new_guy, int size);
 
-IDList *index_read(backend *be, char *type, const char *indextype, const struct berval *val, back_txn *txn, int *err);
+IDList *index_read(backend *be, const char *type, const char *indextype, const struct berval *val, back_txn *txn, int *err);
 IDList *index_read_ext(backend *be, char *type, const char *indextype, const struct berval *val, back_txn *txn, int *err, int *unindexed);
 IDList *index_read_ext_allids(Slapi_PBlock *pb, backend *be, char *type, const char *indextype, const struct berval *val, back_txn *txn, int *err, int *unindexed, int allidslimit);
 IDList *index_range_read(Slapi_PBlock *pb, backend *be, char *type, const char *indextype, int ftype, struct berval *val, struct berval *nextval, int range, back_txn *txn, int *err);

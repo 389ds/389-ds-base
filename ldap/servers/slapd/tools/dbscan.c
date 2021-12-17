@@ -1292,8 +1292,9 @@ importdb(const char *dbimpl_name, const char *filename, const char *dump_name)
 void print_value(FILE *dump, const char *keyword, const unsigned char *data, int len) 
 {
     fprintf(dump,"%s", keyword);
-    while (len-- >0) {
+    while (len > 0) {
         fprintf(dump,"%02x", *data++);
+        len--;
     }
     fprintf(dump,"\n");
 }

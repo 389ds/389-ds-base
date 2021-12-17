@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -874,13 +874,13 @@ encoded(dbi_val_t *d, char buf[BUFSIZ])
 IDList *
 index_read(
     backend *be,
-    char *type,
+    const char *type,
     const char *indextype,
     const struct berval *val,
     back_txn *txn,
     int *err)
 {
-    return index_read_ext(be, type, indextype, val, txn, err, NULL);
+    return index_read_ext(be, (char *)type, indextype, val, txn, err, NULL);
 }
 
 /*

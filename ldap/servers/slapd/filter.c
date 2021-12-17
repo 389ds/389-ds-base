@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1372,10 +1372,10 @@ slapi_filter_to_string_internal(const struct slapi_filter *f, char *buf, size_t 
             *bufsize -= 2;
 
             for (p = f->f_list; p != NULL; p = p->f_next) {
-                buf += strlen(buf);
+                buf += buf ? strlen(buf) : 0;
                 slapi_filter_to_string_internal(p, buf, bufsize);
             }
-            buf += strlen(buf);
+            buf += buf ? strlen(buf) : 0;
 
             if (1 < *bufsize) {
                 sprintf(buf, ")");
