@@ -1968,7 +1968,7 @@ g_get_next_thread_snmp_vars(int *cookie)
 /* Allocated the first slot of arrays of counters
  * The first slot contains counters that are not specific to counters
  */
-struct snmp_vars_t *
+void
 alloc_global_snmp_vars()
 {
     PR_ASSERT(max_slots_snmp_vars == 0);
@@ -1982,7 +1982,7 @@ alloc_global_snmp_vars()
 /* Allocated the next slots of the arrays of counters
  * with a slot per worker thread
  */
-struct snmp_vars_t *
+void
 alloc_per_thread_snmp_vars(int32_t maxthread)
 {
     PR_ASSERT(max_slots_snmp_vars == 1);
@@ -3168,7 +3168,7 @@ config_set_pw_user_attrs(const char *attrname, char *value, char *errorbuf, int 
     }
     if (apply) {
         /* During a reset, the value is "", so we have to handle this case. */
-        if (strcmp(value, "") != 0) {
+        if (value && strcmp(value, "") != 0) {
             char **nval_array;
             char *nval = slapi_ch_strdup(value);
             /* A separate variable is used because slapi_str2charray_ext can change it and nval'd become corrupted */
@@ -3226,7 +3226,7 @@ config_set_pw_bad_words(const char *attrname, char *value, char *errorbuf, int a
     }
     if (apply) {
         /* During a reset, the value is "", so we have to handle this case. */
-        if (strcmp(value, "") != 0) {
+        if (value && strcmp(value, "") != 0) {
             char **nval_array;
             char *nval = slapi_ch_strdup(value);
             /* A separate variable is used because slapi_str2charray_ext can change it and nval'd become corrupted */

@@ -1119,7 +1119,11 @@ basicInit(void)
                     (mctx.attrpl[i] != ':');
              i++)
             ;                                     /*JLS 21-11-00*/
-        mctx.attrplName = (char *)malloc(i + 1);  /*JLS 21-11-00*/
+        mctx.attrplName = (char *)calloc(1, i + 1);  /*JLS 21-11-00*/
+        if (mctx.attrplName == NULL) {
+            printf("Error: unable to allocate memory for attrplName\n");
+            return (-1);
+        }
         strncpy(mctx.attrplName, mctx.attrpl, i); /*JLS 21-11-00*/
         mctx.attrplName[i] = '\0';                /*JLS 21-11-00*/
 
@@ -1141,20 +1145,22 @@ basicInit(void)
    */
     if ((mctx.mod2 & M2_DEREF) && mctx.attrpl) {
         /*
-     * Find the reference attribute name
-     */
-        for (i = 0; (i < strlen(mctx.attrpl)) &&
-                    (mctx.attrpl[i] != ':');
-             i++)
-            ;
-        mctx.attRef = (char *)malloc(i + 1);
+         * Find the reference attribute name
+         */
+        for (i = 0; (i < strlen(mctx.attrpl)) && (mctx.attrpl[i] != ':'); i++);
+
+        mctx.attRef = (char *)calloc(1, i + 1);
+        if (mctx.attRef == NULL) {
+            printf("Error: unable to allocate memory for attRef\n");
+            return (-1);
+        }
         strncpy(mctx.attRef, mctx.attrpl, i);
         mctx.attRef[i] = '\0';
 
         /*
-     * Parse the deference attribute value
-     */
-        mctx.attRefDef = (char *)malloc(strlen(mctx.attrpl + i) + 2);
+         * Parse the deference attribute value
+         */
+        mctx.attRefDef = (char *)calloc(1, strlen(mctx.attrpl + i) + 2);
         if (mctx.attRefDef == NULL) {
             printf("Error: unable to allocate memory for attRefDef\n");
             return (-1);
@@ -1166,23 +1172,24 @@ basicInit(void)
 
 
     /*
-   * Parse attreplacefile subvalue
-   */
+     * Parse attreplacefile subvalue
+     */
     if ((mctx.mod2 & M2_ATTR_REPLACE_FILE) && mctx.attrpl) {
         /*
-     * Find the attribute name
-     */
-        for (i = 0; (i < strlen(mctx.attrpl)) &&
-                    (mctx.attrpl[i] != ':');
-             i++)
-            ;
-        mctx.attrplName = (char *)malloc(i + 1);
+         * Find the attribute name
+         */
+        for (i = 0; (i < strlen(mctx.attrpl)) && (mctx.attrpl[i] != ':'); i++);
+        mctx.attrplName = (char *)calloc(1, i + 1);
+        if (mctx.attrplName == NULL) {
+            printf("Error: unable to allocate memory for attrplName\n");
+            return (-1);
+        }
         strncpy(mctx.attrplName, mctx.attrpl, i);
         mctx.attrplName[i] = '\0';
 
         /*
-     * Parse the attribute value
-     */
+         * Parse the attribute value
+         */
         mctx.attrplFile = (char *)malloc(strlen(mctx.attrpl + i) + 2);
         if (mctx.attrplFile == NULL) {
             printf("Error: unable to allocate memory for attreplfile\n");
@@ -1657,6 +1664,10 @@ addAttrToList(
         for (end = start; (list[end] != '\0') && (list[end] != ':'); end++)
             ;
         mctx.attrlist[mctx.attrlistNb] = (char *)malloc(1 + end - start);
+        if (mctx.attrlist[mctx.attrlistNb] == NULL) {
+            fprintf(stderr, "Error : failed to allocate mctx.attrlist\n");
+            return (-1);
+        }
         strncpy(mctx.attrlist[mctx.attrlistNb], &(list[start]), end - start);
         mctx.attrlist[mctx.attrlistNb][end - start] = '\0';
         mctx.attrlistNb++;
@@ -1688,6 +1699,10 @@ decodeRdnParam(
    *        Anyway, there is not a lot of memory used here...
    */
     mctx.object.rdn = (vers_attribute *)malloc(sizeof(vers_attribute));
+    if (mctx.object.rdn == NULL) {
+        fprintf(stderr, "Error : failed to allocate mctx.object.rdn\n");
+        return (-1);
+    }
     mctx.object.rdn->buf = NULL; /*JLS 28-03-01*/
 
     /*
@@ -1700,6 +1715,10 @@ decodeRdnParam(
         return (-1);
     }
     mctx.object.rdnName = (char *)malloc(i + 1);
+    if (mctx.object.rdnName == NULL) {
+        fprintf(stderr, "Error : failed to allocate mctx.object.rdnName\n");
+        return (-1);
+    }
     strncpy(mctx.object.rdnName, value, i);
     mctx.object.rdnName[i] = '\0';
 
@@ -2190,6 +2209,9 @@ buildArgListString(
             lgth += 2;
     }
     argvList = (char *)malloc(lgth);
+    if (argvList == NULL) {
+        return (argvList);
+    }
     argvList[0] = '\0';
     if (argv && argv[0]) {
         strcat(argvList, argv[0]);

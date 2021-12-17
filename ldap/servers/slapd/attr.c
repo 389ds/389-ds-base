@@ -545,7 +545,7 @@ slapi_attr_get_values(Slapi_Attr *a, struct berval ***vals)
 {
     int retVal = slapi_attr_get_bervals_copy(a, vals);
 
-    if (0 == retVal) {
+    if (0 == retVal && a != NULL) {
         struct bervals2free *newfree;
         newfree = (struct bervals2free *)slapi_ch_malloc(sizeof(struct bervals2free));
         newfree->next = a->a_listtofree;

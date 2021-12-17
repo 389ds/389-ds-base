@@ -989,8 +989,7 @@ buildVersatileAttribute(
              * Should not happen, unless new variant parsed and not
              * integrated here, or "jardinage"....
              */
-            field = NULL;
-            field->how = 22; /* Crash !!! */
+            exit(1);
             break;
         }
     }

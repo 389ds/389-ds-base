@@ -272,7 +272,7 @@ slapi_task_log_status_ext(Slapi_Task *task, char *format, va_list ap)
  * logged here is added to the end)
  */
 void
-slapi_task_log_notice(Slapi_Task *task, char *format, ...)
+slapi_task_log_notice(Slapi_Task *task, const char *format, ...)
 {
     va_list ap;
     char buffer[LOG_BUFFER];

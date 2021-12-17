@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -27,15 +27,10 @@
 #include "fe.h"
 #include "vattr_spi.h"
 #include "slapi-plugin.h"
-
 #include <ssl.h>
-
-static Slapi_Counter *num_entries_sent;
-static Slapi_Counter *num_bytes_sent;
 
 static long current_conn_count;
 static PRLock *current_conn_count_mutex;
-
 static int flush_ber(Slapi_PBlock *pb, Connection *conn, Operation *op, BerElement *ber, int type);
 static char *notes2str(unsigned int notes, char *buf, size_t buflen);
 static void log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries);

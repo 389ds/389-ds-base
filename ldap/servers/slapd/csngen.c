@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -840,7 +840,7 @@ int32_t _csngen_tester_gettime(struct timespec *tp)
     return 0;
 }
 
-/* Mimic a fully meshed multi suplier topology */
+/* Mimic a fully meshed multi supplier topology */
 void csngen_multi_suppliers_test(void)
 {
 #define NB_TEST_MASTERS	6
@@ -855,8 +855,10 @@ void csngen_multi_suppliers_test(void)
 
     for (i=0; i< NB_TEST_MASTERS; i++) {
         gen[i] = csngen_new(i+1, NULL);
-        gen[i]->gettime = _csngen_tester_gettime;
-        gen[i]->state.sampled_time = now.tv_sec;
+        if (gen[i]) {
+            gen[i]->gettime = _csngen_tester_gettime;
+            gen[i]->state.sampled_time = now.tv_sec;
+        }
     }
 
     for (_csngen_tester_state=0; _csngen_tester_state < NB_TEST_STATES; _csngen_tester_state++) {

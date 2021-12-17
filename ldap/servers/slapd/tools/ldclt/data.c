@@ -365,31 +365,34 @@ loadDataListFile(
     DESCRIPTION :
  *****************************************************************************/
 data_list_file *
-dataListFile(
-    char *fname)
+dataListFile(char *fname)
 {
     data_list_file *dlf; /* To process the request */
 
     /*
-   * Maybe we already have loaded this file ?
-   */
-    for (dlf = mctx.dlf; dlf != NULL; dlf = dlf->next)
-        if (!strcmp(fname, dlf->fname))
+     * Maybe we already have loaded this file ?
+     */
+    for (dlf = mctx.dlf; dlf != NULL; dlf = dlf->next) {
+        if (!strcmp(fname, dlf->fname)) {
             return (dlf);
-
+        }
+    }
     /*
-   * Well, it looks like we should load a new file ;-)
-   * Allocate a new data structure, chain it in mctx and load the file.
-   */
+     * Well, it looks like we should load a new file ;-)
+     * Allocate a new data structure, chain it in mctx and load the file.
+     */
     dlf = (data_list_file *)malloc(sizeof(data_list_file));
+    if (dlf == NULL) {
+        return dlf;
+    }
     dlf->next = mctx.dlf;
     mctx.dlf = dlf;
     dlf->fname = strdup(fname);
-    if (loadDataListFile(dlf) < 0)
+    if (loadDataListFile(dlf) < 0) {
         return (NULL);
-
+    }
     /*
-   * Loaded...
-   */
+     * Loaded...
+     */
     return (dlf);
 }

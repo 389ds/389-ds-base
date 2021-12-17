@@ -927,7 +927,7 @@ cache_debug_hash(struct cache *cache, char **out)
     int total_entries, max_entries_per_slot, *slot_stats;
     int i, j;
     Hashtable *ht = NULL;
-    char *name = "unknown";
+    const char *name = "unknown";
 
     cache_lock(cache);
     *out = (char *)slapi_ch_malloc(1024);
