@@ -720,14 +720,17 @@ int
 retrocl_attr_in_exclude_attrs(char *attr, int attrlen)
 {
     int i = 0;
-    if (attr && attrlen > 0 && retrocl_nexclude_attrs > 0) {
-        while (retrocl_exclude_attrs[i]) {
-            if (strncmp(retrocl_exclude_attrs[i], attr, attrlen) == 0) {
-                slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,"retrocl_attr_in_exclude_attrs - excluding attr (%s).\n", attr);
-                return 1;
+
+    if (retrocl_exclude_attrs) {
+        if (attr && attrlen > 0 && retrocl_nexclude_attrs > 0) {
+            while (retrocl_exclude_attrs[i]) {
+                if (strncmp(retrocl_exclude_attrs[i], attr, attrlen) == 0) {
+                    slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,"retrocl_attr_in_exclude_attrs - excluding attr (%s).\n", attr);
+                    return 1;
+                }
+                i++;
             }
-            i++;
         }
+        return 0;
     }
-    return 0;
 }
