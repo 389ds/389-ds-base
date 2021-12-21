@@ -308,6 +308,18 @@ replica_destroy(void **arg)
 
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "replica_destroy\n");
 
+    /* A race condition can happened when a replicated mapping tree entry is
+     * deleted (mapping_tree_entry_delete_callback) and a replication
+     * session is ending multisupplier_extop_EndNSDS50ReplicationRequest.
+     * A problem is that both mapping tree and replication connection
+     * referred to the same replica object (via object extension:
+     * mtn_extension and connect_ext).
+     * Before freeing the replica, we need to give time to replication
+     * session to terminate and replica_update_ruv_consumer (that use the replica)
+     * When removing a replica, it is not a big deal to wait few seconds.
+     */
+    DS_Sleep(PR_SecondsToInterval(3));
+
     /*
      * The function will not be called unless the refcnt of its
      * wrapper object is 0. Hopefully this refcnt could sync up
