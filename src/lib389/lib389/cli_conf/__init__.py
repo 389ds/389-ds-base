@@ -89,7 +89,7 @@ def generic_object_del_attr(dsldap_object, log, args, arg_to_attr):
         modlist.append((ldap.MOD_DELETE, attr, value))
     if len(modlist) > 0:
         dsldap_object.apply_mods(modlist)
-        log.info("Successfully deleted attribute %s", str(value))
+        log.info("Successfully changed the %s", dsldap_object.dn)
     else:
         raise ValueError("There is nothing to delete in the %s plugin entry" % dsldap_object.dn)
 
