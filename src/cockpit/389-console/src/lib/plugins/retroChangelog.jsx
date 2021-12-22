@@ -9,13 +9,16 @@ import {
     FormSelectOption,
     Grid,
     GridItem,
+    Select,
+    SelectVariant,
+    SelectOption,
     TextInput,
     NumberInput,
     ValidatedOptions,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
-import { log_cmd, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
 
 class RetroChangelog extends React.Component {
     componentDidMount(prevProps) {
@@ -43,13 +46,18 @@ class RetroChangelog extends React.Component {
             maxAge: 0,
             maxAgeUnit: "w",
             trimInterval: 300,
-            excludeSuffix: "",
+            excludeSuffix: [],
+            excludeAttrs: [],
             // original values
             _isReplicated: false,
             _maxAge: 0,
             _maxAgeUnit: "w",
             _trimInterval: 300,
-            _excludeSuffix: "",
+            _excludeSuffix: [],
+            _excludeAttrs: [],
+
+            isExcludeAttrOpen: false,
+            isExcludeSuffixOpen: false,
         };
 
         this.maxValue = 20000000;
@@ -87,6 +95,74 @@ class RetroChangelog extends React.Component {
                 trimInterval: Number(this.state.trimInterval) + 1
             }, () => { this.validate() });
         };
+        
+        this.onExcludeAttrSelect = (event, selection) => {
+            if (this.state.excludeAttrs.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        excludeAttrs: prevState.excludeAttrs.filter((item) => item !== selection),
+                        isExcludeAttrOpen: false
+                    }), () => { this.validate() }
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        excludeAttrs: [...prevState.excludeAttrs, selection],
+                        isExcludeAttrOpen: false
+                    }), () => { this.validate() }
+                );
+            }
+
+        };
+        this.onExcludeAttrToggle = isExcludeAttrOpen => {
+            this.setState({
+                isExcludeAttrOpen
+            });
+        };
+        this.onExcludeAttrClear = () => {
+            this.setState({
+                excludeAttrs: [],
+                isExcludeAttrOpen: false
+            }, () => { this.validate() });
+        };
+
+        this.onExcludeSuffixSelect = (event, selection) => {
+            if (this.state.excludeSuffix.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        excludeSuffix: prevState.excludeSuffix.filter((item) => item !== selection),
+                        isExcludeSuffixOpen: false
+                    }), () => { this.validate() }
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        excludeSuffix: [...prevState.excludeSuffix, selection],
+                        isExcludeSuffixOpen: false
+                    }), () => { this.validate() }
+                );
+            }
+
+        };
+        this.onExcludeSuffixToggle = isExcludeSuffixOpen => {
+            this.setState({
+                isExcludeSuffixOpen
+            }, () => { this.validate() });
+        };
+        this.onExcludeSuffixClear = () => {
+            this.setState({
+                excludeSuffix: [],
+                isExcludeSuffixOpen: false
+            }, () => { this.validate() });
+        };
+        this.onExcludeSuffixCreateOption = newValue => {
+            if (!this.state.excludeSuffix.includes(newValue)) {
+                this.setState({
+                    excludeSuffix: [...this.state.excludeSuffix, newValue],
+                    isExcludeSuffixOpen: false
+                }, () => { this.validate() });
+            }
+        };
 
         this.updateFields = this.updateFields.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
@@ -104,9 +180,11 @@ class RetroChangelog extends React.Component {
 
         // Check DN attrs
         for (const attr of dnAttrs) {
-            if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
-                errObj[attr] = true;
-                all_good = false;
+            for (const dnAttr of this.state[attr]) {
+                if (!valid_dn(dnAttr)) {
+                    errObj[attr] = true;
+                    all_good = false;
+                }
             }
         }
 
@@ -116,10 +194,21 @@ class RetroChangelog extends React.Component {
 
             const attrs = [
                 'isReplicated', 'maxAge', 'maxAgeUnit',
-                'trimInterval', 'excludeSuffix',
+                'trimInterval',
             ];
+
+            const attrLists = [
+                'excludeSuffix', "excludeAttrs",
+            ];
+
             for (const check_attr of attrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
+                    all_good = true;
+                }
+            }
+
+            for (const check_list of attrLists) {
+                if (!listsEqual(this.state[check_list], this.state['_' + check_list])) {
                     all_good = true;
                     break;
                 }
@@ -154,8 +243,12 @@ class RetroChangelog extends React.Component {
                 ),
                 excludeSuffix:
                     pluginRow["nsslapd-exclude-suffix"] === undefined
-                        ? ""
-                        : pluginRow["nsslapd-exclude-suffix"][0],
+                        ? []
+                        : pluginRow["nsslapd-exclude-suffix"],
+                excludeAttrs:
+                        pluginRow["nsslapd-exclude-attrs"] === undefined
+                            ? []
+                            : pluginRow["nsslapd-exclude-attrs"],
                 maxAge: maxAge,
                 maxAgeUnit: maxAgeUnit,
                 trimInterval: pluginRow["nsslapd-changelog-trim-interval"] === undefined
@@ -167,8 +260,12 @@ class RetroChangelog extends React.Component {
                 ),
                 _excludeSuffix:
                     pluginRow["nsslapd-exclude-suffix"] === undefined
-                        ? ""
-                        : pluginRow["nsslapd-exclude-suffix"][0],
+                        ? []
+                        : pluginRow["nsslapd-exclude-suffix"],
+                _excludeAttrs:
+                        pluginRow["nsslapd-exclude-attrs"] === undefined
+                            ? []
+                            : pluginRow["nsslapd-exclude-attrs"],
                 _maxAge: maxAge,
                 _maxAgeUnit: maxAgeUnit,
                 _trimInterval: pluginRow["nsslapd-changelog-trim-interval"] === undefined
@@ -180,7 +277,7 @@ class RetroChangelog extends React.Component {
 
     savePlugin () {
         const maxAge = this.state.maxAge.toString() + this.state.maxAgeUnit;
-        const cmd = [
+        let cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -191,12 +288,29 @@ class RetroChangelog extends React.Component {
             this.state.isReplicated ? "TRUE" : "FALSE",
             "--max-age",
             maxAge || "delete",
-            "--exclude-suffix",
-            this.state.excludeSuffix || "delete",
             "--trim-interval",
             this.state.trimInterval.toString() || "300"
         ];
-
+        if (this.state._excludeSuffix != this.state.excludeSuffix) {
+            cmd = [...cmd, "--exclude-suffix"];
+            if (this.state.excludeSuffix.length != 0) {
+                for (const value of this.state.excludeSuffix) {
+                    cmd = [...cmd, value];
+                }
+            } else {
+                cmd = [...cmd, "delete"];
+            }
+        }
+        if (this.state._excludeAttrs != this.state.excludeAttrs) {
+            cmd = [...cmd, "--exclude-attrs"];
+            if (this.state.excludeAttrs.length != 0) {
+                for (const value of this.state.excludeAttrs) {
+                    cmd = [...cmd, value];
+                }
+            } else {
+                cmd = [...cmd, "delete"];
+            }
+        } 
         this.setState({
             saving: true
         });
@@ -233,6 +347,7 @@ class RetroChangelog extends React.Component {
             maxAge,
             maxAgeUnit,
             excludeSuffix,
+            excludeAttrs,
             trimInterval,
             saving,
             error
@@ -264,19 +379,30 @@ class RetroChangelog extends React.Component {
                                 Exclude Suffix
                             </GridItem>
                             <GridItem span={5}>
-                                <TextInput
-                                    value={excludeSuffix}
-                                    type="text"
-                                    id="excludeSuffix"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="excludeSuffix"
-                                    onChange={(str, e) => {
-                                        this.handleFieldChange(e);
-                                    }}
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    typeAheadAriaLabel="Type a suffix"
+                                    onToggle={this.onExcludeSuffixToggle}
+                                    onSelect={this.onExcludeSuffixSelect}
+                                    onClear={this.onExcludeSuffixClear}
+                                    selections={excludeSuffix}
+                                    isOpen={this.state.isExcludeSuffixOpen}
+                                    aria-labelledby="typeAhead-config-exclude-suffix"
+                                    placeholderText="Type a suffix..."
+                                    noResultsFoundText="There are no matching entries"
+                                    isCreatable
+                                    onCreateOption={this.onSubtreeScopeCreateOption}
                                     validated={error.excludeSuffix ? ValidatedOptions.error : ValidatedOptions.default}
-                                />
+                                >
+                                    {[""].map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                    ))}
+                                </Select>
                                 <FormHelperText isError isHidden={!error.excludeSuffix}>
-                                    The exclude suffix must be a valid DN
+                                    Values must be valid DN !
                                 </FormHelperText>
                             </GridItem>
                             <GridItem className="ds-left-margin" span={2}>
@@ -287,6 +413,33 @@ class RetroChangelog extends React.Component {
                                     title="Sets a flag to indicate on a change in the changelog whether the change is newly made on that server or whether it was replicated over from another server (isReplicated)"
                                     label="Is Replicated"
                                 />
+                            </GridItem>
+                        </Grid>
+                        <Grid title="This specifies attribute which will be excluded from the scope of the plugin (nsslapd-exclude-attrs)">
+                            <GridItem className="ds-label" span={2}>
+                                Exclude attribute
+                            </GridItem>
+                            <GridItem span={9}>
+                                <Select
+                                    variant={SelectVariant.typeaheadMulti}
+                                    typeAheadAriaLabel="Type an attribute"
+                                    onToggle={this.onExcludeAttrToggle}
+                                    onSelect={this.onExcludeAttrSelect}
+                                    onClear={this.onExcludeAttrClear}
+                                    selections={excludeAttrs}
+                                    isOpen={this.state.isExcludeAttrOpen}
+                                    aria-labelledby="typeAhead-config-exclude-attr"
+                                    placeholderText="Type an attribute..."
+                                    noResultsFoundText="There are no matching entries"
+                                    validated={error.excludeAttrs ? ValidatedOptions.error : ValidatedOptions.default}
+                                >
+                                    {this.props.attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                    ))}
+                                </Select>
                             </GridItem>
                         </Grid>
                         <Grid title="Specifies the maximum age of any entry in the changelog before it is trimmed from the database (nsslapd-changelogmaxage)">
