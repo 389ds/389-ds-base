@@ -136,6 +136,9 @@ struct cl5DBFileHandle
     Slapi_Counter *clThreads; /* track threads operating on the changelog */
     pthread_mutex_t clLock; /* controls access to trimming configuration  and */
                             /* lock associated to clVar, used to notify threads on close */
+    int32_t trimmingOnGoing; /* it is a flag to indicate that a trimming thread is started
+                              * and to prevent another trimming thread to start
+                              */
     pthread_cond_t clCvar; /* Condition Variable used to notify threads on close */
     pthread_condattr_t clCAttr; /* the pthread condition attr */
     void *clcrypt_handle;   /* for cl encryption */
@@ -1283,6 +1286,7 @@ cldb_SetReplicaDB(Replica *replica, void *arg)
     }
     cldb->clThreads = slapi_counter_new();
     cldb->dbState = CL5_STATE_OPEN;
+    cldb->trimmingOnGoing = 0;
 
     if (pthread_mutex_init(&(cldb->stLock), NULL) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
@@ -2205,13 +2209,33 @@ _cl5TrimMain(void *param)
     struct timespec prev_time = {0};
     Replica *replica = (Replica *)param;
     cldb_Handle *cldb = replica_get_cl_info(replica);
-    int32_t trimInterval = cldb->clConf.trimInterval;
+    int32_t trimInterval;
+
+    if (cldb == NULL) {
+        /* This can happened in race condition
+         * when the cldb_SetReplicaDB is called but the
+         * dispatching of_cl5TrimMain thread is slow.
+         * So trimming could be have been stopped (ruv reload) that
+         * clears the cldb
+         */
+        return 0;
+    }
+    trimInterval = cldb->clConf.trimInterval;
 
     /* Get the initial current time for checking the trim interval */
     clock_gettime(CLOCK_MONOTONIC, &prev_time);
 
     /* Lock the CL state, and bump the thread count */
     pthread_mutex_lock(&(cldb->stLock));
+
+    /* First check that no other trimming thread is running */
+    if (cldb->trimmingOnGoing) {
+        pthread_mutex_unlock(&(cldb->stLock));
+        return 0;
+    }
+
+    /* Now trimming thread can start */
+    cldb->trimmingOnGoing = 1;
     slapi_counter_increment(cldb->clThreads);
 
     while (cldb->dbState == CL5_STATE_OPEN)
@@ -2235,6 +2259,7 @@ _cl5TrimMain(void *param)
         pthread_mutex_lock(&(cldb->stLock));
     }
     slapi_counter_decrement(cldb->clThreads);
+    cldb->trimmingOnGoing = 0;
 
     pthread_mutex_unlock(&(cldb->stLock));
 
