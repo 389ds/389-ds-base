@@ -201,7 +201,7 @@ set_snmp_interaction_row(char *host, int port, int error)
 
     /* The interactions table is using the default (first) snmp_vars*/
     snmp_vars = g_get_first_thread_snmp_vars(&cookie);
-    if (snmp_vars == NULL)
+    if (snmp_vars == NULL || interaction_table_mutex == NULL)
         return;
 
     /* stevross: our servers don't have a concept of dsName as a distinguished name
@@ -856,7 +856,6 @@ snmp_update_cache_stats(void)
 
         if (search_result == 0) {
             int cookie;
-            uint64_t total;
             struct snmp_vars_t *snmp_vars;
             slapi_pblock_get(search_result_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
                              &search_entries);
