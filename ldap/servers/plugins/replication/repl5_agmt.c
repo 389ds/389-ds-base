@@ -482,7 +482,9 @@ agmt_new_from_entry(Slapi_Entry *e)
 
     /* DBDB: review this code */
     if (slapi_entry_attr_hasvalue(e, "objectclass", "nsDSWindowsReplicationAgreement")) {
-        if (replica_get_type(replica) == REPLICA_TYPE_PRIMARY) {
+        if (replica_get_type(replica) == REPLICA_TYPE_PRIMARY
+           || (replica_get_type(replica) == REPLICA_TYPE_UPDATABLE && replica_is_flag_set(replica, REPLICA_LOG_CHANGES))
+        ) {
             ra->agreement_type = REPLICA_TYPE_WINDOWS;
             windows_init_agreement_from_entry(ra, e);
         } else {
