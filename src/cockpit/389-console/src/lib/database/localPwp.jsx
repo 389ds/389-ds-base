@@ -262,7 +262,7 @@ class CreatePolicy extends React.Component {
                                             label="Keep Password History"
                                         />
                                     </div>
-                                    <div className="ds-inline ds-left-margin ds-raise-field ds-width-sm">
+                                    <div className="ds-inline ds-left-margin ds-raise-field-md ds-width-sm">
                                         <TextInput
                                             value={this.props.passwordinhistory}
                                             type="number"
@@ -2578,7 +2578,7 @@ export class LocalPwPolicy extends React.Component {
                                                 label="Keep Password History"
                                             />
                                         </div>
-                                        <div className="ds-inline ds-left-margin ds-raise-field ds-width-sm">
+                                        <div className="ds-inline ds-left-margin ds-raise-field-md ds-width-sm">
                                             <TextInput
                                                 value={this.state.passwordinhistory}
                                                 type="number"

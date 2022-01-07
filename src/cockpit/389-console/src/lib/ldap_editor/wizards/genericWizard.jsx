@@ -26,7 +26,7 @@ class GenericWizard extends React.Component {
                 return <AciWizard
                     {...wizardProps }
                     treeViewRootSuffixes={this.props.treeViewRootSuffixes}
-                    />;
+                />;
             case ENTRY_MENU.new:
                 return <NewEntryWizard
                     {...wizardProps }
