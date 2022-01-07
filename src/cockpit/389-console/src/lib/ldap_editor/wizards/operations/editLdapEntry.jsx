@@ -3,7 +3,6 @@ import {
     Alert,
     BadgeToggle,
     Bullseye,
-    Button,
     Card, CardHeader, CardBody, CardTitle,
     Dropdown, DropdownItem, DropdownPosition,
     FormSelect, FormSelectOption,
@@ -119,8 +118,8 @@ class EditLdapEntry extends React.Component {
                     this.setState({
                         commandOutput: result.output,
                         resultVariant: result.errorCode === 0 ? 'success' : 'danger'
-                    }, () => { this.props.onReload() });
-                    const opInfo = {
+                    }, () => { this.props.onReload() }); // refreshes tableView
+                    const opInfo = { // This is what refreshes treeView
                         operationType: 'MODIFY',
                         resultCode: result.errorCode,
                         time: Date.now()
@@ -707,7 +706,6 @@ class EditLdapEntry extends React.Component {
                 // if its length is smaller than 78.
                 // Otherwise the line is broken into smaller ones ( 78 characters max per line ).
                 const remainingData = foldLine(`${myAttr}${mySeparator} ${valueToUse}`);
-                // const remainingData = foldLine(`${myAttr}${mySeparator} ${datum.new}`);
                 ldifArray.push(...remainingData);
                 numOfChanges++;
                 if (isUserPwd) {

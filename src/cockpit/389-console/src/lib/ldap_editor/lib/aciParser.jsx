@@ -237,37 +237,16 @@ function parseAciValue (aci, i, aciName, aciAttributes, startIndex) {
   return -i; // error
 }
 
-export function checkAcis () {
-  // String testaci = "(targetattr=\"*\")(version 3.0; acl \"Enable Group Expansion\"; allow (read, search, compare) groupdnattr=\"ldap:///o=NetscapeRoot?uniquemember?sub\";)";
-  // String testaci = "(targetattr=\"*\")(ERROR=)(version 3.0; acl \"Enable Group Expansion\"; allow (read, search, compare) groupdnattr=\"ldap:///o=NetscapeRoot?uniquemember?sub\";)";
-  // String testaci = "(targetattr=\"*\")(targetfilter=(|(objectClass=nsManagedDomain)(|(objectClass=nsManagedOrgUnit)(|(objectClass=nsManagedDept)(|(objectClass=nsManagedMailList)(objectClass=nsManagedPerson))))))(version 3.0; acl \"SA domain access\"; allow (all) groupdn=\"ldap:///cn=Service Administrators, o=NDA Spock 1222\";)";
-  // String testaci = "(targetattr!=\"uid||ou||owner||nsDAModifiableBy||nsDACapability||mail||mailAlternateAddress||nsDAMemberOf||nsDADomain\")(targetfilter=(objectClass=nsManagedPerson))(version 3.0; acl \"User self modification\"; allow (write) userdn=\"ldap:///self\";)";
-  // String testaci = "(target=\"ldap:///cn=postmaster, o=NDA Spock 1222\")(targetattr=\"*\")(version 3.0; acl \"Anonymous access to Postmaster entry\"; allow (read,search) userdn=\"ldap:///anyone\";)";
-  // String testaci = "(targetattr=\"*\")(targetfilter=(objectClass=nsManagedDept))(version 3.0; acl \"Dept Adm dept access\"; allow (read,search) userdn=\"ldap:///o=NDA Spock 1222??sub?(nsDAMemberOf=cn=Department Administrators*)\" and groupdnattr=\"ldap:///o=NDA Spock 1222?nsDAModifiableBy\";)";
-  // String testaci = "(targetattr!=\"uid||ou||owner||nsDAModifiableBy||nsDACapability||mail||mailAlternateAddress||nsDAMemberOf||nsDADomain\")(targetfilter=(objectClass=nsManagedPerson))(version 3.0; acl \"User self modification\"; allow (write) (userdn=\"ldap:///self\" or userdn=\"ldap:///self\") ;)";
-  // String testaci = "(targetattr!=\"*\")(version 3.0; acl \"aclname\"; allow (all) (userdn=\"ldap:///self\" or userdn=\"ldap:///self\") ;)";
-  const testaci = '(targetattr = "*") (version 3.0; acl "<Unnamed ACI>"; allow (all) (userdn = "ldap:///anyone") and (dns="*.mcom.com");)';
-  // aci: (targetattr="dc || description || objectClass")(targetfilter="(objectClass=domain)")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)
-
-  console.log('aci: ' + testaci);
-  const aciData = getAciAttributes(testaci);
-  aciData.map(datum => {
-    console.log(datum);
-  });
-  const finalAci = aciData.filter(aci => aci.aciName === 'acl');
-  finalAci.map(aci => {
-    console.log('\nThe name of this ACI is "' + aci.value + '"');
-  });
-}
-
 export function getAciActualName (fullAci) {
-  console.log('fullAci = ' + fullAci);
   const aciData = getAciAttributes(fullAci);
-  aciData.map(datum => {
-    console.log(datum);
-  });
   const aciName = aciData.filter(aci => aci.aciName === 'acl');
   const aciActualName = aciName[0].value;
-  console.log(`aciActualName = ${aciActualName}`);
   return aciActualName;
+}
+
+export function isAciPermissionAllow (fullAci) {
+  const aciData = getAciAttributes(fullAci);
+  const aciAllow = aciData.filter(aci => aci.aciName === 'allow');
+  const aciDeny = aciData.filter(aci => aci.aciName === 'deny');
+  return aciAllow.length > 0;
 }

@@ -737,6 +737,9 @@ export class Suffix extends React.Component {
 
     doDelete() {
         // Delete suffix
+        this.setState({
+            modalSpinning: true
+        })
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "delete", this.props.suffix
@@ -746,7 +749,7 @@ export class Suffix extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.props.loadSuffixTree(true);
-                    this.closeLinkModal();
+                    this.closeDeleteConfirm();
                     this.props.addNotification(
                         "success",
                         `Successfully deleted database`
@@ -755,7 +758,7 @@ export class Suffix extends React.Component {
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.loadSuffixTree(true);
-                    this.closeLinkModal();
+                    this.closeDeleteConfirm();
                     this.props.addNotification(
                         "error",
                         `Error deleting database - ${errMsg.desc}`

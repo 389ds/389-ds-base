@@ -19,11 +19,6 @@
     vertical-align: top !important;
 }
 
-/* This can probably be removed once we switch to PF React 4 - suffix action button */
-.ds-action-button {
-    color: white;
-}
-
 .ds-refresh {
     background-color: #0088ce;
     background-image: linear-gradient(to bottom,#39a5dc 0,#0088ce 100%);
@@ -192,8 +187,10 @@ textarea {
     line-height: 1;
 }
 
-.ds-agmt-textarea {
+.ds-textarea {
     width: 100%;
+    min-height: 250px;
+    font-size: 14px !important;
     font-family: monospace !important;
 }
 
@@ -361,6 +358,10 @@ textarea {
     margin-top: -3px;
 }
 
+.ds-raise-field-md {
+    margin-top: -6px;
+}
+
 .ds-lower-field {
     margin-top: 3px;
 }
@@ -501,11 +502,6 @@ pre {
     font-size: 14px !important;
 }
 
-/* This can be removed once PF3 is completely removed */
-input[type="radio"], input[type="checkbox"] {
-    margin-top: 0px !important;
-}
-
 /* hopefully this can be removed too.  This is for button spinners */
 [role="progressbar"] {
     color: white !important;
@@ -561,4 +557,9 @@ input[type="radio"], input[type="checkbox"] {
 /* LDAP Editor classes */
 .ds-search-input {
     min-width: 550px !important;
+}
+
+.ds-badge-bgcolor {
+    color: #002952 !important;
+    background-color: #e7f1fa !important;
 }

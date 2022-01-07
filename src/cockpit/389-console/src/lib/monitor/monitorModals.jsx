@@ -134,7 +134,7 @@ class AgmtDetailsModal extends React.Component {
                         <GridItem span={8}>
                             <TextArea
                                 resizeOrientation="vertical"
-                                className="ds-agmt-textarea"
+                                className="ds-textarea"
                                 value={agmt['last-init-status']}
                                 aria-label="text area example"
                             />
@@ -179,7 +179,7 @@ class AgmtDetailsModal extends React.Component {
                         <GridItem span={8}>
                             <TextArea
                                 resizeOrientation="vertical"
-                                className="ds-agmt-textarea"
+                                className="ds-textarea"
                                 value={agmt['last-update-status']}
                                 aria-label="text area example"
                             />
