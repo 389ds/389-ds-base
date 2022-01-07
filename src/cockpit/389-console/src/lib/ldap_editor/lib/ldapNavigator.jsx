@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+    Bullseye,
     Spinner,
     TreeView
 } from '@patternfly/react-core';
@@ -469,9 +470,13 @@ class LdapNavigator extends React.Component {
 
     render () {
         const { allItems, activeItems } = this.state;
-
         return (
             <React.Fragment>
+                {allItems.length === 0 &&
+                    <Bullseye>
+                        <div>No Databases</div>
+                    </Bullseye>
+                }
                 <div className="ds-editor-tree">
                     <TreeView
                         data={allItems}

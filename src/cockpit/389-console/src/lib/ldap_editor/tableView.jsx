@@ -19,9 +19,18 @@ class EditorTableView extends React.Component {
 
     render () {
         const {
-            editorTableRows, columns, instanceList,
+            instanceList,
             loading
         } = this.props;
+
+        let columns = [...this.props.columns];
+        let rows = [...this.props.editorTableRows];
+        let noBackend = false;
+        if (rows.length === 0) {
+            columns = ['Database Suffixes'];
+            rows = [{ cells: ['No Databases'] }];
+            noBackend = true;
+        }
 
         let body =
             <div className="ds-margin-top-xlg ds-center">
@@ -37,26 +46,28 @@ class EditorTableView extends React.Component {
                 <div>
                    <Table
                        variant={TableVariant.compact}
-                       onCollapse={this.props.onCollapse}
-                       rows={editorTableRows}
+                       onCollapse={noBackend ? null : this.props.onCollapse}
+                       rows={rows}
                        cells={columns}
-                       actionResolver={this.props.actionResolver}
+                       actionResolver={noBackend ? null : this.props.actionResolver}
                        aria-label="editor table view"
                        header={this.props.header ? this.props.header : ""}
                    >
                        <TableHeader />
                        <TableBody />
                    </Table>
-                   <Pagination
-                       id="ds-addons-editor-view-top"
-                       className="ds-margin-top"
-                       widgetId="pagination-options-menu-top"
-                       itemCount={this.props.itemCount}
-                       page={this.props.page}
-                       perPage={this.props.perPage}
-                       onSetPage={(_evt, value) => this.props.onSetPage(value)}
-                       onPerPageSelect={(_evt, value) => this.props.onPerPageSelect(value)}
-                   />
+                   {!noBackend &&
+                       <Pagination
+                           id="ds-addons-editor-view-top"
+                           className="ds-margin-top"
+                           widgetId="pagination-options-menu-top"
+                           itemCount={this.props.itemCount}
+                           page={this.props.page}
+                           perPage={this.props.perPage}
+                           onSetPage={(_evt, value) => this.props.onSetPage(value)}
+                           onPerPageSelect={(_evt, value) => this.props.onPerPageSelect(value)}
+                       />
+                   }
                </div>;
         }
 

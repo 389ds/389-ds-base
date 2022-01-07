@@ -800,7 +800,7 @@ export function modifyLdapEntry (params, ldifArray, modifyEntryCallback) {
       result = { errorCode: 0, output: data };
     })
     .fail((err) => {
-      console.log('FAIL - createLdapEntry() ==> ' + err.message);
+      console.log('FAIL - modifyLdapEntry() ==> ' + err.message);
       console.log('Error code (err.exit_status) = ' + err.exit_status);
       let errMessage = '';
       for (const msg of err.message.split('\n')) {
@@ -1102,92 +1102,62 @@ export function generateRootEntryLdif (suffixDn, ldifCallback) {
 }
 
 // Get all ACIs that apply to a given entry.
-// * Split the entry DN in order to retrieve potential parent entries
-// * For each entry, retrieve the ACIs
-// * Label the ACIs as "own" ( for the entry itself ) or "inherited" ( from parents )
-// ==> inherited: true / false.
-
 export function retrieveAllAcis (params, aciCallback) {
-  let entryDn = params.baseDn;
-  const potentialEntries = [params.baseDn];
-  while (entryDn.indexOf(',') > 0) {
-    const pos = entryDn.indexOf(',');
-    entryDn = entryDn.substring(pos + 1);
-    potentialEntries.push(entryDn);
-  }
-
-  const resultArray = []; // An item will be like {entryDn:<DN>, aciArray:[aci:<ACI_1>,aci:<ACI_2>]}
-  let nbIterations = 0;
-
-  for (const myDn of potentialEntries) {
+    let entryDn = params.baseDn;
+    const potentialEntries = [params.baseDn];
+    const resultArray = []; // An item will be like {entryDn:<DN>, aciArray:[aci:<ACI_1>,aci:<ACI_2>]}
     const myParams = {
-      serverId: params.serverId,
-      baseDn: myDn,
-      scope: 'base',
-      filter: 'objectClass=*',
-      attributes: '1.1 aci'
+        serverId: params.serverId,
+        baseDn: entryDn,
+        scope: 'base',
+        filter: 'objectClass=*',
+        attributes: '1.1 aci'
     };
 
-    // console.log(`nbIterations 1 = ${nbIterations}`);
     runGenericSearch(myParams, (result) => {
-      nbIterations++;
-      // console.log(`nbIterations 2 = ${nbIterations}`);
-      if (result.length > 0) {
-        const myAcis = result[0].split('\n'); // There should be a single result ( base scope search ).
-        /* if (myAcis.length === 1) { // The array contains only the DN. There is no ACI.
-          return;
-        } */
-        if (myAcis.length > 1) { // The array containsat least 1 ACI.
-          myAcis.shift() // Remove the DN (first element) from the array.
-          const actualAcis = myAcis.map(aciLine => {
-            const pos = aciLine.indexOf(':');
-            const theAci = aciLine.startsWith('aci:: ')
-              ? b64DecodeUnicode((aciLine.substring(pos + 2)).trim())
-              : (aciLine.substring(pos + 1)).trim();
-            return theAci;
-          })
-          const myBaseDn = myParams.baseDn;
-          const myObj = {
-            entryDn: myBaseDn,
-            aciArray: actualAcis,
-            inherited: myBaseDn !== potentialEntries[0] // The first element in the potentialEntries array is the original entry.
-          }
-          resultArray.push(myObj);
+        if (result.length > 0) {
+            const myAcis = result[0].split('\n'); // There should be a single result ( base scope search ).
+            if (myAcis.length > 1) { // The array contains at least 1 ACI.
+                myAcis.shift() // Remove the DN (first element) from the array.
+                const actualAcis = myAcis.map(aciLine => {
+                    const pos = aciLine.indexOf(':');
+                    const theAci = aciLine.startsWith('aci:: ')
+                        ? b64DecodeUnicode((aciLine.substring(pos + 2)).trim())
+                        : (aciLine.substring(pos + 1)).trim();
+                    return theAci;
+                })
+                const myBaseDn = myParams.baseDn;
+                const myObj = {
+                    entryDn: myBaseDn,
+                    aciArray: actualAcis,
+                }
+                resultArray.push(myObj);
+            }
         }
-      }
-      // We're done when the result array has the same length as the entry array.
-      // console.log(`nbIterations = ${nbIterations}`);
-      // console.log(`potentialEntries.length = ${potentialEntries.length}`);
-      if (nbIterations === potentialEntries.length) {
         aciCallback(resultArray);
-      }
     });
-  }
 }
 
-// Quick and dirty check.
-// TODO: Rewrite code and handle IPv6.
 export function isValidIpAddress (ipAddress) {
-  // console.log(`ipAddress = ${ipAddress}`);
-  const regex = /(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/;
-  const data = ipAddress.split('.');
-  for (const datum of data) {
-    // console.log(`datum = ${datum}`);
-    const nb = parseInt(datum);
-    if (isNaN(nb)) {
-      return false;
-    }
-    if ((data.length < 4) && nb <= 255) {
-      continue;
+    const regexIPv4 = /^(?=(?:[^.]*\.){2,3}[^.]*$)(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){1,3}(?:\.\*)?$/;
+    const regexIPv6 = /(?:^|(?<=\s))(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))(?=\s|$)/;
+
+    let result = false;
+
+    if (ipAddress.includes(":")) {
+        // IPv6
+        result = ipAddress.match(regexIPv6);
     } else {
-      console.log(`parseInt(datum) = ${parseInt(datum)}`);
-      const res = data.length === 4
-        ? datum === '*' || (!isNaN(parseInt(datum)))
-        : false;
-      return res;
+        // IPv4
+        result = ipAddress.match(regexIPv4);
     }
-  }
-  return false;
+    return result !== null;
+}
+
+export function isValidHostname (hostname) {
+    const regex = /^((\*)[]|((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|((\*\.)?([a-zA-Z0-9-]+\.){0,5}[a-zA-Z0-9-]+\.[a-zA-Z]{2,63}?))$/;
+    const result = hostname.match(regex);
+    return result !== null;
 }
 
 /*
@@ -1231,4 +1201,11 @@ export function foldLine (line) {
   }
 
   return lineArray;
+}
+
+export function isValidLDAPUrl (url) {
+    if (url.startsWith("ldap:///")) {
+        return true;
+    }
+    return false;
 }

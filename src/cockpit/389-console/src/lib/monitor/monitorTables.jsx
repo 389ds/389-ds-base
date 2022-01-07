@@ -1126,10 +1126,6 @@ class GlueTable extends React.Component {
                 ]
             });
         }
-        if (rows.length == 0) {
-            rows = [{ cells: ['No Glue Entries'] }];
-            columns = [{ title: 'Replication Conflict Glue Entries' }];
-        }
         this.setState({
             rows: rows,
             columns: columns
@@ -1205,7 +1201,7 @@ class GlueTable extends React.Component {
         if (rows.length == 0) {
             has_rows = false;
             rows = [{ cells: ['No Glue Entries'] }];
-            columns = [{ title: 'Glue Entries' }];
+            columns = [{ title: 'Replication Conflict Glue Entries' }];
         }
 
         return (

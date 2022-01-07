@@ -9,8 +9,6 @@ import {
     FormSelect, FormSelectOption,
     Grid, GridItem,
     Label, LabelGroup,
-    Modal,
-    ModalVariant,
     Pagination,
     SearchInput,
     SimpleList, SimpleListItem,
