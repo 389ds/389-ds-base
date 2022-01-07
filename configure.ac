@@ -870,7 +870,7 @@ AM_CONDITIONAL(OPENLDAP,test "$with_openldap" = "yes")
 
 # check for --with-libldap-r
 AC_MSG_CHECKING(for --with-libldap-r)
-AC_ARG_WITH(libldap-r, AS_HELP_STRING([--with-libldap-r],[Use libldap_r.so shared library (default: if OpenLDAP version is less than 2.5, then libldap_r.so will be used, else - libldap.so)]),
+AC_ARG_WITH(libldap-r, AS_HELP_STRING([--with-libldap-r],[Use lldap_r shared library (default: if OpenLDAP version is less than 2.5, then lldap_r will be used, else - lldap)]),
 [
   if test "$withval" = "no"; then
     AC_MSG_RESULT(no)
