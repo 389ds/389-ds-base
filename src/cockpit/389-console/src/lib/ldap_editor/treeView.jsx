@@ -7,14 +7,13 @@ import {
     CardHeaderMain, CardHeader, CardActions,
     Divider,
     DropdownItem, Dropdown, DropdownSeparator,
-    EmptyStateVariant,
+    EmptyState, EmptyStateIcon, EmptyStateBody, EmptyStateVariant,
     Grid, GridItem,
     KebabToggle,
     Label,
     List, ListItem, ListVariant,
-    EmptyState, EmptyStateIcon, EmptyStateBody,
-    Title,
     Spinner,
+    Title,
     TextContent, Text, TextVariants, TextList,
     TextListVariants, TextListItem, TextListItemVariants,
     Tooltip
@@ -154,10 +153,9 @@ class EditorTreeView extends React.Component {
                 this.addAlert(resultParams.message, resultParams.variant, creationDate);
                 if (resultParams.variant === 'success') {
                     const rootEntryData = resultParams.rootEntryData;
-                    console.log(rootEntryData);
                     this.setState({
-                        newSuffixData: { rootEntryData, creationDate }
-                    });
+                        newSuffixData: { rootEntryData, creationDate },
+                    }, () => { this.props.onReload(true) });
                 }
             }
         };
@@ -480,15 +478,6 @@ class EditorTreeView extends React.Component {
             >
                 Delete ...
             </DropdownItem>,
-            <DropdownSeparator key="separator-4" />,
-            <DropdownItem
-                key="tree-view-refresh"
-                component="button"
-                name={ENTRY_MENU.refresh}
-                value={entryDn}
-            >
-                Refresh
-            </DropdownItem>
         ];
 
         const loadingStateComponent = (
@@ -570,6 +559,7 @@ class EditorTreeView extends React.Component {
                                     refreshEntryTime={this.props.refreshEntryTime}
                                     showTreeLoadingState={this.showTreeLoadingState}
                                     refreshButtonTriggerTime={refreshButtonTriggerTime}
+                                    handleEntryRefresh={this.refreshEntry}
                                 />
                             }
                         </GridItem>
@@ -647,7 +637,6 @@ class EditorTreeView extends React.Component {
                                                     <Button
                                                         className="ds-margin-top-lg"
                                                         variant="link"
-                                                        isLarge
                                                         onClick={this.handleEmptySuffixToggle}
                                                     >
                                                         Create the root suffix entry <ArrowRightIcon />

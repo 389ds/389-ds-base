@@ -21,6 +21,7 @@ import {
     DropdownItem,
     DropdownPosition,
     DropdownSeparator,
+    Grid, GridItem,
     FormSelect,
     FormSelectOption,
     PageSectionVariants,
@@ -34,6 +35,7 @@ import {
     TextContent,
     TextVariants
 } from "@patternfly/react-core";
+import CaretDownIcon from '@patternfly/react-icons/dist/esm/icons/caret-down-icon';
 
 const staticStates = {
     noPackage: (
@@ -657,53 +659,55 @@ export class DSInstance extends React.Component {
             pageLoadingState.state !== "noInsts" &&
             pageLoadingState.state !== "noPackage") {
             serverDropdown =
-                <div className="ds-logo" hidden={pageLoadingState.state === "loading"}>
-                    <TextContent className="ds-logo-style" title={this.state.version}>
-                        <Text id="main-banner" component={TextVariants.h1}>
-                            <div className="ds-server-action">
-                                <FormSelect
-                                    title="Directory Server instance list"
-                                    value={serverId}
-                                    id="serverId"
-                                    onChange={this.handleServerIdChange}
-                                    aria-label="FormSelect Input"
-                                    className="ds-instance-select"
-                                >
-                                    {instList.map((option, index) => (
-                                        <FormSelectOption
-                                            isDisabled={option.disabled}
-                                            key={index}
-                                            value={option.value.replace("slapd-", "")}
-                                            label={option.label}
-                                        />
-                                    ))}
-                                </FormSelect>
-                            </div>
-                            {operateSpinner}
-                            <div className="dropdown ds-float-right">
-                                <Dropdown
-                                    id="ds-action"
-                                    className="ds-action-button"
-                                    position={DropdownPosition.right}
-                                    onSelect={this.handleDropdown}
-                                    toggle={
-                                        <DropdownToggle id="ds-dropdown" isPrimary onToggle={this.handleToggle}>
-                                            Actions
-                                        </DropdownToggle>
-                                    }
-                                    isOpen={dropdownIsOpen}
-                                    dropdownItems={dropdownItems}
-                                />
-                            </div>
-                        </Text>
-                    </TextContent>
-                </div>;
+                <Grid className="ds-logo" hidden={pageLoadingState.state === "loading"}>
+                    <GridItem span={10}>
+                        <TextContent className="ds-logo-style" title={this.state.version}>
+                            <Text id="main-banner" component={TextVariants.h1}>
+                                <div className="ds-server-action">
+                                    <FormSelect
+                                        title="Directory Server instance list"
+                                        value={serverId}
+                                        id="serverId"
+                                        onChange={this.handleServerIdChange}
+                                        aria-label="FormSelect Input"
+                                        className="ds-instance-select"
+                                    >
+                                        {instList.map((option, index) => (
+                                            <FormSelectOption
+                                                isDisabled={option.disabled}
+                                                key={index}
+                                                value={option.value.replace("slapd-", "")}
+                                                label={option.label}
+                                            />
+                                        ))}
+                                    </FormSelect>
+                                </div>
+                                {operateSpinner}
+                            </Text>
+                        </TextContent>
+                    </GridItem>
+                    <GridItem span={2}>
+                        <Dropdown
+                            id="ds-action"
+                            className="ds-float-right ds-margin-top ds-margin-right"
+                            position={DropdownPosition.right}
+                            onSelect={this.handleDropdown}
+                            toggle={
+                                <DropdownToggle onToggle={this.handleToggle} toggleIndicator={CaretDownIcon} isPrimary id="ds-dropdown">
+                                    Actions
+                                </DropdownToggle>
+                            }
+                            isOpen={dropdownIsOpen}
+                            dropdownItems={dropdownItems}
+                        />
+                    </GridItem>
+                </Grid>;
         }
 
         let mainPage = <div>{mainContent}</div>;
         if (serverId !== "" && (pageLoadingState.state === "success" || pageLoadingState.state === "loading")) {
             mainPage =
-                <div className="ds-margin-top-xlg">
+                <div className="ds-margin-top">
                     <div hidden={pageLoadingState.state === "loading"}>
                         <Tabs isFilled activeKey={activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={1} title={<TabTitleText><b>Server</b></TabTitleText>}>

@@ -91,9 +91,9 @@ class DeleteOperationWizard extends React.Component {
                                        commandOutput: result.output,
                                        resultVariant: result.errorCode === 0 ? 'success' : 'danger'
                                    }, () => {
-                                       this.props.onReload();
+                                       this.props.onReload(); // Refreshes tableView
                                    });
-                                   const opInfo = {
+                                   const opInfo = {  // This is what refreshes treeView
                                        operationType: 'DELETE',
                                        resultCode: result.errorCode,
                                        time: Date.now()
@@ -199,7 +199,7 @@ class DeleteOperationWizard extends React.Component {
                         </React.Fragment>
                     }
                     { numSubordinates === 0 &&
-                        <CardBody className="ds-agmt-textarea">
+                        <CardBody className="ds-textarea">
                             {ldifLines.map((line) => (
                                 <h6 key={line.id}>{line.data}</h6>
                             ))}

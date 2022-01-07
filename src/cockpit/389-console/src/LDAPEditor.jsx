@@ -29,6 +29,7 @@ import {
     getBaseLevelEntryAttributes,
     getAllObjectClasses,
 } from './lib/ldap_editor/lib/utils.jsx';
+import CreateRootSuffix from './lib/ldap_editor/lib/rootSuffix.jsx';
 import { ENTRY_MENU } from './lib/ldap_editor/lib/constants.jsx';
 import EditorTableView from './lib/ldap_editor/tableView.jsx';
 import EditorTreeView from './lib/ldap_editor/treeView.jsx';
@@ -51,11 +52,13 @@ export class LDAPEditor extends React.Component {
 
         this.state = {
             activeTabKey: 0,
+            keyIndex: 0,
             suffixList: [],
             changeLayout: false,
             openNewEntry: false,
             openDeleteEntry: false,
-            baseDN: '',
+            baseDN: "",
+            emptyDN: "",
             loading: true,
             searching: false,
             perPage: 50,
@@ -68,6 +71,7 @@ export class LDAPEditor extends React.Component {
             wizardName: '',
             isWizardOpen: false,
             isTreeWizardOpen: false,
+            showEmptySuffixModal: false,
             wizardEntryDn: '',
             treeViewRootSuffixes: [],
             searchBase: "",
@@ -129,11 +133,14 @@ export class LDAPEditor extends React.Component {
                 return;
             }
 
+            const keyIndex = this.state.keyIndex + 1;
             this.setState({
                 entryMenuIsOpen: true,
                 wizardName: aTarget.name,
-                isTreeWizardOpen: !this.state.isTreeWizardOpen,
+                isTreeWizardOpen: true,
+                isWizardOpen: false,
                 wizardEntryDn: aTarget.value,
+                keyIndex,
             });
         };
 
@@ -168,6 +175,14 @@ export class LDAPEditor extends React.Component {
             this.setState({ treeVisibleAndFirstClicked: value });
         };
 
+        this.onHandleEmptySuffixToggle = (dn) => {
+            const showEmptySuffixModal = this.state.showEmptySuffixModal;
+            this.setState({
+                showEmptySuffixModal: !showEmptySuffixModal,
+                emptyDN: dn,
+            }, () => { this.handleReload(true) });
+        };
+
         this.handleCollapse = this.handleCollapse.bind(this);
         this.onNavItemClick = this.onNavItemClick.bind(this);
         this.handleReload = this.handleReload.bind(this);
@@ -184,7 +199,9 @@ export class LDAPEditor extends React.Component {
             searching: true,
             loading: refresh
         });
+
         if (this.state.baseDN === "Database Suffixes" || this.state.baseDN === "db-suffixes" || this.state.baseDN === "") {
+            this.rootSuffixesTreeData = [];
             this.showSuffixes('Database Suffixes', null);
         } else {
             let parentId = 0;
@@ -194,6 +211,7 @@ export class LDAPEditor extends React.Component {
                     baseDn: suffixDN,
                     parentId: parentId
                 };
+
                 getRootSuffixEntryDetails(params, this.updateTableRootSuffixes);
                 parentId += 2; // The next DN row will be two rows below.
             });
@@ -235,9 +253,6 @@ export class LDAPEditor extends React.Component {
     }
 
     getPageData (page, perPage) {
-        console.log('page = ' + page);
-        console.log('perPage = ' + perPage);
-        console.log('this.state.rows.length = ' + this.state.rows.length);
         if (page === 1) {
             const pagedRows = this.state.rows.slice(0, 2 * perPage); // Each parent has a single child.
             this.setState({ pagedRows, perPage, page, loading: false });
@@ -246,14 +261,11 @@ export class LDAPEditor extends React.Component {
             const start = 2 * (page - 1) * perPage;
             const end = 2 * page * perPage;
             const pagedRows = this.state.rows.slice(start, end);
-            // pagedRows.map(row => console.log('Before ==> row.parent = ' + row.parent));
-            let i = 0;
-            for (i; i < pagedRows.length - 1; i++) {
+            for (let i = 0; i < pagedRows.length - 1; i++) {
                 if (i % 2 === 0) {
                     pagedRows[i + 1].parent = i;
                 }
             }
-            // pagedRows.map(row => console.log('After ==> pagedRow.parent = ' + row.parent));
             this.setState({ pagedRows, perPage, page, loading: false });
         }
     }
@@ -291,7 +303,6 @@ export class LDAPEditor extends React.Component {
                 baseDN: id,
                 searching: true,
             });
-            // console.log('DN of item at position ' + position + ' = ' + navItems[position].label);
             const params = {
                 serverId: this.props.serverId,
                 baseDn: id
@@ -307,10 +318,8 @@ export class LDAPEditor extends React.Component {
         let totalParentLength = 0;
         let pos = 0;
         while (pos < itemsLength) {
-            console.log('position = ' + pos);
             listOfItems[pos].active = false;
             if (pos > 1) { // The first two elements are not part of the DN.
-                console.log('Current label (RDN) = ' + listOfItems[pos].label);
                 totalParentLength += (listOfItems[pos].label.length + 1); // Count the separating comma as well.
             }
             pos++;
@@ -321,8 +330,6 @@ export class LDAPEditor extends React.Component {
         // to retrieve the RDN from a full DN!
         let newLabel = dn;
         if (itemsLength > 2) { // We're after the "Database Suffixes" link.
-            console.log('DN size = ' + dn.length);
-            console.log('# of chars to remove ( totalParentLength )= ' + totalParentLength);
             const dnLength = dn.length;
             newLabel = dn.slice(0, dnLength - totalParentLength);
         }
@@ -439,7 +446,6 @@ export class LDAPEditor extends React.Component {
         });
 
         const firstTime = (pagedRows[rowKey + 1].cells[0].title) === this.initialChildText;
-        // console.log('(pagedRows[rowKey + 1].cells[0].title) = ' + pagedRows[rowKey + 1].cells[0].title);
         if (firstTime) {
             const baseDn = pagedRows[rowKey].rawdn; // The DN is the first element in the array.
             getBaseLevelEntryAttributes(this.props.serverId, baseDn, (entryArray) => {
@@ -460,8 +466,6 @@ export class LDAPEditor extends React.Component {
                     pagedRows
                 });
             });
-        } else {
-            console.log('This entry was already processed.');
         }
     }
 
@@ -532,7 +536,7 @@ export class LDAPEditor extends React.Component {
                             : (
                                 <div>
                                     <strong>&nbsp;<em>This suffix is empty!&nbsp;&nbsp;&nbsp;</em></strong>
-                                    <a key={'top-entry-' + info.dn} href="#" onClick={() => console.log('Clicked to create a top entry - TODO')}>
+                                    <a key={'top-entry-' + info.dn} href="#" onClick={() => { this.onHandleEmptySuffixToggle(info.dn) }}>
                                         Click here to create the top entry
                                     </a>
                                 </div>
@@ -573,11 +577,14 @@ export class LDAPEditor extends React.Component {
 
         if (isEmptySuffix) {
             entryTreeData.icon = <ResourcesEmptyIcon color="var(--pf-global--palette--orange-300)" />;
+        } else {
+            entryTreeData.icon = null;
         }
 
         node_present = false;
         for (const node of this.rootSuffixesTreeData) {
             if (node.name === entryTreeData.name) {
+                node.icon = entryTreeData.icon; // update icon
                 node_present = true;
                 break;
             }
@@ -589,7 +596,6 @@ export class LDAPEditor extends React.Component {
         if (this.rootSuffixesRows.length === 2 * this.state.numberSuffixes) { // There are 2 rows per DN.
             // Sort the row data to make sure that are ordered ( a child belong to its parent ).
             const finalRowData = this.rootSuffixesRows.sort((e1, e2) => e1.customRowId - e2.customRowId);
-            // finalRowData.map(t => (console.log(t.customRowId)));
             this.setState({
                 loading: false,
                 rows: finalRowData,
@@ -619,14 +625,14 @@ export class LDAPEditor extends React.Component {
 
     // Process the root suffixes
     processRootSuffixes = (userSuffData) => {
-        let isEmpty = true;
+        let loading = this.state.loading;
+        let isEmpty = false;
         // TODO: Use (!!userSuffData ...)
-        if (userSuffData === undefined || userSuffData === null) { // Found no user defined suffixes!
-            console.log('Found no user defined suffixes!');
-        } else {
-            isEmpty = false;
+        if (userSuffData === undefined || userSuffData === null || userSuffData.length === 0) {
+            // No suffixes, stop loading
+            isEmpty = true;
+            loading = false;
         }
-
         // Reset suffixes
         this.rootSuffixesRows = [];
 
@@ -634,6 +640,7 @@ export class LDAPEditor extends React.Component {
         this.setState({
             numberSuffixes: suffixesToProcess.length,
             suffixList: [...userSuffData],
+            loading
         }, () => {
             let parentId = 0;
             suffixesToProcess.map(suffixDN => {
@@ -650,7 +657,6 @@ export class LDAPEditor extends React.Component {
 
     showSuffixes = (label, event) => {
         getUserSuffixes(this.props.serverId, this.processRootSuffixes);
-
         if (!!label === false) {
             return;
         }
@@ -690,10 +696,13 @@ export class LDAPEditor extends React.Component {
         // If there is an entry suffix, allow only the creation of the top entry:
         if (rowData.isEmptySuffix) {
             return [{
-                title: 'Create Top Entry...'
+                title: 'Create Top Entry...',
+                onClick: () => {
+                    this.onHandleEmptySuffixToggle(rowData.rawdn);
+                }
             }];
         }
-
+        const keyIndex = this.state.keyIndex + 1;
         const updateActions =
             [{
                 title: 'Search ...',
@@ -715,7 +724,8 @@ export class LDAPEditor extends React.Component {
                     this.setState({
                         wizardName: ENTRY_MENU.edit,
                         wizardEntryDn: rowData.rawdn,
-                        isWizardOpen: true
+                        isWizardOpen: true,
+                        isTreeWizardOpen: false,
                     });
                 }
             },
@@ -726,7 +736,8 @@ export class LDAPEditor extends React.Component {
                     this.setState({
                         wizardName: ENTRY_MENU.new,
                         wizardEntryDn: rowData.rawdn,
-                        isWizardOpen: true
+                        isWizardOpen: true,
+                        isTreeWizardOpen: false,
                     });
                 }
             },
@@ -738,7 +749,8 @@ export class LDAPEditor extends React.Component {
                     this.setState({
                         wizardName: ENTRY_MENU.rename,
                         wizardEntryDn: rowData.rawdn,
-                        isWizardOpen: true
+                        isWizardOpen: true,
+                        isTreeWizardOpen: false,
                     });
                 }
             },
@@ -749,7 +761,9 @@ export class LDAPEditor extends React.Component {
                     this.setState({
                         wizardName: ENTRY_MENU.acis,
                         wizardEntryDn: rowData.rawdn,
-                        isWizardOpen: true
+                        isWizardOpen: true,
+                        isTreeWizardOpen: false,
+                        keyIndex,
                     });
                 }
             },
@@ -770,13 +784,14 @@ export class LDAPEditor extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete',
+                title: 'Delete ...',
                 onClick:
                 () => {
                     this.setState({
                         wizardName: ENTRY_MENU.delete,
                         wizardEntryDn: rowData.rawdn,
-                        isWizardOpen: true
+                        isWizardOpen: true,
+                        isTreeWizardOpen: false,
                     });
                 }
             },
@@ -784,8 +799,11 @@ export class LDAPEditor extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Refresh',
-                isDisabled: true
+                title: 'Refresh ...',
+                onClick:
+                () => {
+                    this.handleReload(true);
+                }
             }];
 
         return [
@@ -813,7 +831,6 @@ export class LDAPEditor extends React.Component {
         } = this.state;
 
         return (
-
             <>
                 {isWizardOpen && (
                     <GenericWizard
@@ -828,6 +845,7 @@ export class LDAPEditor extends React.Component {
                         onModrdnReload={this.handleReload}
                         allObjectclasses={this.state.allObjectclasses}
                         addNotification={this.props.addNotification}
+                        key={this.state.keyIndex + "table"}
                     />
                 )}
                 {isTreeWizardOpen && (
@@ -843,6 +861,7 @@ export class LDAPEditor extends React.Component {
                         onModrdnReload={this.handleReload}
                         allObjectclasses={this.state.allObjectclasses}
                         addNotification={this.props.addNotification}
+                        key={this.state.keyIndex + "tree"}
                     />
                 )}
                 <Tabs isBox className="ds-margin-top-lg ds-indent" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
@@ -915,6 +934,13 @@ export class LDAPEditor extends React.Component {
                         />
                     </Tab>
                 </Tabs>
+                { this.state.showEmptySuffixModal &&
+                    <CreateRootSuffix
+                        showEmptySuffixModal={this.state.showEmptySuffixModal}
+                        handleEmptySuffixToggle={this.onHandleEmptySuffixToggle}
+                        suffixDn={this.state.emptyDN}
+                        editorLdapServer={this.props.serverId}
+                    />}
             </>
         );
     }

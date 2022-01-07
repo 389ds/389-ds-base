@@ -184,6 +184,14 @@ export function valid_dn(dn) {
     return result;
 }
 
+export function valid_filter(filter) {
+    // Validate filter is within parenthesis
+    if (filter.startsWith("(") && filter.endsWith(")")) {
+        return true;
+    }
+    return false;
+}
+
 export function numToCommas(num) {
     //  Convert a number to have human friendly commas
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");

@@ -33,6 +33,7 @@ import {
 } from '@patternfly/react-table';
 import {
     AngleRightIcon,
+    InfoCircleIcon
 } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 import {
@@ -42,6 +43,7 @@ import { ENTRY_MENU } from './lib/constants.jsx';
 import EditorTableView from './tableView.jsx';
 import { valid_dn } from '../tools.jsx';
 import GenericWizard from './wizards/genericWizard.jsx';
+
 
 export class SearchDatabase extends React.Component {
     constructor (props) {
@@ -545,10 +547,14 @@ export class SearchDatabase extends React.Component {
                                         }}
                                         aria-label="FormSelect Input"
                                         className="ds-instance-select ds-raise-field"
+                                        isDisabled={suffixList.length === 0}
                                     >
                                         {suffixList.map((suffix, index) => (
                                             <FormSelectOption key={suffix} value={suffix} label={suffix} />
                                         ))}
+                                        {suffixList.length === 0 &&
+                                            <FormSelectOption isDisabled key="No database" value="" label="No databases" />
+                                        }
                                     </FormSelect>
                                 </GridItem>
                                 <GridItem span={8}>
