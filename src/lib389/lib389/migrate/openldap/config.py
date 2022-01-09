@@ -113,10 +113,12 @@ class olDatabase(object):
         self.idx = name.split('}', 1)[0].split('{', 1)[1]
         self.uuid = ensure_str(self.config[1]['entryUUID'][0])
 
-        self.index = [
-            tuple(ensure_str(x).split(' '))
-            for x in self.config[1]['olcDbIndex']
-        ]
+        self.index = []
+        for x in self.config[1]['olcDbIndex']:
+            (attr, idx_types) = ensure_str(x).split(' ', 1)
+            attr = attr.strip()
+            for idx_type in idx_types.split(','):
+                self.index.append((attr, idx_type.strip()))
 
         self.log.debug(f"settings -> {self.suffix}, {self.idx}, {self.uuid}, {self.index}")
 

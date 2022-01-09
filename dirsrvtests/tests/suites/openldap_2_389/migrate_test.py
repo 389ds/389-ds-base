@@ -39,9 +39,18 @@ def test_parse_openldap_slapdd():
 
     # Do we have databases?
     assert len(config.databases) == 2
+    # Check that we unpacked uid eq,pres,sub correctly.
+    assert len(config.databases[0].index) == 4
+    assert ('objectClass', 'eq') in config.databases[0].index
+    assert ('uid', 'eq') in config.databases[0].index
+    assert ('uid', 'pres') in config.databases[0].index
+    assert ('uid', 'sub') in config.databases[0].index
 
     # Did our schema parse?
     assert any(['suseModuleConfiguration' in x.names for x in config.schema.classes])
+
+
+
 
 
 @pytest.mark.skipif(ds_is_older('1.4.3'), reason="Not implemented")
