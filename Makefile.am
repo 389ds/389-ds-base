@@ -168,7 +168,7 @@ PROFILING_LINKS = @profiling_links@
 NSPR_LINK = $(NSPR_LIBS)
 NSS_LINK = $(NSS_LIBS)
 
-# OpenLDAP 2.6 and newer versions don't have libldap_r shared library (only libldap)
+# OpenLDAP 2.5 and newer versions don't have libldap_r shared library (only libldap)
 # For the older versions we should compile with libldap_r
 if WITH_LIBLDAP_R
 LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
