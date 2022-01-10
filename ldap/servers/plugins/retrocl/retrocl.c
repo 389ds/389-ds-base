@@ -731,6 +731,6 @@ retrocl_attr_in_exclude_attrs(char *attr, int attrlen)
                 i++;
             }
         }
-        return 0;
     }
+    return 0;
 }
