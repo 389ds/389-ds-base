@@ -15,7 +15,7 @@ from lib389.idm.user import UserAccounts, UserAccount
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.config import Config
 from lib389.idm.group import Group
-from lib389.utils import ds_is_older
+from lib389.utils import ds_is_older, is_fips
 import ldap
 import time
 
@@ -24,7 +24,11 @@ pytestmark = pytest.mark.tier1
 if ds_is_older('1.4'):
     DEFAULT_PASSWORD_STORAGE_SCHEME = 'SSHA512'
 else:
-    DEFAULT_PASSWORD_STORAGE_SCHEME = 'PBKDF2_SHA256'
+    if is_fips():
+        DEFAULT_PASSWORD_STORAGE_SCHEME = 'SSHA512'
+    else:
+        DEFAULT_PASSWORD_STORAGE_SCHEME = 'PBKDF2_SHA256'
+
 
 def _create_user(topo, uid, cn, uidNumber, userpassword):
     """
