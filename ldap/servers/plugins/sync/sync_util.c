@@ -9,7 +9,7 @@
 #include "sync.h"
 #include "slap.h"  /* for LDAP_TAG_SK_REVERSE */
 
-static struct berval *create_syncinfo_value(int type, const char *cookie, const char **uuids);
+static struct berval *create_syncinfo_value(int type, const char *cookie, struct berval **uuids);
 static char *sync_cookie_get_server_info(Slapi_PBlock *pb);
 static char *sync_cookie_get_client_info(Slapi_PBlock *pb);
 
@@ -247,14 +247,14 @@ sync_cookie2str(Sync_Cookie *cookie)
 }
 
 int
-sync_intermediate_msg(Slapi_PBlock *pb, int tag, Sync_Cookie *cookie, char **uuids)
+sync_intermediate_msg(Slapi_PBlock *pb, int tag, Sync_Cookie *cookie, struct berval **uuids)
 {
     int rc;
     struct berval *syncInfo;
     LDAPControl *ctrlp = NULL;
     char *cookiestr = sync_cookie2str(cookie);
 
-    syncInfo = create_syncinfo_value(tag, cookiestr, (const char **)uuids);
+    syncInfo = create_syncinfo_value(tag, cookiestr, uuids);
 
     rc = slapi_send_ldap_intermediate(pb, &ctrlp, LDAP_SYNC_INFO, syncInfo);
     slapi_ch_free((void **)&cookiestr);
@@ -288,7 +288,7 @@ sync_result_err(Slapi_PBlock *pb, int err, char *msg)
 }
 
 static struct berval *
-create_syncinfo_value(int type, const char *cookie, const char **uuids)
+create_syncinfo_value(int type, const char *cookie, struct berval **uuids)
 {
     BerElement *ber;
     struct berval *bvp = NULL;
@@ -314,7 +314,7 @@ create_syncinfo_value(int type, const char *cookie, const char **uuids)
         if (cookie)
             ber_printf(ber, "s", cookie);
         if (uuids)
-            ber_printf(ber, "b[v]", 1, uuids);
+            ber_printf(ber, "b[V]", 1, uuids);
         ber_printf(ber, "}");
         break;
     default:
