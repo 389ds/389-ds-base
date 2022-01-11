@@ -131,7 +131,7 @@ int sync_update_persist_betxn_pre_op(Slapi_PBlock *pb);
 int sync_parse_control_value(struct berval *psbvp, ber_int_t *mode, int *reload, char **cookie);
 int sync_create_state_control(Slapi_Entry *e, LDAPControl **ctrlp, int type, Sync_Cookie *cookie, PRBool openldap_compat);
 int sync_create_sync_done_control(LDAPControl **ctrlp, int refresh, char *cookie);
-int sync_intermediate_msg(Slapi_PBlock *pb, int tag, Sync_Cookie *cookie, char **uuids);
+int sync_intermediate_msg(Slapi_PBlock *pb, int tag, Sync_Cookie *cookie, struct berval **uuids);
 int sync_result_msg(Slapi_PBlock *pb, Sync_Cookie *cookie);
 int sync_result_err(Slapi_PBlock *pb, int rc, char *msg);
 
