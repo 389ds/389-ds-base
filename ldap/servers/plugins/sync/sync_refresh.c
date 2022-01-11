@@ -745,6 +745,7 @@ void
 sync_send_deleted_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count, Sync_Cookie *cookie)
 {
     char *syncUUIDs[SYNC_MAX_DELETED_UUID_BATCH + 1] = {0};
+    struct berval *ber_syncUUIDs[SYNC_MAX_DELETED_UUID_BATCH + 1] = {0};
     size_t uuid_index = 0;
 
     PR_ASSERT(cookie);
@@ -764,9 +765,15 @@ sync_send_deleted_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count,
             } else {
                 /* max number of uuids to be sent in one sync info message */
                 syncUUIDs[uuid_index] = NULL;
-                sync_intermediate_msg(pb, LDAP_TAG_SYNC_ID_SET, cookie, (char **)&syncUUIDs);
+                for (size_t i = 0; i < uuid_index; i++) {
+                    ber_syncUUIDs[i] = (struct berval *) slapi_ch_malloc(sizeof(struct berval));
+                    ber_syncUUIDs[i]->bv_val = syncUUIDs[i];
+                    ber_syncUUIDs[i]->bv_len = 16;
+                }
+                sync_intermediate_msg(pb, LDAP_TAG_SYNC_ID_SET, cookie, ber_syncUUIDs);
                 for (size_t i = 0; i < uuid_index; i++) {
                     slapi_ch_free((void **)&syncUUIDs[i]);
+                    slapi_ch_free((void **)&ber_syncUUIDs[i]);
                     syncUUIDs[i] = NULL;
                 }
                 uuid_index = 0;
@@ -777,9 +784,15 @@ sync_send_deleted_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count,
     if (uuid_index > 0 && syncUUIDs[uuid_index - 1]) {
         /* more entries to send */
         syncUUIDs[uuid_index] = NULL;
-        sync_intermediate_msg(pb, LDAP_TAG_SYNC_ID_SET, cookie, (char **)&syncUUIDs);
+        for (size_t i = 0; i < uuid_index; i++) {
+            ber_syncUUIDs[i] = (struct berval *) slapi_ch_malloc(sizeof(struct berval));
+            ber_syncUUIDs[i]->bv_val = syncUUIDs[i];
+            ber_syncUUIDs[i]->bv_len = 16;
+        }
+        sync_intermediate_msg(pb, LDAP_TAG_SYNC_ID_SET, cookie, ber_syncUUIDs);
         for (size_t i = 0; i < uuid_index; i++) {
             slapi_ch_free((void **)&syncUUIDs[i]);
+            slapi_ch_free((void **)&ber_syncUUIDs[i]);
             syncUUIDs[i] = NULL;
         }
     }
