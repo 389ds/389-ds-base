@@ -249,7 +249,7 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
         }
 
         if (*(char *)key.mv_data == EQ_PREFIX) {
-            char tmp[10];
+            char tmp[11];
 
             /* construct the parent's ID from the key */
             if (key.mv_size >= sizeof tmp) {
