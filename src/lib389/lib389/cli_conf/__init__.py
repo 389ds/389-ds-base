@@ -73,6 +73,25 @@ def generic_object_add_attr(dsldap_object, log, args, arg_to_attr):
     else:
         raise ValueError("There is nothing to set in the %s plugin entry" % dsldap_object.dn)
 
+def generic_object_del_attr(dsldap_object, log, args, arg_to_attr):
+    """Delete an attribute from an entry.
+
+    dsldap_object should be a single instance of DSLdapObject with a set dn
+    """
+    log = log.getChild('generic_object_del_attr')
+    # Gather the attributes
+    attrs = _args_to_attrs(args, arg_to_attr)
+
+    modlist = []
+    for attr, value in attrs.items():
+        if not isinstance(value, list):
+            value = [value]
+        modlist.append((ldap.MOD_DELETE, attr, value))
+    if len(modlist) > 0:
+        dsldap_object.apply_mods(modlist)
+        log.info("Successfully changed the %s", dsldap_object.dn)
+    else:
+        raise ValueError("There is nothing to delete in the %s plugin entry" % dsldap_object.dn)
 
 def generic_object_edit(dsldap_object, log, args, arg_to_attr):
     """Replace or delete an attribute on an entry.
