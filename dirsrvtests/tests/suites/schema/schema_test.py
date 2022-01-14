@@ -561,6 +561,64 @@ def test_gecos_directoryString_wins_M2(topo_m2, request):
 
     request.addfinalizer(fin)
 
+def test_definition_with_sharp(topology_st, request):
+    """Check that replication is still working if schema contains
+       definitions that does not conform with a replicated entry
+
+    :id: 94aa18ca-752f-11ec-a5ad-482ae39447e5
+    :setup: A single instance
+    :steps:
+        1  Stop instance
+        2  Add schema definition with a line starting with " #"
+        3  Start instance
+        4  Check that nstance is really running.
+    :expectedresults:
+        1. success
+        2. success
+        3. success
+        4. success
+
+    """
+
+    inst = topology_st.standalone
+    inst.stop()
+
+    def fin():
+        # restore a default 99user.ldif
+        inst.stop()
+        os.remove(inst.schemadir + "/99user.ldif")
+        schema_filename = (inst.schemadir + "/99user.ldif")
+        try:
+            with open(schema_filename, 'w') as schema_file:
+                schema_file.write("dn: cn=schema\n")
+            os.chmod(schema_filename, 0o777)
+        except OSError as e:
+            log.fatal("Failed to update schema file: " +
+                      "{} Error: {}".format(schema_filename, str(e)))
+        inst.start()
+
+    request.addfinalizer(fin)
+
+    schema_filename = (inst.schemadir + "/99user.ldif")
+    try:
+        with open(schema_filename, 'w') as schema_file:
+            schema_file.write("dn: cn=schema\n")
+            schema_file.write("attributeTypes: ( 2.16.840.1.113730.3.8.11.61 NAME 'ipaWrappingKey' DESC 'PKCS\n")
+            schema_file.write(" #11 URI of the wrapping key' EQUALITY caseExactMatch SYNTAX 1.3.6.1.4.1.1466.\n")
+            schema_file.write(" 115.121.1.15 SINGLE-VALUE X-ORIGIN ( 'IPA v4.1' 'user defined' ) )\n")
+        os.chmod(schema_filename, 0o777)
+    except OSError as e:
+        log.fatal("Failed to update schema file: " +
+                  "{} Error: {}".format(schema_filename, str(e)))
+
+    # start the instances
+    inst.start()
+
+    i# Check that server is really running.
+    assert inst.status()
+
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode

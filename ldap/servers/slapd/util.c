@@ -1718,7 +1718,7 @@ void dup_ldif_line(struct berval *copy, const char *line, const char *endline)
         if (copylen == 0) {
             break;
         }
-        if (*line == '#') {
+        if (*line == '#' && pos == 0) {
             pt++;
             continue;
         }
