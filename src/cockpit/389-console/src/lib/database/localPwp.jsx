@@ -4,10 +4,12 @@ import { log_cmd, valid_dn } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { PwpTable } from "./databaseTables.jsx";
 import {
+    Alert,
     Button,
     Checkbox,
     ExpandableSection,
     Form,
+    FormAlert,
     FormHelperText,
     FormSelect,
     FormSelectOption,
@@ -81,6 +83,12 @@ const syntax_attrs = [
     "passworddictcheck",
 ];
 
+const tpr_attrs = [
+    "passwordtprmaxuse",
+    "passwordtprdelayexpireat",
+    "passwordtprdelayvalidfrom",
+];
+
 class CreatePolicy extends React.Component {
     constructor(props) {
         super(props);
@@ -89,6 +97,7 @@ class CreatePolicy extends React.Component {
             isGeneralExpanded: false,
             isLockoutExpanded: false,
             isSyntaxExpanded: false,
+            isTPRExpanded: false,
         };
 
         this.onGeneralToggle = (isGeneralExpanded) => {
@@ -109,6 +118,11 @@ class CreatePolicy extends React.Component {
         this.onSyntaxToggle = (isSyntaxExpanded) => {
             this.setState({
                 isSyntaxExpanded
+            });
+        };
+        this.onTPRToggle = (isTPRExpanded) => {
+            this.setState({
+                isTPRExpanded
             });
         };
     }
@@ -768,6 +782,85 @@ class CreatePolicy extends React.Component {
                             </div>
                         </div>
                     </ExpandableSection>
+                    <ExpandableSection
+                        className="ds-margin-top-lg"
+                        toggleText={this.state.isTPRExpanded ? 'Hide Temporary Password Settings' : 'Show Temporary Password Settings'}
+                        onToggle={this.onTPRToggle}
+                        isExpanded={this.state.isTPRExpanded}
+                    >
+                        <div className="ds-margin-left">
+                                {this.props.create_passwordmustchange == false && (
+                                <FormAlert>
+                                    <Alert
+                                    variant="info"
+                                    title='"User Must Change Password After Reset" must be enabled in General Settings to avail of TPR.'
+                                    aria-live="polite"
+                                    isInline
+                                    />
+                                </FormAlert>
+                                 )}
+                            <Grid
+                                title="Number of times the temporary password can be used to authenticate (passwordTPRMaxUse)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Password Max Use
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        type="number"
+                                        id="create_passwordtprmaxuse"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="create_passwordtprmaxuse"
+                                        isDisabled={!this.props.create_passwordmustchange}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Number of seconds before the temporary password expires (passwordTPRDelayExpireAt)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Password Expires In
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        type="number"
+                                        id="create_passwordtprdelayexpireat"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="create_passwordtprdelayexpireat"
+                                        isDisabled={!this.props.create_passwordmustchange}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                title="Number of seconds after which temporary password starts to be valid for authentication (passwordTPRDelayValidFrom)."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Password Valid From
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        type="number"
+                                        id="create_passwordtprdelayvalidfrom"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="create_passwordtprdelayvalidfrom"
+                                        isDisabled={!this.props.create_passwordmustchange}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                        </div>
+                    </ExpandableSection>
                 </Form>
                 <Button
                     isDisabled={this.props.createDisabled}
@@ -810,6 +903,7 @@ export class LocalPwPolicy extends React.Component {
             saveExpDisabled: true,
             saveLockoutDisabled: true,
             saveSyntaxDisabled: true,
+            saveTPRDisabled: true,
             showDeletePolicy: false,
             // Edit policy
             passwordchange: false,
@@ -847,6 +941,9 @@ export class LocalPwPolicy extends React.Component {
             passwordmintokenlength: "0",
             passwordbadwords: "",
             passworduserattributes: [],
+            passwordtprmaxuse: "-1",
+            passwordtprdelayexpireat:  "-1",
+            passwordtprdelayvalidfrom:  "-1",
             _passwordchange: false,
             _passwordmustchange: false,
             _passwordhistory: false,
@@ -882,6 +979,9 @@ export class LocalPwPolicy extends React.Component {
             _passwordmintokenlength: "0",
             _passwordbadwords: "",
             _passworduserattributes: [],
+            _passwordtprmaxuse: "-1",
+            _passwordtprdelayexpireat:  "-1",
+            _passwordtprdelayvalidfrom:  "-1",
             // Create policy
             create_passwordchange: false,
             create_passwordmustchange: false,
@@ -918,6 +1018,9 @@ export class LocalPwPolicy extends React.Component {
             create_passwordmintokenlength: "0",
             create_passwordbadwords: "",
             create_passworduserattributes: [],
+            create_passwordtprmaxuse: "-1",
+            create_passwordtprdelayexpireat:  "-1",
+            create_passwordtprdelayvalidfrom:  "-1",
             _create_passwordchange: false,
             _create_passwordmustchange: false,
             _create_passwordhistory: false,
@@ -953,6 +1056,9 @@ export class LocalPwPolicy extends React.Component {
             _create_passwordmintokenlength: "0",
             _create_passwordbadwords: "",
             _create_passworduserattributes: [],
+            _create_passwordtprmaxuse: "-1",
+            _create_passwordtprdelayexpireat:  "-1",
+            _create_passwordtprdelayvalidfrom:  "-1",
             // Select typeahead
             isUserAttrsCreateOpen: false,
             isUserAttrsEditOpen: false,
@@ -994,6 +1100,9 @@ export class LocalPwPolicy extends React.Component {
                 passworduserattributes: "--pwduserattrs",
                 passworddictcheck: "--pwddictcheck",
                 passwordadmindn: "--pwdadmin",
+                passwordtprmaxuse: "--pwptprmaxuse",
+                passwordtprdelayexpireat:  "--pwptprdelayexpireat",
+                passwordtprdelayvalidfrom:  "--pwptprdelayvalidfrom",
             },
         };
 
@@ -1046,6 +1155,7 @@ export class LocalPwPolicy extends React.Component {
         this.handleLockoutChange = this.handleLockoutChange.bind(this);
         this.handleModalChange = this.handleModalChange.bind(this);
         this.handleSyntaxChange = this.handleSyntaxChange.bind(this);
+        this.handleTPRChange = this.handleTPRChange.bind(this);
         this.loadLocal = this.loadLocal.bind(this);
         this.loadPolicies = this.loadPolicies.bind(this);
         this.resetTab = this.resetTab.bind(this);
@@ -1053,6 +1163,7 @@ export class LocalPwPolicy extends React.Component {
         this.saveGeneral = this.saveGeneral.bind(this);
         this.saveLockout = this.saveLockout.bind(this);
         this.saveSyntax = this.saveSyntax.bind(this);
+        this.saveTPR = this.saveTPR.bind(this);
         this.showDeletePolicy = this.showDeletePolicy.bind(this);
     }
 
@@ -1105,7 +1216,7 @@ export class LocalPwPolicy extends React.Component {
         let value;
         let disableSaveBtn = true;
         let invalid_dn = false;
-        const all_attrs = general_attrs.concat(exp_attrs, lockout_attrs, syntax_attrs);
+        const all_attrs = general_attrs.concat(exp_attrs, lockout_attrs, syntax_attrs, tpr_attrs);
 
         if (selection) {
             attr = "create_passworduserattributes";
@@ -1196,7 +1307,7 @@ export class LocalPwPolicy extends React.Component {
     }
 
     createPolicy() {
-        const all_attrs = general_attrs.concat(exp_attrs, lockout_attrs, syntax_attrs);
+        const all_attrs = general_attrs.concat(exp_attrs, lockout_attrs, syntax_attrs, tpr_attrs);
         let action = "adduser";
 
         this.setState({
@@ -1231,7 +1342,7 @@ export class LocalPwPolicy extends React.Component {
                 cmd.push(this.state.attrMap[attr] + "=" + new_val);
             }
         }
-
+      
         log_cmd("createPolicy", "Create a local password policy", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -1609,6 +1720,76 @@ export class LocalPwPolicy extends React.Component {
                 });
     }
 
+    handleTPRChange(e) {
+        const value = e.target.value;
+        const attr = e.target.id;
+        let disableSaveBtn = true;
+
+        // Check if a setting was changed, if so enable the save button
+        for (const tpr_attr of tpr_attrs) {
+            if (attr == tpr_attr && this.state['_' + tpr_attr] != value) {
+                disableSaveBtn = false;
+                break;
+            }
+        }
+
+        // Now check for differences in values that we did not touch
+        for (const tpr_attr of tpr_attrs) {
+            if (attr != tpr_attr && this.state['_' + tpr_attr] != this.state[tpr_attr]) {
+                disableSaveBtn = false;
+                break;
+            }
+        }
+
+        this.setState({
+            [attr]: value,
+            saveTPRDisabled: disableSaveBtn,
+        });
+    }
+
+    saveTPR() {
+        this.setState({
+            saving: true
+        });
+
+        const cmd = [
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'localpwp', 'set', this.state.policyName
+        ];
+
+        for (const attr of tpr_attrs) {
+            if (this.state['_' + attr] != this.state[attr]) {
+                let val = this.state[attr];
+                cmd.push(this.state.attrMap[attr] + "=" + val);
+            }
+        }
+
+        log_cmd("saveTPR", "Saving TPR pwpolicy settings", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    this.loadLocal(this.state.policyName);
+                    this.setState({
+                        saving: false
+                    });
+                    this.props.addNotification(
+                        "success",
+                        "Successfully updated password policy configuration"
+                    );
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.loadLocal(this.state.policyName);
+                    this.setState({
+                        saving: false
+                    });
+                    this.props.addNotification(
+                        "error",
+                        `Error updating password policy configuration - ${errMsg.desc}`
+                    );
+                });
+    }
+
     deletePolicy() {
         this.setState({
             loading: true,
@@ -1873,6 +2054,9 @@ export class LocalPwPolicy extends React.Component {
                     let pwMaxClassChars = "0";
                     let pwMinCat = "0";
                     let pwMinTokenLen = "0";
+                    let pwTPRMaxUse = "-1";
+                    let pwTPRDelayExpireAt = "-1";
+                    let pwTPRDelayValidFrom = "-1";
 
                     if ('passwordmintokenlength' in attrs) {
                         pwMinTokenLen = attrs.passwordmintokenlength[0];
@@ -1994,6 +2178,15 @@ export class LocalPwPolicy extends React.Component {
                             pwUserAttrs = attrs.passworduserattributes[0].split(' ');
                         }
                     }
+                    if ('passwordTPRMaxUse' in attrs) {
+                        pwTPRMaxUse = attrs.passwordTPRMaxUse[0];
+                    }
+                    if ('passwordTPRDelayExpireAt' in attrs) {
+                        pwTPRDelayExpireAt = attrs.passwordTPRDelayExpireAt[0];
+                    }
+                    if ('passwordTPRDelayValidFrom' in attrs) {
+                        pwTPRDelayValidFrom = attrs.passwordTPRDelayValidFrom[0];
+                    }
 
                     this.setState(() => (
                         {
@@ -2044,6 +2237,9 @@ export class LocalPwPolicy extends React.Component {
                             passwordmintokenlength: pwMinTokenLen,
                             passwordbadwords: pwBadWords,
                             passworduserattributes: pwUserAttrs,
+                            passwordtprmaxuse: pwTPRMaxUse,
+                            passwordtprdelayexpireat: pwTPRDelayExpireAt,
+                            passwordtprdelayvalidfrom: pwTPRDelayValidFrom,
                             // Record original values
                             _passwordchange: pwChange,
                             _passwordmustchange: pwMustChange,
@@ -2080,6 +2276,9 @@ export class LocalPwPolicy extends React.Component {
                             _passwordmintokenlength: pwMinTokenLen,
                             _passwordbadwords: pwBadWords,
                             _passworduserattributes: pwUserAttrs,
+                            _passwordtprmaxuse: pwTPRMaxUse,
+                            _passwordtprdelayexpireat: pwTPRDelayExpireAt,
+                            _passwordtprdelayvalidfrom: pwTPRDelayValidFrom,
                         })
                     );
                 })
@@ -2749,6 +2948,97 @@ export class LocalPwPolicy extends React.Component {
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left"
                                 onClick={this.saveSyntax}
+                                isLoading={this.state.saving}
+                                spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                                {...extraPrimaryProps}
+                            >
+                                {saveBtnName}
+                            </Button>
+                        </Tab>
+                        <Tab eventKey={4} title={<TabTitleText>Temporary Password Rules</TabTitleText>}>
+                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                                {this.state.passwordmustchange == false && (
+                                <FormAlert>
+                                    <Alert
+                                    variant="info"
+                                    title='"User Must Change Password After Reset" must be enabled in General Settings to avail of TPR.'
+                                    aria-live="polite"
+                                    isInline
+                                    />
+                                </FormAlert>
+                                 )}
+                                <Grid
+                                    title="Number of times the temporary password can be used to authenticate (passwordTPRMaxUse)."
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Password Max Use
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={this.state.passwordtprmaxuse}
+                                            type="number"
+                                            id="passwordtprmaxuse"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="passwordtprmaxuse"
+                                            isDisabled={!this.state.passwordmustchange}
+                                            onChange={(checked, e) => {
+                                                this.handleTPRChange(e);
+                                            }}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                {pwSyntaxRows}
+                            </Form>
+                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                                <Grid
+                                    title="Number of seconds before the temporary password expires (passwordTPRDelayExpireAt)."
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Password Expires In
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={this.state.passwordtprdelayexpireat}
+                                            type="number"
+                                            id="passwordtprdelayexpireat"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="passwordtprdelayexpireat"
+                                            isDisabled={!this.state.passwordmustchange}
+                                            onChange={(checked, e) => {
+                                                this.handleTPRChange(e);
+                                            }}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                            </Form>
+                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                                <Grid
+                                    title="Number of seconds after which temporary password starts to be valid for authentication (passwordTPRDelayValidFrom)."
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Password Valid From
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={this.state.passwordtprdelayvalidfrom}
+                                            type="number"
+                                            id="passwordtprdelayvalidfrom"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="passwordtprdelayvalidfrom"
+                                            isDisabled={!this.state.passwordmustchange}
+                                            onChange={(checked, e) => {
+                                                this.handleTPRChange(e);
+                                            }}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                {pwSyntaxRows}
+                            </Form>
+                            <Button
+                                isDisabled={this.state.saveTPRDisabled}
+                                variant="primary"
+                                className="ds-margin-top-xlg ds-margin-left"
+                                onClick={this.saveTPR}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                                 {...extraPrimaryProps}
