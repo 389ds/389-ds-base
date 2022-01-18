@@ -789,9 +789,16 @@ class SetupDs(object):
         os.chown(parentdir, slapd['user_uid'], slapd['group_gid'])
 
         ### Warning! We need to down the directory under db too for .restore to work.
-        # See dblayer.c for more!
-        db_parent = os.path.join(slapd['db_dir'], '..')
-        os.chown(db_parent, slapd['user_uid'], slapd['group_gid'])
+        # During a restore, the db dir is deleted and recreated, which is why we need
+        # to own it for a restore.
+        #
+        # However, in a container, we can't always guarantee this due to how the volumes
+        # work and are mounted. Specifically, if we have an anonymous volume we will
+        # NEVER be able to own it, but in a true deployment it is reasonable to expect
+        # we DO own it. Thus why we skip it in this specific context
+        if not self.containerised:
+            db_parent = os.path.join(slapd['db_dir'], '..')
+            os.chown(db_parent, slapd['user_uid'], slapd['group_gid'])
 
         # Copy correct data to the paths.
         # Copy in the schema
