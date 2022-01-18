@@ -13,7 +13,7 @@ VERSION_MINOR=1
 VERSION_MAINT=0
 # NOTE: VERSION_PREREL is automatically set for builds made out of a git tree
 VERSION_PREREL=
-VERSION_DATE=$(date -u +%Y%m%d)
+VERSION_DATE=$(date -u +%Y%m%d%H%M)
 
 # Set the version and release numbers for local developer RPM builds. We
 # set these here because we do not want the git commit hash in the RPM

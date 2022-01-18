@@ -1,4 +1,6 @@
 srpm:
+	# Install git in the buildroot to correctly generate commit hash
+	dnf install -y git
 	# Generate spec file
 	make -f rpm.mk rpmroot
 	# Install build dependencies

@@ -1,9 +1,9 @@
 PWD ?= $(shell pwd)
 RPMBUILD ?= $(PWD)/rpmbuild
 RPM_VERSION ?= $(shell $(PWD)/rpm/rpmverrel.sh version)
-RPM_RELEASE ?= $(shell $(PWD)/rpm/rpmverrel.sh release)
-VERSION_PREREL ?= $(shell $(PWD)/rpm/rpmverrel.sh prerel)
-RPM_VERSION_PREREL ?= $(shell $(PWD)/rpm/rpmverrel.sh prerel | sed -e 's/\./-/')
+RPM_RELEASE := $(shell $(PWD)/rpm/rpmverrel.sh release)
+VERSION_PREREL := $(shell $(PWD)/rpm/rpmverrel.sh prerel)
+RPM_VERSION_PREREL := $(subst .,-,$(VERSION_PREREL))
 PACKAGE = 389-ds-base
 RPM_NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(RPM_VERSION_PREREL)
 NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(VERSION_PREREL)
