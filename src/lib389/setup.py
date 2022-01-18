@@ -14,7 +14,9 @@
 
 from setuptools import setup, find_packages
 from os import path
-from build_manpages import build_manpages
+import build_manpages as bm
+if bm.__version__ < '2.1':
+    from build_manpages import build_manpages as bm
 from setuptools.command.build_py import build_py
 
 here = path.abspath(path.dirname(__file__))
@@ -89,8 +91,8 @@ setup(
 
     cmdclass={
         # Dynamically build man pages for cli tools
-        'build_manpages': build_manpages.build_manpages,
-        'build_py': build_manpages.get_build_py_cmd(build_py),
+        'build_manpages': bm.build_manpages,
+        'build_py': bm.get_build_py_cmd(build_py),
     }
 
 )
