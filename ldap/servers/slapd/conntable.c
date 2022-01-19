@@ -124,7 +124,7 @@ Connection_Table *
 connection_table_new(int table_size)
 {
     Connection_Table *ct;
-    int i = 0;
+    size_t i = 0;
     int ct_list = 0;
     int free_idx = 0;
     ber_len_t maxbersize = config_get_maxbersize();
@@ -132,6 +132,8 @@ connection_table_new(int table_size)
     ct = (Connection_Table *)slapi_ch_calloc(1, sizeof(Connection_Table));
     ct->size = table_size;
     ct->list_num = 2;
+    /* Round up table_size to balance the CT lists */
+    table_size += (table_size % ct->list_num);
     ct->list_size = table_size/ct->list_num;
     ct->list_select = 0;
     ct->c = (Connection **)slapi_ch_calloc(1, table_size * sizeof(Connection));
@@ -309,7 +311,7 @@ connection_table_get_connection(Connection_Table *ct, int sd)
 /* active connection iteration functions */
 
 Connection *
-connection_table_get_first_active_connection(Connection_Table *ct, int listnum)
+connection_table_get_first_active_connection(Connection_Table *ct, size_t listnum)
 {
     return ct->c[listnum][0].c_next;
 }
@@ -329,7 +331,7 @@ connection_table_iterate_active_connections(Connection_Table *ct, void *arg, Con
      */
     Connection *current_conn = NULL;
     int ret = 0;
-    int i = 0;
+    size_t i = 0;
     PR_Lock(ct->table_mutex);
     for (i = 0; i < ct->list_num; i++) {
         current_conn = connection_table_get_first_active_connection(ct, i);
@@ -510,7 +512,7 @@ connection_table_move_connection_on_to_active_list(Connection_Table *ct, Connect
 #endif
 }
 /* Get which active list to use */
-int
+size_t
 connection_table_get_list(Connection_Table *ct)
 {
     int ret = -1;
@@ -536,7 +538,9 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
     char maxthreadbuf[BUFSIZ];
     struct berval val;
     struct berval *vals[2];
-    int i, ct_list, nconns, nreadwaiters;
+    size_t ct_list;
+    size_t i;
+    int nconns, nreadwaiters;
     struct tm utm;
 
     vals[0] = &val;
@@ -613,7 +617,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
                     bufptr = newbuf;
                 }
 
-                sprintf(bufptr, "%d:%s:%d:%d:%s%s:%s:%s:%" PRIu64 ":ip=%s",
+                sprintf(bufptr, "%zu:%s:%d:%d:%s%s:%s:%s:%" PRIu64 ":ip=%s",
                         i,
                         buf2,
                         ct->c[ct_list][i].c_opsinitiated,
@@ -667,8 +671,8 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 void
 connection_table_dump_activity_to_errors_log(Connection_Table *ct)
 {
-    int i;
-    int l;
+    size_t i;
+    size_t l;
     for (l = 0; l < ct->list_num; l++) {
         for (i = 0; i < ct->list_size; i++) {
             Connection *c = &(ct->c[l][i]);
@@ -681,7 +685,7 @@ connection_table_dump_activity_to_errors_log(Connection_Table *ct)
                     int r = ct->fd[l][ct_list].out_flags & SLAPD_POLL_FLAGS;
                     if (r) {
                         slapi_log_err(SLAPI_LOG_CONNS, "connection_table_dump_activity_to_errors_log",
-                                    "activity on %d%s\n", i, r ? "r" : "");
+                                    "activity on %zu%s\n", i, r ? "r" : "");
                     }
                 }
                 pthread_mutex_unlock(&(c->c_mutex));

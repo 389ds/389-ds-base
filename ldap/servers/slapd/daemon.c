@@ -1292,7 +1292,6 @@ ct_list_thread(uint64_t threadnum)
             int select_return = 0;
             PRIntn num_poll = 0;
             PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_ct_thread_wakeup_timer);
-            int connection_table_size = get_configured_connection_table_size();
             PRErrorCode prerr;
             num_poll = setup_pr_read_pds(the_connection_table, threadid);
             select_return = POLL_FN(the_connection_table->fd[threadid], num_poll, pr_timeout);
@@ -1306,7 +1305,7 @@ ct_list_thread(uint64_t threadnum)
                 break;
             default: /* some new data ready */
                 /* handle new data ready */
-                handle_pr_read_ready(the_connection_table, threadid, connection_table_size);
+                handle_pr_read_ready(the_connection_table, threadid, 0);
                 clear_signal(the_connection_table->fd[threadid], threadid);
                 break;
             }

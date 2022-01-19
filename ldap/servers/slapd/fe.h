@@ -112,11 +112,11 @@ int connection_table_move_connection_out_of_active_list(Connection_Table *ct, Co
 void connection_table_move_connection_on_to_active_list(Connection_Table *ct, Connection *c);
 void connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e);
 void connection_table_dump_activity_to_errors_log(Connection_Table *ct);
-Connection *connection_table_get_first_active_connection(Connection_Table *ct, int listnum);
+Connection *connection_table_get_first_active_connection(Connection_Table *ct, size_t listnum);
 Connection *connection_table_get_next_active_connection(Connection_Table *ct, Connection *c);
 typedef int (*Connection_Table_Iterate_Function)(Connection *c, void *arg);
 int connection_table_iterate_active_connections(Connection_Table *ct, void *arg, Connection_Table_Iterate_Function f);
-int connection_table_get_list(Connection_Table *ct);
+size_t connection_table_get_list(Connection_Table *ct);
 
 /*
  * daemon.c
