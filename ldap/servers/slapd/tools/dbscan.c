@@ -56,6 +56,7 @@
 #define EXPORT 0x40
 #define IMPORT 0x80
 #define REMOVE 0x100
+#define SHOWSTAT 0x200
 
 /* stolen from slapi-plugin.h */
 #define SLAPI_OPERATION_BIND 0x00000001UL
@@ -98,7 +99,7 @@ typedef struct
 } IDL;
 
 /* back-ldbm.h and proto-back-ldbm.h cannot be easily included here
- * so let redefines the minimum to use txn
+ * so let redefines the minimum to use txn and a few utilities
  */
 typedef struct backend backend;
 typedef void *back_txnid;
@@ -110,24 +111,10 @@ int dblayer_txn_begin(backend *be, back_txnid parent_txn, back_txn *txn);
 int dblayer_txn_commit(backend *be, back_txn *txn);
 int dblayer_txn_abort(backend *be, back_txn *txn);
 void dblayer_init_pvt_txn(void);
+void entryrdn_decode_data(backend *be, void *rdn_elem, ID *id, int *nrdnlen, char **nrdn, int *rdnlen, char **rdn);
 
 #define RDN_BULK_FETCH_BUFFER_SIZE (8 * 1024)
-typedef struct _rdn_elem
-{
-    char rdn_elem_id[sizeof(ID)];
-    char rdn_elem_nrdn_len[2]; /* ushort; length including '\0' */
-    char rdn_elem_rdn_len[2];  /* ushort; length including '\0' */
-    char rdn_elem_nrdn_rdn[1]; /* "normalized rdn" '\0' "rdn" '\0' */
-} rdn_elem;
 
-
-#define RDN_ADDR(elem)           \
-    ((elem)->rdn_elem_nrdn_rdn + \
-     sizeushort_stored_to_internal((elem)->rdn_elem_nrdn_len))
-
-static void display_entryrdn_parent(dbi_db_t *db, ID id, const char *nrdn, int indent);
-static void display_entryrdn_self(dbi_db_t *db, ID id, const char *nrdn, int indent);
-static void display_entryrdn_children(dbi_db_t *db, ID id, const char *nrdn, int indent);
 static void display_entryrdn_item(dbi_db_t *db, dbi_cursor_t *cursor, dbi_val_t *key);
 
 uint32_t file_type = 0;
@@ -142,7 +129,7 @@ long match_cnt = 0;
 long ind_cnt = 0;
 long allids_cnt = 0;
 long other_cnt = 0;
-char *dump_filename = NULL; 
+char *dump_filename = NULL;
 
 static Slapi_Backend *be = NULL; /* Pseudo backend used to interact with db */
 
@@ -458,15 +445,6 @@ id_internal_to_stored(ID i, char *b)
     b[1] = (char)(i >> 16);
     b[2] = (char)(i >> 8);
     b[3] = (char)i;
-}
-
-static size_t
-sizeushort_stored_to_internal(char *b)
-{
-    size_t i;
-    i = (PRUint16)b[1] & 0x000000ff;
-    i |= (((PRUint16)b[0]) << 8) & 0x0000ff00;
-    return i;
 }
 
 void
@@ -800,163 +778,28 @@ display_item(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data)
 }
 
 void
-_entryrdn_dump_rdn_elem(const char *key, rdn_elem *elem, int indent)
+_entryrdn_dump_rdn_elem(const char *key, void *elem, int indent)
 {
     char *indentp = (char *)malloc(indent + 1);
-    char *p, *endp = indentp + indent;
+    char *nrdn = NULL;
+    char *rdn = NULL;
+    int nrdnlen = 0;
+    int rdnlen = 0;
+    ID id = 0;
 
-    for (p = indentp; p < endp; p++)
-        *p = ' ';
-    *p = '\0';
+    memset(indentp, ' ', indent);
+    indentp[indent] = 0;
+    entryrdn_decode_data(NULL, elem, &id, &nrdnlen, &nrdn, &rdnlen, &rdn);
+
     printf("%s\n", key);
-    printf("%sID: %u; RDN: \"%s\"; NRDN: \"%s\"\n",
-           indentp, id_stored_to_internal(elem->rdn_elem_id),
-           RDN_ADDR(elem), elem->rdn_elem_nrdn_rdn);
+    printf("%sID: %u; RDN: \"%s\"; NRDN: \"%s\"\n", indentp, id, rdn, nrdn);
     free(indentp);
-}
-
-static int
-move_to_key(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data)
-{
-    int rc = dblayer_cursor_op(cursor, DBI_OP_MOVE_TO_KEY,  key, data);
-    if (rc == DBI_RC_NOTFOUND) {
-        key->size++;
-        rc = dblayer_cursor_op(cursor, DBI_OP_MOVE_TO_KEY,  key, data);
-    }
-    return rc;
-}
-
-static void
-display_entryrdn_self(dbi_db_t *db, ID id, const char *nrdn __attribute__((unused)), int indent)
-{
-    dbi_cursor_t cursor = {0};
-    dbi_val_t key = {0}, data = {0};
-    rdn_elem *elem;
-    char buffer[30];
-    int rc = 0;
-
-    rc = dblayer_new_cursor(be, db, NULL, &cursor);
-    if (rc) {
-        printf("Can't create db cursor: %s\n", dblayer_strerror(rc));
-        exit(1);
-    }
-    snprintf(buffer, sizeof(buffer), "%u", id);
-    dblayer_value_strdup(be, &key, buffer);
-
-    /* Position cursor at the matching key */
-    rc = move_to_key(&cursor, &key, &data);
-    if (rc) {
-        fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                        "(%d)\n",
-                (char *)key.data, dblayer_strerror(rc), rc);
-        goto bail;
-    }
-
-    elem = (rdn_elem *)data.data;
-    _entryrdn_dump_rdn_elem(key.data, elem, indent);
-    display_entryrdn_parent(db, id_stored_to_internal(elem->rdn_elem_id),
-                            elem->rdn_elem_nrdn_rdn, indent);
-    display_entryrdn_children(db, id_stored_to_internal(elem->rdn_elem_id),
-                              elem->rdn_elem_nrdn_rdn, indent);
-bail:
-    dblayer_value_free(be, &key);
-    dblayer_value_free(be, &data);
-    dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
-}
-
-static void
-display_entryrdn_parent(dbi_db_t *db, ID id, const char *nrdn __attribute__((unused)), int indent)
-{
-    dbi_cursor_t cursor = {0};
-    dbi_val_t key = {0}, data = {0};
-    int rc = 0;
-    rdn_elem *elem;
-    char buffer[30];
-
-    rc = dblayer_new_cursor(be, db, NULL, &cursor);
-    if (rc) {
-        printf("Can't create db cursor: %s\n", dblayer_strerror(rc));
-        exit(1);
-    }
-    snprintf(buffer, sizeof(buffer), "P%d", id);
-    dblayer_value_strdup(be, &key, buffer);
-
-    /* Position cursor at the matching key */
-    rc = move_to_key(&cursor, &key, &data);
-    if (rc) {
-        fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                        "(%d)\n",
-                (char *)key.data, dblayer_strerror(rc), rc);
-        goto bail;
-    }
-
-    elem = (rdn_elem *)data.data;
-    _entryrdn_dump_rdn_elem(key.data, elem, indent);
-bail:
-    dblayer_value_free(be, &key);
-    dblayer_value_free(be, &data);
-    dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
-}
-
-static void
-display_entryrdn_children(dbi_db_t *db, ID id, const char *nrdn __attribute__((unused)), int indent)
-{
-    dbi_cursor_t cursor = {0};
-    dbi_val_t key = {0}, data = {0};
-    int rc = 0;
-    rdn_elem *elem = NULL;
-    char buffer[30];
-
-    rc = dblayer_new_cursor(be, db, NULL, &cursor);
-    if (rc) {
-        printf("Can't create db cursor: %s\n", dblayer_strerror(rc));
-        exit(1);
-    }
-    indent += 2;
-    snprintf(buffer, sizeof(buffer), "C%d", id);
-    dblayer_value_strdup(be, &key, buffer);
-
-    /* Position cursor at the matching key */
-    rc = move_to_key(&cursor, &key, &data);
-    if (rc == DBI_RC_NOTFOUND) {
-        goto bail;
-    }
-    if (rc) {
-        fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                        "(%d)\n",
-                (char *)key.data, dblayer_strerror(rc), rc);
-        goto bail;
-    }
-
-    /* Iterate over the duplicates */
-    for (;;) {
-        elem = (rdn_elem *)data.data;
-        _entryrdn_dump_rdn_elem(key.data, elem, indent);
-        display_entryrdn_self(db, id_stored_to_internal(elem->rdn_elem_id),
-                              elem->rdn_elem_nrdn_rdn, indent);
-        rc = dblayer_cursor_op(&cursor, DBI_OP_NEXT_DATA,  &key, &data);
-        if (rc == DBI_RC_BUFFER_SMALL) {
-            dblayer_value_free(be, &data);
-            rc = dblayer_cursor_op(&cursor, DBI_OP_NEXT_DATA,  &key, &data);
-        }
-        if (rc) {
-            break;
-        }
-    }
-    if (rc && rc != DBI_RC_NOTFOUND) {
-        fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                     "(%d)\n", (char *)key.data, dblayer_strerror(rc), rc);
-    }
-bail:
-    dblayer_value_free(be, &key);
-    dblayer_value_free(be, &data);
-    dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
 }
 
 static void
 display_entryrdn_item(dbi_db_t *db, dbi_cursor_t *cursor, dbi_val_t *key)
 {
-    rdn_elem *elem = NULL;
+    void *elem = NULL;
     int indent = 2;
     dbi_val_t data = {0};
     int rc = 0;
@@ -979,10 +822,8 @@ display_entryrdn_item(dbi_db_t *db, dbi_cursor_t *cursor, dbi_val_t *key)
         keyval = key->data;
 
         if (rc == DBI_RC_SUCCESS) {
-            elem = (rdn_elem *)data.data;
+            elem = data.data;
             _entryrdn_dump_rdn_elem(keyval, elem, indent);
-            display_entryrdn_children(db, id_stored_to_internal(elem->rdn_elem_id),
-                                      elem->rdn_elem_nrdn_rdn, indent);
             /* Then check if there are more data associated with current key */
             op = DBI_OP_NEXT_DATA;
             continue;
@@ -1084,6 +925,7 @@ usage(char *argv0)
     printf("  index file options:\n");
     printf("    -k <key>        lookup only a specific key\n");
     printf("    -L <dbhome>     list all db files\n");
+    printf("    -S <dbhome>     show statistics\n");
     printf("    -l <size>       max length of dumped id list\n");
     printf("                    (default %" PRIu32 "; 40 bytes <= size <= 1048576 bytes)\n", MAX_BUFFER);
     printf("    -G <n>          only display index entries with more than <n> ids\n");
@@ -1289,7 +1131,7 @@ importdb(const char *dbimpl_name, const char *filename, const char *dump_name)
     return ret;
 }
 
-void print_value(FILE *dump, const char *keyword, const unsigned char *data, int len) 
+void print_value(FILE *dump, const char *keyword, const unsigned char *data, int len)
 {
     fprintf(dump,"%s", keyword);
     while (len > 0) {
@@ -1394,7 +1236,7 @@ main(int argc, char **argv)
     char *dbimpl_name = (char*) "bdb";
     int c;
 
-    while ((c = getopt(argc, argv, "Af:RL:l:nG:srk:K:hvt:D:X:I:d")) != EOF) {
+    while ((c = getopt(argc, argv, "Af:RL:S:l:nG:srk:K:hvt:D:X:I:d")) != EOF) {
         switch (c) {
         case 'A':
             display_mode |= ASCIIDATA;
@@ -1404,6 +1246,10 @@ main(int argc, char **argv)
             break;
         case 'R':
             display_mode |= RAWDATA;
+            break;
+        case 'S':
+            display_mode |= SHOWSTAT;
+            filename = optarg;
             break;
         case 'L':
             display_mode |= LISTDBS;
@@ -1478,6 +1324,11 @@ main(int argc, char **argv)
         return removedb(dbimpl_name, filename);
     }
 
+    if (filename == NULL) {
+        fprintf(stderr, "PARAMETER ERROR! 'filename' parameter is missing.\n");
+        usage(argv[0]);
+    }
+
     if (display_mode & LISTDBS) {
         dbi_dbslist_t *dbs = dblayer_list_dbs(dbimpl_name, filename);
         if (dbs) {
@@ -1492,9 +1343,11 @@ main(int argc, char **argv)
         goto done;
     }
 
-    if (filename == NULL) {
-        usage(argv[0]);
+    if (display_mode & SHOWSTAT) {
+        ret = dblayer_show_statistics(dbimpl_name, filename, stdout, stderr);
+        goto done;
     }
+
     if (NULL != strstr(filename, "id2entry.db")) {
         file_type |= ENTRYTYPE;
     } else if (is_changelog(filename)) {

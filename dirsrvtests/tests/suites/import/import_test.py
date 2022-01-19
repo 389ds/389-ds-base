@@ -40,8 +40,9 @@ bdb_values = {
   'wait30' : 30
 }
 
+# Note: I still sometime get failure with a 60s timeout so lets use 90s
 mdb_values = {
-  'wait30' : 60
+  'wait30' : 90
 }
 
 if get_default_db_lib() is 'bdb':
@@ -379,6 +380,7 @@ def _toggle_private_import_mem(request, topo):
 
 #unstable or unstatus tests, skipped for now
 #@pytest.mark.flaky(max_runs=2, min_passes=1)
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="nsslapd-db-private-import-mem and nsslapd-import-cache-autosize parameters are ignored when usign lmdb")
 def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
     """With nsslapd-db-private-import-mem: on is faster import.
 

@@ -1448,6 +1448,13 @@ util_cachesize_result util_is_cachesize_sane(slapi_pal_meminfo *mi, uint64_t *ca
  * \return -1 if the hardware detection failed. Any positive value is threads to use.
  */
 long util_get_hardware_threads(void);
+/**
+ * Retrieve the number of threads the server should run with based on this hardware.
+ *   positive return value is in the [min.max] range
+ *
+ * \return -1 if the hardware detection failed. Any positive value is threads to use.
+ */
+long util_get_capped_hardware_threads(long min, long max);
 
 /**
  * Write an error message to the given error buffer.

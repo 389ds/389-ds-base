@@ -640,5 +640,8 @@ int entryrdn_get_subordinates(backend *be, const Slapi_DN *sdn, ID id, IDList **
 int entryrdn_lookup_dn(backend *be, const char *rdn, ID id, char **dn, Slapi_RDN **psrdn, back_txn *txn);
 int entryrdn_get_parent(backend *be, const char *rdn, ID id, char **prdn, ID *pid, back_txn *txn);
 int entryrdn_compare_rdn_elem(const void *elem_a, const void *elem_b);
+void *entryrdn_encode_data(backend *be, size_t *rdn_elem_len, ID id, const char *nrdn, const char *rdn);
+void entryrdn_decode_data(backend *be, void *rdn_elem, ID *id, int *nrdnlen, char **nrdn, int *rdnlen, char **rdn);
+
 
 #endif

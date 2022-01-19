@@ -748,7 +748,85 @@ dbmdb_list_dbis(dbmdb_ctx_t *ctx, backend *be, char *fname, int islocked, int *s
     return octx.dbilist;
 }
 
+int dbmdb_dump_reader(const char *msg, void *ctx)
+{
+    fprintf(ctx, "MDB READER: %s\n", msg);
+    return 0;
+}
 
+static void dbmdb_show_st(FILE *fout, const char *prefix, MDB_stat *st)
+{
+    fprintf(fout, "%s page size: %u\n", prefix, st->ms_psize);
+    fprintf(fout, "%s depth: %u\n", prefix, st->ms_depth);
+    fprintf(fout, "%s branch pages: %ld\n", prefix, st->ms_branch_pages);
+    fprintf(fout, "%s leaf pages: %ld\n", prefix, st->ms_leaf_pages);
+    fprintf(fout, "%s overflow pages: %ld\n", prefix, st->ms_overflow_pages);
+    fprintf(fout, "%s entries: %ld\n", prefix, st->ms_entries);
+}
+
+
+/* API used by dbscan to get db and dbi statistics */
+int dbmdb_show_stat(const char *dbhome, FILE *fout, FILE *ferr)
+{
+    dbmdb_dbi_t **dbilist;
+    dbmdb_ctx_t ctx = {0};
+    int size=0;
+    int i;
+    MDB_stat st = {0};
+    MDB_envinfo info = {0};
+    long used_pages = 0;
+    long alloced = 0;
+    dbi_txn_t *txn = NULL;
+    char pathmap[MAXPATHLEN];
+    char dbiname[10];
+    struct stat fst = {0};
+
+    PR_snprintf(pathmap, MAXPATHLEN, "%s/%s", dbhome, DBMAPFILE);
+    stat(pathmap, &fst);
+
+    strncpy(ctx.home, dbhome, MAXPATHLEN);
+    if (dbmdb_make_env(&ctx, 1, 0644)) {
+        fprintf(ferr, "ERROR: dbmdb_show_stat failed to open db environment %s\n", pathmap);
+        return -1;
+    }
+    /* list all dbs */
+    dbilist = dbmdb_list_dbis(&ctx, NULL, NULL, PR_FALSE, &size);
+    START_TXN(&txn, NULL, TXNFL_RDONLY);
+
+    /* Get global data */
+    mdb_env_info(ctx.env, &info);
+    mdb_env_stat(ctx.env, &st);
+
+    fprintf(fout, "Database path: %s\n", pathmap);
+    fprintf(fout, "Database file system size: %ld\n", fst.st_size);
+    fprintf(fout, "Database map size: %ld\n", info.me_mapsize);
+    fprintf(fout, "Database last page number: %ld\n", info.me_last_pgno);
+    fprintf(fout, "Database last txnid: %ld\n", info.me_last_txnid);
+    fprintf(fout, "Database max readers: %u\n", info.me_maxreaders);
+    fprintf(fout, "Database num readers: %u\n", info.me_numreaders);
+    dbmdb_show_st(fout, "Database", &st);
+    mdb_reader_list(ctx.env, dbmdb_dump_reader, fout);
+
+    for (i=0; i<size; i++) {
+        fprintf(fout, "\ndbi: %d dbname: %s\n", dbilist[i]->dbi, dbilist[i]->dbname);
+        bzero(&st, sizeof st);
+        mdb_stat(TXN(txn), dbilist[i]->dbi, &st);
+        used_pages += st.ms_branch_pages+st.ms_leaf_pages+st.ms_overflow_pages;
+        sprintf(dbiname, "dbi: %d", dbilist[i]->dbi);
+        dbmdb_show_st(fout, dbiname, &st);
+    }
+    mdb_stat(TXN(txn), 0, &st);        /* Free pages db */
+    used_pages += st.ms_branch_pages+st.ms_leaf_pages+st.ms_overflow_pages;
+    mdb_stat(TXN(txn), 1, &st);        /* Main db */
+    used_pages += st.ms_branch_pages+st.ms_leaf_pages+st.ms_overflow_pages;
+    END_TXN(&txn, 0);
+    alloced = fst.st_size / st.ms_psize;
+    fprintf(fout, "\nPAGES: max=%ld alloced=%ld used=%ld size=%d\n",
+        info.me_mapsize / st.ms_psize, alloced, used_pages, st.ms_psize);
+    dbmdb_ctx_close(&ctx);
+    slapi_ch_free((void**)&dbilist);
+    return 0;
+}
 
 /* API used by dbscan to list the dbs */
 dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
@@ -1079,10 +1157,17 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
     /* Let see if the file is not already open */
     *dbi = dbi_get_by_name(ctx, be, filename);
     if (!*dbi && (flags & MDB_CREATE)) {
-#ifdef DBMDB_DEBUG
-        /* Useful to diagnose dbmdb_open_dbi_from_filename call on not open dbi while a txn already is held */
-        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_open_dbi_from_filename", "need to open dbi %s/%s\n", be->be_name, filename);
-#endif
+        if (dbmdb_has_a_txn()) {
+            /* In theory all dbi associated with a backend are always kept open.
+             * And in configuration change case current thread should not have a pending txn.
+             * So far only known case of hitting this condition is that
+             * online import/bulk import/reindex failed and suffix database was cleared)
+             */
+            slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_open_dbi_from_filename", "Attempt to open to open dbi %s/%s while txn is already pending. The only case this message is expected is after a failed import or reindex.\n", be->be_name, filename);
+            log_stack(SLAPI_LOG_WARNING);
+            return MDB_NOTFOUND;
+        }
+
         rc = START_TXN(&txn, NULL, TXNFL_DBI);
         if (!rc) {
             octx.ctx = ctx;

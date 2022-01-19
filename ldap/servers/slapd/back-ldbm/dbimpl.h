@@ -162,6 +162,7 @@ int dblayer_private_open(const char *plgname, const char *dbfilename, int rw, Sl
 int dblayer_private_close(Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db);
 dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome);
 int dblayer_db_remove(Slapi_Backend *be, dbi_db_t *db);
+int dblayer_show_statistics(const char *dbimpl_name, const char *dbhome, FILE *fout, FILE *ferr);
 
 
 #endif /* DBIMPL_H_ */
