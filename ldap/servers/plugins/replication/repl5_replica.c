@@ -1656,11 +1656,10 @@ int replica_check_for_data_reload (Replica *r, void *arg)
             return -1;
         }
 
-        if (upper_bound_ruv)
-        {
-            ruv_obj = replica_get_ruv (r);
-            r_ruv = object_get_data (ruv_obj);
-            PR_ASSERT (r_ruv);
+        if (upper_bound_ruv && ruv_replica_count(upper_bound_ruv) > 0) {
+            ruv_obj = replica_get_ruv(r);
+            r_ruv = object_get_data(ruv_obj);
+            PR_ASSERT(r_ruv);
 
             /* Compare new ruv to the changelog's upper bound ruv. We could only keep
                the existing changelog if its upper bound is the same as replica's RUV.
