@@ -1641,7 +1641,7 @@ replica_check_for_data_reload(Replica *r, void *arg __attribute__((unused)))
             return -1;
         }
 
-        if (upper_bound_ruv) {
+        if (upper_bound_ruv && ruv_replica_count(upper_bound_ruv) > 0) {
             ruv_obj = replica_get_ruv(r);
             r_ruv = object_get_data(ruv_obj);
             PR_ASSERT(r_ruv);
