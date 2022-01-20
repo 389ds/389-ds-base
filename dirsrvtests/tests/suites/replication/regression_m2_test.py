@@ -1023,12 +1023,14 @@ def test_online_reinit_may_hang(topo_with_sigkill):
         1. Export the database
         2. Move RUV entry to the top in the ldif file
         3. Import the ldif file
-        4. Online replica initializaton
+        4. Check that replication is still working
+        5. Online replica initializaton
     :expectedresults:
         1. Ldif file should be created successfully
         2. RUV entry should be on top in the ldif file
         3. Import should be successful
-        4. Server should not hang and consume 100% CPU
+        4. Replication should work
+        5. Server should not hang and consume 100% CPU
     """
     M1 = topo_with_sigkill.ms["supplier1"]
     M2 = topo_with_sigkill.ms["supplier2"]
@@ -1041,6 +1043,11 @@ def test_online_reinit_may_hang(topo_with_sigkill):
     M1.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
     M1.start()
     # After this server may hang
+    # Exporting idle server with replication data and reimporting
+    # should not break replication (Unless we hit issue 5098)
+    # So let check that replication is still working.
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.test_replication_topology(topo_with_sigkill)
     agmt = Agreements(M1).list()[0]
     agmt.begin_reinit()
     (done, error) = agmt.wait_reinit()
