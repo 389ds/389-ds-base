@@ -1962,7 +1962,7 @@ g_get_next_thread_snmp_vars(int *cookie)
 /* Allocated the first slot of arrays of counters
  * The first slot contains counters that are not specific to counters
  */
-struct snmp_vars_t *
+void
 alloc_global_snmp_vars()
 {
     PR_ASSERT(max_slots_snmp_vars == 0);
@@ -1976,7 +1976,7 @@ alloc_global_snmp_vars()
 /* Allocated the next slots of the arrays of counters
  * with a slot per worker thread
  */
-struct snmp_vars_t *
+void
 alloc_per_thread_snmp_vars(int32_t maxthread)
 {
     PR_ASSERT(max_slots_snmp_vars == 1);
