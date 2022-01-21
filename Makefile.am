@@ -692,7 +692,7 @@ schema_DATA = $(srcdir)/ldap/schema/99user.ldif
 libexec_SCRIPTS =
 
 if SYSTEMD
-libexec_SCRIPTS += wrappers/ds_systemd_ask_password_acl
+libexec_SCRIPTS += wrappers/ds_systemd_ask_password_acl wrappers/ds_selinux_restorecon.sh
 endif
 
 if ENABLE_COCKPIT
