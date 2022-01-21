@@ -604,6 +604,7 @@ fi
 %{_sbindir}/openldap_to_ds
 %{_mandir}/man8/openldap_to_ds.8.gz
 %{_libexecdir}/%{pkgname}/ds_systemd_ask_password_acl
+%{_libexecdir}/%{pkgname}/ds_selinux_restorecon.sh
 %{_mandir}/man5/99user.ldif.5.gz
 %{_mandir}/man5/certmap.conf.5.gz
 %{_mandir}/man5/slapd-collations.conf.5.gz
