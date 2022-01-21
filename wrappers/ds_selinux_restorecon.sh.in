@@ -1,0 +1,33 @@
+#!/bin/sh
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2022 Red Hat, Inc.
+#
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# END COPYRIGHT BLOCK
+
+# Make sure we have the path to the dse.ldif
+if [ -z $1 ]
+then
+    echo "usage: ${0} /etc/dirsrv/slapd-<instance>/dse.ldif"
+    exit 0
+fi
+
+if ! command -v restorecon &> /dev/null
+then
+    # restorecon is not available
+    exit 0
+fi
+
+# Grep the db_home_dir out of the config file
+DS_HOME_DIR=`grep 'nsslapd-db-home-directory: ' $1 | awk '{print $2}'`
+if [ -z "$DS_HOME_DIR" ]
+then
+    # No DB home set, that's ok
+    exit 0
+fi
+
+# Now run restorecon
+restorecon ${DS_HOME_DIR}
