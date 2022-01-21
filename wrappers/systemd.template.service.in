@@ -14,6 +14,7 @@ EnvironmentFile=-@initconfigdir@/@package_name@
 EnvironmentFile=-@initconfigdir@/@package_name@-%i
 PIDFile=/run/@package_name@/slapd-%i.pid
 ExecStartPre=@libexecdir@/ds_systemd_ask_password_acl @instconfigdir@/slapd-%i/dse.ldif
+ExecStartPre=@libexecdir@/ds_selinux_restorecon.sh @instconfigdir@/slapd-%i/dse.ldif
 ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i /run/@package_name@/slapd-%i.pid
 PrivateTmp=on
 

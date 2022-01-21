@@ -775,7 +775,7 @@ libexec_SCRIPTS += ldap/admin/src/scripts/ds_selinux_enabled \
 	ldap/admin/src/scripts/ds_selinux_port_query
 endif
 if SYSTEMD
-libexec_SCRIPTS += wrappers/ds_systemd_ask_password_acl
+libexec_SCRIPTS += wrappers/ds_systemd_ask_password_acl wrappers/ds_selinux_restorecon.sh
 endif
 
 install-data-hook:
