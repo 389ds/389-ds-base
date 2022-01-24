@@ -451,6 +451,7 @@ class EditorTreeView extends React.Component {
             >
                 ACIs ...
             </DropdownItem>,
+            /*
             <DropdownItem
                 isDisabled
                 key="tree-view-roles"
@@ -469,6 +470,7 @@ class EditorTreeView extends React.Component {
             >
                 Smart Referrals ...
             </DropdownItem>,
+            */
             <DropdownSeparator key="separator-3" />,
             <DropdownItem
                 key="tree-view-delete"

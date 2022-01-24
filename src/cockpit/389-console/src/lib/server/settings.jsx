@@ -5,6 +5,7 @@ import {
     Button,
     Checkbox,
     Form,
+    FormHelperText,
     FormSelect,
     FormSelectOption,
     Grid,
@@ -269,6 +270,13 @@ export class ServerSettings extends React.Component {
             if (value == "" && (typeof value !== "boolean")) {
                 valueErr = true;
                 disableSaveBtn = true;
+            }
+            if (attr === 'nsslapd-disk-monitoring-threshold') {
+                const numVal = Number(value);
+                if (numVal < 4096) {
+                    valueErr = true;
+                    disableSaveBtn = true;
+                }
             }
         } else if (nav_tab == "adv") {
             // Handle special cases for anon limit dn
@@ -850,15 +858,17 @@ export class ServerSettings extends React.Component {
                                 min={4096}
                                 max={9223372036854775807}
                                 onMinus={() => { this.onMinusConfig("nsslapd-disk-monitoring-threshold", "diskmon") }}
-                                onChange={(e) => { this.onConfigChange(e, "nsslapd-disk-monitoring-threshold", 4096, 9223372036854775807, "diskmon") }}
+                                onChange={(e) => { this.onConfigChange(e, "nsslapd-disk-monitoring-threshold", 1, 9223372036854775807, "diskmon") }}
                                 onPlus={() => { this.onPlusConfig("nsslapd-disk-monitoring-threshold", "diskmon") }}
                                 inputName="input"
                                 inputAriaLabel="number input"
                                 minusBtnAriaLabel="minus"
                                 plusBtnAriaLabel="plus"
                                 widthChars={8}
-                                validated={this.state.errObjDiskMon.diskThreshold ? ValidatedOptions.error : ValidatedOptions.default}
                             />
+                            <FormHelperText isError isHidden={!this.state.errObjDiskMon['nsslapd-disk-monitoring-threshold']}>
+                                Value must be greater than or equal to 4096
+                            </FormHelperText>
                         </GridItem>
                     </Grid>
                     <Grid
@@ -880,7 +890,6 @@ export class ServerSettings extends React.Component {
                                 minusBtnAriaLabel="minus"
                                 plusBtnAriaLabel="plus"
                                 widthChars={8}
-                                validated={this.state.errObjDiskMon.diskThreshold ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
