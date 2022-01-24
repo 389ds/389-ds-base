@@ -767,6 +767,7 @@ export class LDAPEditor extends React.Component {
                     });
                 }
             },
+            /*
             {
                 title: 'Roles ...',
                 isDisabled: true,
@@ -780,6 +781,7 @@ export class LDAPEditor extends React.Component {
                 title: 'Smart Referrals ...',
                 isDisabled: true
             },
+            */
             {
                 isSeparator: true
             },
