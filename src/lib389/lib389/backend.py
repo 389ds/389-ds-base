@@ -719,7 +719,7 @@ class Backend(DSLdapObject):
                 return
         raise ValueError("Can not delete index because it does not exist")
 
-    def add_index(self, attr_name, types, matching_rules=[], reindex=False):
+    def add_index(self, attr_name, types, matching_rules=None, reindex=False):
         """ Add an index.
 
         :param attr_name - name of the attribute to index
@@ -736,7 +736,9 @@ class Backend(DSLdapObject):
             mrs = []
             for mr in matching_rules:
                 mrs.append(mr)
-            props['nsMatchingRule'] = mrs
+            # Only add if there are actually rules present in the list.
+            if len(mrs) > 0:
+                props['nsMatchingRule'] = mrs
         new_index.create(properties=props, basedn="cn=index," + self._dn)
 
         if reindex:
