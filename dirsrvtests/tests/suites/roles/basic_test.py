@@ -332,6 +332,7 @@ def test_vattr_on_filtered_role(topo, request):
        added it is moved to OFF
 
     :id: 88b3ad3c-f39a-4eb7-a8c9-07c685f11908
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
          1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config
@@ -339,12 +340,14 @@ def test_vattr_on_filtered_role(topo, request):
          3. Create a filtered role
          4. Check the value of nsslapd-ignore-virtual-attrs should be OFF
          5. Check a message "roles_cache_trigger_update_role - Because of virtual attribute.." in error logs
+         6. Check after deleting role definition value of attribute nsslapd-ignore-virtual-attrs is set back to ON
     :expectedresults:
          1. This should be successful
          2. This should be successful
          3. This should be successful
          4. This should be successful
          5. This should be successful
+         6. This should be successful
     """
 
     log.info("Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config")
@@ -375,7 +378,9 @@ def test_vattr_on_filtered_role(topo, request):
                 i.delete()
         except:
             pass
-        topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'on')
+        log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs is back to ON")
+        topo.standalone.restart()
+        assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "on"
 
     request.addfinalizer(fin)
 
@@ -385,6 +390,7 @@ def test_vattr_on_filtered_role_restart(topo, request):
     nsslapd-ignore-virtual-attrs should be set to 'off'
 
     :id: 972183f7-d18f-40e0-94ab-580e7b7d78d0
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
          1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config
@@ -450,6 +456,7 @@ def test_vattr_on_managed_role(topo, request):
        added it is moved to OFF
 
     :id: 664b722d-c1ea-41e4-8f6c-f9c87a212346
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
          1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config
@@ -457,12 +464,14 @@ def test_vattr_on_managed_role(topo, request):
          3. Create a managed role
          4. Check the value of nsslapd-ignore-virtual-attrs should be OFF
          5. Check a message "roles_cache_trigger_update_role - Because of virtual attribute.." in error logs
+         6. Check after deleting role definition value of attribute nsslapd-ignore-virtual-attrs is set back to ON
     :expectedresults:
          1. This should be successful
          2. This should be successful
          3. This should be successful
          4. This should be successful
          5. This should be successful
+         6. This should be successful
     """
 
     log.info("Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config")
@@ -489,7 +498,9 @@ def test_vattr_on_managed_role(topo, request):
                 i.delete()
         except:
             pass
-        topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'on')
+        log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs is back to ON")
+        topo.standalone.restart()
+        assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "on"
 
     request.addfinalizer(fin)
 

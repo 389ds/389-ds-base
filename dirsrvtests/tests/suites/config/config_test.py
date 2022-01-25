@@ -352,6 +352,7 @@ def test_ignore_virtual_attrs(topo):
     """Test nsslapd-ignore-virtual-attrs configuration attribute
 
     :id: 9915d71b-2c71-4ac0-91d7-92655d53541b
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
          1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config
@@ -425,6 +426,7 @@ def test_ignore_virtual_attrs_after_restart(topo):
        its value on restart
 
     :id: ac368649-4fda-473c-9ef8-e0c728b162af
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
          1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config

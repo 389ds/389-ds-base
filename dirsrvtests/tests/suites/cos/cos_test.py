@@ -98,6 +98,7 @@ def test_vattr_on_cos_definition(topo, reset_ignore_vattr):
        added it is moved to OFF
 
     :id: e7ef5254-386f-4362-bbb4-9409f3f51b08
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
          1. Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config
@@ -105,12 +106,14 @@ def test_vattr_on_cos_definition(topo, reset_ignore_vattr):
          3. Create a cos definition for employeeType
          4. Check the value of nsslapd-ignore-virtual-attrs should be OFF (with a delay for postop processing)
          5. Check a message "slapi_vattrspi_regattr - Because employeeType,.." in error logs
+         6. Check after deleting cos definition value of attribute nsslapd-ignore-virtual-attrs is set back to ON
     :expectedresults:
          1. This should be successful
          2. This should be successful
          3. This should be successful
          4. This should be successful
          5. This should be successful
+         6. This should be successful
     """
 
     log.info("Check the attribute nsslapd-ignore-virtual-attrs is present in cn=config")
@@ -135,7 +138,11 @@ def test_vattr_on_cos_definition(topo, reset_ignore_vattr):
     topo.standalone.stop()
     assert topo.standalone.searchErrorsLog("slapi_vattrspi_regattr - Because employeeType is a new registered virtual attribute , nsslapd-ignore-virtual-attrs was set to \'off\'")
     topo.standalone.start()
+    log.info("Delete a cos definition")
     cosdef.delete()
+    log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs is back to ON")
+    topo.standalone.restart()
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-ignore-virtual-attrs') == "on"
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)
