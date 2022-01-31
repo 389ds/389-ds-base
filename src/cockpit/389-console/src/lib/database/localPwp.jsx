@@ -792,10 +792,10 @@ class CreatePolicy extends React.Component {
                                 {this.props.create_passwordmustchange == false && (
                                 <FormAlert>
                                     <Alert
-                                    variant="info"
-                                    title='"User Must Change Password After Reset" must be enabled in General Settings to avail of TPR.'
-                                    aria-live="polite"
-                                    isInline
+                                        variant="info"
+                                        title='"User Must Change Password After Reset" must be enabled in General Settings to activate TPR.'
+                                        aria-live="polite"
+                                        isInline
                                     />
                                 </FormAlert>
                                  )}
@@ -2956,14 +2956,14 @@ export class LocalPwPolicy extends React.Component {
                             </Button>
                         </Tab>
                         <Tab eventKey={4} title={<TabTitleText>Temporary Password Rules</TabTitleText>}>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                            <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 {this.state.passwordmustchange == false && (
                                 <FormAlert>
                                     <Alert
-                                    variant="info"
-                                    title='"User Must Change Password After Reset" must be enabled in General Settings to avail of TPR.'
-                                    aria-live="polite"
-                                    isInline
+                                        variant="info"
+                                        title='"User Must Change Password After Reset" must be enabled in General Settings to activate TPR.'
+                                        aria-live="polite"
+                                        isInline
                                     />
                                 </FormAlert>
                                  )}
@@ -2989,7 +2989,7 @@ export class LocalPwPolicy extends React.Component {
                                 </Grid>
                                 {pwSyntaxRows}
                             </Form>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                            <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid
                                     title="Number of seconds before the temporary password expires (passwordTPRDelayExpireAt)."
                                 >
@@ -3011,7 +3011,7 @@ export class LocalPwPolicy extends React.Component {
                                     </GridItem>
                                 </Grid>
                             </Form>
-                            <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                            <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid
                                     title="Number of seconds after which temporary password starts to be valid for authentication (passwordTPRDelayValidFrom)."
                                 >
