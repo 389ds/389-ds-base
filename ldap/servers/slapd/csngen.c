@@ -862,8 +862,10 @@ void csngen_multi_suppliers_test(void)
     for (_csngen_tester_state=0; _csngen_tester_state < NB_TEST_STATES; _csngen_tester_state++) {
         for (i=0; i< NB_TEST_MASTERS; i++) {
             _csngen_tester_state_rid = i+1;
+            csn = NULL;
             rc = csngen_new_csn(gen[i], &csn, PR_FALSE);
             if (rc) {
+                csn_free(&csn);
                 continue;
             }
             csngen_dump_state(gen[i], SLAPI_LOG_INFO);
@@ -872,8 +874,10 @@ void csngen_multi_suppliers_test(void)
                 slapi_log_err(SLAPI_LOG_ERR, "csngen_multi_suppliers_test",
                               "CSN generated in disorder state=%d rid=%d\n", _csngen_tester_state, _csngen_tester_state_rid);
                 _csngen_tester_state = NB_TEST_STATES;
+                csn_free(&csn);
                 break;
             }
+            csn_free(&last_csn);
             last_csn = csn;
 
             for (j=0; j< NB_TEST_MASTERS; j++) {
@@ -888,4 +892,5 @@ void csngen_multi_suppliers_test(void)
             }
         }
     }
+    csn_free(&last_csn);
 }

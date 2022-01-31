@@ -403,8 +403,7 @@ export class SearchDatabase extends React.Component {
             const start = 2 * (page - 1) * perPage;
             const end = 2 * page * perPage;
             const pagedRows = this.state.rows.slice(start, end);
-            let i = 0;
-            for (i; i < pagedRows.length - 1; i++) {
+            for (let i = 0; i < pagedRows.length - 1; i++) {
                 if (i % 2 === 0) {
                     pagedRows[i + 1].parent = i;
                 }

@@ -951,8 +951,7 @@ class ReferentialIntegrity extends React.Component {
                                     type="text"
                                     id="configContainerScope"
                                     aria-describedby="horizontal-form-name-helper"
-                                    name="configExcludeEntryScope"
-
+                                    name="configContainerScope"
                                     onChange={(str, e) => { this.handleModalChange(e) }}
                                     validated={errorModal.configContainerScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />

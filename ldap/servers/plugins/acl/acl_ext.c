@@ -188,12 +188,13 @@ acl_operation_ext_constructor(void *object __attribute__((unused)), void *parent
     if (NULL == aclpb) {
         slapi_log_err(SLAPI_LOG_ERR, plugin_name,
                       "acl_operation_ext_constructor - Operation extension allocation Failed\n");
+    } else {
+        /* targetfilter_cache toggle set during aclpb allocation
+         * to avoid accessing configuration during the evaluation
+         * of each aci
+         */
+        aclpb->targetfilter_cache_enabled = config_get_targetfilter_cache();
     }
-    /* targetfilter_cache toggle set during aclpb allocation
-     * to avoid accessing configuration during the evaluation
-     * of each aci
-     */
-    aclpb->targetfilter_cache_enabled = config_get_targetfilter_cache();
 
     TNF_PROBE_0_DEBUG(acl_operation_ext_constructor_end, "ACL", "");
 
