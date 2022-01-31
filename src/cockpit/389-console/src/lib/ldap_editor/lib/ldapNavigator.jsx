@@ -5,6 +5,7 @@ import {
     TreeView
 } from '@patternfly/react-core';
 import {
+    ExclamationTriangleIcon,
     FolderIcon,
     FolderOpenIcon,
     ResourcesEmptyIcon
@@ -34,25 +35,7 @@ class LdapNavigator extends React.Component {
         };
 
         this.treeOnClick = (evt, treeViewItem, parentItem) => {
-            if (this.state.ldapFailure) {
-                const result = ldapPing(this.props.editorLdapServer,
-                    (res, obj) => {
-                        if (res) {
-                            this.setState({ ldapFailure: false });
-                            console.log('Can reconnect to the LDAP server. Continuing...');
-                        } else {
-                            console.log('Cannot contact the LDAP server! Aborting...');
-                            console.log(obj);
-                        }
-                    });
-
-                // Once the server is again reachable, a new click will update the tree item(s).
-                // Meanwhile give up for this round.
-                return;
-            }
-
             if (treeViewItem.isFakeEntry) {
-                console.log('Clicked on a loading item. Not processing it...');
                 return;
             }
 
@@ -103,6 +86,10 @@ class LdapNavigator extends React.Component {
                         const params = {
                             serverId: this.props.editorLdapServer,
                             baseDn: treeViewItem.dn,
+                            name: treeViewItem.name,
+                            fullEntry: treeViewItem.fullEntry,
+                            modTime: treeViewItem.modTime,
+                            addNotification: this.props.addNotification,
                             filter: this.props.skipLeafEntries
                                 ? '(|(&(numSubordinates=*)(numSubordinates>=1))(objectClass=organizationalunit)(objectClass=organization))'
                                 : null // getOneLevelEntries() will use its default filter '(|(objectClass=*)(objectClass=ldapSubEntry))'
@@ -120,6 +107,31 @@ class LdapNavigator extends React.Component {
                         this.props.showTreeLoadingState(false);
                     }
                 });
+        };
+
+        this.updateMyParent = (treeNode, nodeIdObject, nodeChildren, removePreviousChildren) => {
+            const res = nodeIdObject.remainingId.indexOf('.');
+            if (res === -1) {
+                const insertionNode = treeNode.find(elt => elt.id === nodeIdObject.fullId);
+                insertionNode.children = nodeChildren;
+                insertionNode.loadChildren = false;
+                insertionNode.customBadgeContent = "?";
+            } else {
+                const parentId = nodeIdObject.remainingId.substring(0, res);
+                const startingId = nodeIdObject.startingId === undefined
+                    ? parentId
+                    : `${nodeIdObject.startingId}.${parentId}`;
+
+                const parentNode = treeNode.find(elt => elt.id === startingId);
+                const remainingId = nodeIdObject.remainingId.substring(res + 1);
+
+                const newNodeIdObject = {
+                    fullId: nodeIdObject.fullId,
+                    remainingId: remainingId,
+                    startingId: startingId
+                }
+                this.updateMyParent(parentNode.children, newNodeIdObject, nodeChildren, removePreviousChildren);
+            }
         };
 
         this.updateMyChildren = (treeNode, nodeIdObject, childArray, removePreviousChildren) => {
@@ -348,7 +360,7 @@ class LdapNavigator extends React.Component {
         }
     }
 
-    updateDirectChildren = (potentialChildren, resCode) => {
+    updateDirectChildren = (potentialChildren, params, resCode) => {
         // When leaf entries ( but Organizations and Organization Units ) should be skipped
         // run a search with the relevant filter to get the actual number of matching grand children
         // ( children of the direct children of the current entry [ the active node ]).
@@ -358,15 +370,19 @@ class LdapNavigator extends React.Component {
         }
 
         if (potentialChildren === null) {
-            console.log(resCode);
-            // TODO: Show Modal dialog
+            if (resCode.exit_status !== 0) {
+                this.props.addNotification(
+                    "error",
+                    `Error searching database - ${resCode.msg.split("\n").pop()}`
+                );
+            }
             return;
         }
 
         const updatedChildren = [];
         let nbIterations = 0;
 
-        const params = {
+        const child_params = {
             serverId: this.props.editorLdapServer,
             scope: 'one',
             attributes: '1.1',
@@ -376,7 +392,7 @@ class LdapNavigator extends React.Component {
         potentialChildren.map(aChild => {
             const info = JSON.parse(aChild);
             params.baseDn = info.dn;
-            runGenericSearch(params, (resArray) => {
+            runGenericSearch(child_params, (resArray) => {
                 if (resArray.length > 0) {
                     info.showChildren = true;
                 }
@@ -385,21 +401,46 @@ class LdapNavigator extends React.Component {
                 nbIterations++;
                 if (nbIterations === potentialChildren.length) {
                     // Now process the selected direct children.
-                    this.processDirectChildren(updatedChildren, null);
+                    this.processDirectChildren(updatedChildren, params, null);
                 }
             });
         });
     }
 
     // Process the entries that are direct children.
-    processDirectChildren = (directChildren, resCode) => {
+    processDirectChildren = (directChildren, params, resCode) => {
+        // Retrieve the selected node from ==> this.state.activeItems: [treeViewItem, parentItem]
+        const myActiveNode = this.state.activeItems[0];
+        const myChildren = [];
+        let childId = 0; // Used to quickly locate the node in the tree data.
+
         if (directChildren === null) { // There was a failure to connect to the LDAP server.
-            // TODO: Show Modal dialog
-            console.log(resCode);
             this.setState({ ldapFailure: true });
-            this.props.handleNodeOnClick(null);
-            if (resCode.msg.endsWith('Can\'t contact LDAP server (-1)')) {
-                this.props.setServerReachabilityStatus(false, resCode.msg);
+            this.props.showTreeLoadingState(false);
+
+            if (resCode.exit_status !== 0) {
+                this.props.addNotification(
+                    "error",
+                    `Error searching database - ${resCode.msg.split("\n").pop()}`
+                );
+
+                const randomId = Math.random().toString(36).substring(2, 15);
+                let nodeChildren = [{
+                    name: 'Encountered an error, unable to display child entries',
+                    id: randomId,
+                    icon: <ExclamationTriangleIcon />,
+                    isFakeEntry: true
+                }];
+
+                const treeAllItems = this.state.allItems;
+                const parentIdObject = {
+                    fullId: myActiveNode.id,
+                    remainingId: myActiveNode.id
+                }
+                this.updateMyParent(treeAllItems, parentIdObject, nodeChildren, true);
+                this.setState({
+                    allItems: treeAllItems
+                });
             }
             return;
         } else {
@@ -407,11 +448,6 @@ class LdapNavigator extends React.Component {
             // ==> Set the state only if needed.
             this.setState({ ldapFailure: false });
         }
-
-        // Retrieve the selected node from ==> this.state.activeItems: [treeViewItem, parentItem]
-        const myActiveNode = this.state.activeItems[0];
-        const myChildren = [];
-        let childId = 0; // Used to quickly locate the node in the tree data.
 
         for (const aChild of directChildren) {
             const info = JSON.parse(aChild);
@@ -477,7 +513,7 @@ class LdapNavigator extends React.Component {
                         <div>No Databases</div>
                     </Bullseye>
                 }
-                <div className="ds-editor-tree">
+                <div className={this.props.isDisabled ? "ds-disabled ds-editor-tree" : "ds-editor-tree"}>
                     <TreeView
                         data={allItems}
                         onSelect={this.treeOnClick}

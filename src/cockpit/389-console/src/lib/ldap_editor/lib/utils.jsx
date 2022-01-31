@@ -515,17 +515,19 @@ export function getOneLevelEntries (params, oneLevelCallback) {
       searchResult = data;
     })
     .catch((err, data) => {
-    // .fail(err => {
       console.log('FAIL err.exit_status ==> ' + err.exit_status);
       console.log('FAIL err.message ==> ' + err.message);
       if (err.exit_status === 4) {
-        console.log('Size limit hit');
         // Use the partial data.
         searchResult = data;
-        // TODO: Check other relevant error codes ( 32, 53 ...)
+        const size_limit = getSizeLimit();
+        params.addNotification(
+            "info",
+            `Size limit of ${size_limit} was exceeded.  The child entries of "${params.baseDn}" have been truncated.`
+        );
       } else {
         searchResult = null;
-        oneLevelCallback(null, { status: err.exit_status, msg: err.message });
+        oneLevelCallback(null, params, { status: err.exit_status, msg: err.message });
       }
     })
     .finally(() => {
@@ -568,7 +570,7 @@ export function getOneLevelEntries (params, oneLevelCallback) {
         }
       });
       // Process the list of entries.
-      oneLevelCallback(allEntries, null);
+      oneLevelCallback(allEntries, params, null);
     });
 }
 
