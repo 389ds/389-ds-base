@@ -209,7 +209,8 @@ export class LDAPEditor extends React.Component {
                 const params = {
                     serverId: this.props.serverId,
                     baseDn: suffixDN,
-                    parentId: parentId
+                    parentId: parentId,
+                    addNotification: this.props.addNotification,
                 };
 
                 getRootSuffixEntryDetails(params, this.updateTableRootSuffixes);
@@ -305,7 +306,8 @@ export class LDAPEditor extends React.Component {
             });
             const params = {
                 serverId: this.props.serverId,
-                baseDn: id
+                baseDn: id,
+                addNotification: this.props.addNotification,
             };
             getOneLevelEntries(params, this.processDirectChildren);
         }
@@ -365,18 +367,20 @@ export class LDAPEditor extends React.Component {
         });
         const params = {
             serverId: this.props.serverId,
-            baseDn: dn
+            baseDn: dn,
+            addNotification: this.props.addNotification,
         };
         getOneLevelEntries(params, this.processDirectChildren);
     }
 
     // Process the entries that are direct children.
-    processDirectChildren = (directChildren) => {
+    processDirectChildren = (directChildren, params) => {
         this.setState({
             loading: true
         });
         const childrenRows = [];
         let rowNumber = 0;
+
         directChildren.map(aChild => {
             const info = JSON.parse(aChild);
             const numSubCellInfo = parseInt(info.numSubordinates) > 0
@@ -883,6 +887,7 @@ export class LDAPEditor extends React.Component {
                             onReload={this.handleReload}
                             refreshing={this.state.refreshing}
                             allObjectclasses={this.state.allObjectclasses}
+                            addNotification={this.props.addNotification}
                         />
                     </Tab>
                     <Tab eventKey={1} title={<TabTitleText>Table View</TabTitleText>}>
@@ -922,6 +927,7 @@ export class LDAPEditor extends React.Component {
                                 onCollapse={this.handleCollapse}
                                 columns={columns}
                                 actionResolver={this.actionResolver}
+                                addNotification={this.props.addNotification}
                             />
                         </div>
                     </Tab>
