@@ -865,6 +865,7 @@ ids_sasl_listmech(Slapi_PBlock *pb, PRBool get_all_mechs)
     } else {
         /* The allowed list was empty, just take our supported list. */
         ret = sup_ret;
+        charray_free(config_ret);
     }
 
     /*

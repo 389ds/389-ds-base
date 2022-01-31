@@ -358,9 +358,12 @@ do_one_pam_auth(
     }
 
     rc = pam_end(pam_handle, rc);
-    report_pam_error("during pam_end", rc, pam_handle);
+    if (rc != PAM_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                      "do_one_pam_auth - Error during pam_end (%d)\n", rc);
+    }
     slapi_unlock_mutex(PAMLock);
-/* not in critical section any more */
+    /* not in critical section any more */
 
 done:
     delete_my_str_buf(&pam_id);
