@@ -1,24 +1,23 @@
 // LDAP options.
 const LdapOptions = {
-  sizeLimit: 1000,
-  timeLimit: 5
+    sizeLimit: 5000,
+    timeLimit: 10
 };
+
 // Size limit.
 export function setSizeLimit (limit) {
-  LdapOptions.sizeLimit = limit;
-  console.log(`LdapOptions.sizeLimit = ${LdapOptions.sizeLimit}`);
+    LdapOptions.sizeLimit = limit;
 };
 
 export function getSizeLimit () {
-  return LdapOptions.sizeLimit;
+    return LdapOptions.sizeLimit;
 }
 
 // Time limit.
 export function setTimeLimit (limit) {
-  LdapOptions.timeLimit = limit;
-  console.log(`LdapOptions.timeLimit = ${LdapOptions.timeLimit}`);
+    LdapOptions.timeLimit = limit;
 };
 
 export function getTimeLimit () {
-  return LdapOptions.timeLimit;
+    return LdapOptions.timeLimit;
 }
