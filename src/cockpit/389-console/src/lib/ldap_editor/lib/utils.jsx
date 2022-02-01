@@ -238,6 +238,8 @@ export function getSearchEntries (params, resultCallback) {
     params.searchScope,
     '-l',
     params.timeLimit,
+    '-z',
+    params.sizeLimit,
     params.searchFilter,
     '*',
     '+'
@@ -258,7 +260,10 @@ export function getSearchEntries (params, resultCallback) {
       if (err.exit_status === 4) {
         console.log('Size limit hit'); // Use the partial data.
         searchResult = data;
-        // TODO: Check other relevant error codes ( 32, 53 ...)
+        params.addNotification(
+            "info",
+            `Size limit of ${params.sizeLimit} was exceeded.  The child entries of "${params.searchBase}" have been truncated.`
+        );
       } else {
         searchResult = null;
         resultCallback(null, { status: err.exit_status, msg: err.message });
@@ -523,7 +528,8 @@ export function getOneLevelEntries (params, oneLevelCallback) {
         const size_limit = getSizeLimit();
         params.addNotification(
             "info",
-            `Size limit of ${size_limit} was exceeded.  The child entries of "${params.baseDn}" have been truncated.`
+            `Size limit of ${size_limit} was exceeded.  The child entries of "${params.baseDn}" have been truncated.  ` +
+            `Use the "Search" feature if you want to adjust the size limit and retrieve more entries`
         );
       } else {
         searchResult = null;

@@ -192,7 +192,8 @@ export class LDAPEditor extends React.Component {
     handleReload(refresh) {
         const params = {
             serverId: this.props.serverId,
-            baseDn: this.state.baseDN
+            baseDn: this.state.baseDN,
+            addNotification: this.props.addNotification,
         };
 
         this.setState({
@@ -651,7 +652,8 @@ export class LDAPEditor extends React.Component {
                 const params = {
                     serverId: this.props.serverId,
                     baseDn: suffixDN,
-                    parentId: parentId
+                    parentId: parentId,
+                    addNotification: this.props.addNotification,
                 };
                 getRootSuffixEntryDetails(params, this.updateTableRootSuffixes);
                 parentId += 2; // The next DN row will be two rows below.
@@ -891,19 +893,21 @@ export class LDAPEditor extends React.Component {
                         />
                     </Tab>
                     <Tab eventKey={1} title={<TabTitleText>Table View</TabTitleText>}>
-                        <Breadcrumb className="ds-left-margin ds-margin-top-xlg">
-                            {navItems.map(({ id, to, label, active }) => (
-                                <BreadcrumbItem key={id + label} to={to} isActive={active} onClick={() => this.onNavItemClick(id, active) }>
-                                    {label}
-                                </BreadcrumbItem>
-                            ))}
-                        </Breadcrumb>
-                        <FontAwesomeIcon
-                            className="ds-left-margin ds-refresh"
-                            icon={faSyncAlt}
-                            title="Refresh"
-                            onClick={this.handleReload}
-                        />
+                        <div className={this.state.searching ? "ds-disabled" : ""}>
+                            <Breadcrumb className="ds-left-margin ds-margin-top-xlg">
+                                {navItems.map(({ id, to, label, active }) => (
+                                    <BreadcrumbItem key={id + label} to={to} isActive={active} onClick={() => this.onNavItemClick(id, active) }>
+                                        {label}
+                                    </BreadcrumbItem>
+                                ))}
+                            </Breadcrumb>
+                            <FontAwesomeIcon
+                                className="ds-left-margin ds-refresh"
+                                icon={faSyncAlt}
+                                title="Refresh"
+                                onClick={this.handleReload}
+                            />
+                        </div>
                         <div className={this.state.searching ? "ds-margin-top-xlg ds-center" : "ds-hidden"}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
@@ -939,6 +943,7 @@ export class LDAPEditor extends React.Component {
                             attributes={this.state.attributes}
                             searchBase={this.state.searchBase}
                             allObjectclasses={this.state.allObjectclasses}
+                            addNotification={this.props.addNotification}
                         />
                     </Tab>
                 </Tabs>
