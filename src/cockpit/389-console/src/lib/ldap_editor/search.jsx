@@ -55,7 +55,7 @@ export class SearchDatabase extends React.Component {
             searchBase: "",
             searchFilter: "",
             searchScope: "sub",
-            sizeLimit: 1000,
+            sizeLimit: 2000,
             timeLimit: 30,
             isExpanded: false,
             searchSuffix: "",
@@ -202,6 +202,7 @@ export class SearchDatabase extends React.Component {
                 searchScope: this.state.searchScope,
                 sizeLimit: this.state.sizeLimit,
                 timeLimit: this.state.timeLimit,
+                addNotification: this.props.addNotification,
             };
             getSearchEntries(params, this.processResults);
         };
@@ -303,7 +304,7 @@ export class SearchDatabase extends React.Component {
     }
 
     // Process the entries that are direct children.
-    processResults = (searchResults) => {
+    processResults = (searchResults, resObj) => {
         const resultRows = [];
         let rowNumber = 0;
 
@@ -341,6 +342,13 @@ export class SearchDatabase extends React.Component {
                 // Increment by 2 the row number.
                 rowNumber += 2;
             });
+        } else {
+            if (resObj.status !== 0) {
+                this.props.addNotification(
+                    "error",
+                    `Error searching the database: ${resObj.msg}`
+                );
+            }
         }
 
         this.setState({
