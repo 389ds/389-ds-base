@@ -1,6 +1,6 @@
 // LDAP options.
 const LdapOptions = {
-    sizeLimit: 5000,
+    sizeLimit: 2000,
     timeLimit: 10
 };
 

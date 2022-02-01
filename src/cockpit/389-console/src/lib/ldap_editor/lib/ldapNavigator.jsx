@@ -322,7 +322,11 @@ class LdapNavigator extends React.Component {
                     ? Math.max(...idArray)
                     : 0;
                 const mySubId = maxId + 1;
-                const params = { serverId: this.props.editorLdapServer, baseDn: nodeDn };
+                const params = {
+                    serverId: this.props.editorLdapServer,
+                    baseDn: nodeDn,
+                    addNotification: this.props.addNotification,
+                };
 
                 // TODO: Change the name of this function to a more generic one!!
                 getRootSuffixEntryDetails(params,
@@ -386,6 +390,7 @@ class LdapNavigator extends React.Component {
             serverId: this.props.editorLdapServer,
             scope: 'one',
             attributes: '1.1',
+            addNotification: this.props.addNotification,
             filter: '(|(&(numSubordinates=*)(numSubordinates>=1))(objectClass=organizationalunit)(objectClass=organization))'
         };
 
