@@ -127,15 +127,18 @@ connection_table_new(int table_size)
     size_t i = 0;
     int ct_list = 0;
     int free_idx = 0;
+    int num_hw_threads = 0;
     ber_len_t maxbersize = config_get_maxbersize();
-
     ct = (Connection_Table *)slapi_ch_calloc(1, sizeof(Connection_Table));
     ct->size = table_size;
-    ct->list_num = 2;
-    /* Round up table_size to balance the CT lists */
-    table_size += (table_size % ct->list_num);
-    ct->list_size = table_size/ct->list_num;
     ct->list_select = 0;
+    /* Number of processors determine if we use two or four CT lists */
+    num_hw_threads = util_get_capped_hardware_threads(MIN_CT_HW_THREADS, MAX_CT_HW_THREADS);
+    ct->list_num = (num_hw_threads >= FLEX_POINT_NUM_CT_HW_THREADS) ? MAX_NUM_CT_LISTS : MIN_NUM_CT_LISTS;
+    slapi_log_err(SLAPI_LOG_INFO, "connection_table_new",
+                  "number of lists: %d\n", ct->list_num);
+
+    ct->list_size = table_size/ct->list_num + 1; /* +1 to avoid rounding issue */
     ct->c = (Connection **)slapi_ch_calloc(1, table_size * sizeof(Connection));
     ct->fd = (struct POLL_STRUCT **)slapi_ch_calloc(1, table_size * sizeof(struct POLL_STRUCT));
     ct->table_mutex = PR_NewLock();

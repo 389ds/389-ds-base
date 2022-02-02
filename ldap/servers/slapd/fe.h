@@ -73,6 +73,13 @@ int connection_call_io_layer_callbacks(Connection *c);
  * conntable.c
  */
 
+/* Used to determine the number connection table lists */
+#define MIN_CT_HW_THREADS 1
+#define MAX_CT_HW_THREADS 64
+#define FLEX_POINT_NUM_CT_HW_THREADS 8 /* HW thread to CT list inflection point */
+#define MIN_NUM_CT_LISTS 2
+#define MAX_NUM_CT_LISTS 4
+
 /*
  * Note: the correct order to use when acquiring multiple locks is
  * c[i]->c_mutex followed by table_mutex.
