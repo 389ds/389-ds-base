@@ -444,6 +444,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.isLocal = True
         self.ds_paths = Paths(serverid, instance=self, local=self.isLocal)
         self.serverid = serverid
+        self.userid = self.ds_paths.user
 
         # Do we have ldapi settings?
         self.ldapi_enabled = None
@@ -545,7 +546,7 @@ class DirSrv(SimpleLDAPObject, object):
             self.host = ldapuri_parsed.hostname
             try:
                 self.port = ldapuri_parsed.port
-            except ValueError as e:
+            except ValueError:
                 self.port = DEFAULT_PORT
         else:
             self.host = args.get(SER_HOST, socket.gethostname())
@@ -3029,7 +3030,6 @@ class DirSrv(SimpleLDAPObject, object):
         else:
             return False
 
-
     def is_dbi(self, dbipattern):
         try:
             cmd = ["%s/dbscan" % self.get_bin_dir(),
@@ -3045,7 +3045,6 @@ class DirSrv(SimpleLDAPObject, object):
         self.log.debug("is_dbi output is: " + output)
 
         return dbipattern.lower() in output.lower()
- 
 
     def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False):
         """Wrapper around dbscan tool that analyzes and extracts information
