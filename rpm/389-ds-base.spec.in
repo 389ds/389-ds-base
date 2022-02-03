@@ -177,6 +177,8 @@ Requires:         cyrus-sasl-plain
 # this is needed for backldbm
 Requires:         libdb
 Requires:         lmdb
+# twalk_r is only available in glibc-2.30 or higher
+Requires:         glibc => 2.30
 # This picks up libperl.so as a Requires, so we add this versioned one
 Requires:         perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
 # Needed by logconv.pl
