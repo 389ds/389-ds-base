@@ -494,8 +494,10 @@ def valgrind_enable(sbin_dir, wrapper=None):
     :raise EnvironmentError: If script is not run as 'root'
     '''
 
-    if os.geteuid() != 0:
-        log.error('This script must be run as root to use valgrind')
+    if not os.access(sbin_dir, os.W_OK):
+        # Note: valgrind has no limitation but  ns-slapd must be replaced
+        # This check allows non root user to use custom install prefix
+        log.error('This script must be run as root to use valgrind (Should at least be able to write in {sbin_dir})')
         raise EnvironmentError
 
     if not wrapper:
@@ -541,7 +543,8 @@ def valgrind_enable(sbin_dir, wrapper=None):
                       e.strerror)
 
     # Disable selinux
-    os.system('setenforce 0')
+    if os.geteuid() == 0:
+        os.system('setenforce 0')
 
     log.info('Valgrind is now enabled.')
 
@@ -558,8 +561,10 @@ def valgrind_disable(sbin_dir):
     :raise EnvironmentError: If script is not run as 'root'
     '''
 
-    if os.geteuid() != 0:
-        log.error('This script must be run as root to use valgrind')
+    if not os.access(sbin_dir, os.W_OK):
+        # Note: valgrind has no limitation but  ns-slapd must be replaced
+        # This check allows non root user to use custom install prefix
+        log.error('This script must be run as root to use valgrind (Should at least be able to write in {sbin_dir})')
         raise EnvironmentError
 
     nsslapd_orig = '%s/ns-slapd' % sbin_dir
@@ -583,7 +588,8 @@ def valgrind_disable(sbin_dir):
                          e.strerror)
 
     # Enable selinux
-    os.system('setenforce 1')
+    if os.geteuid() == 0:
+        os.system('setenforce 1')
 
     log.info('Valgrind is now disabled.')
 
@@ -609,7 +615,7 @@ def valgrind_get_results_file(dirsrv_inst):
 
     # Run the command and grab the output
     p = os.popen(cmd)
-    results_file = p.readline()
+    results_file = p.readline().strip()
     p.close()
 
     return results_file

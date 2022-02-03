@@ -348,10 +348,9 @@ chainingdb_build_candidate_list(Slapi_PBlock *pb)
                     warned_rc = 1;
                 }
                 cb_send_ldap_result(pb, rc, NULL, ENDUSERMSG, 0, NULL);
-                /* BEWARE: matched_msg and error_msg points */
+                /* BEWARE: matched_msg points */
                 /* to ld fields.                */
                 matched_msg = NULL;
-                error_msg = NULL;
                 rc = -1;
             }
 
@@ -694,10 +693,9 @@ chainingdb_next_search_entry(Slapi_PBlock *pb)
                 }
                 cb_send_ldap_result(pb, rc, matched_msg, ENDUSERMSG, 0, NULL);
 
-                /* BEWARE: Don't free matched_msg && error_msg */
+                /* BEWARE: Don't free matched_msg */
                 /* Points to the ld fields               */
                 matched_msg = NULL;
-                error_msg = NULL;
                 retcode = -1;
             } else {
                 /* Add control response sent by the farm server */

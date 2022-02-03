@@ -331,6 +331,7 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn, LDA
                               "windows_perform_operation - %s: Received error %d: %s for %s operation\n",
                               agmt_get_long_name(conn->agmt),
                               rc, s ? s : "NULL", op_string);
+                slapi_ch_free_string(&s);
                 conn->last_ldap_error = rc;
                 /* some errors will require a disconnect and retry the connection
                    later */
@@ -1709,6 +1710,7 @@ bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password)
                           agmt_get_long_name(conn->agmt),
                           mech ? mech : "SIMPLE", rc,
                           ldap_err2string(rc), errmsg);
+            slapi_ch_free_string(&errmsg);
         } else {
             char *errmsg = NULL;
             /* errmsg is a pointer directly into the ld structure - do not free */
@@ -1718,6 +1720,7 @@ bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password)
                           agmt_get_long_name(conn->agmt),
                           mech ? mech : "SIMPLE", rc,
                           ldap_err2string(rc), errmsg);
+            slapi_ch_free_string(&errmsg);
         }
 
         slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= bind_and_check_pwp - CONN_OPERATION_FAILED\n");
