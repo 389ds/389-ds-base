@@ -446,6 +446,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.isLocal = True
         self.ds_paths = Paths(serverid, instance=self, local=self.isLocal)
         self.serverid = serverid
+        self.userid = self.ds_paths.user
 
         # Do we have ldapi settings?
         self.ldapi_enabled = None
@@ -547,7 +548,7 @@ class DirSrv(SimpleLDAPObject, object):
             self.host = ldapuri_parsed.hostname
             try:
                 self.port = ldapuri_parsed.port
-            except ValueError as e:
+            except ValueError:
                 self.port = DEFAULT_PORT
         else:
             self.host = args.get(SER_HOST, socket.gethostname())
