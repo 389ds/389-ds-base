@@ -6541,6 +6541,13 @@ int bdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key,
     if (bdb_cur == NULL)
         return DBI_RC_INVALID;
 
+    if (bulkdata->v.size < bdb_cur->dbp->pgsize) {
+        /* Make sure that size is 1024 aligned and >= db page size */
+        long size = (bdb_cur->dbp->pgsize + 1023L) & ~1023L;
+        int flags = bulkdata->v.flags & (DBI_VF_BULK_DATA|DBI_VF_BULK_RECORD);
+        dblayer_bulk_set_buffer(bulkdata->be, bulkdata, slapi_ch_malloc(size), size, flags);
+    }
+
     bdb_dbival2dbt(key, &bdb_key, PR_FALSE);
     bdb_dbival2dbt(&bulkdata->v, &bdb_data, PR_FALSE);
     switch (op)
