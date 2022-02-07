@@ -164,6 +164,20 @@ def fixup(inst, basedn, log, args):
         log.info('Successfully added task entry')
 
 
+def abort(inst, basedn, log, args):
+    plugin = AutoMembershipPlugin(inst)
+    log.info('Attempting to add abort task entry... This will fail if Automembership plug-in is not enabled.')
+    if not plugin.status():
+        log.error("'%s' is disabled. Abort rebuild membership task can't be executed" % plugin.rdn)
+    fixup_task = plugin.abort_fixup(args.DN, args.filter)
+    fixup_task.wait()
+    exitcode = fixup_task.get_exit_code()
+    if exitcode != 0:
+        log.error('Abort rebuild membership task for %s has failed. Please, check logs')
+    else:
+        log.info('Successfully added abort task entry')
+
+
 def _add_parser_args_definition(parser):
     parser.add_argument('--grouping-attr',  required=True,
                         help='Specifies the name of the member attribute in the group entry and '
@@ -241,3 +255,5 @@ def create_parser(subparsers):
     fixup.add_argument('-s', '--scope', required=True, choices=['sub', 'base', 'one'], type=str.lower,
                        help='Sets the LDAP search scope for entries to fix up')
 
+    abort_fixup = subcommands.add_parser('abort-fixup', help='Abort the rebuild membership task.')
+    abort_fixup.set_defaults(func=abort)
