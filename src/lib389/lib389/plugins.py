@@ -1103,6 +1103,17 @@ class AutoMembershipPlugin(Plugin):
 
         return task
 
+    def abort_fixup(self):
+        """Create an automember abort rebuild task
+
+        :returns: an instance of Task(DSLdapObject)
+        """
+
+        task = tasks.AutomemberAbortRebuildTask(self._instance)
+        task.create()
+
+        return task
+
 
 class AutoMembershipDefinition(DSLdapObject):
     """A single instance of Auto Membership Plugin config entry

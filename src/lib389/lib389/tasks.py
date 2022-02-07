@@ -139,6 +139,20 @@ class AutomemberRebuildMembershipTask(Task):
         self._must_attributes.extend(['basedn', 'filter'])
 
 
+class AutomemberAbortRebuildTask(Task):
+    """A single instance of automember abort rebuild task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'automember_abort_' + Task._get_task_date()
+        dn = "cn=" + self.cn + "," + DN_AUTOMEMBER_ABORT_REBUILD_TASK
+
+        super(AutomemberAbortRebuildTask, self).__init__(instance, dn)
+
+
 class FixupLinkedAttributesTask(Task):
     """A single instance of fixup linked attributes task entry
 
