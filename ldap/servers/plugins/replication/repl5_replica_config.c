@@ -1508,7 +1508,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
      */
     if ((rid_str = slapi_entry_attr_get_ref(e, "replica-id")) == NULL) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing replica-id attribute");
-        cleanruv_log(task, -1, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+        cleanruv_log(NULL, -1, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -1516,7 +1516,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
     rid = atoi(rid_str);
     if ((base_dn = slapi_entry_attr_get_ref(e, "replica-base-dn")) == NULL) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing replica-base-dn attribute");
-        cleanruv_log(task, (int)rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+        cleanruv_log(NULL, (int)rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -1526,7 +1526,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid value for replica-force-cleaning "
                                                                "(%s).  Value must be \"yes\" or \"no\" for task - (%s)",
                         force_cleaning, slapi_sdn_get_dn(task_dn));
-            cleanruv_log(task, (int)rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+            cleanruv_log(NULL, (int)rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
             *returncode = LDAP_OPERATIONS_ERROR;
             rc = SLAPI_DSE_CALLBACK_ERROR;
             goto out;
@@ -1545,7 +1545,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
     if (rid <= 0 || rid >= READ_ONLY_REPLICA_ID) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid replica id (%d) for task - (%s)",
                     rid, slapi_sdn_get_dn(task_dn));
-        cleanruv_log(task, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -1553,7 +1553,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
     if (is_cleaned_rid(rid)) {
         /* we are already cleaning this rid */
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Replica id (%d) is already being cleaned", rid);
-        cleanruv_log(task, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -1564,7 +1564,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
     dn = slapi_sdn_new_dn_byval(base_dn);
     if ((replica = replica_get_replica_from_dn(dn)) == NULL) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Could not find replica from dn(%s)", slapi_sdn_get_dn(dn));
-        cleanruv_log(task, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -1575,7 +1575,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
 
 out:
     if (rc) {
-        cleanruv_log(task, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "Task failed...(%d)", rc);
+        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "Task failed...(%d)", rc);
         slapi_task_finish(task, *returncode);
     } else {
         rc = SLAPI_DSE_CALLBACK_OK;
@@ -2982,7 +2982,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
      */
     if ((rid_str = slapi_entry_attr_get_ref(e, "replica-id")) == NULL) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing required attr \"replica-id\"");
-        cleanruv_log(task, -1, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+        cleanruv_log(NULL, -1, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -2995,14 +2995,14 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
     if (rid <= 0 || rid >= READ_ONLY_REPLICA_ID) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid replica id (%d) for task - (%s)",
                     rid, slapi_sdn_get_dn(slapi_entry_get_sdn(e)));
-        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+        cleanruv_log(NULL, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
     if ((base_dn = slapi_entry_attr_get_ref(e, "replica-base-dn")) == NULL) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing required attr \"replica-base-dn\"");
-        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+        cleanruv_log(NULL, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -3010,7 +3010,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
     if (!is_cleaned_rid(rid) && !is_pre_cleaned_rid(rid)) {
         /* we are not cleaning this rid */
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Replica id (%d) is not being cleaned, nothing to abort.", rid);
-        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+        cleanruv_log(NULL, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -3018,7 +3018,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
     if (is_task_aborted(rid)) {
         /* we are already aborting this rid */
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Replica id (%d) is already being aborted", rid);
-        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+        cleanruv_log(NULL, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -3029,7 +3029,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
     sdn = slapi_sdn_new_dn_byval(base_dn);
     if ((replica = replica_get_replica_from_dn(sdn)) == NULL) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to find replica from dn(%s)", base_dn);
-        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+        cleanruv_log(NULL, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -3041,7 +3041,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
         if (strcasecmp(certify_all, "yes") && strcasecmp(certify_all, "no")) {
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid value for \"replica-certify-all\", the value "
                                                                "must be \"yes\" or \"no\".");
-            cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+            cleanruv_log(NULL, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
             *returncode = LDAP_OPERATIONS_ERROR;
             rc = SLAPI_DSE_CALLBACK_ERROR;
             goto out;
@@ -3061,7 +3061,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                     "Exceeded maximum number of active ABORT CLEANALLRUV tasks(%d)",
                     CLEANRIDSIZ);
-        cleanruv_log(task, -1, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+        cleanruv_log(NULL, -1, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         goto out;
     }
@@ -3072,7 +3072,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
     payload = create_cleanruv_payload(ridstr);
 
     if (payload == NULL) {
-        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "Failed to create extended op payload, aborting task");
+        cleanruv_log(NULL, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "Failed to create extended op payload, aborting task");
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -3088,7 +3088,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
      */
     data = (cleanruv_data *)slapi_ch_calloc(1, sizeof(cleanruv_data));
     if (data == NULL) {
-        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "Failed to allocate abort_cleanruv_data.  Aborting task.");
+        cleanruv_log(NULL, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "Failed to allocate abort_cleanruv_data.  Aborting task.");
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -3111,7 +3111,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
                              (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                              PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
-        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "Unable to create abort thread.  Aborting task.");
+        cleanruv_log(NULL, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "Unable to create abort thread.  Aborting task.");
         *returncode = LDAP_OPERATIONS_ERROR;
         slapi_ch_free_string(&data->certify);
         rc = SLAPI_DSE_CALLBACK_ERROR;
@@ -3122,7 +3122,7 @@ out:
     slapi_sdn_free(&sdn);
 
     if (rc != SLAPI_DSE_CALLBACK_OK) {
-        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "Abort Task failed (%d)", rc);
+        cleanruv_log(NULL, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "Abort Task failed (%d)", rc);
         slapi_task_finish(task, rc);
     }
 
