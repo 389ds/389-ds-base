@@ -21,6 +21,7 @@
  */
 static PRCList *g_automember_config = NULL;
 static Slapi_RWLock *g_automember_config_lock = NULL;
+static uint64_t abort_rebuild_task = 0;
 
 static void *_PluginID = NULL;
 static Slapi_DN *_PluginDN = NULL;
@@ -82,9 +83,11 @@ static int automember_update_member_value(Slapi_Entry *member_e, const char *gro
 static int automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 static int automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 static int automember_task_add_map_entries(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
+static int automember_task_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 void automember_rebuild_task_thread(void *arg);
 void automember_export_task_thread(void *arg);
 void automember_map_task_thread(void *arg);
+void automember_task_abort_thread(void *arg);
 static void automember_task_destructor(Slapi_Task *task);
 static void automember_task_export_destructor(Slapi_Task *task);
 static void automember_task_map_destructor(Slapi_Task *task);
@@ -305,6 +308,7 @@ automember_start(Slapi_PBlock *pb)
                   "--> automember_start\n");
 
     slapi_plugin_task_register_handler("automember rebuild membership", automember_task_add, pb);
+    slapi_plugin_task_register_handler("automember abort rebuild", automember_task_abort, pb);
     slapi_plugin_task_register_handler("automember export updates", automember_task_add_export_updates, pb);
     slapi_plugin_task_register_handler("automember map updates", automember_task_add_map_entries, pb);
 
@@ -383,6 +387,9 @@ automember_close(Slapi_PBlock *pb __attribute__((unused)))
                                          automember_task_add_export_updates);
     slapi_plugin_task_unregister_handler("automember map updates",
                                          automember_task_add_map_entries);
+    slapi_plugin_task_unregister_handler("automember abort rebuild",
+                                         automember_task_abort);
+
 
     automember_delete_config();
     slapi_sdn_free(&_PluginDN);
@@ -2208,6 +2215,65 @@ automember_task_map_destructor(Slapi_Task *task)
 }
 
 /*
+ *  automember_task_abort
+ *
+ *  This task is designed to abort and existing rebuild task
+ *
+ *  task entry:
+ *
+ *    dn: cn=my abort task, cn=automember abort rebuild,cn=tasks,cn=config
+ *    objectClass: top
+ *    objectClass: extensibleObject
+ *    cn: my abort task
+ */
+static int
+automember_task_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter __attribute__((unused)), int *returncode, char *returntext __attribute__((unused)), void *arg)
+{
+    Slapi_Task *task = NULL;
+    PRThread *thread = NULL;
+    int rc;
+
+    *returncode = LDAP_SUCCESS; /* can not fail - always success */
+
+    task = slapi_plugin_new_task(slapi_entry_get_ndn(e), arg);
+    thread = PR_CreateThread(PR_USER_THREAD, automember_task_abort_thread,
+                             (void *)task, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                             PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+    if (thread == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                      "automember_task_abort - Unable to create task thread!\n");
+        *returncode = LDAP_OPERATIONS_ERROR;
+        slapi_task_finish(task, *returncode);
+        rc = SLAPI_DSE_CALLBACK_ERROR;
+    } else {
+        rc = SLAPI_DSE_CALLBACK_OK;
+    }
+    return rc;
+}
+
+void
+automember_task_abort_thread(void *arg)
+{
+    Slapi_Task *task = (Slapi_Task *)arg;
+
+    slapi_task_inc_refcount(task);
+    slapi_task_begin(task, 1);
+    slapi_task_log_notice(task, "Automember abort rebuild task started.");
+    slapi_task_log_status(task, "Automember abort rebuild task started.");
+
+    /* Set the abort flag */
+    slapi_atomic_store_64(&abort_rebuild_task, 1, __ATOMIC_RELEASE);
+
+    /* Wrap things up */
+    slapi_task_log_notice(task, "Automember abort rebuild task finished.");
+    slapi_task_log_status(task, "Automember abort rebuild task finished.");
+    slapi_task_inc_progress(task);
+    slapi_task_finish(task, 0);
+    slapi_task_dec_refcount(task);
+}
+
+
+/*
  *  automember_task_add
  *
  *  This task is designed to "retro-fit" entries that existed prior to
@@ -2320,13 +2386,16 @@ automember_rebuild_task_thread(void *arg)
 {
     Slapi_Task *task = (Slapi_Task *)arg;
     struct configEntry *config = NULL;
-    Slapi_PBlock *search_pb = NULL, *fixup_pb = NULL;
+    Slapi_PBlock *search_pb = NULL;
     Slapi_Entry **entries = NULL;
     task_data *td = NULL;
     PRCList *list = NULL;
     PRCList *include_list = NULL;
     int result = 0;
-    size_t i = 0, ii = 0;
+    size_t i = 0;
+
+    /* Reset abort flag */
+    slapi_atomic_store_64(&abort_rebuild_task, 0, __ATOMIC_RELEASE);
 
     if (!task) {
         return; /* no task */
@@ -2350,6 +2419,8 @@ automember_rebuild_task_thread(void *arg)
     /*
      *  Search the database
      */
+    automember_config_read_lock();
+
     search_pb = slapi_pblock_new();
     slapi_search_internal_set_pb_ext(search_pb, td->base_dn, td->scope, td->filter_str, NULL,
                                      0, NULL, NULL, automember_get_plugin_id(), 0);
@@ -2372,30 +2443,19 @@ automember_rebuild_task_thread(void *arg)
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
 
     /*
-     * If this is a backend txn plugin, start the transaction
+     * loop over the entries
      */
-    if (plugin_is_betxn) {
-        Slapi_Backend *be = slapi_be_select(td->base_dn);
-
-        if (be) {
-            fixup_pb = slapi_pblock_new();
-            slapi_pblock_set(fixup_pb, SLAPI_BACKEND, be);
-            if (slapi_back_transaction_begin(fixup_pb) != LDAP_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                              "automember_rebuild_task_thread - Failed to start transaction\n");
-            }
-        } else {
-            slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
-                          "automember_rebuild_task_thread - Failed to get be backend from %s\n",
-                          slapi_sdn_get_dn(td->base_dn));
-        }
-    }
-
-    /*
-     *  Grab the config read lock, and loop over the entries
-     */
-    automember_config_read_lock();
     for (i = 0; entries && (entries[i] != NULL); i++) {
+        if (slapi_atomic_load_64(&abort_rebuild_task, __ATOMIC_ACQUIRE) == 1) {
+            /* The task was aborted */
+            slapi_task_log_notice(task, "Automember rebuild task was intentionally aborted");
+            slapi_task_log_status(task, "Automember rebuild task was intentionally aborted");
+            slapi_log_err(SLAPI_LOG_NOTICE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                          "automember_rebuild_task_thread - task was intentionally aborted\n");
+            result = -1;
+            goto out;
+        }
+
         if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
             list = PR_LIST_HEAD(g_automember_config);
             while (list != g_automember_config) {
@@ -2405,7 +2465,7 @@ automember_rebuild_task_thread(void *arg)
                     (slapi_filter_test_simple(entries[i], config->filter) == 0))
                 {
                     /* First clear out all the defaults groups */
-                    for (ii = 0; config->default_groups && config->default_groups[ii]; ii++) {
+                    for (size_t ii = 0; config->default_groups && config->default_groups[ii]; ii++) {
                         if ((result = automember_update_member_value(entries[i], config->default_groups[ii],
                                 config->grouping_attr, config->grouping_value, NULL, DEL_MEMBER)))
                         {
@@ -2418,7 +2478,6 @@ automember_rebuild_task_thread(void *arg)
                             slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                                           "automember_rebuild_task_thread - Unable to unable to delete from (%s) error (%d)\n",
                                           config->default_groups[ii], result);
-                            automember_config_unlock();
                             goto out;
                         }
                     }
@@ -2440,7 +2499,6 @@ automember_rebuild_task_thread(void *arg)
                                 slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                                               "automember_rebuild_task_thread - Unable to unable to delete from (%s) error (%d)\n",
                                               slapi_sdn_get_dn(curr_rule->target_group_dn), result);
-                                automember_config_unlock();
                                 goto out;
                             }
                             include_list = PR_NEXT_LINK(include_list);
@@ -2452,7 +2510,6 @@ automember_rebuild_task_thread(void *arg)
                         automember_update_membership(config, entries[i], NULL) == SLAPI_PLUGIN_FAILURE)
                     {
                         result = SLAPI_PLUGIN_FAILURE;
-                        automember_config_unlock();
                         goto out;
                     }
                 }
@@ -2460,17 +2517,10 @@ automember_rebuild_task_thread(void *arg)
             }
         }
     }
-    automember_config_unlock();
 
 out:
-    if (plugin_is_betxn && fixup_pb) {
-        if (i == 0 || result != 0) { /* no updates performed */
-            slapi_back_transaction_abort(fixup_pb);
-        } else {
-            slapi_back_transaction_commit(fixup_pb);
-        }
-        slapi_pblock_destroy(fixup_pb);
-    }
+    automember_config_unlock();
+
     slapi_free_search_results_internal(search_pb);
     slapi_pblock_destroy(search_pb);
 
@@ -2485,6 +2535,8 @@ out:
     slapi_task_inc_progress(task);
     slapi_task_finish(task, result);
     slapi_task_dec_refcount(task);
+    slapi_atomic_store_64(&abort_rebuild_task, 0, __ATOMIC_RELEASE);
+
     slapi_log_err(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                   "automember_rebuild_task_thread - Refcount decremented.\n");
 }
