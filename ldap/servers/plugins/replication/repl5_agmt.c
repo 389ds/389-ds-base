@@ -252,7 +252,8 @@ agmt_is_valid(Repl_Agmt *ra)
 Repl_Agmt *
 agmt_new_from_entry(Slapi_Entry *e)
 {
-    Repl_Agmt *ra;
+    Repl_Agmt *ra = NULL;
+    Replica *replica = NULL;
     Slapi_Attr *sattr;
     char errormsg[SLAPI_DSE_RETURNTEXT_SIZE];
     char *tmpstr;
@@ -393,8 +394,6 @@ agmt_new_from_entry(Slapi_Entry *e)
     /* DN of entry at root of replicated area */
     tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaRoot);
     if (NULL != tmpstr) {
-        Replica *replica;
-
         ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
 
         /* now that we set the repl area, when can bump our agmt count */
@@ -483,7 +482,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 
     /* DBDB: review this code */
     if (slapi_entry_attr_hasvalue(e, "objectclass", "nsDSWindowsReplicationAgreement")) {
-        if (replica_get_type(replica) == REPLICA_TYPE_PRIMARY) {
+        if (replica && replica_get_type(replica) == REPLICA_TYPE_PRIMARY) {
             ra->agreement_type = REPLICA_TYPE_WINDOWS;
             windows_init_agreement_from_entry(ra, e);
         } else {
