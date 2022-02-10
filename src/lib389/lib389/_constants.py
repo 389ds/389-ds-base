@@ -47,6 +47,9 @@ REPLICATION_BIND_METHOD = RA_METHOD
 REPLICATION_TRANSPORT = RA_TRANSPORT_PROT
 REPLICATION_TIMEOUT = RA_TIMEOUT
 
+BDB_CL_FILENAME = "replication_changelog.db"
+LMDB_CL_FILENAME = "replication_changelog.db"
+
 # Attributes that should be masked from logging output
 SENSITIVE_ATTRS = ['userpassword',
                    'nsslapd-rootpw',
@@ -80,6 +83,7 @@ DN_CONFIG = "cn=config"
 DN_LDBM = "cn=ldbm database,cn=plugins,cn=config"
 DN_CONFIG_LDBM = "cn=config,cn=ldbm database,cn=plugins,cn=config"
 DN_CONFIG_LDBM_BDB = "cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config"
+DN_CONFIG_LDBM_LMDB = "cn=mdb,cn=config,cn=ldbm database,cn=plugins,cn=config"
 DN_USERROOT_LDBM = "cn=userRoot,cn=ldbm database,cn=plugins,cn=config"
 DN_SCHEMA = "cn=schema"
 DN_MONITOR = "cn=monitor"
@@ -116,6 +120,7 @@ DEFAULT_INST_HEAD = 'slapd-'
 DEFAULT_ENV_HEAD = 'dirsrv-'
 DEFAULT_CHANGELOG_NAME = "changelog5"
 DEFAULT_CHANGELOG_DB = 'changelogdb'
+DEFAULT_DB_LIB = 'bdb'
 
 # CONF_DIR = 'etc/dirsrv'
 # ENV_SYSCONFIG_DIR = '/etc/sysconfig'
@@ -210,7 +215,7 @@ PLUGIN_POSIX_WINSYNC = 'Posix Winsync API'
 PLUGIN_REFER_INTEGRITY = 'referential integrity postoperation'
 PLUGIN_REPL_SYNC = 'Content Synchronization'
 PLUGIN_REPLICATION_LEGACY = 'Legacy Replication Plugin'
-PLUGIN_REPLICATION = 'Multimaster Replication Plugin'
+PLUGIN_REPLICATION = 'Multisupplier Replication Plugin'
 PLUGIN_RETRO_CHANGELOG = 'Retro Changelog Plugin'
 PLUGIN_ROLES = 'Roles Plugin'
 PLUGIN_ROOTDN_ACCESS = 'RootDN Access Control'

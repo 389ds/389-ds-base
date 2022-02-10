@@ -30,6 +30,7 @@ from lib389.cli_base import (
     )
 import json
 import ldap
+from ldap.dn import str2dn
 
 arg_to_attr = {
         'lookthroughlimit': 'nsslapd-lookthroughlimit',
@@ -63,6 +64,7 @@ arg_to_attr = {
         'backend_opt_level': 'nsslapd-backend-opt-level',
         'deadlock_policy': 'nsslapd-db-deadlock-policy',
         'db_home_directory': 'nsslapd-db-home-directory',
+        'db_lib': 'nsslapd-backend-implement',
         # VLV attributes
         'search_base': 'vlvbase',
         'search_scope': 'vlvscope',
@@ -93,7 +95,7 @@ def _search_backend_dn(inst, be_name):
         cn = ensure_str(be.get_attr_val('cn')).lower()
         suffix = ensure_str(be.get_attr_val('nsslapd-suffix')).lower()
         del_be_name = be_name.lower()
-        if cn == del_be_name or suffix == del_be_name:
+        if cn == del_be_name or str2dn(suffix) == str2dn(del_be_name):
             dn = be.dn
             found = True
             break
@@ -106,7 +108,7 @@ def _get_backend(inst, name):
     for be in be_insts:
         be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix')).lower()
         cn = ensure_str(be.get_attr_val_utf8_l('cn')).lower()
-        if be_suffix == name.lower() or cn == name.lower():
+        if str2dn(be_suffix) == str2dn(name.lower()) or cn == name.lower():
             return be
 
     raise ValueError('Could not find backend suffix: {}'.format(name))
@@ -117,7 +119,7 @@ def _get_index(inst, bename, attr):
     for be in be_insts:
         be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix'))
         cn = ensure_str(be.get_attr_val_utf8_l('cn')).lower()
-        if be_suffix == bename.lower() or cn == bename.lower():
+        if str2dn(be_suffix) == str2dn(bename.lower()) or cn == bename.lower():
             for index in be.get_indexes().list():
                 idx_name = index.get_attr_val_utf8_l('cn').lower()
                 if idx_name == attr.lower():
@@ -365,24 +367,19 @@ def backend_get_subsuffixes(inst, basedn, log, args):
 def build_node(suffix, be_name, subsuf=False, link=False, replicated=False):
     """Build the UI node for a suffix
     """
-    icon = "glyphicon glyphicon-tree-conifer"
     suffix_type = "suffix"
     if subsuf:
-        icon = "glyphicon glyphicon-leaf"
         suffix_type = "subsuffix"
     if link:
-        icon = "glyphicon glyphicon-link"
         suffix_type = "dblink"
 
     return {
-        "text": suffix,
+        "name": suffix,
         "id": suffix,
-        "selectable": True,
-        "icon": icon,
         "type": suffix_type,
         "replicated": replicated,
         "be": be_name,
-        "nodes": []
+        "children": []
     }
 
 
@@ -410,14 +407,14 @@ def backend_build_tree(inst, be_insts, nodes):
                         # We have a subsuffix (maybe a db link?)
                         link = is_db_link(inst, sub_be)
                         replicated = is_db_replicated(inst, sub_suffix)
-                        node['nodes'].append(build_node(sub_suffix,
+                        node['children'].append(build_node(sub_suffix,
                                                         sub_be,
                                                         subsuf=True,
                                                         link=link,
                                                         replicated=replicated))
 
                 # Recurse over the new subsuffixes
-                backend_build_tree(inst, be_insts, node['nodes'])
+                backend_build_tree(inst, be_insts, node['children'])
                 break
 
 
@@ -428,8 +425,8 @@ def print_suffix_tree(nodes, level, log):
         for node in nodes:
             spaces = " " * level
             log.info('{}- {}'.format(spaces, node['id']))
-            if len(node['nodes']) > 0:
-                print_suffix_tree(node['nodes'], level + 2, log)
+            if len(node['children']) > 0:
+                print_suffix_tree(node['children'], level + 2, log)
 
 
 def backend_get_tree(inst, basedn, log, args):
@@ -816,6 +813,7 @@ def backend_compact(inst, basedn, log, args):
         raise ValueError("Failed to create Database Compaction Task")
     log.info("Successfully started Database Compaction Task")
 
+
 def create_parser(subparsers):
     backend_parser = subparsers.add_parser('backend', help="Manage database suffixes and backends")
     subcommands = backend_parser.add_subparsers(help="action")
@@ -1060,6 +1058,7 @@ def create_parser(subparsers):
                                                                   'WARNING: This parameter can trigger experimental code.')
     set_db_config_parser.add_argument('--deadlock-policy', help='Adjusts the backend database deadlock policy (Advanced setting)')
     set_db_config_parser.add_argument('--db-home-directory', help='Sets the directory for the database mmapped files (Advanced setting)')
+    set_db_config_parser.add_argument('--db_lib', help='Sets which db lib is used. Valid values are: bdb or mdb')
 
     #######################################################
     # Database & Suffix Monitor

@@ -476,8 +476,12 @@ class CertmapLegacy(object):
                     output += "%s:%s %s\n" % (name, v, certmap[v])
         # Now write it out
         certmap = os.path.join(self._instance.get_config_dir(), 'certmap.conf')
+        if not os.access(certmap, os.W_OK):
+            os.chmod(certmap, 0o660)
         with open(certmap, 'w') as f:
             f.write(output)
+        if os.access(certmap, os.W_OK):
+            os.chmod(certmap, 0o440)
 
 
 class LDBMConfig(DSLdapObject):
@@ -514,3 +518,21 @@ class BDB_LDBMConfig(DSLdapObject):
         self._config_compare_exclude = []
         self._rdn_attribute = 'cn'
         self._protected = True
+
+class LMDB_LDBMConfig(DSLdapObject):
+    """
+        Manage "cn=mdb,cn=config,cn=ldbm database,cn=plugins,cn=config" including:
+        - Performance related tunings
+        - LMDB specific DB backend settings
+
+        :param instance: An instance
+        :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, conn):
+        super(LMDB_LDBMConfig, self).__init__(instance=conn)
+        self._dn = DN_CONFIG_LDBM_LMDB
+        self._config_compare_exclude = []
+        self._rdn_attribute = 'cn'
+        self._protected = True
+

@@ -6,6 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import ldap
 import ldif
 import sys
 import os
@@ -85,6 +86,12 @@ CONFIG_MAP = {
     'audit_log' : ('cn=config', 'nsslapd-auditlog'),
     'ldapi': ('cn=config', 'nsslapd-ldapifilepath'),
     'version': ('', 'vendorVersion'),
+}
+
+#Alternate map if attribute is not found in CONFIG_MAP
+
+CONFIG_MAP2 = {
+    'db_home_dir' : ('cn=config,cn=ldbm database,cn=plugins,cn=config', 'nsslapd-db-home-directory'),
 }
 
 DSE_MAP = {
@@ -197,16 +204,53 @@ class Paths(object):
                 raise KeyError('Invalid defaults.inf, missing key %s' % k)
         return True
 
+    def _pretty_exception(err, msg):
+        # Remap LDAPError exceptions to get a nicer stack than python-ldap one
+        # Lets grab the data from the exception (a bit painfull but I did not find any better way)
+        result = None
+        desc = None
+        info = None
+        for e in err.args:
+            if "result" in e:
+                result = e["result"]
+            if "desc" in e:
+                desc = e["desc"]
+            if "info" in e:
+                info = e["info"]
+        if result is None or desc is None:
+            # keep original exception in unusual cases
+            return (err)
+        # Lets create a new exception (with same class) to have current stack without the python-ldap internal stack 
+        # And to provide more relevant info that are useful for debug
+        info = f"{msg}.\nAdditionnal info is: {info}"
+        return (err.__class__({ "result":result, "desc":desc, "info":info}))
+
     def __getattr__(self, name):
         from lib389.utils import ensure_str
         if self._defaults_cached is False and self._islocal:
             self._read_defaults()
             self._validate_defaults()
         # Are we online? Is our key in the config map?
-        if name in CONFIG_MAP and self._instance is not None and self._instance.state == DIRSRV_STATE_ONLINE:
+        while name in CONFIG_MAP and self._instance is not None and self._instance.state == DIRSRV_STATE_ONLINE:
             # Get the online value.
-            (dn, attr) = CONFIG_MAP[name]
-            ent = self._instance.getEntry(dn, attrlist=[attr,])
+            err = None
+            try:
+                (dn, attr) = CONFIG_MAP[name]
+                ent = self._instance.getEntry(dn, attrlist=[attr,])
+            except ldap.LDAPError as e:
+                err = e
+            if isinstance(err, ldap.NO_SUCH_OBJECT) and name in CONFIG_MAP2:
+                try:
+                    (dn, attr) = CONFIG_MAP2[name]
+                    ent = self._instance.getEntry(dn, attrlist=[attr,])
+                    err = None
+                except ldap.LDAPError as e:
+                    err = e
+            if isinstance(err, ldap.SERVER_DOWN):
+                # Search in config.
+                break
+            if err is not None:
+                raise _pretty_exception(err, f"while searching attribute {attr} in entry {dn} on server {self.serverid}")
             # If the server doesn't have it, fall back to our configuration.
             if attr is not None:
                 v = ensure_str(ent.getValue(attr))
@@ -217,17 +261,23 @@ class Paths(object):
                 v = v.split('/')[1].split()[0]
             return v
         # Else get from the config
-        if self._serverid is not None:
-            return ensure_str(self._config.get(SECTION, name).format(instance_name=self._serverid))
+        if self._config:
+            if self._serverid is not None:
+                return ensure_str(self._config.get(SECTION, name).format(instance_name=self._serverid))
+            else:
+                return ensure_str(self._config.get(SECTION, name))
         else:
-            return ensure_str(self._config.get(SECTION, name))
+            raise LookupError("""Invalid state
+No paths config (defaults.inf) could be found.
+This may be because the remote instance is offline, or your /etc/hosts is misconfigured for a local instance
+""")
 
     @property
     def asan_enabled(self):
         if self._defaults_cached is False and self._islocal:
             self._read_defaults()
             self._validate_defaults()
-        if self._config.has_option(SECTION, 'asan_enabled'):
+        if self._config and self._config.has_option(SECTION, 'asan_enabled'):
             if self._config.get(SECTION, 'asan_enabled') == '1':
                 return True
         return False
@@ -240,18 +290,8 @@ class Paths(object):
         if self._is_container:
             # We never have systemd in a container, so check the marker.
             return False
-        if self._config.has_option(SECTION, 'with_systemd'):
+        if self._config and self._config.has_option(SECTION, 'with_systemd'):
             if self._config.get(SECTION, 'with_systemd') == '1':
-                return True
-        return False
-
-    @property
-    def perl_enabled(self):
-        if self._defaults_cached is False and self._islocal:
-            self._read_defaults()
-            self._validate_defaults()
-        if self._config.has_option(SECTION, 'enable_perl'):
-            if self._config.get(SECTION, 'enable_perl') == 'yes':
                 return True
         return False
 
@@ -260,7 +300,7 @@ class Paths(object):
         if self._defaults_cached is False:
             self._read_defaults()
             self._validate_defaults()
-        if self._config.has_option(SECTION, 'enable_rust'):
+        if self._config and self._config.has_option(SECTION, 'enable_rust'):
             if self._config.get(SECTION, 'enable_rust') == 'no':
                 return False
         return True

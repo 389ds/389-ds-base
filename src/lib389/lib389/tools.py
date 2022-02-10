@@ -30,19 +30,8 @@ import shlex
 from threading import Timer
 from lib389.paths import Paths
 from lib389._constants import *
-from lib389._ldifconn import LDIFConn
 from lib389.properties import *
 from lib389.utils import (
-    getcfgdsinfo,
-    getcfgdsuserdn,
-    update_newhost_with_fqdn,
-    get_server_user,
-    getdomainname,
-    formatInfData,
-    getserverroot,
-    update_admin_domain,
-    getadminport,
-    getdefaultsuffix,
     ensure_bytes,
     ensure_str,
     ds_is_older,
@@ -496,9 +485,9 @@ class DirSrvTools(object):
     @staticmethod
     def removeInstance(dirsrv):
         """run the remove instance command"""
-        prog = os.path.join(_ds_paths.sbin_dir, PATH_REMOVE_DS)
+        prog = os.path.join(_ds_paths.sbin_dir, 'dsctl')
         try:
-            cmd = [prog, '-i', 'slapd-{}'.format(dirsrv.serverid)]
+            cmd = "%s slapd-%s remove --do-it" % (prog, self.serverid)
             log.info('Running: {}'.format(" ".join(cmd)))
             subprocess.check_call(cmd)
         except subprocess.CalledProcessError as e:
@@ -555,224 +544,6 @@ class DirSrvTools(object):
             return instance
 
         return None
-
-    @staticmethod
-    def createInstance(args, verbose=0):
-        """Create a new instance of directory server and return a connection
-        to it.
-
-        This function:
-        - guesses the hostname where to create the DS, using
-        localhost by default;
-        - figures out if the given hostname is the local host or not.
-
-        @param args -  a dict with the following values {
-            # new instance compulsory values
-            'newinstance': 'rpolli',
-            'newsuffix': 'dc=example,dc=com',
-            'newhost': 'localhost.localdomain',
-            'newport': 22389,
-            'newrootpw': 'password',
-
-            # optionally register instance on an admin tree
-            'have_admin': True,
-
-            # optionally directory where to store instance backup
-            'backupdir': [ /tmp ]
-
-            # you can configure a new dirsrv-admin
-            'setup_admin': True,
-
-            # or you need the dirsrv-admin to be already setup
-            'cfgdshost': 'localhost.localdomain',
-            'cfgdsport': 22389,
-            'cfgdsuser': 'admin',
-            'cfgdspwd': 'admin',
-
-        }
-        """
-        cfgdn = lib389.CFGSUFFIX
-        isLocal = update_newhost_with_fqdn(args)
-
-        # use prefix if binaries are relocated
-        sroot = args.get('sroot', '')
-        prefix = args.setdefault('prefix', '')
-
-        # get the backup directory to store instance backup
-        backupdir = args.get('backupdir', '/tmp')
-
-        # new style - prefix or FHS?
-        args['new_style'] = not args.get('sroot')
-
-        # do we have ds only or ds+admin?
-        if 'no_admin' not in args:
-            ds_admin_path = os.path.join(_ds_paths.sbin_dir, PATH_SETUP_DS_ADMIN)
-            if os.path.isfile(ds_admin_path):
-                args['have_admin'] = True
-
-        # set default values
-        args['have_admin'] = args.get('have_admin', False)
-        args['setup_admin'] = args.get('setup_admin', False)
-
-        # get default values from adm.conf
-        if args['new_style'] and args['have_admin']:
-            admconf = LDIFConn(
-                args['prefix'] + PATH_ADM_CONF)
-            args['admconf'] = admconf.get('')
-
-        # next, get the configuration ds host and port
-        if args['have_admin']:
-            args['cfgdshost'], args['cfgdsport'], cfgdn = getcfgdsinfo(args)
-        #
-        # if a Config DS is passed, get the userdn. This creates
-        # a connection to the given DS. If you don't want to connect
-        # to this server you should pass 'setup_admin' too.
-        #
-        if args['have_admin'] and not args['setup_admin']:
-            cfgconn = getcfgdsuserdn(cfgdn, args)
-
-        # next, get the server root if not given
-        if not args['new_style']:
-            getserverroot(cfgconn, isLocal, args)
-        # next, get the admin domain
-        if args['have_admin']:
-            update_admin_domain(isLocal, args)
-        # next, get the admin server port and any other information -
-        # close the cfgconn
-        if args['have_admin'] and not args['setup_admin']:
-            asport, secure = getadminport(cfgconn, cfgdn, args)
-        # next, get the posix username
-        get_server_user(args)
-        # fixup and verify other args
-        args['newport'] = args.get('newport', 389)
-        args['newrootdn'] = args.get('newrootdn', DN_DM)
-        args['newsuffix'] = args.get('newsuffix',
-                                     getdefaultsuffix(args['newhost']))
-
-        if not isLocal or 'cfgdshost' in args:
-            if 'admin_domain' not in args:
-                args['admin_domain'] = getdomainname(args['newhost'])
-            if isLocal and 'cfgdspwd' not in args:
-                args['cfgdspwd'] = "dummy"
-            if isLocal and 'cfgdshost' not in args:
-                args['cfgdshost'] = args['newhost']
-            if isLocal and 'cfgdsport' not in args:
-                args['cfgdsport'] = 55555
-        missing = False
-        for param in ('newhost', 'newport', 'newrootdn', 'newrootpw',
-                      'newinstance', 'newsuffix'):
-            if param not in args:
-                log.error("missing required argument: ", param)
-                missing = True
-        if missing:
-            raise InvalidArgumentError("missing required arguments")
-
-        # try to connect with the given parameters
-        try:
-            newconn = lib389.DirSrv(args['newhost'], args['newport'],
-                                    args['newrootdn'], args['newrootpw'],
-                                    args['newinstance'])
-            newconn.prefix = prefix
-            newconn.backupdir = backupdir
-            newconn.isLocal = isLocal
-            if args['have_admin'] and not args['setup_admin']:
-                newconn.asport = asport
-                newconn.cfgdsuser = args['cfgdsuser']
-                newconn.cfgdspwd = args['cfgdspwd']
-
-            host = args['newhost']
-            port = args['newport']
-            print("Warning: server at %s:%s " % (host, port) +
-                  "already exists, returning connection to it")
-            return newconn
-        except ldap.SERVER_DOWN:
-            pass  # not running - create new one
-
-        if not isLocal or 'cfgdshost' in args:
-            for param in ('cfgdshost', 'cfgdsport', 'cfgdsuser', 'cfgdspwd',
-                          'admin_domain'):
-                if param not in args:
-                    print("missing required argument", param)
-                    missing = True
-        if not isLocal and not asport:
-            print("missing required argument admin server port")
-            missing = True
-        if missing:
-            raise InvalidArgumentError("missing required arguments")
-
-        # construct a hash table with our CGI arguments - used with cgiPost
-        # and cgiFake
-        cgiargs = {
-            'servname': args['newhost'],
-            'servport': args['newport'],
-            'rootdn': args['newrootdn'],
-            'rootpw': args['newrootpw'],
-            'servid': args['newinstance'],
-            'suffix': args['newsuffix'],
-            'servuser': args['newuserid'],
-            'start_server': 1
-        }
-        if 'cfgdshost' in args:
-            cgiargs['cfg_sspt_uid'] = args['cfgdsuser']
-            cgiargs['cfg_sspt_uid_pw'] = args['cfgdspwd']
-            cgiargs['ldap_url'] = "ldap://%s:%d/%s" % (
-                args['cfgdshost'], args['cfgdsport'], cfgdn)
-            cgiargs['admin_domain'] = args['admin_domain']
-
-        if not isLocal:
-            DirSrvTools.cgiPost(args['newhost'], asport, args['cfgdsuser'],
-                                args['cfgdspwd'],
-                                "/slapd/Tasks/Operation/Create",
-                                verbose, secure, cgiargs)
-        elif not args['new_style']:
-            prog = sroot + "/bin/slapd/admin/bin/ds_create"
-            if not os.access(prog, os.X_OK):
-                prog = sroot + "/bin/slapd/admin/bin/ds_newinstance"
-            DirSrvTools.cgiFake(sroot, verbose, prog, cgiargs)
-        else:
-            prog = ''
-            if args['have_admin']:
-                prog = os.path.join(_ds_paths.sbin_dir, PATH_SETUP_DS_ADMIN)
-            else:
-                prog = os.path.join(_ds_paths.sbin_dir, PATH_SETUP_DS)
-
-            if not os.path.isfile(prog):
-                log.error("Can't find file: %r, removing extension" % prog)
-                prog = prog[:-3]
-
-            content = formatInfData(args)
-            DirSrvTools.runInfProg(prog, content, verbose)
-
-        newconn = lib389.DirSrv(args['newhost'], args['newport'],
-                                args['newrootdn'], args['newrootpw'],
-                                args['newinstance'])
-        newconn.prefix = prefix
-        newconn.backupdir = backupdir
-        newconn.isLocal = isLocal
-        # Now the admin should have been created
-        # but still I should have taken all the required infos
-        # before.
-        if args['have_admin'] and not args['setup_admin']:
-            newconn.asport = asport
-            newconn.cfgdsuser = args['cfgdsuser']
-            newconn.cfgdspwd = args['cfgdspwd']
-        return newconn
-
-    @staticmethod
-    def createAndSetupReplica(createArgs, repArgs):
-        """
-        Pass this sub two dicts - the first one is a dict suitable to create
-        a new instance - see createInstance for more details
-        the second is a dict suitable for replicaSetupAll -
-        see replicaSetupAll
-        """
-        conn = DirSrvTools.createInstance(createArgs)
-        if not conn:
-            print("Error: could not create server", createArgs)
-            return 0
-
-        conn.replicaSetupAll(repArgs)
-        return conn
 
     @staticmethod
     def makeGroup(group=DEFAULT_USER):

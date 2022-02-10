@@ -182,7 +182,7 @@ an index defined that has at least the equality "eq" index type.  You will
 need to reindex the database after adding the missing index type. Here is an
 example using dsconf:
 
-    # dsconf slapd-YOUR_INSTANCE backend index --attr=ATTR --reindex --index-type=eq BACKEND
+    # dsconf slapd-YOUR_INSTANCE backend index add --attr=ATTR --reindex --index-type=eq BACKEND
 """
 }
 
@@ -296,13 +296,13 @@ DSCLLE0001 = {
     'dsle': 'DSCLLE0001',
     'severity': 'LOW',
     'description': 'Changelog trimming not configured.',
-    'items': ['Replication', 'Changelog'],
+    'items': ['Replication', 'Changelog',  'Backends'],
     'detail': """The replication changelog does have any kind of trimming configured.  This will
 lead to the changelog size growing indefinitely.""",
     'fix': """Configure changelog trimming, preferably by setting the maximum age of a changelog
 record.  Here is an example:
 
-    # dsconf slapd-YOUR_INSTANCE replication set-changelog --max-age 30d"""
+    # dsconf slapd-YOUR_INSTANCE replication set-changelog --suffix YOUR_SUFFIX --max-age 30d"""
 }
 
 # Certificate checks

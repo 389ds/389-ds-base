@@ -1,23 +1,21 @@
 import cockpit from "cockpit";
 import React from "react";
 import { log_cmd, valid_dn } from "../tools.jsx";
-import { ConfirmPopup } from "../notifications.jsx";
-import CustomCollapse from "../customCollapse.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 import { ManagerTable } from "./replTables.jsx";
 import { AddManagerModal, ChangeReplRoleModal } from "./replModals.jsx";
 import {
     Button,
-    Row,
     Checkbox,
-    Col,
-    ControlLabel,
+    ExpandableSection,
     Form,
-    FormControl,
-    Spinner,
-    // noop,
-} from "patternfly-react";
-// import PropTypes from "prop-types";
-import "../../css/ds.css";
+    Grid,
+    GridItem,
+    NumberInput,
+    TextInput,
+    ValidatedOptions
+} from "@patternfly/react-core";
+import PropTypes from "prop-types";
 
 export class ReplConfig extends React.Component {
     constructor(props) {
@@ -33,32 +31,75 @@ export class ReplConfig extends React.Component {
             manager_passwd: "",
             manager_passwd_confirm: "",
             newRole: this.props.role == "Supplier" ? "Hub" : "Supplier",
-            newRID: "1",
+            newRID: 1,
+            modalSpinning: false,
             modalChecked: false,
             errObj: {},
+            saveBtnDisabled: true,
+            isExpanded: false,
             // Config Settings
-            nsds5replicabinddn: this.props.data['nsds5replicabinddn'],
-            nsds5replicabinddngroup: this.props.data['nsds5replicabinddngroup'],
-            nsds5replicabinddngroupcheckinterval: this.props.data['nsds5replicabinddngroupcheckinterval'],
-            nsds5replicareleasetimeout: this.props.data['nsds5replicareleasetimeout'],
-            nsds5replicapurgedelay: this.props.data['nsds5replicapurgedelay'],
-            nsds5replicatombstonepurgeinterval: this.props.data['nsds5replicatombstonepurgeinterval'],
-            nsds5replicaprecisetombstonepurging: this.props.data['nsds5replicaprecisetombstonepurging'],
-            nsds5replicaprotocoltimeout: this.props.data['nsds5replicaprotocoltimeout'],
-            nsds5replicabackoffmin: this.props.data['nsds5replicabackoffmin'],
-            nsds5replicabackoffmax: this.props.data['nsds5replicabackoffmax'],
+            nsds5replicabinddn: this.props.data.nsds5replicabinddn,
+            nsds5replicabinddngroup: this.props.data.nsds5replicabinddngroup,
+            nsds5replicabinddngroupcheckinterval: Number(this.props.data.nsds5replicabinddngroupcheckinterval) == 0 ? -1 : Number(this.props.data.nsds5replicabinddngroupcheckinterval),
+            nsds5replicareleasetimeout: Number(this.props.data.nsds5replicareleasetimeout),
+            nsds5replicapurgedelay: Number(this.props.data.nsds5replicapurgedelay) == 0 ? 604800 : Number(this.props.data.nsds5replicapurgedelay),
+            nsds5replicatombstonepurgeinterval: Number(this.props.data.nsds5replicatombstonepurgeinterval) == 0 ? 86400 : Number(this.props.data.nsds5replicatombstonepurgeinterval),
+            nsds5replicaprecisetombstonepurging: Number(this.props.data.nsds5replicaprecisetombstonepurging),
+            nsds5replicaprotocoltimeout: Number(this.props.data.nsds5replicaprotocoltimeout) == 0 ? 120 : Number(this.props.data.nsds5replicaprotocoltimeout),
+            nsds5replicabackoffmin: Number(this.props.data.nsds5replicabackoffmin) == 0 ? 3 : Number(this.props.data.nsds5replicabackoffmin),
+            nsds5replicabackoffmax: Number(this.props.data.nsds5replicabackoffmax) == 0 ? 300 : Number(this.props.data.nsds5replicabackoffmax),
             // Original settings
-            _nsds5replicabinddn: this.props.data['nsds5replicabinddn'],
-            _nsds5replicabinddngroup: this.props.data['nsds5replicabinddngroup'],
-            _nsds5replicabinddngroupcheckinterval: this.props.data['nsds5replicabinddngroupcheckinterval'],
-            _nsds5replicareleasetimeout: this.props.data['nsds5replicareleasetimeout'],
-            _nsds5replicapurgedelay: this.props.data['nsds5replicapurgedelay'],
-            _nsds5replicatombstonepurgeinterval: this.props.data['nsds5replicatombstonepurgeinterval'],
-            _nsds5replicaprecisetombstonepurging: this.props.data['nsds5replicaprecisetombstonepurging'],
-            _nsds5replicaprotocoltimeout: this.props.data['nsds5replicaprotocoltimeout'],
-            _nsds5replicabackoffmin: this.props.data['nsds5replicabackoffmin'],
-            _nsds5replicabackoffmax: this.props.data['nsds5replicabackoffmax'],
+            _nsds5replicabinddn: this.props.data.nsds5replicabinddn,
+            _nsds5replicabinddngroup: this.props.data.nsds5replicabinddngroup,
+            _nsds5replicabinddngroupcheckinterval: Number(this.props.data.nsds5replicabinddngroupcheckinterval) == 0 ? -1 : Number(this.props.data.nsds5replicabinddngroupcheckinterval),
+            _nsds5replicareleasetimeout: this.props.data.nsds5replicareleasetimeout,
+            _nsds5replicapurgedelay: Number(this.props.data.nsds5replicapurgedelay) == 0 ? 604800 : Number(this.props.data.nsds5replicapurgedelay),
+            _nsds5replicatombstonepurgeinterval: Number(this.props.data.nsds5replicatombstonepurgeinterval) == 0 ? 86400 : Number(this.props.data.nsds5replicatombstonepurgeinterval),
+            _nsds5replicaprecisetombstonepurging: this.props.data.nsds5replicaprecisetombstonepurging,
+            _nsds5replicaprotocoltimeout: Number(this.props.data.nsds5replicaprotocoltimeout) == 0 ? 120 : Number(this.props.data.nsds5replicaprotocoltimeout),
+            _nsds5replicabackoffmin: Number(this.props.data.nsds5replicabackoffmin) == 0 ? 3 : Number(this.props.data.nsds5replicabackoffmin),
+            _nsds5replicabackoffmax: Number(this.props.data.nsds5replicabackoffmax) == 0 ? 300 : Number(this.props.data.nsds5replicabackoffmax),
+        };
 
+        this.onToggle = (isExpanded) => {
+            this.setState({
+                isExpanded
+            });
+        };
+
+        this.onMinus = () => {
+            this.setState({
+                newRID: Number(this.state.newRID) - 1
+            });
+        };
+        this.onNumberChange = (event) => {
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            this.setState({
+                newRID: newValue > 65534 ? 65534 : newValue < 1 ? 1 : newValue
+            });
+        };
+        this.onPlus = () => {
+            this.setState({
+                newRID: Number(this.state.newRID) + 1
+            });
+        };
+
+        this.maxValue = 20000000;
+        this.onMinusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validateSaveBtn() });
+        };
+        this.onConfigChange = (event, id, min) => {
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            this.setState({
+                [id]: newValue > this.maxValue ? this.maxValue : newValue < min ? min : newValue
+            }, () => { this.validateSaveBtn() });
+        };
+        this.onPlusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validateSaveBtn() });
         };
 
         this.confirmManagerDelete = this.confirmManagerDelete.bind(this);
@@ -68,11 +109,13 @@ export class ReplConfig extends React.Component {
         this.closeAddManagerModal = this.closeAddManagerModal.bind(this);
         this.addManager = this.addManager.bind(this);
         this.handleChange = this.handleChange.bind(this);
+        this.handleModalChange = this.handleModalChange.bind(this);
         this.handleManagerChange = this.handleManagerChange.bind(this);
         this.showPromoteDemoteModal = this.showPromoteDemoteModal.bind(this);
         this.closePromoteDemoteModal = this.closePromoteDemoteModal.bind(this);
         this.doRoleChange = this.doRoleChange.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
     }
 
     doRoleChange (changeType) {
@@ -80,10 +123,10 @@ export class ReplConfig extends React.Component {
         if (changeType == "Promoting") {
             action = "promote";
         }
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', action,
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', action,
             '--suffix=' + this.props.suffix, "--newrole=" + this.state.newRole];
         if (this.state.newRole == "Supplier") {
-            let ridNum = parseInt(this.state.newRID, 10);
+            const ridNum = parseInt(this.state.newRID, 10);
             if (ridNum < 1 || ridNum >= 65535) {
                 this.props.addNotification(
                     "error",
@@ -111,7 +154,7 @@ export class ReplConfig extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reload();
                     this.props.addNotification(
                         "error",
@@ -183,7 +226,7 @@ export class ReplConfig extends React.Component {
             addManagerSpinning: true
         });
 
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "create-manager", "--suffix=" + this.props.suffix, "--name=" + this.state.manager,
             "--passwd=" + this.state.manager_passwd
@@ -204,7 +247,7 @@ export class ReplConfig extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reloadConfig(this.props.suffix);
                     this.props.addNotification(
                         "error",
@@ -217,25 +260,86 @@ export class ReplConfig extends React.Component {
                 });
     }
 
-    handleChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let valueErr = false;
-        let errObj = this.state.errObj;
-        if (value == "") {
-            valueErr = true;
+    handleModalChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+        this.setState({
+            [attr]: value,
+        });
+    }
+
+    validateSaveBtn() {
+        let saveBtnDisabled = true;
+        const config_attrs = [
+            'nsds5replicabinddngroup', 'nsds5replicabinddngroupcheckinterval',
+            'nsds5replicapurgedelay', 'nsds5replicatombstonepurgeinterval',
+            'nsds5replicareleasetimeout', 'nsds5replicaprotocoltimeout',
+            'nsds5replicabackoffmin', 'nsds5replicabackoffmax',
+            'nsds5replicaprecisetombstonepurging'
+        ];
+        // Check if a setting was changed, if so enable the save button
+        for (const config_attr of config_attrs) {
+            if (this.state[config_attr] != this.state['_' + config_attr]) {
+                saveBtnDisabled = false;
+                break;
+            }
         }
+        this.setState({
+            saveBtnDisabled: saveBtnDisabled,
+        });
+    }
+
+    handleChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+        let saveBtnDisabled = true;
+        let valueErr = false;
+        const errObj = this.state.errObj;
+
+        const config_attrs = [
+            'nsds5replicabinddngroup', 'nsds5replicabinddngroupcheckinterval',
+            'nsds5replicapurgedelay', 'nsds5replicatombstonepurgeinterval',
+            'nsds5replicareleasetimeout', 'nsds5replicaprotocoltimeout',
+            'nsds5replicabackoffmin', 'nsds5replicabackoffmax',
+            'nsds5replicaprecisetombstonepurging'
+        ];
+        // Check if a setting was changed, if so enable the save button
+        for (const config_attr of config_attrs) {
+            if (attr == config_attr && this.state['_' + config_attr] != value) {
+                saveBtnDisabled = false;
+                break;
+            }
+        }
+
+        // Now check for differences in values that we did not touch
+        for (const config_attr of config_attrs) {
+            if (attr != config_attr && this.state['_' + config_attr] != this.state[config_attr]) {
+                saveBtnDisabled = false;
+                break;
+            }
+        }
+        if (attr == 'nsds5replicabinddngroup') {
+            if (!valid_dn(value)) {
+                valueErr = true;
+                saveBtnDisabled = true;
+            }
+        } else if (this.state.nsds5replicabinddngroup != "" && !valid_dn(this.state.nsds5replicabinddngroup)) {
+            saveBtnDisabled = true;
+        }
+
         errObj[e.target.id] = valueErr;
         this.setState({
-            [e.target.id]: value,
+            [attr]: value,
+            saveBtnDisabled: saveBtnDisabled,
             errObj: errObj
         });
     }
 
     handleManagerChange(e) {
-        let value = e.target.value;
-        let attr = e.target.id;
+        const value = e.target.value;
+        const attr = e.target.id;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
         if (value == "") {
             valueErr = true;
         }
@@ -246,7 +350,7 @@ export class ReplConfig extends React.Component {
                 valueErr = true;
             } else {
                 errObj[attr] = false;
-                errObj['manager_passwd_confirm'] = false;
+                errObj.manager_passwd_confirm = false;
             }
         } else if (attr == "manager_passwd_confirm") {
             if (value != this.state.manager_passwd) {
@@ -254,7 +358,7 @@ export class ReplConfig extends React.Component {
                 valueErr = true;
             } else {
                 errObj[attr] = false;
-                errObj['manager_passwd'] = false;
+                errObj.manager_passwd = false;
             }
         }
 
@@ -265,10 +369,12 @@ export class ReplConfig extends React.Component {
         });
     }
 
-    confirmManagerDelete (item) {
+    confirmManagerDelete (name) {
         this.setState({
             showConfirmManagerDelete: true,
-            manager: item.name,
+            modalChecked: false,
+            modalSpinning: false,
+            manager: name,
         });
     }
 
@@ -279,33 +385,42 @@ export class ReplConfig extends React.Component {
         });
     }
 
-    deleteManager (dn) {
-        let cmd = [
+    deleteManager() {
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "replication", "delete-manager", "--suffix=" + this.props.suffix, "--name=" + dn
+            "replication", "delete-manager", "--suffix=" + this.props.suffix, "--name=" + this.state.manager
         ];
+        this.setState({
+            modalSpinning: true
+        });
         log_cmd("deleteManager", "Deleting Replication Manager", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.props.reloadConfig(this.props.suffix);
+                    this.setState({
+                        modalSpinning: false
+                    });
                     this.props.addNotification(
                         "success",
                         `Successfully removed Replication Manager`
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.reloadConfig(this.props.suffix);
                     this.props.addNotification(
                         "error",
                         `Failure removing Replication Manager - ${errMsg.desc}`
                     );
+                    this.setState({
+                        modalSpinning: false
+                    });
                 });
     }
 
     saveConfig () {
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'set', '--suffix=' + this.props.suffix
         ];
@@ -348,9 +463,9 @@ export class ReplConfig extends React.Component {
                 saving: true
             });
             log_cmd("saveConfig", "Applying replication changes", cmd);
-            let msg = "Successfully updated replication configuration.";
+            const msg = "Successfully updated replication configuration.";
             cockpit
-                    .spawn(cmd, {superuser: true, "err": "message"})
+                    .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
                         this.props.reloadConfig(this.props.suffix);
                         this.props.addNotification(
@@ -362,7 +477,7 @@ export class ReplConfig extends React.Component {
                         });
                     })
                     .fail(err => {
-                        let errMsg = JSON.parse(err);
+                        const errMsg = JSON.parse(err);
                         this.props.reloadConfig(this.props.suffix);
                         this.setState({
                             saving: false
@@ -380,235 +495,343 @@ export class ReplConfig extends React.Component {
     }
 
     render() {
-        let content = "";
         let roleButton = "";
-        let manager_rows = [];
-        for (let row of this.props.data.nsds5replicabinddn) {
-            manager_rows.push({'name': row});
+        const manager_rows = [];
+        let saveBtnName = "Save Configuration";
+        const extraPrimaryProps = {};
+        if (this.state.saving) {
+            saveBtnName = "Saving Config ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
+        for (const row of this.props.data.nsds5replicabinddn) {
+            manager_rows.push(row);
         }
 
         if (this.props.role == "Supplier") {
             roleButton =
                 <Button
-                    bsStyle="primary"
+                    variant="primary"
                     onClick={this.showPromoteDemoteModal}
                     title="Demote this Supplier replica to a Hub or Consumer"
                     className="ds-inline-btn"
                 >
-                    Demote
+                    Change Role
                 </Button>;
         } else if (this.props.role == "Hub") {
             roleButton =
                 <Button
-                    bsStyle="primary"
+                    variant="primary"
                     onClick={this.showPromoteDemoteModal}
                     title="Promote or Demote this Hub replica to a Supplier or Consumer"
                     className="ds-inline-btn"
                 >
-                    Promote/Demote
+                    Change Role
                 </Button>;
         } else {
             // Consumer
             roleButton =
                 <Button
-                    bsStyle="primary"
+                    variant="primary"
                     onClick={this.showPromoteDemoteModal}
                     title="Promote this Consumer replica to a Supplier or Hub"
                     className="ds-inline-btn"
                 >
-                    Promote
+                    Change Role
                 </Button>;
         }
 
-        if (this.state.saving) {
-            content =
-                <div className="ds-margin-top-xxlg ds-loading-spinner-tree ds-center">
-                    <h4>Saving replication configuration ...</h4>
-                    <Spinner loading size="md" />
-                </div>;
-        } else {
-            content =
+        return (
+            <div className={this.state.saving ? "ds-disabled" : ""}>
                 <div className="ds-margin-top-xxlg ds-left-margin">
-                    <Form horizontal>
-                        <Row className="ds-margin-top-xlg">
-                            <Col sm={2}>
-                                <ControlLabel>
-                                    Replica Role
-                                </ControlLabel>
-                            </Col>
-                            <Col sm={6}>
-                                <input type="text" defaultValue={this.props.role} size="10" disabled />{roleButton}
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top">
-                            <Col sm={2}>
-                                <ControlLabel>
-                                    Replica ID
-                                </ControlLabel>
-                            </Col>
-                            <Col sm={4}>
-                                <input type="text" defaultValue={this.props.data.nsds5replicaid} size="10" disabled />
-                            </Col>
-                        </Row>
-                        <hr />
-                        <Row className="ds-margin-top">
-                            <Col sm={9}>
+                    <Form isHorizontal autoComplete="off">
+                        <Grid>
+                            <GridItem className="ds-label" span={2}>
+                                Replica Role
+                            </GridItem>
+                            <GridItem span={2}>
+                                <TextInput
+                                    value={this.props.role}
+                                    type="text"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="replrole"
+                                    id="replrole"
+                                    isDisabled
+                                />
+                            </GridItem>
+                            <GridItem span={1}>
+                                {roleButton}
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem className="ds-label" span={2}>
+                                Replica ID
+                            </GridItem>
+                            <GridItem span={2}>
+                                <TextInput
+                                    value={this.props.data.nsds5replicaid}
+                                    type="text"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="replid"
+                                    id="replid"
+                                    isDisabled
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid>
+                            <GridItem className="ds-label" span={12}>
+                                Replication Managers
+                            </GridItem>
+                            <GridItem className="ds-margin-top" span={9}>
                                 <ManagerTable
                                     rows={manager_rows}
                                     confirmDelete={this.confirmManagerDelete}
                                 />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top">
-                            <Col sm={4}>
+                            </GridItem>
+                        </Grid>
+                        <Grid className="ds-margin-top">
+                            <GridItem span={2}>
                                 <Button
-                                    bsStyle="primary"
+                                    variant="secondary"
                                     onClick={this.showAddManager}
                                 >
                                     Add Replication Manager
                                 </Button>
-                            </Col>
-                        </Row>
-                        <CustomCollapse>
-                            <div className="ds-margin-top">
-                                <div className="ds-margin-left">
-                                    <Row className="ds-margin-top-lg" title="The DN of the replication manager">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Bind DN Group
-                                        </Col>
-                                        <Col sm={6}>
-                                            <FormControl
-                                                id="nsds5replicabinddngroup"
-                                                type="text"
-                                                defaultValue={this.state.nsds5replicabinddngroup}
-                                                onChange={this.handleChange}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="The interval to check for any changes in the group memebrship specified in the Bind DN Group and automatically rebuilds the list for the replication managers accordingly.  (nsds5replicabinddngroupcheckinterval).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Bind DN Group Check Interval
-                                        </Col>
-                                        <Col sm={6}>
-                                            <FormControl
-                                                id="nsds5replicabinddngroupcheckinterval"
-                                                type="text"
-                                                defaultValue={this.state.nsds5replicabinddngroupcheckinterval}
-                                                onChange={this.handleChange}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="This controls the maximum age of deleted entries (tombstone entries), and entry state information.  (nsds5replicapurgedelay).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Purge Delay
-                                        </Col>
-                                        <Col sm={6}>
-                                            <FormControl
-                                                id="nsds5replicapurgedelay"
-                                                type="text"
-                                                defaultValue={this.state.nsds5replicapurgedelay}
-                                                onChange={this.handleChange}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="This attribute specifies the time interval in seconds between purge operation cycles.  (nsds5replicatombstonepurgeinterval).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Tombstone Purge Interval
-                                        </Col>
-                                        <Col sm={6}>
-                                            <FormControl
-                                                id="nsds5replicatombstonepurgeinterval"
-                                                type="text"
-                                                defaultValue={this.state.nsds5replicatombstonepurgeinterval}
-                                                onChange={this.handleChange}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="A time limit (in seconds) that tells a replication session to yield if other replicas are trying to acquire this one (nsds5replicareleasetimeout).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Replica Release Timeout
-                                        </Col>
-                                        <Col sm={6}>
-                                            <FormControl
-                                                id="nsds5replicareleasetimeout"
-                                                type="text"
-                                                defaultValue={this.state.nsds5replicareleasetimeout}
-                                                onChange={this.handleChange}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="A timeout on how long to wait before stopping a replication session when the server is being stopped, replication is being disabled, or when removing a replication agreement. (nsds5replicaprotocoltimeout).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Replication Timeout
-                                        </Col>
-                                        <Col sm={6}>
-                                            <FormControl
-                                                id="nsds5replicaprotocoltimeout"
-                                                type="text"
-                                                defaultValue={this.state.nsds5replicaprotocoltimeout}
-                                                onChange={this.handleChange}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="This is the minimum amount of time in seconds that a replication will go into a backoff state  (nsds5replicabackoffmin).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Back Off Minimum
-                                        </Col>
-                                        <Col sm={6}>
-                                            <FormControl
-                                                id="nsds5replicabackoffmin"
-                                                type="text"
-                                                defaultValue={this.state.nsds5replicabackoffmin}
-                                                onChange={this.handleChange}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="This is the maximum amount of time in seconds that a replication will go into a backoff state  (nsds5replicabackoffmax).">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Back Off Maximum
-                                        </Col>
-                                        <Col sm={6}>
-                                            <FormControl
-                                                id="nsds5replicabackoffmax"
-                                                type="text"
-                                                defaultValue={this.state.nsds5replicabackoffmax}
-                                                onChange={this.handleChange}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="Enables faster tombstone purging (nsds5replicaprecisetombstonepurging)">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Fast Tombstone Purging
-                                        </Col>
-                                        <Col sm={6}>
-                                            <Checkbox
-                                                id="nsds5replicaprecisetombstonepurging"
-                                                defaultChecked={this.props.data.nsds5replicaprecisetombstonepurging}
-                                                onChange={this.handleChange}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top-lg">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            <Button
-                                                bsStyle="primary"
-                                                onClick={this.saveConfig}
-                                            >
-                                                Save Configuration
-                                            </Button>
-                                        </Col>
-                                    </Row>
-                                </div>
+                            </GridItem>
+                        </Grid>
+                        <ExpandableSection
+                            toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                            onToggle={this.onToggle}
+                            isExpanded={this.state.isExpanded}
+                        >
+                            <div className="ds-margin-top ds-margin-left ds-margin-bottom-md">
+                                <Grid
+                                    title="The DN of the replication manager group"
+                                    className="ds-margin-top"
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Bind DN Group
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={this.state.nsds5replicabinddngroup}
+                                            type="text"
+                                            id="nsds5replicabinddngroup"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="nsds5replicabinddngroup"
+                                            onChange={(str, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                            validated={this.state.errObj.nsds5replicabinddngroup && this.state.nsds5replicabinddngroup != "" ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="The interval to check for any changes in the group memebrship specified in the Bind DN Group and automatically rebuilds the list for the replication managers accordingly.  (nsds5replicabinddngroupcheckinterval)."
+                                    className="ds-margin-top"
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Bind DN Group Check Interval
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={this.state.nsds5replicabinddngroupcheckinterval}
+                                            min={-1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsds5replicabinddngroupcheckinterval") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsds5replicabinddngroupcheckinterval", -1) }}
+                                            onPlus={() => { this.onPlusConfig("nsds5replicabinddngroupcheckinterval") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="This controls the maximum age of deleted entries (tombstone entries), and entry state information.  (nsds5replicapurgedelay)."
+                                    className="ds-margin-top"
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Purge Delay
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={this.state.nsds5replicapurgedelay}
+                                            min={-1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsds5replicapurgedelay") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsds5replicapurgedelay", -1) }}
+                                            onPlus={() => { this.onPlusConfig("nsds5replicapurgedelay") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="This attribute specifies the time interval in seconds between purge operation cycles.  (nsds5replicatombstonepurgeinterval)."
+                                    className="ds-margin-top"
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Tombstone Purge Interval
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={this.state.nsds5replicatombstonepurgeinterval}
+                                            min={-1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsds5replicatombstonepurgeinterval") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsds5replicatombstonepurgeinterval", -1) }}
+                                            onPlus={() => { this.onPlusConfig("nsds5replicatombstonepurgeinterval") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="A time limit (in seconds) that tells a replication session to yield if other replicas are trying to acquire this one (nsds5replicareleasetimeout)."
+                                    className="ds-margin-top"
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Replica Release Timeout
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={this.state.nsds5replicareleasetimeout}
+                                            min={0}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsds5replicareleasetimeout") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsds5replicareleasetimeout", 0) }}
+                                            onPlus={() => { this.onPlusConfig("nsds5replicareleasetimeout") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="A timeout on how long to wait before stopping a replication session when the server is being stopped, replication is being disabled, or when removing a replication agreement. (nsds5replicaprotocoltimeout)."
+                                    className="ds-margin-top"
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Replication Timeout
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={this.state.nsds5replicaprotocoltimeout}
+                                            min={1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsds5replicaprotocoltimeout") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsds5replicaprotocoltimeout", 1) }}
+                                            onPlus={() => { this.onPlusConfig("nsds5replicaprotocoltimeout") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="This is the minimum amount of time in seconds that a replication session will go into a backoff state  (nsds5replicabackoffmin)."
+                                    className="ds-margin-top"
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Back Off Minimum
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={this.state.nsds5replicabackoffmin}
+                                            min={1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsds5replicabackoffmin") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsds5replicabackoffmin", 1) }}
+                                            onPlus={() => { this.onPlusConfig("nsds5replicabackoffmin") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="This is the maximum amount of time in seconds that a replication session will go into a backoff state  (nsds5replicabackoffmax)."
+                                    className="ds-margin-top"
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Back Off Maximum
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={this.state.nsds5replicabackoffmax}
+                                            min={1}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsds5replicabackoffmax") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsds5replicabackoffmax", 1) }}
+                                            onPlus={() => { this.onPlusConfig("nsds5replicabackoffmax") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="Enables faster tombstone purging (nsds5replicaprecisetombstonepurging)."
+                                    className="ds-margin-top"
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Fast Tombstone Purging
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <Checkbox
+                                            id="nsds5replicaprecisetombstonepurging"
+                                            isChecked={this.state.nsds5replicaprecisetombstonepurging}
+                                            onChange={(str, e) => {
+                                                this.handleChange(e);
+                                            }}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top-xlg">
+                                    <GridItem span={2}>
+                                        <Button
+                                            variant="primary"
+                                            onClick={this.saveConfig}
+                                            isDisabled={this.state.saveBtnDisabled}
+                                            isLoading={this.state.saving}
+                                            spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                                            {...extraPrimaryProps}
+                                        >
+                                            {saveBtnName}
+                                        </Button>
+                                    </GridItem>
+                                </Grid>
                             </div>
-                        </CustomCollapse>
+                        </ExpandableSection>
                     </Form>
-                    <ConfirmPopup
+                    <DoubleConfirmModal
                         showModal={this.state.showConfirmManagerDelete}
                         closeHandler={this.closeConfirmManagerDelete}
-                        actionFunc={this.deleteManager}
-                        actionParam={this.state.manager}
-                        msg="Are you sure you want to remove this Replication Manager?"
-                        msgContent={this.state.manager}
+                        handleChange={this.handleModalChange}
+                        actionHandler={this.deleteManager}
+                        spinning={this.state.modalSpinning}
+                        item={this.state.manager}
+                        checked={this.state.modalChecked}
+                        mTitle="Remove Replication Manager"
+                        mMsg="Are you sure you want to remove this Replication Manager?"
+                        mSpinningMsg="Removing Manager ..."
+                        mBtnName="Remove Manager"
                     />
                     <AddManagerModal
                         showModal={this.state.showAddManagerModal}
@@ -616,25 +839,41 @@ export class ReplConfig extends React.Component {
                         handleChange={this.handleManagerChange}
                         saveHandler={this.addManager}
                         spinning={this.state.addManagerSpinning}
+                        manager={this.state.manager}
+                        manager_passwd={this.state.manager_passwd}
+                        manager_passwd_confirm={this.state.manager_passwd_confirm}
                         error={this.state.errObj}
                     />
                     <ChangeReplRoleModal
                         showModal={this.state.showPromoteDemoteModal}
                         closeHandler={this.closePromoteDemoteModal}
-                        handleChange={this.handleChange}
+                        handleChange={this.handleModalChange}
                         saveHandler={this.doRoleChange}
                         spinning={this.state.roleChangeSpinning}
                         role={this.props.role}
                         newRole={this.state.newRole}
                         checked={this.state.modalChecked}
+                        newRID={this.state.newRID}
+                        onMinus={this.onMinus}
+                        onNumberChange={this.onNumberChange}
+                        onPlus={this.onPlus}
                     />
-                </div>;
-        }
-
-        return (
-            <div>
-                {content}
+                </div>
             </div>
         );
     }
 }
+
+ReplConfig.propTypes = {
+    role: PropTypes.string,
+    suffix: PropTypes.string,
+    data: PropTypes.object,
+    serverId: PropTypes.string,
+};
+
+ReplConfig.defaultProps = {
+    role: "",
+    suffix: "",
+    data: {},
+    serverId: "",
+};

@@ -1,22 +1,20 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Row,
-    Col,
-    Icon,
-    Modal,
-    noop,
-    Form,
-    FormControl,
-    FormGroup,
-    Checkbox,
     Button,
-    ControlLabel
-} from "patternfly-react";
+    Checkbox,
+    Form,
+    FormHelperText,
+    Grid,
+    GridItem,
+    Modal,
+    ModalVariant,
+    TextInput,
+    ValidatedOptions,
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
-import { log_cmd } from "../tools.jsx";
-import "../../css/ds.css";
+import { log_cmd, valid_dn } from "../tools.jsx";
 
 class WinSync extends React.Component {
     componentDidMount(prevProps) {
@@ -32,92 +30,146 @@ class WinSync extends React.Component {
     constructor(props) {
         super(props);
 
-        this.handleCheckboxChange = this.handleCheckboxChange.bind(this);
-        this.handleFieldChange = this.handleFieldChange.bind(this);
-        this.updateFields = this.updateFields.bind(this);
-        this.runFixup = this.runFixup.bind(this);
-        this.toggleFixupModal = this.toggleFixupModal.bind(this);
-
         this.state = {
+            fixupModalShow: false,
+            fixupDN: "",
+            fixupFilter: "",
+            saveBtnDisabled: true,
+            saveBtnDisabledModal: true,
+            saving: false,
+            savingModal: false,
+            error: {},
+            // Settings
             posixWinsyncCreateMemberOfTask: false,
             posixWinsyncLowerCaseUID: false,
             posixWinsyncMapMemberUID: false,
             posixWinsyncMapNestedGrouping: false,
             posixWinsyncMsSFUSchema: false,
-
-            fixupModalShow: false,
-            fixupDN: "",
-            fixupFilter: ""
+            // Original values
+            _posixWinsyncCreateMemberOfTask: false,
+            _posixWinsyncLowerCaseUID: false,
+            _posixWinsyncMapMemberUID: false,
+            _posixWinsyncMapNestedGrouping: false,
+            _posixWinsyncMsSFUSchema: false,
         };
+
+        this.handleFieldChange = this.handleFieldChange.bind(this);
+        this.handleModalChange = this.handleModalChange.bind(this);
+        this.updateFields = this.updateFields.bind(this);
+        this.runFixup = this.runFixup.bind(this);
+        this.toggleFixupModal = this.toggleFixupModal.bind(this);
+        this.validateConfig = this.validateConfig.bind(this);
+        this.validateModal = this.validateModal.bind(this);
+        this.savePlugin = this.savePlugin.bind(this);
     }
 
     toggleFixupModal() {
         this.setState(prevState => ({
             fixupModalShow: !prevState.fixupModalShow,
             fixupDN: "",
-            fixupFilter: ""
+            fixupFilter: "",
+            savingModal: false,
         }));
     }
 
     runFixup() {
-        if (!this.state.fixupDN) {
-            this.props.addNotification("warning", "Fixup DN is required.");
-        } else {
-            let cmd = [
-                "dsconf",
-                "-j",
-                "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-                "plugin",
-                "posix-winsync",
-                "fixup",
-                this.state.fixupDN
-            ];
+        let cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "plugin",
+            "posix-winsync",
+            "fixup",
+            this.state.fixupDN
+        ];
 
-            if (this.state.fixupFilter) {
-                cmd = [...cmd, "--filter", this.state.fixupFilter];
-            }
-
-            this.props.toggleLoadingHandler();
-            log_cmd("runFixup", "Run Member UID task", cmd);
-            cockpit
-                    .spawn(cmd, {
-                        superuser: true,
-                        err: "message"
-                    })
-                    .done(content => {
-                        this.props.addNotification(
-                            "success",
-                            `Fixup task for ${this.state.fixupDN} was successfull`
-                        );
-                        this.props.toggleLoadingHandler();
-                        this.setState({
-                            fixupModalShow: false
-                        });
-                    })
-                    .fail(err => {
-                        let errMsg = JSON.parse(err);
-                        this.props.addNotification(
-                            "error",
-                            `Fixup task for ${this.state.fixupDN} has failed ${errMsg.desc}`
-                        );
-                        this.props.toggleLoadingHandler();
-                        this.setState({
-                            fixupModalShow: false
-                        });
-                    });
+        if (this.state.fixupFilter) {
+            cmd = [...cmd, "--filter", this.state.fixupFilter];
         }
+
+        this.setState({
+            savingModal: true
+        });
+        log_cmd("runFixup", "Run Member UID task", cmd);
+        cockpit
+                .spawn(cmd, {
+                    superuser: true,
+                    err: "message"
+                })
+                .done(content => {
+                    this.props.addNotification(
+                        "success",
+                        `Fixup task for ${this.state.fixupDN} was successfully started`
+                    );
+                    this.setState({
+                        fixupModalShow: false,
+                        savingModal: false,
+                    });
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        `Fixup task for ${this.state.fixupDN} has failed ${errMsg.desc}`
+                    );
+                    this.setState({
+                        fixupModalShow: false,
+                        savingModal: false
+                    });
+                });
     }
 
-    handleCheckboxChange(e) {
+    validateConfig() {
+        let all_good = false;
+
+        const attrs = [
+            'posixWinsyncCreateMemberOfTask', 'posixWinsyncLowerCaseUID',
+            'posixWinsyncMapMemberUID', 'posixWinsyncMapNestedGrouping',
+            'posixWinsyncMsSFUSchema'
+        ];
+        for (const check_attr of attrs) {
+            if (this.state[check_attr] != this.state['_' + check_attr]) {
+                all_good = true;
+                break;
+            }
+        }
+
         this.setState({
-            [e.target.id]: e.target.checked
+            saveBtnDisabled: !all_good,
+        });
+    }
+
+    validateModal() {
+        const errObj = {};
+        let all_good = true;
+
+        if (!valid_dn(this.state.fixupDN)) {
+            all_good = false;
+            errObj.fixupDN = true;
+        }
+        if (this.state.fixupFilter == "") {
+            all_good = false;
+            errObj.fixupFilter = true;
+        }
+
+        this.setState({
+            saveBtnDisabledModal: !all_good,
+            error: errObj
         });
     }
 
     handleFieldChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
-            [e.target.id]: e.target.value
-        });
+            [e.target.id]: value
+        }, () => { this.validateConfig() });
+    }
+
+    handleModalChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.setState({
+            [e.target.id]: value
+        }, () => { this.validateModal() });
     }
 
     updateFields() {
@@ -126,27 +178,97 @@ class WinSync extends React.Component {
 
             this.setState({
                 posixWinsyncCreateMemberOfTask: !(
-                    pluginRow["posixwinsynccreatememberoftask"] === undefined ||
-                    pluginRow["posixwinsynccreatememberoftask"][0] == "false"
+                    pluginRow.posixwinsynccreatememberoftask === undefined ||
+                    pluginRow.posixwinsynccreatememberoftask[0] == "false"
                 ),
                 posixWinsyncLowerCaseUID: !(
-                    pluginRow["posixwinsynclowercaseuid"] === undefined ||
-                    pluginRow["posixwinsynclowercaseuid"][0] == "false"
+                    pluginRow.posixwinsynclowercaseuid === undefined ||
+                    pluginRow.posixwinsynclowercaseuid[0] == "false"
                 ),
                 posixWinsyncMapMemberUID: !(
-                    pluginRow["posixwinsyncmapmemberuid"] === undefined ||
-                    pluginRow["posixwinsyncmapmemberuid"][0] == "false"
+                    pluginRow.posixwinsyncmapmemberuid === undefined ||
+                    pluginRow.posixwinsyncmapmemberuid[0] == "false"
                 ),
                 posixWinsyncMapNestedGrouping: !(
-                    pluginRow["posixwinsyncmapnestedgrouping"] === undefined ||
-                    pluginRow["posixwinsyncmapnestedgrouping"][0] == "false"
+                    pluginRow.posixwinsyncmapnestedgrouping === undefined ||
+                    pluginRow.posixwinsyncmapnestedgrouping[0] == "false"
                 ),
                 posixWinsyncMsSFUSchema: !(
-                    pluginRow["posixwinsyncmssfuschema"] === undefined ||
-                    pluginRow["posixwinsyncmssfuschema"][0] == "false"
+                    pluginRow.posixwinsyncmssfuschema === undefined ||
+                    pluginRow.posixwinsyncmssfuschema[0] == "false"
+                ),
+                _posixWinsyncCreateMemberOfTask: !(
+                    pluginRow.posixwinsynccreatememberoftask === undefined ||
+                    pluginRow.posixwinsynccreatememberoftask[0] == "false"
+                ),
+                _posixWinsyncLowerCaseUID: !(
+                    pluginRow.posixwinsynclowercaseuid === undefined ||
+                    pluginRow.posixwinsynclowercaseuid[0] == "false"
+                ),
+                _posixWinsyncMapMemberUID: !(
+                    pluginRow.posixwinsyncmapmemberuid === undefined ||
+                    pluginRow.posixwinsyncmapmemberuid[0] == "false"
+                ),
+                _posixWinsyncMapNestedGrouping: !(
+                    pluginRow.posixwinsyncmapnestedgrouping === undefined ||
+                    pluginRow.posixwinsyncmapnestedgrouping[0] == "false"
+                ),
+                _posixWinsyncMsSFUSchema: !(
+                    pluginRow.posixwinsyncmssfuschema === undefined ||
+                    pluginRow.posixwinsyncmssfuschema[0] == "false"
                 )
             });
         }
+    }
+
+    savePlugin() {
+        const cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "plugin",
+            "posix-winsync",
+            "set",
+            "--create-memberof-task",
+            this.state.posixWinsyncCreateMemberOfTask ? "true" : "false",
+            "--lower-case-uid",
+            this.state.posixWinsyncLowerCaseUID ? "true" : "false",
+            "--map-member-uid",
+            this.state.posixWinsyncMapMemberUID ? "true" : "false",
+            "--map-nested-grouping",
+            this.state.posixWinsyncMapNestedGrouping ? "true" : "false",
+            "--ms-sfu-schema",
+            this.state.posixWinsyncMsSFUSchema ? "true" : "false"
+        ];
+
+        this.setState({
+            saving: true
+        });
+
+        log_cmd('savePlugin', 'Update Posix winsync plugin', cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    this.props.addNotification(
+                        "success",
+                        `Successfully updated Posix winsync plugin`
+                    );
+                    this.props.pluginListHandler();
+                    this.setState({
+                        saving: false
+                    });
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        `Failed to update Posix winsync plugin - ${errMsg.desc}`
+                    );
+                    this.props.pluginListHandler();
+                    this.setState({
+                        saving: false
+                    });
+                });
     }
 
     render() {
@@ -158,91 +280,95 @@ class WinSync extends React.Component {
             posixWinsyncMsSFUSchema,
             fixupModalShow,
             fixupDN,
-            fixupFilter
+            fixupFilter,
+            saving,
+            savingModal,
+            saveBtnDisabled,
+            saveBtnDisabledModal,
+            error
         } = this.state;
 
-        let specificPluginCMD = [
-            "dsconf",
-            "-j",
-            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "plugin",
-            "posix-winsync",
-            "set",
-            "--create-memberof-task",
-            posixWinsyncCreateMemberOfTask ? "true" : "false",
-            "--lower-case-uid",
-            posixWinsyncLowerCaseUID ? "true" : "false",
-            "--map-member-uid",
-            posixWinsyncMapMemberUID ? "true" : "false",
-            "--map-nested-grouping",
-            posixWinsyncMapNestedGrouping ? "true" : "false",
-            "--ms-sfu-schema",
-            posixWinsyncMsSFUSchema ? "true" : "false"
-        ];
+        let saveBtnName = "Save";
+        const extraPrimaryProps = {};
+        if (saving) {
+            saveBtnName = "Saving ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
+        const saveBtnNameModal = "Run Task";
+        if (savingModal) {
+            saveBtnName = "Task running ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
+
         return (
-            <div>
-                <Modal show={fixupModalShow} onHide={this.toggleFixupModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.toggleFixupModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>MemberOf Task</Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup controlId="fixupDN" key="fixupDN">
-                                            <Col sm={3}>
-                                                <ControlLabel title="Base DN that contains entries to fix up">
-                                                    Base DN
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={fixupDN}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup controlId="fixupFilter" key="fixupFilter">
-                                            <Col sm={3}>
-                                                <ControlLabel title="Filter for entries to fix up. If omitted, all entries with objectclass inetuser/inetadmin/nsmemberof under the specified base will have their memberOf attribute regenerated.">
-                                                    Filter DN
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={fixupFilter}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.toggleFixupModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button bsStyle="primary" onClick={this.runFixup}>
-                                Run
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+            <div className={saving || savingModal ? "ds-disabled" : ""}>
+                <Modal
+                    variant={ModalVariant.small}
+                    title="MemberOf Task"
+                    isOpen={fixupModalShow}
+                    aria-labelledby="ds-modal"
+                    onClose={this.toggleFixupModal}
+                    actions={[
+                        <Button
+                            key="task"
+                            variant="primary"
+                            onClick={this.runFixup}
+                            isDisabled={saveBtnDisabledModal}
+                            isLoading={savingModal}
+                            spinnerAriaValueText={savingModal ? "Saving" : undefined}
+                            {...extraPrimaryProps}
+                        >
+                            {saveBtnNameModal}
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.toggleFixupModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Form isHorizontal autoComplete="off">
+                        <Grid title="Base DN that contains entries to fix up">
+                            <GridItem className="ds-label" span={3}>
+                                Base DN
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={fixupDN}
+                                    type="text"
+                                    id="fixupDN"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="fixupDN"
+                                    onChange={(str, e) => {
+                                        this.handleModalChange(e);
+                                    }}
+                                    validated={error.fixupDN ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                                <FormHelperText isError isHidden={!error.fixupDN}>
+                                    Value must be a valid DN
+                                </FormHelperText>
+                            </GridItem>
+                        </Grid>
+                        <Grid className="ds-margin-top" title="Filter for entries to fix up. If omitted, all entries with objectclass inetuser/inetadmin/nsmemberof under the specified base will have their memberOf attribute regenerated.">
+                            <GridItem className="ds-label" span={3}>
+                                Filter DN
+                            </GridItem>
+                            <GridItem span={9}>
+                                <TextInput
+                                    value={fixupFilter}
+                                    type="text"
+                                    id="fixupFilter"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="fixupFilter"
+                                    onChange={(str, e) => {
+                                        this.handleModalChange(e);
+                                    }}
+                                    validated={error.fixupFilter ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                                <FormHelperText isError isHidden={!error.fixupDN}>
+                                    Enter an LDAP search filter
+                                </FormHelperText>
+                            </GridItem>
+                        </Grid>
+                    </Form>
                 </Modal>
                 <PluginBasicConfig
                     rows={this.props.rows}
@@ -250,125 +376,83 @@ class WinSync extends React.Component {
                     cn="Posix Winsync API"
                     pluginName="Posix Winsync API"
                     cmdName="posix-winsync"
-                    specificPluginCMD={specificPluginCMD}
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
-                    <Row>
-                        <Col sm={12}>
-                            <Form horizontal>
-                                <FormGroup
-                                    key="posixWinsyncCreateMemberOfTask"
-                                    controlId="posixWinsyncCreateMemberOfTask"
-                                >
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={6}
-                                        title="Sets whether to run the memberOf fix-up task immediately after a sync run in order to update group memberships for synced users"
-                                    >
-                                        Create MemberOf Task
-                                    </Col>
-                                    <Col sm={2}>
-                                        <Checkbox
-                                            id="posixWinsyncCreateMemberOfTask"
-                                            checked={posixWinsyncCreateMemberOfTask}
-                                            onChange={this.handleCheckboxChange}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup
-                                    key="posixWinsyncLowerCaseUID"
-                                    controlId="posixWinsyncLowerCaseUID"
-                                >
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={6}
-                                        title="Sets whether to store (and, if necessary, convert) the UID value in the memberUID attribute in lower case"
-                                    >
-                                        Lower Case UID
-                                    </Col>
-                                    <Col sm={2}>
-                                        <Checkbox
-                                            id="posixWinsyncLowerCaseUID"
-                                            checked={posixWinsyncLowerCaseUID}
-                                            onChange={this.handleCheckboxChange}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup
-                                    key="posixWinsyncMapMemberUID"
-                                    controlId="posixWinsyncMapMemberUID"
-                                >
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={6}
-                                        title="Sets whether to map the memberUID attribute in an Active Directory group to the uniqueMember attribute in a Directory Server group"
-                                    >
-                                        Map Member UID
-                                    </Col>
-                                    <Col sm={2}>
-                                        <Checkbox
-                                            id="posixWinsyncMapMemberUID"
-                                            checked={posixWinsyncMapMemberUID}
-                                            onChange={this.handleCheckboxChange}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup
-                                    key="posixWinsyncMapNestedGrouping"
-                                    controlId="posixWinsyncMapNestedGrouping"
-                                >
-                                    <Col
-                                        title="Manages if nested groups are updated when memberUID attributes in an Active Directory POSIX group change"
-                                        componentClass={ControlLabel}
-                                        sm={6}
-                                    >
-                                        Map Nested Grouping
-                                    </Col>
-                                    <Col sm={2}>
-                                        <Checkbox
-                                            id="posixWinsyncMapNestedGrouping"
-                                            checked={posixWinsyncMapNestedGrouping}
-                                            onChange={this.handleCheckboxChange}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                                <FormGroup
-                                    key="posixWinsyncMsSFUSchema"
-                                    controlId="posixWinsyncMsSFUSchema"
-                                >
-                                    <Col
-                                        componentClass={ControlLabel}
-                                        sm={6}
-                                        title="Sets whether to the older Microsoft System Services  for Unix 3.0 (msSFU30) schema when syncing Posix attributes  from Active Directory"
-                                    >
-                                        Microsoft System Services for Unix 3.0 (msSFU30) schema
-                                    </Col>
-                                    <Col sm={2}>
-                                        <Checkbox
-                                            id="posixWinsyncMsSFUSchema"
-                                            checked={posixWinsyncMsSFUSchema}
-                                            onChange={this.handleCheckboxChange}
-                                        />
-                                    </Col>
-                                </FormGroup>
-                            </Form>
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col sm={12}>
-                            <Button
-                                bsStyle="primary"
-                                onClick={this.toggleFixupModal}
-                                title="Corrects mismatched member and uniquemember values"
-                            >
-                                Run MemberOf Task
-                            </Button>
-                        </Col>
-                    </Row>
+                    <Form isHorizontal autoComplete="off">
+                        <Grid title="Sets whether to run the memberOf fix-up task immediately after a sync run in order to update group memberships for synced users">
+                            <GridItem span={12}>
+                                <Checkbox
+                                    id="posixWinsyncCreateMemberOfTask"
+                                    isChecked={posixWinsyncCreateMemberOfTask}
+                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    label="Create MemberOf Task"
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Sets whether to store (and, if necessary, convert) the UID value in the memberUID attribute in lower case">
+                            <GridItem span={12}>
+                                <Checkbox
+                                    id="posixWinsyncLowerCaseUID"
+                                    isChecked={posixWinsyncLowerCaseUID}
+                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    label="Lower Case UID"
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Sets whether to map the memberUID attribute in an Active Directory group to the uniqueMember attribute in a Directory Server group">
+                            <GridItem span={12}>
+                                <Checkbox
+                                    id="posixWinsyncMapMemberUID"
+                                    isChecked={posixWinsyncMapMemberUID}
+                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    label="Map Member UID"
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Manages if nested groups are updated when memberUID attributes in an Active Directory POSIX group change">
+                            <GridItem span={12}>
+                                <Checkbox
+                                    id="posixWinsyncMapNestedGrouping"
+                                    isChecked={posixWinsyncMapNestedGrouping}
+                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    label="Map Nested Grouping"
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid title="Sets whether to the older Microsoft System Services  for Unix 3.0 (msSFU30) schema when syncing Posix attributes from Active Directory">
+                            <GridItem span={12}>
+                                <Checkbox
+                                    id="posixWinsyncMsSFUSchema"
+                                    isChecked={posixWinsyncMsSFUSchema}
+                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    label="Microsoft System Services for Unix 3.0 (msSFU30) schema"
+                                />
+                            </GridItem>
+                        </Grid>
+                    </Form>
+                    <Button
+                        className="ds-margin-top-lg"
+                        variant="primary"
+                        onClick={this.toggleFixupModal}
+                        title="Corrects mismatched member and uniquemember values"
+                    >
+                        Run MemberOf Task
+                    </Button>
                 </PluginBasicConfig>
+                <Button
+                    className="ds-margin-top-lg"
+                    variant="primary"
+                    onClick={this.savePlugin}
+                    isDisabled={saveBtnDisabled}
+                    isLoading={saving}
+                    spinnerAriaValueText={saving ? "Saving" : undefined}
+                    {...extraPrimaryProps}
+                >
+                    {saveBtnName}
+                </Button>
             </div>
         );
     }
@@ -386,10 +470,6 @@ WinSync.propTypes = {
 WinSync.defaultProps = {
     rows: [],
     serverId: "",
-    savePluginHandler: noop,
-    pluginListHandler: noop,
-    addNotification: noop,
-    toggleLoadingHandler: noop
 };
 
 export default WinSync;

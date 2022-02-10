@@ -39,6 +39,8 @@ ldap_uri = {ldap_uri}
 
 ldap_tls_reqcert = demand
 # To use cacert dir, place *.crt files in this path then run:
+# /usr/bin/openssl rehash /etc/openldap/certs
+# or (for older versions of openssl)
 # /usr/bin/c_rehash /etc/openldap/certs
 ldap_tls_cacertdir = /etc/openldap/certs
 
@@ -108,6 +110,13 @@ def sssd_conf(inst, basedn, log, args):
         ldap_access_filter=ldap_access_filter,
     ))
 
+    # Print a customised sssd.conf to log for test purpose
+    log.debug(SSSD_CONF_TEMPLATE.format(
+        basedn=basedn,
+        schema_type=schema_type,
+        ldap_uri=inst.ldapuri,
+        ldap_access_filter=ldap_access_filter))
+
 LDAP_CONF_TEMPLATE = """
 #
 # OpenLDAP client configuration
@@ -126,6 +135,8 @@ URI     {ldap_uri}
 
 DEREF   never
 # To use cacert dir, place *.crt files in this path then run:
+# /usr/bin/openssl rehash /etc/openldap/certs
+# or (for older versions of openssl)
 # /usr/bin/c_rehash /etc/openldap/certs
 TLS_CACERTDIR /etc/openldap/certs
 # TLS_CACERT /etc/openldap/certs/ca.crt
@@ -135,6 +146,13 @@ TLS_CACERTDIR /etc/openldap/certs
 def ldap_conf(inst, basedn, log, args):
     # Print a customised ldap.conf or ldaprc
     print(LDAP_CONF_TEMPLATE.format(
+        basedn=basedn,
+        ldap_uri=inst.ldapuri,
+        ldap_dns_uri=basedn_to_ldap_dns_uri(basedn),
+    ))
+
+    # Print a customised ldap.conf to log for test purpose
+    log.debug(LDAP_CONF_TEMPLATE.format(
         basedn=basedn,
         ldap_uri=inst.ldapuri,
         ldap_dns_uri=basedn_to_ldap_dns_uri(basedn),
@@ -268,6 +286,24 @@ def display(inst, basedn, log, args):
         group_member='member',
     ))
 
+    # Print required information to log for test purpose
+    log.debug(DISPLAY_TEMPLATE.format(
+        ldap_uri=inst.ldapuri,
+        ldap_dns_uri=basedn_to_ldap_dns_uri(basedn),
+        basedn=basedn,
+        schema_type=schema_type,
+        user_basedn=users._basedn,
+        user_filter=users._get_objectclass_filter(),
+        user_id_filter=users._get_selector_filter('<PARAM>'),
+        group_basedn=groups._basedn,
+        group_filter=groups._get_objectclass_filter(),
+        group_id_filter=groups._get_selector_filter('<PARAM>'),
+        uuid_attr='nsUniqueId',
+        user_rdn=users._filterattrs[0],
+        group_rdn=groups._filterattrs[0],
+        group_member='member',
+    ))
+
 def create_parser(subparsers):
     client_config_parser = subparsers.add_parser('client_config',
         help="Display and generate client example configs for this LDAP server")
@@ -287,4 +323,3 @@ def create_parser(subparsers):
     display_parser = subcommands.add_parser('display',
         help="Display generic application parameters for LDAP connection")
     display_parser.set_defaults(func=display)
-

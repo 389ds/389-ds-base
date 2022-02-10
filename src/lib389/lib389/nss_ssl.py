@@ -26,6 +26,13 @@ from lib389.lint import DSCERTLE0001, DSCERTLE0002
 from lib389.utils import ensure_str, format_cmd_list
 import uuid
 
+# Setuptools ships with 'packaging' module, let's use it from there
+try:
+    from pkg_resources.extern.packaging.version import LegacyVersion
+# Fallback to a normal 'packaging' module in case 'setuptools' is stripped
+except:
+    from packaging.version import LegacyVersion
+
 KEYBITS = 4096
 CA_NAME = 'Self-Signed-CA'
 CERT_NAME = 'Server-Cert'
@@ -185,7 +192,7 @@ only.
 
         # Init the db.
         # 48886; This needs to be sql format ...
-        cmd = ['/usr/bin/certutil', '-N', '-d', self._certdb, '-f', '%s/%s' % (self._certdb, PWD_TXT)]
+        cmd = ['/usr/bin/certutil', '-N', '-d', self._certdb, '-f', '%s/%s' % (self._certdb, PWD_TXT),  '-@', '%s/%s' % (self._certdb, PWD_TXT)]
         self._generate_noise('%s/noise.txt' % self._certdb)
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         try:
@@ -219,6 +226,30 @@ only.
 
         assert not self._db_exists()
         return True
+
+    def openssl_rehash(self, certdir):
+        """
+        Compatibly run c_rehash (on old openssl versions) or openssl rehash (on
+        new ones). Prefers openssl rehash, because openssl on versions where
+        the rehash command doesn't exist, also doesn't correctly set the return
+        code. Instead, we parse the output of `openssl version` and try to
+        figure out if we have a new enough version to unconditionally run rehash.
+        """
+        try:
+            openssl_version = check_output(['/usr/bin/openssl', 'version']).decode('utf-8').strip()
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+        rehash_available = LegacyVersion(openssl_version.split(' ')[1]) >= LegacyVersion('1.1.0')
+
+        if rehash_available:
+            cmd = ['/usr/bin/openssl', 'rehash', certdir]
+        else:
+            cmd = ['/usr/bin/c_rehash', certdir]
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
 
     def create_rsa_ca(self, months=VALID):
         """
@@ -276,9 +307,7 @@ only.
             raise ValueError(e.output.decode('utf-8').rstrip())
         with open('%s/ca.crt' % self._certdb, 'w') as f:
             f.write(ensure_str(certdetails))
-        cmd = ['/usr/bin/c_rehash', self._certdb]
-        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        self.openssl_rehash(self._certdb)
         return True
 
     def rsa_ca_needs_renew(self):
@@ -296,7 +325,7 @@ only.
         ]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         try:
-            certdetails = ensure_str(check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8'))
+            certdetails = check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
         except subprocess.CalledProcessError as e:
             raise ValueError(e.output.decode('utf-8').rstrip())
         end_date_str = certdetails.split("Not After : ")[1].split("\n")[0]
@@ -367,9 +396,7 @@ only.
         except subprocess.CalledProcessError as e:
             raise ValueError(e.output.decode('utf-8').rstrip())
 
-        cmd = ['/usr/bin/c_rehash', self._certdb]
-        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        self.openssl_rehash(self._certdb)
 
         # Import the new CA to our DB instead of the old CA
         cmd = [
@@ -642,9 +669,7 @@ only.
 
         if ca is not None:
             shutil.copyfile(ca, '%s/ca.crt' % self._certdb)
-            cmd = ['/usr/bin/c_rehash', self._certdb]
-            self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-            check_output(cmd, stderr=subprocess.STDOUT)
+            self.openssl_rehash(self._certdb)
             cmd = [
                 '/usr/bin/certutil',
                 '-A',
@@ -1043,5 +1068,3 @@ only.
             # Remove the p12
             if os.path.exists(p12_bundle):
                 os.remove(p12_bundle)
-
-

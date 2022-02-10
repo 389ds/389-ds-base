@@ -9,6 +9,8 @@
 from json import dumps as dump_json
 from lib389.cli_base import _get_arg
 from lib389.schema import Schema, AttributeUsage, ObjectclassKind
+from lib389.migrate.openldap.config import olSchema
+from lib389.migrate.plan import Migration
 
 
 def _validate_dual_args(enable_arg, disable_arg):
@@ -221,6 +223,19 @@ def get_syntaxes(inst, basedn, log, args):
             print("%s (%s)", name, id)
 
 
+def import_openldap_schema_file(inst, basedn, log, args):
+    log = log.getChild('import_openldap_schema_file')
+    log.debug(f"Parsing {args.schema_file} ...")
+    olschema = olSchema([args.schema_file], log)
+    migration = Migration(inst, olschema)
+    if args.confirm:
+        migration.execute_plan(log)
+        log.info("🎉 Schema migration complete!")
+    else:
+        migration.display_plan_review(log)
+        log.info("No actions taken. To apply migration plan, use '--confirm'")
+
+
 def _get_parameters(args, type):
     if type not in ('attributetypes', 'objectclasses'):
         raise ValueError("Wrong parser type: %s" % type)
@@ -295,25 +310,24 @@ def _add_parser_args(parser, type):
         parser.add_argument('--user-mod', action='store_true',
                             help='True if the attribute is modifiable by a client application (default)'
                                  'Only one of the flags this or --no-user-mode should be specified')
-        parser.add_argument('--equality',
-                            help='NAME or OID of the matching rule used for checking'
+        parser.add_argument('--equality', nargs='+',
+                            help='NAME or OID of the matching rules used for checking'
                                  'whether attribute values are equal')
-        parser.add_argument('--substr',
-                            help='NAME or OID of the matching rule used for checking'
+        parser.add_argument('--substr', nargs='+',
+                            help='NAME or OID of the matching rules used for checking'
                                  'whether an attribute value contains another value')
-        parser.add_argument('--ordering',
-                            help='NAME or OID of the matching rule used for checking'
+        parser.add_argument('--ordering', nargs='+',
+                            help='NAME or OID of the matching rules used for checking'
                                  'whether attribute values are lesser - equal than')
         parser.add_argument('--usage',
                             help='The flag indicates how the attribute type is to be used. Choose from the list: '
                                  'userApplications (default), directoryOperation, distributedOperation, dSAOperation')
-        parser.add_argument('--sup', nargs='+', help='The list of NAMEs or OIDs of attribute types'
-                                                     'this attribute type is derived from')
+        parser.add_argument('--sup', nargs=1, help='The NAME or OID of attribute type this attribute type is derived from')
     elif type == 'objectclasses':
         parser.add_argument('--must', nargs='+', help='NAMEs or OIDs of all attributes an entry of the object must have')
         parser.add_argument('--may', nargs='+', help='NAMEs or OIDs of additional attributes an entry of the object may have')
         parser.add_argument('--kind', help='Kind of an object. STRUCTURAL (default), ABSTRACT, AUXILIARY')
-        parser.add_argument('--sup', nargs='+', help='NAMEs or OIDs of object classes this object is derived from')
+        parser.add_argument('--sup', nargs='+', help='NAME or OIDs of object classes this object is derived from')
     else:
         raise ValueError("Wrong parser type: %s" % type)
 
@@ -383,3 +397,11 @@ def create_parser(subparsers):
     validate_parser.add_argument('DN', help="Base DN that contains entries to validate")
     validate_parser.add_argument('-f', '--filter', help='Filter for entries to validate.\n'
                                                         'If omitted, all entries with filter "(objectclass=*)" are validated')
+
+    import_oldap_schema_parser = schema_subcommands.add_parser('import-openldap-file',
+                                                    help='Import an openldap formatted dynamic schema ldifs. These will contain values like olcAttributeTypes and olcObjectClasses.')
+    import_oldap_schema_parser.set_defaults(func=import_openldap_schema_file)
+    import_oldap_schema_parser.add_argument('schema_file', help="Path to the openldap dynamic schema ldif to import")
+    import_oldap_schema_parser.add_argument('--confirm',
+                                            default=False, action='store_true',
+                                            help="Confirm that you want to apply these schema migration actions to the 389-ds instance. By default no actions are taken.")

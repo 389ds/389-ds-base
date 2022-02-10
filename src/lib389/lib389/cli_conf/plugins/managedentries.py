@@ -8,6 +8,7 @@
 
 import ldap
 import json
+from lib389.backend import Backends
 from lib389.plugins import ManagedEntriesPlugin, MEPConfig, MEPConfigs, MEPTemplate, MEPTemplates
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
 
@@ -54,7 +55,7 @@ def mep_config_list(inst, basedn, log, args):
             for i in result:
                 log.info(i)
         else:
-            log.info("No Linked Attributes plugin instances")
+            log.info("No Managed Entry plugin instances")
 
 
 def mep_config_add(inst, basedn, log, args):
@@ -104,10 +105,20 @@ def mep_config_del(inst, basedn, log, args):
 
 def mep_template_list(inst, basedn, log, args):
     log = log.getChild('mep_template_list')
-    templates = MEPTemplates(inst, args.BASEDN)
+    if args.BASEDN is None:
+        # Gather all the templates from all the suffixes
+        templates = []
+        backends = Backends(inst).list()
+        for be in backends:
+            temps = MEPTemplates(inst, be.get_suffix()).list()
+            if len(temps) > 0:
+                templates += MEPTemplates(inst, be.get_suffix()).list()
+    else:
+        templates = MEPTemplates(inst, args.BASEDN).list()
+
     result = []
     result_json = []
-    for template in templates.list():
+    for template in templates:
         if args.json:
             result_json.append(json.loads(template.get_all_attrs_json()))
         else:
@@ -119,7 +130,7 @@ def mep_template_list(inst, basedn, log, args):
             for i in result:
                 log.info(i)
         else:
-            log.info("No Linked Attributes plugin instances")
+            log.info("No Managed Entry template entries found")
 
 
 def mep_template_add(inst, basedn, log, args):
@@ -181,8 +192,9 @@ def _add_parser_args_config(parser):
 def _add_parser_args_template(parser):
     parser.add_argument('--rdn-attr', help='Sets which attribute to use as the naming attribute '
                                            'in the automatically-generated entry (mepRDNAttr)')
-    parser.add_argument('--static-attr', help='Sets an attribute with a defined value that must be added '
-                                              'to the automatically-generated entry (mepStaticAttr)')
+    parser.add_argument('--static-attr', nargs='+',
+                        help='Sets an attribute with a defined value that must be added '
+                             'to the automatically-generated entry (mepStaticAttr)')
     parser.add_argument('--mapped-attr', nargs='+',
                         help='Sets attributes in the Managed Entries template entry which must exist '
                              'in the generated entry (mepMappedAttr)')
@@ -203,8 +215,8 @@ def create_parser(subparsers):
                                                                'if specified in the main plugin entry)')
     list_configs.set_defaults(func=mep_config_list)
     list_templates = subcommands_list.add_parser('templates',
-                                                 help='List Managed Entries Plugin templates in the directory')
-    list_templates.add_argument('BASEDN', help='The base DN where to search the templates.')
+                                               help='List Managed Entries Plugin templates in the directory')
+    list_templates.add_argument('BASEDN', nargs='?', help='The base DN where to search the templates')
     list_templates.set_defaults(func=mep_template_list)
 
     config = subcommands.add_parser('config', help='Handle Managed Entries Plugin configs')

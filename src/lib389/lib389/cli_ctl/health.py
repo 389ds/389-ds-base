@@ -15,7 +15,7 @@ from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
 from lib389.backend import Backends
 from lib389.config import Encryption, Config
 from lib389.monitor import MonitorDiskSpace
-from lib389.replica import Replica, Changelog5
+from lib389.replica import Replica
 from lib389.nss_ssl import NssSsl
 from lib389.dseldif import FSChecks, DSEldif
 from lib389.dirsrv_log import DirsrvAccessLog
@@ -35,7 +35,6 @@ CHECK_OBJECTS = [
     plugins.ReferentialIntegrityPlugin,
     MonitorDiskSpace,
     Replica,
-    Changelog5,
     DSEldif,
     NssSsl,
     DirsrvAccessLog,
@@ -89,7 +88,6 @@ def _list_checks(inst, specs: Iterable[str]):
 def _print_checks(inst, log, specs: Iterable[str]) -> None:
     for o, s in _list_checks(inst, specs):
         log.info(f'{o.lint_uid()}:{s[0]}')
-
 
 def _run(inst, log, args, checks):
     if not args.json:

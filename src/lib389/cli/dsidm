@@ -111,12 +111,20 @@ if __name__ == '__main__':
 
     # Assert we have a resources to work on.
     if not hasattr(args, 'func'):
-        log.error("No action provided, here is some --help.")
-        parser.print_help()
+        errmsg = "No action provided, here is some --help."
+        if args.json:
+            sys.stderr.write('{"desc": "%s"}\n' % errmsg)
+        else:
+            log.error(errmsg)
+            parser.print_help()
         sys.exit(1)
 
     if dsrc_inst['basedn'] is None:
-        log.error("Must provide a basedn!")
+        errmsg = "Must provide a basedn!"
+        if args.json:
+            sys.stderr.write('{"desc": "%s"}\n' % errmsg)
+        else:
+            log.error(errmsg)
         sys.exit(1)
 
     if not args.verbose:

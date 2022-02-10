@@ -36,7 +36,6 @@ from datetime import datetime
 import sys
 import filecmp
 import pwd
-import six
 import shlex
 import operator
 import subprocess
@@ -56,7 +55,7 @@ from lib389.paths import Paths
 from lib389.dseldif import DSEldif
 from lib389._constants import (
         DEFAULT_USER, VALGRIND_WRAPPER, DN_CONFIG, CFGSUFFIX, LOCALHOST,
-        ReplicaRole, CONSUMER_REPLICAID, SENSITIVE_ATTRS
+        ReplicaRole, CONSUMER_REPLICAID, SENSITIVE_ATTRS, DEFAULT_DB_LIB
     )
 from lib389.properties import (
         SER_HOST, SER_USER_ID, SER_GROUP_ID, SER_STRICT_HOSTNAME_CHECKING, SER_PORT,
@@ -83,101 +82,101 @@ searches = {
 
 # Map table for pseudolocalized strings
 _chars = {
-    " ": six.u("\u2003"),
-    "!": six.u("\u00a1"),
-    "\"": six.u("\u2033"),
-    "#": six.u("\u266f"),
-    "$": six.u("\u20ac"),
-    "%": six.u("\u2030"),
-    "&": six.u("\u214b"),
-    "'": six.u("\u00b4"),
-    ")": six.u("}"),
-    "(": six.u("{"),
-    "*": six.u("\u204e"),
-    "+": six.u("\u207a"),
-    ",": six.u("\u060c"),
-    "-": six.u("\u2010"),
-    ".": six.u("\u00b7"),
-    "/": six.u("\u2044"),
-    "0": six.u("\u24ea"),
-    "1": six.u("\u2460"),
-    "2": six.u("\u2461"),
-    "3": six.u("\u2462"),
-    "4": six.u("\u2463"),
-    "5": six.u("\u2464"),
-    "6": six.u("\u2465"),
-    "7": six.u("\u2466"),
-    "8": six.u("\u2467"),
-    "9": six.u("\u2468"),
-    ":": six.u("\u2236"),
-    ";": six.u("\u204f"),
-    "<": six.u("\u2264"),
-    "=": six.u("\u2242"),
-    ">": six.u("\u2265"),
-    "?": six.u("\u00bf"),
-    "@": six.u("\u055e"),
-    "A": six.u("\u00c5"),
-    "B": six.u("\u0181"),
-    "C": six.u("\u00c7"),
-    "D": six.u("\u00d0"),
-    "E": six.u("\u00c9"),
-    "F": six.u("\u0191"),
-    "G": six.u("\u011c"),
-    "H": six.u("\u0124"),
-    "I": six.u("\u00ce"),
-    "J": six.u("\u0134"),
-    "K": six.u("\u0136"),
-    "L": six.u("\u013b"),
-    "M": six.u("\u1e40"),
-    "N": six.u("\u00d1"),
-    "O": six.u("\u00d6"),
-    "P": six.u("\u00de"),
-    "Q": six.u("\u01ea"),
-    "R": six.u("\u0154"),
-    "S": six.u("\u0160"),
-    "T": six.u("\u0162"),
-    "U": six.u("\u00db"),
-    "V": six.u("\u1e7c"),
-    "W": six.u("\u0174"),
-    "X": six.u("\u1e8a"),
-    "Y": six.u("\u00dd"),
-    "Z": six.u("\u017d"),
-    "[": six.u("\u2045"),
-    "\\": six.u("\u2216"),
-    "]": six.u("\u2046"),
-    "^": six.u("\u02c4"),
-    "_": six.u("\u203f"),
-    "`": six.u("\u2035"),
-    "a": six.u("\u00e5"),
-    "b": six.u("\u0180"),
-    "c": six.u("\u00e7"),
-    "d": six.u("\u00f0"),
-    "e": six.u("\u00e9"),
-    "f": six.u("\u0192"),
-    "g": six.u("\u011d"),
-    "h": six.u("\u0125"),
-    "i": six.u("\u00ee"),
-    "j": six.u("\u0135"),
-    "k": six.u("\u0137"),
-    "l": six.u("\u013c"),
-    "m": six.u("\u0271"),
-    "n": six.u("\u00f1"),
-    "o": six.u("\u00f6"),
-    "p": six.u("\u00fe"),
-    "q": six.u("\u01eb"),
-    "r": six.u("\u0155"),
-    "s": six.u("\u0161"),
-    "t": six.u("\u0163"),
-    "u": six.u("\u00fb"),
-    "v": six.u("\u1e7d"),
-    "w": six.u("\u0175"),
-    "x": six.u("\u1e8b"),
-    "y": six.u("\u00fd"),
-    "z": six.u("\u017e"),
-    "{": six.u("("),
-    "}": six.u(")"),
-    "|": six.u("\u00a6"),
-    "~": six.u("\u02de"),
+    " ": u"\u2003",
+    "!": u"\u00a1",
+    "\"": u"\u2033",
+    "#": u"\u266f",
+    "$": u"\u20ac",
+    "%": u"\u2030",
+    "&": u"\u214b",
+    "'": u"\u00b4",
+    ")": u"}",
+    "(": u"{",
+    "*": u"\u204e",
+    "+": u"\u207a",
+    ",": u"\u060c",
+    "-": u"\u2010",
+    ".": u"\u00b7",
+    "/": u"\u2044",
+    "0": u"\u24ea",
+    "1": u"\u2460",
+    "2": u"\u2461",
+    "3": u"\u2462",
+    "4": u"\u2463",
+    "5": u"\u2464",
+    "6": u"\u2465",
+    "7": u"\u2466",
+    "8": u"\u2467",
+    "9": u"\u2468",
+    ":": u"\u2236",
+    ";": u"\u204f",
+    "<": u"\u2264",
+    "=": u"\u2242",
+    ">": u"\u2265",
+    "?": u"\u00bf",
+    "@": u"\u055e",
+    "A": u"\u00c5",
+    "B": u"\u0181",
+    "C": u"\u00c7",
+    "D": u"\u00d0",
+    "E": u"\u00c9",
+    "F": u"\u0191",
+    "G": u"\u011c",
+    "H": u"\u0124",
+    "I": u"\u00ce",
+    "J": u"\u0134",
+    "K": u"\u0136",
+    "L": u"\u013b",
+    "M": u"\u1e40",
+    "N": u"\u00d1",
+    "O": u"\u00d6",
+    "P": u"\u00de",
+    "Q": u"\u01ea",
+    "R": u"\u0154",
+    "S": u"\u0160",
+    "T": u"\u0162",
+    "U": u"\u00db",
+    "V": u"\u1e7c",
+    "W": u"\u0174",
+    "X": u"\u1e8a",
+    "Y": u"\u00dd",
+    "Z": u"\u017d",
+    "[": u"\u2045",
+    "\\": u"\u2216",
+    "]": u"\u2046",
+    "^": u"\u02c4",
+    "_": u"\u203f",
+    "`": u"\u2035",
+    "a": u"\u00e5",
+    "b": u"\u0180",
+    "c": u"\u00e7",
+    "d": u"\u00f0",
+    "e": u"\u00e9",
+    "f": u"\u0192",
+    "g": u"\u011d",
+    "h": u"\u0125",
+    "i": u"\u00ee",
+    "j": u"\u0135",
+    "k": u"\u0137",
+    "l": u"\u013c",
+    "m": u"\u0271",
+    "n": u"\u00f1",
+    "o": u"\u00f6",
+    "p": u"\u00fe",
+    "q": u"\u01eb",
+    "r": u"\u0155",
+    "s": u"\u0161",
+    "t": u"\u0163",
+    "u": u"\u00fb",
+    "v": u"\u1e7d",
+    "w": u"\u0175",
+    "x": u"\u1e8b",
+    "y": u"\u00fd",
+    "z": u"\u017e",
+    "{": u"(",
+    "}": u")",
+    "|": u"\u00a6",
+    "~": u"\u02de",
 }
 
 #
@@ -196,11 +195,15 @@ def selinux_present():
     try:
         import selinux
         if selinux.is_selinux_enabled():
-            # We have selinux, continue.
-            status = True
+            # We have selinux, lets see if we are allowed to configure it.
+            # (just checking the uid for now - we may rather check if semanage command success)
+            if os.geteuid() != 0:
+                log.info('Non privileged user cannot use semanage, will not relabel ports or files.' )
+            else:
+                status = True
         else:
             # We have the module, but it's disabled.
-            log.error('selinux is disabled, will not relabel ports or files.' )
+            log.info('selinux is disabled, will not relabel ports or files.' )
     except ImportError:
         # No python module, so who knows what state we are in.
         log.error('selinux python module not found, will not relabel files.' )
@@ -274,7 +277,7 @@ def selinux_label_port(port, remove_label=False):
         log.debug('selinux python module not found, skipping port labeling.')
         return
 
-    if not selinux.is_selinux_enabled():
+    if not selinux_present():
         log.debug('selinux is disabled, skipping port relabel')
         return
 
@@ -1111,13 +1114,11 @@ def ds_is_newer(*ver, instance=None):
     """
     return ds_is_related('newer', *ver, instance=instance)
 
-
 def ds_supports_new_changelog():
     """
     Return True if the current version of ns-slapd supports changelogs under cn=changelog,cn=<backend>,cn=ldbm..
     """
     return ds_is_newer('1.4.4.3')
-
 
 def gentime_to_datetime(gentime):
     """Convert Generalized time to datetime object
@@ -1231,7 +1232,7 @@ def ensure_dict_str(val):
 
 
 def pseudolocalize(string):
-    pseudo_string = six.u("")
+    pseudo_string = u""
     for char in string:
         try:
             pseudo_string += _chars[char]
@@ -1434,6 +1435,9 @@ def is_valid_hostname(hostname):
     allowed = re.compile("(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split("."))
 
+def get_default_db_lib():
+    return os.getenv('NSSLAPD_DB_LIB', default=DEFAULT_DB_LIB)
+
 
 def is_fips():
     if os.path.exists('/proc/sys/crypto/fips_enabled'):
@@ -1445,4 +1449,5 @@ def is_fips():
                 return False
     else:
         return False
+
 

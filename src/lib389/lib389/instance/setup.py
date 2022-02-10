@@ -40,6 +40,7 @@ from lib389.utils import (
     is_a_dn,
     ensure_str,
     ensure_list_str,
+    get_default_db_lib,
     normalizeDN,
     socket_check_open,
     selinux_label_port,
@@ -283,6 +284,7 @@ class SetupDs(object):
                  'backup_dir': ds_paths.backup_dir,
                  'db_dir': ds_paths.db_dir,
                  'db_home_dir': ds_paths.db_home_dir,
+                 'db_lib': get_default_db_lib(),
                  'ldif_dir': ds_paths.ldif_dir,
                  'lock_dir': ds_paths.lock_dir,
                  'log_dir': ds_paths.log_dir,
@@ -604,7 +606,7 @@ class SetupDs(object):
 
         # Right now, the way that rootpw works on ns-slapd works, it force hashes the pw
         # see https://fedorahosted.org/389/ticket/48859
-        if not re.match('^\{[A-Z0-9]+\}.*$', slapd['root_password']):
+        if not re.match('^([A-Z0-9]+).*$', slapd['root_password']):
             # We need to hash it. Call pwdhash-bin.
             # slapd['root_password'] = password_hash(slapd['root_password'], prefix=slapd['prefix'])
             pass
@@ -763,6 +765,7 @@ class SetupDs(object):
                 config_dir=slapd['config_dir'],
                 db_dir=slapd['db_dir'],
                 db_home_dir=slapd['db_home_dir'],
+                db_lib=slapd['db_lib'],
                 ldapi_enabled="on",
                 ldapi=slapd['ldapi'],
                 ldapi_autobind="on",
@@ -786,9 +789,16 @@ class SetupDs(object):
         os.chown(parentdir, slapd['user_uid'], slapd['group_gid'])
 
         ### Warning! We need to down the directory under db too for .restore to work.
-        # See dblayer.c for more!
-        db_parent = os.path.join(slapd['db_dir'], '..')
-        os.chown(db_parent, slapd['user_uid'], slapd['group_gid'])
+        # During a restore, the db dir is deleted and recreated, which is why we need
+        # to own it for a restore.
+        #
+        # However, in a container, we can't always guarantee this due to how the volumes
+        # work and are mounted. Specifically, if we have an anonymous volume we will
+        # NEVER be able to own it, but in a true deployment it is reasonable to expect
+        # we DO own it. Thus why we skip it in this specific context
+        if not self.containerised:
+            db_parent = os.path.join(slapd['db_dir'], '..')
+            os.chown(db_parent, slapd['user_uid'], slapd['group_gid'])
 
         # Copy correct data to the paths.
         # Copy in the schema
@@ -802,14 +812,14 @@ class SetupDs(object):
         # Copy in the collation
         srcfile = os.path.join(slapd['sysconf_dir'], 'dirsrv/config/slapd-collations.conf')
         dstfile = os.path.join(slapd['config_dir'], 'slapd-collations.conf')
-        shutil.copy2(srcfile, dstfile)
+        shutil.copy(srcfile, dstfile)
         os.chown(dstfile, slapd['user_uid'], slapd['group_gid'])
         os.chmod(dstfile, 0o440)
 
         # Copy in the certmap configuration
         srcfile = os.path.join(slapd['sysconf_dir'], 'dirsrv/config/certmap.conf')
         dstfile = os.path.join(slapd['config_dir'], 'certmap.conf')
-        shutil.copy2(srcfile, dstfile)
+        shutil.copy(srcfile, dstfile)
         os.chown(dstfile, slapd['user_uid'], slapd['group_gid'])
         os.chmod(dstfile, 0o440)
 
@@ -846,7 +856,7 @@ class SetupDs(object):
 
         # Should I move this import? I think this prevents some recursion
         from lib389 import DirSrv
-        ds_instance = DirSrv(self.verbose)
+        ds_instance = DirSrv(self.verbose, containerised=self.containerised)
         if self.containerised:
             ds_instance.systemd_override = general['systemd']
 
@@ -918,6 +928,9 @@ class SetupDs(object):
 
         # Start the server
         # Make changes using the temp root
+        self.log.debug(f"asan_enabled={ds_instance.has_asan()}")
+        self.log.debug(f"libfaketime installed ={'libfaketime' in sys.modules}")
+        assert_c(not ds_instance.has_asan() or 'libfaketime' not in sys.modules, "libfaketime python module is incompatible with ASAN build.")
         ds_instance.start(timeout=60)
         ds_instance.open()
 
@@ -941,7 +954,7 @@ class SetupDs(object):
             ds_instance.config.set('nsslapd-security', 'on')
 
         # Before we create any backends, create any extra default indexes that may be
-        # dynamicly provisioned, rather than from template-dse.ldif. Looking at you
+        # dynamically provisioned, rather than from template-dse.ldif. Looking at you
         # entryUUID (requires rust enabled).
         #
         # Indexes defaults to default_index_dn

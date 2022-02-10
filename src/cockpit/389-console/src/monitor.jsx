@@ -1,17 +1,7 @@
 import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "./lib/tools.jsx";
-import {
-    TreeView,
-    Spinner,
-    Row,
-    Col,
-    Icon,
-    noop,
-    ControlLabel
-} from "patternfly-react";
 import PropTypes from "prop-types";
-import SNMPMonitor from "./lib/monitor/snmpMonitor.jsx";
 import ServerMonitor from "./lib/monitor/serverMonitor.jsx";
 import DatabaseMonitor from "./lib/monitor/dbMonitor.jsx";
 import SuffixMonitor from "./lib/monitor/suffixMonitor.jsx";
@@ -21,11 +11,31 @@ import AuditLogMonitor from "./lib/monitor/auditlog.jsx";
 import AuditFailLogMonitor from "./lib/monitor/auditfaillog.jsx";
 import ErrorLogMonitor from "./lib/monitor/errorlog.jsx";
 import ReplMonitor from "./lib/monitor/replMonitor.jsx";
-import "./css/ds.css";
-
-const treeViewContainerStyles = {
-    width: '295px',
-};
+import {
+    FormSelect,
+    FormSelectOption,
+    Grid,
+    GridItem,
+    Spinner,
+    TreeView,
+    Text,
+    TextContent,
+    TextVariants,
+} from "@patternfly/react-core";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faBook,
+    faLeaf,
+    faLink,
+    faTree,
+    faSyncAlt
+} from '@fortawesome/free-solid-svg-icons';
+import {
+    CatalogIcon,
+    ClusterIcon,
+    DatabaseIcon,
+    TopologyIcon,
+} from '@patternfly/react-icons';
 
 export class Monitor extends React.Component {
     constructor(props) {
@@ -43,11 +53,18 @@ export class Monitor extends React.Component {
             disks: [],
             loadingMsg: "",
             disableTree: false,
+            activeItems: [{
+                name: "Database",
+                icon: <DatabaseIcon />,
+                id: "server-monitor",
+                type: "server",
+                children: [],
+                defaultExpanded: true,
+            }],
             // Suffix
             suffixLoading: false,
             serverLoading: false,
             ldbmLoading: false,
-            snmpLoading: false,
             chainingLoading: false,
             // replication
             replLoading: false,
@@ -56,68 +73,19 @@ export class Monitor extends React.Component {
             replRole: "",
             replRid: "",
             replicatedSuffixes: [],
-            // Access log
             accesslogLocation: "",
-            accesslogData: "",
-            accessReloading: false,
-            accesslog_cont_refresh: "",
-            accessRefreshing: false,
-            accessLines: "50",
-            // Audit log
-            auditlogLocation: "",
-            auditlogData: "",
-            auditReloading: false,
-            auditlog_cont_refresh: "",
-            auditRefreshing: false,
-            auditLines: "50",
-            // Audit Fail log
-            auditfaillogLocation: "",
-            auditfaillogData: "",
-            auditfailReloading: false,
-            auditfaillog_cont_refresh: "",
-            auditfailRefreshing: false,
-            auditfailLines: "50",
-            // Error log
             errorlogLocation: "",
-            errorlogData: "",
-            errorReloading: false,
-            errorlog_cont_refresh: "",
-            errorRefreshing: false,
-            errorSevLevel: "Everything",
-            errorLines: "50",
+            auditlogLocation: "",
+            auditfaillogLocation: "",
         };
-
-        // Build the log severity sev_levels
-        let sev_emerg = " - EMERG - ";
-        let sev_crit = " - CRIT - ";
-        let sev_alert = " - ALERT - ";
-        let sev_err = " - ERR - ";
-        let sev_warn = " - WARN - ";
-        let sev_notice = " - NOTICE - ";
-        let sev_info = " - INFO - ";
-        let sev_debug = " - DEBUG - ";
-        this.sev_levels = {
-            "Emergency": sev_emerg,
-            "Critical": sev_crit,
-            "Alert": sev_alert,
-            "Error": sev_err,
-            "Warning": sev_warn,
-            "Notice": sev_notice,
-            "Info": sev_info,
-            "Debug": sev_debug
-        };
-        this.sev_all_errs = [sev_emerg, sev_crit, sev_alert, sev_err];
-        this.sev_all_info = [sev_warn, sev_notice, sev_info, sev_debug];
 
         // Bindings
         this.loadSuffixTree = this.loadSuffixTree.bind(this);
         this.enableTree = this.enableTree.bind(this);
         this.update_tree_nodes = this.update_tree_nodes.bind(this);
-        this.selectNode = this.selectNode.bind(this);
-        this.loadMonitorSuffix = this.loadMonitorSuffix.bind(this);
+        this.handleTreeClick = this.handleTreeClick.bind(this);
         this.disableSuffixLoading = this.disableSuffixLoading.bind(this);
         this.loadMonitorLDBM = this.loadMonitorLDBM.bind(this);
-        this.reloadLDBM = this.reloadLDBM.bind(this);
         this.loadMonitorSNMP = this.loadMonitorSNMP.bind(this);
         this.reloadSNMP = this.reloadSNMP.bind(this);
         this.loadMonitorServer = this.loadMonitorServer.bind(this);
@@ -126,7 +94,7 @@ export class Monitor extends React.Component {
         this.loadDiskSpace = this.loadDiskSpace.bind(this);
         this.reloadDisks = this.reloadDisks.bind(this);
         // Replication
-        this.loadMonitorReplication = this.loadMonitorReplication.bind(this);
+        this.handleLoadMonitorReplication = this.handleLoadMonitorReplication.bind(this);
         this.loadCleanTasks = this.loadCleanTasks.bind(this);
         this.loadAbortTasks = this.loadAbortTasks.bind(this);
         this.loadReplicatedSuffixes = this.loadReplicatedSuffixes.bind(this);
@@ -138,19 +106,6 @@ export class Monitor extends React.Component {
         this.loadGlues = this.loadGlues.bind(this);
         // Logging
         this.loadMonitor = this.loadMonitor.bind(this);
-        this.refreshAccessLog = this.refreshAccessLog.bind(this);
-        this.refreshAuditLog = this.refreshAuditLog.bind(this);
-        this.refreshAuditFailLog = this.refreshAuditFailLog.bind(this);
-        this.refreshErrorLog = this.refreshErrorLog.bind(this);
-        this.handleAccessChange = this.handleAccessChange.bind(this);
-        this.handleAuditChange = this.handleAuditChange.bind(this);
-        this.handleAuditFailChange = this.handleAuditFailChange.bind(this);
-        this.handleErrorChange = this.handleErrorChange.bind(this);
-        this.accessRefreshCont = this.accessRefreshCont.bind(this);
-        this.auditRefreshCont = this.auditRefreshCont.bind(this);
-        this.auditFailRefreshCont = this.auditFailRefreshCont.bind(this);
-        this.errorRefreshCont = this.errorRefreshCont.bind(this);
-        this.handleSevChange = this.handleSevChange.bind(this);
     }
 
     componentDidUpdate(prevProps) {
@@ -165,6 +120,23 @@ export class Monitor extends React.Component {
         }
     }
 
+    processTree(suffixData) {
+        for (const suffix of suffixData) {
+            if (suffix.type === "suffix") {
+                suffix.icon = <FontAwesomeIcon size="sm" icon={faTree} />;
+            } else if (suffix.type === "subsuffix") {
+                suffix.icon = <FontAwesomeIcon size="sm" icon={faLeaf} />;
+            } else {
+                suffix.icon = <FontAwesomeIcon size="sm" icon={faLink} />;
+            }
+            if (suffix.children.length === 0) {
+                delete suffix.children;
+            } else {
+                this.processTree(suffix.children);
+            }
+        }
+    }
+
     loadSuffixTree(fullReset) {
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -174,85 +146,69 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let treeData = JSON.parse(content);
-                    let basicData = [
+                    const treeData = JSON.parse(content);
+                    this.processTree(treeData);
+                    const basicData = [
                         {
-                            text: "Database",
-                            selectable: true,
-                            selected: true,
-                            icon: "fa fa-database",
-                            state: {"expanded": true},
-                            id: "database-monitor",
-                            type: "database",
-                            nodes: []
+                            name: "Server Statistics",
+                            icon: <ClusterIcon />,
+                            id: "server-monitor",
+                            type: "server",
                         },
                         {
-                            text: "Logging",
-                            icon: "pficon-catalog",
-                            selectable: false,
+                            name: "Replication",
+                            icon: <TopologyIcon />,
+                            id: "replication-monitor",
+                            type: "replication",
+                        },
+                        {
+                            name: "Database",
+                            icon: <DatabaseIcon />,
+                            id: "database-monitor",
+                            type: "database",
+                            children: [],
+                            defaultExpanded: true,
+                        },
+                        {
+                            name: "Logging",
+                            icon: <CatalogIcon />,
                             id: "log-monitor",
-                            state: {"expanded": true},
-                            nodes: [
+                            defaultExpanded: true,
+                            children: [
                                 {
-                                    text: "Access Log",
-                                    icon: "glyphicon glyphicon-book",
-                                    selectable: true,
+                                    name: "Access Log",
+                                    icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                                     id: "access-log-monitor",
                                     type: "log",
                                 },
                                 {
-                                    text: "Audit Log",
-                                    icon: "glyphicon glyphicon-book",
-                                    selectable: true,
+                                    name: "Audit Log",
+                                    icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                                     id: "audit-log-monitor",
                                     type: "log",
                                 },
                                 {
-                                    text: "Audit Failure Log",
-                                    icon: "glyphicon glyphicon-book",
-                                    selectable: true,
+                                    name: "Audit Failure Log",
+                                    icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                                     id: "auditfail-log-monitor",
                                     type: "log",
                                 },
                                 {
-                                    text: "Errors Log",
-                                    icon: "glyphicon glyphicon-book",
-                                    selectable: true,
+                                    name: "Errors Log",
+                                    icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                                     id: "error-log-monitor",
                                     type: "log",
                                 },
                             ]
                         },
-                        {
-                            text: "Replication",
-                            selectable: true,
-                            icon: "pficon-topology",
-                            id: "replication-monitor",
-                            type: "replication",
-                        },
-                        {
-                            text: "Server Statistics",
-                            icon: "pficon-server",
-                            selectable: true,
-                            id: "server-monitor",
-                            type: "server",
-                        },
-                        {
-                            text: "SNMP Counters",
-                            icon: "glyphicon glyphicon-list-alt",
-                            selectable: true,
-                            id: "snmp-monitor",
-                            type: "snmp",
-                        },
-
                     ];
                     let current_node = this.state.node_name;
                     let type = this.state.node_type;
                     if (fullReset) {
-                        current_node = "database-monitor";
-                        type = "database";
+                        current_node = "server-monitor";
+                        type = "server";
                     }
-                    basicData[0].nodes = treeData;
+                    basicData[2].children = treeData; // database node
                     this.setState(() => ({
                         nodes: basicData,
                         node_name: current_node,
@@ -261,137 +217,135 @@ export class Monitor extends React.Component {
                 });
     }
 
-    selectNode(selectedNode) {
-        if (selectedNode.selected) {
+    handleTreeClick(evt, treeViewItem, parentItem) {
+        if (treeViewItem.id === "log-monitor") {
+            return;
+        }
+        if (this.state.activeItems.length === 0 || treeViewItem === this.state.activeItems[0]) {
+            this.setState({
+                activeItems: [treeViewItem, parentItem]
+            });
             return;
         }
         this.setState({
             disableTree: true, // Disable the tree to allow node to be fully loaded
         });
 
-        if (selectedNode.id == "database-monitor" ||
-            selectedNode.id == "server-monitor" ||
-            selectedNode.id == "snmp-monitor") {
+        if (treeViewItem.id === "database-monitor" ||
+            treeViewItem.id === "server-monitor") {
             // Nothing special to do, these configurations have already been loaded
             this.setState(prevState => {
                 return {
-                    nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                    node_name: selectedNode.id,
-                    node_text: selectedNode.text,
+                    activeItems: [treeViewItem, parentItem],
+                    node_name: treeViewItem.id,
+                    node_text: treeViewItem.name,
+                    node_type: treeViewItem.type,
+                    disableTree: false,
                     bename: "",
                 };
             });
-        } else if (selectedNode.id == "access-log-monitor") {
-            this.refreshAccessLog();
+        } else if (treeViewItem.id === "access-log-monitor") {
             this.setState(prevState => {
                 return {
-                    nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                    node_name: selectedNode.id,
-                    node_text: selectedNode.text,
+                    activeItems: [treeViewItem, parentItem],
+                    node_name: treeViewItem.id,
+                    node_text: treeViewItem.name,
+                    node_type: treeViewItem.type,
+                    bename: "",
                 };
             });
-        } else if (selectedNode.id == "audit-log-monitor") {
-            this.refreshAuditLog();
+        } else if (treeViewItem.id === "audit-log-monitor") {
             this.setState(prevState => {
                 return {
-                    nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                    node_name: selectedNode.id,
-                    node_text: selectedNode.text,
+                    activeItems: [treeViewItem, parentItem],
+                    node_name: treeViewItem.id,
+                    node_text: treeViewItem.name,
+                    node_type: treeViewItem.type,
+                    bename: "",
                 };
             });
-        } else if (selectedNode.id == "auditfail-log-monitor") {
-            this.refreshAuditFailLog();
+        } else if (treeViewItem.id === "auditfail-log-monitor") {
             this.setState(prevState => {
                 return {
-                    nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                    node_name: selectedNode.id,
-                    node_text: selectedNode.text,
+                    activeItems: [treeViewItem, parentItem],
+                    node_name: treeViewItem.id,
+                    node_text: treeViewItem.name,
+                    node_type: treeViewItem.type,
+                    bename: "",
                 };
             });
-        } else if (selectedNode.id == "error-log-monitor") {
-            this.refreshErrorLog();
+        } else if (treeViewItem.id === "error-log-monitor") {
             this.setState(prevState => {
                 return {
-                    nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                    node_name: selectedNode.id,
-                    node_text: selectedNode.text,
+                    activeItems: [treeViewItem, parentItem],
+                    node_name: treeViewItem.id,
+                    node_text: treeViewItem.name,
+                    node_type: treeViewItem.type,
+                    bename: "",
                 };
             });
-        } else if (selectedNode.id == "replication-monitor") {
+        } else if (treeViewItem.id === "replication-monitor") {
             if (!this.state.replInitLoaded) {
-                this.loadMonitorReplication();
+                this.handleLoadMonitorReplication();
             }
             this.setState(prevState => {
                 return {
-                    nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                    node_name: selectedNode.id,
-                    node_text: selectedNode.text,
+                    activeItems: [treeViewItem, parentItem],
+                    node_name: treeViewItem.id,
+                    node_text: treeViewItem.name,
+                    node_type: treeViewItem.type,
+                    bename: "",
                 };
             });
         } else {
-            if (selectedNode.id in this.state &&
-                ("chainingData" in this.state[selectedNode.id] ||
-                 "suffixData" in this.state[selectedNode.id])
+            if (treeViewItem.id in this.state &&
+                ("chainingData" in this.state[treeViewItem.id] ||
+                 "suffixData" in this.state[treeViewItem.id])
             ) {
                 // This suffix is already cached
                 this.setState(prevState => {
                     return {
-                        nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                        node_name: selectedNode.id,
-                        node_text: selectedNode.text,
-                        node_type: selectedNode.type,
-                        bename: selectedNode.be,
+                        activeItems: [treeViewItem, parentItem],
+                        node_name: treeViewItem.id,
+                        node_text: treeViewItem.name,
+                        node_type: treeViewItem.type,
+                        disableTree: false,
+                        bename: treeViewItem.be,
                     };
                 });
             } else {
                 // Load this suffix (db, chaining & replication)
-                if (selectedNode.type == "dblink") {
+                if (treeViewItem.type === "dblink") {
                     // Chaining
-                    this.loadMonitorChaining(selectedNode.id);
-                } else {
-                    // Suffix
-                    this.loadMonitorSuffix(selectedNode.id);
+                    this.loadMonitorChaining(treeViewItem.id);
                 }
                 this.setState(prevState => {
                     return {
-                        nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                        node_name: selectedNode.id,
-                        node_text: selectedNode.text,
-                        node_type: selectedNode.type,
-                        bename: selectedNode.be,
+                        activeItems: [treeViewItem, parentItem],
+                        node_name: treeViewItem.id,
+                        node_text: treeViewItem.name,
+                        node_type: treeViewItem.type,
+                        bename: treeViewItem.be,
                     };
                 });
             }
         }
     }
 
-    nodeSelector(nodes, targetNode) {
-        return nodes.map(node => {
-            if (node.nodes) {
-                return {
-                    ...node,
-                    nodes: this.nodeSelector(node.nodes, targetNode),
-                    selected: node.id === targetNode.id ? !node.selected : false
-                };
-            } else if (node.id === targetNode.id) {
-                return { ...node, selected: !node.selected };
-            } else if (node.id !== targetNode.id && node.selected) {
-                return { ...node, selected: false };
-            } else {
-                return node;
-            }
-        });
-    }
-
     update_tree_nodes() {
-        // Set title to the text value of each suffix node.  We need to do this
-        // so we can read long suffixes in the UI tree div
-        let elements = document.getElementsByClassName('treeitem-row');
-        for (let el of elements) {
-            el.setAttribute('title', el.innerText);
-        }
+        // Enable the tree, and update the titles
         this.setState({
-            loaded: true
+            loaded: true,
+            disableTree: false,
+        }, () => {
+            const className = 'pf-c-tree-view__list-item';
+            const element = document.getElementById("monitor-tree");
+            if (element) {
+                const elements = element.getElementsByClassName(className);
+                for (const el of elements) {
+                    el.setAttribute('title', el.innerText);
+                }
+            }
         });
     }
 
@@ -408,7 +362,7 @@ export class Monitor extends React.Component {
                 firstLoad: false
             });
         }
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get", "nsslapd-auditlog", "nsslapd-accesslog", "nsslapd-errorlog", "nsslapd-auditfaillog"
         ];
@@ -416,7 +370,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         accesslogLocation: config.attrs['nsslapd-accesslog'][0],
                         auditlogLocation: config.attrs['nsslapd-auditlog'][0],
@@ -428,7 +382,7 @@ export class Monitor extends React.Component {
 
     loadReplicatedSuffixes() {
         // Load replicated suffix to populate the dropdown select list
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "list"
         ];
@@ -436,7 +390,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     let replSuffix = "";
                     if (config.items.length > 0) {
                         replSuffix = config.items[0];
@@ -449,7 +403,7 @@ export class Monitor extends React.Component {
     }
 
     loadMonitorLDBM() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "ldbm"
         ];
@@ -457,35 +411,15 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         ldbmData: config.attrs
                     });
                 }, this.loadMonitorServer());
     }
 
-    reloadLDBM() {
-        this.setState({
-            ldbmLoading: true
-        });
-        let cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "monitor", "ldbm"
-        ];
-        log_cmd("reloadLDBM", "Load database monitor", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    let config = JSON.parse(content);
-                    this.setState({
-                        ldbmLoading: false,
-                        ldbmData: config.attrs
-                    });
-                });
-    }
-
     loadMonitorServer() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "server"
         ];
@@ -493,7 +427,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         serverData: config.attrs
                     });
@@ -504,7 +438,7 @@ export class Monitor extends React.Component {
         this.setState({
             serverLoading: true
         });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "server"
         ];
@@ -512,7 +446,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         serverLoading: false,
                         serverData: config.attrs
@@ -521,7 +455,7 @@ export class Monitor extends React.Component {
     }
 
     loadMonitorSNMP() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "snmp"
         ];
@@ -529,7 +463,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         snmpData: config.attrs,
                     }, this.loadSuffixTree(true));
@@ -537,7 +471,7 @@ export class Monitor extends React.Component {
     }
 
     loadDiskSpace() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "disk"
         ];
@@ -545,18 +479,19 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let disks = JSON.parse(content);
-                    for (let disk of disks.items) {
-                        disk.used = disk.used + " (" + disk.percent + "%)";
+                    const disks = JSON.parse(content);
+                    const rows = [];
+                    for (const disk of disks.items) {
+                        rows.push([disk.mount, disk.size, disk.used + " (" + disk.percent + "%)", disk.avail]);
                     }
                     this.setState({
-                        disks: disks.items
+                        disks: rows,
                     });
                 }, this.loadMonitorLDBM());
     }
 
     reloadDisks () {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "disk"
         ];
@@ -564,21 +499,19 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let disks = JSON.parse(content);
-                    for (let disk of disks.items) {
-                        disk.used = disk.used + " (" + disk.percent + "%)";
+                    const disks = JSON.parse(content);
+                    const rows = [];
+                    for (const disk of disks.items) {
+                        rows.push([disk.mount, disk.size, disk.used + " (" + disk.percent + "%)", disk.avail]);
                     }
                     this.setState({
-                        disks: disks.items,
+                        disks: rows,
                     });
                 });
     }
 
     reloadSNMP() {
-        this.setState({
-            snmpLoading: true
-        });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "snmp"
         ];
@@ -586,9 +519,8 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
-                        snmpLoading: false,
                         snmpData: config.attrs,
                     });
                 });
@@ -599,7 +531,7 @@ export class Monitor extends React.Component {
             chainingLoading: true
         });
 
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "chaining", suffix
         ];
@@ -607,7 +539,7 @@ export class Monitor extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [suffix]: {
                             ...this.state[suffix],
@@ -630,43 +562,14 @@ export class Monitor extends React.Component {
         });
     }
 
-    loadMonitorSuffix(suffix) {
-        this.setState({
-            suffixLoading: true
-        });
-
-        let cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "monitor", "backend", suffix
-        ];
-        log_cmd("loadMonitorSuffix", "Load suffix monitor", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    let config = JSON.parse(content);
-                    this.setState({
-                        [suffix]: {
-                            ...this.state[suffix],
-                            suffixData: config.attrs,
-                        },
-                    }, this.disableSuffixLoading);
-                })
-                .fail(() => {
-                    // Notification of failure (could only be server down)
-                    this.setState({
-                        suffixLoading: false,
-                    });
-                });
-    }
-
     loadCleanTasks() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-tasks", "list-cleanruv-tasks", "--suffix=" + this.state.replSuffix];
         log_cmd("loadCleanTasks", "Load clean tasks", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -683,13 +586,13 @@ export class Monitor extends React.Component {
     }
 
     loadAbortTasks() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-tasks", "list-abortruv-tasks", "--suffix=" + this.state.replSuffix];
         log_cmd("loadAbortCleanTasks", "Load abort tasks", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -706,13 +609,13 @@ export class Monitor extends React.Component {
     }
 
     loadConflicts() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-conflict", "list", this.state.replSuffix];
         log_cmd("loadConflicts", "Load conflict entries", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -730,13 +633,13 @@ export class Monitor extends React.Component {
     }
 
     loadGlues() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-conflict", "list-glue", this.state.replSuffix];
         log_cmd("loadGlues", "Load glue entries", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -757,13 +660,13 @@ export class Monitor extends React.Component {
     }
 
     loadWinsyncAgmts() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "winsync-status", "--suffix=" + this.state.replSuffix];
         log_cmd("loadWinsyncAgmts", "Load winsync agmt status", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -779,21 +682,21 @@ export class Monitor extends React.Component {
                 });
     }
 
-    loadMonitorReplication() {
-        let replSuffix = this.state.replSuffix;
-        if (replSuffix != "") {
+    handleLoadMonitorReplication() {
+        const replSuffix = this.state.replSuffix;
+        if (replSuffix !== "") {
             this.setState({
                 replLoading: true
             });
 
             // Now load the agmts
-            let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                 "replication", "status", "--suffix=" + replSuffix];
-            log_cmd("loadMonitorReplication", "Load replication agmts", cmd);
+            log_cmd("handleLoadMonitorReplication", "Load replication agmts", cmd);
             cockpit
                     .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
-                        let config = JSON.parse(content);
+                        const config = JSON.parse(content);
                         this.setState({
                             [replSuffix]: {
                                 ...this.state[replSuffix],
@@ -817,13 +720,13 @@ export class Monitor extends React.Component {
     }
 
     reloadReplAgmts() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "status", "--suffix=" + this.state.replSuffix];
         log_cmd("reloadReplAgmts", "Load replication agmts", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -834,13 +737,13 @@ export class Monitor extends React.Component {
     }
 
     reloadReplWinsyncAgmts() {
-        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "winsync-status", "--suffix=" + this.state.replSuffix];
         log_cmd("reloadReplWinsyncAgmts", "Load winysnc agmts", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     this.setState({
                         [this.state.replSuffix]: {
                             ...this.state[this.state.replSuffix],
@@ -850,190 +753,14 @@ export class Monitor extends React.Component {
                 });
     }
 
-    refreshAccessLog () {
-        this.setState({
-            accessReloading: true
-        });
-        let cmd = ["tail", "-" + this.state.accessLines, this.state.accesslogLocation];
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.setState(() => ({
-                        accesslogData: content,
-                        accessReloading: false
-                    }));
-                });
-    }
-
-    refreshAuditLog () {
-        this.setState({
-            auditReloading: true
-        });
-        let cmd = ["tail", "-" + this.state.auditLines, this.state.auditlogLocation];
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.setState(() => ({
-                        auditlogData: content,
-                        auditReloading: false
-                    }));
-                });
-    }
-
-    refreshAuditFailLog () {
-        this.setState({
-            auditfailReloading: true
-        });
-        let cmd = ["tail", "-" + this.state.auditfailLines, this.state.auditfaillogLocation];
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.setState(() => ({
-                        auditfaillogData: content,
-                        auditfailReloading: false
-                    }));
-                });
-    }
-
-    refreshErrorLog () {
-        this.setState({
-            errorReloading: true
-        });
-
-        let cmd = ["tail", "-" + this.state.errorLines, this.state.errorlogLocation];
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(data => {
-                    if (this.state.errorSevLevel != "Everything") {
-                        // Filter Data
-                        let lines = data.split('\n');
-                        let new_data = "";
-                        for (let i = 0; i < lines.length; i++) {
-                            let line = "";
-                            if (this.state.errorSevLevel == "Error Messages") {
-                                for (let lev of this.sev_all_errs) {
-                                    if (lines[i].indexOf(lev) != -1) {
-                                        line = lines[i] + "\n";
-                                    }
-                                }
-                            } else if (this.state.errorSevLevel == "Info Messages") {
-                                for (let lev of this.sev_all_info) {
-                                    if (lines[i].indexOf(lev) != -1) {
-                                        line = lines[i] + "\n";
-                                    }
-                                }
-                            } else if (lines[i].indexOf(this.sev_levels[this.state.errorSevLevel]) != -1) {
-                                line = lines[i] + "\n";
-                            }
-                            // Add the filtered line to new data
-                            new_data += line;
-                        }
-                        data = new_data;
-                    }
-
-                    this.setState(() => ({
-                        errorlogData: data,
-                        errorReloading: false
-                    }));
-                });
-    }
-
-    accessRefreshCont(e) {
-        if (e.target.checked) {
-            this.state.accesslog_cont_refresh = setInterval(this.refreshAccessLog, 2000);
-        } else {
-            clearInterval(this.state.accesslog_cont_refresh);
-        }
-        this.setState({
-            accessRefreshing: e.target.checked,
-        });
-    }
-
-    auditRefreshCont(e) {
-        if (e.target.checked) {
-            this.state.auditlog_cont_refresh = setInterval(this.refreshAuditLog, 2000);
-        } else {
-            clearInterval(this.state.auditlog_cont_refresh);
-        }
-        this.setState({
-            auditRefreshing: e.target.checked,
-        });
-    }
-
-    auditFailRefreshCont(e) {
-        if (e.target.checked) {
-            this.state.auditfaillog_cont_refresh = setInterval(this.refreshAuditFailLog, 2000);
-        } else {
-            clearInterval(this.state.auditfaillog_cont_refresh);
-        }
-        this.setState({
-            auditfailRefreshing: e.target.checked,
-        });
-    }
-
-    errorRefreshCont(e) {
-        if (e.target.checked) {
-            this.state.errorlog_cont_refresh = setInterval(this.refreshErrorLog, 2000);
-        } else {
-            clearInterval(this.state.errorlog_cont_refresh);
-        }
-        this.setState({
-            errorRefreshing: e.target.checked,
-        });
-    }
-
-    handleAccessChange(e) {
-        let value = e.target.value;
-        this.setState(() => (
-            {
-                accessLines: value
-            }
-        ), this.refreshAccessLog);
-    }
-
-    handleAuditChange(e) {
-        let value = e.target.value;
-        this.setState(() => (
-            {
-                auditLines: value
-            }
-        ), this.refreshAuditLog);
-    }
-
-    handleAuditFailChange(e) {
-        let value = e.target.value;
-        this.setState(() => (
-            {
-                auditfailLines: value
-            }
-        ), this.refreshAuditFailLog);
-    }
-
-    handleErrorChange(e) {
-        let value = e.target.value;
-        this.setState(() => (
-            {
-                errorLines: value
-            }
-        ), this.refreshErrorLog);
-    }
-
-    handleSevChange(e) {
-        const value = e.target.value;
-
-        this.setState({
-            errorSevLevel: value,
-        }, this.refreshErrorLog);
-    }
-
     replSuffixChange(e) {
-        let value = e.target.value;
+        const value = e.target.value;
         this.setState(() => (
             {
                 replSuffix: value,
                 replLoading: true
             }
-        ), this.loadMonitorReplication);
+        ), this.handleLoadMonitorReplication);
     }
 
     enableTree () {
@@ -1052,29 +779,35 @@ export class Monitor extends React.Component {
         }
 
         if (this.state.loaded) {
-            if (this.state.node_name == "database-monitor" || this.state.node_name == "") {
+            if (this.state.node_name === "database-monitor" || this.state.node_name === "") {
                 if (this.state.ldbmLoading) {
                     monitor_element =
-                        <div className="ds-loading-spinner ds-center">
-                            <p />
-                            <h4>Loading database monitor information ...</h4>
-                            <Spinner className="ds-margin-top-lg" loading size="md" />
+                        <div className="ds-margin-top-xlg ds-center">
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Loading Database Monitor Information ...
+                                </Text>
+                            </TextContent>
+                            <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
                     monitor_element =
                         <DatabaseMonitor
                             data={this.state.ldbmData}
-                            reload={this.reloadLDBM}
                             enableTree={this.enableTree}
+                            serverId={this.props.serverId}
                         />;
                 }
-            } else if (this.state.node_name == "server-monitor") {
+            } else if (this.state.node_name === "server-monitor") {
                 if (this.state.serverLoading) {
                     monitor_element =
-                        <div className="ds-loading-spinner ds-center">
-                            <p />
-                            <h4>Loading server monitor information ...</h4>
-                            <Spinner className="ds-margin-top-lg" loading size="md" />
+                        <div className="ds-margin-top-xlg ds-center">
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Loading Server Monitor Information ...
+                                </Text>
+                            </TextContent>
+                            <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
                     monitor_element =
@@ -1084,81 +817,45 @@ export class Monitor extends React.Component {
                             serverId={this.props.serverId}
                             disks={this.state.disks}
                             reloadDisks={this.reloadDisks}
+                            snmpData={this.state.snmpData}
+                            snmpReload={this.reloadSNMP}
                             enableTree={this.enableTree}
                         />;
                 }
-            } else if (this.state.node_name == "snmp-monitor") {
-                if (this.state.snmpLoading) {
-                    monitor_element =
-                        <div className="ds-loading-spinner ds-center">
-                            <p />
-                            <h4>Loading SNMP monitor information ...</h4>
-                            <Spinner className="ds-margin-top-lg" loading size="md" />
-                        </div>;
-                } else {
-                    monitor_element =
-                        <SNMPMonitor
-                            data={this.state.snmpData}
-                            reload={this.reloadSNMP}
-                            enableTree={this.enableTree}
-                        />;
-                }
-            } else if (this.state.node_name == "access-log-monitor") {
+            } else if (this.state.node_name === "access-log-monitor") {
                 monitor_element =
                     <AccessLogMonitor
-                        data={this.state.accesslogData}
-                        handleChange={this.handleAccessChange}
-                        reload={this.refreshAccessLog}
-                        reloading={this.state.accessReloading}
-                        refreshing={this.state.accessRefreshing}
-                        handleRefresh={this.accessRefreshCont}
-                        lines={this.state.accessLines}
+                        logLocation={this.state.accesslogLocation}
                         enableTree={this.enableTree}
                     />;
-            } else if (this.state.node_name == "audit-log-monitor") {
+            } else if (this.state.node_name === "audit-log-monitor") {
                 monitor_element =
                     <AuditLogMonitor
-                        data={this.state.auditlogData}
-                        handleChange={this.handleAuditChange}
-                        reload={this.refreshAuditLog}
-                        reloading={this.state.auditReloading}
-                        refreshing={this.state.auditRefreshing}
-                        handleRefresh={this.auditRefreshCont}
-                        lines={this.state.auditLines}
+                        logLocation={this.state.auditlogLocation}
                         enableTree={this.enableTree}
                     />;
-            } else if (this.state.node_name == "auditfail-log-monitor") {
+            } else if (this.state.node_name === "auditfail-log-monitor") {
                 monitor_element =
                     <AuditFailLogMonitor
-                        data={this.state.auditfaillogData}
-                        handleChange={this.handleAuditFailChange}
-                        reload={this.refreshAuditFailLog}
-                        reloading={this.state.auditfailReloading}
-                        refreshing={this.state.auditfailRefreshing}
-                        handleRefresh={this.auditFailRefreshCont}
-                        lines={this.state.auditfailLines}
+                        logLocation={this.state.auditfaillogLocation}
                         enableTree={this.enableTree}
                     />;
-            } else if (this.state.node_name == "error-log-monitor") {
+            } else if (this.state.node_name === "error-log-monitor") {
                 monitor_element =
                     <ErrorLogMonitor
-                        data={this.state.errorlogData}
-                        handleChange={this.handleErrorChange}
-                        reload={this.refreshErrorLog}
-                        reloading={this.state.errorReloading}
-                        refreshing={this.state.errorRefreshing}
-                        handleRefresh={this.errorRefreshCont}
-                        handleSevLevel={this.handleSevChange}
-                        lines={this.state.errorLines}
+                        logLocation={this.state.errorlogLocation}
                         enableTree={this.enableTree}
                     />;
-            } else if (this.state.node_name == "replication-monitor") {
+            } else if (this.state.node_name === "replication-monitor") {
                 if (this.state.replLoading) {
                     monitor_element =
-                        <div className="ds-loading-spinner ds-center">
-                            <p />
-                            <h4>Loading replication monitor information ...</h4>
-                            <Spinner className="ds-margin-top-lg" loading size="md" />
+                        <div className="ds-margin-top-xlg ds-center">
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Loading Replication Monitor Information ...
+                                </Text>
+                            </TextContent>
+                            <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
                     if (this.state.replicatedSuffixes.length < 1) {
@@ -1167,24 +864,39 @@ export class Monitor extends React.Component {
                                 <p>There are no suffixes that have been configured for replication</p>
                             </div>;
                     } else {
-                        let suffixList = this.state.replicatedSuffixes.map((suffix) =>
-                            <option key={suffix} value={suffix}>{suffix}</option>
+                        const suffixList = this.state.replicatedSuffixes.map((suffix) =>
+                            <FormSelectOption key={suffix} value={suffix} label={suffix} />
                         );
                         monitor_element =
                             <div>
-                                <Row>
-                                    <Col sm={12}>
-                                        <ControlLabel className="ds-header">Replication Monitoring</ControlLabel>
-                                        <select className="ds-left-indent" defaultValue={this.state.replSuffix} onChange={this.replSuffixChange}>
+                                <div className="ds-container">
+                                    <TextContent>
+                                        <Text component={TextVariants.h3}>
+                                            Replication Monitoring
+                                            <FontAwesomeIcon
+                                                size="lg"
+                                                className="ds-left-margin ds-refresh"
+                                                icon={faSyncAlt}
+                                                title="Refresh replication monitor"
+                                                onClick={this.handleLoadMonitorReplication}
+                                            />
+                                        </Text>
+                                    </TextContent>
+                                </div>
+                                <Grid className="ds-margin-top">
+                                    <GridItem span={5}>
+                                        <FormSelect
+                                            value={this.state.replSuffix}
+                                            onChange={(value, event) => {
+                                                this.replSuffixChange(event);
+                                            }}
+                                            aria-label="FormSelect Input"
+                                        >
                                             {suffixList}
-                                        </select>
-                                        <Icon className="ds-left-margin ds-refresh"
-                                            type="fa" name="refresh" title="Refresh replication monitor"
-                                            onClick={() => this.loadMonitorReplication()}
-                                        />
-                                    </Col>
-                                </Row>
-                                <div className="ds-margin-top-med">
+                                        </FormSelect>
+                                    </GridItem>
+                                </Grid>
+                                <div className="ds-margin-top-xlg">
                                     <ReplMonitor
                                         suffix={this.state.replSuffix}
                                         serverId={this.props.serverId}
@@ -1200,24 +912,20 @@ export class Monitor extends React.Component {
                             </div>;
                     }
                 }
-            } else if (this.state.node_name != "") {
+            } else if (this.state.node_name !== "") {
                 // suffixes (example)
-                if (this.state.suffixLoading) {
+                if (this.state.chainingLoading) {
                     monitor_element =
-                        <div className="ds-loading-spinner ds-center">
-                            <p />
-                            <h4>Loading suffix monitor information for <b>{this.state.node_text} ...</b></h4>
-                            <Spinner className="ds-margin-top-lg" loading size="md" />
-                        </div>;
-                } else if (this.state.chainingLoading) {
-                    monitor_element =
-                        <div className="ds-loading-spinner ds-center">
-                            <p />
-                            <h4>Loading chaining monitor information for <b>{this.state.node_text} ...</b></h4>
-                            <Spinner className="ds-margin-top-lg" loading size="md" />
+                        <div className="ds-margin-top-xlg ds-center">
+                            <TextContent>
+                                <Text component={TextVariants.h3}>
+                                    Loading Chaining Monitor Information For <b>{this.state.node_text} ...</b>
+                                </Text>
+                            </TextContent>
+                            <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
-                    if (this.state.node_type == "dblink") {
+                    if (this.state.node_type === "dblink") {
                         monitor_element =
                             <ChainingMonitor
                                 suffix={this.state.node_text}
@@ -1231,12 +939,12 @@ export class Monitor extends React.Component {
                         // Suffix
                         monitor_element =
                             <SuffixMonitor
+                                serverId={this.props.serverId}
                                 suffix={this.state.node_text}
                                 bename={this.state.bename}
-                                reload={this.loadMonitorSuffix}
-                                data={this.state[this.state.node_text].suffixData}
                                 enableTree={this.enableTree}
                                 key={this.state.node_text}
+                                addNotification={this.props.addNotification}
                             />;
                     }
                 }
@@ -1246,14 +954,11 @@ export class Monitor extends React.Component {
                     <div className="ds-container">
                         <div>
                             <div className="ds-tree">
-                                <div className={disabled} id="monitor-tree"
-                                    style={treeViewContainerStyles}>
+                                <div className={disabled} id="monitor-tree">
                                     <TreeView
-                                        nodes={nodes}
-                                        highlightOnHover
-                                        highlightOnSelect
-                                        selectNode={this.selectNode}
-                                        key={this.state.node_text}
+                                        data={nodes}
+                                        activeItems={this.state.activeItems}
+                                        onSelect={this.handleTreeClick}
                                     />
                                 </div>
                             </div>
@@ -1265,10 +970,13 @@ export class Monitor extends React.Component {
                 </div>;
         } else {
             monitorPage =
-                <div className="ds-loading-spinner ds-center">
-                    <p />
-                    <h4>Loading monitor information ...</h4>
-                    <Spinner className="ds-margin-top-lg" loading size="md" />
+                <div className="ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading Monitor Information ...
+                        </Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top-lg" size="xl" />
                 </div>;
         }
 
@@ -1288,6 +996,5 @@ Monitor.propTypes = {
 };
 
 Monitor.defaultProps = {
-    addNotification: noop,
     serverId: ""
 };

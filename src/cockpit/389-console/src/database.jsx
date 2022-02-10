@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "./lib/tools.jsx";
+import { log_cmd, valid_dn } from "./lib/tools.jsx";
 import {
     ChainingConfig,
     ChainingDatabaseConfig
@@ -11,29 +11,44 @@ import { Backups } from "./lib/database/backups.jsx";
 import { GlobalPwPolicy } from "./lib/database/globalPwp.jsx";
 import { LocalPwPolicy } from "./lib/database/localPwp.jsx";
 import {
-    Modal,
-    Icon,
-    Form,
-    Row,
-    Col,
-    ControlLabel,
     Button,
-    noop,
+    Form,
+    FormGroup,
+    FormSelect,
+    FormSelectOption,
+    FormHelperText,
+    Modal,
+    ModalVariant,
+    Spinner,
+    TextInput,
     TreeView,
-    Radio,
-    Spinner
-} from "patternfly-react";
+    Text,
+    TextContent,
+    TextVariants,
+} from "@patternfly/react-core";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faLeaf,
+    faTree,
+    faLink
+} from '@fortawesome/free-solid-svg-icons';
+import {
+    CatalogIcon,
+    CogIcon,
+    CopyIcon,
+    HomeIcon,
+    ExternalLinkAltIcon,
+    KeyIcon,
+    UsersIcon,
+} from '@patternfly/react-icons';
 import PropTypes from "prop-types";
-import "./css/ds.css";
+import ExclamationCircleIcon from '@patternfly/react-icons/dist/js/icons/exclamation-circle-icon';
 
 const DB_CONFIG = "dbconfig";
 const CHAINING_CONFIG = "chaining-config";
 const BACKUP_CONFIG = "backups";
 const PWP_CONFIG = "pwpolicy";
 const LOCAL_PWP_CONFIG = "localpwpolicy";
-const treeViewContainerStyles = {
-    width: '295px',
-};
 
 export class Database extends React.Component {
     constructor(props) {
@@ -45,13 +60,22 @@ export class Database extends React.Component {
             node_name: "",
             node_text: "",
             dbtype: "",
+            activeItems: [
+                {
+                    name: "Global Database Configuration",
+                    icon: <CogIcon />,
+                    id: "dbconfig",
+                }
+            ],
             showSuffixModal: false,
             createSuffix: "",
             createBeName: "",
+            createNotOK: true,
             createSuffixEntry: false,
             createSampleEntries: false,
             noSuffixInit: true,
             disableTree: false,
+            createInitOption: "noInit",
 
             // DB config
             globalDBConfig: {},
@@ -59,31 +83,35 @@ export class Database extends React.Component {
             // Chaining Config
             chainingConfig: {},
             chainingUpdated: 0,
+            chainingActiveKey: 0,
             // Chaining Link
             chainingLoading: false,
             // Suffix
             suffixLoading: false,
+            modalSpinning: false,
             attributes: [],
             // Loaded suffix configurations
             suffix: {},
             // Other
+            vlvTableKey: 0,
             LDIFRows: [],
             BackupRows: [],
+            backupRefreshing: false,
             suffixList: [],
             loaded: false,
         };
 
         // General
-        this.selectNode = this.selectNode.bind(this);
-        this.handleChange = this.handleChange.bind(this);
-        this.handleRadioChange = this.handleRadioChange.bind(this);
+        this.handleTreeClick = this.handleTreeClick.bind(this);
+        this.onHandleChange = this.onHandleChange.bind(this);
+        this.onHandleSelectChange = this.onHandleSelectChange.bind(this);
         this.loadGlobalConfig = this.loadGlobalConfig.bind(this);
         this.loadLDIFs = this.loadLDIFs.bind(this);
         this.loadBackups = this.loadBackups.bind(this);
         this.loadSuffixList = this.loadSuffixList.bind(this);
 
         // Suffix
-        this.showSuffixModal = this.showSuffixModal.bind(this);
+        this.handleShowSuffixModal = this.handleShowSuffixModal.bind(this);
         this.closeSuffixModal = this.closeSuffixModal.bind(this);
         this.createSuffix = this.createSuffix.bind(this);
         this.loadSuffix = this.loadSuffix.bind(this);
@@ -136,7 +164,7 @@ export class Database extends React.Component {
                 .done(content => {
                     const suffixList = JSON.parse(content);
                     this.setState(() => (
-                        {suffixList: suffixList.items}
+                        { suffixList: suffixList.items }
                     ));
                 });
     }
@@ -161,15 +189,15 @@ export class Database extends React.Component {
                     let dbhome = "";
 
                     if ('nsslapd-db-home-directory' in attrs) {
-                        dbhome = attrs['nsslapd-db-home-directory'];
+                        dbhome = attrs['nsslapd-db-home-directory'][0];
                     }
-                    if (attrs['nsslapd-cache-autosize'] != "0") {
+                    if (attrs['nsslapd-cache-autosize'][0] !== "0") {
                         db_cache_auto = true;
                     }
-                    if (attrs['nsslapd-import-cache-autosize'] != "0") {
+                    if (attrs['nsslapd-import-cache-autosize'][0] !== "0") {
                         import_cache_auto = true;
                     }
-                    if (attrs['nsslapd-db-locks-monitoring-enabled'][0] == "on") {
+                    if (attrs['nsslapd-db-locks-monitoring-enabled'][0] === "on") {
                         dblocksMonitoring = true;
                     }
 
@@ -180,31 +208,31 @@ export class Database extends React.Component {
                                     loading: false,
                                     db_cache_auto: db_cache_auto,
                                     import_cache_auto: import_cache_auto,
-                                    looklimit: attrs['nsslapd-lookthroughlimit'],
-                                    idscanlimit: attrs['nsslapd-idlistscanlimit'],
-                                    pagelooklimit: attrs['nsslapd-pagedlookthroughlimit'],
-                                    pagescanlimit: attrs['nsslapd-pagedidlistscanlimit'],
-                                    rangelooklimit: attrs['nsslapd-rangelookthroughlimit'],
-                                    autosize: attrs['nsslapd-cache-autosize'],
-                                    autosizesplit: attrs['nsslapd-cache-autosize-split'],
-                                    dbcachesize: attrs['nsslapd-dbcachesize'],
-                                    txnlogdir: attrs['nsslapd-db-logdirectory'],
+                                    looklimit: attrs['nsslapd-lookthroughlimit'][0],
+                                    idscanlimit: attrs['nsslapd-idlistscanlimit'][0],
+                                    pagelooklimit: attrs['nsslapd-pagedlookthroughlimit'][0],
+                                    pagescanlimit: attrs['nsslapd-pagedidlistscanlimit'][0],
+                                    rangelooklimit: attrs['nsslapd-rangelookthroughlimit'][0],
+                                    autosize: attrs['nsslapd-cache-autosize'][0],
+                                    autosizesplit: attrs['nsslapd-cache-autosize-split'][0],
+                                    dbcachesize: attrs['nsslapd-dbcachesize'][0],
+                                    txnlogdir: attrs['nsslapd-db-logdirectory'][0],
                                     dbhomedir: dbhome,
-                                    dblocks: attrs['nsslapd-db-locks'],
+                                    dblocks: attrs['nsslapd-db-locks'][0],
                                     dblocksMonitoring: dblocksMonitoring,
-                                    dblocksMonitoringThreshold: attrs['nsslapd-db-locks-monitoring-threshold'],
-                                    dblocksMonitoringPause: attrs['nsslapd-db-locks-monitoring-pause'],
-                                    chxpoint: attrs['nsslapd-db-checkpoint-interval'],
-                                    compactinterval: attrs['nsslapd-db-compactdb-interval'],
-                                    compacttime: attrs['nsslapd-db-compactdb-time'],
-                                    importcacheauto: attrs['nsslapd-import-cache-autosize'],
-                                    importcachesize: attrs['nsslapd-import-cachesize'],
+                                    dblocksMonitoringThreshold: attrs['nsslapd-db-locks-monitoring-threshold'][0],
+                                    dblocksMonitoringPause: attrs['nsslapd-db-locks-monitoring-pause'][0],
+                                    chxpoint: attrs['nsslapd-db-checkpoint-interval'][0],
+                                    compactinterval: attrs['nsslapd-db-compactdb-interval'][0],
+                                    compacttime: attrs['nsslapd-db-compactdb-time'][0],
+                                    importcacheauto: attrs['nsslapd-import-cache-autosize'][0],
+                                    importcachesize: attrs['nsslapd-import-cachesize'][0],
                                 },
                             configUpdated: 1
-                        }), this.setState({configUpdated: 0}));
+                        }), this.setState({ configUpdated: 0 }));
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error loading database configuration - ${errMsg.desc}`
@@ -218,12 +246,12 @@ export class Database extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "config-get", "--avail-controls"
         ];
-        log_cmd("loadChainingConfig", "Get available controls", cmd);
+        log_cmd("loadAvailableControls", "Get available controls", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
-                    let availableOids = config.items.filter((el) => !this.state.chainingConfig.oidList.includes(el));
+                    const config = JSON.parse(content);
+                    const availableOids = config.items.filter((el) => !this.state.chainingConfig.oidList.includes(el));
                     this.setState((prevState) => (
                         {
                             chainingConfig: {
@@ -232,17 +260,17 @@ export class Database extends React.Component {
                             },
                             chainingUpdated: 1
                         }
-                    ), this.setState({chainingUpdated: 0})
+                    ), this.setState({ chainingUpdated: 0 })
                     );
                 });
     }
 
     loadDefaultConfig() {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "config-get-def"
         ];
-        log_cmd("loadChainingConfig", "Load chaining default configuration", cmd);
+        log_cmd("loadDefaultConfig", "Load chaining default configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -253,33 +281,33 @@ export class Database extends React.Component {
                     let refOnScope = false;
                     let useStartTLS = false;
 
-                    if (attr['nschecklocalaci'] == "on") {
+                    if (attr.nschecklocalaci === "on") {
                         checkAci = true;
                     }
-                    if (attr['nsproxiedauthorization'] == "on") {
+                    if (attr.nsproxiedauthorization === "on") {
                         proxy = true;
                     }
-                    if (attr['nsreferralonscopedsearch'] == "on") {
+                    if (attr.nsreferralonscopedsearch === "on") {
                         refOnScope = true;
                     }
-                    if (attr['nsusestarttls'] == "on") {
+                    if (attr.nsusestarttls === "on") {
                         useStartTLS = true;
                     }
                     this.setState(() => (
                         {
                             chainingConfig: {
                                 ...this.state.chainingConfig,
-                                defSearchCheck: attr['nsabandonedsearchcheckinterval'],
-                                defBindConnLimit: attr['nsbindconnectionslimit'],
-                                defBindTimeout: attr['nsbindtimeout'],
-                                defBindRetryLimit: attr['nsbindretrylimit'],
-                                defConcurLimit: attr['nsconcurrentbindlimit'],
-                                defConcurOpLimit: attr['nsconcurrentoperationslimit'],
-                                defConnLife: attr['nsconnectionlife'],
-                                defHopLimit: attr['nshoplimit'],
-                                defDelay: attr['nsmaxresponsedelay'],
-                                defTestDelay: attr['nsmaxtestresponsedelay'],
-                                defOpConnLimit: attr['nsoperationconnectionslimit'],
+                                defSearchCheck: attr.nsabandonedsearchcheckinterval,
+                                defBindConnLimit: attr.nsbindconnectionslimit,
+                                defBindTimeout: attr.nsbindtimeout,
+                                defBindRetryLimit: attr.nsbindretrylimit,
+                                defConcurLimit: attr.nsconcurrentbindlimit,
+                                defConcurOpLimit: attr.nsconcurrentoperationslimit,
+                                defConnLife: attr.nsconnectionlife,
+                                defHopLimit: attr.nshoplimit,
+                                defDelay: attr.nsmaxresponsedelay,
+                                defTestDelay: attr.nsmaxtestresponsedelay,
+                                defOpConnLimit: attr.nsoperationconnectionslimit,
                                 defSizeLimit: attr['nsslapd-sizelimit'],
                                 defTimeLimit: attr['nsslapd-timelimit'],
                                 defProxy: proxy,
@@ -291,7 +319,7 @@ export class Database extends React.Component {
                     ), this.loadAvailableControls());
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error loading default chaining configuration - ${errMsg.desc}`
@@ -302,8 +330,8 @@ export class Database extends React.Component {
                 });
     }
 
-    loadChainingConfig() {
-        let cmd = [
+    loadChainingConfig(tabIdx) {
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "config-get"
         ];
@@ -315,6 +343,7 @@ export class Database extends React.Component {
                     let availableComps = config.attrs.nspossiblechainingcomponents;
                     let compList = [];
                     let oidList = [];
+                    let activeKey = 0;
                     if ('nsactivechainingcomponents' in config.attrs) {
                         availableComps = config.attrs.nspossiblechainingcomponents.filter((el) => !config.attrs.nsactivechainingcomponents.includes(el));
                         compList = config.attrs.nsactivechainingcomponents;
@@ -322,6 +351,10 @@ export class Database extends React.Component {
                     if ('nstransmittedcontrols' in config.attrs) {
                         oidList = config.attrs.nstransmittedcontrols;
                     }
+                    if (tabIdx) {
+                        activeKey = tabIdx;
+                    }
+
                     this.setState(() => (
                         {
                             chainingConfig: {
@@ -329,10 +362,28 @@ export class Database extends React.Component {
                                 oidList: oidList,
                                 compList: compList,
                                 availableComps: availableComps
-                            }
+                            },
+                            chainingActiveKey: activeKey,
                         }
                     ), this.loadDefaultConfig());
                 });
+    }
+
+    processTree(suffixData) {
+        for (const suffix of suffixData) {
+            if (suffix.type === "suffix") {
+                suffix.icon = <FontAwesomeIcon size="sm" icon={faTree} />;
+            } else if (suffix.type === "subsuffix") {
+                suffix.icon = <FontAwesomeIcon size="sm" icon={faLeaf} />;
+            } else {
+                suffix.icon = <FontAwesomeIcon size="sm" icon={faLink} />;
+            }
+            if (suffix.children.length === 0) {
+                delete suffix.children;
+            } else {
+                this.processTree(suffix.children);
+            }
+        }
     }
 
     loadSuffixTree(fullReset) {
@@ -344,69 +395,62 @@ export class Database extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let treeData = [];
-                    if (content != "") {
-                        treeData = JSON.parse(content);
+                    let suffixData = [];
+                    if (content !== "") {
+                        suffixData = JSON.parse(content);
+                        this.processTree(suffixData);
                     }
-                    let basicData = [
+                    const treeData = [
                         {
-                            text: "Global Database Configuration",
-                            selectable: true,
-                            selected: true,
-                            icon: "pficon-settings",
+                            name: "Global Database Configuration",
+                            icon: <CogIcon />,
                             id: "dbconfig",
-
                         },
                         {
-                            text: "Chaining Configuration",
-                            icon: "glyphicon glyphicon-link",
-                            selectable: true,
+                            name: "Chaining Configuration",
+                            icon: <ExternalLinkAltIcon />,
                             id: "chaining-config",
                         },
                         {
-                            text: "Backups & LDIFS",
-                            icon: "glyphicon glyphicon-duplicate",
-                            selectable: true,
+                            name: "Backups & LDIFs",
+                            icon: <CopyIcon />,
                             id: "backups",
                         },
                         {
-                            text: "Password Policies",
-                            icon: "pficon-key",
-                            selectable: false,
-                            state: {"expanded": true},
-                            "nodes": [
+                            name: "Password Policies",
+                            id: "pwp",
+                            icon: <KeyIcon />,
+                            children: [
                                 {
-                                    text: "Global Policy",
-                                    icon: "glyphicon glyphicon-globe",
-                                    selectable: true,
+                                    name: "Global Policy",
+                                    icon: <HomeIcon />,
                                     id: "pwpolicy",
                                 },
                                 {
-                                    text: "Local Policies",
-                                    icon: "pficon-home",
-                                    selectable: true,
+                                    name: "Local Policies",
+                                    icon: <UsersIcon />,
                                     id: "localpwpolicy",
                                 },
-                            ]
+                            ],
+                            defaultExpanded: true
                         },
                         {
-                            text: "Suffixes",
-                            icon: "pficon-catalog",
-                            state: {"expanded": true},
-                            selectable: false,
-                            nodes: []
+                            name: "Suffixes",
+                            icon: <CatalogIcon />,
+                            id: "suffixes-tree",
+                            children: suffixData,
+                            defaultExpanded: true
                         }
                     ];
                     let current_node = this.state.node_name;
                     if (fullReset) {
                         current_node = DB_CONFIG;
                     }
-                    basicData[4].nodes = treeData;
 
                     this.setState(() => ({
-                        nodes: basicData,
+                        nodes: treeData,
                         node_name: current_node,
-                    }), this.update_tree_nodes);
+                    }), this.loadAttrs);
                 });
     }
 
@@ -425,23 +469,23 @@ export class Database extends React.Component {
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
-                    let bindmech = "Simple";
+                    let bindmech = "SIMPLE";
                     let usestarttls = false;
                     let refOnScope = false;
                     let proxiedAuth = false;
                     let checkLocalAci = false;
 
                     // Handler checkboxes, need to convert "on" to true
-                    if (config.attrs.nsreferralonscopedsearch[0] == "on") {
+                    if (config.attrs.nsreferralonscopedsearch[0] === "on") {
                         refOnScope = true;
                     }
-                    if (config.attrs.nsproxiedauthorization[0] == "on") {
+                    if (config.attrs.nsproxiedauthorization[0] === "on") {
                         proxiedAuth = true;
                     }
-                    if (config.attrs.nschecklocalaci[0] == "on") {
+                    if (config.attrs.nschecklocalaci[0] === "on") {
                         checkLocalAci = true;
                     }
-                    if (config.attrs.nsusestarttls[0] == "on") {
+                    if (config.attrs.nsusestarttls[0] === "on") {
                         usestarttls = true;
                     }
                     if (config.attrs.nsbindmechanism !== undefined) {
@@ -475,7 +519,7 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error getting chaining link configuration - ${errMsg.desc}`
@@ -483,94 +527,85 @@ export class Database extends React.Component {
                 });
     }
 
-    selectNode(selectedNode) {
-        if (selectedNode.selected) {
+    handleTreeClick(evt, treeViewItem, parentItem) {
+        if (this.state.activeItems.length === 0 || treeViewItem === this.state.activeItems[0]) {
+            this.setState({
+                activeItems: [treeViewItem, parentItem]
+            });
             return;
         }
-        this.setState({
-            disableTree: true // Disable the tree to allow node to be fully loaded
-        });
 
-        if (selectedNode.id == "dbconfig" ||
-            selectedNode.id == "chaining-config" ||
-            selectedNode.id == "pwpolicy" ||
-            selectedNode.id == "localpwpolicy" ||
-            selectedNode.id == "backups") {
+        if (treeViewItem.id === "dbconfig" ||
+            treeViewItem.id === "chaining-config" ||
+            treeViewItem.id === "pwpolicy" ||
+            treeViewItem.id === "localpwpolicy" ||
+            treeViewItem.id === "backups") {
             // Nothing special to do, these configurations have already been loaded
             this.setState(prevState => {
                 return {
-                    nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                    node_name: selectedNode.id,
-                    node_text: selectedNode.text,
-                    dbtype: selectedNode.type,
+                    node_name: treeViewItem.id,
+                    node_text: treeViewItem.name,
+                    dbtype: treeViewItem.type,
                     bename: "",
+                    activeItems: [treeViewItem, parentItem]
                 };
             });
-        } else {
-            if (selectedNode.id in this.state) {
+        } else if (treeViewItem.id !== "pwp" &&
+                   treeViewItem.id !== "suffixes-tree") {
+            if (treeViewItem.id in this.state) {
                 // This suffix is already cached, just use what we have...
                 this.setState(prevState => {
                     return {
-                        nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                        node_name: selectedNode.id,
-                        node_text: selectedNode.text,
-                        dbtype: selectedNode.type,
-                        bename: selectedNode.be,
+                        node_name: treeViewItem.id,
+                        node_text: treeViewItem.name,
+                        dbtype: treeViewItem.type,
+                        bename: treeViewItem.be,
+                        activeItems: [treeViewItem, parentItem]
                     };
                 });
             } else {
+                this.setState({
+                    disableTree: true, // Disable the tree to allow node to be fully loaded
+                });
                 // Load this suffix whatever it is...
-                if (selectedNode.type == "dblink") {
+                if (treeViewItem.type === "dblink") {
                     // Chained suffix
-                    this.loadChainingLink(selectedNode.id);
+                    this.loadChainingLink(treeViewItem.id);
                 } else {
                     // Suffix/subsuffix
-                    this.loadSuffix(selectedNode.id);
+                    this.loadSuffix(treeViewItem.id);
                 }
                 this.setState(prevState => {
                     return {
-                        nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                        node_name: selectedNode.id,
-                        node_text: selectedNode.text,
-                        dbtype: selectedNode.type,
-                        bename: selectedNode.be,
+                        node_name: treeViewItem.id,
+                        node_text: treeViewItem.name,
+                        dbtype: treeViewItem.type,
+                        bename: treeViewItem.be,
+                        activeItems: [treeViewItem, parentItem]
                     };
                 });
             }
         }
     }
 
-    nodeSelector(nodes, targetNode) {
-        return nodes.map(node => {
-            if (node.nodes) {
-                return {
-                    ...node,
-                    nodes: this.nodeSelector(node.nodes, targetNode),
-                    selected: node.id === targetNode.id ? !node.selected : false
-                };
-            } else if (node.id === targetNode.id) {
-                return { ...node, selected: !node.selected };
-            } else if (node.id !== targetNode.id && node.selected) {
-                return { ...node, selected: false };
-            } else {
-                return node;
+    update_tree_nodes() {
+        // Enable the tree, and update the titles
+        this.setState({
+            disableTree: false,
+            loaded: true,
+        }, () => {
+            const className = 'pf-c-tree-view__list-item';
+            const element = document.getElementById("suffixes-tree");
+            if (element) {
+                const elements = element.getElementsByClassName(className);
+                for (const el of elements) {
+                    el.setAttribute('title', el.innerText);
+                }
             }
         });
     }
 
-    update_tree_nodes() {
-        // Set title to the text value of each suffix node.  We need to do this
-        // so we can read long suffixes in the UI tree div
-        let elements = document.getElementsByClassName('treeitem-row');
-        for (let el of elements) {
-            el.setAttribute('title', el.innerText);
-        }
-        this.setState({
-            disableTree: false,
-        }, this.loadAttrs());
-    }
-
-    showSuffixModal () {
+    handleShowSuffixModal () {
         this.setState({
             showSuffixModal: true,
             createSuffixEntry: false,
@@ -580,54 +615,78 @@ export class Database extends React.Component {
         });
     }
 
-    handleRadioChange(e) {
-        // Handle the create suffix init option radio button group
+    onHandleSelectChange(value, event) {
         let noInit = false;
         let addSuffix = false;
         let addSample = false;
-        if (e.target.id == "noSuffixInit") {
+
+        if (value === "noInit") {
             noInit = true;
-        } else if (e.target.id == "createSuffixEntry") {
+        } else if (value === "addSuffix") {
             addSuffix = true;
-        } else { // createSampleEntries
+        } else { // addSample
             addSample = true;
         }
         this.setState({
+            createInitOption: value,
             noSuffixInit: noInit,
             createSuffixEntry: addSuffix,
             createSampleEntries: addSample
         });
     }
 
-    handleChange(e) {
+    onHandleChange(str, e) {
+        // Handle the Create Suffix modal changes
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
-        if (value == "") {
+        const errObj = this.state.errObj;
+        let createNotOK = false;
+
+        // Check current/changed values
+        if (value === "") {
             valueErr = true;
+            createNotOK = true;
+        } else if (e.target.id === "createSuffix" && !valid_dn(str)) {
+            valueErr = true;
+            createNotOK = true;
+        }
+        // Check existing values
+        if (e.target.id !== "createSuffix") {
+            if (!valid_dn(this.state.createSuffix)) {
+                errObj.createSuffix = true;
+                createNotOK = true;
+            }
+        }
+        if (e.target.id !== "createBeName") {
+            if (this.state.createBeName === "") {
+                errObj.createBeName = true;
+                createNotOK = true;
+            }
         }
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
+            errObj: errObj,
+            createNotOK: createNotOK
         });
     }
 
     closeSuffixModal() {
         this.setState({
-            showSuffixModal: false
+            showSuffixModal: false,
+            createNotOK: true,
         });
     }
 
     createSuffix() {
         // validate
         let errors = false;
-        let missingArgs = {
+        const missingArgs = {
             createSuffix: false,
             createBeName: false,
         };
 
-        if (this.state.createSuffix == "") {
+        if (this.state.createSuffix === "") {
             this.props.addNotification(
                 "warning",
                 `Missing the suffix DN`
@@ -635,7 +694,7 @@ export class Database extends React.Component {
             missingArgs.createSuffix = true;
             errors = true;
         }
-        if (this.state.createBeName == "") {
+        if (this.state.createBeName === "") {
             this.props.addNotification(
                 "warning",
                 `Missing the suffix backend name`
@@ -649,6 +708,10 @@ export class Database extends React.Component {
             });
             return;
         }
+
+        this.setState({
+            modalSpinning: true
+        });
 
         // Create a new suffix
         const cmd = [
@@ -674,14 +737,20 @@ export class Database extends React.Component {
                     // Refresh tree
                     this.loadSuffixTree(false);
                     this.loadSuffixList();
+                    this.setState({
+                        modalSpinning: false
+                    });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error creating suffix - ${errMsg.desc}`
                     );
                     this.closeSuffixModal();
+                    this.setState({
+                        modalSpinning: false
+                    });
                 });
     }
 
@@ -694,9 +763,9 @@ export class Database extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let config = JSON.parse(content);
+                    const config = JSON.parse(content);
                     if ('nsslapd-cache-autosize' in config.attrs &&
-                        config.attrs['nsslapd-cache-autosize'] != "0") {
+                        config.attrs['nsslapd-cache-autosize'] !== "0") {
                         this.setState({
                             [suffix]: {
                                 ...this.state[suffix],
@@ -724,12 +793,12 @@ export class Database extends React.Component {
                         refs = config.attrs['nsslapd-referral'];
                     }
                     if ('nsslapd-readonly' in config.attrs) {
-                        if (config.attrs['nsslapd-readonly'] == "on") {
+                        if (config.attrs['nsslapd-readonly'] === "on") {
                             readonly = true;
                         }
                     }
                     if ('nsslapd-require-index' in config.attrs) {
-                        if (config.attrs['nsslapd-require-index'] == "on") {
+                        if (config.attrs['nsslapd-require-index'] === "on") {
                             requireindex = true;
                         }
                     }
@@ -740,6 +809,7 @@ export class Database extends React.Component {
                             cachememsize: config.attrs['nsslapd-cachememsize'][0],
                             cachesize: config.attrs['nsslapd-cachesize'][0],
                             dncachememsize: config.attrs['nsslapd-dncachememsize'][0],
+                            dbstate: config.attrs['nsslapd-state'][0],
                             readOnly: readonly,
                             requireIndex: requireindex,
                         }
@@ -752,6 +822,7 @@ export class Database extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "vlv-index", "list", suffix
         ];
+        const tableKey = this.state.vlvTableKey + 1;
         log_cmd("loadVLV", "Load VLV indexes", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -761,7 +832,8 @@ export class Database extends React.Component {
                         [suffix]: {
                             ...this.state[suffix],
                             vlvItems: config.items,
-                        }
+                        },
+                        vlvTableKey: tableKey,
                     });
                 });
     }
@@ -776,9 +848,9 @@ export class Database extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
-                    let rows = [];
-                    for (let row of config.items) {
-                        rows.push({"name": row});
+                    const rows = [];
+                    for (const row of config.items) {
+                        rows.push(row);
                     }
                     this.setState({
                         [suffix]: {
@@ -803,12 +875,12 @@ export class Database extends React.Component {
                 .done(content => {
                     // Now do the Indexes
                     const config = JSON.parse(content);
-                    let rows = [];
-                    let systemRows = [];
-                    for (let item of config.items) {
-                        let index = item.attrs;
+                    const rows = [];
+                    const systemRows = [];
+                    for (const item of config.items) {
+                        const index = item.attrs;
                         let types = [];
-                        let mrs = [];
+                        let mrs = "";
                         if (index.nsindextype.length > 1) {
                             types = index.nsindextype.join(', ');
                         } else {
@@ -821,10 +893,10 @@ export class Database extends React.Component {
                                 mrs = index.nsmatchingrule[0];
                             }
                         }
-                        if (index.nssystemindex[0] == 'true') {
-                            systemRows.push({'name': index.cn, 'types': [types], 'matchingrules': [mrs]});
+                        if (index.nssystemindex[0] === 'true') {
+                            systemRows.push([index.cn[0], types, mrs]);
                         } else {
-                            rows.push({'name': index.cn, 'types': [types], 'matchingrules': [mrs]});
+                            rows.push([index.cn[0], types, mrs]);
                         }
                     }
                     this.setState({
@@ -836,7 +908,7 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error loading indexes for ${suffix} - ${errMsg.desc}`
@@ -845,7 +917,7 @@ export class Database extends React.Component {
     }
 
     loadReferrals(suffix) {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "suffix", "get", suffix
         ];
@@ -875,7 +947,7 @@ export class Database extends React.Component {
             suffixLoading: true
         }, this.loadAttrs());
 
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "suffix", "get", suffix
         ];
@@ -891,12 +963,12 @@ export class Database extends React.Component {
                         refs = config.attrs['nsslapd-referral'];
                     }
                     if ('nsslapd-readonly' in config.attrs) {
-                        if (config.attrs['nsslapd-readonly'] == "on") {
+                        if (config.attrs['nsslapd-readonly'] === "on") {
                             readonly = true;
                         }
                     }
                     if ('nsslapd-require-index' in config.attrs) {
-                        if (config.attrs['nsslapd-require-index'] == "on") {
+                        if (config.attrs['nsslapd-require-index'] === "on") {
                             requireindex = true;
                         }
                     }
@@ -906,17 +978,18 @@ export class Database extends React.Component {
                             cachememsize: config.attrs['nsslapd-cachememsize'][0],
                             cachesize: config.attrs['nsslapd-cachesize'][0],
                             dncachememsize: config.attrs['nsslapd-dncachememsize'][0],
+                            dbstate: config.attrs['nsslapd-state'][0],
                             readOnly: readonly,
                             requireIndex: requireindex,
                         }
                     }, this.getAutoTuning(suffix));
 
                     // Now load VLV indexes
-                    let cmd = [
+                    const cmd = [
                         "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                         "backend", "vlv-index", "list", suffix
                     ];
-                    log_cmd("loadVLV", "Load VLV indexes", cmd);
+                    log_cmd("loadSuffix", "Load VLV indexes", cmd);
                     cockpit
                             .spawn(cmd, { superuser: true, err: "message" })
                             .done(content => {
@@ -928,7 +1001,7 @@ export class Database extends React.Component {
                                     }
                                 });
 
-                                let cmd = [
+                                const cmd = [
                                     "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                                     "backend", "attr-encrypt", "--list", "--just-names", suffix
                                 ];
@@ -937,9 +1010,9 @@ export class Database extends React.Component {
                                         .spawn(cmd, { superuser: true, err: "message" })
                                         .done(content => {
                                             const config = JSON.parse(content);
-                                            let rows = [];
-                                            for (let row of config.items) {
-                                                rows.push({"name": row});
+                                            const rows = [];
+                                            for (const row of config.items) {
+                                                rows.push(row);
                                             }
                                             this.setState({
                                                 [suffix]: {
@@ -957,10 +1030,10 @@ export class Database extends React.Component {
                                                     .done(content => {
                                                         // Now do the Indexes
                                                         const config = JSON.parse(content);
-                                                        let rows = [];
-                                                        let systemRows = [];
-                                                        for (let item of config.items) {
-                                                            let index = item.attrs;
+                                                        const rows = [];
+                                                        const systemRows = [];
+                                                        for (const item of config.items) {
+                                                            const index = item.attrs;
                                                             let types = [];
                                                             let mrs = [];
                                                             if (index.nsindextype.length > 1) {
@@ -975,10 +1048,10 @@ export class Database extends React.Component {
                                                                     mrs = index.nsmatchingrule[0];
                                                                 }
                                                             }
-                                                            if (index.nssystemindex[0] == 'true') {
-                                                                systemRows.push({'name': index.cn, 'types': [types], 'matchingrules': [mrs]});
+                                                            if (index.nssystemindex[0] === 'true') {
+                                                                systemRows.push([index.cn[0], types, mrs]);
                                                             } else {
-                                                                rows.push({'name': index.cn, 'types': [types], 'matchingrules': [mrs]});
+                                                                rows.push([index.cn[0], types, mrs]);
                                                             }
                                                         }
                                                         this.setState({
@@ -991,7 +1064,7 @@ export class Database extends React.Component {
                                                         });
                                                     })
                                                     .fail(err => {
-                                                        let errMsg = JSON.parse(err);
+                                                        const errMsg = JSON.parse(err);
                                                         this.props.addNotification(
                                                             "error",
                                                             `Error loading indexes for ${suffix} - ${errMsg.desc}`
@@ -1002,7 +1075,7 @@ export class Database extends React.Component {
                                                     });
                                         })
                                         .fail(err => {
-                                            let errMsg = JSON.parse(err);
+                                            const errMsg = JSON.parse(err);
                                             this.props.addNotification(
                                                 "error",
                                                 `Error attribute encryption for ${suffix} - ${errMsg.desc}`
@@ -1013,7 +1086,7 @@ export class Database extends React.Component {
                                         });
                             })
                             .fail(err => {
-                                let errMsg = JSON.parse(err);
+                                const errMsg = JSON.parse(err);
                                 this.props.addNotification(
                                     "error",
                                     `Error loading VLV indexes for ${suffix} - ${errMsg.desc}`
@@ -1024,7 +1097,7 @@ export class Database extends React.Component {
                             });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
                         `Error loading config for ${suffix} - ${errMsg.desc}`
@@ -1044,17 +1117,23 @@ export class Database extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
-                    let rows = [];
-                    for (let row of config.items) {
-                        rows.push({'name': row[0], 'date': [row[1]], 'size': [row[2]], 'suffix': [row[3]]});
+                    const rows = [];
+                    for (const row of config.items) {
+                        rows.push([row[0], row[1], row[2], row[3]]);
                     }
                     this.setState({
                         LDIFRows: rows,
+                        backupRefreshing: false,
                     });
                 });
     }
 
-    loadBackups() {
+    loadBackups(refreshing) {
+        if (refreshing) {
+            this.setState({
+                backupRefreshing: true
+            });
+        }
         const cmd = [
             "dsctl", "-j", this.props.serverId, "backups"
         ];
@@ -1063,12 +1142,12 @@ export class Database extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
-                    let rows = [];
-                    for (let row of config.items) {
-                        rows.push({'name': row[0], 'date': [row[1]], 'size': [row[2]]});
+                    const rows = [];
+                    for (const row of config.items) {
+                        rows.push([row[0], row[1], row[2]]);
                     }
                     this.setState({
-                        BackupRows: rows
+                        BackupRows: rows,
                     }, this.loadLDIFs());
                 });
     }
@@ -1083,22 +1162,15 @@ export class Database extends React.Component {
         cockpit
                 .spawn(attr_cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let attrContent = JSON.parse(content);
-                    let attrs = [];
-                    for (let content of attrContent['items']) {
+                    const attrContent = JSON.parse(content);
+                    const attrs = [];
+                    for (const content of attrContent.items) {
                         attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributes: attrs,
                         loaded: true
-                    });
-                })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to get attributes - ${errMsg.desc}`
-                    );
+                    }, this.update_tree_nodes);
                 });
     }
 
@@ -1109,7 +1181,6 @@ export class Database extends React.Component {
     }
 
     render() {
-        const { nodes } = this.state;
         let db_element = "";
         let body = "";
         let disabled = "tree-view-container";
@@ -1118,7 +1189,7 @@ export class Database extends React.Component {
         }
 
         if (this.state.loaded) {
-            if (this.state.node_name == DB_CONFIG || this.state.node_name == "") {
+            if (this.state.node_name === DB_CONFIG || this.state.node_name === "") {
                 db_element =
                     <GlobalDatabaseConfig
                         serverId={this.props.serverId}
@@ -1128,7 +1199,7 @@ export class Database extends React.Component {
                         enableTree={this.enableTree}
                         key={this.state.configUpdated}
                     />;
-            } else if (this.state.node_name == CHAINING_CONFIG) {
+            } else if (this.state.node_name === CHAINING_CONFIG) {
                 db_element =
                     <ChainingDatabaseConfig
                         serverId={this.props.serverId}
@@ -1136,9 +1207,10 @@ export class Database extends React.Component {
                         reload={this.loadChainingConfig}
                         data={this.state.chainingConfig}
                         enableTree={this.enableTree}
+                        activeKey={this.state.chainingActiveKey}
                         key={this.state.chainingUpdated}
                     />;
-            } else if (this.state.node_name == PWP_CONFIG) {
+            } else if (this.state.node_name === PWP_CONFIG) {
                 db_element =
                     <GlobalPwPolicy
                         serverId={this.props.serverId}
@@ -1146,7 +1218,7 @@ export class Database extends React.Component {
                         attrs={this.state.attributes}
                         enableTree={this.enableTree}
                     />;
-            } else if (this.state.node_name == LOCAL_PWP_CONFIG) {
+            } else if (this.state.node_name === LOCAL_PWP_CONFIG) {
                 db_element =
                     <LocalPwPolicy
                         serverId={this.props.serverId}
@@ -1154,7 +1226,7 @@ export class Database extends React.Component {
                         attrs={this.state.attributes}
                         enableTree={this.enableTree}
                     />;
-            } else if (this.state.node_name == BACKUP_CONFIG) {
+            } else if (this.state.node_name === BACKUP_CONFIG) {
                 db_element =
                     <Backups
                         serverId={this.props.serverId}
@@ -1164,15 +1236,20 @@ export class Database extends React.Component {
                         ldifs={this.state.LDIFRows}
                         enableTree={this.enableTree}
                         reload={this.loadBackups}
+                        refreshing={this.state.backupRefreshing}
                     />;
-            } else if (this.state.node_name != "") {
+            } else if (this.state.node_name !== "") {
                 // We have a suffix, or database link
-                if (this.state.dbtype == "suffix" || this.state.dbtype == "subsuffix") {
+                if (this.state.dbtype === "suffix" || this.state.dbtype === "subsuffix") {
                     if (this.state.suffixLoading) {
                         db_element =
-                            <div className="ds-margin-top ds-loading-spinner ds-center">
-                                <h4>Loading suffix configuration for <b>{this.state.node_text} ...</b></h4>
-                                <Spinner className="ds-margin-top-lg" loading size="md" />
+                            <div className="ds-margin-top-xlg ds-loading-spinner ds-center">
+                                <TextContent>
+                                    <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+                                        Loading suffix configuration for <b>{this.state.node_text} ...</b>
+                                    </Text>
+                                </TextContent>
+                                <Spinner className="ds-margin-top-lg" size="xl" />
                             </div>;
                     } else {
                         db_element =
@@ -1185,6 +1262,7 @@ export class Database extends React.Component {
                                 reloadRefs={this.loadReferrals}
                                 reloadIndexes={this.loadIndexes}
                                 reloadVLV={this.loadVLV}
+                                vlvTableKey={this.state.vlvTableKey}
                                 reloadAttrEnc={this.loadAttrEncrypt}
                                 addNotification={this.props.addNotification}
                                 reloadLDIFs={this.loadLDIFs}
@@ -1201,8 +1279,12 @@ export class Database extends React.Component {
                     if (this.state.chainingLoading) {
                         db_element =
                             <div className="ds-margin-top ds-loading-spinner ds-center">
-                                <h4>Loading chaining configuration for <b>{this.state.node_text} ...</b></h4>
-                                <Spinner className="ds-margin-top-lg" loading size="md" />
+                                <TextContent>
+                                    <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+                                        Loading Chaining configuration for <b>{this.state.node_text} ...</b>
+                                    </Text>
+                                </TextContent>
+                                <Spinner className="ds-margin-top-lg" size="xl" />
                             </div>;
                     } else {
                         db_element =
@@ -1223,20 +1305,21 @@ export class Database extends React.Component {
                 <div className="ds-container">
                     <div>
                         <div className="ds-tree">
-                            <div className={disabled} id="db-tree"
-                                style={treeViewContainerStyles}>
+                            <div className={disabled} id="db-tree">
                                 <TreeView
-                                    nodes={nodes}
-                                    highlightOnHover
-                                    highlightOnSelect
-                                    selectNode={this.selectNode}
+                                    data={this.state.nodes}
+                                    activeItems={this.state.activeItems}
+                                    onSelect={this.handleTreeClick}
                                 />
                             </div>
                         </div>
-                        <div>
-                            <button className="btn btn-primary save-button"
-                                onClick={this.showSuffixModal}>Create Suffix</button>
-                        </div>
+                        <Button
+                            className="ds-left-margin-md"
+                            variant="primary"
+                            onClick={this.handleShowSuffixModal}
+                        >
+                            Create Suffix
+                        </Button>
                     </div>
                     <div className="ds-tree-content">
                         {db_element}
@@ -1244,9 +1327,13 @@ export class Database extends React.Component {
                 </div>;
         } else {
             body =
-                <div className="ds-loading-spinner ds-margin-top ds-center">
-                    <h4>Loading database configuration ...</h4>
-                    <Spinner className="ds-margin-top" loading size="md" />
+                <div className="ds-center">
+                    <TextContent>
+                        <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+                            Loading Database Configuration ...
+                        </Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top" size="xl" />
                 </div>;
         }
 
@@ -1256,12 +1343,12 @@ export class Database extends React.Component {
                 <CreateSuffixModal
                     showModal={this.state.showSuffixModal}
                     closeHandler={this.closeSuffixModal}
-                    handleChange={this.handleChange}
-                    handleRadioChange={this.handleRadioChange}
+                    handleChange={this.onHandleChange}
+                    handleSelectChange={this.onHandleSelectChange}
                     saveHandler={this.createSuffix}
-                    noInit={this.state.noSuffixInit}
-                    addSuffix={this.state.createSuffixEntry}
-                    addSample={this.state.createSampleEntries}
+                    initOption={this.state.createInitOption}
+                    createNotOK={this.state.createNotOK}
+                    modalSpinning={this.state.modalSpinning}
                     error={this.state.errObj}
                 />
             </div>
@@ -1275,84 +1362,99 @@ class CreateSuffixModal extends React.Component {
             showModal,
             closeHandler,
             handleChange,
-            handleRadioChange,
+            handleSelectChange,
             saveHandler,
-            noInit,
-            addSuffix,
-            addSample,
+            createNotOK,
+            initOption,
+            modalSpinning,
             error
         } = this.props;
 
+        let saveBtnName = "Create Suffix";
+        const extraPrimaryProps = {};
+        if (modalSpinning) {
+            saveBtnName = "Creating ...";
+            extraPrimaryProps.spinnerAriaValueText = "Creating";
+        }
+
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Create New Suffix
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)">
-                                <Col sm={3}>
-                                    <ControlLabel>Suffix DN</ControlLabel>
-                                </Col>
-                                <Col sm={5}>
-                                    <input onChange={handleChange} className={error.createSuffix ? "ds-input-bad" : "ds-input"} type="text" id="createSuffix" size="40" />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">
-                                <Col sm={3}>
-                                    <ControlLabel>Database Name</ControlLabel>
-                                </Col>
-                                <Col sm={5}>
-                                    <input onChange={handleChange} className={error.createBeName ? "ds-input-bad" : "ds-input"} type="text" id="createBeName" size="40" />
-                                </Col>
-                            </Row>
-                            <hr />
-                            <div>
-                                <Row className="ds-indent">
-                                    <Radio name="radioGroup" id="noSuffixInit" onChange={handleRadioChange} checked={noInit} inline>
-                                        Do Not Initialize Database
-                                    </Radio>
-                                </Row>
-                                <Row className="ds-indent">
-                                    <Radio name="radioGroup" id="createSuffixEntry" onChange={handleRadioChange} checked={addSuffix} inline>
-                                        Create The Top Suffix Entry
-                                    </Radio>
-                                </Row>
-                                <Row className="ds-indent">
-                                    <Radio name="radioGroup" id="createSampleEntries" onChange={handleRadioChange} checked={addSample} inline>
-                                        Add Sample Entries
-                                    </Radio>
-                                </Row>
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Create Suffix
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title="Create New Suffix"
+                isOpen={showModal}
+                aria-labelledby="ds-modal"
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isDisabled={createNotOK}
+                        isLoading={modalSpinning}
+                        spinnerAriaValueText={modalSpinning ? "Creating Suffix" : undefined}
+                        {...extraPrimaryProps}
+                    >
+                        {saveBtnName}
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal autoComplete="off">
+                    <FormGroup
+                        label="Suffix DN"
+                        fieldId="createSuffix"
+                        title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)."
+                        helperTextInvalid="The DN of the suffix is invalid"
+                        helperTextInvalidIcon={<ExclamationCircleIcon />}
+                        validated={error.createSuffix ? "error" : "noval"}
+                    >
+                        <TextInput
+                            isRequired
+                            type="text"
+                            id="createSuffix"
+                            aria-describedby="createSuffix"
+                            name="createSuffix"
+                            onChange={handleChange}
+                            validated={error.createSuffix ? "error" : "noval"}
+                        />
+                        <FormHelperText isError isHidden={!error.createSuffix}>
+                            Required field
+                        </FormHelperText>
+                    </FormGroup>
+                    <FormGroup
+                        label="Database Name"
+                        fieldId="suffixName"
+                        title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends."
+                        helperTextInvalid="You must enter a name for the database"
+                        helperTextInvalidIcon={<ExclamationCircleIcon />}
+                        validated={error.createBeName ? "error" : "noval"}
+                    >
+                        <TextInput
+                            isRequired
+                            type="text"
+                            id="createBeName"
+                            aria-describedby="createSuffix"
+                            name="suffixName"
+                            onChange={handleChange}
+                            validated={error.createBeName ? "error" : "noval"}
+                        />
+                        <FormHelperText isError isHidden={!error.createBeName}>
+                            Required field
+                        </FormHelperText>
+                    </FormGroup>
+                    <FormGroup
+                        label="Initialization Option"
+                        fieldId="initOptions"
+                    >
+                        <FormSelect value={initOption} onChange={handleSelectChange} aria-label="FormSelect Input">
+                            <FormSelectOption key={1} value="noInit" label="Do Not Initialize Database" />
+                            <FormSelectOption key={2} value="addSuffix" label="Create The Top Suffix Entry" />
+                            <FormSelectOption key={3} value="addSample" label="Add Sample Entries" />
+                        </FormSelect>
+                    </FormGroup>
+                </Form>
             </Modal>
         );
     }
@@ -1366,30 +1468,21 @@ Database.propTypes = {
 };
 
 Database.defaultProps = {
-    addNotification: noop,
     serverId: ""
 };
 
 CreateSuffixModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
-    handleChange: PropTypes.func,
-    handleRadioChange: PropTypes.func,
+    onHandleChange: PropTypes.func,
+    onHandleSelectChange: PropTypes.func,
     saveHandler: PropTypes.func,
-    noInit: PropTypes.bool,
-    addSuffix: PropTypes.bool,
-    addSample: PropTypes.bool,
+    modalSpinning: PropTypes.bool,
     error: PropTypes.object,
 };
 
 CreateSuffixModal.defaultProps = {
     showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    handleRadioChange: noop,
-    saveHandler: noop,
-    noInit: true,
-    addSuffix: false,
-    addSample: false,
+    modalSpinning: false,
     error: {},
 };

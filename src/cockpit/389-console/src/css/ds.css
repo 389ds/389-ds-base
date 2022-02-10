@@ -19,19 +19,6 @@
     vertical-align: top !important;
 }
 
-.ds-left-align {
-    text-align: left !important;
-}
-
-.ds-chart-right {
-    margin-left: 65px;
-}
-
-/* This can probably be removed once we switch to PF React 4 - suffix action button */
-.ds-action-button {
-    color: white;
-}
-
 .ds-refresh {
     background-color: #0088ce;
     background-image: linear-gradient(to bottom,#39a5dc 0,#0088ce 100%);
@@ -39,19 +26,25 @@
     border-color: #00659c;
     color: #fff;
     padding: 3px;
-    box-shadow: 0 2px 3px rgba(3,3,3,.1);
+    box-shadow: 0 3px 3px rgba(3,3,3,.1);
     border-radius: 50%;
     border: 1px solid transparent;
-    font-size: 13px !important;
+    text-align: center;
+    vertical-align: middle;
 }
 
-.ds-switch {
-    margin-top: 2px;
-}
-
-.dataTables_wrapper {
-    padding: 0px !important;
-    margin-bottom: 10px !important;
+.ds-refresh-sm {
+    background-color: #0088ce;
+    background-image: linear-gradient(to bottom,#39a5dc 0,#0088ce 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff39a5dc', endColorstr='#ff0088ce', GradientType=0);
+    border-color: #00659c;
+    color: #fff;
+    padding: 2px;
+    box-shadow: 0 2px 2px rgba(3,3,3,.1);
+    border-radius: 50%;
+    border: 1px solid transparent;
+    text-align: center;
+    vertical-align: middle;
 }
 
 td {
@@ -73,51 +66,46 @@ td {
     background-color: #f8f8f8;
     border: 1px solid #909090;
     color: black;
-    line-height: 2;
     width: 300px;
     min-width: 300px;
-    min-height: 400px;
-    max-height: 400px;
+    min-height: 350px;
+    max-height: 550px;
     margin-bottom: 5px;
     overflow: auto;
-    padding-top: 5px;
+    margin-left: 15px;
+    margin-top: 20px;
+}
+
+.ds-editor-tree {
+    max-height: 70vh;
+    overflow: auto;
 }
 
 .ds-disabled {
     pointer-events: none;
-    opacity: 0.7;
+    opacity: 0.5;
 }
 
-.ds-input {
-    margin-top: 5px !important;
-    padding-right: 5px !important;
-    padding-left: 5px !important;
+.ds-hidden {
+    display: none
 }
 
-.ds-input-bad {
-    border-color: red !important;
+.ds-error-msg {
+    margin-top: 5px;
+    color: red;
+    font-size: 12px;
 }
 
-.ds-input-auto-bad {
-    width: 100%;
-    border-color: red !important;
-    padding-left: 5px;
-}
-
-.ds-input-right {
+.ds-right-align {
     text-align: right;
 }
 
-.ds-divider {
-    width: 35px;
-}
-
-.ds-divider-lrg {
-    width: 50px;
-}
-
 .ds-label {
-    vertical-align: middle !important; /* Fixes any weird issues in Firefox and IE */
+    /* mimics PF4 FormGroup Label */
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 18.2px;
+    padding-top: 8px;
 }
 
 .ds-dblink-dropdown {
@@ -133,33 +121,16 @@ td {
     text-align: left;
 }
 
-.ds-db-table {
-    border: 1px solid #d1d1d1;
-    word-wrap: break-word !important;
-    text-align: center;
-}
-
-.ds-table {
-    background-color: white !important;
-    padding: 0px;
+.ds-modal-list {
     border: 1px solid #909090;
-    table-layout: fixed;
-    clear: both;
-    word-wrap: break-word !important;
-    text-align: center;
-    line-height: 1;
+    min-height: 60px;
 }
 
-.ds-cipher-width {
-    max-width: 350px !important;
-    min-width: 350px !important;
-}
-
-.ds-modal-wide .modal-content {
-    width: 875px !important;
-    min-width: 875px !important;
-    vertical-align: middle;
-    margin-left: -90px !important;
+.ds-box {
+    min-height: 350px !important;
+    max-height: 350px !important;
+    border: .5px solid #909090;
+    overflow-y: scroll;
 }
 
 .ds-button-right {
@@ -196,55 +167,9 @@ td {
     margin-left: 0 !important;
 }
 
-.ds-config-checkbox {
-    margin-top: 10px !important;
-    margin-bottom: 10px !important;
-    margin-right: 5px !important;
-}
-
 .ds-operate-spinner {
     margin-left: 10px;
     top: 10px;
-}
-
-.ds-tab-main {
-    margin-left: 2%;
-    font-size: 18px;
-}
-
-.ds-config-label {
-    margin-top: 10px;
-    width: 225px !important;
-    margin-bottom: 10px !important;
-}
-
-.ds-config-label-xlrg {
-    margin-top: 10px;
-    width: 180px !important;
-    margin-bottom: 10px !important;
-}
-
-.ds-label-sm {
-    width: 175px !important;
-    margin-bottom: 10px !important;
-}
-
-.ds-modal-row {
-    margin-left: 20px;
-    margin-right: 0px !important;
-}
-
-.ds-chaining-list {
-    width: 350px;
-    height: 100px !important;
-}
-
-.ds-chaining-split {
-    width: 350px;
-}
-
-.ds-chaining-divider {
-    width: 85px;
 }
 
 p {
@@ -262,8 +187,10 @@ textarea {
     line-height: 1;
 }
 
-.ds-agmt-textarea {
+.ds-textarea {
     width: 100%;
+    min-height: 250px;
+    font-size: 14px !important;
     font-family: monospace !important;
 }
 
@@ -272,55 +199,28 @@ textarea {
     padding-top: 5px;
     vertical-align: top;
     width: 100% !important;
-    height: 500px;
-    max-height: 600px !important;
+    min-height: 500px !important;
     word-wrap: break-word !important;
     line-height: 1;
     font-family: monospace !important;
     overflow-y: scroll;
-    font-size: 12px;
+    font-size: 12px !important;
 }
 
 .ds-conflict {
     margin-top: 5px;
     padding-top: 5px;
     vertical-align: top;
-    width: 375px;
-    height: 275px;
-    max-height: 350px !important;
+    min-height: 150px !important;
     white-space: pre;
     line-height: 1.5;
     font-family: monospace !important;
-    overflow-y: auto;
-    overflow-x: scroll;
-}
-
-.ds-conflict-btn {
-    width: 150px;
-}
-
-option {
-    color: #181818;
 }
 
 .ds-server-action {
-    padding: 0 !important;
     margin-left: 10px;
+    margin-right: 10px;
     display: inline-block;
-    align-content: right;
-}
-
-.ds-action-btn {
-    margin-left: 10px;
-    margin-right: 0px;
-    /* border-radius: 5px !important; */
-    padding: 0px 10px 0px 10px !important;
-    min-height: 30px !important;
-}
-
-.ds-nav {
-    padding: 0 !important;
-    background-color: #f3f3f3;
 }
 
 .ds-float-right {
@@ -337,53 +237,14 @@ option {
     display: inline-block;
 }
 
-.spinner-sm {
-    height: 18px !important;
-    Width: 18px !important;
-}
-
 .ds-config-header {
-    margin-bottom: 20px;
+    margin-bottom: 30px;
+    text-align: center;
 }
 
 .ds-sub-header {
-    margin-top: 35px !important;
+    margin-top: 10px !important;
     margin-bottom: 10px;
-}
-
-.ds-accordion {
-    box-shadow: unset;
-    background-image: unset;
-    margin-top: 20px;
-    color: #228bc0 !important;
-    background-color: transparent !important;
-    border: 0;
-    position: relative;
-    overflow: hidden;
-    width: 100%;
-    text-align: left;
-    font: inherit;
-}
-
-.ds-accordion:after {
-    display: inline-block;
-    content: "";
-    height: 1px;
-    background: #228bc0;
-    position: absolute;
-    width: 100%;
-    top: 50% !important;
-    margin-left: 10px;
-    text-align: left;
-}
-
-.ds-accordion:focus {
-    background-color: transparent !important;
-    outline: none !important;
-    border: 0 !important;
-    -moz-outline: none !important;
-    -webkit-box-shadow: none !important;
-    box-shadow: 0 !important;
 }
 
 .ds-margin-top {
@@ -420,6 +281,16 @@ option {
     margin-right: 15px !important;
 }
 
+.ds-indent-md {
+    margin-left: 20px !important;
+    margin-right: 20px !important;
+}
+
+.ds-indent-lg {
+    margin-left: 30px !important;
+    margin-right: 30px !important;
+}
+
 .ds-left-indent {
     margin-left: 15px !important;
 }
@@ -428,12 +299,18 @@ option {
     margin-left: 30px !important;
 }
 
-.ds-right-indent {
-    margin-right: 15px !important;
+.ds-left-indent-lg {
+    margin-left: 50px !important;
+}
+
+.ds-left-indent-xlg {
+    margin-left: 70px !important;
 }
 
 .ds-tree-content {
-    margin-left: 25px;
+    margin-left: 35px;
+    margin-right: 15px;
+    margin-top: 25px;
     width: 100%;
 }
 
@@ -441,32 +318,9 @@ option {
     margin-left: 10px !important;
 }
 
-.ds-sm-left-margin {
-    margin-left: 5px !important;
-}
-
-.ds-loglevel-table {
-    max-width: 500px;
-    min-width: 500px;
-    table-layout: fixed;
-    margin-top: 20px;
-}
-
-.ds-table-checkbox {
-    width: 35px;
-    text-align: center;
-}
-
-.navbar-default {
-    margin-bottom: 0px;
-}
-
-.ds-modal-error {
-    color: red;
-}
-
-.ds-clear-text {
-     opacity: 0;
+.ds-left-margin-md {
+    /* same as ds-tree - used by create suffix button */
+    margin-left: 15px !important;
 }
 
 .ds-margin-left-sm {
@@ -477,26 +331,20 @@ option {
     margin-left: 40px !important;
 }
 
-.ds-margin-left-piechart {
-    margin-left: 140px !important;
+.ds-margin-right {
+    margin-right: 5px !important;
+}
+
+.ds-margin-bottom {
+    margin-bottom: 10px !important;
+}
+
+.ds-margin-bottom-md {
+    margin-bottom: 20px !important;
 }
 
 .ds-center {
     text-align: center;
-}
-
-.ds-loading-spinner {
-    position: fixed;
-    top: 25%;
-    left: 50%;
-    transform: translate(-25%, -50%);
-}
-
-.ds-loading-spinner-tree {
-    position: fixed;
-    top: 40%;
-    left: 40%;
-    transform: translate(-40%, -40%);
 }
 
 .ds-loading {
@@ -506,36 +354,34 @@ option {
     transform: translate(-25%, -35%);
 }
 
-.ds-input-auto {
-    width: 100%;
-    margin-right: 10px;
-    padding-left: 5px;
-}
-
 .ds-raise-field {
     margin-top: -3px;
+}
+
+.ds-raise-field-md {
+    margin-top: -6px;
 }
 
 .ds-lower-field {
     margin-top: 3px;
 }
 
-.content-view-pf-pagination > div > span:last-child {
-    position: relative;
+.ds-lower-field-md {
+    margin-top: 6px;
 }
 
-.ds-toolbar {
-    bottom: 10px;
+.ds-lower-field-lg {
+    margin-top: 10px;
+}
+
+.content-view-pf-pagination > div > span:last-child {
+    position: relative;
 }
 
 .ds-plugin-spinner {
     margin-top: 20px;
     margin-bottom: 10px;
     margin-left: 80px;
-}
-
-.ds-h4 {
-    font-size: 18px !important;
 }
 
 @media screen and (max-width: 1300px) {
@@ -586,18 +432,6 @@ option {
     margin-bottom: 1px !important;
 }
 
-.ds-tab-table {
-    margin-top: 25px !important;
-}
-
-.ds-nav-med {
-    font-size: 12px !important;
-}
-
-.ds-table-pagination {
-    border: 1px solid #d1d1d1;
-}
-
 .list-view-pf-view {
     margin-top: 10px;
 }
@@ -614,13 +448,6 @@ option {
     transition: visibility 0s 0s, opacity 1s linear;
 }
 
-.ds-col-append {
-    /* Move this item to the left to offset PF margins */
-    margin-left: -35px;
-    padding-right: 0px;
-    word-wrap: break-word;
-}
-
 .ds-word-wrap {
     word-wrap: break-word;
 }
@@ -631,67 +458,21 @@ option {
     padding-top: 5px;
 }
 
-.ds-header {
-    font-size: 16px;
-}
-
 .ds-no-padding {
     padding-right: 0 !important;
+    padding-top: 0 !important;
 }
 
-.ds-vertical-scroll-auto {
-  overflow-y: auto !important;
+.ds-dropdown-padding button {
+    padding-top: 2px !important;
+}
+
+.ds-instance-select {
+    margin-right: 10px !important;
 }
 
 .alert {
     max-width: 750px;
-}
-
-.ds-confirm {
-    margin-left: 5%;
-    margin-top: 5%;
-}
-
-.ds-select {
-    width: 120px;
-}
-
-.ds-schema-dropdown {
-    border-color: #06c !important;
-    color: #06c !important;
-}
-
-.treeview .list-group-item {
-    /* remove focus border */
-    outline: none;
-}
-
-.treeitem-row {
-    display: block;
-    outline: none;
-}
-
-.treeview .list-group-item.node-selected > .treeitem-row {
-    background: #0088ce !important;
-    border-color: #0088ce !important;
-    color: #fff !important;
-    display: block;
-}
-
-input {
-    padding-left: 5px !important;
-}
-
-.ds-width-auto {
-    width: 100%;
-}
-
-th {
-    text-align: center;
-}
-
-td {
-    text-align: center;
 }
 
 hr {
@@ -699,12 +480,86 @@ hr {
     margin-bottom: 20px;
 }
 
-h3 {
-    margin-top: 20px;
-    margin-bottom: 20px;
+.pf-c-tree-view__node-toggle {
+    padding-left: 0px !important;
 }
 
-h4 {
-    margin-top: 15px;
-    margin-bottom: 15px;
+pre {
+    white-space: pre-wrap;       /* Since CSS 2.1 */
+    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+    word-wrap: break-word;       /* Internet Explorer 5.5+ */
+}
+
+.pf-c-alert-group {
+    z-index: 20000 !important;
+}
+
+.ds-font-size-sm {
+    font-size: 12px !important;
+}
+
+.ds-font-size-md {
+    font-size: 14px !important;
+}
+
+/* hopefully this can be removed too.  This is for button spinners */
+[role="progressbar"] {
+    color: white !important;
+}
+
+.ds-disabled-icon svg {
+    fill: lightslategray;
+}
+
+.ds-warning-icon svg {
+    fill: orange;
+}
+
+.ds-ok-icon svg {
+    fill: green;
+}
+
+.ds-info-icon svg {
+    fill: rgb(57, 165, 220);
+}
+
+.ds-info-color {
+    color: rgb(0, 102, 204); /* rgb(57, 165, 220); */
+}
+
+.ds-icon-sm {
+    font-size: 0.7em;
+    margin-right: 20px;
+}
+
+/* typeAhead Select in modals doesn't fit well, need to make the modal taller */
+.ds-modal-select {
+    min-height: 350px !important;
+}
+
+.ds-modal-select-tall {
+    min-height: 600px !important;
+}
+
+/* This keeps a modal with Tabs the same size throughout all the tabs */
+.ds-modal-repl-agmt {
+    min-height: 755px !important;
+}
+
+.ds-modal-winsync-agmt {
+    min-height: 625px !important;
+}
+
+.ds-modal-changelog-export {
+    min-height: 525px !important;
+}
+
+/* LDAP Editor classes */
+.ds-search-input {
+    min-width: 550px !important;
+}
+
+.ds-badge-bgcolor {
+    color: #002952 !important;
+    background-color: #e7f1fa !important;
 }

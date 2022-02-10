@@ -203,6 +203,19 @@ class USNTombstoneCleanupTask(Task):
         return super(USNTombstoneCleanupTask, self)._validate(rdn, properties, basedn)
 
 
+class csngenTestTask(Task):
+    """A single instance of csn generator test task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'csngenTest_' + Task._get_task_date()
+        dn = "cn=" + self.cn + ",cn=csngen_test," + DN_TASKS
+        super(csngenTestTask, self).__init__(instance, dn)
+
+
 class EntryUUIDFixupTask(Task):
     """A single instance of memberOf task entry
 
@@ -1384,7 +1397,7 @@ class Tasks(object):
             raise ValueError("Missing required paramter: configfile")
 
         cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
-        dn = ('cn=%s,cn=cn=sysconfig reload,cn=tasks,cn=config' % cn)
+        dn = ('cn=%s,cn=sysconfig reload,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
         entry.setValues('cn', cn)
@@ -1576,3 +1589,16 @@ class Tasks(object):
         self.entry = entry
 
         return exitCode
+
+
+class LDAPIMappingReloadTask(Task):
+    """LDAPI DN Mapping task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'reload-' + Task._get_task_date()
+        dn = f'cn={self.cn},cn=reload ldapi mappings,cn=tasks,cn=config'
+        super(LDAPIMappingReloadTask, self).__init__(instance, dn)

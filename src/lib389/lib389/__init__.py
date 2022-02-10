@@ -40,7 +40,7 @@ import errno
 import uuid
 import json
 from shutil import copy2
-import six
+from contextlib import suppress
 
 # Deprecation
 import warnings
@@ -63,7 +63,7 @@ from lib389.utils import (
     ensure_str,
     ensure_list_str,
     format_cmd_list,
-    formatInfData,
+    get_default_db_lib,
     selinux_present,
     selinux_label_port)
 from lib389.paths import Paths
@@ -178,6 +178,8 @@ def wrapper(f, name):
 
 
 def pid_exists(pid):
+    if not pid:
+        return False
     if pid <= 0:
         return False
     try:
@@ -361,7 +363,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.ldclt = Ldclt(self)
         self.saslmaps = SaslMappings(self)
 
-    def __init__(self, verbose=False, external_log=None):
+    def __init__(self, verbose=False, external_log=None, containerised=False):
         """
             This method does various initialization of DirSrv object:
             parameters:
@@ -385,6 +387,9 @@ class DirSrv(SimpleLDAPObject, object):
         self.uuid = str(uuid.uuid4())
         self.verbose = verbose
         self.serverid = None
+        # Are we a container? We get containerised in setup.py during SetupDs, and
+        # in other cases we use the marker to tell us.
+        self._containerised = os.path.exists(DSRC_CONTAINER) or containerised
 
         # If we have an external logger, use it!
         self.log = logger
@@ -565,7 +570,13 @@ class DirSrv(SimpleLDAPObject, object):
                 DirSrvTools.searchHostsFile(self.host, None)
         # Check if we are local only if we haven't found that yet
         if not self.isLocal:
-            self.isLocal = isLocalHost(self.host)
+            if self.host is None and SER_SERVERID_PROP in args:
+                # Lets assume that local serverid is provided.
+                self.serverid = args.get(SER_SERVERID_PROP, None)
+                self.isLocal = True
+                #self.setup_ldapi()
+            else:
+                self.isLocal = isLocalHost(self.host)
 
         self.log.debug("Allocate %s with %s:%s", self.__class__, self.host, (self.sslport or self.port))
 
@@ -671,7 +682,7 @@ class DirSrv(SimpleLDAPObject, object):
 
             inst_paths = Paths(serverid)
 
-            # WARNING: This is not correct, but is a stop gap until: https://pagure.io/389-ds-base/issue/50207
+            # WARNING: This is not correct, but is a stop gap until: https://github.com/389ds/389-ds-base/issues/3266
             # Once that's done, this will "just work". Saying this, the whole prop dictionary
             # concept is fundamentally broken, and we should be using ds_paths anyway.
             prop[CONF_SERVER_DIR] = inst_paths.lib_dir
@@ -685,7 +696,7 @@ class DirSrv(SimpleLDAPObject, object):
             ldifconn = LDIFConn(filename)
             configentry = ldifconn.get(DN_CONFIG)
             for key in args_dse_keys:
-                prop[key] = configentry.getValue(args_dse_keys[key])
+                prop[key] = ensure_str(configentry.getValue(args_dse_keys[key]))
                 # SER_HOST            (host) nsslapd-localhost
                 # SER_PORT            (port) nsslapd-port
                 # SER_SECURE_PORT     (sslport) nsslapd-secureport
@@ -739,7 +750,7 @@ class DirSrv(SimpleLDAPObject, object):
                 instances.append(_parse_configfile(dse_ldif, serverid))
             else:
                 # it's not=
-                self.log.debug("list instance not found in {}: {}\n".format(dse_ldif, serverid))
+                self.log.debug(f"list() {serverid} instance not found: missing {dse_ldif}\n")
         else:
             # For each dir that starts with slapd-*
             inst_path = self.ds_paths.sysconf_dir + "/dirsrv"
@@ -760,59 +771,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         return instances
 
-    def _createDirsrv(self):
-        """Create a new instance of directory server
-
-        @param self - containing the set properties
-
-            SER_HOST            (host)
-            SER_PORT            (port)
-            SER_SECURE_PORT     (sslport)
-            SER_ROOT_DN         (binddn)
-            SER_ROOT_PW         (bindpw)
-            SER_CREATION_SUFFIX (creation_suffix)
-            SER_USER_ID         (userid)
-            SER_SERVERID_PROP   (serverid)
-            SER_GROUP_ID        (groupid)
-            SER_DEPLOYED_DIR    (prefix)
-            SER_BACKUP_INST_DIR (backupdir)
-
-        @return None
-
-        @raise None
-
-        }
-        """
-
-        DirSrvTools.lib389User(user=DEFAULT_USER)
-        prog = os.path.join(self.ds_paths.sbin_dir, CMD_PATH_SETUP_DS)
-
-        if not os.path.isfile(prog):
-            self.log.error("Can't find file: %r, removing extension", prog)
-            prog = prog[:-3]
-
-        # Create and extract a service keytab
-        args = {SER_HOST: self.host,
-                SER_PORT: self.port,
-                SER_SECURE_PORT: self.sslport,
-                SER_ROOT_DN: self.binddn,
-                SER_ROOT_PW: self.bindpw,
-                SER_CREATION_SUFFIX: self.creation_suffix,
-                SER_USER_ID: self.userid,
-                SER_SERVERID_PROP: self.serverid,
-                SER_GROUP_ID: self.groupid,
-                SER_BACKUP_INST_DIR: self.backupdir,
-                SER_STRICT_HOSTNAME_CHECKING: self.strict_hostname}
-
-        if self.inst_scripts is not None:
-            args[SER_INST_SCRIPTS_ENABLED] = self.inst_scripts
-
-        content = formatInfData(args)
-        result = DirSrvTools.runInfProg(prog, content, self.verbose, prefix=self.ds_paths.prefix)
-        if result != 0:
-            raise Exception('Failed to run setup-ds.pl')
-
-    def _createPythonDirsrv(self, version):
+    def _createDirsrv(self, version):
         """
         Create a new dirsrv instance based on the new python installer, rather
         than setup-ds.pl
@@ -835,7 +794,7 @@ class DirSrv(SimpleLDAPObject, object):
         slapd_options.set('secure_port', self.sslport)
         slapd_options.set('root_password', self.bindpw)
         slapd_options.set('root_dn', self.binddn)
-        #We disable TLS during setup, we use a function in tests to enable instead.
+        # We disable TLS during setup, we use a function in tests to enable instead.
         slapd_options.set('self_sign_cert', False)
         slapd_options.set('defaults', version)
 
@@ -859,7 +818,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.log.debug(backends)
         sds.create_from_args(general, slapd, backends, None)
 
-    def create(self, pyinstall=False, version=INSTALL_LATEST_CONFIG):
+    def create(self, version=INSTALL_LATEST_CONFIG):
         """
             Creates an instance with the parameters sets in dirsrv
             The state change from  DIRSRV_STATE_ALLOCATED ->
@@ -885,11 +844,9 @@ class DirSrv(SimpleLDAPObject, object):
         if not self.serverid:
             raise ValueError("SER_SERVERID_PROP is missing, " +
                              "it is required to create an instance")
+
         # Time to create the instance and retrieve the effective sroot
-        if (not self.ds_paths.perl_enabled or pyinstall):
-            self._createPythonDirsrv(version)
-        else:
-            self._createDirsrv()
+        self._createDirsrv(version)
 
         # Because of how this works, we force ldap:// only for now.
         # A real install will have ldaps, and won't go via this path.
@@ -925,10 +882,10 @@ class DirSrv(SimpleLDAPObject, object):
                              (self.serverid, self.host, self.port))
 
         # Now time to remove the instance
-        prog = os.path.join(self.ds_paths.sbin_dir, CMD_PATH_REMOVE_DS)
+        prog = os.path.join(self.ds_paths.sbin_dir, 'dsctl')
         if (not self.ds_paths.prefix or self.ds_paths.prefix == '/') and os.geteuid() != 0:
             raise ValueError("Error: without prefix deployment it is required to be root user")
-        cmd = "%s -i %s%s" % (prog, DEFAULT_INST_HEAD, self.serverid)
+        cmd = "%s slapd-%s remove --do-it" % (prog, self.serverid)
         self.log.debug("running: %s ", cmd)
         try:
             os.system(cmd)
@@ -954,13 +911,24 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.state = DIRSRV_STATE_ALLOCATED
 
-    def delete(self, pyinstall=False):
+    def get_db_lib(self):
+        with suppress(AttributeError):
+            return self._db_lib
+        with suppress(Exception):
+            from backend import DatabaseConfig
+            self._db_lib = DatabaseConfig(self).get_db_lib()
+            return self._db_lib
+        with suppress(Exception):
+            dse_ldif = DSEldif(None, self)
+            self._db_lib = dse_ldif.get(DN_CONFIG_LDBM, "nsslapd-backend-implement", single=True)
+            return _self.db_lib
+        return get_default_db_lib()
+
+    def delete(self):
         # Time to create the instance and retrieve the effective sroot
-        if (not self.ds_paths.perl_enabled or pyinstall):
-            from lib389.instance.remove import remove_ds_instance
-            remove_ds_instance(self)
-        else:
-            self._deleteDirsrv()
+        from lib389.instance.remove import remove_ds_instance
+        remove_ds_instance(self)
+
         # Now, we are still an allocated ds object so we can be re-installed
         self.state = DIRSRV_STATE_ALLOCATED
 
@@ -1153,39 +1121,43 @@ class DirSrv(SimpleLDAPObject, object):
             env = {}
             if self.has_asan():
                 self.log.warning("WARNING: Starting instance with ASAN options. This is probably not what you want. Please contact support.")
-                self.log.info("INFO: ASAN options will be copied from your environment")
-                env['ASAN_SYMBOLIZER_PATH'] = "/usr/bin/llvm-symbolizer"
-                env['ASAN_OPTIONS'] = "symbolize=1 detect_deadlocks=1 log_path=%s/ns-slapd-%s.asan" % (self.ds_paths.run_dir, self.serverid)
                 env.update(os.environ)
+                env['ASAN_SYMBOLIZER_PATH'] = "/usr/bin/llvm-symbolizer"
+                env['ASAN_OPTIONS'] = "%s symbolize=1 detect_deadlocks=1 log_path=%s/ns-slapd-%s.asan" % (env.get('ASAN_OPTIONS', ''), self.ds_paths.run_dir, self.serverid)
+                self.log.debug("ASAN_SYMBOLIZER_PATH = %s" % env['ASAN_SYMBOLIZER_PATH'])
+                self.log.debug("ASAN_OPTIONS = %s" % env['ASAN_OPTIONS'])
             output = None
             try:
                 cmd = ["%s/ns-slapd" % self.get_sbin_dir(),
                         "-D",
                         self.ds_paths.config_dir,
                         "-i",
-                        self.ds_paths.pid_file],
+                        self.pid_file()],
                 self.log.debug("DEBUG: starting with %s" % cmd)
                 output = subprocess.check_output(*cmd, env=env, stderr=subprocess.STDOUT)
-            except subprocess.CalledProcessError:
-                self.log.error('Failed to start ns-slapd: "%s"' % output)
+            except subprocess.CalledProcessError as e:
+                self.log.error('Failed to start ns-slapd: "%s"' % e.output.decode())
+                self.log.error(e)
                 raise ValueError('Failed to start DS')
             count = timeout
-            pid = pid_from_file(self.ds_paths.pid_file)
+            pid = pid_from_file(self.pid_file())
             while (pid is None) and count > 0:
                 count -= 1
                 time.sleep(1)
-                pid = pid_from_file(self.ds_paths.pid_file)
+                pid = pid_from_file(self.pid_file())
             if pid == 0 or pid is None:
+                self.log.error("Unable to find pid (%s) of ns-slapd process" % self.pid_file())
                 raise ValueError('Failed to start DS')
             # Wait
             while not pid_exists(pid) and count > 0:
                 # It looks like DS changes the value in here at some point ...
                 # It's probably a DS bug, but if we "keep checking" the file, eventually
                 # we get the main server pid, and it's ready to go.
-                pid = pid_from_file(self.ds_paths.pid_file)
+                pid = pid_from_file(self.pid_file())
                 time.sleep(1)
                 count -= 1
             if not pid_exists(pid):
+                self.log.error("pid (%s) of ns-slapd process does not exist" % pid)
                 raise ValueError("Failed to start DS")
         if post_open:
             self.open()
@@ -1219,7 +1191,7 @@ class DirSrv(SimpleLDAPObject, object):
             # TODO: Make the pid path in the files things
             # TODO: use the status call instead!!!!
             count = timeout
-            pid = pid_from_file(self.ds_paths.pid_file)
+            pid = pid_from_file(self.pid_file())
             if pid == 0 or pid is None:
                 raise ValueError("Failed to stop DS")
             os.kill(pid, signal.SIGTERM)
@@ -1252,8 +1224,8 @@ class DirSrv(SimpleLDAPObject, object):
             return False
         else:
             self.log.debug("systemd status -> False")
-            pid = pid_from_file(self.ds_paths.pid_file)
-            self.log.debug("pid file %s -> %s" % (self.ds_paths.pid_file, pid))
+            pid = pid_from_file(self.pid_file())
+            self.log.debug("pid file %s -> %s" % (self.pid_file(), pid))
             if pid is None:
                 self.log.debug("No pidfile found for %s", self.serverid)
                 # No pidfile yet ...
@@ -1612,9 +1584,6 @@ class DirSrv(SimpleLDAPObject, object):
         if selinux_present():
             selinux_label_port(self.sslport)
 
-        if self.ds_paths.perl_enabled:
-            # We don't setup sslport correctly in perl installer ....
-            self.config.set('nsslapd-secureport', '%s' % self.sslport)
         # If we are old, we don't have template dse, so enable manually.
         if ds_is_older('1.4.0'):
             if not self.encryption.exists():
@@ -1688,6 +1657,8 @@ class DirSrv(SimpleLDAPObject, object):
         return self.ds_paths.config_dir
 
     def get_cert_dir(self):
+        if self._containerised:
+            return "/data/config"
         return self.ds_paths.cert_dir
 
     def get_sysconf_dir(self):
@@ -1742,6 +1713,11 @@ class DirSrv(SimpleLDAPObject, object):
             return self.systemd_override
         return self.ds_paths.with_systemd
 
+    def pid_file(self):
+        if self._containerised:
+            return "/data/run/slapd-localhost.pid"
+        return self.ds_paths.pid_file
+
     def get_server_tls_subject(self):
         """ Get the servers TLS subject line for enrollment purposes.
 
@@ -1777,7 +1753,7 @@ class DirSrv(SimpleLDAPObject, object):
         if not obj:
             raise NoSuchEntryError("no such entry for %r", [args])
 
-        self.log.debug("Retrieved entry %s", obj)
+        self.log.debug("Retrieved entry %s", str(obj))
         if isinstance(obj, Entry):
             return obj
         else:  # assume list/tuple
@@ -1813,14 +1789,14 @@ class DirSrv(SimpleLDAPObject, object):
                          process_url_schemes=None
                          ):
                 myfile = input_file
-                if isinstance(input_file, six.string_types):
+                if isinstance(input_file, str):
                     myfile = open(input_file, "r")
                 self.conn = conn
                 self.cont = cont
                 ldif.LDIFParser.__init__(self, myfile, ignored_attr_types,
                                          max_entries, process_url_schemes)
                 self.parse()
-                if isinstance(input_file, six.string_types):
+                if isinstance(input_file, str):
                     myfile.close()
 
             def handle(self, dn, entry):
@@ -1983,7 +1959,7 @@ class DirSrv(SimpleLDAPObject, object):
             for attr in dbattrs:
                 fmtstr += ' %%(%s)%ds' % (attr, cols[attr][0])
                 ret += ' %*s' % tuple(cols[attr])
-            for dbf in six.itervalues(dbrec):
+            for dbf in dbrec.values():
                 ret += "\n" + (fmtstr % dbf)
             return ret
         except Exception as e:
@@ -2081,7 +2057,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         # next, get the path of the replication plugin
         e_plugin = self.getEntry(
-            "cn=Multimaster Replication Plugin,cn=plugins,cn=config",
+            "cn=Multisupplier Replication Plugin,cn=plugins,cn=config",
             attrlist=['nsslapd-pluginPath'])
         path = e_plugin.getValue('nsslapd-pluginPath')
 
@@ -2529,9 +2505,9 @@ class DirSrv(SimpleLDAPObject, object):
         for ent in (conent, polent, tement, cosent):
             try:
                 self.add_s(ent)
-                self.log.debug("created subtree pwpolicy entry", ent.dn)
+                self.log.debug("created subtree pwpolicy entry %s", ent.dn)
             except ldap.ALREADY_EXISTS:
-                self.log.debug("subtree pwpolicy entry", ent.dn,
+                self.log.debug("subtree pwpolicy entry %s", ent.dn,
                               "already exists - skipping")
         self.setPwdPolicy({'nsslapd-pwpolicy-local': 'on'})
         self.setDNPwdPolicy(poldn, pwdpolicy, **pwdargs)
@@ -2551,9 +2527,9 @@ class DirSrv(SimpleLDAPObject, object):
         for ent in (conent, polent):
             try:
                 self.add_s(ent)
-                self.log.debug("created user pwpolicy entry", ent.dn)
+                self.log.debug("created user pwpolicy entry %s", ent.dn)
             except ldap.ALREADY_EXISTS:
-                self.log.debug("user pwpolicy entry", ent.dn,
+                self.log.debug("user pwpolicy entry %s", ent.dn,
                       "already exists - skipping")
         mod = [(ldap.MOD_REPLACE, 'pwdpolicysubentry', poldn)]
         self.modify_s(user, mod)
@@ -2566,10 +2542,10 @@ class DirSrv(SimpleLDAPObject, object):
     def setDNPwdPolicy(self, dn, pwdpolicy, **pwdargs):
         """input is dict of attr/vals"""
         mods = []
-        for (attr, val) in six.iteritems(pwdpolicy):
+        for (attr, val) in pwdpolicy.items():
             mods.append((ldap.MOD_REPLACE, attr, ensure_bytes(val)))
         if pwdargs:
-            for (attr, val) in six.iteritems(pwdargs):
+            for (attr, val) in pwdargs.items():
                 mods.append((ldap.MOD_REPLACE, attr, ensure_bytes(val)))
         self.modify_s(dn, mods)
 
@@ -2745,6 +2721,8 @@ class DirSrv(SimpleLDAPObject, object):
                 cmd.append(excludeSuffix)
         if encrypt:
             cmd.append('-E')
+        if import_cl:
+            cmd.append('-R')
 
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')
@@ -2761,7 +2739,7 @@ class DirSrv(SimpleLDAPObject, object):
         return True
 
     def db2ldif(self, bename, suffixes, excludeSuffixes, encrypt, repl_data,
-                outputfile):
+                outputfile, export_cl=False):
         """
         @param bename - The backend name of the database to export
         @param suffixes - List/tuple of suffixes to export
@@ -2801,8 +2779,10 @@ class DirSrv(SimpleLDAPObject, object):
                 cmd.append(excludeSuffix)
         if encrypt:
             cmd.append('-E')
-        if repl_data:
+        if repl_data and not export_cl:
             cmd.append('-r')
+        if export_cl:
+            cmd.append('-R')
         if outputfile is not None:
             cmd.append('-a')
             cmd.append(outputfile)
@@ -3033,6 +3013,40 @@ class DirSrv(SimpleLDAPObject, object):
         self.log.debug("Deleting LDIF file: " + del_file)
         os.remove(del_file)
 
+    def is_dbi_supported(self):
+        # check if -D and -L options are supported
+        try:
+            cmd = ["%s/dbscan" % self.get_bin_dir(),
+                    "--help"]
+            self.log.debug("DEBUG: checking dbscan supported options %s" % cmd)
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        except subprocess.CalledProcessError:
+            pass
+        output, stderr = p.communicate()
+        self.log.debug("is_dbi_supported output " + output.decode())
+        if "-D <dbimpl>" in output.decode() and "-L <dbhome>" in output.decode():
+            return True
+        else:
+            return False
+
+
+    def is_dbi(self, dbipattern):
+        try:
+            cmd = ["%s/dbscan" % self.get_bin_dir(),
+                    "-D",
+                    self.get_db_lib(),
+                    "-L",
+                    self.ds_paths.db_dir],
+            self.log.debug("DEBUG: starting with %s" % cmd)
+            output = subprocess.check_output(*cmd, text=True, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError:
+            self.log.error('Failed to run dbscan: "%s"' % output)
+            raise ValueError('Failed to run dbscan')
+        self.log.debug("is_dbi output is: " + output)
+
+        return dbipattern.lower() in output.lower()
+ 
+
     def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False):
         """Wrapper around dbscan tool that analyzes and extracts information
         from an import Directory Server database file
@@ -3060,6 +3074,9 @@ class DirSrv(SimpleLDAPObject, object):
             indexfile = os.path.join(self.dbdir, bename, index)
         else:
             indexfile = os.path.join(self.dbdir, bename, index + '.db')
+        # (we should also accept a version number for .db suffix)
+        for f in glob.glob(f'{indexfile}*'):
+            indexfile = f
 
         cmd = [prog, '-f', indexfile]
 
@@ -3290,7 +3307,7 @@ class DirSrv(SimpleLDAPObject, object):
             self.set_option(ldap.OPT_SERVER_CONTROLS, [])
         return resp_data, decoded_resp_ctrls
 
-    def buildLDIF(self, num, ldif_file, suffix='dc=example,dc=com', pyinstall=False):
+    def buildLDIF(self, num, ldif_file, suffix='dc=example,dc=com'):
         """Generate a simple ldif file using the dbgen.pl script, and set the
            ownership and permissions to match the user that the server runs as.
 
@@ -3300,21 +3317,8 @@ class DirSrv(SimpleLDAPObject, object):
            @return - nothing
            @raise - OSError
         """
-        if (not self.ds_paths.perl_enabled or pyinstall):
-            raise Exception("Perl tools disabled on this system. Try dbgen py module.")
-        else:
-            try:
-                os.system('%s -s %s -n %d -o %s' % (os.path.join(self.ds_paths.bin_dir, 'dbgen.pl'), suffix, num, ldif_file))
-                os.chmod(ldif_file, 0o644)
-                if os.getuid() == 0:
-                    # root user - chown the ldif to the server user
-                    uid = pwd.getpwnam(self.userid).pw_uid
-                    gid = grp.getgrnam(self.userid).gr_gid
-                    os.chown(ldif_file, uid, gid)
-            except OSError as e:
-                self.log.exception('Failed to create ldif file (%s): error %d - %s',
-                                   ldif_file, e.errno, e.strerror)
-                raise e
+        raise Exception("Perl tools disabled on this system. Try dbgen py module.")
+
 
     def getConsumerMaxCSN(self, replica_entry, binddn=None, bindpw=None):
         """

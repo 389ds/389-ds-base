@@ -39,6 +39,7 @@ def _delete_container(container):
 
 def test_conflict_cli(topo):
     """Test manageing replication conflict entries
+
     :id: 800f432a-52ab-4661-ac66-a2bdd9b984d8
     :setup: two supplers
     :steps:
