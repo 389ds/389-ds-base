@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -13,14 +13,16 @@ arg_to_attr = {
     'attribute': 'nsslapd-attribute',
     'directory': 'nsslapd-changelogdir',
     'max_age': 'nsslapd-changelogmaxage',
+    'trim_interval': 'nsslapd-changelog-trim-interval',
     'exclude_suffix': 'nsslapd-exclude-suffix',
-    'exclude_attrs': 'nsslapd-exclude-attrs'
+    'exclude_attrs': 'nsslapd-exclude-attrs',
 }
 
 def retrochangelog_edit(inst, basedn, log, args):
     log = log.getChild('retrochangelog_edit')
     plugin = RetroChangelogPlugin(inst)
     generic_object_edit(plugin, log, args, arg_to_attr)
+
 
 def retrochangelog_add(inst, basedn, log, args):
     log = log.getChild('retrochangelog_add')
@@ -54,6 +56,7 @@ def _add_parser_args(parser):
                         help='Specifies the attributes which will be excluded from the scope of the plugin '
                             '(nsslapd-exclude-attrs)')
 
+
 def create_parser(subparsers):
     retrochangelog = subparsers.add_parser('retro-changelog', help='Manage and configure Retro Changelog plugin')
     subcommands = retrochangelog.add_subparsers(help='action')
@@ -63,6 +66,9 @@ def create_parser(subparsers):
     edit.set_defaults(func=retrochangelog_edit)
     _add_parser_args(edit)
 
+    addp = subcommands.add_parser('add', help='Add attributes to the plugin')
+    addp.set_defaults(func=retrochangelog_add)
+    _add_parser_args(addp)
 
     delp = subcommands.add_parser('del', help='Delete an attribute from plugin scope')
     delp.set_defaults(func=retrochangelog_del)

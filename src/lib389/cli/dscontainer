@@ -253,7 +253,7 @@ def begin_magic():
         s2b.set('ldif_dir', '/data/ldif')
         s2b.set('run_dir', '/data/run')
         s2b.set('lock_dir', '/data/run/lock')
-        s2b.set('ldapi', '/data/run/slapd.socket')
+        s2b.set('ldapi', '/data/run/slapd-localhost.socket')
 
         s2b.set('log_dir', '/data/logs')
         s2b.set('access_log', '/data/logs/access')
@@ -271,16 +271,21 @@ def begin_magic():
 
         # Create the marker to say we exist. This is also a good writable permissions
         # test for the volume.
-        with open(DSRC_CONTAINER, 'w') as f:
-            f.write("""
+        basedn = '# basedn = dc=example,dc=com'
+        suffix = os.getenv("SUFFIX_NAME")
+        if suffix is not None:
+            basedn = f'basedn = {suffix}'
+        config_file = """
 [localhost]
 # Note that '/' is replaced to '%%2f' for ldapi url format.
 # So this is pointing to /data/run/slapd-localhost.socket
 uri = ldapi://%%2fdata%%2frun%%2fslapd-localhost.socket
 binddn = cn=Directory Manager
 # Set your basedn here
-# basedn = dc=example,dc=com
-            """)
+{0}
+""".format(basedn)
+        with open(DSRC_CONTAINER, 'w') as f:
+            f.write(config_file)
         os.chmod(DSRC_CONTAINER, 0o755)
 
     # Setup TLS from PEM files as required.
@@ -305,7 +310,7 @@ binddn = cn=Directory Manager
         # "-i", "/data/run/slapd-localhost.pid",
         # See /ldap/servers/slapd/slap.h SLAPD_DEFAULT_ERRORLOG_LEVEL
         "-d", "266354688",
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=os.environ.copy())
+        ], stdout=None, stderr=None, env=os.environ.copy())
 
     # Setup the process and shutdown handler in an init-esque fashion.
     def kill_ds():
@@ -328,14 +333,23 @@ binddn = cn=Directory Manager
 
     # Wait on the health check to show we are ready for ldapi.
     healthy = False
-    max_failure_count = 20
+    startup_timeout = os.getenv("DS_STARTUP_TIMEOUT", 60)
+    max_failure_count = int(startup_timeout / 3)
     for i in range(0, max_failure_count):
-        (check_again, healthy) = begin_healthcheck(ds_proc)
+        if ds_proc is None:
+            log.warning("ns-slapd pid has disappeared ...")
+            break
+        # Is this the final check before we reach the timeout?
+        # If yes, then we'll log the exception too
+        final_check = True if i == max_failure_count - 1  else False
+        (check_again, healthy) = begin_healthcheck(ds_proc, final_check)
         if check_again is False:
             break
         time.sleep(3)
         # Check again then ....
     if not healthy:
+        log.error(f"Timeout of {startup_timeout} seconds was reached")
+        log.error("Couldn't connect via LDAPI socket")
         log.error("389-ds-container failed to start")
         sys.exit(1)
 
@@ -354,11 +368,10 @@ binddn = cn=Directory Manager
     # THE LETTER OF THE DAY IS C AND THE NUMBER IS 10
 
 
-def begin_healthcheck(ds_proc):
-    if ds_proc is None:
-        log.warning("ns-slapd pid has disappeared ...")
-        return (False, False)
-    if ds_proc.poll() is not None:
+def begin_healthcheck(ds_proc, log_exception):
+    # We skip the pid check if ds_proc is none because that means it's coming from the
+    # container healthcheck.
+    if ds_proc is not None and ds_proc.poll() is not None:
         # Ruh-Roh
         log.warning("ns-slapd pid has completed, you should check the error log ...")
         return (False, False)
@@ -372,7 +385,11 @@ def begin_healthcheck(ds_proc):
             log.error("The instance may be misconfigured, unable to cn=Directory Manager autobind.")
             return (False, False)
     except:
-        log.debug("Instance LDAPI not functional (yet?)")
+        err_msg = "Instance LDAPI not functional (yet?)"
+        if log_exception:
+            log.exception(err_msg)
+        else:
+            log.debug(err_msg)
         pass
     return (True, False)
 
@@ -425,7 +442,7 @@ container host.
     if args.runit:
         begin_magic()
     elif args.healthcheck:
-        if begin_healthcheck() is True:
+        if begin_healthcheck(None, False) == (False, True):
             sys.exit(0)
         else:
             sys.exit(1)

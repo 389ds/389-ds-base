@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -19,12 +19,10 @@ from lib389 import Entry
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.mappingTree import MappingTrees
 from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
-from lib389.replica import Replicas
+from lib389.replica import Replicas, Changelog5
 from lib389.cos import (CosTemplates, CosIndirectDefinitions,
                         CosPointerDefinitions, CosClassicDefinitions)
 
-# We need to be a factor to the backend monitor
-from lib389.monitor import MonitorBackend
 from lib389.index import Index, Indexes, VLVSearches, VLVSearch
 from lib389.tasks import ImportTask, ExportTask, Tasks
 from lib389.encrypted_attributes import EncryptedAttr, EncryptedAttrs
@@ -33,7 +31,7 @@ from lib389.encrypted_attributes import EncryptedAttr, EncryptedAttrs
 # This is for sample entry creation.
 from lib389.configurations import get_sample_entries
 
-from lib389.lint import DSBLE0001, DSBLE0002, DSBLE0003, DSVIRTLE0001
+from lib389.lint import DSBLE0001, DSBLE0002, DSBLE0003, DSVIRTLE0001, DSCLLE0001
 
 
 class BackendLegacy(object):
@@ -509,6 +507,26 @@ class Backend(DSLdapObject):
             result['items'] = [bename, ]
             yield result
 
+    def _lint_cl_trimming(self):
+        """Check that cl trimming is at least defined to prevent unbounded growth"""
+        bename = self.lint_uid()
+        replicas = Replicas(self._instance)
+        try:
+            # Check if replication is enabled
+            replicas.get(suffix)
+            # Check the changelog
+            cl = Changelog5(self._instance)
+            if cl.get_attr_val_utf8('nsslapd-changelogmaxentries') is None and \
+               cl.get_attr_val_utf8('nsslapd-changelogmaxage') is None:
+                report = copy.deepcopy(DSCLLE0001)
+                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                report['check'] = f'backends:{bename}::cl_trimming'
+                yield report
+        except:
+            # Suffix is not replicated
+            self._log.debug(f"_lint_cl_trimming - backend ({suffix}) is not replicated")
+            pass
+
     def create_sample_entries(self, version):
         """Creates sample entries under nsslapd-suffix value
 
@@ -673,6 +691,8 @@ class Backend(DSLdapObject):
 
     def get_monitor(self):
         """Get a MonitorBackend(DSLdapObject) for the backend"""
+        # We need to be a factor to the backend monitor
+        from lib389.monitor import MonitorBackend
 
         monitor = MonitorBackend(instance=self._instance, dn="cn=monitor,%s" % self._dn)
         return monitor
@@ -698,7 +718,7 @@ class Backend(DSLdapObject):
                 return
         raise ValueError("Can not delete index because it does not exist")
 
-    def add_index(self, attr_name, types, matching_rules=[], reindex=False):
+    def add_index(self, attr_name, types, matching_rules=None, reindex=False):
         """ Add an index.
 
         :param attr_name - name of the attribute to index
@@ -715,7 +735,9 @@ class Backend(DSLdapObject):
             mrs = []
             for mr in matching_rules:
                 mrs.append(mr)
-            props['nsMatchingRule'] = mrs
+            # Only add if there are actually rules present in the list.
+            if len(mrs) > 0:
+                props['nsMatchingRule'] = mrs
         new_index.create(properties=props, basedn="cn=index," + self._dn)
 
         if reindex:
@@ -845,12 +867,12 @@ class Backend(DSLdapObject):
         return CosTemplates(self._instance, self._dn).list()
 
     def get_state(self):
-            suffix = self.get_attr_val_utf8('nsslapd-suffix')
-            try:
-                mt = self._mts.get(suffix)
-            except ldap.NO_SUCH_OBJECT:
-                raise ValueError("Backend missing mapping tree entry, unable to get state")
-            return mt.get_attr_val_utf8('nsslapd-state')
+        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+        try:
+            mt = self._mts.get(suffix)
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError("Backend missing mapping tree entry, unable to get state")
+        return mt.get_attr_val_utf8('nsslapd-state')
 
     def set_state(self, new_state):
         new_state = new_state.lower()
@@ -860,8 +882,8 @@ class Backend(DSLdapObject):
         except ldap.NO_SUCH_OBJECT:
             raise ValueError("Backend missing mapping tree entry, unable to set configuration")
 
-        if new_state not in ['backend', 'disabled', 'referral', 'referral on update']:
-            raise ValueError(f"Invalid backend state {new_state}, value must be one of the following: 'backend', 'disabled', 'referral', 'referral on update'")
+        if new_state not in ['backend', 'disabled',  'referral',  'referral on update']:
+            raise ValueError(f"Invalid backend state {new_state}, value must be one of the following: 'backend', 'disabled',  'referral',  'referral on update'")
 
         # Can not change state of replicated backend
         replicas = Replicas(self._instance)
@@ -1025,6 +1047,9 @@ class DatabaseConfig(DSLdapObject):
             'nsslapd-rangelookthroughlimit',
             'nsslapd-backend-opt-level',
             'nsslapd-backend-implement',
+            'nsslapd-db-durable-transaction',
+            'nsslapd-search-bypass-filter-test',
+            'nsslapd-serial-lock',
         ]
         self._db_attrs = {
             'bdb':
@@ -1032,7 +1057,6 @@ class DatabaseConfig(DSLdapObject):
                     'nsslapd-dbcachesize',
                     'nsslapd-db-logdirectory',
                     'nsslapd-db-home-directory',
-                    'nsslapd-db-durable-transaction',
                     'nsslapd-db-transaction-wait',
                     'nsslapd-db-checkpoint-interval',
                     'nsslapd-db-compactdb-interval',
@@ -1051,22 +1075,24 @@ class DatabaseConfig(DSLdapObject):
                     'nsslapd-cache-autosize',
                     'nsslapd-cache-autosize-split',
                     'nsslapd-import-cachesize',
-                    'nsslapd-search-bypass-filter-test',
-                    'nsslapd-serial-lock',
                     'nsslapd-db-deadlock-policy',
                 ],
-            'lmdb': []
+            'mdb': [
+                    'nsslapd-mdb-max-size',
+                    'nsslapd-mdb-max-readers',
+                    'nsslapd-mdb-max-dbs',
+                ]
         }
         self._create_objectclasses = ['top', 'extensibleObject']
         self._protected = True
-        # This could be "bdb" or "lmdb", use what we have configured in the global config
+        # This could be "bdb" or "mdb", use what we have configured in the global config
         self._db_lib = self.get_attr_val_utf8_l('nsslapd-backend-implement')
         self._dn = "cn=config,cn=ldbm database,cn=plugins,cn=config"
         self._db_dn = f"cn={self._db_lib},cn=config,cn=ldbm database,cn=plugins,cn=config"
         self._globalObj = DSLdapObject(self._instance, dn=self._dn)
         self._dbObj = DSLdapObject(self._instance, dn=self._db_dn)
         # Assert there is no overlap in different config sets
-        assert_c(len(set(self._global_attrs).intersection(set(self._db_attrs['bdb']), set(self._db_attrs['lmdb']))) == 0)
+        assert_c(len(set(self._global_attrs).intersection(set(self._db_attrs['bdb']), set(self._db_attrs['mdb']))) == 0)
 
     def get(self):
         """Get the combined config entries"""
@@ -1089,7 +1115,7 @@ class DatabaseConfig(DSLdapObject):
             self._instance.log.info(f'{k}: {vo}')
 
     def get_db_lib(self):
-        """Return the backend library, bdb, lmdb, etc"""
+        """Return the backend library, bdb, mdb, etc"""
         return self._db_lib
 
     def set(self, value_pairs):
@@ -1101,8 +1127,9 @@ class DatabaseConfig(DSLdapObject):
             elif attr in self._db_attrs['bdb']:
                 db_config = DSLdapObject(self._instance, dn=self._db_dn)
                 db_config.replace(attr, val)
-            elif attr in self._db_attrs['lmdb']:
-                pass
+            elif attr in self._db_attrs['mdb']:
+                db_config = DSLdapObject(self._instance, dn=self._db_dn)
+                db_config.replace(attr, val)
             else:
                 # Unknown attribute
                 raise ValueError("Can not update database configuration with unknown attribute: " + attr)

@@ -98,14 +98,22 @@ if __name__ == '__main__':
         instance_remove_all(log, args)
         sys.exit(0)
     elif not args.instance:
-        log.error("error: the following arguments are required: instance")
-        parser.print_help()
+        errmsg = "error: the following arguments are required: instance"
+        if args.json:
+            sys.stderr.write("{'desc': '%s'}\n" % errmsg)
+        else:
+            log.error(errmsg)
+            parser.print_help()
         sys.exit(1)
 
     # Assert we have a resources to work on.
     if not hasattr(args, 'func'):
-        log.error("No action provided, here is some --help.")
-        parser.print_help()
+        errmsg = "No action provided, here is some --help."
+        if args.json:
+            sys.stderr.write("{'desc': '%s'}\n" % errmsg)
+        else:
+            log.error(errmsg)
+            parser.print_help()
         sys.exit(1)
 
     # Connect
@@ -124,15 +132,25 @@ if __name__ == '__main__':
         except (PermissionError, IOError) as e:
             log.error("Unable to access instance information. Are you running as the correct user? (usually dirsrv or root)")
             msg = format_error_to_dict(e)
-            log.error("Error: %s" % " - ".join(msg.values()))
+            if args.json:
+                sys.stderr.write(f"{json.dumps(msg, indent=4)}\n")
+            else:
+                log.error("Error: %s" % " - ".join(msg.values()))
             sys.exit(1)
         except Exception as e:
             msg = format_error_to_dict(e)
-            log.error("Error: %s" % " - ".join(msg.values()))
+            if args.json:
+                sys.stderr.write(f"{json.dumps(msg, indent=4)}\n")
+            else:
+                log.error("Error: %s" % " - ".join(msg.values()))
             sys.exit(1)
     if len(insts) != 1:
-        log.error("No such instance '%s'" % args.instance)
-        log.error("Unable to access instance information. Are you running as the correct user? (usually dirsrv or root)")
+        errmsg = "No such instance '%s'" % args.instance
+        if args.json:
+            sys.stderr.write('{"desc": "%s"}\n' % errmsg)
+        else:
+            log.error(errmsg)
+            log.error("Unable to access instance information. Are you running as the correct user? (usually dirsrv or root)")
         sys.exit(1)
 
     inst.local_simple_allocate(insts[0]['server-id'])

@@ -72,10 +72,21 @@ def sasl_map_delete(inst, basedn, log, args, warn=True):
     if warn and args.json is False:
         _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
     _generic_delete(inst, basedn, log.getChild('sasl_map_delete'), SINGULAR, dn, args)
-    
+
 def sasl_get_supported(inst, basedn, log, args):
     """Get a list of the supported sasl mechanisms"""
     mechs = inst.rootdse.supported_sasl()
+    if args.json:
+        result = {'type': 'list', 'items': mechs}
+        log.info(json.dumps(result, indent=4, ))
+    else:
+        for mech in mechs:
+            log.info(mech)
+
+
+def sasl_get_available(inst, basedn, log, args):
+    """Get a list of the available sasl mechanisms"""
+    mechs = inst.rootdse.available_sasl()
     if args.json:
         result = {'type': 'list', 'items': mechs}
         log.info(json.dumps(result, indent=4, ))
@@ -93,8 +104,12 @@ def create_parser(subparsers):
     list_mappings_parser.set_defaults(func=sasl_map_list)
     list_mappings_parser.add_argument('--details', action='store_true', default=False,
         help="Displays each SASL mapping in detail")
-    get_mech_parser= subcommands.add_parser('get-mechs', help='Display available SASL mechanisms')
+
+    get_mech_parser= subcommands.add_parser('get-mechs', help='Display the SASL mechanisms that the server will accept')
     get_mech_parser.set_defaults(func=sasl_get_supported)
+
+    get_mech_parser= subcommands.add_parser('get-available-mechs', help='Display the SASL mechanisms that are available to the server')
+    get_mech_parser.set_defaults(func=sasl_get_available)
 
     get_parser = subcommands.add_parser('get', help='Displays SASL mappings')
     get_parser.set_defaults(func=sasl_map_get)

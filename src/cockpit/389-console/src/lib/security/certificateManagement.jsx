@@ -1,15 +1,15 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Nav,
-    NavItem,
-    TabContainer,
-    TabContent,
-    TabPane,
     Button,
     Spinner,
-    noop
-} from "patternfly-react";
+    Tab,
+    Tabs,
+    TabTitleText,
+    Text,
+    TextContent,
+    TextVariants,
+} from "@patternfly/react-core";
 import { DoubleConfirmModal } from "../../lib/notifications.jsx";
 import {
     CertTable
@@ -20,32 +20,38 @@ import {
     SecurityAddCACertModal,
 } from "./securityModals.jsx";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 import { log_cmd } from "../../lib/tools.jsx";
 
 export class CertificateManagement extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            activeKey: 1,
+            activeTabKey: 0,
             ServerCerts: this.props.ServerCerts,
             CACerts: this.props.CACerts,
+            tableKey: 0,
             showEditModal: false,
             showAddModal: false,
-            modalSpinner: false,
+            modalSpinning: false,
             showConfirmDelete: false,
             certName: "",
             certFile: "",
             flags: "",
+            _flags: "",
             errObj: {},
             isCACert: false,
             showConfirmCAChange: false,
             loading: false,
-            modalSpinning: false,
             modalChecked: false,
+            disableSaveBtn: true,
         };
 
-        this.handleNavSelect = this.handleNavSelect.bind(this);
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+
         this.addCACert = this.addCACert.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.addCert = this.addCert.bind(this);
@@ -67,16 +73,10 @@ export class CertificateManagement extends React.Component {
         this.reloadCACerts = this.reloadCACerts.bind(this);
     }
 
-    handleNavSelect(key) {
-        this.setState({
-            activeKey: key
-        });
-    }
-
     showAddModal () {
         this.setState({
             showAddModal: true,
-            errObj: {certName: true, certFile: true}
+            errObj: { certName: true, certFile: true }
         });
     }
 
@@ -91,7 +91,7 @@ export class CertificateManagement extends React.Component {
     showAddCAModal () {
         this.setState({
             showAddCAModal: true,
-            errObj: {certName: true, certFile: true}
+            errObj: { certName: true, certFile: true }
         });
     }
 
@@ -119,7 +119,7 @@ export class CertificateManagement extends React.Component {
         }
 
         this.setState({
-            modalSpinner: true,
+            modalSpinning: true,
             loading: true,
         });
         const cmd = [
@@ -135,7 +135,7 @@ export class CertificateManagement extends React.Component {
                         showAddModal: false,
                         certFile: '',
                         certName: '',
-                        modalSpinner: false
+                        modalSpinning: false
                     });
                     this.props.addNotification(
                         "success",
@@ -143,13 +143,13 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
                     }
                     this.setState({
-                        modalSpinner: false,
+                        modalSpinning: false,
                         loading: false,
                     });
                     this.props.addNotification(
@@ -175,7 +175,7 @@ export class CertificateManagement extends React.Component {
         }
 
         this.setState({
-            modalSpinner: true,
+            modalSpinning: true,
             loading: true,
         });
         const cmd = [
@@ -191,7 +191,7 @@ export class CertificateManagement extends React.Component {
                         showAddCAModal: false,
                         certFile: '',
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                     });
                     this.props.addNotification(
                         "success",
@@ -199,13 +199,13 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
                     }
                     this.setState({
-                        modalSpinner: false,
+                        modalSpinning: false,
                         loading: false,
                     });
                     this.props.addNotification(
@@ -215,10 +215,10 @@ export class CertificateManagement extends React.Component {
                 });
     }
 
-    showDeleteConfirm(dataRow) {
+    showDeleteConfirm(nickname) {
         this.setState({
             showConfirmDelete: true,
-            certName: dataRow.nickname[0],
+            certName: nickname,
             modalSpinning: false,
             modalChecked: false,
         });
@@ -226,7 +226,7 @@ export class CertificateManagement extends React.Component {
 
     delCert () {
         this.setState({
-            modalSpinner: true,
+            modalSpinning: true,
             loading: true
         });
         const cmd = [
@@ -240,7 +240,7 @@ export class CertificateManagement extends React.Component {
                     this.reloadCACerts();
                     this.setState({
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                         showConfirmDelete: false,
                     });
                     this.props.addNotification(
@@ -249,14 +249,14 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
                     }
                     this.setState({
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                         loading: false,
                     });
                     this.props.addNotification(
@@ -266,11 +266,11 @@ export class CertificateManagement extends React.Component {
                 });
     }
 
-    showEditModal (rowData) {
+    showEditModal (name, flags) {
         this.setState({
             showEditModal: true,
-            certName: rowData.nickname[0],
-            flags: rowData.flags[0],
+            certName: name,
+            flags: flags,
             isCACert: false,
         });
     }
@@ -282,11 +282,12 @@ export class CertificateManagement extends React.Component {
         });
     }
 
-    showEditCAModal (rowData) {
+    showEditCAModal (nickname, flags) {
         this.setState({
             showEditModal: true,
-            certName: rowData.nickname[0],
-            flags: rowData.flags[0],
+            certName: nickname,
+            flags: flags,
+            _flags: flags,
             isCACert: true,
         });
     }
@@ -319,7 +320,7 @@ export class CertificateManagement extends React.Component {
 
     doEditCert () {
         this.setState({
-            modalSpinner: true,
+            modalSpinning: true,
             loading: true,
         });
         const cmd = [
@@ -335,7 +336,7 @@ export class CertificateManagement extends React.Component {
                         showEditModal: false,
                         flags: '',
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                     });
                     this.props.addNotification(
                         "success",
@@ -343,7 +344,7 @@ export class CertificateManagement extends React.Component {
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -352,7 +353,7 @@ export class CertificateManagement extends React.Component {
                         showEditModal: false,
                         flags: '',
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                         loading: false,
                     });
                     this.props.addNotification(
@@ -365,7 +366,7 @@ export class CertificateManagement extends React.Component {
     handleChange (e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
+        const errObj = this.state.errObj;
 
         if (value == "") {
             valueErr = true;
@@ -380,14 +381,16 @@ export class CertificateManagement extends React.Component {
     handleFlagChange (e) {
         const checked = e.target.checked;
         const id = e.target.id;
-        let flags = this.state.flags;
+        const flags = this.state.flags;
         let SSLFlags = '';
         let EmailFlags = '';
         let OSFlags = '';
+        let newFlags = "";
+        let disableSaveBtn = true;
         [SSLFlags, EmailFlags, OSFlags] = flags.split(',');
 
         if (id.endsWith('SSL')) {
-            for (let trustFlag of ['C', 'T', 'c', 'P', 'p']) {
+            for (const trustFlag of ['C', 'T', 'c', 'P', 'p']) {
                 if (id.startsWith(trustFlag)) {
                     if (checked) {
                         SSLFlags += trustFlag;
@@ -397,7 +400,7 @@ export class CertificateManagement extends React.Component {
                 }
             }
         } else if (id.endsWith('Email')) {
-            for (let trustFlag of ['C', 'T', 'c', 'P', 'p']) {
+            for (const trustFlag of ['C', 'T', 'c', 'P', 'p']) {
                 if (id.startsWith(trustFlag)) {
                     if (checked) {
                         EmailFlags += trustFlag;
@@ -408,7 +411,7 @@ export class CertificateManagement extends React.Component {
             }
         } else {
             // Object Signing (OS)
-            for (let trustFlag of ['C', 'T', 'c', 'P', 'p']) {
+            for (const trustFlag of ['C', 'T', 'c', 'P', 'p']) {
                 if (id.startsWith(trustFlag)) {
                     if (checked) {
                         OSFlags += trustFlag;
@@ -418,8 +421,13 @@ export class CertificateManagement extends React.Component {
                 }
             }
         }
+        newFlags = SSLFlags + "," + EmailFlags + "," + OSFlags;
+        if (newFlags != this.state._flags) {
+            disableSaveBtn = false;
+        }
         this.setState({
-            flags: SSLFlags + "," + EmailFlags + "," + OSFlags
+            flags: newFlags,
+            disableSaveBtn: disableSaveBtn
         });
     }
 
@@ -441,17 +449,20 @@ export class CertificateManagement extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const certs = JSON.parse(content);
-                    let certNames = [];
-                    for (let cert of certs) {
-                        certNames.push(cert.attrs['nickname']);
+                    const key = this.state.tableKey + 1;
+                    const certNames = [];
+                    for (const cert of certs) {
+                        certNames.push(cert.attrs.nickname);
                     }
                     this.setState({
                         ServerCerts: certs,
                         loading: false,
+                        tableKey: key,
+                        showConfirmCAChange: false
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -472,14 +483,14 @@ export class CertificateManagement extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let certs = JSON.parse(content);
+                    const certs = JSON.parse(content);
                     this.setState({
                         CACerts: certs,
                         loading: false
                     }, this.reloadCerts);
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
+                    const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
@@ -492,76 +503,59 @@ export class CertificateManagement extends React.Component {
     }
 
     render () {
-        let CATitle = 'Trusted Certificate Authorites <font size="2">(' + this.state.CACerts.length + ')</font>';
-        let ServerTitle = 'TLS Certificates <font size="2">(' + this.state.ServerCerts.length + ')</font>';
-
         let certificatePage = '';
-
         if (this.state.loading) {
             certificatePage =
-                <div className="ds-loading-spinner ds-center">
-                    <p />
-                    <h4>Loading certificates ...</h4>
-                    <Spinner loading size="md" />
+                <div className="ds-loading-spinner ds-center ds-margin-top-xlg">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading Certificates ...
+                        </Text>
+                    </TextContent>
+                    <Spinner size="lg" />
                 </div>;
         } else {
             certificatePage =
-                <div className="container-fluid">
-                    <div className="ds-tab-table">
-                        <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                            <div>
-                                <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                                    <NavItem eventKey={1}>
-                                        <div dangerouslySetInnerHTML={{__html: CATitle}} />
-                                    </NavItem>
-                                    <NavItem eventKey={2}>
-                                        <div dangerouslySetInnerHTML={{__html: ServerTitle}} />
-                                    </NavItem>
-                                </Nav>
-                                <TabContent>
-                                    <TabPane eventKey={1}>
-                                        <div className="ds-margin-top-lg">
-                                            <CertTable
-                                                certs={this.state.CACerts}
-                                                key={this.state.CACerts}
-                                                editCert={this.showEditCAModal}
-                                                delCert={this.showDeleteConfirm}
-                                            />
-                                            <Button
-                                                bsStyle="primary"
-                                                className="ds-margin-top-med"
-                                                onClick={() => {
-                                                    this.showAddCAModal();
-                                                }}
-                                            >
-                                                Add CA Certificate
-                                            </Button>
-                                        </div>
-                                    </TabPane>
-                                    <TabPane eventKey={2}>
-                                        <div className="ds-margin-top-lg">
-                                            <CertTable
-                                                certs={this.state.ServerCerts}
-                                                key={this.state.ServerCerts}
-                                                editCert={this.showEditModal}
-                                                delCert={this.showDeleteConfirm}
-                                            />
-                                            <Button
-                                                bsStyle="primary"
-                                                className="ds-margin-top-med"
-                                                onClick={() => {
-                                                    this.showAddModal();
-                                                }}
-                                            >
-                                                Add Server Certificate
-                                            </Button>
-                                        </div>
-                                    </TabPane>
-                                </TabContent>
-                            </div>
-                        </TabContainer>
-                    </div>
-                </div>;
+                <Tabs isBox isSecondary className="ds-margin-top-xlg ds-left-indent" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>Trusted Certificate Authorites <font size="2">({this.state.CACerts.length})</font></TabTitleText>}>
+                        <div className="ds-margin-top-lg ds-left-indent">
+                            <CertTable
+                                certs={this.state.CACerts}
+                                key={this.state.tableKey}
+                                editCert={this.showEditCAModal}
+                                delCert={this.showDeleteConfirm}
+                            />
+                            <Button
+                                variant="primary"
+                                className="ds-margin-top-med"
+                                onClick={() => {
+                                    this.showAddCAModal();
+                                }}
+                            >
+                                Add CA Certificate
+                            </Button>
+                        </div>
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText>TLS Certificates <font size="2">({this.state.ServerCerts.length})</font></TabTitleText>}>
+                        <div className="ds-margin-top-lg ds-left-indent">
+                            <CertTable
+                                certs={this.state.ServerCerts}
+                                key={this.state.tableKey}
+                                editCert={this.showEditModal}
+                                delCert={this.showDeleteConfirm}
+                            />
+                            <Button
+                                variant="primary"
+                                className="ds-margin-top-med"
+                                onClick={() => {
+                                    this.showAddModal();
+                                }}
+                            >
+                                Add Server Certificate
+                            </Button>
+                        </div>
+                    </Tab>
+                </Tabs>;
         }
         return (
             <div>
@@ -572,14 +566,15 @@ export class CertificateManagement extends React.Component {
                     handleChange={this.handleFlagChange}
                     saveHandler={this.editCert}
                     flags={this.state.flags}
-                    spinning={this.state.modalSpinner}
+                    disableSaveBtn={this.state.disableSaveBtn}
+                    spinning={this.state.modalSpinning}
                 />
                 <SecurityAddCertModal
                     showModal={this.state.showAddModal}
                     closeHandler={this.closeAddModal}
                     handleChange={this.handleChange}
                     saveHandler={this.addCert}
-                    spinning={this.state.modalSpinner}
+                    spinning={this.state.modalSpinning}
                     error={this.state.errObj}
                 />
                 <SecurityAddCACertModal
@@ -587,7 +582,7 @@ export class CertificateManagement extends React.Component {
                     closeHandler={this.closeAddCAModal}
                     handleChange={this.handleChange}
                     saveHandler={this.addCACert}
-                    spinning={this.state.modalSpinner}
+                    spinning={this.state.modalSpinning}
                     error={this.state.errObj}
                 />
                 <DoubleConfirmModal
@@ -611,7 +606,7 @@ export class CertificateManagement extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.certName}
                     checked={this.state.modalChecked}
-                    mTitle="Warning - "
+                    mTitle="Warning - Altering CA Certificate Properties"
                     mMsg="Removing the 'C' or 'T' flags from the SSL trust catagory could break all TLS connectivity to and from the server, are you sure you want to proceed?"
                     mSpinningMsg="Editing CA Certificate ..."
                     mBtnName="Change Trust Flags"
@@ -634,7 +629,6 @@ CertificateManagement.defaultProps = {
     serverId: "",
     CACerts: [],
     ServerCerts: [],
-    addNotification: noop,
 };
 
 export default CertificateManagement;

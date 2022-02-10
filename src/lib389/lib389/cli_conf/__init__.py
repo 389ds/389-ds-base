@@ -51,6 +51,7 @@ def generic_object_add(dsldap_objects_class, inst, log, args, arg_to_attr, dn=No
     log.info("Successfully created the %s", new_object.dn)
     return new_object
 
+
 def generic_object_add_attr(dsldap_object, log, args, arg_to_attr):
     """Add an attribute to the entry. This differs to 'edit' as edit uses replace,
     and this allows multivalues to be added.
@@ -93,7 +94,7 @@ def generic_object_del_attr(dsldap_object, log, args, arg_to_attr):
         raise ValueError("There is nothing to delete in the %s plugin entry" % dsldap_object.dn)
 
 def generic_object_edit(dsldap_object, log, args, arg_to_attr):
-    """Create an entry using DSLdapObject interface
+    """Replace or delete an attribute on an entry.
 
     dsldap_object should be a single instance of DSLdapObject with a set dn
     """

@@ -12,13 +12,13 @@ Basic workflow
 
 1. Clone 389-ds-base repo
     + Clone the origin repo
-    + Go to https://pagure.io/389-ds-base and fork the repo
+    + Go to https://github.com/389ds/389-ds-base and fork the repo
     + Add the forked repo link as a remote to your local git repo
 
    ::
 
-       git clone ssh://git@pagure.io/389-ds-base.git
-       git remote add myfork ssh://git@pagure.io/forks/USERNAME/389-ds-base.git
+       git clone git@github.com:389ds/389-ds-base.git
+       git remote add myfork git@github.com:USERNAME/389-ds-base.git
 
 2. Go to the cloned directory
 3. Create a new branch for your work:
@@ -133,7 +133,7 @@ Basic workflow
         pytest porting initiative.
         Increase the number of seconds we wait before the results check.
 
-        https://pagure.io/389-ds-base/issue/48085
+        https://github.com/389ds/389-ds-base/issues/1416
 
         Reviewed by: ?
 
@@ -160,19 +160,9 @@ Basic workflow
         git rebase master
 
 
-    + Go to https://pagure.io/389-ds-base/pull-requests
-    + Press "File Pull Request" button and choose your branch
-    + Check that all fields have a right information and press 'Create' button
-
-    + Alternatively you can create and upload a patch file (it was an old way before the pull-requests)
-        + After the first step in this section you can run the next command to generate a patch file from the last commit:
-
-          ::
-
-            git format-patch -1
-
-        + Attach the patch to the Pagure issue
-    + Set reviewstatus field to 'review' in the Pagure issue
+    + Go to https://github.com/389ds/389-ds-base/pulls
+    + Press "New Pull Request" button and choose your branch
+    + Check that all fields have a right information and press 'Create pull request' button
     + Send an email to 389-devel@lists.fedoraproject.org with
 
       ::
@@ -195,9 +185,9 @@ Basic workflow
         # Add changes to your commit and fix the commit message if necessary
         git commit -a --amend
 
-    + You can also use “ git rebase -i ” to “squash” or combine several
-      commits into one commit.
-    + After the changes are commited, push tht commit to your fork branch (or upload a new patch)
+    + You can also use “ git rebase -i ” to “squash” or combine several commits into one commit.
+      And you can rebase the chain of commits right in the GitHub interface too.
+    + After the changes are commited, push that commit to your fork branch (or upload a new patch)
 
       ::
 
@@ -263,7 +253,7 @@ Parametrizing
         """Tests that operational attributes
         are not returned by default in rootDSE searches
         """
-    
+
         log.info("Assert rootdse search hasn't {} attr".format(rootdse_attr_name))
         entries = topology_st.standalone.search_s("", ldap.SCOPE_BASE)
         entry = str(entries[0])
@@ -435,7 +425,7 @@ Basic constants
 
 
 For more info check the source code at
-https://pagure.io/lib389/blob/master/f/lib389/_constants.py . If
+https://github.com/389ds/389-ds-base/blob/master/src/lib389/lib389/_constants.py . If
 you need a constant, use this kind of import.
 If you need a lot of constants, import with *
 
@@ -461,10 +451,10 @@ by DSLdapObjects.
                                   'sn': b'reynolds',
                                   'userpassword': b'password'
                               })))
-    
+
     # Modify an entry
     standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'cn', b'Mark Reynolds')])
-    
+
     # Delete an entry
     standalone.delete_s(USER_DN)
 
@@ -484,19 +474,19 @@ Search and Bind Operations
         if 'Mark Reynolds' in entry.data['cn']:
             log.info('Search found "Mark"')
             print(entry.data['cn'])
-    
+
     # Anonymous bind
     bind_dn = ""
     bind_pwd = ""
-    
+
     # Bind as our test entry
     bind_dn = USER_DN
     bind_pwd = "password"
-    
+
     # Bind as Directory Manager
     bind_dn = DN_DM
     bind_pwd = 1
-    
+
     standalone.simple_bind_s(bind_dn, bind_pwd)
 
 
@@ -603,10 +593,10 @@ And if you want just TLS authentication on a single instance:
     # Get the details of where the key and crt are
     #  {'ca': ca_path, 'key': key_path, 'crt': crt_path}
     tls_locs = standalone.nss_ssl.get_rsa_user('testuser')
-    
+
     standalone.start()
-    
-    # Create user in the directory 
+
+    # Create user in the directory
     users = UserAccounts(standalone, DEFAULT_SUFFIX)
     users.create(properties={
             'uid': 'testuser',
@@ -616,7 +606,7 @@ And if you want just TLS authentication on a single instance:
             'gidNumber' : '2000',
             'homeDirectory' : '/home/testuser'
     })
-    
+
     # Turn on the certmap
     cm = CertmapLegacy(standalone)
     certmaps = cm.list()
@@ -624,12 +614,11 @@ And if you want just TLS authentication on a single instance:
     certmaps['default']['FilterComps'] = ['cn']
     certmaps['default']['VerifyCert'] = 'off'
     cm.set(certmaps)
-    
+
     # Restart to allow certmaps to be re-read: Note, we CAN NOT use post_open
     standalone.restart(post_open=False)
-    
+
     # Now attempt a bind with TLS external
     conn = standalone.openConnection(saslmethod='EXTERNAL', connOnly=True, certdir=standalone.get_cert_dir(), userkey=tls_locs['key'], usercert=tls_locs['crt'])
-    
-    assert(conn.whoami_s() == "dn: uid=testuser,ou=People,dc=example,dc=com")
 
+    assert(conn.whoami_s() == "dn: uid=testuser,ou=People,dc=example,dc=com")

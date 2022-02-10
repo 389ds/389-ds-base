@@ -48,6 +48,7 @@ def do_setup(topology_st, request):
 
 def test_pwp_cli(topology_st, do_setup):
     """Test creating, listing, getting, and deleting a backend (and subsuffix)
+
     :id: 800f432a-52ab-4661-ac66-a2bdd9b984da
     :setup: Standalone instance
     :steps:

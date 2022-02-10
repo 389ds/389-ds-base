@@ -4,20 +4,26 @@ import { log_cmd } from "../tools.jsx";
 import {
     Button,
     Checkbox,
-    Col,
-    ControlLabel,
     Form,
-    FormControl,
-    Icon,
-    Row,
-    noop,
+    Grid,
+    GridItem,
+    Select,
+    SelectOption,
+    SelectVariant,
     Spinner,
-} from "patternfly-react";
-import "../../css/ds.css";
+    TextInput,
+    Text,
+    TextContent,
+    TextVariants,
+} from "@patternfly/react-core";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faSyncAlt
+} from '@fortawesome/free-solid-svg-icons';
+import '@fortawesome/fontawesome-svg-core/styles.css';
 import PropTypes from "prop-types";
 
 const ldapi_attrs = [
-    'nsslapd-ldapimaptoentries',
     'nsslapd-ldapifilepath',
     'nsslapd-ldapimaprootdn',
     'nsslapd-ldapientrysearchbase',
@@ -33,13 +39,43 @@ export class ServerLDAPI extends React.Component {
             loaded: false,
             saveDisabled: true,
             attrs: this.props.attrs,
-            // settings
-
+            attributes: [],
+            isUIDOpen: false,
+            isGIDOpen: false,
         };
 
+        this.onUIDToggle = isUIDOpen => {
+            this.setState({
+                isUIDOpen
+            });
+        };
+
+        this.onUIDSelect = (event, selection, isPlaceholder) => {
+            this.setState({
+                'nsslapd-ldapiuidnumbertype': selection,
+                isUIDOpen: false
+            }, () => { this.validateSaveBtn() });
+        };
+
+        this.onGIDToggle = isGIDOpen => {
+            this.setState({
+                isGIDOpen
+            });
+        };
+
+        this.onGIDSelect = (event, selection, isPlaceholder) => {
+            this.setState({
+                'nsslapd-ldapigidnumbertype': selection,
+                isGIDOpen: false
+            }, () => { this.validateSaveBtn() });
+        };
+
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
+        this.getAttributes = this.getAttributes.bind(this);
+        this.reloadConfig = this.reloadConfig.bind(this);
     }
 
     componentDidMount() {
@@ -51,35 +87,61 @@ export class ServerLDAPI extends React.Component {
         }
     }
 
-    handleChange(e) {
-        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let attr = e.target.id;
+    getAttributes() {
+        const attr_cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "schema",
+            "attributetypes",
+            "list"
+        ];
+        log_cmd("getAttributes", "Get attrs", attr_cmd);
+        cockpit
+                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const attrContent = JSON.parse(content);
+                    const attrs = [];
+                    for (const content of attrContent.items) {
+                        attrs.push(content.name[0]);
+                    }
+
+                    this.setState({
+                        attributes: attrs,
+                    }, this.props.enableTree);
+                });
+    }
+
+    validateSaveBtn () {
         let disableSaveBtn = true;
 
-        // Check if a setting was changed, if so enable the save button
-        for (let ldapi_attr of ldapi_attrs) {
-            if (attr == ldapi_attr && this.state['_' + ldapi_attr] != value) {
+        // Now check for differences in values that we did not touch
+        for (const ldapi_attr of ldapi_attrs) {
+            if (this.state['_' + ldapi_attr].toLowerCase() !== this.state[ldapi_attr].toLowerCase()) {
                 disableSaveBtn = false;
                 break;
             }
         }
-
-        // Now check for differences in values that we did not touch
-        for (let ldapi_attr of ldapi_attrs) {
-            if (attr != ldapi_attr && this.state['_' + ldapi_attr] != this.state[ldapi_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
+        if (this.state['nsslapd-ldapimaptoentries'] !== this.state['_nsslapd-ldapimaptoentries']) {
+            disableSaveBtn = false;
         }
 
         this.setState({
-            [attr]: value,
             saveDisabled: disableSaveBtn,
         });
     }
 
+    handleChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+
+        this.setState({
+            [attr]: value,
+        }, () => { this.validateSaveBtn() });
+    }
+
     loadConfig() {
-        let attrs = this.state.attrs;
+        const attrs = this.state.attrs;
         let mapToEntries = false;
 
         if ('nsslapd-ldapimaptoentries' in attrs) {
@@ -104,7 +166,34 @@ export class ServerLDAPI extends React.Component {
             '_nsslapd-ldapientrysearchbase': attrs['nsslapd-ldapientrysearchbase'][0],
             '_nsslapd-ldapigidnumbertype': attrs['nsslapd-ldapigidnumbertype'][0],
             '_nsslapd-ldapiuidnumbertype': attrs['nsslapd-ldapiuidnumbertype'][0],
-        }, this.props.enableTree);
+        }, this.getAttributes);
+    }
+
+    reloadConfig() {
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get"
+        ];
+        log_cmd("reloadConfig", "Reload server configuration", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
+                    this.setState({
+                        attrs: attrs
+                    }, this.loadConfig);
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.setState({
+                        loading: false
+                    });
+                    this.props.addNotification(
+                        "error",
+                        `Error loading server configuration - ${errMsg.desc}`
+                    );
+                });
     }
 
     saveConfig() {
@@ -112,12 +201,12 @@ export class ServerLDAPI extends React.Component {
             loading: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
 
-        for (let attr of ldapi_attrs) {
+        for (const attr of [...ldapi_attrs, 'nsslapd-ldapimaptoentries']) {
             if (this.state['_' + attr] != this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
@@ -133,23 +222,21 @@ export class ServerLDAPI extends React.Component {
 
         log_cmd("saveConfig", "Saving LDAPI settings", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.loadConfig();
                     this.setState({
                         loading: false
-                    });
+                    }, this.reloadConfig);
                     this.props.addNotification(
                         "success",
                         "Successfully updated LDAPI configuration"
                     );
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.loadConfig();
+                    const errMsg = JSON.parse(err);
                     this.setState({
                         loading: false
-                    });
+                    }, this.reloadConfig);
                     this.props.addNotification(
                         "error",
                         `Error updating LDAPI configuration - ${errMsg.desc}`
@@ -159,127 +246,172 @@ export class ServerLDAPI extends React.Component {
 
     render() {
         let mapUserAttrs = "";
+        const extraPrimaryProps = {};
+        let saveBtnName = "Save Settings";
+        if (this.state.loading) {
+            saveBtnName = "Saving settings ...";
+            extraPrimaryProps.spinnerAriaValueText = "Loading";
+        }
 
         if (this.state['nsslapd-ldapimaptoentries']) {
+            const attributes = this.state.attributes.map((option, index) => (
+                <SelectOption key={index} value={option} />
+            ));
             mapUserAttrs =
-                <div>
-                    <Row title="The Directory Server attribute to map system UIDs to user entries (nsslapd-ldapiuidnumbertype)." className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={3}>
+                <div className="ds-margin-left">
+                    <Grid
+                        className="ds-margin-top"
+                        title="The Directory Server attribute to map system UIDs to user entries (nsslapd-ldapiuidnumbertype)."
+                    >
+                        <GridItem className="ds-label" span={3}>
                             LDAPI UID Number Attribute
-                        </Col>
-                        <Col sm={4}>
-                            <FormControl
-                                id="nsslapd-ldapiuidnumbertype"
-                                type="text"
-                                value={this.state['nsslapd-ldapiuidnumbertype']}
-                                onChange={this.handleChange}
-                                placeholder="e.g.  uidNumber"
-                            />
-                        </Col>
-                    </Row>
-                    <Row title="The Directory Server attribute to map system GUIDs to user entries (nsslapd-ldapigidnumbertype)." className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={3}>
+                        </GridItem>
+                        <GridItem span={9}>
+                            <Select
+                                variant={SelectVariant.single}
+                                aria-label="Select UID Input"
+                                onToggle={this.onUIDToggle}
+                                onSelect={this.onUIDSelect}
+                                selections={this.state['nsslapd-ldapiuidnumbertype']}
+                                isOpen={this.state.isUIDOpen}
+                                aria-labelledby="UID"
+                            >
+                                {attributes}
+                            </Select>
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        className="ds-margin-top"
+                        title="The Directory Server attribute to map system GUIDs to user entries (nsslapd-ldapigidnumbertype)."
+                    >
+                        <GridItem className="ds-label" span={3}>
                             LDAPI GID Number Attribute
-                        </Col>
-                        <Col sm={4}>
-                            <FormControl
-                                id="nsslapd-ldapigidnumbertype"
-                                type="text"
-                                value={this.state['nsslapd-ldapigidnumbertype']}
-                                onChange={this.handleChange}
-                                placeholder="e.g.  gidNumber"
-                            />
-                        </Col>
-                    </Row>
-                    <Row title="The subtree to search for user entries to use for autobind. (nsslapd-ldapientrysearchbase)." className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={3}>
+                        </GridItem>
+                        <GridItem span={9}>
+                            <Select
+                                variant={SelectVariant.single}
+                                aria-label="Select GID Input"
+                                onToggle={this.onGIDToggle}
+                                onSelect={this.onGIDSelect}
+                                selections={this.state['nsslapd-ldapigidnumbertype']}
+                                isOpen={this.state.isGIDOpen}
+                                aria-labelledby="GID"
+                            >
+                                {attributes}
+                            </Select>
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="The subtree to search for user entries to use for autobind. (nsslapd-ldapientrysearchbase)."
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
                             LDAPI Entry Search Base
-                        </Col>
-                        <Col sm={4}>
-                            <FormControl
-                                id="nsslapd-ldapientrysearchbase"
-                                type="text"
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
                                 value={this.state['nsslapd-ldapientrysearchbase']}
-                                onChange={this.handleChange}
+                                type="text"
+                                id="nsslapd-ldapientrysearchbase"
+                                aria-describedby="horizontal-form-name-helper"
+                                onChange={(str, e) => {
+                                    this.handleChange(e);
+                                }}
                             />
-                        </Col>
-                    </Row>
+                        </GridItem>
+                    </Grid>
                 </div>;
         }
 
         let body =
             <div>
-                <Form horizontal>
-                    <Row title="The Unix socket file (nsslapd-ldapifilepath).  The UI requires this exact path so it is a read-only setting." className="ds-margin-top-lg">
-                        <Col componentClass={ControlLabel} sm={3}>
+                <Form className="ds-margin-top-xlg ds-left-margin" autoComplete="off" isHorizontal>
+                    <Grid title="The Unix socket file (nsslapd-ldapifilepath).  The UI requires this exact path so it is a read-only setting.">
+                        <GridItem className="ds-label" span={3}>
                             LDAPI Socket File Path
-                        </Col>
-                        <Col sm={4}>
-                            <FormControl
-                                id="nsslapd-ldapifilepath"
-                                type="text"
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
                                 value={this.state['nsslapd-ldapifilepath']}
-                                disabled
-                            />
-                        </Col>
-                    </Row>
-                    <Row title="Map the Unix root entry to this Directory Manager DN (nsslapd-ldapimaprootdn).  The UI requires this to be set to the current root DN so it is a read-only setting" className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={3}>
-                            DN to map "root" To
-                        </Col>
-                        <Col sm={4}>
-                            <FormControl
-                                id="nsslapd-ldapimaprootdn"
                                 type="text"
-                                value={this.state['nsslapd-ldapimaprootdn']}
-                                disabled
+                                id="nsslapd-ldapifilepath"
+                                aria-describedby="horizontal-form-name-helper"
+                                isDisabled
                             />
-                        </Col>
-                    </Row>
-                    <Row
+                        </GridItem>
+                    </Grid>
+                    <Grid title="Map the Unix root entry to this Directory Manager DN (nsslapd-ldapimaprootdn).  The UI requires this to be set to the current root DN so it is a read-only setting.">
+                        <GridItem className="ds-label" span={3}>
+                            LDAPI Map To Root DN
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={this.state['nsslapd-ldapimaprootdn']}
+                                type="text"
+                                id="nsslapd-ldapimaprootdn"
+                                aria-describedby="horizontal-form-name-helper"
+                                isDisabled
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
                         title="Map regular system users to Directory Server entries (nsslapd-ldapimaptoentries)."
                         className="ds-margin-top"
                     >
-                        <Col componentClass={ControlLabel} sm={3}>
+                        <GridItem span={5}>
                             <Checkbox
-                                checked={this.state['nsslapd-ldapimaptoentries']}
                                 id="nsslapd-ldapimaptoentries"
-                                onChange={this.handleChange} className="ds-margin-left-sm"
-                            >
-                                Map System Users to Database Entries
-                            </Checkbox>
-                        </Col>
-                    </Row>
+                                isChecked={this.state['nsslapd-ldapimaptoentries']}
+                                onChange={(checked, e) => {
+                                    this.handleChange(e);
+                                }}
+                                aria-label="uncontrolled checkbox example"
+                                label="Map System Users to Database Entries"
+                            />
+                        </GridItem>
+                    </Grid>
                     {mapUserAttrs}
-                    <Button
-                        disabled={this.state.saveDisabled}
-                        bsStyle="primary"
-                        className="ds-margin-top-med"
-                        onClick={this.saveConfig}
-                    >
-                        Save Settings
-                    </Button>
                 </Form>
+                <Button
+                    isDisabled={this.state.saveDisabled}
+                    variant="primary"
+                    className="ds-margin-top-xlg"
+                    onClick={this.saveConfig}
+                    isLoading={this.state.loading}
+                    spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                    {...extraPrimaryProps}
+                >
+                    {saveBtnName}
+                </Button>
             </div>;
 
-        if (this.state.lading || !this.state.loaded) {
-            body = <Spinner loading size="md" />;
+        if (!this.state.loaded) {
+            body =
+                <div className="ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>Loading LDAPI configuration ...</Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top" size="lg" />
+                </div>;
         }
 
         return (
-            <div id="server-ldapi-page">
-                <Row>
-                    <Col sm={5}>
-                        <ControlLabel className="ds-suffix-header ds-margin-top-lg">
-                            LDAPI & AutoBind Settings
-                            <Icon className="ds-left-margin ds-refresh"
-                                type="fa" name="refresh" title="Refresh the LDAPI settings"
-                                onClick={this.loadConfig}
-                                disabled={this.state.loading}
-                            />
-                        </ControlLabel>
-                    </Col>
-                </Row>
+            <div id="server-ldapi-page" className={this.state.loading ? "ds-disabled" : ""}>
+                <Grid>
+                    <GridItem span={5}>
+                        <TextContent>
+                            <Text component={TextVariants.h3}>
+                                LDAPI & AutoBind Settings <FontAwesomeIcon
+                                    size="lg"
+                                    className="ds-left-margin ds-refresh"
+                                    icon={faSyncAlt}
+                                    title="Refresh LDAPI settings"
+                                    onClick={this.loadConfig}
+                                />
+                            </Text>
+                        </TextContent>
+                    </GridItem>
+                </Grid>
                 {body}
             </div>
         );
@@ -295,7 +427,6 @@ ServerLDAPI.propTypes = {
 };
 
 ServerLDAPI.defaultProps = {
-    addNotification: noop,
     serverId: "",
     attrs: {},
 };

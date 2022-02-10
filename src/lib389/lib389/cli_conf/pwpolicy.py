@@ -74,7 +74,7 @@ def _get_pw_policy(inst, targetdn, log, use_json=None):
 
 def list_policies(inst, basedn, log, args):
     log = log.getChild('list_policies')
-    
+
     if args.DN is None:
         # list all the password policies for all the backends
         targetdns = []
@@ -94,13 +94,13 @@ def list_policies(inst, basedn, log, args):
         user_entry = Account(inst, targetdn)
         if not user_entry.exists():
             raise ValueError('The target entry dn does not exist')
-    
+
         # User pwpolicy entry is under the container that is under the parent,
         # so we need to go one level up
         pwp_entries = PwPolicyEntries(inst, targetdn)
         pwp_manager = PwPolicyManager(inst)
         attr_list = list(pwp_manager.arg_to_attr.values())
-    
+
         for pwp_entry in pwp_entries.list():
             dn_comps = ldap.dn.explode_dn(pwp_entry.get_attr_val_utf8_l('cn'))
             dn_comps.pop(0)
@@ -252,7 +252,6 @@ def create_parser(subparsers):
     set_parser.add_argument('--pwdmintokenlen', help="Sets the smallest attribute value length that is used for trivial/user words checking.  This also impacts \"--pwduserattrs\"")
     set_parser.add_argument('--pwdbadwords', help="A space-separated list of words that can not be in a password")
     set_parser.add_argument('--pwduserattrs', help="A space-separated list of attributes whose values can not appear in the password (See \"--pwdmintokenlen\")")
-    set_parser.add_argument('--pwpinheritglobal', help="Set to \"on\" to allow local policies to inherit the global policy")
     set_parser.add_argument('--pwddictcheck', help="Set to \"on\" to enforce CrackLib dictionary checking")
     set_parser.add_argument('--pwddictpath', help="Filesystem path to specific/custom CrackLib dictionary files")
     set_parser.add_argument('--pwptprmaxuse', help="Number of times a reset password can be used for authentication")
@@ -287,6 +286,7 @@ def create_parser(subparsers):
     set_global_parser.add_argument('--pwdlocal', help="Set to \"on\" to enable fine-grained (subtree/user-level) password policies")
     set_global_parser.add_argument('--pwdisglobal', help="Set to \"on\" to enable password policy state attributes to be replicated")
     set_global_parser.add_argument('--pwdallowhash', help="Set to \"on\" to allow adding prehashed passwords")
+    set_global_parser.add_argument('--pwpinheritglobal', help="Set to \"on\" to allow local policies to inherit the global policy")
 
     #############################################
     # Wrap it up.  Now that we copied all the parent arugments to the subparsers,

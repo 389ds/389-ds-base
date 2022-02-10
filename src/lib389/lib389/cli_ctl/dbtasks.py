@@ -55,7 +55,7 @@ def dbtasks_bak2db(inst, log, args):
 
 def dbtasks_db2ldif(inst, log, args):
     if not inst.db2ldif(bename=args.backend, encrypt=args.encrypted, repl_data=args.replication,
-                        outputfile=args.ldif, suffixes=None, excludeSuffixes=None):
+                        outputfile=args.ldif, suffixes=None, excludeSuffixes=None, export_cl=False):
         log.fatal("db2ldif failed")
         return False
     else:
@@ -127,6 +127,9 @@ def create_parser(subcommands):
     db2ldif_parser.add_argument('ldif', help="The path to the ldif output location.", nargs='?', default=None)
     db2ldif_parser.add_argument('--replication', help="Export replication information, suitable for importing on a new consumer or backups.",
                                 default=False, action='store_true')
+    # db2ldif_parser.add_argument('--include-changelog', help="Include the changelog as a separate LDIF file which will be named:  <ldif_file_name>_cl.ldif.  "
+    #                                                         "This option also implies the '--replication' option is set.",
+    #                             default=False, action='store_true')
     db2ldif_parser.add_argument('--encrypted', help="Export encrypted attributes", default=False, action='store_true')
     db2ldif_parser.set_defaults(func=dbtasks_db2ldif)
 
@@ -142,6 +145,8 @@ def create_parser(subcommands):
     ldif2db_parser.add_argument('backend', help="The backend to restore from an LDIF. IE userRoot")
     ldif2db_parser.add_argument('ldif', help="The path to the ldif to import")
     ldif2db_parser.add_argument('--encrypted', help="Import encrypted attributes", default=False, action='store_true')
+    # ldif2db_parser.add_argument('--include-changelog', help="Include a replication changelog LDIF file if present.  It must be named like this in order for the import to include it:  <ldif_file_name>_cl.ldif.",
+    #                            default=False, action='store_true')
     ldif2db_parser.set_defaults(func=dbtasks_ldif2db)
 
     backups_parser = subcommands.add_parser('backups', help="List backup's found in the server's default backup directory")

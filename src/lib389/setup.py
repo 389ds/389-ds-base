@@ -39,7 +39,7 @@ setup(
     long_description=long_description,
     url='http://www.port389.org/docs/389ds/FAQ/upstream-test-framework.html',
 
-    author='Red Hat Inc.',
+    author='Red Hat Inc., and William Brown',
     author_email='389-devel@lists.fedoraproject.org',
 
     classifiers=[
@@ -79,9 +79,7 @@ setup(
     install_requires=[
         'pyasn1',
         'pyasn1-modules',
-        'pytest',
         'python-dateutil',
-        'six',
         'argcomplete',
         'argparse-manpage',
         'python-ldap',

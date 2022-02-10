@@ -3,13 +3,24 @@ import React from "react";
 import { log_cmd } from "./lib/tools.jsx";
 import { ReplSuffix } from "./lib/replication/replSuffix.jsx";
 import { Changelog } from "./lib/replication/replChangelog.jsx";
-import { TreeView, noop, Spinner } from "patternfly-react";
 import PropTypes from "prop-types";
-import "./css/ds.css";
-
-const treeViewContainerStyles = {
-    width: '295px',
-};
+import {
+    Spinner,
+    TreeView,
+    Text,
+    TextContent,
+    TextVariants,
+} from "@patternfly/react-core";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faClone,
+    faTree,
+    faLeaf,
+} from '@fortawesome/free-solid-svg-icons';
+import {
+    CatalogIcon,
+    TopologyIcon
+} from '@patternfly/react-icons';
 
 export class Replication extends React.Component {
     constructor(props) {
@@ -19,19 +30,10 @@ export class Replication extends React.Component {
             errObj: {},
             nodes: [],
             node_name: "",
-            node_text: "",
             node_type: "",
             node_replicated: false,
             disableTree: true,
-
-            // Changelog
-            clLoading: false,
-            clDir: "",
-            clMaxEntries: "",
-            clMaxAge: "",
-            clCompactInt: "",
-            clTrimInt: "",
-            clEncrypt: false,
+            activeItems: [],
 
             // Suffix
             suffixLoading: false,
@@ -45,35 +47,44 @@ export class Replication extends React.Component {
             ruvRows: [],
             suffixSpinning: false,
             disabled: false,
+            clLoading: false,
+            clMaxEntries: "",
+            clCompactInt: "",
+            clMaxAge: "",
+            clTrimInt: "",
+            clEncrypt: false,
             suffixKey: 0,
+            ldifRows: [],
 
             showDisableConfirm: false,
             loaded: false,
         };
 
         // General
-        this.selectNode = this.selectNode.bind(this);
+        this.handleTreeClick = this.handleTreeClick.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.disableTree = this.disableTree.bind(this);
         this.enableTree = this.enableTree.bind(this);
+        this.update_tree_nodes = this.update_tree_nodes.bind(this);
 
         this.reloadConfig = this.reloadConfig.bind(this);
         this.reloadAgmts = this.reloadAgmts.bind(this);
         this.reloadWinsyncAgmts = this.reloadWinsyncAgmts.bind(this);
         this.reloadRUV = this.reloadRUV.bind(this);
         this.loadAttrs = this.loadAttrs.bind(this);
-        this.loadReplication = this.loadReplication.bind(this);
         this.loadReplSuffix = this.loadReplSuffix.bind(this);
         this.reloadChangelog = this.reloadChangelog.bind(this);
         this.loadSuffixTree = this.loadSuffixTree.bind(this);
+        this.loadLDIFs = this.loadLDIFs.bind(this);
     }
 
     componentDidUpdate(prevProps) {
         if (this.props.wasActiveList.includes(3)) {
             if (this.state.firstLoad) {
-                this.loadReplication();
+                this.loadSuffixTree(true);
                 if (!this.state.loaded) {
                     this.loadAttrs();
+                    this.reloadChangelog();
                 }
             } else {
                 if (this.props.serverId !== prevProps.serverId) {
@@ -83,76 +94,12 @@ export class Replication extends React.Component {
         }
     }
 
-    loadReplication() {
-        if (this.state.firstLoad) {
-            this.setState({
-                firstLoad: false
-            });
-        }
-        // Load the changelog, and build the suffix tree
-        this.setState({
-            loaded: false
-        });
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', 'get-changelog'];
-        log_cmd("loadReplication", "Load the replication info", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    const config = JSON.parse(content);
-                    let clDir = "";
-                    let clMaxEntries = "";
-                    let clMaxAge = "";
-                    let clCompactInt = "";
-                    let clTrimInt = "";
-                    let clEncrypt = false;
-                    for (let attr in config['attrs']) {
-                        let val = config['attrs'][attr][0];
-                        if (attr == "nsslapd-changelogdir") {
-                            clDir = val;
-                        }
-                        if (attr == "nsslapd-changelogmaxentries") {
-                            clMaxEntries = val;
-                        }
-                        if (attr == "nsslapd-changelogmaxage") {
-                            clMaxAge = val;
-                        }
-                        if (attr == "nsslapd-changelogcompactdb-interval") {
-                            clCompactInt = val;
-                        }
-                        if (attr == "nsslapd-changelogtrim-interval") {
-                            clTrimInt = val;
-                        }
-                        if (attr == "nsslapd-encryptionalgorithm") {
-                            clEncrypt = true;
-                        }
-                    }
-                    this.setState({
-                        clDir: clDir,
-                        clMaxEntries: clMaxEntries,
-                        clMaxAge: clMaxAge,
-                        clCompactInt: clCompactInt,
-                        clTrimInt: clTrimInt,
-                        clEncrypt: clEncrypt,
-                    }, this.loadSuffixTree(true));
-                })
-                .fail(() => {
-                    this.setState({
-                        clDir: "",
-                        clMaxEntries: "",
-                        clMaxAge: "",
-                        clCompactInt: "",
-                        clTrimInt: "",
-                        clEncrypt: false,
-                    }, this.loadSuffixTree(true));
-                });
-    }
-
     reloadChangelog () {
         // Refresh the changelog
         this.setState({
             clLoading: true
         });
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', 'get-changelog'];
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', 'get-changelog'];
         log_cmd("reloadChangelog", "Reload the changelog", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -161,27 +108,27 @@ export class Replication extends React.Component {
                     let clDir = "";
                     let clMaxEntries = "";
                     let clMaxAge = "";
-                    let clCompactInt = "";
                     let clTrimInt = "";
                     let clEncrypt = false;
-                    for (let attr in config['attrs']) {
-                        let val = config['attrs'][attr][0];
-                        if (attr == "nsslapd-changelogdir") {
+                    let clCompactInt = "";
+                    for (const attr in config.attrs) {
+                        const val = config.attrs[attr][0];
+                        if (attr === "nsslapd-changelogdir") {
                             clDir = val;
                         }
-                        if (attr == "nsslapd-changelogmaxentries") {
+                        if (attr === "nsslapd-changelogmaxentries") {
                             clMaxEntries = val;
                         }
-                        if (attr == "nsslapd-changelogmaxage") {
+                        if (attr === "nsslapd-changelogmaxage") {
                             clMaxAge = val;
                         }
-                        if (attr == "nsslapd-changelogcompactdb-interval") {
-                            clCompactInt = val;
-                        }
-                        if (attr == "nsslapd-changelogtrim-interval") {
+                        if (attr === "nsslapd-changelogtrim-interval") {
                             clTrimInt = val;
                         }
-                        if (attr == "nsslapd-encryptionalgorithm") {
+                        if (attr === "nsslapd-changelogcompactdb-interval") {
+                            clCompactInt = val;
+                        }
+                        if (attr === "nsslapd-encryptionalgorithm") {
                             clEncrypt = true;
                         }
                     }
@@ -189,9 +136,9 @@ export class Replication extends React.Component {
                         clDir: clDir,
                         clMaxEntries: clMaxEntries,
                         clMaxAge: clMaxAge,
-                        clCompactInt: clCompactInt,
                         clTrimInt: clTrimInt,
                         clEncrypt: clEncrypt,
+                        clCompactInt: clCompactInt,
                         clLoading: false
                     });
                 })
@@ -200,8 +147,8 @@ export class Replication extends React.Component {
                         clDir: "",
                         clMaxEntries: "",
                         clMaxAge: "",
-                        clCompactInt: "",
                         clTrimInt: "",
+                        clCompactInt: "",
                         clEncrypt: false,
                         clLoading: false
                     });
@@ -209,23 +156,36 @@ export class Replication extends React.Component {
     }
 
     processBranch(treeBranch) {
-        if (treeBranch.length == 0) {
+        if (treeBranch === undefined || treeBranch.length === 0) {
             return;
         }
-        for (let sub in treeBranch) {
+        for (const sub in treeBranch) {
             if (!treeBranch[sub].type.endsWith("suffix")) {
                 // Not a suffix, skip it
                 treeBranch.splice(sub, 1);
                 continue;
             } else if (treeBranch[sub].replicated) {
-                treeBranch[sub].icon = "fa fa-clone";
+                treeBranch[sub].icon = <FontAwesomeIcon size="sm" icon={faClone} />;
                 treeBranch[sub].replicated = true;
             }
-            this.processBranch(treeBranch[sub].nodes);
+            if (treeBranch[sub].children.length === 0) {
+                delete treeBranch[sub].children;
+            }
+            this.processBranch(treeBranch[sub].children);
         }
     }
 
     loadSuffixTree(fullReset) {
+        if (this.state.firstLoad) {
+            this.setState({
+                firstLoad: false
+            });
+        }
+
+        this.setState({
+            loaded: false
+        });
+
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "get-tree",
@@ -235,25 +195,33 @@ export class Replication extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let treeData = [];
-                    if (content != "") {
+                    if (content !== "") {
                         treeData = JSON.parse(content);
+                        for (const suffix of treeData) {
+                            if (suffix.type === "suffix") {
+                                suffix.icon = <FontAwesomeIcon size="sm" icon={faTree} />;
+                            } else if (suffix.type === "subsuffix") {
+                                suffix.icon = <FontAwesomeIcon size="sm" icon={faLeaf} />;
+                            }
+                            if (suffix.children.length === 0) {
+                                delete suffix.children;
+                            }
+                        }
                     }
-                    let basicData = [
+                    const basicData = [
                         {
-                            text: "Replication Changelog",
-                            selectable: true,
-                            selected: false,
-                            icon: "pficon-catalog",
+                            name: "Replication Changelog",
+                            icon: <CatalogIcon />,
                             id: "changelog",
-
+                            replicated: false,
+                            type: "changelog",
                         },
                         {
-                            text: "Suffixes",
-                            icon: "pficon-topology",
-                            state: {"expanded": true},
-                            selectable: false,
+                            name: "Suffixes",
+                            icon: <TopologyIcon />,
                             id: "repl-suffixes",
-                            nodes: []
+                            children: [],
+                            defaultExpanded: true
                         }
                     ];
                     let current_node = this.state.node_name;
@@ -263,136 +231,113 @@ export class Replication extends React.Component {
                         let found = false;
                         for (let i = 0; i < treeData.length; i++) {
                             if (treeData[i].replicated) {
-                                treeData[i].icon = "fa fa-clone";
+                                treeData[i].icon = <FontAwesomeIcon size="sm" icon={faClone} />;
                                 replicated = true;
                                 if (!found) {
                                     // Load the first replicated suffix we find
-                                    treeData[i].selected = true;
                                     current_node = treeData[i].id;
                                     current_type = treeData[i].type;
+                                    this.setState({
+                                        activeItems: [treeData[i]]
+                                    });
                                     this.loadReplSuffix(treeData[i].id);
                                     found = true;
                                 }
                             }
-                            this.processBranch(treeData[i].nodes);
+                            this.processBranch(treeData[i].children);
+                            if (treeData[i].children && treeData[i].children.length === 0) {
+                                // Clean up tree
+                                delete treeData[i].children;
+                            }
                         }
                         if (!found) {
                             // No replicated suffixes, load the first one
-                            treeData[0].selected = true;
                             current_node = treeData[0].id;
                             current_type = treeData[0].type;
+                            this.setState({
+                                activeItems: [treeData[0], basicData[1]]
+                            });
                             this.loadReplSuffix(treeData[0].id);
                         }
                     } else if (treeData.length > 0) {
                         // Reset current suffix
-                        for (let suffix of treeData) {
-                            this.processBranch(suffix.nodes);
-                            if (suffix.id == current_node) {
-                                suffix.selected = true;
+                        for (const suffix of treeData) {
+                            this.processBranch(suffix.children);
+                            if (suffix.id === current_node) {
                                 replicated = suffix.replicated;
                             }
                             if (suffix.replicated) {
-                                suffix.icon = "fa fa-clone";
+                                suffix.icon = <FontAwesomeIcon size="sm" icon={faClone} />;
                             }
                         }
                         this.loadReplSuffix(current_node);
                     }
-                    basicData[1].nodes = treeData;
-                    this.setState(() => ({
+
+                    basicData[1].children = treeData;
+                    this.setState({
                         nodes: basicData,
                         node_name: current_node,
                         node_type: current_type,
                         node_replicated: replicated,
-                    }), this.update_tree_nodes);
+                    }, () => { this.update_tree_nodes() });
                 });
     }
 
-    selectNode(selectedNode) {
-        if (selectedNode.selected) {
+    handleTreeClick(evt, treeViewItem, parentItem) {
+        if (treeViewItem.id === "repl-suffixes") {
             return;
         }
 
         this.setState({
+            activeItems: [treeViewItem],
+            node_name: treeViewItem.id,
+            node_type: treeViewItem.type,
+            node_replicated: treeViewItem.replicated,
             disableTree: true // Disable the tree to allow node to be fully loaded
         });
 
-        if (selectedNode.id == "changelog") {
-            // Nothing special to do, these configurations have already been loaded
+        if (treeViewItem.id in this.state) {
+            // This suffix is already cached, just use what we have...
+            this.setState({
+                disableTree: false,
+                suffixKey: new Date(),
+            });
+        } else if (treeViewItem.id !== "changelog") {
+            // Suffix/subsuffix
+            this.loadReplSuffix(treeViewItem.id);
             this.setState(prevState => {
                 return {
-                    nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                    node_name: selectedNode.id,
-                    node_text: selectedNode.text,
-                    node_type: selectedNode.id,
+                    suffixKey: new Date(),
                 };
             });
-        } else {
-            if (selectedNode.id in this.state) {
-                // This suffix is already cached, just use what we have...
-                this.setState(prevState => {
-                    return {
-                        nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                        node_name: selectedNode.id,
-                        node_text: selectedNode.text,
-                        node_type: selectedNode.type,
-                        node_replicated: selectedNode.replicated,
-                        disableTree: false,
-                        suffixKey: new Date(),
-                    };
-                });
-            } else {
-                // Suffix/subsuffix
-                this.loadReplSuffix(selectedNode.id);
-                this.setState(prevState => {
-                    return {
-                        nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                        node_name: selectedNode.id,
-                        node_text: selectedNode.text,
-                        node_type: selectedNode.type,
-                        node_replicated: selectedNode.replicated,
-                        suffixKey: new Date(),
-                    };
-                });
-            }
         }
-    }
-
-    nodeSelector(nodes, targetNode) {
-        return nodes.map(node => {
-            if (node.nodes) {
-                return {
-                    ...node,
-                    nodes: this.nodeSelector(node.nodes, targetNode),
-                    selected: node.id === targetNode.id ? !node.selected : false
-                };
-            } else if (node.id === targetNode.id) {
-                return { ...node, selected: !node.selected };
-            } else if (node.id !== targetNode.id && node.selected) {
-                return { ...node, selected: false };
-            } else {
-                return node;
-            }
-        });
     }
 
     update_tree_nodes() {
-        // Set title to the text value of each suffix node.  We need to do this
-        // so we can read long suffixes in the UI tree div.  This is the last
-        // step of loading the page, so mark it loaded!
-        let elements = document.getElementsByClassName('treeitem-row');
-        for (let el of elements) {
-            el.setAttribute('title', el.innerText);
-        }
+        // Enable the tree, and update the titles
         this.setState({
-            loaded: true
+            loaded: true,
+            disableTree: false,
+        }, () => {
+            const className = 'pf-c-tree-view__list-item';
+            const element = document.getElementById("repl-tree");
+            if (element) {
+                const elements = element.getElementsByClassName(className);
+                for (const el of elements) {
+                    if (el.id === "repl-suffixes" || el.id === "changelog") {
+                        continue;
+                    }
+                    el.setAttribute('title', el.innerText);
+                }
+            }
         });
     }
 
     handleChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
-        let errObj = this.state.errObj;
-        if (value == "") {
+        const errObj = this.state.errObj;
+        if (value === "") {
             valueErr = true;
         }
         errObj[e.target.id] = valueErr;
@@ -413,7 +358,7 @@ export class Replication extends React.Component {
             suffixSpinning: true,
             disabled: true,
         });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-agmt", "list", "--suffix", suffix
         ];
@@ -422,52 +367,48 @@ export class Replication extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const obj = JSON.parse(content);
-                    let rows = [];
-                    for (let idx in obj['items']) {
-                        let agmt_attrs = obj['items'][idx]['attrs'];
+                    const rows = [];
+                    for (const idx in obj.items) {
+                        const agmt_attrs = obj.items[idx].attrs;
                         let state = "Enabled";
                         let update_status = "";
                         let agmt_init_status = "";
 
                         // Compute state (enabled by default)
                         if ('nsds5replicaenabled' in agmt_attrs) {
-                            if (agmt_attrs['nsds5replicaenabled'][0].toLowerCase() == 'off') {
+                            if (agmt_attrs.nsds5replicaenabled[0].toLowerCase() === 'off') {
                                 state = "Disabled";
                             }
                         }
 
                         // Check for status msgs
                         if ('nsds5replicalastupdatestatus' in agmt_attrs) {
-                            update_status = agmt_attrs['nsds5replicalastupdatestatus'][0];
+                            update_status = agmt_attrs.nsds5replicalastupdatestatus[0];
                         }
                         if ('nsds5replicalastinitstatus' in agmt_attrs &&
-                            agmt_attrs['nsds5replicalastinitstatus'][0] != "") {
-                            agmt_init_status = agmt_attrs['nsds5replicalastinitstatus'][0];
-                            if (agmt_init_status == "Error (0) Total update in progress" ||
-                                agmt_init_status == "Error (0)") {
-                                agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner loading size="sm" /></td>;
-                            } else if (agmt_init_status == "Error (0) Total update succeeded") {
+                            agmt_attrs.nsds5replicalastinitstatus[0] !== "") {
+                            agmt_init_status = agmt_attrs.nsds5replicalastinitstatus[0];
+                            if (agmt_init_status === "Error (0) Total update in progress" ||
+                                agmt_init_status === "Error (0)") {
+                                agmt_init_status = "Initializing";
+                            } else if (agmt_init_status === "Error (0) Total update succeeded") {
                                 agmt_init_status = "Initialized";
-                                agmt_init_status = <td key={agmt_attrs['cn']}><i>Initialized</i></td>;
-                            } else {
-                                agmt_init_status = <td key={agmt_attrs['cn']}>{agmt_init_status}</td>;
                             }
-                        } else if (agmt_attrs['nsds5replicalastinitstart'][0] == "19700101000000Z") {
-                            agmt_init_status = "Not initialized";
-                            agmt_init_status = <td key={agmt_attrs['cn']}><i>Not Initialized</i></td>;
+                        } else if (agmt_attrs.nsds5replicalastinitstart[0] === "19700101000000Z") {
+                            agmt_init_status = "Not Initialized";
                         } else if ('nsds5beginreplicarefresh' in agmt_attrs) {
-                            agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner loading size="sm" /></td>;
+                            agmt_init_status = "Initializing";
                         }
 
                         // Update table
-                        rows.push({
-                            'name': agmt_attrs['cn'],
-                            'host': agmt_attrs['nsds5replicahost'],
-                            'port': agmt_attrs['nsds5replicaport'],
-                            'state': [state],
-                            'status': [update_status],
-                            'initstatus': [agmt_init_status]
-                        });
+                        rows.push([
+                            agmt_attrs.cn[0],
+                            agmt_attrs.nsds5replicahost[0],
+                            agmt_attrs.nsds5replicaport[0],
+                            state,
+                            update_status,
+                            agmt_init_status
+                        ]);
                     }
 
                     // Set agmt
@@ -493,7 +434,7 @@ export class Replication extends React.Component {
             suffixSpinning: true,
             disabled: true,
         });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-winsync-agmt", "list", "--suffix", suffix
         ];
@@ -502,51 +443,49 @@ export class Replication extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const obj = JSON.parse(content);
-                    let ws_rows = [];
-                    for (var idx in obj['items']) {
+                    const ws_rows = [];
+                    for (var idx in obj.items) {
                         let state = "Enabled";
                         let update_status = "";
                         let ws_agmt_init_status = "Initialized";
-                        let agmt_attrs = obj['items'][idx]['attrs'];
+                        const agmt_attrs = obj.items[idx].attrs;
                         // let agmt_name = agmt_attrs['cn'][0];
 
                         // Compute state (enabled by default)
                         if ('nsds5replicaenabled' in agmt_attrs) {
-                            if (agmt_attrs['nsds5replicaenabled'][0].toLowerCase() == 'off') {
+                            if (agmt_attrs.nsds5replicaenabled[0].toLowerCase() === 'off') {
                                 state = "Disabled";
                             }
                         }
 
                         if ('nsds5replicalastupdatestatus' in agmt_attrs) {
-                            update_status = agmt_attrs['nsds5replicalastupdatestatus'][0];
+                            update_status = agmt_attrs.nsds5replicalastupdatestatus[0];
                         }
 
                         if ('nsds5replicalastinitstatus' in agmt_attrs &&
-                            agmt_attrs['nsds5replicalastinitstatus'][0] != "") {
-                            ws_agmt_init_status = agmt_attrs['nsds5replicalastinitstatus'][0];
-                            if (ws_agmt_init_status == "Error (0) Total update in progress" ||
-                                ws_agmt_init_status == "Error (0)") {
-                                ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner loading size="sm" /></td>;
-                            } else if (ws_agmt_init_status == "Error (0) Total update succeeded") {
-                                ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Initialized</i></td>;
-                            } else {
-                                ws_agmt_init_status = <td key={agmt_attrs['cn']}>{ws_agmt_init_status}</td>;
+                            agmt_attrs.nsds5replicalastinitstatus[0] !== "") {
+                            ws_agmt_init_status = agmt_attrs.nsds5replicalastinitstatus[0];
+                            if (ws_agmt_init_status === "Error (0) Total update in progress" ||
+                                ws_agmt_init_status === "Error (0)") {
+                                ws_agmt_init_status = "Initializing";
+                            } else if (ws_agmt_init_status === "Error (0) Total update succeeded") {
+                                ws_agmt_init_status = "Initialized";
                             }
-                        } else if ('nsds5replicalastinitstart' in agmt_attrs && agmt_attrs['nsds5replicalastinitstart'][0] == "19700101000000Z") {
-                            ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Not initialized</i></td>;
+                        } else if ('nsds5replicalastinitstart' in agmt_attrs && agmt_attrs.nsds5replicalastinitstart[0] === "19700101000000Z") {
+                            ws_agmt_init_status = "Not Initialized";
                         } else if ('nsds5beginreplicarefresh' in agmt_attrs) {
-                            ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner loading size="sm" /></td>;
+                            ws_agmt_init_status = "Initializing";
                         }
 
                         // Update table
-                        ws_rows.push({
-                            'name': agmt_attrs['cn'],
-                            'host': agmt_attrs['nsds5replicahost'],
-                            'port': agmt_attrs['nsds5replicaport'],
-                            'state': [state],
-                            'status': [update_status],
-                            'initstatus': [ws_agmt_init_status]
-                        });
+                        ws_rows.push([
+                            agmt_attrs.cn[0],
+                            agmt_attrs.nsds5replicahost[0],
+                            agmt_attrs.nsds5replicaport[0],
+                            state,
+                            update_status,
+                            ws_agmt_init_status
+                        ]);
                     }
                     // Set winsync agmts
                     this.setState({
@@ -571,7 +510,7 @@ export class Replication extends React.Component {
             suffixSpinning: true,
             disabled: true,
         });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "get", "--suffix", suffix
         ];
@@ -582,16 +521,16 @@ export class Replication extends React.Component {
                     const config = JSON.parse(content);
                     let current_role = "";
                     let nsds5replicaprecisetombstonepurging = false;
-                    if ('nsds5replicaprecisetombstonepurging' in config['attrs']) {
-                        if (config['attrs']['nsds5replicaprecisetombstonepurging'][0].toLowerCase() == "on") {
+                    if ('nsds5replicaprecisetombstonepurging' in config.attrs) {
+                        if (config.attrs.nsds5replicaprecisetombstonepurging[0].toLowerCase() === "on") {
                             nsds5replicaprecisetombstonepurging = true;
                         }
                     }
                     // Set the replica role
-                    if (config['attrs']['nsds5replicatype'][0] == "3") {
+                    if (config.attrs.nsds5replicatype[0] === "3") {
                         current_role = "Supplier";
                     } else {
-                        if (config['attrs']['nsds5flags'][0] == "1") {
+                        if (config.attrs.nsds5flags[0] === "1") {
                             current_role = "Hub";
                         } else {
                             current_role = "Consumer";
@@ -601,24 +540,24 @@ export class Replication extends React.Component {
                     this.setState({
                         [suffix]: {
                             role: current_role,
-                            nsds5flags: config['attrs']['nsds5flags'][0],
-                            nsds5replicatype: config['attrs']['nsds5replicatype'][0],
-                            nsds5replicaid: 'nsds5replicaid' in config['attrs'] ? config['attrs']['nsds5replicaid'][0] : "",
-                            nsds5replicabinddn: 'nsds5replicabinddn' in config['attrs'] ? config['attrs']['nsds5replicabinddn'] : "",
-                            nsds5replicabinddngroup: 'nsds5replicabinddngroup' in config['attrs'] ? config['attrs']['nsds5replicabinddngroup'][0] : "",
-                            nsds5replicabinddngroupcheckinterval: 'nsds5replicabinddngroupcheckinterval' in config['attrs'] ? config['attrs']['nsds5replicabinddngroupcheckinterval'][0] : "",
-                            nsds5replicareleasetimeout: 'nsds5replicareleasetimeout' in config['attrs'] ? config['attrs']['nsds5replicareleasetimeout'][0] : "",
-                            nsds5replicapurgedelay: 'nsds5replicapurgedelay' in config['attrs'] ? config['attrs']['nsds5replicapurgedelay'][0] : "",
-                            nsds5replicatombstonepurgeinterval: 'nsds5replicatombstonepurgeinterval' in config['attrs'] ? config['attrs']['nsds5replicatombstonepurgeinterval'][0] : "",
+                            nsds5flags: config.attrs.nsds5flags[0],
+                            nsds5replicatype: config.attrs.nsds5replicatype[0],
+                            nsds5replicaid: 'nsds5replicaid' in config.attrs ? config.attrs.nsds5replicaid[0] : "",
+                            nsds5replicabinddn: 'nsds5replicabinddn' in config.attrs ? config.attrs.nsds5replicabinddn : "",
+                            nsds5replicabinddngroup: 'nsds5replicabinddngroup' in config.attrs ? config.attrs.nsds5replicabinddngroup[0] : "",
+                            nsds5replicabinddngroupcheckinterval: 'nsds5replicabinddngroupcheckinterval' in config.attrs ? config.attrs.nsds5replicabinddngroupcheckinterval[0] : "",
+                            nsds5replicareleasetimeout: 'nsds5replicareleasetimeout' in config.attrs ? config.attrs.nsds5replicareleasetimeout[0] : "",
+                            nsds5replicapurgedelay: 'nsds5replicapurgedelay' in config.attrs ? config.attrs.nsds5replicapurgedelay[0] : "",
+                            nsds5replicatombstonepurgeinterval: 'nsds5replicatombstonepurgeinterval' in config.attrs ? config.attrs.nsds5replicatombstonepurgeinterval[0] : "",
                             nsds5replicaprecisetombstonepurging: nsds5replicaprecisetombstonepurging,
-                            nsds5replicaprotocoltimeout: 'nsds5replicaprotocoltimeout' in config['attrs'] ? config['attrs']['nsds5replicaprotocoltimeout'][0] : "",
-                            nsds5replicabackoffmin: 'nsds5replicabackoffmin' in config['attrs'] ? config['attrs']['nsds5replicabackoffmin'][0] : "",
-                            nsds5replicabackoffmax: 'nsds5replicabackoffmax' in config['attrs'] ? config['attrs']['nsds5replicabackoffmax'][0] : "",
+                            nsds5replicaprotocoltimeout: 'nsds5replicaprotocoltimeout' in config.attrs ? config.attrs.nsds5replicaprotocoltimeout[0] : "",
+                            nsds5replicabackoffmin: 'nsds5replicabackoffmin' in config.attrs ? config.attrs.nsds5replicabackoffmin[0] : "",
+                            nsds5replicabackoffmax: 'nsds5replicabackoffmax' in config.attrs ? config.attrs.nsds5replicabackoffmax[0] : "",
                         },
                         suffixSpinning: false,
                         disabled: false,
                         suffixKey: new Date(),
-                    });
+                    }, this.loadLDIFs);
                 })
                 .fail(() => {
                     this.setState({
@@ -634,24 +573,24 @@ export class Replication extends React.Component {
             disabled: true,
         });
         // Load suffix RUV
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'get-ruv', '--suffix=' + suffix];
         log_cmd('reloadRUV', 'Get the suffix RUV', cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let ruvs = JSON.parse(content);
-                    let ruv_rows = [];
-                    for (let idx in ruvs['items']) {
-                        let ruv = ruvs['items'][idx];
+                    const ruvs = JSON.parse(content);
+                    const ruv_rows = [];
+                    for (const idx in ruvs.items) {
+                        const ruv = ruvs.items[idx];
                         // Update table
                         ruv_rows.push({
-                            'rid': ruv['rid'],
-                            'url': ruv['url'],
-                            'csn': ruv['csn'],
-                            'raw_csn': ruv['raw_csn'],
-                            'maxcsn': ruv['maxcsn'],
-                            'raw_maxcsn': ruv['raw_maxcsn'],
+                            rid: ruv.rid,
+                            url: ruv.url,
+                            csn: ruv.csn,
+                            raw_csn: ruv.raw_csn,
+                            maxcsn: ruv.maxcsn,
+                            raw_maxcsn: ruv.raw_maxcsn,
                         });
                     }
                     this.setState({
@@ -664,8 +603,8 @@ export class Replication extends React.Component {
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    if (errMsg.desc != "No such object") {
+                    const errMsg = JSON.parse(err);
+                    if (errMsg.desc !== "No such object") {
                         this.props.addNotification(
                             "error",
                             `Error loading suffix RUV - ${errMsg.desc}`
@@ -678,10 +617,32 @@ export class Replication extends React.Component {
                 });
     }
 
+    loadLDIFs() {
+        const cmd = [
+            "dsctl", "-j", this.props.serverId, "ldifs"
+        ];
+        log_cmd("loadLDIFs", "Load replication LDIF Files", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const config = JSON.parse(content);
+                    const rows = [];
+                    for (const row of config.items) {
+                        if (row[3].toLowerCase() === this.state.node_name.toLowerCase()) {
+                            rows.push([row[0], row[1], row[2]]);
+                        }
+                    }
+                    this.setState({
+                        ldifRows: rows,
+                    }, () => { this.update_tree_nodes() });
+                });
+    }
+
     loadReplSuffix(suffix) {
         // Load everything, we must nest cockpit promise so we can proper set
         // the loading is finished.
         // - Get Suffix config
+        // - Get Changelog Settings
         // - Get Repl agmts
         // - Get Winsync Agmts
         // - Get RUV's
@@ -702,16 +663,16 @@ export class Replication extends React.Component {
                     const config = JSON.parse(content);
                     let current_role = "";
                     let nsds5replicaprecisetombstonepurging = false;
-                    if ('nsds5replicaprecisetombstonepurging' in config['attrs']) {
-                        if (config['attrs']['nsds5replicaprecisetombstonepurging'][0].toLowerCase() == "on") {
+                    if ('nsds5replicaprecisetombstonepurging' in config.attrs) {
+                        if (config.attrs.nsds5replicaprecisetombstonepurging[0].toLowerCase() === "on") {
                             nsds5replicaprecisetombstonepurging = true;
                         }
                     }
                     // Set the replica role
-                    if (config['attrs']['nsds5replicatype'][0] == "3") {
+                    if (config.attrs.nsds5replicatype[0] === "3") {
                         current_role = "Supplier";
                     } else {
-                        if (config['attrs']['nsds5flags'][0] == "1") {
+                        if (config.attrs.nsds5flags[0] === "1") {
                             current_role = "Hub";
                         } else {
                             current_role = "Consumer";
@@ -721,24 +682,24 @@ export class Replication extends React.Component {
                     this.setState({
                         [suffix]: {
                             role: current_role,
-                            nsds5flags: config['attrs']['nsds5flags'][0],
-                            nsds5replicatype: config['attrs']['nsds5replicatype'][0],
-                            nsds5replicaid: 'nsds5replicaid' in config['attrs'] ? config['attrs']['nsds5replicaid'][0] : "",
-                            nsds5replicabinddn: 'nsds5replicabinddn' in config['attrs'] ? config['attrs']['nsds5replicabinddn'] : "",
-                            nsds5replicabinddngroup: 'nsds5replicabinddngroup' in config['attrs'] ? config['attrs']['nsds5replicabinddngroup'][0] : "",
-                            nsds5replicabinddngroupcheckinterval: 'nsds5replicabinddngroupcheckinterval' in config['attrs'] ? config['attrs']['nsds5replicabinddngroupcheckinterval'][0] : "",
-                            nsds5replicareleasetimeout: 'nsds5replicareleasetimeout' in config['attrs'] ? config['attrs']['nsds5replicareleasetimeout'][0] : "",
-                            nsds5replicapurgedelay: 'nsds5replicapurgedelay' in config['attrs'] ? config['attrs']['nsds5replicapurgedelay'][0] : "",
-                            nsds5replicatombstonepurgeinterval: 'nsds5replicatombstonepurgeinterval' in config['attrs'] ? config['attrs']['nsds5replicatombstonepurgeinterval'][0] : "",
+                            nsds5flags: config.attrs.nsds5flags[0],
+                            nsds5replicatype: config.attrs.nsds5replicatype[0],
+                            nsds5replicaid: 'nsds5replicaid' in config.attrs ? config.attrs.nsds5replicaid[0] : "",
+                            nsds5replicabinddn: 'nsds5replicabinddn' in config.attrs ? config.attrs.nsds5replicabinddn : "",
+                            nsds5replicabinddngroup: 'nsds5replicabinddngroup' in config.attrs ? config.attrs.nsds5replicabinddngroup[0] : "",
+                            nsds5replicabinddngroupcheckinterval: 'nsds5replicabinddngroupcheckinterval' in config.attrs ? config.attrs.nsds5replicabinddngroupcheckinterval[0] : "",
+                            nsds5replicareleasetimeout: 'nsds5replicareleasetimeout' in config.attrs ? config.attrs.nsds5replicareleasetimeout[0] : "",
+                            nsds5replicapurgedelay: 'nsds5replicapurgedelay' in config.attrs ? config.attrs.nsds5replicapurgedelay[0] : "",
+                            nsds5replicatombstonepurgeinterval: 'nsds5replicatombstonepurgeinterval' in config.attrs ? config.attrs.nsds5replicatombstonepurgeinterval[0] : "",
                             nsds5replicaprecisetombstonepurging: nsds5replicaprecisetombstonepurging,
-                            nsds5replicaprotocoltimeout: 'nsds5replicaprotocoltimeout' in config['attrs'] ? config['attrs']['nsds5replicaprotocoltimeout'][0] : "",
-                            nsds5replicabackoffmin: 'nsds5replicabackoffmin' in config['attrs'] ? config['attrs']['nsds5replicabackoffmin'][0] : "",
-                            nsds5replicabackoffmax: 'nsds5replicabackoffmax' in config['attrs'] ? config['attrs']['nsds5replicabackoffmax'][0] : "",
+                            nsds5replicaprotocoltimeout: 'nsds5replicaprotocoltimeout' in config.attrs ? config.attrs.nsds5replicaprotocoltimeout[0] : "",
+                            nsds5replicabackoffmin: 'nsds5replicabackoffmin' in config.attrs ? config.attrs.nsds5replicabackoffmin[0] : "",
+                            nsds5replicabackoffmax: 'nsds5replicabackoffmax' in config.attrs ? config.attrs.nsds5replicabackoffmax[0] : "",
                         }
-                    });
+                    }, this.loadLDIFs);
 
                     // Now load agmts, then the winsync agreement, and finally the RUV
-                    let cmd = [
+                    cmd = [
                         "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                         "repl-agmt", "list", "--suffix", suffix
                     ];
@@ -747,50 +708,48 @@ export class Replication extends React.Component {
                             .spawn(cmd, { superuser: true, err: "message" })
                             .done(content => {
                                 const obj = JSON.parse(content);
-                                let rows = [];
-                                for (let idx in obj['items']) {
-                                    let agmt_attrs = obj['items'][idx]['attrs'];
+                                const rows = [];
+                                for (const idx in obj.items) {
+                                    const agmt_attrs = obj.items[idx].attrs;
                                     let state = "Enabled";
                                     let update_status = "";
                                     let agmt_init_status = "";
 
                                     // Compute state (enabled by default)
                                     if ('nsds5replicaenabled' in agmt_attrs) {
-                                        if (agmt_attrs['nsds5replicaenabled'][0].toLowerCase() == 'off') {
+                                        if (agmt_attrs.nsds5replicaenabled[0].toLowerCase() === 'off') {
                                             state = "Disabled";
                                         }
                                     }
 
                                     // Check for status msgs
                                     if ('nsds5replicalastupdatestatus' in agmt_attrs) {
-                                        update_status = agmt_attrs['nsds5replicalastupdatestatus'][0];
+                                        update_status = agmt_attrs.nsds5replicalastupdatestatus[0];
                                     }
                                     if ('nsds5replicalastinitstatus' in agmt_attrs &&
-                                        agmt_attrs['nsds5replicalastinitstatus'][0] != "") {
-                                        agmt_init_status = agmt_attrs['nsds5replicalastinitstatus'][0];
-                                        if (agmt_init_status == "Error (0) Total update in progress" ||
-                                            agmt_init_status == "Error (0)") {
-                                            agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner loading size="sm" /></td>;
-                                        } else if (agmt_init_status == "Error (0) Total update succeeded") {
-                                            agmt_init_status = <td key={agmt_attrs['cn']}><i>Initialized</i></td>;
-                                        } else {
-                                            agmt_init_status = <td key={agmt_attrs['cn']}>{agmt_init_status}</td>;
+                                        agmt_attrs.nsds5replicalastinitstatus[0] !== "") {
+                                        agmt_init_status = agmt_attrs.nsds5replicalastinitstatus[0];
+                                        if (agmt_init_status === "Error (0) Total update in progress" ||
+                                            agmt_init_status === "Error (0)") {
+                                            agmt_init_status = "Initializing";
+                                        } else if (agmt_init_status === "Error (0) Total update succeeded") {
+                                            agmt_init_status = "Initialized";
                                         }
-                                    } else if ('nsds5replicalastinitstart' in agmt_attrs && agmt_attrs['nsds5replicalastinitstart'][0] == "19700101000000Z") {
-                                        agmt_init_status = <td key={agmt_attrs['cn']}><i>Not initialized</i></td>;
+                                    } else if ('nsds5replicalastinitstart' in agmt_attrs && agmt_attrs.nsds5replicalastinitstart[0] === "19700101000000Z") {
+                                        agmt_init_status = "Not Initialized";
                                     } else if ('nsds5beginreplicarefresh' in agmt_attrs) {
-                                        agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner loading size="sm" /></td>;
+                                        agmt_init_status = "Initializing";
                                     }
 
                                     // Update table
-                                    rows.push({
-                                        'name': agmt_attrs['cn'],
-                                        'host': agmt_attrs['nsds5replicahost'],
-                                        'port': agmt_attrs['nsds5replicaport'],
-                                        'state': [state],
-                                        'status': [update_status],
-                                        'initstatus': [agmt_init_status]
-                                    });
+                                    rows.push([
+                                        agmt_attrs.cn[0],
+                                        agmt_attrs.nsds5replicahost[0],
+                                        agmt_attrs.nsds5replicaport[0],
+                                        state,
+                                        update_status,
+                                        agmt_init_status
+                                    ]);
                                 }
 
                                 // Set agmt
@@ -802,7 +761,7 @@ export class Replication extends React.Component {
                                 });
 
                                 // Load winsync agreements
-                                let cmd = [
+                                cmd = [
                                     "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                                     "repl-winsync-agmt", "list", "--suffix", suffix
                                 ];
@@ -811,51 +770,49 @@ export class Replication extends React.Component {
                                         .spawn(cmd, { superuser: true, err: "message" })
                                         .done(content => {
                                             const obj = JSON.parse(content);
-                                            let ws_rows = [];
-                                            for (var idx in obj['items']) {
+                                            const ws_rows = [];
+                                            for (var idx in obj.items) {
                                                 let state = "Enabled";
                                                 let update_status = "";
                                                 let ws_agmt_init_status = "Initialized";
-                                                let agmt_attrs = obj['items'][idx]['attrs'];
+                                                const agmt_attrs = obj.items[idx].attrs;
                                                 // let agmt_name = agmt_attrs['cn'][0];
 
                                                 // Compute state (enabled by default)
                                                 if ('nsds5replicaenabled' in agmt_attrs) {
-                                                    if (agmt_attrs['nsds5replicaenabled'][0].toLowerCase() == 'off') {
+                                                    if (agmt_attrs.nsds5replicaenabled[0].toLowerCase() === 'off') {
                                                         state = "Disabled";
                                                     }
                                                 }
 
                                                 if ('nsds5replicalastupdatestatus' in agmt_attrs) {
-                                                    update_status = agmt_attrs['nsds5replicalastupdatestatus'][0];
+                                                    update_status = agmt_attrs.nsds5replicalastupdatestatus[0];
                                                 }
 
                                                 if ('nsds5replicalastinitstatus' in agmt_attrs &&
-                                                    agmt_attrs['nsds5replicalastinitstatus'][0] != "") {
-                                                    ws_agmt_init_status = agmt_attrs['nsds5replicalastinitstatus'][0];
-                                                    if (ws_agmt_init_status == "Error (0) Total update in progress" ||
-                                                        ws_agmt_init_status == "Error (0)") {
-                                                        ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner loading size="sm" /></td>;
-                                                    } else if (ws_agmt_init_status == "Error (0) Total update succeeded") {
-                                                        ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Initialized</i></td>;
-                                                    } else {
-                                                        ws_agmt_init_status = <td key={agmt_attrs['cn']}>{ws_agmt_init_status}</td>;
+                                                    agmt_attrs.nsds5replicalastinitstatus[0] !== "") {
+                                                    ws_agmt_init_status = agmt_attrs.nsds5replicalastinitstatus[0];
+                                                    if (ws_agmt_init_status === "Error (0) Total update in progress" ||
+                                                        ws_agmt_init_status === "Error (0)") {
+                                                        ws_agmt_init_status = "Initializing";
+                                                    } else if (ws_agmt_init_status === "Error (0) Total update succeeded") {
+                                                        ws_agmt_init_status = "Initialized";
                                                     }
-                                                } else if ('nsds5replicalastinitstart' in agmt_attrs && agmt_attrs['nsds5replicalastinitstart'][0] == "19700101000000Z") {
-                                                    ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Not initialized</i></td>;
+                                                } else if ('nsds5replicalastinitstart' in agmt_attrs && agmt_attrs.nsds5replicalastinitstart[0] === "19700101000000Z") {
+                                                    ws_agmt_init_status = "Not Initialized";
                                                 } else if ('nsds5beginreplicarefresh' in agmt_attrs) {
-                                                    ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner loading size="sm" /></td>;
+                                                    ws_agmt_init_status = "Initializing";
                                                 }
 
                                                 // Update table
-                                                ws_rows.push({
-                                                    'name': agmt_attrs['cn'],
-                                                    'host': agmt_attrs['nsds5replicahost'],
-                                                    'port': agmt_attrs['nsds5replicaport'],
-                                                    'state': [state],
-                                                    'status': [update_status],
-                                                    'initstatus': [ws_agmt_init_status]
-                                                });
+                                                ws_rows.push([
+                                                    agmt_attrs.cn[0],
+                                                    agmt_attrs.nsds5replicahost[0],
+                                                    agmt_attrs.nsds5replicaport[0],
+                                                    state,
+                                                    update_status,
+                                                    ws_agmt_init_status
+                                                ]);
                                             }
                                             // Set winsync agmts
                                             this.setState({
@@ -866,24 +823,24 @@ export class Replication extends React.Component {
                                             });
 
                                             // Load suffix RUV
-                                            let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+                                            cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
                                                 'replication', 'get-ruv', '--suffix=' + suffix];
                                             log_cmd('loadReplSuffix', 'Get the suffix RUV', cmd);
                                             cockpit
                                                     .spawn(cmd, { superuser: true, err: "message" })
                                                     .done(content => {
-                                                        let ruvs = JSON.parse(content);
-                                                        let ruv_rows = [];
-                                                        for (let idx in ruvs['items']) {
-                                                            let ruv = ruvs['items'][idx];
+                                                        const ruvs = JSON.parse(content);
+                                                        const ruv_rows = [];
+                                                        for (const idx in ruvs.items) {
+                                                            const ruv = ruvs.items[idx];
                                                             // Update table
                                                             ruv_rows.push({
-                                                                'rid': ruv['rid'],
-                                                                'url': ruv['url'],
-                                                                'csn': ruv['csn'],
-                                                                'raw_csn': ruv['raw_csn'],
-                                                                'maxcsn': ruv['maxcsn'],
-                                                                'raw_maxcsn': ruv['raw_maxcsn'],
+                                                                rid: ruv.rid,
+                                                                url: ruv.url,
+                                                                csn: ruv.csn,
+                                                                raw_csn: ruv.raw_csn,
+                                                                maxcsn: ruv.maxcsn,
+                                                                raw_maxcsn: ruv.raw_maxcsn,
                                                             });
                                                         }
 
@@ -897,8 +854,8 @@ export class Replication extends React.Component {
                                                         });
                                                     })
                                                     .fail(err => {
-                                                        let errMsg = JSON.parse(err);
-                                                        if (errMsg.desc != "No such object") {
+                                                        const errMsg = JSON.parse(err);
+                                                        if (errMsg.desc !== "No such object") {
                                                             this.props.addNotification(
                                                                 "error",
                                                                 `Error loading suffix RUV - ${errMsg.desc}`
@@ -911,7 +868,7 @@ export class Replication extends React.Component {
                                                     });
                                         })
                                         .fail(err => {
-                                            let errMsg = JSON.parse(err);
+                                            const errMsg = JSON.parse(err);
                                             this.props.addNotification(
                                                 "error",
                                                 `Error loading winsync agreements - ${errMsg.desc}`
@@ -923,7 +880,7 @@ export class Replication extends React.Component {
                                         });
                             })
                             .fail(err => {
-                                let errMsg = JSON.parse(err);
+                                const errMsg = JSON.parse(err);
                                 this.props.addNotification(
                                     "error",
                                     `Error loading replication agreements configuration - ${errMsg.desc}`
@@ -953,21 +910,14 @@ export class Replication extends React.Component {
         cockpit
                 .spawn(attr_cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let attrContent = JSON.parse(content);
-                    let attrs = [];
-                    for (let content of attrContent['items']) {
+                    const attrContent = JSON.parse(content);
+                    const attrs = [];
+                    for (const content of attrContent.items) {
                         attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributes: attrs,
                     });
-                })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to get attributes - ${errMsg.desc}`
-                    );
                 });
     }
 
@@ -986,103 +936,111 @@ export class Replication extends React.Component {
     render() {
         const { nodes } = this.state;
         let repl_page = "";
+        let repl_element = "";
         let disabled = "tree-view-container";
         if (this.state.disableTree) {
             disabled = "tree-view-container ds-disabled";
         }
-        let repl_element =
-            <h4>There are currently no databases to configure for replication</h4>;
-        if (this.state.loaded) {
-            // We have a suffix, or database link
-            if (this.state.node_type == "suffix" || this.state.node_type == "subsuffix") {
-                if (this.state.suffixLoading) {
+        if (!this.state.loaded) {
+            repl_page =
+                <div className="ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>Loading Replication Information ...</Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top-lg" size="xl" />
+                </div>;
+        } else {
+            if (this.state.suffixLoading) {
+                repl_element =
+                    <div className="ds-margin-top-xlg ds-center">
+                        <TextContent>
+                            <Text component={TextVariants.h3}>Loading Replication Configuration For <b>{this.state.node_name} ...</b></Text>
+                        </TextContent>
+                        <Spinner className="ds-margin-top-lg" size="xl" />
+                    </div>;
+            } else {
+                if (this.state.node_name in this.state) {
                     repl_element =
-                        <div className="ds-margin-top ds-loading-spinner ds-center">
-                            <h4>Loading replication configuration for <b>{this.state.node_name} ...</b></h4>
-                            <Spinner className="ds-margin-top-lg" loading size="md" />
-                        </div>;
-                } else {
-                    if (this.state.node_name in this.state) {
-                        repl_element =
-                            <div>
-                                <ReplSuffix
-                                    serverId={this.props.serverId}
-                                    suffix={this.state.node_name}
-                                    role={this.state[this.state.node_name].role}
-                                    data={this.state[this.state.node_name]}
-                                    addNotification={this.props.addNotification}
-                                    agmtRows={this.state[this.state.node_name].agmtRows}
-                                    winsyncRows={this.state[this.state.node_name].winsyncRows}
-                                    ruvRows={this.state[this.state.node_name].ruvRows}
-                                    reloadAgmts={this.reloadAgmts}
-                                    reloadWinsyncAgmts={this.reloadWinsyncAgmts}
-                                    reloadRUV={this.reloadRUV}
-                                    reloadConfig={this.reloadConfig}
-                                    reload={this.loadSuffixTree}
-                                    attrs={this.state.attributes}
-                                    replicated={this.state.node_replicated}
-                                    enableTree={this.enableTree}
-                                    disableTree={this.disableTree}
-                                    key={this.state.suffixKey}
-                                    disabled={this.state.disabled}
-                                    spinning={this.state.suffixSpinning}
-                                />
-                            </div>;
-                    } else {
-                        // Suffix is not replicated
-                        repl_element =
+                        <div>
                             <ReplSuffix
                                 serverId={this.props.serverId}
                                 suffix={this.state.node_name}
-                                role=""
-                                data=""
+                                role={this.state[this.state.node_name].role}
+                                data={this.state[this.state.node_name]}
                                 addNotification={this.props.addNotification}
-                                disableWSAgmtTable={this.state.disableWSAgmtTable}
-                                disableAgmtTable={this.state.disableAgmtTable}
+                                agmtRows={this.state[this.state.node_name].agmtRows}
+                                winsyncRows={this.state[this.state.node_name].winsyncRows}
+                                ruvRows={this.state[this.state.node_name].ruvRows}
+                                ldifRows={this.state.ldifRows}
                                 reloadAgmts={this.reloadAgmts}
                                 reloadWinsyncAgmts={this.reloadWinsyncAgmts}
                                 reloadRUV={this.reloadRUV}
                                 reloadConfig={this.reloadConfig}
+                                reloadLDIF={this.loadLDIFs}
                                 reload={this.loadSuffixTree}
                                 attrs={this.state.attributes}
                                 replicated={this.state.node_replicated}
                                 enableTree={this.enableTree}
                                 disableTree={this.disableTree}
-                                spinning={this.state.suffixSpinning}
+                                key={this.state.suffixKey}
                                 disabled={this.state.disabled}
-                                key={this.state.node_name}
-                            />;
-                    }
+                                spinning={this.state.suffixSpinning}
+                            />
+                        </div>;
+                } else if (this.state.node_name === "changelog") {
+                    repl_element =
+                        <Changelog
+                            serverId={this.props.serverId}
+                            clDir={this.state.clDir}
+                            clMaxEntries={this.state.clMaxEntries}
+                            clMaxAge={this.state.clMaxAge}
+                            clCompactInt={this.state.clCompactInt}
+                            clTrimInt={this.state.clTrimInt}
+                            clEncrypt={this.state.clEncrypt}
+                            addNotification={this.props.addNotification}
+                            enableTree={this.enableTree}
+                            reload={this.reloadChangelog}
+                            loading={this.state.clLoading}
+                            key={this.state.clDir}
+                        />;
+                } else {
+                    // Suffix is not replicated
+                    repl_element =
+                        <ReplSuffix
+                            serverId={this.props.serverId}
+                            suffix={this.state.node_name}
+                            role=""
+                            data=""
+                            addNotification={this.props.addNotification}
+                            disableWSAgmtTable={this.state.disableWSAgmtTable}
+                            disableAgmtTable={this.state.disableAgmtTable}
+                            reloadAgmts={this.reloadAgmts}
+                            reloadWinsyncAgmts={this.reloadWinsyncAgmts}
+                            reloadRUV={this.reloadRUV}
+                            reloadLDIF={this.loadLDIFs}
+                            reloadConfig={this.reloadConfig}
+                            reload={this.loadSuffixTree}
+                            attrs={this.state.attributes}
+                            replicated={this.state.node_replicated}
+                            enableTree={this.enableTree}
+                            disableTree={this.disableTree}
+                            spinning={this.state.suffixSpinning}
+                            disabled={this.state.disabled}
+                            ldifRows={this.state.ldifRows}
+                            key={this.state.node_name}
+                        />;
                 }
-            } else if (this.state.node_type == "changelog") {
-                repl_element =
-                    <Changelog
-                        serverId={this.props.serverId}
-                        clDir={this.state.clDir}
-                        clMaxEntries={this.state.clMaxEntries}
-                        clMaxAge={this.state.clMaxAge}
-                        clCompactInt={this.state.clCompactInt}
-                        clTrimInt={this.state.clTrimInt}
-                        clEncrypt={this.state.clEncrypt}
-                        addNotification={this.props.addNotification}
-                        enableTree={this.enableTree}
-                        reload={this.reloadChangelog}
-                        loading={this.state.clLoading}
-                        key={this.state.clDir}
-                    />;
             }
             repl_page =
                 <div className="container-fluid">
                     <div className="ds-container">
                         <div>
                             <div className="ds-tree">
-                                <div className={disabled} id="repl-tree"
-                                    style={treeViewContainerStyles}>
+                                <div className={disabled} id="repl-tree">
                                     <TreeView
-                                        nodes={nodes}
-                                        highlightOnHover
-                                        highlightOnSelect
-                                        selectNode={this.selectNode}
+                                        data={nodes}
+                                        activeItems={this.state.activeItems}
+                                        onSelect={this.handleTreeClick}
                                     />
                                 </div>
                             </div>
@@ -1091,12 +1049,6 @@ export class Replication extends React.Component {
                             {repl_element}
                         </div>
                     </div>
-                </div>;
-        } else {
-            repl_page =
-                <div className="ds-margin-top ds-loading-spinner ds-center">
-                    <h4>Loading Replication Information ...</h4>
-                    <Spinner className="ds-margin-top-lg" loading size="md" />
                 </div>;
         }
 
@@ -1116,7 +1068,6 @@ Replication.propTypes = {
 };
 
 Replication.defaultProps = {
-    addNotification: noop,
     serverId: ""
 };
 

@@ -9,7 +9,6 @@
 import ldap
 import re
 import time
-import six
 import json
 import datetime
 from lib389._constants import *
@@ -446,6 +445,13 @@ class Agreement(DSLdapObject):
         """
         return self.get_attr_val_utf8('nsDS5ReplicaWaitForAsyncResults')
 
+    def set_flowcontrolwindow(self, value):
+        """Set nsds5ReplicaFlowControlWindow to value.
+
+        :param value: During total update Number of entries to send without waiting ack
+        :type value: str
+        """
+        self.replace('nsds5ReplicaFlowControlWindow', value)
 
 class WinsyncAgreement(Agreement):
     """A replication agreement from this server instance to
@@ -740,7 +746,7 @@ class AgreementLegacy(object):
             # Build the result from the returned attributes
             for attr in entry.getAttrs():
                 # given an attribute name retrieve the property name
-                props = [k for k, v in six.iteritems(RA_PROPNAME_TO_ATTRNAME)
+                props = [k for k, v in RA_PROPNAME_TO_ATTRNAME.items()
                          if v.lower() == attr.lower()]
 
                 # If this attribute is present in the RA properties, adds it to

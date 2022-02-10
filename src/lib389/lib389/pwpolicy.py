@@ -8,6 +8,7 @@
 
 import ldap
 from lib389._mapped_object import DSLdapObject, DSLdapObjects
+from lib389.backend import Backends
 from lib389.config import Config
 from lib389.idm.account import Account
 from lib389.idm.nscontainer import nsContainers, nsContainer
@@ -195,14 +196,20 @@ class PwPolicyManager(object):
         if not entry.exists():
             raise ValueError('Can not get the password policy entry because the target dn does not exist')
 
-        # Get the parent DN
-        dn_comps = ldap.dn.explode_dn(entry.dn)
-        dn_comps.pop(0)
-        parentdn = ",".join(dn_comps)
+        try:
+            Backends(self._instance).get(dn)
+            # The DN is a base suffix, it has no parent
+            parentdn = dn
+        except:
+            # Ok, this is a not a suffix, get the parent DN
+            dn_comps = ldap.dn.explode_dn(entry.dn)
+            dn_comps.pop(0)
+            parentdn = ",".join(dn_comps)
 
         # Get the parent's policies
         pwp_entries = PwPolicyEntries(self._instance, parentdn)
         policies = pwp_entries.list()
+
         for policy in policies:
             dn_comps = ldap.dn.explode_dn(policy.get_attr_val_utf8_l('cn'))
             dn_comps.pop(0)
