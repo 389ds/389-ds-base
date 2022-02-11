@@ -50,9 +50,6 @@ def test_parse_openldap_slapdd():
     assert any(['suseModuleConfiguration' in x.names for x in config.schema.classes])
 
 
-
-
-
 @pytest.mark.skipif(ds_is_older('1.4.3'), reason="Not implemented")
 def test_migrate_openldap_slapdd(topology_st):
     """

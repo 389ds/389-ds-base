@@ -1,0 +1,12 @@
+dn: cn={5}test
+objectClass: olcSchemaConfig
+cn: {5}test
+olcAttributeTypes: {0}( x-attribute NAME 'x-attribute' DESC 'desc' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE )
+olcObjectClasses: {0}( x-object-oid NAME 'x-object' DESC 'desc' SUP top STRUCTURAL MUST x-attribute )
+structuralObjectClass: olcSchemaConfig
+entryUUID: 86660309-e157-4ebb-be06-a5d7e3c877bc
+creatorsName: cn=config
+createTimestamp: 20200224020101Z
+entryCSN: 20200224020101.085642Z#000000#000#000000
+modifiersName: cn=config
+modifyTimestamp: 20200224020101Z

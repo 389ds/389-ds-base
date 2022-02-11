@@ -3953,8 +3953,22 @@ schema_check_oid(const char *name, const char *oid, PRBool isAttribute, char *er
     rc = strcasecmp(oid, namePlusOid);
     slapi_ch_free((void **)&namePlusOid);
 
+    /*
+     * 5160 - if the attribute starts with an x- this can confuse the openldap schema
+     * parser. It becomes ambiguous if the x-descr-oid is the oid or a field of the
+     * schema. In this case, we reject the oid as it is ambiguous.
+     */
     if (0 == rc) {
-        return 1;
+        if (strncasecmp(name, "X-", 2) == 0) {
+            schema_create_errormsg(errorbuf, errorbufsize,
+                                   isAttribute ? schema_errprefix_at : schema_errprefix_oc,
+                                   name,
+                                   "The descr-oid format can not be used with a schema name prefixed with \"X-\". The OID for \"%s\" MUST be a numeric representation.",
+                                   name);
+            return 0;
+        } else {
+            return 1;
+        }
     }
 
     /* If not, the OID must begin and end with a digit, and contain only
