@@ -17,6 +17,7 @@ import {
 } from '../lib/constants.jsx';
 import AddUser from './operations/addUser.jsx';
 import AddGroup from './operations/addGroup.jsx';
+import AddRole from './operations/addRole.jsx';
 import AddLdapEntry from './operations/addLdapEntry.jsx';
 import GenericUpdate from './operations/genericUpdate.jsx';
 
@@ -106,10 +107,9 @@ class NewEntryWizard extends React.Component {
                             name="radio-new-step-start"
                             id="radio-new-step-start-3"
                         />
-                        {/* <Radio
+                        <Radio
                           className="ds-margin-top-lg"
                           value="Role"
-                          isDisabled
                           isChecked={this.state.getStartedStepRadio === 'Role'}
                           onChange={this.handleOnChange}
                           label="Create a new Role"
@@ -117,7 +117,7 @@ class NewEntryWizard extends React.Component {
                           name="radio-new-step-start"
                           id="radio-new-step-start-4"
                         />
-                        <Radio
+                        {/* <Radio
                           className="ds-margin-top-lg"
                           value="CoS"
                           isDisabled
@@ -173,6 +173,11 @@ class NewEntryWizard extends React.Component {
                 {...wizardProps}
                 treeViewRootSuffixes={this.props.treeViewRootSuffixes}
             />
+        } else if (getStartedStepRadio === 'Role') {
+            return <AddRole
+                {...wizardProps}
+                treeViewRootSuffixes={this.props.treeViewRootSuffixes}
+            />
         } else if (getStartedStepRadio === 'OrganizationalUnit') {
             return <GenericUpdate
                 editorLdapServer={this.props.editorLdapServer}
@@ -192,15 +197,6 @@ class NewEntryWizard extends React.Component {
                 { id: 3, name: 'CoS 3', component: <p>Step 3</p>, canJumpTo: this.state.stepIdReached >= 3 },
                 { id: 4, name: 'CoS 4', component: <p>Step 4</p>, canJumpTo: this.state.stepIdReached >= 4 },
                 { id: 5, name: 'CoS End', component: <p>Review Step</p>, nextButtonText: 'Finish', canJumpTo: this.state.stepIdReached >= 5 }
-            ];
-        } else if (getStartedStepRadio === 'Role') {
-            myTitle = 'Add a new Role Entry';
-            mySteps = [
-                // ...this.state.initialStep,
-                { id: 2, name: 'Role 2', component: <p>Step 2</p>, canJumpTo: this.state.stepIdReached >= 2 },
-                { id: 3, name: 'Role 3', component: <p>Step 3</p>, canJumpTo: this.state.stepIdReached >= 3 },
-                { id: 4, name: 'Role 4', component: <p>Step 4</p>, canJumpTo: this.state.stepIdReached >= 4 },
-                { id: 5, name: 'Role End', component: <p>Review Step</p>, nextButtonText: 'Finish', canJumpTo: this.state.stepIdReached >= 5 }
             ];
         } else {
             return <AddLdapEntry
