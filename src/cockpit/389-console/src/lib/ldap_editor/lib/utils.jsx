@@ -336,7 +336,7 @@ export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCa
     `ldapsearch -LLL -o ldif-wrap=no -Y EXTERNAL -b "${baseDn}"` +
     ` -H ldapi://%2fvar%2frun%2fslapd-${serverId}.socket` +
     ` ${optionTimeLimit}` +
-    ' -s base "(|(objectClass=*)(objectClass=ldapSubEntry))" \\*' // +
+    ' -s base "(|(objectClass=*)(objectClass=ldapSubEntry))" nsRoleDN \\*' // +
     // ' | /usr/bin/head -c 150001' // Taking 1 additional character to check if the
     // the entry was indeed bigger than 150K.
   ];
