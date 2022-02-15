@@ -54,7 +54,6 @@ class AddRole extends React.Component {
         this.roleDefinitionArray = ['description', 'nsRoleScopeDN'];
         this.filteredRoleDefinitionArray = ['nsRoleFilter'];
         this.nestedRoleDefinitionArray = ['nsRoleDN'];
-        
         this.singleValuedAttributes = ['nsRoleFilter', 'nsRoleDN', 'nsRoleScopeDN'];
 
         this.requiredAttributes = ['cn', 'nsRoleFilter', 'nsRoleDN'];
@@ -79,7 +78,7 @@ class AddRole extends React.Component {
             commandOutput: '',
             resultVariant: 'default',
             allAttributesSelected: false,
-            stepIdReached: 1,
+            stepIdReached: 0,
             // currentStepId: 1,
             itemCountAddUser: 0,
             pageAddRole: 1,
@@ -107,7 +106,6 @@ class AddRole extends React.Component {
             editableTableData: [],
             rdn: "",
             rdnValue: "",
-
             parentDN: "",
             isTreeLoading: false,
             roleType: "managed",
@@ -118,11 +116,6 @@ class AddRole extends React.Component {
             rolesSearchBaseDn: "",
             rolesAvailableOptions: [],
             rolesChosenOptions: [],
-            ldifArray: [],
-            resultVariant: 'default',
-            commandOutput: "",
-            stepIdReached: 0,
-            noEmptyValue: false,
         };
 
         this.handleBaseDnSelection = (treeViewItem) => {
@@ -967,6 +960,7 @@ class AddRole extends React.Component {
                 name: 'Set Values',
                 component: roleValuesStep,
                 canJumpTo: stepIdReached >= 4 && stepIdReached < 6,
+                enableNext: noEmptyValue
             },
             {
                 id: 5,
