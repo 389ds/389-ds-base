@@ -52,6 +52,7 @@ class AddUser extends React.Component {
         this.personOptionalArray = [
             'userPassword', 'telephoneNumber', 'seeAlso', 'description'
         ];
+        this.operationalOptionalArray = ['nsRoleDN'];
         this.singleValuedAttributes = [
             'preferredDeliveryMethod', 'displayName', 'employeeNumber', 'preferredLanguage'
         ];
@@ -89,7 +90,7 @@ class AddUser extends React.Component {
             ],
             rowsUser: [],
             pagedRowsUser: [],
-            selectedAttributes: ['cn', 'sn'],
+            selectedAttributes: ['cn', 'sn', 'nsRoleDN'],
             isAttrDropDownOpen: false,
             // Values
             noEmptyValue: false,
@@ -179,12 +180,14 @@ class AddUser extends React.Component {
         this.personOptionalArray.map(attr => {
             attributesArray.push({ cells: [attr, 'Person'] });
         });
-
         this.organizationalPersonArray.map(attr => {
             attributesArray.push({ cells: [attr, 'OrganizationalPerson'] });
         });
         this.inetorgPersonArray.map(attr => {
             attributesArray.push({ cells: [attr, 'InetOrgPerson'] });
+        });
+        this.operationalOptionalArray.map(attr => {
+            attributesArray.push({ cells: [attr, ''] });
         });
 
         // Sort the attributes
@@ -290,7 +293,8 @@ class AddUser extends React.Component {
             ? ['cn', 'sn',
             ...this.personOptionalArray,
             ...this.organizationalPersonArray,
-            ...this.inetorgPersonArray]
+            ...this.inetorgPersonArray,
+            ...this.operationalOptionalArray]
             : [...this.state.selectedAttributes];
         let namingRowID = this.state.namingRowID;
         let namingAttrVal = this.state.namingAttrVal

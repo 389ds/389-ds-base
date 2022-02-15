@@ -583,6 +583,34 @@ class EditLdapEntry extends React.Component {
                     });
                 }
             }
+
+            // If we're editing a user then add nsRoleDN attribute to the possible list
+            let personOC = false;
+            for (const existingOC of this.state.selectedObjectClasses) {
+                if (existingOC.cells[0].toLowerCase() === 'person' ||
+                   existingOC.cells[0].toLowerCase() === 'nsperson') {
+                    personOC = true;
+                    break;
+                }
+            }
+            let roleDNAttr = 'nsRoleDN'
+            if ((personOC && !attrList.includes(roleDNAttr))) {
+                let selected = false;
+                for (const existingRow of this.state.editableTableData) {
+                    if (existingRow.attr.toLowerCase() === roleDNAttr.toLowerCase()) {
+                        selected = true;
+                        break;
+                    }
+                }
+
+                attrList.push(roleDNAttr);
+                rowsAttr.push({
+                    attributeName: roleDNAttr,
+                    isAttributeSelected: selected,
+                    selected: selected,
+                    cells: [roleDNAttr, '']
+                });
+            }
         });
 
         // Update the rows where user can select the attributes.
