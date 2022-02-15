@@ -14,6 +14,13 @@ from lib389.cos import CosTemplates, CosClassicDefinitions
 from lib389.mappingTree import MappingTrees
 from lib389.idm.nscontainer import nsContainers
 
+MUST_ATTRIBUTES = [
+    'cn',
+]
+MUST_ATTRIBUTES_NESTED = [
+    'cn',
+    'nsRoleDN'
+]
 
 class RoleState(Enum):
     ACTIVATED = "activated"
@@ -319,7 +326,7 @@ class NestedRole(Role):
 
     def __init__(self, instance, dn=None):
         super(NestedRole, self).__init__(instance, dn)
-        self._must_attributes = ['cn', 'nsRoleDN']
+        self._must_attributes = MUST_ATTRIBUTES_NESTED
         self._rdn_attribute = 'cn'
         self._create_objectclasses = ['nsComplexRoleDefinition', 'nsNestedRoleDefinition']
 

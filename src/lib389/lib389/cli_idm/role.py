@@ -8,12 +8,25 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
-from lib389.idm.role import Role, Roles
+from lib389.idm.role import (
+    Role,
+    Roles,
+    ManagedRoles,
+    FilteredRoles,
+    NestedRoles,
+    MUST_ATTRIBUTES,
+    MUST_ATTRIBUTES_NESTED
+    )
 from lib389.cli_base import (
+    populate_attr_arguments,
+    _get_arg,
+    _get_attributes,
+    _generic_get,
     _generic_get_dn,
     _generic_list,
     _generic_delete,
     _generic_modify_dn,
+    _generic_create,
     _get_dn_arg,
     _warn,
     )
@@ -27,9 +40,29 @@ def list(inst, basedn, log, args):
     _generic_list(inst, basedn, log.getChild('_generic_list'), MANY, args)
 
 
+def get(inst, basedn, log, args):
+    rdn = _get_arg( args.selector, msg="Enter %s to retrieve" % RDN)
+    _generic_get(inst, basedn, log.getChild('_generic_get'), MANY, rdn, args)
+
+
 def get_dn(inst, basedn, log, args):
     dn = _get_dn_arg(args.dn, msg="Enter dn to retrieve")
     _generic_get_dn(inst, basedn, log.getChild('_generic_get_dn'), MANY, dn, args)
+
+
+def create_managed(inst, basedn, log, args):
+    kwargs = _get_attributes(args, MUST_ATTRIBUTES)
+    _generic_create(inst, basedn, log.getChild('_generic_create'), ManagedRoles, kwargs, args)
+
+
+def create_filtered(inst, basedn, log, args):
+    kwargs = _get_attributes(args, MUST_ATTRIBUTES)
+    _generic_create(inst, basedn, log.getChild('_generic_create'), FilteredRoles, kwargs, args)
+
+
+def create_nested(inst, basedn, log, args):
+    kwargs = _get_attributes(args, MUST_ATTRIBUTES_NESTED)
+    _generic_create(inst, basedn, log.getChild('_generic_create'), NestedRoles, kwargs, args)
 
 
 def delete(inst, basedn, log, args, warn=True):
@@ -88,17 +121,32 @@ def unlock(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    role_parser = subparsers.add_parser('role', help='''Manage generic roles, with tasks
-like modify, locking and unlocking.''')
+    role_parser = subparsers.add_parser('role', help='''Manage roles.''')
 
     subcommands = role_parser.add_subparsers(help='action')
 
     list_parser = subcommands.add_parser('list', help='list roles that could login to the directory')
     list_parser.set_defaults(func=list)
 
+    get_parser = subcommands.add_parser('get', help='get')
+    get_parser.set_defaults(func=get)
+    get_parser.add_argument('selector', nargs='?', help='The term to search for')
+
     get_dn_parser = subcommands.add_parser('get-by-dn', help='get-by-dn <dn>')
     get_dn_parser.set_defaults(func=get_dn)
     get_dn_parser.add_argument('dn', nargs='?', help='The dn to get and display')
+
+    create_managed_parser = subcommands.add_parser('create-managed', help='create')
+    create_managed_parser.set_defaults(func=create_managed)
+    populate_attr_arguments(create_managed_parser, MUST_ATTRIBUTES)
+
+    create_filtered_parser = subcommands.add_parser('create-filtered', help='create')
+    create_filtered_parser.set_defaults(func=create_filtered)
+    populate_attr_arguments(create_filtered_parser, MUST_ATTRIBUTES)
+
+    create_nested_parser = subcommands.add_parser('create-nested', help='create')
+    create_nested_parser.set_defaults(func=create_nested)
+    populate_attr_arguments(create_nested_parser, MUST_ATTRIBUTES_NESTED)
 
     modify_dn_parser = subcommands.add_parser('modify-by-dn', help='modify-by-dn <dn> <add|delete|replace>:<attribute>:<value> ...')
     modify_dn_parser.set_defaults(func=modify)
