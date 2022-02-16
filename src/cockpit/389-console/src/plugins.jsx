@@ -15,9 +15,10 @@ import {
     TextVariants,
 } from "@patternfly/react-core";
 import {
+    BanIcon,
     CheckCircleIcon,
     ListIcon,
-    BanIcon,
+    ResourcesEmptyIcon
 } from '@patternfly/react-icons';
 
 import { PluginTable } from "./lib/plugins/pluginTables.jsx";
@@ -397,7 +398,18 @@ export class Plugins extends React.Component {
                 return <div className="ds-disabled-icon"><BanIcon title="Plugin is disabled" className="ds-icon-sm" />{name}</div>;
             }
         } else {
-            return name;
+            // Might be attribute uniqueness that just has individual entries
+            const otherRows = this.state.rows.filter(row => row['nsslapd-pluginId'][0] === "NSUniqueAttr");
+            if (otherRows.length > 0) {
+                for (const plugin of otherRows) {
+                    if (plugin['nsslapd-pluginEnabled'][0] === "on") {
+                        return <div className="ds-ok-icon"><CheckCircleIcon title="Plugin is enabled" className="ds-icon-sm" />{name}</div>;
+                    }
+                }
+                return <div className="ds-disabled-icon"><BanIcon title="Plugin is disabled" className="ds-icon-sm" />{name}</div>;
+            } else {
+                return <div className="ds-disabled-icon"><ResourcesEmptyIcon title="Plugin is not configured" className="ds-icon-sm" />{name}</div>;
+            }
         }
     }
 

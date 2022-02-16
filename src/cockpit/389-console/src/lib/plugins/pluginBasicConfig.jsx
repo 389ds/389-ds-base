@@ -144,28 +144,29 @@ class PluginBasicConfig extends React.Component {
     updateFields() {
         if (this.props.rows.length > 0) {
             const pluginRow = this.props.rows.find(row => row.cn[0] === this.props.cn);
-
-            this.setState({
-                currentPluginType: pluginRow["nsslapd-pluginType"][0],
-                currentPluginPath: pluginRow["nsslapd-pluginPath"][0],
-                currentPluginInitfunc: pluginRow["nsslapd-pluginInitfunc"][0],
-                currentPluginId: pluginRow["nsslapd-pluginId"][0],
-                currentPluginVendor: pluginRow["nsslapd-pluginVendor"][0],
-                currentPluginVersion: pluginRow["nsslapd-pluginVersion"][0],
-                currentPluginDescription: pluginRow["nsslapd-pluginDescription"][0],
-                currentPluginDependsOnType:
-                    pluginRow["nsslapd-plugin-depends-on-type"] === undefined
-                        ? ""
-                        : pluginRow["nsslapd-plugin-depends-on-type"][0],
-                currentPluginDependsOnNamed:
-                    pluginRow["nsslapd-plugin-depends-on-named"] === undefined
-                        ? ""
-                        : pluginRow["nsslapd-plugin-depends-on-named"][0],
-                currentPluginPrecedence:
-                    pluginRow["nsslapd-pluginprecedence"] === undefined
-                        ? ""
-                        : pluginRow["nsslapd-pluginprecedence"][0]
-            });
+            if (pluginRow) {
+                this.setState({
+                    currentPluginType: pluginRow["nsslapd-pluginType"][0],
+                    currentPluginPath: pluginRow["nsslapd-pluginPath"][0],
+                    currentPluginInitfunc: pluginRow["nsslapd-pluginInitfunc"][0],
+                    currentPluginId: pluginRow["nsslapd-pluginId"][0],
+                    currentPluginVendor: pluginRow["nsslapd-pluginVendor"][0],
+                    currentPluginVersion: pluginRow["nsslapd-pluginVersion"][0],
+                    currentPluginDescription: pluginRow["nsslapd-pluginDescription"][0],
+                    currentPluginDependsOnType:
+                        pluginRow["nsslapd-plugin-depends-on-type"] === undefined
+                            ? ""
+                            : pluginRow["nsslapd-plugin-depends-on-type"][0],
+                    currentPluginDependsOnNamed:
+                        pluginRow["nsslapd-plugin-depends-on-named"] === undefined
+                            ? ""
+                            : pluginRow["nsslapd-plugin-depends-on-named"][0],
+                    currentPluginPrecedence:
+                        pluginRow["nsslapd-pluginprecedence"] === undefined
+                            ? ""
+                            : pluginRow["nsslapd-pluginprecedence"][0]
+                });
+            }
         }
         this.updateSwitch();
     }
@@ -173,24 +174,25 @@ class PluginBasicConfig extends React.Component {
     updateSwitch() {
         if (this.props.rows.length > 0) {
             const pluginRow = this.props.rows.find(row => row.cn[0] === this.props.cn);
+            if (pluginRow) {
+                let pluginEnabled = false;
+                if (pluginRow["nsslapd-pluginEnabled"][0] === "on") {
+                    pluginEnabled = true;
+                } else if (pluginRow["nsslapd-pluginEnabled"][0] === "off") {
+                    pluginEnabled = false;
+                } else {
+                    console.error(
+                        "openPluginModal failed",
+                        "wrong nsslapd-pluginenabled attribute value",
+                        pluginRow["nsslapd-pluginEnabled"][0]
+                    );
+                }
 
-            var pluginEnabled;
-            if (pluginRow["nsslapd-pluginEnabled"][0] === "on") {
-                pluginEnabled = true;
-            } else if (pluginRow["nsslapd-pluginEnabled"][0] === "off") {
-                pluginEnabled = false;
-            } else {
-                console.error(
-                    "openPluginModal failed",
-                    "wrong nsslapd-pluginenabled attribute value",
-                    pluginRow["nsslapd-pluginEnabled"][0]
-                );
+                this.setState({
+                    currentPluginEnabled: pluginEnabled,
+                    disableSwitch: false
+                });
             }
-
-            this.setState({
-                currentPluginEnabled: pluginEnabled,
-                disableSwitch: false
-            });
         }
     }
 
@@ -231,100 +233,102 @@ class PluginBasicConfig extends React.Component {
                 <div className="ds-left-margin">
                     {this.props.children}
                 </div>
-                <ExpandableSection
-                    className="ds-margin-top-lg"
-                    toggleText={this.state.isExpanded ? 'Hide Plugin Details' : 'Show Plugin Details'}
-                    onToggle={this.onToggle}
-                    isExpanded={this.state.isExpanded}
-                >
-                    <Grid className="ds-margin-left">
-                        <GridItem span={12}>
-                            <Form isHorizontal>
-                                <Grid>
-                                    <GridItem span={3}>
-                                        <b>Plugin Type</b>
-                                    </GridItem>
-                                    <GridItem span={6}>
-                                        <i>{this.state.currentPluginType}</i>
-                                    </GridItem>
-                                </Grid>
-                                <Grid>
-                                    <GridItem span={3}>
-                                        <b>Plugin Path</b>
-                                    </GridItem>
-                                    <GridItem span={6}>
-                                        <i>{this.state.currentPluginPath}</i>
-                                    </GridItem>
-                                </Grid>
-                                <Grid>
-                                    <GridItem span={3}>
-                                        <b>Plugin Initfunc</b>
-                                    </GridItem>
-                                    <GridItem span={6}>
-                                        <i>{this.state.currentPluginInitfunc}</i>
-                                    </GridItem>
-                                </Grid>
-                                <Grid>
-                                    <GridItem span={3}>
-                                        <b>Plugin Depends On Type</b>
-                                    </GridItem>
-                                    <GridItem span={6}>
-                                        <i>{this.state.currentPluginDependsOnType}</i>
-                                    </GridItem>
-                                </Grid>
-                                <Grid>
-                                    <GridItem span={3}>
-                                        <b>Plugin Depends On Named</b>
-                                    </GridItem>
-                                    <GridItem span={6}>
-                                        <i>{this.state.currentPluginDependsOnNamed}</i>
-                                    </GridItem>
-                                </Grid>
-                                <Grid>
-                                    <GridItem span={3}>
-                                        <b>Plugin Vendor</b>
-                                    </GridItem>
-                                    <GridItem span={6}>
-                                        <i>{this.state.currentPluginVendor}</i>
-                                    </GridItem>
-                                </Grid>
-                                <Grid>
-                                    <GridItem span={3}>
-                                        <b>Plugin Version</b>
-                                    </GridItem>
-                                    <GridItem span={6}>
-                                        <i>{this.state.currentPluginVersion}</i>
-                                    </GridItem>
-                                </Grid>
-                                <Grid>
-                                    <GridItem span={3}>
-                                        <b>Plugin Description</b>
-                                    </GridItem>
-                                    <GridItem span={6}>
-                                        <i>{this.state.currentPluginDescription}</i>
-                                    </GridItem>
-                                </Grid>
-                                <Grid>
-                                    <GridItem span={3}>
-                                        <b>Plugin ID</b>
-                                    </GridItem>
-                                    <GridItem span={6}>
-                                        <i>{this.state.currentPluginId}</i>
-                                    </GridItem>
-                                </Grid>
-                                <Grid>
-                                    <GridItem span={3}>
-                                        <b>Plugin Precedence</b>
-                                    </GridItem>
-                                    <GridItem span={6}>
-                                        <i>{this.state.currentPluginPrecedence}</i>
-                                    </GridItem>
-                                </Grid>
-                                <hr />
-                            </Form>
-                        </GridItem>
-                    </Grid>
-                </ExpandableSection>
+                {this.state.currentPluginPath !== "" &&
+                    <ExpandableSection
+                        className="ds-margin-top-lg"
+                        toggleText={this.state.isExpanded ? 'Hide Plugin Details' : 'Show Plugin Details'}
+                        onToggle={this.onToggle}
+                        isExpanded={this.state.isExpanded}
+                    >
+                        <Grid className="ds-margin-left">
+                            <GridItem span={12}>
+                                <Form isHorizontal>
+                                    <Grid>
+                                        <GridItem span={3}>
+                                            <b>Plugin Type</b>
+                                        </GridItem>
+                                        <GridItem span={6}>
+                                            <i>{this.state.currentPluginType}</i>
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid>
+                                        <GridItem span={3}>
+                                            <b>Plugin Path</b>
+                                        </GridItem>
+                                        <GridItem span={6}>
+                                            <i>{this.state.currentPluginPath}</i>
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid>
+                                        <GridItem span={3}>
+                                            <b>Plugin Initfunc</b>
+                                        </GridItem>
+                                        <GridItem span={6}>
+                                            <i>{this.state.currentPluginInitfunc}</i>
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid>
+                                        <GridItem span={3}>
+                                            <b>Plugin Depends On Type</b>
+                                        </GridItem>
+                                        <GridItem span={6}>
+                                            <i>{this.state.currentPluginDependsOnType}</i>
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid>
+                                        <GridItem span={3}>
+                                            <b>Plugin Depends On Named</b>
+                                        </GridItem>
+                                        <GridItem span={6}>
+                                            <i>{this.state.currentPluginDependsOnNamed}</i>
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid>
+                                        <GridItem span={3}>
+                                            <b>Plugin Vendor</b>
+                                        </GridItem>
+                                        <GridItem span={6}>
+                                            <i>{this.state.currentPluginVendor}</i>
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid>
+                                        <GridItem span={3}>
+                                            <b>Plugin Version</b>
+                                        </GridItem>
+                                        <GridItem span={6}>
+                                            <i>{this.state.currentPluginVersion}</i>
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid>
+                                        <GridItem span={3}>
+                                            <b>Plugin Description</b>
+                                        </GridItem>
+                                        <GridItem span={6}>
+                                            <i>{this.state.currentPluginDescription}</i>
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid>
+                                        <GridItem span={3}>
+                                            <b>Plugin ID</b>
+                                        </GridItem>
+                                        <GridItem span={6}>
+                                            <i>{this.state.currentPluginId}</i>
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid>
+                                        <GridItem span={3}>
+                                            <b>Plugin Precedence</b>
+                                        </GridItem>
+                                        <GridItem span={6}>
+                                            <i>{this.state.currentPluginPrecedence}</i>
+                                        </GridItem>
+                                    </Grid>
+                                    <hr />
+                                </Form>
+                            </GridItem>
+                        </Grid>
+                    </ExpandableSection>
+                }
             </div>
         );
     }
