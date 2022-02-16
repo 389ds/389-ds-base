@@ -231,12 +231,6 @@ textarea {
     float: left;
 }
 
-.ds-inline-btn {
-    margin-top: -3px;
-    margin-left: 10px;
-    display: inline-block;
-}
-
 .ds-config-header {
     margin-bottom: 30px;
     text-align: center;

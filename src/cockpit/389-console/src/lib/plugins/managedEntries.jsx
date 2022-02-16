@@ -1432,11 +1432,11 @@ class ManagedEntries extends React.Component {
                         <div className="ds-margin-top-lg">
                             <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                                 <Tab
-eventKey={1} title={
-    <TabTitleText>
-        <b>Templates</b>
-    </TabTitleText>
-}
+                                    eventKey={1} title={
+                                        <TabTitleText>
+                                            <b>Templates</b>
+                                        </TabTitleText>
+                                    }
                                 >
                                     <div className="ds-margin-top-lg">
                                         <Tooltip
@@ -1458,7 +1458,7 @@ eventKey={1} title={
                                         deleteConfig={this.showTempDeleteConfirm}
                                     />
                                     <Button
-                                        className="ds-margin-top"
+                                        className="ds-left-margin"
                                         variant="primary"
                                         onClick={this.showAddTempModal}
                                     >
@@ -1466,11 +1466,11 @@ eventKey={1} title={
                                     </Button>
                                 </Tab>
                                 <Tab
-eventKey={2} title={
-    <TabTitleText>
-        <b>Definitions</b>
-    </TabTitleText>
-}
+                                    eventKey={2} title={
+                                        <TabTitleText>
+                                            <b>Definitions</b>
+                                        </TabTitleText>
+                                    }
                                 >
                                     <div className="ds-margin-top-lg">
                                         <Tooltip
@@ -1495,7 +1495,7 @@ eventKey={2} title={
                                         deleteConfig={this.showDefDeleteConfirm}
                                     />
                                     <Button
-                                        className="ds-margin-top"
+                                        className="ds-left-margin"
                                         variant="primary"
                                         onClick={this.showAddDefModal}
                                         isDisabled={this.state.defCreateDisabled}
@@ -1504,6 +1504,7 @@ eventKey={2} title={
                                     </Button>
                                 </Tab>
                             </Tabs>
+                            <div className="ds-margin-top-xlg" />
                             <hr />
                             <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
                                 <FormGroup
