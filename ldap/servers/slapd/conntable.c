@@ -135,8 +135,7 @@ connection_table_new(int table_size)
     /* Number of processors determine if we use two or four CT lists */
     num_hw_threads = util_get_capped_hardware_threads(MIN_CT_HW_THREADS, MAX_CT_HW_THREADS);
     ct->list_num = (num_hw_threads >= FLEX_POINT_NUM_CT_HW_THREADS) ? MAX_NUM_CT_LISTS : MIN_NUM_CT_LISTS;
-    slapi_log_err(SLAPI_LOG_INFO, "connection_table_new",
-                  "number of lists: %d\n", ct->list_num);
+    slapi_log_err(SLAPI_LOG_INFO, "connection_table_new", "number of lists: %d\n", ct->list_num);
 
     ct->list_size = table_size/ct->list_num + 1; /* +1 to avoid rounding issue */
     ct->c = (Connection **)slapi_ch_calloc(1, table_size * sizeof(Connection));

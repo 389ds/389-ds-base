@@ -1461,7 +1461,7 @@ static void
 setup_pr_ct_firsttime_pds(Connection_Table *ct)
 {
     for (size_t j = 0; j < ct->list_num; j++) {
-        for (size_t i = 0; i < ct->size; i++) {
+        for (size_t i = 0; i < ct->list_size; i++) {
             ct->c[j][i].c_fdi = SLAPD_INVALID_SOCKET_INDEX;
         }
 
