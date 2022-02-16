@@ -326,6 +326,9 @@ class AttrUniqConfigTable extends React.Component {
                     this.props.editConfig(rowData[0])
             },
             {
+                isSeparator: true
+            },
+            {
                 title: 'Delete Config',
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
@@ -484,6 +487,9 @@ class LinkedAttributesTable extends React.Component {
                 title: 'Edit Config',
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0])
+            },
+            {
+                isSeparator: true
             },
             {
                 title: 'Delete Config',
@@ -712,6 +718,9 @@ class DNATable extends React.Component {
                     this.props.editConfig(rowData[0])
             },
             {
+                isSeparator: true
+            },
+            {
                 title: 'Delete Config',
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
@@ -877,6 +886,9 @@ class DNASharedTable extends React.Component {
                 title: 'Edit Config',
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0] + ":" + rowData[1])
+            },
+            {
+                isSeparator: true
             },
             {
                 title: 'Delete Config',
@@ -1048,6 +1060,9 @@ class AutoMembershipDefinitionTable extends React.Component {
                 title: 'Edit Config',
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0])
+            },
+            {
+                isSeparator: true
             },
             {
                 title: 'Delete Config',
@@ -1222,6 +1237,9 @@ class AutoMembershipRegexTable extends React.Component {
                     this.props.editConfig(rowData[0])
             },
             {
+                isSeparator: true
+            },
+            {
                 title: 'Delete Config',
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
@@ -1389,6 +1407,9 @@ class ManagedDefinitionTable extends React.Component {
                     this.props.editConfig(rowData[0])
             },
             {
+                isSeparator: true
+            },
+            {
                 title: 'Delete Config',
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
@@ -1543,6 +1564,9 @@ class ManagedTemplateTable extends React.Component {
                     this.props.editConfig(rowData[0])
             },
             {
+                isSeparator: true
+            },
+            {
                 title: 'Delete Config',
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
@@ -1695,6 +1719,9 @@ class PassthroughAuthURLsTable extends React.Component {
                 title: 'Edit URL',
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0])
+            },
+            {
+                isSeparator: true
             },
             {
                 title: 'Delete URL',
@@ -1862,6 +1889,9 @@ class PassthroughAuthConfigsTable extends React.Component {
                 title: 'Edit Config',
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0])
+            },
+            {
+                isSeparator: true
             },
             {
                 title: 'Delete Config',
