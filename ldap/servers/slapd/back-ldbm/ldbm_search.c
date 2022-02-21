@@ -31,7 +31,7 @@
 /* prototypes */
 static int build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const char *base, int scope, int *lookup_returned_allidsp, IDList **candidates);
 static IDList *base_candidates(Slapi_PBlock *pb, struct backentry *e);
-static IDList *onelevel_candidates(Slapi_PBlock *pb, backend *be, const char *base, struct backentry *e, Slapi_Filter *filter, int managedsait, int *lookup_returned_allidsp, int *err);
+static IDList *onelevel_candidates(Slapi_PBlock *pb, backend *be, const char *base, Slapi_Filter *filter, int *lookup_returned_allidsp, int *err);
 static back_search_result_set *new_search_result_set(IDList *idl, int vlv, int lookthroughlimit);
 static void delete_search_result_set(Slapi_PBlock *pb, back_search_result_set **sr);
 static int can_skip_filter_test(Slapi_PBlock *pb, struct slapi_filter *f, int scope, IDList *idl);
@@ -999,13 +999,25 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
         break;
 
     case LDAP_SCOPE_ONELEVEL:
-        *candidates = onelevel_candidates(pb, be, base, e, filter, managedsait,
-                                          lookup_returned_allidsp, &err);
+        /* modify the filter to be: (&(parentid=idofbase)(|(originalfilter)(objectclass=referral))) */
+        filter = create_onelevel_filter(filter, e, managedsait);
+        /* Now optimise the filter for use */
+        slapi_filter_optimise(filter);
+
+        *candidates = onelevel_candidates(pb, be, base, filter, lookup_returned_allidsp, &err);
+        /* Give the optimised filter back to search filter for free */
+        slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, filter);
         break;
 
     case LDAP_SCOPE_SUBTREE:
-        *candidates = subtree_candidates(pb, be, base, e, filter, managedsait,
-                                         lookup_returned_allidsp, &err);
+        /* make (|(originalfilter)(objectclass=referral)) */
+        filter = create_subtree_filter(filter, managedsait);
+        /* Now optimise the filter for use */
+        slapi_filter_optimise(filter);
+
+        *candidates = subtree_candidates(pb, be, base, e, filter, lookup_returned_allidsp, &err);
+        /* Give the optimised filter back to search filter for free */
+        slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, filter);
         break;
 
     default:
@@ -1064,15 +1076,15 @@ base_candidates(Slapi_PBlock *pb __attribute__((unused)), struct backentry *e)
  * non-recursively when done with the returned filter.
  */
 static Slapi_Filter *
-create_referral_filter(Slapi_Filter *filter, Slapi_Filter **focref, Slapi_Filter **forr)
+create_referral_filter(Slapi_Filter *filter)
 {
     char *buf = slapi_ch_strdup("objectclass=referral");
 
-    *focref = slapi_str2filter(buf);
-    *forr = slapi_filter_join(LDAP_FILTER_OR, filter, *focref);
+    Slapi_Filter *focref = slapi_str2filter(buf);
+    Slapi_Filter *forr = slapi_filter_join(LDAP_FILTER_OR, filter, focref);
 
     slapi_ch_free((void **)&buf);
-    return *forr;
+    return forr;
 }
 
 /*
@@ -1086,20 +1098,20 @@ create_referral_filter(Slapi_Filter *filter, Slapi_Filter **focref, Slapi_Filter
  * This function is exported for the VLV code to use.
  */
 Slapi_Filter *
-create_onelevel_filter(Slapi_Filter *filter, const struct backentry *baseEntry, int managedsait, Slapi_Filter **fid2kids, Slapi_Filter **focref, Slapi_Filter **fand, Slapi_Filter **forr)
+create_onelevel_filter(Slapi_Filter *filter, const struct backentry *baseEntry, int managedsait)
 {
     Slapi_Filter *ftop = filter;
     char buf[40];
 
     if (!managedsait) {
-        ftop = create_referral_filter(filter, focref, forr);
+        ftop = create_referral_filter(filter);
     }
 
     sprintf(buf, "parentid=%lu", (u_long)(baseEntry != NULL ? baseEntry->ep_id : 0));
-    *fid2kids = slapi_str2filter(buf);
-    *fand = slapi_filter_join(LDAP_FILTER_AND, ftop, *fid2kids);
+    Slapi_Filter *fid2kids = slapi_str2filter(buf);
+    Slapi_Filter *fand = slapi_filter_join(LDAP_FILTER_AND, ftop, fid2kids);
 
-    return *fand;
+    return fand;
 }
 
 /*
@@ -1110,37 +1122,15 @@ onelevel_candidates(
     Slapi_PBlock *pb,
     backend *be,
     const char *base,
-    struct backentry *e,
     Slapi_Filter *filter,
-    int managedsait,
     int *lookup_returned_allidsp,
     int *err)
 {
-    Slapi_Filter *fid2kids = NULL;
-    Slapi_Filter *focref = NULL;
-    Slapi_Filter *fand = NULL;
-    Slapi_Filter *forr = NULL;
-    Slapi_Filter *ftop = NULL;
     IDList *candidates;
 
-    /*
-     * modify the filter to be something like this:
-     *
-     *    (&(parentid=idofbase)(|(originalfilter)(objectclass=referral)))
-     */
-
-    ftop = create_onelevel_filter(filter, e, managedsait, &fid2kids, &focref, &fand, &forr);
-
-    /* from here, it's just like subtree_candidates */
-    candidates = filter_candidates(pb, be, base, ftop, NULL, 0, err);
+    candidates = filter_candidates(pb, be, base, filter, NULL, 0, err);
 
     *lookup_returned_allidsp = slapi_be_is_flag_set(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
-
-    /* free up just the filter stuff we allocated above */
-    slapi_filter_free(fid2kids, 0);
-    slapi_filter_free(fand, 0);
-    slapi_filter_free(forr, 0);
-    slapi_filter_free(focref, 0);
 
     return (candidates);
 }
@@ -1156,12 +1146,12 @@ onelevel_candidates(
  * This function is exported for the VLV code to use.
  */
 Slapi_Filter *
-create_subtree_filter(Slapi_Filter *filter, int managedsait, Slapi_Filter **focref, Slapi_Filter **forr)
+create_subtree_filter(Slapi_Filter *filter, int managedsait)
 {
     Slapi_Filter *ftop = filter;
 
     if (!managedsait) {
-        ftop = create_referral_filter(filter, focref, forr);
+        ftop = create_referral_filter(filter);
     }
 
     return ftop;
@@ -1178,13 +1168,9 @@ subtree_candidates(
     const char *base,
     const struct backentry *e,
     Slapi_Filter *filter,
-    int managedsait,
     int *allids_before_scopingp,
     int *err)
 {
-    Slapi_Filter *focref = NULL;
-    Slapi_Filter *forr = NULL;
-    Slapi_Filter *ftop = NULL;
     IDList *candidates;
     PRBool has_tombstone_filter;
     int isroot = 0;
@@ -1193,13 +1179,8 @@ subtree_candidates(
     Operation *op = NULL;
     PRBool is_bulk_import = PR_FALSE;
 
-    /* make (|(originalfilter)(objectclass=referral)) */
-    ftop = create_subtree_filter(filter, managedsait, &focref, &forr);
-
     /* Fetch a candidate list for the original filter */
-    candidates = filter_candidates_ext(pb, be, base, ftop, NULL, 0, err, allidslimit);
-    slapi_filter_free(forr, 0);
-    slapi_filter_free(focref, 0);
+    candidates = filter_candidates_ext(pb, be, base, filter, NULL, 0, err, allidslimit);
 
     /* set 'allids before scoping' flag */
     if (NULL != allids_before_scopingp) {

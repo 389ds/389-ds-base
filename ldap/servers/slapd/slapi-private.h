@@ -393,6 +393,7 @@ void ndn_cache_get_stats(uint64_t *hits, uint64_t *tries, uint64_t *size, uint64
 int filter_flag_is_set(const Slapi_Filter *f, unsigned char flag);
 char *slapi_filter_to_string(const Slapi_Filter *f, char *buffer, size_t bufsize);
 char *slapi_filter_to_string_internal(const struct slapi_filter *f, char *buf, size_t *bufsize);
+void slapi_filter_optimise(Slapi_Filter *f);
 
 /* operation.c */
 
