@@ -1570,22 +1570,28 @@ filter_prioritise_element(Slapi_Filter **list, Slapi_Filter **head, Slapi_Filter
 
 static void
 filter_merge_subfilter(Slapi_Filter **list, Slapi_Filter **f_prev, Slapi_Filter **f_cur, Slapi_Filter **f_next)   {
-    /* Cut our current AND/OR out */
-    if (*f_prev != NULL) {
-        (*f_prev)->f_next = (*f_cur)->f_next;
-    } else if (*list == *f_cur) {
-        *list = (*f_cur)->f_next;
-    }
-    (*f_next) = (*f_cur)->f_next;
 
-    /* Look ahead to the end of our list, without the f_cur. */
-    Slapi_Filter *f_cur_tail = *list;
+    /* First, graft in the new item between f_cur and f_cur -> f_next */
+    Slapi_Filter *remainder = (*f_cur)->f_next;
+    (*f_cur)->f_next = (*f_cur)->f_list;
+    /* Go to the end of the newly grafted list, and put in our remainder. */
+    Slapi_Filter *f_cur_tail = *f_cur;
     while (f_cur_tail->f_next != NULL) {
         f_cur_tail = f_cur_tail->f_next;
     }
-    /* Now append our descendant into the tail */
-    f_cur_tail->f_next = (*f_cur)->f_list;
-    /* Finally free the remainder */
+    f_cur_tail->f_next = remainder;
+
+    /* Now indicate to the caller what the next element is. */
+    *f_next = (*f_cur)->f_next;
+
+    /* Now that we have grafted our list in, cut out f_cur */
+    if (*f_prev != NULL) {
+        (*f_prev)->f_next = *f_next;
+    } else if (*list == *f_cur) {
+        *list = *f_next;
+    }
+
+    /* Finally free the f_cur (and/or) */
     slapi_filter_free(*f_cur, 0);
 }
 
