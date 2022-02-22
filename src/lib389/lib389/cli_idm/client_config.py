@@ -19,6 +19,7 @@ SSSD_CONF_TEMPLATE = """
 # For more details see man sssd.conf and man sssd-ldap
 # Be sure to review the content of this file to ensure it is secure and correct
 # in your environment.
+{ldap_uri_warning}
 
 [domain/ldap]
 # Uncomment this for more verbose logging.
@@ -99,8 +100,9 @@ def sssd_conf(inst, basedn, log, args):
         g_access = groups.get(args.allowed_group)
         ldap_access_filter = 'ldap_access_filter = (memberOf=%s)' % g_access.dn
 
+    ldap_uri_warning = ""
     if inst.ldapuri.startswith("ldapi://"):
-        log.warning("WARNING: ldap_uri starts with ldapi:// - you should review this parameter in the sssd configuration")
+        ldap_uri_warning = "# ⚠️  WARNING: ldap_uri starts with ldapi:// - you should review this parameter"
 
     # Print a customised sssd.config.
     print(SSSD_CONF_TEMPLATE.format(
@@ -108,6 +110,7 @@ def sssd_conf(inst, basedn, log, args):
         schema_type=schema_type,
         ldap_uri=inst.ldapuri,
         ldap_access_filter=ldap_access_filter,
+        ldap_uri_warning=ldap_uri_warning
     ))
 
     # Print a customised sssd.conf to log for test purpose
@@ -115,7 +118,9 @@ def sssd_conf(inst, basedn, log, args):
         basedn=basedn,
         schema_type=schema_type,
         ldap_uri=inst.ldapuri,
-        ldap_access_filter=ldap_access_filter))
+        ldap_access_filter=ldap_access_filter,
+        ldap_uri_warning=ldap_uri_warning
+    ))
 
 LDAP_CONF_TEMPLATE = """
 #
