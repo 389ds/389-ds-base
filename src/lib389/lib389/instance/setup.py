@@ -734,8 +734,16 @@ class SetupDs(object):
         # Check if we are in a container, if so don't use /dev/shm for the db home dir
         # as containers typically don't allocate enough space for dev/shm and we don't
         # want to unexpectedly break the server after an upgrade
-        container_result = subprocess.run(["systemd-detect-virt", "-c"], stdout=subprocess.PIPE)
-        if container_result.returncode == 0:
+        #
+        # If we know we are are in a container, we don't need to re-detect on systemd.
+        # It actually turns out if you add systemd-detect-virt, that pulls in system
+        # which subsequently breaks containers starting as instance.start then believes
+        # it COULD check the ds status. The times we need to check for systemd are mainly
+        # in other environments that use systemd natively in their containers.
+        container_result = 1
+        if not self.containerised:
+            container_result = subprocess.run(["systemd-detect-virt", "-c"], stdout=subprocess.PIPE)
+        if self.containerised or container_result.returncode == 0:
             # In a container, set the db_home_dir to the db path
             self.log.debug("Container detected setting db home directory to db directory.")
             slapd['db_home_dir'] = slapd['db_dir']
