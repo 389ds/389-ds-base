@@ -226,6 +226,23 @@ class SchemaAttributeAmbiguous(MigrationAction):
     def display_post(self, log):
         log.info(f" * [ ] - Review Schema Ambiguous Attribute -> {self.obj.names[0]} ({self.obj.oid})")
 
+class SchemaAttributeInvalid(MigrationAction):
+    def __init__(self, attr, reason):
+        self.attr = attr
+        self.reason = reason
+
+    def __unicode__(self):
+        return f"SchemaAttributeInvalid - {self.reason} -> {self.attr.__unicode__()}"
+
+    def apply(self, inst):
+        inst.log.debug(f"SchemaAttributeInvalid -> {self.attr.__unicode__()} (SKIPPING)")
+
+    def display_plan(self, log):
+        log.info(f" * Schema Skip Invalid Attribute - {self.reason} -> {self.attr.names[0]} ({self.attr.oid})")
+
+    def display_post(self, log):
+        log.info(f" * [ ] - Review Schema Invalid Attribute - {self.reason} -> {self.attr.names[0]} ({self.attr.oid})")
+
 class SchemaClassUnsupported(MigrationAction):
     def __init__(self, obj):
         self.obj = obj
@@ -238,6 +255,23 @@ class SchemaClassUnsupported(MigrationAction):
 
     def display_plan(self, log):
         log.info(f" * Schema Skip Unsupported ObjectClass -> {self.obj.names[0]} ({self.obj.oid})")
+
+class SchemaClassInvalid(MigrationAction):
+    def __init__(self, obj, reason):
+        self.obj = obj
+        self.reason = reason
+
+    def __unicode__(self):
+        return f"SchemaClassInvalid - {self.reason} -> {self.obj.__unicode__()}"
+
+    def apply(self, inst):
+        inst.log.debug(f"SchemaClassInvalid -> {self.obj.__unicode__()} (SKIPPING)")
+
+    def display_plan(self, log):
+        log.info(f" * Schema Skip Invalid ObjectClass - {self.reason} -> {self.obj.names[0]} ({self.obj.oid})")
+
+    def display_post(self, log):
+        log.info(f" * [ ] Review Schema Invalid ObjectClass - {self.reason} -> {self.obj.names[0]} ({self.obj.oid})")
 
 class SchemaClassCreate(MigrationAction):
     def __init__(self, obj):
@@ -517,6 +551,9 @@ class Migration(object):
             if attr.oid in self._schema_oid_unsupported:
                 self.plan.append(SchemaAttributeUnsupported(attr))
                 continue
+            if attr.oid.lower().startswith('x-'):
+                self.plan.append(SchemaAttributeInvalid(attr, "descr-oid format is ambiguous with x- prefix. You MUST use a numeric oid."))
+                continue
             # For the attr, find if anything has a name overlap in any capacity.
             # overlaps = [ (names, ds_attr) for (names, ds_attr) in schema_attr_names if len(names.intersection(attr.name_set)) > 0]
             overlaps = [ ds_attr for ds_attr in schema_attrs if ds_attr.oid == attr.oid]
@@ -540,6 +577,9 @@ class Migration(object):
                 continue
             if obj.oid in self._schema_oid_unsupported:
                 self.plan.append(SchemaClassUnsupported(obj))
+                continue
+            if obj.oid.lower().startswith('x-'):
+                self.plan.append(SchemaClassInvalid(attr, "descr-oid format is ambiguous with x- prefix. You MUST use a numeric oid."))
                 continue
             # For the attr, find if anything has a name overlap in any capacity.
             overlaps = [ ds_obj for ds_obj in schema_objects if ds_obj.oid == obj.oid]
