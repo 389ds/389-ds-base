@@ -16,7 +16,7 @@ RUN zypper --non-interactive si --build-deps-only 389-ds && \
 
 # Install build dependencies
 # RUN zypper in -C -y autoconf automake cracklib-devel cyrus-sasl-devel db-devel doxygen gcc-c++ \
-#   gdb krb5-devel libcmocka-devel libevent-devel libtalloc-devel libtevent-devel libtool \
+#   gdb krb5-devel libcmocka-devel libtalloc-devel libtevent-devel libtool \
 #   net-snmp-devel openldap2-devel pam-devel pkgconfig python-rpm-macros "pkgconfig(icu-i18n)" \
 #   "pkgconfig(icu-uc)" "pkgconfig(libcap)" "pkgconfig(libpcre)" "pkgconfig(libsystemd)" \
 #   "pkgconfig(nspr)" "pkgconfig(nss)" rsync cargo rust rust-std acl cyrus-sasl-plain db-utils \
