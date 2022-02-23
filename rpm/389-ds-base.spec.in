@@ -106,7 +106,6 @@ BuildRequires:    libubsan
 # The following are needed to build the snmp ldap-agent
 BuildRequires:    net-snmp-devel
 BuildRequires:    bzip2-devel
-BuildRequires:    zlib-devel
 BuildRequires:    openssl-devel
 # the following is for the pam passthru auth plug-in
 BuildRequires:    pam-devel
