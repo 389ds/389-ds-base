@@ -801,8 +801,6 @@ AM_CONDITIONAL([FREEBSD],[test "$platform" = "freebsd"])
 AM_CONDITIONAL([SPARC],[test "x$TARGET" = xSPARC])
 
 # Check for library dependencies
-PKG_CHECK_MODULES([EVENT], [libevent])
-
 if $PKG_CONFIG --exists nspr; then
     PKG_CHECK_MODULES([NSPR], [nspr])
 else

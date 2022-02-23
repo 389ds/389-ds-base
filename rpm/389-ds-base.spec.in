@@ -220,7 +220,6 @@ BuildRequires:    libtool
 BuildRequires:    doxygen
 # For tests!
 BuildRequires:    libcmocka-devel
-BuildRequires:    libevent-devel
 # For lib389 and related components.
 BuildRequires:    python%{python3_pkgversion}
 BuildRequires:    python%{python3_pkgversion}-devel
@@ -316,7 +315,6 @@ Conflicts:        svrcore
 Requires:         nss >= 3.34
 Requires:         nspr
 Requires:         openldap
-Requires:         libevent
 Requires:         systemd-libs
 # Pull in sasl
 Requires:         cyrus-sasl-lib
