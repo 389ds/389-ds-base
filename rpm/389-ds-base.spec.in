@@ -393,6 +393,9 @@ autoreconf -fiv
            --with-systemdgroupname=%{groupname} \
            --libexecdir=%{_libexecdir}/%{pkgname} \
            $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $CLANG_FLAGS $COCKPIT_FLAGS \
+%if 0%{?fedora} >= 34 || 0%{?rhel} >= 9
+           --with-libldap-r=no \
+%endif
            --enable-cmocka
 
 # Avoid "Unknown key name 'XXX' in section 'Service', ignoring." warnings from systemd on older releases
