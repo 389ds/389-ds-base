@@ -16,6 +16,7 @@ import {
     InputGroup,
     Label,
     Modal, ModalVariant,
+    SearchInput,
     Select, SelectOption, SelectVariant,
     Spinner,
     Text, TextArea, TextContent, TextInput, TextVariants,
@@ -33,8 +34,9 @@ import {
     SortByDirection
 } from '@patternfly/react-table';
 import {
-    runGenericSearch, decodeLine, getAttributesNameAndOid,
-    isValidIpAddress, isValidLDAPUrl, isValidHostname, modifyLdapEntry
+    runGenericSearch, getSearchEntries, getAttributesNameAndOid,
+    getRdnInfo, isValidIpAddress, isValidLDAPUrl, isValidHostname,
+    modifyLdapEntry
 } from '../../lib/utils.jsx';
 import {
     valid_filter
@@ -144,6 +146,7 @@ class AddNewAci extends React.Component {
             bindRuleType: "userdn",
             bindRuleOperator: "=",
             ldapURL: "",
+            adding: true,
         };
 
         this.getUserattrVal = () => {
@@ -239,6 +242,8 @@ class AddNewAci extends React.Component {
                     }
                 }
                 aciText += '")';
+            } else {
+                aciText += '(targetattr="*")';
             }
 
             // target filter
@@ -402,6 +407,9 @@ class AddNewAci extends React.Component {
         };
 
         this.handleSearchClick = () => {
+            if (this.state.isSearchRunning) {
+                // MARK return;
+            }
             this.setState({
                 isSearchRunning: true,
                 usersAvailableOptions: []
@@ -420,56 +428,45 @@ class AddNewAci extends React.Component {
             const searchArea = this.state.bindRuleType;
             const baseDn = this.state.usersSearchBaseDn;
             let filter = '';
-            let attrs = '';
             const pattern = this.state.searchPattern;
 
             if (searchArea === 'userdn') {
                 filter = pattern === ''
                     ? '(|(objectClass=person)(objectClass=nsPerson)(objectClass=nsAccount)(objectClass=nsOrgPerson)(objectClass=posixAccount))'
                     : `(&(|(objectClass=person)(objectClass=nsPerson)(objectClass=nsAccount)(objectClass=nsOrgPerson)(objectClass=posixAccount))(|(cn=*${pattern}*)(uid=${pattern})))`;
-                attrs = 'cn uid'
             } else if (searchArea === 'groupdn') {
                 filter = pattern === ''
                     ? '(|(objectClass=groupofuniquenames)(objectClass=groupofnames))'
                     : `(&(|(objectClass=groupofuniquenames)(objectClass=groupofnames))(cn=*${pattern}*))`;
-                attrs = 'cn';
             } else if (searchArea === 'roledn') {
                 filter = pattern === ''
                     ? '(&(objectClass=ldapsubentry)(objectClass=nsRoleDefinition))'
                     : `(&(objectClass=ldapsubentry)(objectClass=nsRoleDefinition)(cn=*${pattern}*))`;
-                attrs = 'cn';
             }
 
-            const params = {
+            let params = {
                 serverId: this.props.editorLdapServer,
-                baseDn: baseDn,
-                scope: 'sub',
-                filter: filter,
-                attributes: attrs
+                searchBase: baseDn,
+                searchFilter: filter,
+                searchScope: 'sub',
+                sizeLimit: 2000,
+                timeLimit: 5,
+                addNotification: this.props.addNotification,
             };
 
-            runGenericSearch(params, (resultArray) => {
-                const newOptionsArray = resultArray.map(result => {
-                    const lines = result.split('\n');
-                    // TODO: Currently picking the first value found.
-                    // Might be worth to take the value that is used as RDN in case of multiple values.
+            let searchResults = [];
 
-                    // Handle base64-encoded data:
-                    const pos0 = lines[0].indexOf(':: ');
-                    const pos1 = lines[1].indexOf(':: ');
-
-                    let dnLine = lines[0];
-                    if (pos0 > 0) {
-                        const decoded = decodeLine(dnLine);
-                        dnLine = `${decoded[0]}: ${decoded[1]}`;
-                    }
-                    const value = pos1 === -1
-                        ? (lines[1]).split(': ')[1]
-                        : decodeLine(lines[1])[1];
-
+            getSearchEntries(params, (resultArray) => {
+                let results = resultArray.map(result => {
+                    const info = JSON.parse(result);
+                    return (info.dn);
+                });
+                results.sort();
+                const newOptionsArray = results.map(entryDN => {
+                    const rdnInfo = getRdnInfo(entryDN);
                     return (
-                        <span title={dnLine}>
-                            {value}
+                        <span title={entryDN}>
+                            {rdnInfo.rdnVal}
                         </span>
                     );
                 });
@@ -523,7 +520,11 @@ class AddNewAci extends React.Component {
 
         this.handleBaseDnSelection = (treeViewItem) => {
             this.setState({
-                usersSearchBaseDn: treeViewItem.dn
+                usersSearchBaseDn: treeViewItem.dn,
+            }, () => {
+                if (!treeViewItem.children || treeViewItem.children.length === 0) {
+                    this.onUsersDrawerCloseClick();
+                }
             });
         }
 
@@ -595,8 +596,9 @@ class AddNewAci extends React.Component {
             modifyLdapEntry(params, ldifArray, (result) => {
                 this.props.refreshAciTable();
                 this.setState({
-                    commandOutput: result.output,
-                    resultVariant: result.errorCode === 0 ? 'success' : 'danger'
+                    commandOutput: result.errorCode === 0 ? 'Successfully added ACI!' : 'Failed to add ACI, error: ' + result.errorCode ,
+                    resultVariant: result.errorCode === 0 ? 'success' : 'danger',
+                    adding: false
                 }, () => { this.props.onReload() }); // refreshes tableView
                 const opInfo = {  // This is what refreshes treeView
                     operationType: 'MODIFY',
@@ -656,6 +658,7 @@ class AddNewAci extends React.Component {
             authmethod: "none",
             authMethodOperator: "=",
             usersChosenOptions: [],
+            usersAvailableOptions: [],
             dnsOperator: "=",
             ipOperator: "=",
             dns: "",
@@ -727,7 +730,7 @@ class AddNewAci extends React.Component {
                 if (entryIdx > 0) {
                     value += " || ";
                 }
-                const dn = this.state.usersChosenOptions[entryIdx].props.title.slice(4); // remove "dn: "
+                const dn = this.state.usersChosenOptions[entryIdx].props.title;
                 value += "ldap:///" + dn;
             }
             bindRow = {
@@ -843,7 +846,7 @@ class AddNewAci extends React.Component {
                     </DrawerActions>
                 </DrawerHead>
 
-                <Card isHoverable className="ds-indent ds-margin-bottom-md">
+                <Card isSelectable className="ds-indent ds-margin-bottom-md">
                     <CardBody>
                         <LdapNavigator
                             treeItems={[...this.props.treeViewRootSuffixes]}
@@ -868,38 +871,27 @@ class AddNewAci extends React.Component {
                     chosenOptionsTitle="Chosen Entries"
                     onListChange={this.usersOnListChange}
                     id="usersSelector"
+                    className="ds-aci-dual-select"
                 />
             </>
         );
 
         const usersComponent = (
             <>
-                <InputGroup className="ds-margin-top">
-                    <TextInput
-                        id="searchPattern"
-                        aria-label="Text input to search the target DN"
+                {isSearchRunning &&
+                    <center className="ds-font-size-md"><Spinner size="sm"/>&nbsp;&nbsp;Searching database ...</center>
+                }
+                {!isSearchRunning &&
+                    <SearchInput
+                        placeholder="Search for entries ..."
                         value={searchPattern}
                         onChange={this.handleSearchPattern}
-                        autoComplete="off"
-                        placeholder={
-                            bindRuleType === "userdn" ? "Search for users ... " :
-                            bindRuleType === "groupdn" ? "Search for groups ..." :
-                            "Search for roles ..."
-                        }
+                        onClear={evt => this.handleSearchPattern('')}
+                        onSearch={this.handleSearchClick}
+                        className="ds-search-input"
                     />
-                    <Button
-                        id="buttonSearchPattern"
-                        variant="control"
-                        isDisabled={isSearchRunning}
-                        onClick={this.handleSearchClick}
-                        isLoading={isSearchRunning}
-                    >
-                        {!isSearchRunning && <SearchIcon />}{' '}Search
-                    </Button>
-                </InputGroup>
-
+                }
                 <div className="ds-margin-bottom-md" />
-
                 <Label onClick={this.onUsersDrawerClick} href="#" variant="outline" color="blue" icon={<InfoCircleIcon />}>
                     Search Base DN
                 </Label>
@@ -1344,10 +1336,16 @@ class AddNewAci extends React.Component {
                         title="Result for ACI addition"
                     >
                         {this.state.resultVariant === "success" ? "Successfully added ACI" : this.state.commandOutput}
+                        {this.state.adding &&
+                            <div>
+                                <Spinner className="ds-left-margin" size="md" />
+                                &nbsp;&nbsp;Adding ACI ...
+                            </div>
+                        }
                     </Alert>
                 </div>
                 {this.state.resultVariant === 'danger' &&
-                    <Card isHoverable>
+                    <Card isSelectable>
                         <CardTitle>ACI Value</CardTitle>
                         <CardBody>
                             {aciTextNew}
@@ -1422,7 +1420,8 @@ class AddNewAci extends React.Component {
                 component: resultComponent,
                 nextButtonText: 'Finish',
                 canJumpTo: stepIdReachedVisual >= 9,
-                hideBackButton: true
+                hideBackButton: true,
+                enableNext: !this.state.adding,
             }];
 
 
@@ -1528,7 +1527,7 @@ class AddNewAci extends React.Component {
                                     </FormSelect>
                                 </GridItem>
                             </Grid>
-                            <Card className="ds-margin-top">
+                            <Card isSelectable className="ds-margin-top">
                                 <CardBody>
                                     {usersComponent}
                                 </CardBody>
