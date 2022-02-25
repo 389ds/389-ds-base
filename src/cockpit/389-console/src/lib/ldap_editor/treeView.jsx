@@ -75,7 +75,6 @@ class EditorTreeView extends React.Component {
             alerts: [],
             firstClickOnTree: false,
             searchInput: '',
-            entryMenuIsOpen: false,
             rowsValues: [],
             entryColumns: [
                 { title: 'Attribute' },
@@ -130,18 +129,6 @@ class EditorTreeView extends React.Component {
                 }
                 // Update the table showing the entry details.
                 this.updateEntryRows(treeViewItem);
-            });
-        };
-
-        this.entryOnToggle = isOpen => {
-            this.setState({
-                entryMenuIsOpen: isOpen
-            });
-        };
-
-        this.entryOnSelect = () => {
-            this.setState({
-                entryMenuIsOpen: !this.state.entryMenuIsOpen
             });
         };
 
@@ -201,6 +188,9 @@ class EditorTreeView extends React.Component {
             });
             return;
         }
+
+        // Always close the drop down
+        this.props.onToggleEntryMenu(false);
 
         const entryRows = [];
         const isEmptySuffix = treeViewItem.isEmptySuffix;
@@ -599,7 +589,7 @@ class EditorTreeView extends React.Component {
                             { searching && loadingStateComponent }
 
                             { firstClickOnTree && !loading && !searching && isValidData &&
-                                <Card isHoverable>
+                                <Card isSelectable>
                                     <CardHeader>
                                         <CardActions>
                                             <Dropdown

@@ -135,7 +135,7 @@ export class LDAPEditor extends React.Component {
 
             const keyIndex = this.state.keyIndex + 1;
             this.setState({
-                entryMenuIsOpen: true,
+                entryMenuIsOpen: false,
                 wizardName: aTarget.name,
                 isTreeWizardOpen: true,
                 isWizardOpen: false,

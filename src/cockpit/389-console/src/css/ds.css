@@ -557,3 +557,8 @@ pre {
     color: #002952 !important;
     background-color: #e7f1fa !important;
 }
+
+.ds-aci-dual-select .pf-c-dual-list-selector__menu {
+    min-height: 250px !important;
+    max-height: 250px !important;
+}

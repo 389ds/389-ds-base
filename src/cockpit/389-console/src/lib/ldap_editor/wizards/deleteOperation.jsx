@@ -12,6 +12,7 @@ import {
     Popover,
     SimpleList,
     SimpleListItem,
+    Spinner,
     Switch,
     Text,
     TextArea,
@@ -72,8 +73,9 @@ class DeleteOperationWizard extends React.Component {
             reviewValue: '',
             reviewInvalidText: 'Invalid LDIF',
             reviewIsValid: true,
-            reviewValidated: 'default'
-            // reviewHelperText: 'LDIF data'
+            reviewValidated: 'default',
+            // reviewHelperText: 'LDIF data',
+            deleting: true,
         };
 
         this.onNext = ({ id }) => {
@@ -88,8 +90,9 @@ class DeleteOperationWizard extends React.Component {
                                this.state.numSubordinates,
                                (result) => {
                                    this.setState({
-                                       commandOutput: result.output,
-                                       resultVariant: result.errorCode === 0 ? 'success' : 'danger'
+                                       commandOutput: result.errorCode === 0 ? 'Successfully deleted entry ACI!' : 'Failed to delete entry, error: ' + result.errorCode,
+                                       resultVariant: result.errorCode === 0 ? 'success' : 'danger',
+                                       deleting: false,
                                    }, () => {
                                        this.props.onReload(); // Refreshes tableView
                                    });
@@ -154,7 +157,7 @@ class DeleteOperationWizard extends React.Component {
             : <UserIcon />
         const acknowledgementStep = (
             <div>
-                <Card isHoverable>
+                <Card isSelectable>
                     <CardTitle>
                         Delete Acknowledgement
                     </CardTitle>
@@ -180,7 +183,7 @@ class DeleteOperationWizard extends React.Component {
                     isInline
                     title="LDIF Entry To Be Deleted"
                 />
-                <Card isHoverable>
+                <Card isSelectable>
                     { numSubordinates > 0 &&
                         <React.Fragment>
                             <CardBody>
@@ -220,7 +223,7 @@ class DeleteOperationWizard extends React.Component {
                     title="This is an irreversible operation!"
                 />
                 <div>
-                    <Card isHoverable>
+                    <Card isSelectable>
                         <CardTitle>
                             Confirm Entry Deletion
                         </CardTitle>
@@ -262,6 +265,11 @@ class DeleteOperationWizard extends React.Component {
                 >
                     {commandOutput}
                 </Alert>
+                {this.state.deleting &&
+                    <div className="ds-center ds-margin-top-xlg">
+                        <Spinner size="xlg" />
+                    </div>
+                }
             </div>
         );
 
@@ -294,7 +302,8 @@ class DeleteOperationWizard extends React.Component {
                 component: delReviewStep,
                 nextButtonText: 'Finish',
                 canJumpTo: this.state.stepIdReached >= 4,
-                hideBackButton: true
+                hideBackButton: true,
+                enableNext: !this.state.deleting,
             }
         ];
 

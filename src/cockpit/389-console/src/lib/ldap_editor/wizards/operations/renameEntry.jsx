@@ -14,6 +14,7 @@ import {
     LabelGroup,
     SimpleList,
     SimpleListItem,
+    Spinner,
     Text,
     TextContent,
     TextInput,
@@ -37,6 +38,7 @@ class RenameEntry extends React.Component {
             baseDn: "",
             isTreeLoading: false,
             searching: false,
+            renaming: true,
             currRdnAttr: "",
             currRdnVal: "",
             currRdnSuffix: "",
@@ -63,19 +65,21 @@ class RenameEntry extends React.Component {
                 // Do the modrdn
                 const params = { serverId: this.props.editorLdapServer };
                 modifyLdapEntry(params, this.state.ldifArray, (result) => {
+                    const opInfo = {
+                        operationType: 'MODRDN',
+                        resultCode: result.errorCode,
+                        time: Date.now(),
+                    }
+                    this.props.setWizardOperationInfo(opInfo);
+                    this.props.onModrdnReload();
                     if (result.errorCode === 0) {
                         result.output = "Successfully renamed entry"
                     }
                     this.setState({
-                        commandOutput: result.output,
-                        resultVariant: result.errorCode === 0 ? 'success' : 'danger'
-                    }, () => { this.props.onModrdnReload() });
-                    const opInfo = {
-                        operationType: 'MODRDN',
-                        resultCode: result.errorCode,
-                        time: Date.now()
-                    }
-                    this.props.setWizardOperationInfo(opInfo);
+                        commandOutput: result.errorCode === 0 ? 'Successfully renamed entry!' : 'Failed to rename entry, error: ' + result.errorCode ,
+                        resultVariant: result.errorCode === 0 ? 'success' : 'danger',
+                        renaming: false
+                    });
                 });
             }
         };
@@ -361,7 +365,7 @@ class RenameEntry extends React.Component {
                         title="LDIF Statements"
                     />
                 </div>
-                <Card isHoverable>
+                <Card isSelectable>
                     <CardBody>
                         { (ldifListItems.length > 0) &&
                             <SimpleList aria-label="LDIF data modrdn">
@@ -387,10 +391,16 @@ class RenameEntry extends React.Component {
                         title="Result for Entry Modification"
                     >
                         {commandOutput}
+                        {this.state.renaming &&
+                            <div>
+                                <Spinner className="ds-left-margin" size="md" />
+                                &nbsp;&nbsp;Renaming entry ...
+                            </div>
+                        }
                     </Alert>
                 </div>
                 {resultVariant === 'danger' &&
-                    <Card isHoverable>
+                    <Card isSelectable>
                         <CardTitle>LDIF Data</CardTitle>
                         <CardBody>
                             {ldifLines.map((line) => (
@@ -438,7 +448,8 @@ class RenameEntry extends React.Component {
                 component: reviewStep,
                 nextButtonText: 'Finish',
                 canJumpTo: stepIdReached > 5,
-                hideBackButton: true
+                hideBackButton: true,
+                enableNext: !this.state.renaming
             }
         ];
 

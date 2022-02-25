@@ -236,10 +236,7 @@ l
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reloadConfig();
-                    this.setState({
-                        loading: false
-                    });
+                    this.refreshConfig();
                     this.props.addNotification(
                         "success",
                         "Successfully updated Audit Log settings"
@@ -247,10 +244,7 @@ l
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.props.reloadConfig();
-                    this.setState({
-                        loading: false
-                    });
+                    this.refreshConfig();
                     this.props.addNotification(
                         "error",
                         `Error saving Audit Log settings - ${errMsg.desc}`

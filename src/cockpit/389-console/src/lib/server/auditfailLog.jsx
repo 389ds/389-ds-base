@@ -236,10 +236,7 @@ export class ServerAuditFailLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reloadConfig();
-                    this.setState({
-                        loading: false
-                    });
+                    this.refreshConfig();
                     this.props.addNotification(
                         "success",
                         "Successfully updated Audit Fail Log settings"
@@ -247,10 +244,7 @@ export class ServerAuditFailLog extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.props.reloadConfig();
-                    this.setState({
-                        loading: false
-                    });
+                    this.refreshConfig();
                     this.props.addNotification(
                         "error",
                         `Error saving Audit Fail Log settings - ${errMsg.desc}`
