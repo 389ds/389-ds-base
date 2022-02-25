@@ -274,7 +274,6 @@ export class Server extends React.Component {
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
-                        reloadConfig={this.reloadConfig}
                     />
                 );
             } else if (this.state.node_name === "audit-log-config") {
@@ -284,7 +283,6 @@ export class Server extends React.Component {
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
-                        reloadConfig={this.reloadConfig}
                     />
                 );
             } else if (this.state.node_name === "auditfail-log-config") {
@@ -294,7 +292,6 @@ export class Server extends React.Component {
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
-                        reloadConfig={this.reloadConfig}
                     />
                 );
             } else if (this.state.node_name === "error-log-config") {
@@ -304,7 +301,6 @@ export class Server extends React.Component {
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
-                        reloadConfig={this.reloadConfig}
                     />
                 );
             }

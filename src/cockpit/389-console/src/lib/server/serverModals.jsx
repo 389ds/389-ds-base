@@ -72,6 +72,7 @@ export class SASLMappingModal extends React.Component {
                                 }}
                                 validated={this.props.error.saslMapName ? ValidatedOptions.error : ValidatedOptions.default}
                                 isRequired
+                                isDisabled={this.props.type === "Edit"}
                             />
                             <FormHelperText isError isHidden={!this.props.error.saslMapName}>
                                 You must provide a name for this mapping

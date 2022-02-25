@@ -1,10 +1,14 @@
 import React from 'react';
 import {
     Alert,
+    BadgeToggle,
     Button,
     Card,
     CardBody,
     CardTitle,
+    Dropdown,
+    DropdownItem,
+    DropdownPosition,
     DualListSelector,
     Form,
     Grid,
@@ -12,21 +16,18 @@ import {
     Label,
     Modal,
     ModalVariant,
+    Pagination,
     Radio,
     SearchInput,
     SimpleList,
     SimpleListItem,
+    Spinner,
     Text,
     TextContent,
     TextInput,
     TextVariants,
     ValidatedOptions,
     Wizard,
-    BadgeToggle,
-    Dropdown,
-    DropdownItem,
-    DropdownPosition,
-    Pagination,
 } from '@patternfly/react-core';
 import {
     Table,
@@ -116,6 +117,7 @@ class AddRole extends React.Component {
             rolesSearchBaseDn: "",
             rolesAvailableOptions: [],
             rolesChosenOptions: [],
+            adding: true,
         };
 
         this.handleBaseDnSelection = (treeViewItem) => {
@@ -164,8 +166,9 @@ class AddRole extends React.Component {
                     myLdifArray,
                     (result) => {
                         this.setState({
-                            commandOutput: result.errorCode === 0 ? 'Role successfully created!' : 'Failed to create role: ' + result.errorCode,
-                            resultVariant: result.errorCode === 0 ? 'success' : 'danger'
+                            commandOutput: result.errorCode === 0 ? 'Role successfully created!' : 'Failed to create role, error: ' + result.errorCode,
+                            resultVariant: result.errorCode === 0 ? 'success' : 'danger',
+                            adding: false,
                         }, () => {
                             this.props.onReload();
                         });
@@ -791,7 +794,7 @@ class AddRole extends React.Component {
                                 </Button>
                             ]}
                         >
-                            <Card isHoverable className="ds-indent ds-margin-bottom-md">
+                            <Card isSelectable className="ds-indent ds-margin-bottom-md">
                                 <CardBody>
                                     <LdapNavigator
                                         treeItems={[...this.props.treeViewRootSuffixes]}
@@ -892,7 +895,7 @@ class AddRole extends React.Component {
                     isInline
                     title="LDIF Content for Role Creation"
                 />
-                <Card isHoverable>
+                <Card isSelectable>
                     <CardBody>
                         { (ldifListItems.length > 0) &&
                             <SimpleList aria-label="LDIF data User">
@@ -917,9 +920,15 @@ class AddRole extends React.Component {
                     title="Result for Role Creation"
                 >
                     {commandOutput}
+                    {this.state.adding &&
+                        <div>
+                            <Spinner className="ds-left-margin" size="md" />
+                            &nbsp;&nbsp;Adding Role ...
+                        </div>
+                    }
                 </Alert>
                 {resultVariant === 'danger' &&
-                    <Card isHoverable>
+                    <Card isSelectable>
                         <CardTitle>
                             LDIF Data
                         </CardTitle>
@@ -975,7 +984,8 @@ class AddRole extends React.Component {
                 component: roleReviewStep,
                 nextButtonText: 'Finish',
                 canJumpTo: stepIdReached >= 5,
-                hideBackButton: true
+                hideBackButton: true,
+                enableNext: !this.state.adding
             }
         ];
 
