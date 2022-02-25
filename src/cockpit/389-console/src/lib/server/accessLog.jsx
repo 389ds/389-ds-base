@@ -285,9 +285,6 @@ export class ServerAccessLog extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.refreshConfig();
-                    this.setState({
-                        loading: false
-                    });
                     this.props.addNotification(
                         "success",
                         "Successfully updated Access Log settings"
@@ -296,9 +293,6 @@ export class ServerAccessLog extends React.Component {
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.refreshConfig();
-                    this.setState({
-                        loading: false
-                    });
                     this.props.addNotification(
                         "error",
                         `Error saving Access Log settings - ${errMsg.desc}`

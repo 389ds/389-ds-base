@@ -91,6 +91,7 @@ class AddLdapEntry extends React.Component {
             selectedAttributes: [],
             attrsToRemove: [],
             namingAttr: "",
+            adding: true,
         };
 
         this.onNext = ({ id }) => {
@@ -116,7 +117,9 @@ class AddLdapEntry extends React.Component {
                     (result) => {
                         this.setState({
                             commandOutput: result.output,
-                            resultVariant: result.errorCode === 0 ? 'info' : 'danger'
+                            commandOutput: result.errorCode === 0 ? 'Successfully added entry!' : 'Failed to add entry, error: ' + result.errorCode ,
+                            resultVariant: result.errorCode === 0 ? 'success' : 'danger',
+                            adding: false,
                         }, () => { this.props.onReload() });
 
                         const myDn = this.state.ldifArray[0].substring(4);
@@ -839,7 +842,7 @@ class AddLdapEntry extends React.Component {
                         title="LDIF Statements"
                     />
                 </div>
-                <Card isHoverable>
+                <Card isSelectable>
                     <CardBody>
                         { (ldifListItems.length > 0) &&
                             <SimpleList aria-label="LDIF data User">
@@ -866,10 +869,16 @@ class AddLdapEntry extends React.Component {
                         title="Result for Entry Modification"
                     >
                         {commandOutput}
+                        {this.state.adding &&
+                            <div>
+                                <Spinner className="ds-left-margin" size="md" />
+                                &nbsp;&nbsp;Adding entry ...
+                            </div>
+                        }
                     </Alert>
                 </div>
                 {resultVariant === 'danger' &&
-                    <Card isHoverable>
+                    <Card isSelectable>
                         <CardTitle>LDIF Data</CardTitle>
                         <CardBody>
                             {ldifLines.map((line) => (
@@ -916,7 +925,8 @@ class AddLdapEntry extends React.Component {
                 component: entryReviewStep,
                 nextButtonText: 'Finish',
                 canJumpTo: stepIdReached > 5,
-                hideBackButton: true
+                hideBackButton: true,
+                enableNext: !this.state.adding,
             }
         ];
 

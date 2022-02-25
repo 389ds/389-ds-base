@@ -17,6 +17,7 @@ import {
     SearchInput,
     SimpleList,
     SimpleListItem,
+    Spinner,
     Text,
     TextContent,
     TextInput,
@@ -55,6 +56,7 @@ class AddGroup extends React.Component {
             commandOutput: "",
             stepIdReached: 0,
             noEmptyValue: false,
+            adding: true,
         };
 
         this.handleBaseDnSelection = (treeViewItem) => {
@@ -96,8 +98,9 @@ class AddGroup extends React.Component {
                     myLdifArray,
                     (result) => {
                         this.setState({
-                            commandOutput: result.errorCode === 0 ? 'Group successfully created!' : 'Failed to create group: ' + result.errorCode,
-                            resultVariant: result.errorCode === 0 ? 'success' : 'danger'
+                            commandOutput: result.errorCode === 0 ? 'Group successfully created!' : 'Failed to create group, error: ' + result.errorCode,
+                            resultVariant: result.errorCode === 0 ? 'success' : 'danger',
+                            adding: false,
                         }, () => {
                             this.props.onReload();
                         });
@@ -370,7 +373,7 @@ class AddGroup extends React.Component {
                                 </Button>
                             ]}
                         >
-                            <Card isHoverable className="ds-indent ds-margin-bottom-md">
+                            <Card isSelectable className="ds-indent ds-margin-bottom-md">
                                 <CardBody>
                                     <LdapNavigator
                                         treeItems={[...this.props.treeViewRootSuffixes]}
@@ -400,7 +403,7 @@ class AddGroup extends React.Component {
                     isInline
                     title="LDIF Content for Group Creation"
                 />
-                <Card isHoverable>
+                <Card isSelectable>
                     <CardBody>
                         { (ldifListItems.length > 0) &&
                             <SimpleList aria-label="LDIF data User">
@@ -425,9 +428,15 @@ class AddGroup extends React.Component {
                     title="Result for Group Creation"
                 >
                     {commandOutput}
+                    {this.state.adding &&
+                        <div>
+                            <Spinner className="ds-left-margin" size="md" />
+                            &nbsp;&nbsp;Adding group ...
+                        </div>
+                    }
                 </Alert>
                 {resultVariant === 'danger' &&
-                    <Card isHoverable>
+                    <Card isSelectable>
                         <CardTitle>
                             LDIF Data
                         </CardTitle>
@@ -469,7 +478,8 @@ class AddGroup extends React.Component {
                 component: groupReviewStep,
                 nextButtonText: 'Finish',
                 canJumpTo: stepIdReached >= 4,
-                hideBackButton: true
+                hideBackButton: true,
+                enableNext: !this.state.adding
             }
         ];
 

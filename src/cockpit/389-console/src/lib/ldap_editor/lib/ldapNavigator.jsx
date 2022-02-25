@@ -139,6 +139,9 @@ class LdapNavigator extends React.Component {
             if (res === -1) {
                 const insertionNode = treeNode.find(elt => elt.id === nodeIdObject.fullId);
                 // const myId = parseInt(nodeIdObject.remainingId);
+                if (!insertionNode) {
+                    return;
+                }
                 const childrenInfo = insertionNode.children;
                 const myCurrentChildren = removePreviousChildren || (!childrenInfo)
                     ? []
@@ -355,6 +358,7 @@ class LdapNavigator extends React.Component {
                 break;
             }
 
+            case 'MODRDN':
             case 'MODIFY':
                 this.refreshNode(this.state.activeItems[0]);
                 break;

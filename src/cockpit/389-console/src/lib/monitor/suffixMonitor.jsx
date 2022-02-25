@@ -299,7 +299,7 @@ export class SuffixMonitor extends React.Component {
                             <div className="ds-margin-top">
                                 <Grid hasGutter>
                                     <GridItem span={6}>
-                                        <Card isHoverable>
+                                        <Card isSelectable>
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
@@ -345,7 +345,7 @@ export class SuffixMonitor extends React.Component {
                                         </Card>
                                     </GridItem>
                                     <GridItem span={6}>
-                                        <Card isHoverable>
+                                        <Card isSelectable>
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
@@ -448,7 +448,7 @@ export class SuffixMonitor extends React.Component {
                             <div className="ds-margin-top">
                                 <Grid hasGutter>
                                     <GridItem span={6}>
-                                        <Card isHoverable>
+                                        <Card isSelectable>
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
@@ -494,7 +494,7 @@ export class SuffixMonitor extends React.Component {
                                         </Card>
                                     </GridItem>
                                     <GridItem span={6}>
-                                        <Card isHoverable>
+                                        <Card isSelectable>
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">

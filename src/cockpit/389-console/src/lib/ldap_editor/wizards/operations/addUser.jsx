@@ -14,6 +14,7 @@ import {
     Pagination,
     SimpleList,
     SimpleListItem,
+    Spinner,
     Text,
     TextContent,
     TextVariants,
@@ -107,6 +108,7 @@ class AddUser extends React.Component {
             editableTableData: [],
             rdn: "",
             rdnValue: "",
+            adding: true,
         };
 
         this.onNext = ({ id }) => {
@@ -126,8 +128,9 @@ class AddUser extends React.Component {
                     myLdifArray,
                     (result) => {
                         this.setState({
-                            commandOutput: result.output,
-                            resultVariant: result.errorCode === 0 ? 'success' : 'danger'
+                            commandOutput: result.errorCode === 0 ? 'Successfully added user!' : 'Failed to add user, error: ' + result.errorCode ,
+                            resultVariant: result.errorCode === 0 ? 'success' : 'danger',
+                            adding: false,
                         }, () => {
                             this.props.onReload();
                         });
@@ -578,7 +581,7 @@ class AddUser extends React.Component {
                     isInline
                     title="LDIF Content for User Creation"
                 />
-                <Card isHoverable>
+                <Card isSelectable>
                     <CardBody>
                         { (ldifListItems.length > 0) &&
                             <SimpleList aria-label="LDIF data User">
@@ -603,9 +606,15 @@ class AddUser extends React.Component {
                     title="Result for User Creation"
                 >
                     {commandOutput}
+                    {this.state.adding &&
+                        <div>
+                            <Spinner className="ds-left-margin" size="md" />
+                            &nbsp;&nbsp;Adding user ...
+                        </div>
+                    }
                 </Alert>
                 {resultVariant === 'danger' &&
-                    <Card isHoverable>
+                    <Card isSelectable>
                         <CardTitle>
                             LDIF Data
                         </CardTitle>
@@ -653,7 +662,8 @@ class AddUser extends React.Component {
                 component: userReviewStep,
                 nextButtonText: 'Finish',
                 canJumpTo: stepIdReached >= 5,
-                hideBackButton: true
+                hideBackButton: true,
+                enableNext: !this.state.adding
             }
         ];
 
