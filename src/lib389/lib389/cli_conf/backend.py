@@ -107,7 +107,12 @@ def _get_backend(inst, name):
     for be in be_insts:
         be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix')).lower()
         cn = ensure_str(be.get_attr_val_utf8_l('cn')).lower()
-        if str2dn(be_suffix) == str2dn(name.lower()) or cn == name.lower():
+        try:
+            if str2dn(be_suffix) == str2dn(name.lower()):
+                return be
+        except ldap.DECODING_ERROR:
+            pass
+        if cn == name.lower():
             return be
 
     raise ValueError('Could not find backend suffix: {}'.format(name))
