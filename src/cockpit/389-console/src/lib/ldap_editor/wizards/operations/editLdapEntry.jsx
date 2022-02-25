@@ -91,6 +91,7 @@ class EditLdapEntry extends React.Component {
             selectedObjectClasses: [],
             selectedAttributes: [],
             attrsToRemove: [],
+            modifying: true,
         };
 
         this.onNext = ({ id }) => {
@@ -117,7 +118,9 @@ class EditLdapEntry extends React.Component {
                     }
                     this.setState({
                         commandOutput: result.output,
-                        resultVariant: result.errorCode === 0 ? 'success' : 'danger'
+                        commandOutput: result.errorCode === 0 ? 'Successfully modified entry!' : 'Failed to modify entry, error: ' + result.errorCode ,
+                        resultVariant: result.errorCode === 0 ? 'success' : 'danger',
+                        modifying: false,
                     }, () => { this.props.onReload() }); // refreshes tableView
                     const opInfo = { // This is what refreshes treeView
                         operationType: 'MODIFY',
@@ -1131,7 +1134,7 @@ class EditLdapEntry extends React.Component {
                         title="LDIF Statements"
                     />
                 </div>
-                <Card isHoverable>
+                <Card isSelectable>
                     <CardBody>
                         { (ldifListItems.length > 0) &&
                             <SimpleList aria-label="LDIF data User">
@@ -1158,10 +1161,16 @@ class EditLdapEntry extends React.Component {
                         title="Result for Entry Modification"
                     >
                         {commandOutput}
+                        {this.state.adding &&
+                            <div>
+                                <Spinner className="ds-left-margin" size="md" />
+                                &nbsp;&nbsp;Modifying entry ...
+                            </div>
+                        }
                     </Alert>
                 </div>
                 {resultVariant === 'danger' &&
-                    <Card isHoverable>
+                    <Card isSelectable>
                         <CardTitle>LDIF Data</CardTitle>
                         <CardBody>
                             {ldifLines.map((line) => (
@@ -1225,7 +1234,8 @@ class EditLdapEntry extends React.Component {
                 component: entryReviewStep,
                 nextButtonText: 'Finish',
                 canJumpTo: stepIdReached > 6,
-                hideBackButton: true
+                hideBackButton: true,
+                enableNext: !this.state.modifying
             }
         ];
 

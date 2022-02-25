@@ -10,6 +10,7 @@ import {
     Popover,
     SimpleList,
     SimpleListItem,
+    Spinner,
     Text,
     TextArea,
     TextContent,
@@ -80,6 +81,7 @@ class GenericUpdate extends React.Component {
             reviewValidated: 'default',
             editableTableData: [],
             namingAttr: '',
+            adding: true,
         };
 
         this.onNext = ({ id }) => {
@@ -99,8 +101,9 @@ class GenericUpdate extends React.Component {
                     myLdifArray,
                     (result) => {
                         this.setState({
-                            commandOutput: result.output,
-                            resultVariant: result.errorCode === 0 ? 'success' : 'danger'
+                            commandOutput: result.errorCode === 0 ? 'Successfully added entry!' : 'Failed to add entry, error: ' + result.errorCode ,
+                            resultVariant: result.errorCode === 0 ? 'success' : 'danger',
+                            adding: false,
                         }, () => {
                             this.props.onReload();
                         });
@@ -574,7 +577,7 @@ class GenericUpdate extends React.Component {
                     isInline
                     title="LDIF Content for Entry Creation"
                 />
-                <Card isHoverable>
+                <Card isSelectable>
                     <CardBody>
                         { (ldifListItems.length > 0) &&
                             <SimpleList aria-label="LDIF data">
@@ -600,9 +603,15 @@ class GenericUpdate extends React.Component {
                     title="Result for Entry Creation"
                 >
                     {commandOutput}
+                    {this.state.adding &&
+                        <div>
+                            <Spinner className="ds-left-margin" size="md" />
+                            &nbsp;&nbsp;Adding entry ...
+                        </div>
+                    }
                 </Alert>
                 {resultVariant === 'danger' &&
-                    <Card isHoverable>
+                    <Card isSelectable>
                         <CardTitle>LDIF Data</CardTitle>
                         <CardBody>
                             {ldifLines.map((line) => (
@@ -654,7 +663,8 @@ class GenericUpdate extends React.Component {
                 component: reviewStep,
                 nextButtonText: 'Finish',
                 canJumpTo: stepIdReached >= 5 && stepIdReached < 5,
-                hideBackButton: true
+                hideBackButton: true,
+                enableNext: !this.state.adding
             }
         ];
 

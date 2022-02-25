@@ -45,7 +45,7 @@ class NewEntryWizard extends React.Component {
                     id: 1,
                     name: 'Get Started',
                     component: (
-                        <Card isHoverable>
+                        <Card isSelectable>
                             <CardTitle>Requirement for a root entry creation</CardTitle>
                             <CardBody>
                                 <Alert variant="info" isInline

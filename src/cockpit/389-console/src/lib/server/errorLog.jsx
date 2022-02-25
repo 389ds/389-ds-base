@@ -88,7 +88,7 @@ export class ServerErrorLog extends React.Component {
                 { cells: ['Search Filter Processing'], level: 32, selected: false },
                 { cells: ['Config File Processing'], level: 64, selected: false },
                 { cells: ['Access Control List Processing'], level: 128, selected: false },
-                { cells: ['Log Entry Parsing'], level: 256, selected: false },
+                { cells: ['Log Entry Parsing'], level: 2048, selected: false },
                 { cells: ['Housekeeping'], level: 4096, selected: false },
                 { cells: ['Replication'], level: 8192, selected: false },
                 { cells: ['Entry Cache'], level: 32768, selected: false },
@@ -280,7 +280,7 @@ export class ServerErrorLog extends React.Component {
         }
         if (new_level.toString() != this.state['_nsslapd-errorlog-level']) {
             if (new_level == 0) {
-                new_level = 256; // default
+                new_level = 16384; // default
             }
             cmd.push("nsslapd-errorlog-level" + "=" + new_level.toString());
         }
@@ -294,10 +294,7 @@ export class ServerErrorLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reloadConfig();
-                    this.setState({
-                        loading: false
-                    });
+                    this.refreshConfig();
                     this.props.addNotification(
                         "success",
                         "Successfully updated Error Log settings"
@@ -305,10 +302,7 @@ export class ServerErrorLog extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.props.reloadConfig();
-                    this.setState({
-                        loading: false
-                    });
+                    this.refreshConfig();
                     this.props.addNotification(
                         "error",
                         `Error saving Error Log settings - ${errMsg.desc}`

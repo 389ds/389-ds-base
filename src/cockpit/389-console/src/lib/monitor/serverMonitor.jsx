@@ -312,7 +312,7 @@ export class ServerMonitor extends React.Component {
                 </Grid>
                 <Tabs className="ds-margin-top-lg" activeKey={this.state.activeKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>Resource Charts</TabTitleText>}>
-                        <Card className="ds-margin-top-lg" isHoverable>
+                        <Card className="ds-margin-top-lg" isSelectable>
                             <CardBody>
                                 <Grid>
                                     <GridItem span="2" className="ds-center" title="Established client connections to the server">
@@ -356,7 +356,7 @@ export class ServerMonitor extends React.Component {
                         </Card>
                         <Grid className="ds-margin-top-lg" hasGutter>
                             <GridItem span={6}>
-                                <Card isHoverable>
+                                <Card isSelectable>
                                     <CardBody>
                                         <Grid>
                                             <GridItem className="ds-center" span="4">
@@ -425,7 +425,7 @@ export class ServerMonitor extends React.Component {
                                 </Card>
                             </GridItem>
                             <GridItem span={6}>
-                                <Card isHoverable>
+                                <Card isSelectable>
                                     <CardBody>
                                         <Grid>
                                             <GridItem span="4" className="ds-center">

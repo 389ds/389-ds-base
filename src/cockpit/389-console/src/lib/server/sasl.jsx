@@ -57,7 +57,6 @@ export class ServerSASL extends React.Component {
             saslErrObj: {},
             showConfirmDelete: false,
             modalChecked: false,
-
             isAllowedMechOpen: false,
         };
         // Allowed SASL Mechanisms
@@ -72,14 +71,14 @@ export class ServerSASL extends React.Component {
                 this.setState(
                     prevState => ({
                         allowedMechs: prevState.allowedMechs.filter(item => item !== selection),
-                        isOpen: false
+                        isAllowedMechOpen: false
                     }), () => { this.validateSaveBtn() }
                 );
             } else {
                 this.setState(
                     prevState => ({
                         allowedMechs: [...prevState.allowedMechs, selection],
-                        isOpen: false,
+                        isAllowedMechOpen: false,
                     }), () => { this.validateSaveBtn() }
                 );
             }
@@ -127,19 +126,26 @@ export class ServerSASL extends React.Component {
     validateRegex(regex) {
         // Just check that the regex itself is valid
         let errObj = this.state.saslErrObj;
+        let saveMappingDisabled = this.state.saveMappingDisabled;
         if (this.state.saslMapRegex === "") {
             errObj.saslMapRegex = true;
         } else {
             try {
                 RegExp(this.state.saslMapRegex);
+                const cleaned_regex = this.normalizeRegex(this.state.saslMapRegex);
+                // Test the normalized version
+                RegExp(cleaned_regex);
                 errObj.saslMapRegex = false;
             } catch (e) {
                 // Bad regex
                 errObj.saslMapRegex = true;
+                saveMappingDisabled = true;
             }
         }
         this.setState({
-            saslErrObj: errObj
+            saslErrObj: errObj,
+            saveMappingDisabled: saveMappingDisabled
+
         });
         return !errObj.saslMapRegex;
     }
@@ -210,7 +216,7 @@ export class ServerSASL extends React.Component {
         const errObj = this.state.saslErrObj;
         let error = false;
 
-        const attrs = ['saslMapName','saslMapRegex','saslBase', 'saslPriority', 'saslFilter'];
+        const attrs = ['saslMapName', 'saslMapRegex', 'saslBase', 'saslPriority', 'saslFilter'];
         for (const attr of attrs) {
             if (this.state[attr] === "" || (attr === 'saslPriority' && this.state[attr] == "0")) {
                 errObj[attr] = true;
