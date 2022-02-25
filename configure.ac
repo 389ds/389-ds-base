@@ -35,7 +35,7 @@ AC_PROG_LIBTOOL
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/file.h sys/socket.h sys/time.h syslog.h unistd.h mntent.h sys/sysinfo.h sys/endian.h endian.h])
+AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/file.h sys/socket.h sys/time.h syslog.h unistd.h mntent.h sys/sysinfo.h sys/endian.h endian.h sys/epoll.h])
 
 # These are *required* headers without option.
 AC_CHECK_HEADERS([inttypes.h], [], AC_MSG_ERROR([unable to locate required header inttypes.h]))
@@ -71,7 +71,6 @@ AC_CHECK_FUNCS([endpwent ftruncate getcwd getaddrinfo inet_pton inet_ntop localt
 
 # These functions are *required* without option.
 AC_CHECK_FUNCS([clock_gettime], [], AC_MSG_ERROR([unable to locate required symbol clock_gettime]))
-AC_CHECK_FUNCS([twalk_r], [], AC_MSG_ERROR([cannot locate required symbol twalk_r: use glibc-2.30 or higher ]))
 
 # This will detect if we need to add the LIBADD_DL value for us.
 LT_LIB_DLLOAD
@@ -396,6 +395,22 @@ else
   AC_MSG_RESULT(no)
 fi
 AM_CONDITIONAL(enable_posix_winsync,test "$enable_posix_winsync" = "yes")
+
+if test -z "$enable_epoll" ; then
+   enable_epoll=yes # if not set on cmdline, set default
+fi
+AC_MSG_CHECKING(for --enable-epoll)
+AC_ARG_ENABLE(epoll,
+        AS_HELP_STRING([--enable-epoll],
+                       [enable support for epoll (default: yes)]))
+if test "$enable_epoll" = yes ; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([ENABLE_EPOLL], [1], [enable support for epoll])
+else
+  AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL(enable_epoll,test "$enable_epoll" = "yes")
+
 
 # the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])

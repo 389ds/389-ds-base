@@ -138,6 +138,14 @@ connection_table_new(int table_size)
     ct->conn_next_offset = 1;
     ct->conn_free_offset = 1;
 
+#if defined(ENABLE_EPOLL)
+    ct->epollfd = epoll_create1(0);
+    if (ct->epollfd == -1) {
+        slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "epoll_create1 failed\n");
+        exit(1);
+    }
+#endif /* ENABLE_EPOLL */
+
     pthread_mutexattr_t monitor_attr = {0};
     pthread_mutexattr_init(&monitor_attr);
     pthread_mutexattr_settype(&monitor_attr, PTHREAD_MUTEX_RECURSIVE);

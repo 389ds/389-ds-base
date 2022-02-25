@@ -1636,6 +1636,11 @@ typedef struct Conn_private Conn_private;
 typedef enum _conn_state {
     CONN_STATE_FREE = 0,
     CONN_STATE_INIT = 1,
+#ifdef ENABLE_EPOLL
+    CONN_STATE_LISTEN = 1024,
+    CONN_STATE_SECURE = 2048,
+    CONN_STATE_LOCAL = 4096,
+#endif /* ENABLE_EPOLL */
 } conn_state;
 
 typedef struct conn
@@ -2369,6 +2374,11 @@ typedef struct _slapdFrontendConfig
     slapi_int_t ioblocktimeout;
     slapi_onoff_t lastmod;
     int64_t maxdescriptors;
+#ifdef LINUX
+#ifdef ENABLE_EPOLL
+    int64_t maxuserwatches;
+#endif
+#endif
     int conntablesize;
     slapi_int_t maxthreadsperconn;
     int outbound_ldap_io_timeout;
@@ -2785,5 +2795,11 @@ void free_ldapi_auth_dn_mappings(int32_t shutdown);
 int32_t slapd_identify_local_user(Connection *conn);
 int32_t slapd_bind_local_user(Connection *conn);
 #endif
+
+#ifdef ENABLE_EPOLL
+#define EPOLL_PD_DISARM 0
+#define EPOLL_PD_ARM 1
+void epoll_arm_pd(Connection *c, int epollfd, int arm);
+#endif /* ENABLE_EPOLL */
 
 #endif /* _slap_h_ */

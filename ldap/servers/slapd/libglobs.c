@@ -1619,6 +1619,31 @@ FrontendConfig_init(void)
         }
     }
 
+#ifdef LINUX
+#ifdef ENABLE_EPOLL
+#define MUWBUFSIZ 32
+    FILE *f;
+    char maxuserwatches_s[MUWBUFSIZ];
+    int64_t maxuserwatches;
+
+    maxuserwatches_s[MUWBUFSIZ - 1] = '\0';
+
+    if ((f = fopen("/proc/sys/fs/epoll/max_user_watches", "r")) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "Frontend_config_init",
+                      "Unable to open file \"/proc/sys/fs/epoll/max_user_watches\". errno=%d\n", errno);
+        exit(-1);
+    } else {
+        if (fgets(maxuserwatches_s, MUWBUFSIZ - 1, f) == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "Frontend_config_init",
+                          "Unable to get value from \"/proc/sys/fs/epoll/max_user_watches\". errno=%d\n", errno);
+            exit(-1);
+        } else {
+            maxuserwatches = atoll(maxuserwatches_s);
+        }
+    }
+#endif /* ENABLE_EPOLL */
+#endif /* LINUX */
+
     /* Take the lock to make sure we barrier correctly. */
     CFG_LOCK_WRITE(cfg);
 
@@ -1655,6 +1680,11 @@ FrontendConfig_init(void)
     init_minssf_exclude_rootdse = cfg->minssf_exclude_rootdse = LDAP_OFF;
     cfg->validate_cert = SLAPD_DEFAULT_VALIDATE_CERT;
     cfg->maxdescriptors = maxdescriptors;
+#ifdef LINUX
+#ifdef ENABLE_EPOLL
+    cfg->maxuserwatches = maxuserwatches;
+#endif /* ENABLE_EPOLL */
+#endif /* LINUX */
     cfg->groupevalnestlevel = SLAPD_DEFAULT_GROUPEVALNESTLEVEL;
     cfg->snmp_index = SLAPD_DEFAULT_SNMP_INDEX;
     cfg->SSLclientAuth = SLAPD_DEFAULT_SSLCLIENTAUTH;
@@ -4792,6 +4822,25 @@ config_set_maxdescriptors(const char *attrname, char *value, char *errorbuf, int
         }
     }
 
+#ifdef LINUX
+#ifdef ENABLE_EPOLL
+    maxVal = (int64_t)slapdFrontendConfig->maxuserwatches;
+
+    if (nValue < 1 || nValue > maxVal) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: invalid value \"%s\", maximum file descriptors must range from 1 to %d (fs.max_user_watches). "
+                              "Server will use a setting of %d.",
+                              attrname, value, maxVal, maxVal);
+        if (nValue > maxVal) {
+            nValue = maxVal;
+            retVal = LDAP_UNWILLING_TO_PERFORM;
+        } else {
+            retVal = LDAP_OPERATIONS_ERROR;
+        }
+    }
+#endif /* ENABLE_EPOLL */
+#endif /* LINUX */
+
     if (apply) {
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapdFrontendConfig->maxdescriptors = nValue;
@@ -4833,6 +4882,25 @@ config_set_conntablesize(const char *attrname, char *value, char *errorbuf, int 
             retVal = LDAP_OPERATIONS_ERROR;
         }
     }
+
+#ifdef LINUX
+#ifdef ENABLE_EPOLL
+    maxVal = (int64_t)slapdFrontendConfig->maxuserwatches;
+
+    if (nValue < 1 || nValue > maxVal) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: invalid value \"%s\", connection table size must range from 1 to %d (fs.max_user_watches). "
+                              "Server will use a setting of %d.",
+                              attrname, value, maxVal, maxVal);
+        if (nValue > maxVal) {
+            nValue = maxVal;
+            retVal = LDAP_UNWILLING_TO_PERFORM;
+        } else {
+            retVal = LDAP_OPERATIONS_ERROR;
+        }
+    }
+#endif /* ENABLE_EPOLL */
+#endif /* LINUX */
 
     if (apply) {
         CFG_LOCK_WRITE(slapdFrontendConfig);
@@ -4876,6 +4944,25 @@ config_set_reservedescriptors(const char *attrname, char *value, char *errorbuf,
             retVal = LDAP_OPERATIONS_ERROR;
         }
     }
+
+#ifdef LINUX
+#ifdef ENABLE_EPOLL
+    maxVal = (int64_t)slapdFrontendConfig->maxuserwatches;
+
+    if (nValue < 1 || nValue > maxVal) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: invalid value \"%s\", reserved file descriptors must range from 1 to %d (fs.max_user_watches). "
+                              "Server will use a setting of %d.",
+                              attrname, value, maxVal, maxVal);
+        if (nValue > maxVal) {
+            nValue = maxVal;
+            retVal = LDAP_UNWILLING_TO_PERFORM;
+        } else {
+            retVal = LDAP_OPERATIONS_ERROR;
+        }
+    }
+#endif /* ENABLE_EPOLL */
+#endif /* LINUX */
 
     if (apply) {
         CFG_LOCK_WRITE(slapdFrontendConfig);
