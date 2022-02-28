@@ -773,6 +773,19 @@ export class LDAPEditor extends React.Component {
                     });
                 }
             },
+            {
+                title: 'Class of Service ...',
+                onClick:
+                () => {
+                    this.setState({
+                        wizardName: ENTRY_MENU.cos,
+                        wizardEntryDn: rowData.rawdn,
+                        isWizardOpen: true,
+                        isTreeWizardOpen: false,
+                        keyIndex,
+                    });
+                }
+            },
             /*
             {
                 title: 'Roles ...',
