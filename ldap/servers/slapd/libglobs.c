@@ -1307,6 +1307,14 @@ static struct config_get_and_set
      (void **)&global_slapdFrontendConfig.ldapssotoken_ttl,
      CONFIG_INT, NULL, SLAPD_DEFAULT_LDAPSSOTOKEN_TTL_STR, NULL},
 #endif
+    {CONFIG_TCP_FIN_TIMEOUT, config_set_tcp_fin_timeout,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.tcp_fin_timeout, CONFIG_INT,
+     (ConfigGetFunc)config_get_tcp_fin_timeout, SLAPD_DEFAULT_TCP_FIN_TIMEOUT_STR, NULL},
+    {CONFIG_TCP_KEEPALIVE_TIME, config_set_tcp_keepalive_time,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.tcp_keepalive_time, CONFIG_INT,
+     (ConfigGetFunc)config_get_tcp_keepalive_time, SLAPD_DEFAULT_TCP_KEEPALIVE_TIME_STR, NULL},
     /* End config */
     };
 
@@ -1862,6 +1870,8 @@ FrontendConfig_init(void)
 #else
     init_enable_ldapssotoken = cfg->enable_ldapssotoken = LDAP_OFF;
 #endif
+    cfg->tcp_fin_timeout = SLAPD_DEFAULT_TCP_FIN_TIMEOUT;
+    cfg->tcp_keepalive_time = SLAPD_DEFAULT_TCP_KEEPALIVE_TIME;
 
     /* Done, unlock!  */
     CFG_UNLOCK_WRITE(cfg);
@@ -8337,6 +8347,74 @@ config_get_ldapssotoken_ttl()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     return slapi_atomic_load_32(&(slapdFrontendConfig->ldapssotoken_ttl), __ATOMIC_ACQUIRE);
+}
+
+int
+config_set_tcp_fin_timeout(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    long tcp_fin_timeout;
+    char *endp;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    errno = 0;
+    tcp_fin_timeout = strtol(value, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) is invalid\n", attrname, value);
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (apply) {
+        slapi_atomic_store_32(&(slapdFrontendConfig->tcp_fin_timeout), tcp_fin_timeout, __ATOMIC_RELEASE);
+    }
+    return LDAP_SUCCESS;
+}
+
+int
+config_get_tcp_fin_timeout()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    retVal = slapdFrontendConfig->tcp_fin_timeout;
+    return retVal;
+}
+
+int
+config_set_tcp_keepalive_time(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    long tcp_keepalive_time;
+    char *endp;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    errno = 0;
+    tcp_keepalive_time = strtol(value, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE || tcp_keepalive_time < 1) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) is invalid\n", attrname, value);
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (apply) {
+        slapi_atomic_store_32(&(slapdFrontendConfig->tcp_keepalive_time), tcp_keepalive_time, __ATOMIC_RELEASE);
+    }
+    return LDAP_SUCCESS;
+}
+
+int
+config_get_tcp_keepalive_time()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    retVal = slapdFrontendConfig->tcp_keepalive_time;
+    return retVal;
 }
 
 /*

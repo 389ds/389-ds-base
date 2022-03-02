@@ -412,6 +412,11 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_PW_MAX_CLASS_CHARS_ATTRIBUTE 0
 #define SLAPD_DEFAULT_PW_MAX_CLASS_CHARS_ATTRIBUTE_STR "0"
 
+#define SLAPD_DEFAULT_TCP_FIN_TIMEOUT 30
+#define SLAPD_DEFAULT_TCP_FIN_TIMEOUT_STR "30"
+#define SLAPD_DEFAULT_TCP_KEEPALIVE_TIME 300
+#define SLAPD_DEFAULT_TCP_KEEPALIVE_TIME_STR "300"
+
 #define MIN_THREADS 16
 #define MAX_THREADS 512
 
@@ -2310,6 +2315,9 @@ typedef struct _slapdEntryPoints
 #define CONFIG_LDAPSSOTOKEN_SECRET   "nsslapd-ldapssotoken-secret"
 #define CONFIG_LDAPSSOTOKEN_TTL      "nsslapd-ldapssotoken-ttl-secs"
 
+#define CONFIG_TCP_FIN_TIMEOUT       "nsslapd-tcp-fin-timeout"
+#define CONFIG_TCP_KEEPALIVE_TIME    "nsslapd-tcp-keepalive-time"
+
 /*
  * Define the backlog number for use in listen() call.
  * We use the same definition as in ldapserver/include/base/systems.h
@@ -2608,6 +2616,9 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t enable_ldapssotoken;
     char *ldapssotoken_secret;
     slapi_int_t ldapssotoken_ttl;
+
+    slapi_int_t tcp_fin_timeout;
+    slapi_int_t tcp_keepalive_time;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
