@@ -2469,6 +2469,8 @@ configure_pr_socket(PRFileDesc **pr_socket, int secure, int local)
     int ns = 0;
     int reservedescriptors = config_get_reservedescriptors();
     int enable_nagle = config_get_nagle();
+    int fin_timeout = config_get_tcp_fin_timeout();
+    int keepalive_time = config_get_tcp_keepalive_time();
 
     PRSocketOptionData pr_socketoption;
 
@@ -2560,6 +2562,20 @@ configure_pr_socket(PRFileDesc **pr_socket, int secure, int local)
                           prerr, slapd_pr_strerror(prerr));
         }
     } /* else (!enable_nagle) */
+
+    if (!local) {
+        if (setsockopt(ns, IPPROTO_TCP, TCP_LINGER2, (void *)&fin_timeout, sizeof(fin_timeout)) == -1) {
+            slapi_log_err(SLAPI_LOG_ERR,
+                          "configure_pr_socket", "setsockopt(TCP_LINGER2) failed, error %d (%s)\n",
+                          errno, strerror(errno));
+        }
+
+        if (setsockopt(ns, IPPROTO_TCP, TCP_KEEPIDLE, (void *)&keepalive_time, sizeof(keepalive_time)) == -1) {
+            slapi_log_err(SLAPI_LOG_ERR,
+                          "configure_pr_socket", "setsockopt(TCP_KEEPIDLE) failed, error %d (%s)\n",
+                          errno, strerror(errno));
+        }
+    }
 
     return ns;
 }
