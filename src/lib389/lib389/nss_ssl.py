@@ -73,6 +73,17 @@ class NssSsl(DSLint):
     def lint_uid(cls):
         return 'tls'
 
+    def _assert_not_chain(self, pemfile):
+        # To work this out, we open the file and count how many
+        # begin key and begin cert lines there are. Any more than 1 is bad.
+        count = 0
+        with open(pemfile, 'r') as f:
+            for line in f:
+                if line.startswith('-----BEGIN PRIVATE KEY-----') or line.startswith('-----BEGIN CERTIFICATE-----'):
+                    count = count + 1
+        if count > 1:
+            raise ValueError(f"The file {pemfile} may be a chain file. This is not supported. Break out each certificate and key into unique files, and import them individually.")
+
     def _lint_certificate_expiration(self):
         """Check all the certificates in the db if they will expire within 30 days
         or have already expired.
@@ -668,6 +679,10 @@ only.
         assert ca is not None or crt is not None, "At least one parameter should be specified (ca or crt)"
 
         if ca is not None:
+            if not os.path.exists(ca):
+                raise ValueError("The certificate file ({}) does not exist".format(ca))
+            self._assert_not_chain(ca)
+
             shutil.copyfile(ca, '%s/ca.crt' % self._certdb)
             self.openssl_rehash(self._certdb)
             cmd = [
@@ -688,6 +703,9 @@ only.
                 raise ValueError(e.output.decode('utf-8').rstrip())
 
         if crt is not None:
+            if not os.path.exists(crt):
+                raise ValueError("The certificate file ({}) does not exist".format(crt))
+            self._assert_not_chain(crt)
             cmd = [
                 '/usr/bin/certutil',
                 '-A',
@@ -991,6 +1009,8 @@ only.
         if not os.path.exists(input_file):
             raise ValueError("The certificate file ({}) does not exist".format(input_file))
 
+        self._assert_not_chain(input_file)
+
         if ca:
             trust_flags = "CT,,"
         else:
@@ -1018,6 +1038,9 @@ only.
             raise ValueError("The key file ({}) does not exist".format(input_key))
         if not os.path.exists(input_cert):
             raise ValueError("The cert file ({}) does not exist".format(input_cert))
+
+        self._assert_not_chain(input_key)
+        self._assert_not_chain(input_cert)
 
         self.log.debug(f"Importing key and cert -> {input_key}, {input_cert}")
 
