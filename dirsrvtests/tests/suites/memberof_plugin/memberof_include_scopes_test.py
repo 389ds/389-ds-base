@@ -8,14 +8,13 @@
 #
 import pytest
 import os
-import time
 import ldap
 from lib389.utils import ensure_str
 from lib389.topologies import topology_st as topo
 from lib389._constants import *
 from lib389.plugins import MemberOfPlugin
-from lib389.idm.user import UserAccounts
-from lib389.idm.group import Groups
+from lib389.idm.user import UserAccount, UserAccounts
+from lib389.idm.group import Group, Groups
 from lib389.idm.nscontainer import nsContainers
 
 SUBTREE_1 = 'cn=sub1,%s' % SUFFIX
@@ -65,10 +64,14 @@ def test_multiple_scopes(topo):
         1. Set multiple include scopes
         2. Test members added to both scopes are correctly updated
         3. Test user outside of scope was not updated
+        4. Set exclude scope
+        5. Move user into excluded subtree and check the membership is correct
     :expectedresults:
         1. Success
         2. Success
         3. Success
+        4. Success
+        5. Success
     """
 
     inst = topo.standalone
@@ -96,6 +99,25 @@ def test_multiple_scopes(topo):
     check_membership(inst, f'uid=test_m3,{SUBTREE_3}', f'cn=g1,{SUBTREE_1}', False)
     check_membership(inst, f'uid=test_m3,{SUBTREE_3}', f'cn=g2,{SUBTREE_2}', False)
     check_membership(inst, f'uid=test_m3,{SUBTREE_3}', f'cn=g3,{SUBTREE_3}', False)
+
+    # Set exclude scope
+    EXCLUDED_SUBTREE = 'cn=exclude,%s' % SUFFIX
+    EXCLUDED_USER = f"uid=test_m1,{EXCLUDED_SUBTREE}"
+    INCLUDED_USER = f"uid=test_m1,{SUBTREE_1}"
+    GROUP_DN = f'cn=g1,{SUBTREE_1}'
+
+    add_container(inst, SUFFIX, 'exclude')
+    memberof.add('memberOfEntryScopeExcludeSubtree', EXCLUDED_SUBTREE)
+
+    # Move user to excluded scope
+    user = UserAccount(topo.standalone, dn=INCLUDED_USER)
+    user.rename("uid=test_m1", newsuperior=EXCLUDED_SUBTREE)
+
+    # Check memberOf and group are cleaned up
+    check_membership(inst, EXCLUDED_USER, GROUP_DN, False)
+    group = Group(topo.standalone,  dn=GROUP_DN)
+    assert not group.present("member", EXCLUDED_USER)
+    assert not group.present("member", INCLUDED_USER)
 
 
 if __name__ == '__main__':
