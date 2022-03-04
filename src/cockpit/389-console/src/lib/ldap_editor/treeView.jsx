@@ -482,14 +482,27 @@ class EditorTreeView extends React.Component {
         ];
 
         const loadingStateComponent = (
-            <div className="ds-margin-top-xlg ds-center">
-                <TextContent>
-                    <Text component={TextVariants.h3}>
-                        Loading ...
-                    </Text>
-                </TextContent>
-                <Spinner className="ds-margin-top-lg" size="lg" />
-            </div>
+            <>
+                <div className="ds-margin-top-lg ds-indent">
+                    <Label icon={<CatalogIcon />} color="blue">
+                        <strong>{this.props.treeViewRootSuffixes.length > 1 ? "Suffix Trees" : "Suffix Tree"}</strong>
+                        <Button
+                            variant="link"
+                            title="Refresh all the suffixes"
+                            icon={<SyncAltIcon />}
+                            onClick={() => { this.props.onReload(true) }}
+                        />
+                    </Label>
+                </div>
+                <div className="ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading ...
+                        </Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top-lg" size="lg" />
+                </div>
+            </>
         );
 
         const finishedAt = new Date();
