@@ -13,7 +13,9 @@ import {
     Label,
     Modal,
     ModalVariant,
+    NumberInput,
     Radio,
+    Select, SelectOption, SelectVariant,
     SearchInput,
     SimpleList,
     SimpleListItem,
@@ -39,10 +41,16 @@ class AddGroup extends React.Component {
     constructor (props) {
         super(props);
 
+        // gid range
+        this.minValue = 0
+        this.maxValue = 1878982656;
+
         this.state = {
             parentDN: "",
             groupName: "",
             isTreeLoading: false,
+            groupType: "Basic Group",
+            isOpenType: false,
             memberAttr: "member",
             members: [],
             searching: false,
@@ -57,6 +65,9 @@ class AddGroup extends React.Component {
             stepIdReached: 0,
             noEmptyValue: false,
             adding: true,
+            posixGroup: false,
+            gidNumber: 0,
+            groupDesc: "",
         };
 
         this.handleBaseDnSelection = (treeViewItem) => {
@@ -88,10 +99,10 @@ class AddGroup extends React.Component {
             this.setState({
                 stepIdReached: this.state.stepIdReached < id ? id : this.state.stepIdReached
             });
-            if (id === 3) {
+            if (id === 4) {
                 // Generate the LDIF data.
                 this.generateLdifData();
-            } else if (id === 4) {
+            } else if (id === 5) {
                 // Create the LDAP entry.
                 const myLdifArray = this.state.ldifArray;
                 createLdapEntry(this.props.editorLdapServer,
@@ -121,8 +132,7 @@ class AddGroup extends React.Component {
         };
 
         this.onBack = ({ id }) => {
-            if (id === 3) {
-                // true ==> Do not check the attribute selection when navigating back.
+            if (id === 4) {
                 this.updateValuesTableRows(true);
             }
         };
@@ -212,6 +222,41 @@ class AddGroup extends React.Component {
             });
         };
 
+        // Group Type handling
+        this.onToggleType = isOpenType => {
+            this.setState({
+                isOpenType
+            });
+        }
+        this.onSelectType = (event, selection) => {
+            this.setState({
+                posixGroup: selection === "Posix Group",
+                groupType: selection,
+                isOpenType: false,
+            });
+        }
+
+        // gid/uid input handling
+        this.onMinusConfig = (id) => {
+            if ((Number(this.state[id]) - 1) < 1) {
+                return;
+            }
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            });
+        };
+        this.onConfigChange = (event, id, min) => {
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            this.setState({
+                [id]: newValue > this.maxValue ? this.maxValue : newValue < min ? min : newValue
+            });
+        };
+        this.onPlusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            });
+        };
+
         this.handleChange = this.handleChange.bind(this);
     }
 
@@ -235,12 +280,25 @@ class AddGroup extends React.Component {
         const valueData = [];
         let memberAttr = "";
 
-        if (this.state.memberAttr === "uniquemember") {
-            objectClassData.push('objectClass: groupOfUniqueNames');
-            memberAttr = "uniquemember";
-        } else {
+        if (this.state.posixGroup) {
             objectClassData.push('objectClass: groupOfNames');
+            objectClassData.push('objectClass: posixGroup');
             memberAttr = "member";
+        } else {
+            if (this.state.memberAttr === "uniquemember") {
+                objectClassData.push('objectClass: groupOfUniqueNames');
+                memberAttr = "uniquemember";
+            } else {
+                objectClassData.push('objectClass: groupOfNames');
+                memberAttr = "member";
+            }
+        }
+
+        if (this.state.groupDesc !== "") {
+            valueData.push(`description: ${this.state.groupDesc}`);
+        }
+        if (this.state.posixGroup && this.state.gidNumber > 0) {
+            valueData.push(`gidNumber: ${this.state.gidNumber}`);
         }
 
         for (const userObj of this.state.usersChosenOptions) {
@@ -261,14 +319,53 @@ class AddGroup extends React.Component {
         const {
             groupName, usersSearchBaseDn, usersAvailableOptions,
             usersChosenOptions, showLDAPNavModal, ldifArray, resultVariant,
-            commandOutput, stepIdReached
+            commandOutput, stepIdReached, groupDesc,
         } = this.state;
 
-        const groupNameAndTypeStep = (
+        const groupSelectStep = (
+            <>
+                <div className="ds-container">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Select Group Type
+                        </Text>
+                    </TextContent>
+
+                </div>
+                <div className="ds-indent">
+                    <Select
+                        variant={SelectVariant.single}
+                        className="ds-margin-top-lg"
+                        aria-label="Select group type"
+                        onToggle={this.onToggleType}
+                        onSelect={this.onSelectType}
+                        selections={this.state.groupType}
+                        isOpen={this.state.isOpenType}
+                    >
+                        <SelectOption key="group" value="Basic Group" />
+                        <SelectOption key="posix" value="Posix Group" />
+                    </Select>
+                    <TextContent className="ds-margin-top-xlg">
+                        <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
+                            <b>Basic Group</b> - This type of group can use
+                            membership attributes: member, or uniqueMember
+                            common set of objectclasses and attributes.
+                        </Text>
+                        <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
+                            <b>Posix Group</b> - This type of group uses the
+                            'GroupOfNames' and 'PosixGroup' objectclasses which
+                            allows for attributes like <i>gidNumber</i>, etc
+                        </Text>
+                    </TextContent>
+                </div>
+            </>
+        );
+
+        const groupNameStep = (
             <div>
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Select Name And Group Type
+                        Select Name
                     </Text>
                 </TextContent>
                 <Form autoComplete="off">
@@ -290,33 +387,81 @@ class AddGroup extends React.Component {
                             />
                         </GridItem>
                     </Grid>
+                    <Grid title="Optional description for this group.">
+                        <GridItem span={2} className="ds-label">
+                            Group Description
+                        </GridItem>
+                        <GridItem span={10}>
+                            <TextInput
+                                value={groupDesc}
+                                type="text"
+                                id="groupDesc"
+                                aria-describedby="groupDesc"
+                                name="groupDesc"
+                                onChange={(str, e) => {
+                                    this.handleChange(e);
+                                }}
+                            />
+                        </GridItem>
+                    </Grid>
 
-                    <TextContent className="ds-margin-top-lg">
-                        <Text component={TextVariants.h5}>
-                            Choose The Membership Attribute
-                        </Text>
-                    </TextContent>
-                    <div className="ds-left-margin">
-                        <Radio
-                            name="memberAttrGroup"
-                            id="member"
-                            value="member"
-                            label="member"
-                            isChecked={this.state.memberAttr === 'member'}
-                            onChange={this.handleRadioChange}
-                            description="This attribute uses objectclass 'GroupOfNames'"
-                        />
-                        <Radio
-                            name="memberAttrGroup"
-                            id="uniquemember"
-                            value="uniquemember"
-                            label="uniquemember"
-                            isChecked={this.state.memberAttr === 'uniquemember'}
-                            onChange={this.handleRadioChange}
-                            description="This attribute uses objectclass 'GroupOfUniqueNames'"
-                            className="ds-margin-top"
-                        />
-                    </div>
+                    {!this.state.posixGroup &&
+                        <>
+                            <TextContent className="ds-margin-top-lg">
+                                <Text component={TextVariants.h5}>
+                                    Choose The Membership
+                                </Text>
+                            </TextContent>
+                            <div className="ds-left-margin">
+                                <Radio
+                                    name="memberAttrGroup"
+                                    id="member"
+                                    value="member"
+                                    label="member"
+                                    isChecked={this.state.memberAttr === 'member'}
+                                    onChange={this.handleRadioChange}
+                                    description="This group uses objectclass 'GroupOfNames'."
+                                />
+                                <Radio
+                                    name="memberAttrGroup"
+                                    id="uniquemember"
+                                    value="uniquemember"
+                                    label="uniquemember"
+                                    isChecked={this.state.memberAttr === 'uniquemember'}
+                                    onChange={this.handleRadioChange}
+                                    description="This group uses objectclass 'GroupOfUniqueNames'."
+                                    className="ds-margin-top"
+                                />
+                            </div>
+                        </>
+                    }
+                    {this.state.posixGroup &&
+                        <>
+                            <Grid
+                                title="This setting corresponds to the attribute: gidNumber.  The gid must be greater than zero for this attribute to be set."
+                                className="ds-margin-top"
+                            >
+                                <GridItem className="ds-label" span={2} >
+                                    Group ID Number
+                                </GridItem>
+                                <GridItem span={10}>
+                                    <NumberInput
+                                        value={this.state.gidNumber}
+                                        min={this.minValue}
+                                        max={this.maxValue}
+                                        onMinus={() => { this.onMinusConfig("gidNumber") }}
+                                        onChange={(e) => { this.onConfigChange(e, "gidNumber", 0) }}
+                                        onPlus={() => { this.onPlusConfig("gidNumber") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={8}
+                                    />
+                                </GridItem>
+                            </Grid>
+                        </>
+                    }
                 </Form>
             </div>
         );
@@ -453,31 +598,37 @@ class AddGroup extends React.Component {
         const addGroupSteps = [
             {
                 id: 1,
-                name: 'Select Name & Type',
-                component: groupNameAndTypeStep,
-                canJumpTo: stepIdReached >= 1 && stepIdReached < 4,
-                enableNext: groupName === '' ? false : true,
+                name: 'Select Group Type',
+                component: groupSelectStep,
+                canJumpTo: stepIdReached >= 1 && stepIdReached < 5,
                 hideBackButton: true
             },
             {
                 id: 2,
-                name: 'Add Members',
-                component: selectMembersStep,
-                canJumpTo: stepIdReached >= 2 && stepIdReached < 4,
+                name: 'Select Name',
+                component: groupNameStep,
+                canJumpTo: stepIdReached >= 2 && stepIdReached < 5,
+                enableNext: groupName === '' ? false : true,
             },
             {
                 id: 3,
-                name: 'Create Group',
-                component: groupCreationStep,
-                nextButtonText: 'Create',
-                canJumpTo: stepIdReached >= 3 && stepIdReached < 4
+                name: 'Add Members',
+                component: selectMembersStep,
+                canJumpTo: stepIdReached >= 3 && stepIdReached < 5,
             },
             {
                 id: 4,
+                name: 'Create Group',
+                component: groupCreationStep,
+                nextButtonText: 'Create',
+                canJumpTo: stepIdReached >= 4 && stepIdReached < 5
+            },
+            {
+                id: 5,
                 name: 'Review Result',
                 component: groupReviewStep,
                 nextButtonText: 'Finish',
-                canJumpTo: stepIdReached >= 4,
+                canJumpTo: stepIdReached >= 5,
                 hideBackButton: true,
                 enableNext: !this.state.adding
             }
