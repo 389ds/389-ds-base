@@ -2,22 +2,15 @@ import React from 'react';
 import {
     Alert,
     BadgeToggle,
-    Card,
-    CardHeader,
-    CardBody,
-    CardFooter,
-    CardTitle,
+    Card, CardHeader, CardBody, CardFooter, CardTitle,
     Dropdown, DropdownItem, DropdownPosition,
     Form,
-    Grid,
-    GridItem,
+    Grid, GridItem,
     Pagination,
-    SimpleList,
-    SimpleListItem,
+    Select, SelectOption, SelectVariant,
+    SimpleList, SimpleListItem,
     Spinner,
-    Text,
-    TextContent,
-    TextVariants,
+    Text, TextContent, TextVariants,
     Wizard,
 } from '@patternfly/react-core';
 import {
@@ -39,26 +32,82 @@ class AddUser extends React.Component {
     constructor (props) {
         super(props);
 
-        this.inetorgPersonArray = [
-            'audio', 'businessCategory', 'carLicense', 'departmentNumber', 'displayName', 'employeeNumber',
-            'employeeType', 'givenName', 'homePhone', 'homePostalAddress', 'initials', 'jpegPhoto', 'labeledURI',
-            'mail', 'manager', 'mobile', 'o', 'pager', 'photo', 'roomNumber', 'secretary', 'uid', 'userCertificate',
-            'x500UniqueIdentifier', 'preferredLanguage', 'userSMIMECertificate', 'userPKCS12'
-        ];
-        this.organizationalPersonArray = [
-            'title', 'x121Address', 'registeredAddress', 'destinationIndicator', 'preferredDeliveryMethod', 'telexNumber',
-            'teletexTerminalIdentifier', 'internationalISDNNumber', 'facsimileTelephoneNumber',
-            'street', 'postOfficeBox', 'postalCode', 'postalAddress', 'physicalDeliveryOfficeName', 'ou', 'st', 'l'
-        ];
-        this.personOptionalArray = [
-            'userPassword', 'telephoneNumber', 'seeAlso', 'description'
-        ];
-        this.operationalOptionalArray = ['nsRoleDN'];
-        this.singleValuedAttributes = [
-            'preferredDeliveryMethod', 'displayName', 'employeeNumber', 'preferredLanguage'
-        ];
+        // Objectclasses
+        this.userObjectclasses = {
+            'Basic Account': [
+                'objectclass: top',
+                'objectClass: nsPerson',
+                'objectClass: nsAccount',
+                'objectClass: nsOrgPerson',
+            ],
+            'Posix Account': [
+                'objectclass: top',
+                'objectClass: nsPerson',
+                'objectClass: nsAccount',
+                'objectClass: nsOrgPerson',
+                'objectClass: posixAccount',
+            ],
+            'Service Account': [
+                'objectclass: top',
+                'objectClass: applicationProcess',
+                'objectClass: nsAccount'
+            ],
+        };
 
-        this.requiredAttributes = ['cn', 'sn'];
+        this.allowedAttrs = {
+            'Basic Account': [
+                'businessCategory', 'carLicense', 'departmentNumber',
+                'description', 'employeeNumber', 'employeeType', 'homePhone',
+                'homePostalAddress', 'initials', 'jpegPhoto', 'labeledURI',
+                'legalName', 'mail', 'manager', 'mobile', 'nsRoleDN', 'o',
+                'pager', 'photo', 'preferredLanguage', 'nsCertSubjectDN',
+                'nsSshPublicKey', 'roomNumber', 'seeAlso', 'telephoneNumber',
+                'uid', 'userCertificate', 'userPassword', 'userSMIMECertificate',
+                'userPKCS12', 'x500UniqueIdentifier'
+            ],
+            'Posix Account': [
+                'businessCategory', 'carLicense', 'departmentNumber',
+                'description', 'employeeNumber', 'employeeType', 'homePhone',
+                'homePostalAddress', 'initials', 'jpegPhoto', 'labeledURI',
+                'legalName', 'mail', 'manager', 'mobile', 'nsRoleDN', 'o',
+                'pager', 'photo', 'preferredLanguage', 'nsCertSubjectDN',
+                'nsSshPublicKey', 'roomNumber', 'seeAlso', 'telephoneNumber',
+                'userCertificate', 'userPassword', 'userSMIMECertificate',
+                'userPKCS12', 'x500UniqueIdentifier', 'loginShell', 'gecos'
+            ],
+            'Service Account': [
+                'seeAlso', 'ou', 'l', 'description', 'userCertificate',
+                'nsCertSubjectDN', 'nsRoleDN', 'nsSshPublicKey', 'userPassword'
+            ],
+        };
+
+        this.requiredAttrs = {
+            'Basic Account': [
+                'cn', 'displayName',
+            ],
+            'Posix Account': [
+                'cn', 'uid', 'uidNumber', 'gidNumber', 'homeDirectory',
+                'displayName'
+            ],
+            'Service Account': [
+                'cn'
+            ]
+        };
+
+        this.singleValuedAttrs = {
+            'Basic Account': [
+                'preferredDeliveryMethod', 'displayName', 'employeeNumber',
+                'preferredLanguage', 'userPassword',
+            ],
+            'Posix Account': [
+                'preferredDeliveryMethod', 'displayName', 'employeeNumber',
+                'preferredLanguage', 'userPassword','uidNumber', 'gidNumber',
+                'homeDirectory', 'loginShell', 'gecos'
+            ],
+            'Service Account': [
+                'userpassword'
+            ]
+        };
 
         this.attributeValidationRules = [
             {
@@ -79,19 +128,16 @@ class AddUser extends React.Component {
             savedRows: [],
             commandOutput: '',
             resultVariant: 'default',
-            allAttributesSelected: false,
             stepIdReached: 1,
-            // currentStepId: 1,
             itemCountAddUser: 0,
             pageAddUser: 1,
             perPageAddUser: 10,
             columnsUser: [
                 { title: 'Attribute Name', cellTransforms: [headerCol()] },
-                { title: 'From ObjectClass' }
             ],
             rowsUser: [],
             pagedRowsUser: [],
-            selectedAttributes: ['cn', 'sn', 'nsRoleDN'],
+            selectedAttributes: [],
             isAttrDropDownOpen: false,
             // Values
             noEmptyValue: false,
@@ -104,24 +150,25 @@ class AddUser extends React.Component {
             reviewInvalidText: 'Invalid LDIF',
             reviewIsValid: true,
             reviewValidated: 'default',
-            // reviewHelperText: 'LDIF data'
             editableTableData: [],
             rdn: "",
             rdnValue: "",
             adding: true,
+            accountType: "Basic Account",
+            isOpenType: false,
         };
 
         this.onNext = ({ id }) => {
             this.setState({
                 stepIdReached: this.state.stepIdReached < id ? id : this.state.stepIdReached
             });
-            if (id === 3) {
+            if (id === 4) {
                 // Update the values table.
                 this.updateValuesTableRows();
-            } else if (id === 4) {
+            } else if (id === 5) {
                 // Generate the LDIF data.
                 this.generateLdifData();
-            } else if (id === 5) {
+            } else if (id === 6) {
                 // Create the LDAP entry.
                 const myLdifArray = this.state.ldifArray;
                 createLdapEntry(this.props.editorLdapServer,
@@ -150,47 +197,63 @@ class AddUser extends React.Component {
         };
 
         this.onBack = ({ id }) => {
-            if (id === 3) {
+            if (id === 4) {
                 // true ==> Do not check the attribute selection when navigating back.
                 this.updateValuesTableRows(true);
             }
         };
 
+        this.onToggleType = isOpenType => {
+            this.setState({
+                isOpenType
+            });
+        }
+        this.onSelectType = (event, selection) => {
+            let attributesArray = [];
+            let selectedAttrs = [];
+
+            this.allowedAttrs[selection].map(attr => {
+                attributesArray.push({ cells: [attr] });
+            });
+            this.requiredAttrs[selection].map(attr => {
+                attributesArray.push({
+                    cells: [attr],
+                    selected: true,
+                    isAttributeSelected: true,
+                    disableCheckbox: true
+                });
+            });
+            selectedAttrs = [...this.requiredAttrs[selection]];
+
+            // Sort the attributes
+            attributesArray.sort((a, b) => (a.cells[0] > b.cells[0]) ? 1 : -1);
+
+            this.setState({
+                itemCountAddUser: attributesArray.length,
+                rowsUser: attributesArray,
+                pagedRowsUser: attributesArray.slice(0, this.state.perPageAddUser),
+                accountType: selection,
+                selectedAttributes: selectedAttrs,
+                isOpenType: false,
+            });
+        }
+
         // End constructor().
     }
 
     componentDidMount () {
-        // console.log('In AddUser - componentDidMount()');
-        // TODO:
-        // Use an ldapsearch request on the schema entry.
-        // Check with RHDS Engineering ( dsconf? to retrieve the list of attrs for a given oc)
-        // FIXME:
-        // disableCheckbox doesn't exist for version 2020.06!
-        // Need to upgrade...
         const attributesArray = [];
-        attributesArray.push({
-            cells: ['cn', 'Person'],
-            selected: true,
-            isAttributeSelected: true,
-            disableCheckbox: true
+        // Set the default poisx user attributes
+        this.allowedAttrs[this.state.accountType].map(attr => {
+            attributesArray.push({ cells: [attr] });
         });
-        attributesArray.push({
-            cells: ['sn', 'Person'],
-            selected: true,
-            isAttributeSelected: true,
-            disableCheckbox: true
-        });
-        this.personOptionalArray.map(attr => {
-            attributesArray.push({ cells: [attr, 'Person'] });
-        });
-        this.organizationalPersonArray.map(attr => {
-            attributesArray.push({ cells: [attr, 'OrganizationalPerson'] });
-        });
-        this.inetorgPersonArray.map(attr => {
-            attributesArray.push({ cells: [attr, 'InetOrgPerson'] });
-        });
-        this.operationalOptionalArray.map(attr => {
-            attributesArray.push({ cells: [attr, ''] });
+        this.requiredAttrs[this.state.accountType].map(attr => {
+            attributesArray.push({
+                cells: [attr],
+                selected: true,
+                isAttributeSelected: true,
+                disableCheckbox: true
+            });
         });
 
         // Sort the attributes
@@ -199,7 +262,8 @@ class AddUser extends React.Component {
         this.setState({
             itemCountAddUser: attributesArray.length,
             rowsUser: attributesArray,
-            pagedRowsUser: attributesArray.slice(0, this.state.perPageAddUser)
+            pagedRowsUser: attributesArray.slice(0, this.state.perPageAddUser),
+            selectedAttributes: [...this.requiredAttrs[this.state.accountType]],
         });
     }
 
@@ -226,79 +290,45 @@ class AddUser extends React.Component {
     }
 
     isAttributeSingleValued = attr => {
-        return this.singleValuedAttributes.includes(attr);
+        return this.singleValuedAttrs[this.state.accountType].includes(attr);
     };
 
     isAttributeRequired = attr => {
-        return this.requiredAttributes.includes(attr);
+        return this.requiredAttrs[this.state.accountType].includes(attr);
     }
 
     onSelect = (event, isSelected, rowId) => {
         let rows;
-        if (rowId === -1) {
-            // Process the full table entries ( rowsUser )
-            rows = this.state.rowsUser.map(oneRow => {
-                oneRow.selected = isSelected;
-                oneRow.isAttributeSelected = isSelected;
-                return oneRow;
-            });
-            // Quick hack until the code is upgraded to a version that supports "disableCheckbox"
-            // Both 'cn' and 'sn' ( first 2 elements in the table ) are mandatory.
-            // TODO: https://www.patternfly.org/v4/components/table#selectable
-            // ==> disableSelection: true
-            rows[0].selected = true;
-            rows[1].selected = true;
-            rows[0].isAttributeSelected = true;
-            rows[1].isAttributeSelected = true;
-            const selectedAttributes = ['cn', 'sn'];
-            this.setState({
-                rowsUser: rows,
-                allAttributesSelected: isSelected,
-                selectedAttributes
-            },
-            () => {
-                this.setState({
-                    pagedRowsUser: this.getAttributesToShow(this.state.pageAddUser, this.state.perPageAddUser)
-                });
-                this.updateValuesTableRows();
-            });
-        } else {
-            // Quick hack until the code is upgraded to a version that supports "disableCheckbox"
-            if (this.state.pagedRowsUser[rowId].disableCheckbox === true) {
-                return;
-            } // End hack.
 
-            // Process only the entries in the current page ( pagedRowsUser )
-            rows = [...this.state.pagedRowsUser];
-            rows[rowId].selected = isSelected;
-            // Find the entry in the full array and set 'isAttributeSelected' accordingly
-            // The property 'isAttributeSelected' is used to build the LDAP entry to add.
-            // The row ID cannot be used since it changes with the pagination.
-            const attrName = this.state.pagedRowsUser[rowId].cells[0];
-            const allItems = [...this.state.rowsUser];
-            const index = allItems.findIndex(item => item.cells[0] === attrName);
-            allItems[index].isAttributeSelected = isSelected;
-            const selectedAttributes = allItems
-                .filter(item => item.isAttributeSelected)
-                .map(selectedAttr => selectedAttr.cells[0]);
+        // Quick hack until the code is upgraded to a version that supports "disableCheckbox"
+        if (this.state.pagedRowsUser[rowId].disableCheckbox === true) {
+            return;
+        } // End hack.
 
-            this.setState({
-                rowsUser: allItems,
-                pagedRowsUser: rows,
-                selectedAttributes
-            },
-            () => this.updateValuesTableRows());
-        }
+        // Process only the entries in the current page ( pagedRowsUser )
+        rows = [...this.state.pagedRowsUser];
+        rows[rowId].selected = isSelected;
+        // Find the entry in the full array and set 'isAttributeSelected' accordingly
+        // The property 'isAttributeSelected' is used to build the LDAP entry to add.
+        // The row ID cannot be used since it changes with the pagination.
+        const attrName = this.state.pagedRowsUser[rowId].cells[0];
+        const allItems = [...this.state.rowsUser];
+        const index = allItems.findIndex(item => item.cells[0] === attrName);
+        allItems[index].isAttributeSelected = isSelected;
+        const selectedAttributes = allItems
+            .filter(item => item.isAttributeSelected)
+            .map(selectedAttr => selectedAttr.cells[0]);
+
+        this.setState({
+            rowsUser: allItems,
+            pagedRowsUser: rows,
+            selectedAttributes
+        },
+        () => this.updateValuesTableRows());
     };
 
     updateValuesTableRows = (skipAttributeSelection) => {
-        const newSelectedAttrs = this.state.allAttributesSelected
-            ? ['cn', 'sn',
-            ...this.personOptionalArray,
-            ...this.organizationalPersonArray,
-            ...this.inetorgPersonArray,
-            ...this.operationalOptionalArray]
-            : [...this.state.selectedAttributes];
+        const newSelectedAttrs = [...this.state.selectedAttributes];
         let namingRowID = this.state.namingRowID;
         let namingAttrVal = this.state.namingAttrVal
         let editableTableData = [];
@@ -442,28 +472,11 @@ class AddUser extends React.Component {
     }
 
     generateLdifData = () => {
-        const objectClassData = ['ObjectClass: top', 'ObjectClass: Person']; // ObjectClass 'Person' is required.
-        if (this.state.allAttributesSelected) {
-            objectClassData.push('ObjectClass: OrganizationalPerson',
-                'ObjectClass: InetOrgPerson');
-        }
-
-        const valueData = [];
+        let objectClassData = this.userObjectclasses[this.state.accountType];
+        let valueData = [];
         for (const item of this.state.savedRows) {
             const attrName = item.attr;
             valueData.push(`${attrName}: ${item.val}`);
-            if (objectClassData.length === 4) { // There will a maximum of 4 ObjectClasses.
-                continue;
-            }
-            // TODO: Find a better logic!
-            if ((!objectClassData.includes('ObjectClass: InetOrgPerson')) &&
-            this.inetorgPersonArray.includes(attrName)) {
-                objectClassData.push('ObjectClass: InetOrgPerson');
-            }
-            if (!objectClassData.includes('ObjectClass: OrganizationalPerson') &&
-            this.organizationalPersonArray.includes(attrName)) {
-                objectClassData.push('ObjectClass: OrganizationalPerson');
-            }
         }
 
         const ldifArray = [
@@ -497,6 +510,53 @@ class AddUser extends React.Component {
             ? 'Invalid Naming Attribute - Empty Value!'
             : 'DN ( Distinguished Name )';
 
+        const userSelectStep = (
+            <>
+                <div className="ds-container">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Select Entry Type
+                        </Text>
+                    </TextContent>
+
+                </div>
+                <div className="ds-indent">
+                    <Select
+                        variant={SelectVariant.single}
+                        className="ds-margin-top-lg"
+                        aria-label="Select user type"
+                        onToggle={this.onToggleType}
+                        onSelect={this.onSelectType}
+                        selections={this.state.accountType}
+                        isOpen={this.state.isOpenType}
+                    >
+                        <SelectOption key="user" value="Basic Account" />
+                        <SelectOption key="posix" value="Posix Account" />
+                        <SelectOption key="service" value="Service Account" />
+                    </Select>
+                    <TextContent className="ds-margin-top-xlg">
+                        <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
+                            <b>Basic Account</b> - This type of user entry uses a
+                            common set of objectclasses (nsPerson, nsAccount, and nsOrgPerson).
+                        </Text>
+                        <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
+                            <b>Posix Account</b> - This type of user entry uses a
+                            similar set of objectclasses as the <i>Basic Account</i> (nsPerson,
+                            nsAccount, nsOrgPerson, and posixAccount), but it includes
+                            POSIX attributes like: <i>uidNumber, gidNumber, homeDirectory,
+                            loginShell, and gecos</i>.
+                        </Text>
+                        <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
+                            <b>Service Account</b> - This type of entry uses a
+                            bare minimum of objectclasses (nsAccount, and applicationProcess) and
+                            attributes to create a simple object used to represent a service
+                            (not a user identity).
+                        </Text>
+                    </TextContent>
+                </div>
+            </>
+        );
+
         const userAttributesStep = (
             <>
                 <div className="ds-container">
@@ -522,6 +582,7 @@ class AddUser extends React.Component {
                     onSelect={this.onSelect}
                     variant={TableVariant.compact}
                     aria-label="Pagination User Attributes"
+                    canSelectAll={false}
                 >
                     <TableHeader />
                     <TableBody />
@@ -633,35 +694,41 @@ class AddUser extends React.Component {
                 id: 1,
                 name: this.props.firstStep[0].name,
                 component: this.props.firstStep[0].component,
-                canJumpTo: stepIdReached >= 1 && stepIdReached < 5,
+                canJumpTo: stepIdReached >= 1 && stepIdReached < 6,
                 hideBackButton: true
             },
             {
                 id: 2,
-                name: 'Select Attributes',
-                component: userAttributesStep,
-                canJumpTo: stepIdReached >= 2 && stepIdReached < 5
+                name: 'Choose User Type',
+                component: userSelectStep,
+                canJumpTo: stepIdReached >= 2 && stepIdReached < 6
             },
             {
                 id: 3,
-                name: 'Set Values',
-                component: userValuesStep,
-                canJumpTo: stepIdReached >= 3 && stepIdReached < 5,
-                enableNext: noEmptyValue
+                name: 'Select Attributes',
+                component: userAttributesStep,
+                canJumpTo: stepIdReached >= 3 && stepIdReached < 6
             },
             {
                 id: 4,
-                name: 'Create User',
-                component: userCreationStep,
-                nextButtonText: 'Create User',
-                canJumpTo: stepIdReached >= 4 && stepIdReached < 5
+                name: 'Set Values',
+                component: userValuesStep,
+                canJumpTo: stepIdReached >= 4 && stepIdReached < 6,
+                enableNext: noEmptyValue
             },
             {
                 id: 5,
+                name: 'Create User',
+                component: userCreationStep,
+                nextButtonText: 'Create User',
+                canJumpTo: stepIdReached >= 5 && stepIdReached < 6
+            },
+            {
+                id: 6,
                 name: 'Review Result',
                 component: userReviewStep,
                 nextButtonText: 'Finish',
-                canJumpTo: stepIdReached >= 5,
+                canJumpTo: stepIdReached >= 6,
                 hideBackButton: true,
                 enableNext: !this.state.adding
             }
