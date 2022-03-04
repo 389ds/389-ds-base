@@ -6,7 +6,6 @@ import {
     Button,
     Card, CardHeader, CardBody, CardTitle,
     Dropdown, DropdownItem, DropdownPosition,
-    FormSelect, FormSelectOption,
     Grid, GridItem,
     Label, LabelGroup,
     Pagination,
