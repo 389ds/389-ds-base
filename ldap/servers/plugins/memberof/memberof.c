@@ -575,7 +575,10 @@ memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *
 
         groupattrs[0] = config->groupattrs[i];
 
-        slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_del_dn_from_groups: Ancestors of %s\n", slapi_sdn_get_dn(sdn));
+        slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+                "memberof_del_dn_from_groups: Ancestors of %s   attr: %s\n",
+                slapi_sdn_get_dn(sdn),
+                groupattrs[0]);
         rc = memberof_call_foreach_dn(pb, sdn, config, groupattrs,
                                       memberof_del_dn_type_callback, &data, &cached, PR_FALSE);
     }
@@ -618,9 +621,7 @@ memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
     slapi_pblock_destroy(mod_pb);
 
     if (rc == LDAP_NO_SUCH_ATTRIBUTE && val[0] == NULL) {
-        /* if no memberof attribut exists
-         * handle as success
-         */
+        /* if no memberof attribute exists handle as success */
         rc = LDAP_SUCCESS;
     }
     return rc;
@@ -930,11 +931,21 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
          * attributes to refer to the new name. */
         if (ret == LDAP_SUCCESS && pre_sdn && post_sdn) {
             if (!memberof_entry_in_scope(&configCopy, post_sdn)) {
+                /*
+                 * After modrdn the group contains both the pre and post DN's as
+                 * members, so we need to cleanup both in this case.
+                 */
                 if ((ret = memberof_del_dn_from_groups(pb, &configCopy, pre_sdn))) {
                     slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                                  "memberof_postop_modrdn - Delete dn failed for (%s), error (%d)\n",
+                                  "memberof_postop_modrdn - Delete dn failed for preop entry(%s), error (%d)\n",
                                   slapi_sdn_get_dn(pre_sdn), ret);
                 }
+                if ((ret = memberof_del_dn_from_groups(pb, &configCopy, post_sdn))) {
+                    slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
+                                  "memberof_postop_modrdn - Delete dn failed for postop entry(%s), error (%d)\n",
+                                  slapi_sdn_get_dn(post_sdn), ret);
+                }
+
                 if (ret == LDAP_SUCCESS && pre_e && configCopy.group_filter &&
                     0 == slapi_filter_test_simple(pre_e, configCopy.group_filter)) {
                     /* is the entry of interest as a group? */
