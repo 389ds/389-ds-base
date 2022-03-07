@@ -48,6 +48,8 @@ Slapi_Filter *windows_private_get_directory_filter(const Repl_Agmt *ra);
 Slapi_Filter *windows_private_get_windows_filter(const Repl_Agmt *ra);
 Slapi_Filter *windows_private_get_deleted_filter(const Repl_Agmt *ra);
 const char *windows_private_get_purl(const Repl_Agmt *ra);
+void windows_private_set_flatten_tree(const Repl_Agmt *ra, PRBool value);
+PRBool windows_private_get_flatten_tree(const Repl_Agmt *ra);
 /*
  * The raw entry is the last raw entry read from AD - raw as opposed
  * "cooked" - that is, having had schema processing done

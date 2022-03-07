@@ -35,6 +35,7 @@ struct windowsprivate
     PRBool dirsync_cookie_has_more;
     PRBool create_users_from_dirsync;
     PRBool create_groups_from_dirsync;
+    PRBool flatten_tree;
     char *windows_domain;
     int isnt4;
     int iswin2k3;
@@ -277,6 +278,16 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
         slapi_ch_array_free(parray);
         retval = 1;
     }
+    if (type == NULL || slapi_attr_types_equivalent(type, type_winSyncFlattenTree)) {
+        tmpstr = (char *)slapi_entry_attr_get_ref(e, type_winSyncFlattenTree);
+        if (NULL != tmpstr && true_value_from_string(tmpstr)) {
+            windows_private_set_flatten_tree(ra, PR_TRUE);
+        } else {
+            windows_private_set_flatten_tree(ra, PR_FALSE);
+        }
+        retval = 1;
+    }
+
     windows_private_set_windows_treetop(ra, NULL);
     windows_private_set_directory_treetop(ra, NULL);
 
@@ -888,6 +899,39 @@ windows_private_set_subtreepairs(const Repl_Agmt *ra, char **parray)
 
     slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_subtreepairs\n");
 }
+
+void
+windows_private_set_flatten_tree(const Repl_Agmt *ra, PRBool value)
+{
+    Dirsync_Private *dp;
+
+    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_flatten_tree\n");
+
+    PR_ASSERT(ra);
+    dp = (Dirsync_Private *)agmt_get_priv(ra);
+    PR_ASSERT(dp);
+
+    dp->flatten_tree = value;
+
+    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_flatten_tree\n");
+}
+
+PRBool
+windows_private_get_flatten_tree(const Repl_Agmt *ra)
+{
+    Dirsync_Private *dp;
+
+    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_flatten_tree\n");
+
+    PR_ASSERT(ra);
+    dp = (Dirsync_Private *)agmt_get_priv(ra);
+    PR_ASSERT(dp);
+
+    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_flatten_tree\n");
+
+    return dp->flatten_tree;
+}
+
 
 /*
  * winSyncSubtreePair: <DS_SUBTREE>:<WINDOWS_SUBTREE>
