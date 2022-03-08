@@ -851,7 +851,7 @@ class RUV(object):
                 try:
                     self._rid_url[rid] = pr[2]
                 except IndexError:
-                    break
+                    continue
                 self._rid_rawruv[rid] = r
                 try:
                     self._rid_csn[rid] = pr[3]
