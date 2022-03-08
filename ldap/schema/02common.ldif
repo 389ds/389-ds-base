@@ -154,7 +154,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2357 NAME 'nsTaskCurrentItem' DESC 'Slap
 attributeTypes: ( 2.16.840.1.113730.3.1.2358 NAME 'nsTaskTotalItems' DESC 'Slapi Task total items' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2359 NAME 'nsTaskCreated' DESC 'Slapi Task creation date' SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2375 NAME 'nsTaskWarning' DESC 'Slapi Task warning code' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
-attributeTypes: ( 2.16.840.1.113730.3.1.2385 NAME 'winSyncFlattenTree' DESC 'When set to on, will flatten tree structure in AD replication'  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2389 NAME 'winSyncFlattenTree' DESC 'When set to on, will flatten tree structure in AD replication'  SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
 #
 # objectclasses:
 #

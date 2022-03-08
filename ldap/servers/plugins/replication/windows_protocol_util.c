@@ -4099,9 +4099,9 @@ map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int
              */
             new_dn = slapi_sdn_new_normdn_passin(new_dn_string);
             slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
-                                  "map_entry_dn_inbound - %s - mapped entry to dn [%s]\n",
-                                  agmt_get_long_name(ra),
-                                  slapi_sdn_get_dn(new_dn));
+                          "map_entry_dn_inbound - %s - mapped entry to dn [%s]\n",
+                          agmt_get_long_name(ra),
+                          slapi_sdn_get_dn(new_dn));
         } else {
             /* Error, no username */
             retval = ENTRY_NOTFOUND;
