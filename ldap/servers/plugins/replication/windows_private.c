@@ -359,8 +359,6 @@ windows_private_new()
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_new\n");
-
     dp = (Dirsync_Private *)slapi_ch_calloc(sizeof(Dirsync_Private), 1);
 
     dp->dirsync_maxattributecount = -1;
@@ -374,7 +372,6 @@ windows_private_new()
     dp->windows_treetop = NULL;
     dp->directory_treetop = NULL;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_new\n");
     return dp;
 }
 
@@ -384,7 +381,6 @@ windows_agreement_delete(Repl_Agmt *ra)
     const subtreePair *sp;
 
     Dirsync_Private *dp = (Dirsync_Private *)agmt_get_priv(ra);
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_delete\n");
 
     PR_ASSERT(dp != NULL);
 
@@ -416,7 +412,6 @@ windows_agreement_delete(Repl_Agmt *ra)
     slapi_ch_free((void **)&dp->subtree_pairs);
     slapi_ch_free((void **)&dp);
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_delete\n");
 }
 
 int
@@ -424,14 +419,10 @@ windows_private_get_isnt4(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_isnt4\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_isnt4\n");
 
     return dp->isnt4;
 }
@@ -441,16 +432,12 @@ windows_private_set_isnt4(const Repl_Agmt *ra, int isit)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_isnt4\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
 
     dp->isnt4 = isit;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_isnt4\n");
 }
 
 int
@@ -458,14 +445,10 @@ windows_private_get_iswin2k3(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_iswin2k3\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_iswin2k3\n");
 
     return dp->iswin2k3;
 }
@@ -475,16 +458,12 @@ windows_private_set_iswin2k3(const Repl_Agmt *ra, int isit)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_iswin2k3\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
 
     dp->iswin2k3 = isit;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_iswin2k3\n");
 }
 
 /* Returns a copy of the Slapi_Filter pointer.  The caller should not free it */
@@ -492,8 +471,6 @@ Slapi_Filter *
 windows_private_get_directory_filter(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_directory_filter\n");
 
     PR_ASSERT(ra);
 
@@ -519,8 +496,6 @@ windows_private_get_directory_filter(const Repl_Agmt *ra)
         slapi_ch_free_string(&string_filter);
     }
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_directory_filter\n");
-
     return dp->directory_filter;
 }
 
@@ -529,8 +504,6 @@ Slapi_Filter *
 windows_private_get_windows_filter(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_windows_filter\n");
 
     PR_ASSERT(ra);
 
@@ -552,8 +525,6 @@ windows_private_get_windows_filter(const Repl_Agmt *ra)
         }
     }
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_windows_filter\n");
-
     return dp->windows_filter;
 }
 
@@ -562,8 +533,6 @@ Slapi_Filter *
 windows_private_get_deleted_filter(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_deleted_filter\n");
 
     PR_ASSERT(ra);
 
@@ -577,8 +546,6 @@ windows_private_get_deleted_filter(const Repl_Agmt *ra)
         slapi_ch_free_string(&string_filter);
     }
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_deleted_filter\n");
-
     return dp->deleted_filter;
 }
 
@@ -588,14 +555,10 @@ windows_private_get_windows_subtree(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_windows_subtree\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_windows_subtree\n");
 
     return dp->windows_subtree;
 }
@@ -605,14 +568,10 @@ windows_private_get_windows_domain(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_windows_domain\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_windows_domain\n");
 
     return dp->windows_domain;
 }
@@ -622,8 +581,6 @@ windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_windows_domain\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
@@ -631,8 +588,6 @@ windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain)
 
     slapi_ch_free_string(&dp->windows_domain);
     dp->windows_domain = domain;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_windows_domain\n");
 }
 
 /* Returns a copy of the Slapi_DN pointer, no need to free it */
@@ -641,14 +596,10 @@ windows_private_get_directory_subtree(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_directory_replarea\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_directory_replarea\n");
 
     return dp->directory_subtree;
 }
@@ -660,8 +611,6 @@ windows_private_set_windows_subtree(const Repl_Agmt *ra, Slapi_DN *sdn)
 
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_windows_replarea\n");
-
     PR_ASSERT(ra);
     PR_ASSERT(sdn);
 
@@ -670,8 +619,6 @@ windows_private_set_windows_subtree(const Repl_Agmt *ra, Slapi_DN *sdn)
 
     slapi_sdn_free(&dp->windows_subtree);
     dp->windows_subtree = sdn;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_windows_replarea\n");
 }
 
 /* Takes a copy of the sdn passed in */
@@ -681,8 +628,6 @@ windows_private_set_directory_subtree(const Repl_Agmt *ra, Slapi_DN *sdn)
 
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_directory_replarea\n");
-
     PR_ASSERT(ra);
     PR_ASSERT(sdn);
 
@@ -691,8 +636,6 @@ windows_private_set_directory_subtree(const Repl_Agmt *ra, Slapi_DN *sdn)
 
     slapi_sdn_free(&dp->directory_subtree);
     dp->directory_subtree = sdn;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_directory_replarea\n");
 }
 
 PRBool
@@ -700,13 +643,9 @@ windows_private_create_users(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_create_users\n");
-
     PR_ASSERT(ra);
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_create_users\n");
 
     return dp->create_users_from_dirsync;
 }
@@ -717,15 +656,11 @@ windows_private_set_create_users(const Repl_Agmt *ra, PRBool value)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_create_users\n");
-
     PR_ASSERT(ra);
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
 
     dp->create_users_from_dirsync = value;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_create_users\n");
 }
 
 PRBool
@@ -733,13 +668,9 @@ windows_private_create_groups(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_create_groups\n");
-
     PR_ASSERT(ra);
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_create_groups\n");
 
     return dp->create_groups_from_dirsync;
 }
@@ -750,15 +681,11 @@ windows_private_set_create_groups(const Repl_Agmt *ra, PRBool value)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_create_groups\n");
-
     PR_ASSERT(ra);
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
 
     dp->create_groups_from_dirsync = value;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_create_groups\n");
 }
 
 
@@ -767,13 +694,9 @@ windows_private_get_one_way(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_one_way\n");
-
     PR_ASSERT(ra);
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_one_way\n");
 
     return dp->one_way;
 }
@@ -784,15 +707,11 @@ windows_private_set_one_way(const Repl_Agmt *ra, int value)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_one_way\n");
-
     PR_ASSERT(ra);
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
 
     dp->one_way = value;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_one_way\n");
 }
 
 const char *
@@ -800,13 +719,9 @@ windows_private_get_windows_userfilter(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_windows_userfilter\n");
-
     PR_ASSERT(ra);
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_windows_userfilter\n");
 
     return dp->windows_userfilter;
 }
@@ -817,8 +732,6 @@ windows_private_set_windows_userfilter(const Repl_Agmt *ra, char *filter)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_windows_userfilter\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
@@ -826,8 +739,6 @@ windows_private_set_windows_userfilter(const Repl_Agmt *ra, char *filter)
 
     slapi_ch_free_string(&dp->windows_userfilter);
     dp->windows_userfilter = filter;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_windows_userfilter\n");
 }
 
 const char *
@@ -835,13 +746,9 @@ windows_private_get_directory_userfilter(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_directory_userfilter\n");
-
     PR_ASSERT(ra);
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_directory_userfilter\n");
 
     return dp->directory_userfilter;
 }
@@ -852,8 +759,6 @@ windows_private_set_directory_userfilter(const Repl_Agmt *ra, char *filter)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_directory_userfilter\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
@@ -861,8 +766,6 @@ windows_private_set_directory_userfilter(const Repl_Agmt *ra, char *filter)
 
     slapi_ch_free_string(&dp->directory_userfilter);
     dp->directory_userfilter = filter;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_directory_userfilter\n");
 }
 
 const subtreePair *
@@ -870,13 +773,9 @@ windows_private_get_subtreepairs(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_subtreepairs\n");
-
     PR_ASSERT(ra);
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_subtreepairs\n");
 
     return dp->subtree_pairs;
 }
@@ -887,8 +786,6 @@ windows_private_set_subtreepairs(const Repl_Agmt *ra, char **parray)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_subtreepairs\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
@@ -896,8 +793,6 @@ windows_private_set_subtreepairs(const Repl_Agmt *ra, char **parray)
 
     free_subtree_pairs(&(dp->subtree_pairs));
     dp->subtree_pairs = create_subtree_pairs(parray);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_subtreepairs\n");
 }
 
 void
@@ -905,15 +800,11 @@ windows_private_set_flatten_tree(const Repl_Agmt *ra, PRBool value)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_flatten_tree\n");
-
     PR_ASSERT(ra);
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
 
     dp->flatten_tree = value;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_flatten_tree\n");
 }
 
 PRBool
@@ -921,13 +812,9 @@ windows_private_get_flatten_tree(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_flatten_tree\n");
-
     PR_ASSERT(ra);
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_flatten_tree\n");
 
     return dp->flatten_tree;
 }
@@ -1007,13 +894,9 @@ windows_private_get_windows_treetop(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_windows_treetop\n");
-
     PR_ASSERT(ra);
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_windows_treetop\n");
 
     return dp->windows_treetop;
 }
@@ -1023,8 +906,6 @@ void
 windows_private_set_windows_treetop(const Repl_Agmt *ra, char *treetop)
 {
     Dirsync_Private *dp;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_windows_treetop\n");
 
     PR_ASSERT(ra);
 
@@ -1061,8 +942,6 @@ windows_private_set_windows_treetop(const Repl_Agmt *ra, char *treetop)
             dp->windows_treetop = slapi_sdn_dup(windows_subtree);
         }
     }
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_windows_treetop\n");
 }
 
 const Slapi_DN *
@@ -1070,13 +949,9 @@ windows_private_get_directory_treetop(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_directory_treetop\n");
-
     PR_ASSERT(ra);
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_directory_treetop\n");
 
     return dp->directory_treetop;
 }
@@ -1086,8 +961,6 @@ void
 windows_private_set_directory_treetop(const Repl_Agmt *ra, char *treetop)
 {
     Dirsync_Private *dp;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_directory_treetop\n");
 
     PR_ASSERT(ra);
 
@@ -1124,8 +997,6 @@ windows_private_set_directory_treetop(const Repl_Agmt *ra, char *treetop)
             dp->directory_treetop = slapi_sdn_dup(directory_subtree);
         }
     }
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_directory_treetop\n");
 }
 
 /*
@@ -1142,8 +1013,6 @@ windows_private_dirsync_control(const Repl_Agmt *ra)
     Dirsync_Private *dp;
     char iscritical = PR_TRUE;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_dirsync_control\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
@@ -1159,9 +1028,6 @@ windows_private_dirsync_control(const Repl_Agmt *ra)
     slapi_build_control(REPL_DIRSYNC_CONTROL_OID, ber, iscritical, &control);
 
     ber_free(ber, 1);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_dirsync_control\n");
-
 
     return control;
 }
@@ -1186,8 +1052,6 @@ windows_private_update_dirsync_control(const Repl_Agmt *ra, LDAPControl **contro
 #ifdef FOR_DEBUGGING
     int return_value = LDAP_SUCCESS;
 #endif
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_update_dirsync_control\n");
 
     PR_ASSERT(ra);
 
@@ -1252,9 +1116,6 @@ windows_private_update_dirsync_control(const Repl_Agmt *ra, LDAPControl **contro
 #ifdef FOR_DEBUGGING
     slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name,
                   "<= windows_private_update_dirsync_control - rc=%d\n", return_value);
-#else
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name,
-                  "<= windows_private_update_dirsync_control\n");
 #endif
 }
 
@@ -1263,14 +1124,10 @@ windows_private_dirsync_has_more(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_dirsync_has_more\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_dirsync_has_more\n");
 
     return dp->dirsync_cookie_has_more;
 }
@@ -1280,16 +1137,12 @@ windows_private_null_dirsync_cookie(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_null_dirsync_control\n");
-
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
 
     dp->dirsync_cookie_len = 0;
     slapi_ch_free_string(&dp->dirsync_cookie);
     dp->dirsync_cookie = NULL;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_null_dirsync_control\n");
 }
 
 static Slapi_Mods *
@@ -1316,8 +1169,6 @@ windows_private_save_dirsync_cookie(const Repl_Agmt *ra)
     int rc = 0;
     Slapi_Mods *mods = NULL;
 
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_save_dirsync_cookie\n");
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
@@ -1351,7 +1202,6 @@ windows_private_save_dirsync_cookie(const Repl_Agmt *ra)
     slapi_mods_free(&mods);
     slapi_sdn_free(&sdn);
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_save_dirsync_cookie\n");
     return rc;
 }
 
@@ -1369,7 +1219,6 @@ windows_private_load_dirsync_cookie(const Repl_Agmt *ra)
     Slapi_Entry *entry = NULL;
     Slapi_Attr *attr = NULL;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_load_dirsync_cookie\n");
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
@@ -1412,8 +1261,6 @@ windows_private_load_dirsync_cookie(const Repl_Agmt *ra)
     slapi_sdn_free(&sdn);
     slapi_pblock_destroy(pb);
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_load_dirsync_cookie\n");
-
     return rc;
 }
 
@@ -1423,12 +1270,8 @@ windows_private_get_raw_entry(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_raw_entry\n");
-
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_raw_entry\n");
 
     return dp->raw_entry;
 }
@@ -1438,8 +1281,6 @@ void
 windows_private_set_raw_entry(const Repl_Agmt *ra, Slapi_Entry *e)
 {
     Dirsync_Private *dp;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_raw_entry\n");
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
@@ -1452,8 +1293,6 @@ windows_private_set_raw_entry(const Repl_Agmt *ra, Slapi_Entry *e)
         slapi_entry_free(dp->raw_entry);
         dp->raw_entry = e;
     }
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_raw_entry\n");
 }
 
 /* Setting keep to 1 will cause the current raw entry to remain, even if
@@ -1464,14 +1303,10 @@ windows_private_set_keep_raw_entry(const Repl_Agmt *ra, int keep)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_keep_raw_entry\n");
-
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
 
     dp->keep_raw_entry = keep;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_keep_raw_entry\n");
 }
 
 int
@@ -1479,12 +1314,8 @@ windows_private_get_keep_raw_entry(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_keep_raw_entry\n");
-
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_keep_raw_entry\n");
 
     return dp->keep_raw_entry;
 }
@@ -1494,12 +1325,8 @@ windows_private_get_api_cookie(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_api_cookie\n");
-
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_api_cookie\n");
 
     return dp->api_cookie;
 }
@@ -1509,13 +1336,9 @@ windows_private_set_api_cookie(Repl_Agmt *ra, void *api_cookie)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_api_cookie\n");
-
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
     dp->api_cookie = api_cookie;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_api_cookie\n");
 }
 
 time_t
@@ -1523,14 +1346,10 @@ windows_private_get_sync_interval(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_sync_interval\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_sync_interval\n");
 
     return dp->sync_interval;
 }
@@ -1541,8 +1360,6 @@ windows_private_set_sync_interval(Repl_Agmt *ra, char *str)
     Dirsync_Private *dp;
     time_t tmpval = 0;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_sync_interval\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
@@ -1551,8 +1368,6 @@ windows_private_set_sync_interval(Repl_Agmt *ra, char *str)
     if (str && (tmpval = (time_t)atol(str))) {
         dp->sync_interval = tmpval;
     }
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_sync_interval\n");
 }
 
 int
@@ -1560,14 +1375,10 @@ windows_private_get_move_action(const Repl_Agmt *ra)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_move_action\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_move_action\n");
 
     return dp->move_action;
 }
@@ -1577,15 +1388,11 @@ windows_private_set_move_action(const Repl_Agmt *ra, int value)
 {
     Dirsync_Private *dp;
 
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_move_action\n");
-
     PR_ASSERT(ra);
 
     dp = (Dirsync_Private *)agmt_get_priv(ra);
     PR_ASSERT(dp);
     dp->move_action = value;
-
-    slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_move_action\n");
 }
 
 static PRCallOnceType winsync_callOnce = {0, 0, 0};
@@ -2738,30 +2545,18 @@ static void *test_winsync_api_v3[] = {
 static int
 test_winsync_plugin_start(Slapi_PBlock *pb __attribute__((unused)))
 {
-    slapi_log_err(SLAPI_LOG_TRACE, test_winsync_plugin_name,
-                  "--> test_winsync_plugin_start -- begin\n");
-
     if (slapi_apib_register(WINSYNC_v3_0_GUID, test_winsync_api_v3)) {
         slapi_log_err(SLAPI_LOG_ERR, test_winsync_plugin_name,
                       "test_winsync_plugin_start - Failed to register winsync api -- end\n");
         return -1;
     }
-
-    slapi_log_err(SLAPI_LOG_TRACE, test_winsync_plugin_name,
-                  "<-- test_winsync_plugin_start -- end\n");
     return 0;
 }
 
 static int
 test_winsync_plugin_close(Slapi_PBlock *pb __attribute__((unused)))
 {
-    slapi_log_err(SLAPI_LOG_TRACE, test_winsync_plugin_name,
-                  "--> test_winsync_plugin_close -- begin\n");
-
     slapi_apib_unregister(WINSYNC_v3_0_GUID);
-
-    slapi_log_err(SLAPI_LOG_TRACE, test_winsync_plugin_name,
-                  "<-- test_winsync_plugin_close -- end\n");
     return 0;
 }
 
@@ -2771,9 +2566,6 @@ test_winsync_plugin_close(Slapi_PBlock *pb __attribute__((unused)))
 int
 test_winsync_plugin_init(Slapi_PBlock *pb)
 {
-    slapi_log_err(SLAPI_LOG_TRACE, test_winsync_plugin_name,
-                  "--> test_winsync_plugin_init -- begin\n");
-
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
                          SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN,
@@ -2795,8 +2587,6 @@ test_winsync_plugin_init(Slapi_PBlock *pb)
         return -1;
     }
 
-    slapi_log_err(SLAPI_LOG_TRACE, test_winsync_plugin_name,
-                  "<-- test_winsync_plugin_init -- end\n");
     return 0;
 }
 
