@@ -1145,10 +1145,10 @@ ruv_to_valuearray(RUV *ruv)
     for (ruv_e = dl_get_first(ruv->elements, &cookie);
          NULL != ruv_e;
          ruv_e = dl_get_next(ruv->elements, &cookie)) {
-             /* Skip over an ruv with no purl */
-            if (NULL == ruv_e->replica_purl) {
-                continue;
-            }
+        /* Skip over an ruv with no purl */
+        if (NULL == ruv_e->replica_purl) {
+            continue;
+        }
 
         ruv_element_to_string(ruv_e, &bv, NULL, 0);
         value = slapi_value_new_berval(&bv);
