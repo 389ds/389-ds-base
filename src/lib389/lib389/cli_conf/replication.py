@@ -950,6 +950,8 @@ def add_winsync_agmt(inst, basedn, log, args):
         properties['nsds5replicaupdateschedule'] = args.schedule
     if frac_list is not None:
         properties['nsds5replicatedattributelist'] = frac_list
+    if args.flatten_tree is True:
+        properties['winsyncflattentree'] = "on"
 
     # Create the agmt
     try:
@@ -1579,6 +1581,7 @@ def create_parser(subparsers):
     winsync_agmt_add_parser.add_argument('--busy-wait-time', help="Sets the amount of time in seconds a supplier should wait after "
                                          "a consumer sends back a busy response before making another attempt to acquire access")
     winsync_agmt_add_parser.add_argument('--session-pause-time', help="Sets the amount of time in seconds a supplier should wait between update sessions")
+    winsync_agmt_add_parser.add_argument('--flatten-tree', action='store_true', default=False, help="By default, the tree structure of AD is preserved into 389. This MAY cause replication to fail in some cases, as you may need to create missing OU's to recreate the same treestructure. This setting when enabled, removes the tree structure of AD and flattens all entries into the ds-subtree. This does NOT affect or change the tree structure of the AD directory.")
     winsync_agmt_add_parser.add_argument('--init', action='store_true', default=False, help="Initializes the agreement after creating it")
 
     # Set - Note can not use add's parent args because for "set" there are no "required=True" args

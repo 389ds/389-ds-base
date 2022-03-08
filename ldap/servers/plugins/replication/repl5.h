@@ -176,6 +176,7 @@ extern const char *type_winsyncMoveAction;
 extern const char *type_winSyncWindowsFilter;
 extern const char *type_winSyncDirectoryFilter;
 extern const char *type_winSyncSubtreePair;
+extern const char *type_winSyncFlattenTree;
 
 /* To Allow Consumer Initialization when adding an agreement - */
 extern const char *type_nsds5BeginReplicaRefresh;

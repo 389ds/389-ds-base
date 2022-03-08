@@ -4038,6 +4038,7 @@ map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int
             const subtreePair *subtree_pairs = windows_private_get_subtreepairs(ra);
             const subtreePair *sp = NULL;
             const Slapi_DN *remote_sdn = slapi_entry_get_sdn_const(e);
+            const PRBool flatten_tree = windows_private_get_flatten_tree(ra);
 
             if (subtree_pairs) {
                 for (sp = subtree_pairs; sp && sp->ADsubtree; sp++) {
@@ -4056,15 +4057,21 @@ map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int
                 goto error;
             }
 
-            if (sp) {
-                container_str = extract_container(slapi_entry_get_sdn_const(e), sp->ADsubtree);
-            } else {
-                container_str = extract_container(slapi_entry_get_sdn_const(e),
-                                                  windows_private_get_windows_subtree(ra));
+            if (!flatten_tree) {
+                if (sp) {
+                    container_str = extract_container(slapi_entry_get_sdn_const(e), sp->ADsubtree);
+                } else {
+                    container_str = extract_container(slapi_entry_get_sdn_const(e),
+                                                      windows_private_get_windows_subtree(ra));
+                }
             }
             /* Local DNs for users and groups are different */
             if (is_user) {
-                new_dn_string = slapi_create_dn_string("uid=\"%s\",%s%s", username, container_str, suffix);
+                if (flatten_tree) {
+                    new_dn_string = slapi_create_dn_string("uid=\"%s\",%s", username, suffix);
+                } else {
+                    new_dn_string = slapi_create_dn_string("uid=\"%s\",%s%s", username, container_str, suffix);
+                }
                 winsync_plugin_call_get_new_ds_user_dn_cb(ra,
                                                           windows_private_get_raw_entry(ra),
                                                           e,
@@ -4072,7 +4079,11 @@ map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int
                                                           sp ? sp->DSsubtree : windows_private_get_directory_subtree(ra),
                                                           sp ? sp->ADsubtree : windows_private_get_windows_subtree(ra));
             } else {
-                new_dn_string = slapi_create_dn_string("cn=\"%s\",%s%s", username, container_str, suffix);
+                if (flatten_tree) {
+                    new_dn_string = slapi_create_dn_string("cn=\"%s\",%s", username, suffix);
+                } else {
+                    new_dn_string = slapi_create_dn_string("cn=\"%s\",%s%s", username, container_str, suffix);
+                }
                 if (is_group) {
                     winsync_plugin_call_get_new_ds_group_dn_cb(ra,
                                                                windows_private_get_raw_entry(ra),
@@ -4087,6 +4098,10 @@ map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int
              * which is normalized. Thus, we can use _normdn_.
              */
             new_dn = slapi_sdn_new_normdn_passin(new_dn_string);
+            slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
+                          "map_entry_dn_inbound - %s - mapped entry to dn [%s]\n",
+                          agmt_get_long_name(ra),
+                          slapi_sdn_get_dn(new_dn));
         } else {
             /* Error, no username */
             retval = ENTRY_NOTFOUND;
