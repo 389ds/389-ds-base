@@ -303,7 +303,7 @@ export class SuffixMonitor extends React.Component {
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
-                                                        <TextContent>
+                                                        <TextContent title="The entry cache hit ratio (entrycachehitratio)">
                                                             <Text className="ds-margin-top" component={TextVariants.h3}>
                                                                 Cache Hit Ratio
                                                             </Text>
@@ -349,7 +349,7 @@ export class SuffixMonitor extends React.Component {
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
-                                                        <TextContent>
+                                                        <TextContent title="The amount of the cache that is being used: max size (maxentrycachesize) vs current size (currententrycachesize)">
                                                             <Text className="ds-margin-top" component={TextVariants.h3}>
                                                                 Cache Utilization
                                                             </Text>
@@ -452,7 +452,7 @@ export class SuffixMonitor extends React.Component {
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
-                                                        <TextContent>
+                                                        <TextContent title="The DN cache hit ratio (dncachehitratio)">
                                                             <Text className="ds-margin-top" component={TextVariants.h3}>
                                                                 Cache Hit Ratio
                                                             </Text>
@@ -498,7 +498,7 @@ export class SuffixMonitor extends React.Component {
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
-                                                        <TextContent>
+                                                        <TextContent title="The amount of the cache that is being used: max size (maxdncachesize) vs current size (currentdncachesize)">
                                                             <Text className="ds-margin-top" component={TextVariants.h3}>
                                                                 Cache Utilization
                                                             </Text>
