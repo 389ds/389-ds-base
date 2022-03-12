@@ -759,7 +759,7 @@ export class DSInstance extends React.Component {
                                     key={this.state.serverId}
                                 />
                             </Tab>
-                            <Tab eventKey={7} title={<TabTitleText><b>Users & Groups</b></TabTitleText>}>
+                            <Tab eventKey={7} title={<TabTitleText><b>LDAP Browser</b></TabTitleText>}>
                                 <LDAPEditor
                                     key="ldap-editor"
                                     addNotification={this.addNotification}
