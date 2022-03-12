@@ -369,6 +369,8 @@ class EditorTreeView extends React.Component {
                         break;
                     default:
                         console.log(`Got an unexpected line ==> ${myObj.line}`);
+                        console.log(`Got an unexpected line attr ==> ${myObj.line.attribute}`);
+                        console.log(`Got an unexpected line value ==> ${myObj.line.value}`);
                 }
                 // Update the entry table once all encoded attributes have been processed:
                 if (encodedValues.length === numberDecoded) {
@@ -504,6 +506,18 @@ class EditorTreeView extends React.Component {
             </>
         );
 
+        const loadingEntryComponent = (
+            <div className="ds-margin-top-xlg ds-center">
+                <TextContent>
+                    <Text component={TextVariants.h3}>
+                        Loading ...
+                    </Text>
+                </TextContent>
+                <Spinner className="ds-margin-top-lg" size="lg" />
+            </div>
+        );
+
+
         const finishedAt = new Date();
         finishedAt.setTime(this.props.timeOfCompletion);
 
@@ -596,7 +610,7 @@ class EditorTreeView extends React.Component {
                             }
                             <div className= "ds-margin-bottom" />
 
-                            { searching && loadingStateComponent }
+                            { searching && loadingEntryComponent }
 
                             { firstClickOnTree && !loading && !searching && isValidData &&
                                 <Card isSelectable>

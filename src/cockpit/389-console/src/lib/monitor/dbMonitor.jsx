@@ -234,7 +234,7 @@ export class DatabaseMonitor extends React.Component {
                                 <CardBody>
                                     <div className="ds-container">
                                         <div className="ds-center">
-                                            <TextContent className="ds-margin-top-xlg">
+                                            <TextContent className="ds-margin-top-xlg" title="The database cache hit ratio (dbcachehitratio).">
                                                 <Text component={TextVariants.h3}>
                                                     Cache Hit Ratio
                                                 </Text>
@@ -330,7 +330,7 @@ export class DatabaseMonitor extends React.Component {
                                         <CardBody>
                                             <div className="ds-container">
                                                 <div className="ds-center">
-                                                    <TextContent className="ds-margin-top-xlg">
+                                                    <TextContent className="ds-margin-top-xlg"  title="The normalized DN cache hit ratio (normalizeddncachehitratio).">
                                                         <Text component={TextVariants.h3}>
                                                             Cache Hit Ratio
                                                         </Text>
@@ -376,7 +376,7 @@ export class DatabaseMonitor extends React.Component {
                                         <CardBody>
                                             <div className="ds-container">
                                                 <div className="ds-center">
-                                                    <TextContent className="ds-margin-top-lg">
+                                                    <TextContent className="ds-margin-top-lg" title="The amount of the cache that is being used: max size (maxnormalizeddncachesize) vs current size (currentnormalizeddncachesize)">
                                                         <Text component={TextVariants.h2}>
                                                             Cache Utilization
                                                         </Text>
