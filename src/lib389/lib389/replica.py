@@ -951,19 +951,25 @@ class RUV(object):
 
 
 class ChangelogLDIF(object):
-    def __init__(self, file_path, logger=None):
+    def __init__(self, file_path, logger=None, output_file=None):
         """A class for working with Changelog LDIF file
 
         :param file_path: LDIF file path
         :type file_path: str
         :param logger: A logging object
         :type logger: logging.Logger
+        :param output_file: A specific output file
+        :type output_file: str
         """
 
         if logger is not None:
             self._log = logger
         else:
             self._log = logging.getLogger(__name__)
+        if output_file is None:
+            self.output_file = file_path
+        else:
+            self.output_file = output_file
         self.file_path = file_path
 
     def grep_csn(self):
@@ -973,7 +979,7 @@ class ChangelogLDIF(object):
         :type file: str
         """
 
-        self._log.info(f"# LDIF File: {self.file_path}")
+        self._log.info(f"# LDIF File: {self.output_file}")
         with open(self.file_path) as f:
             for line in f.readlines():
                 if "ruv:" in line or "csn:" in line:
@@ -1006,7 +1012,7 @@ class ChangelogLDIF(object):
         :type file: str
         """
 
-        self._log.info(f"# LDIF File: {self.file_path}")
+        self._log.info(f"# LDIF File: {self.output_file}")
         with open(self.file_path) as f:
             encoded_str = ""
             for line in f.readlines():
@@ -1674,7 +1680,7 @@ class Replicas(DSLdapObjects):
             replica._populate_suffix()
         return replica
 
-    def process_and_dump_changelog(self, replica_roots=[], csn_only=False, preserve_ldif_done=False, log=None):
+    def process_and_dump_changelog(self, replica_roots=[], csn_only=False, preserve_ldif_done=False, log=None, output_file=None):
         """Dump and decode Directory Server replication changelog
 
         :param replica_roots: Replica suffixes that need to be processed
@@ -1720,7 +1726,7 @@ class Replicas(DSLdapObjects):
                 if os.path.getmtime(file_path) < current_time:
                     continue
                 got_ldif = True
-                cl_ldif = ChangelogLDIF(file_path, log)
+                cl_ldif = ChangelogLDIF(file_path, log, output_file)
 
                 if csn_only:
                     cl_ldif.grep_csn()
@@ -1766,7 +1772,7 @@ class Replicas(DSLdapObjects):
             changelog_ldif_done = [i.lower() for i in cl_dir_content if i.lower() == f"{replica_name}.ldif.done"]
 
             if changelog_ldif:
-                replica.begin_task_cl2ldif()
+                replica.begin_task_ldif2cl()
             elif changelog_ldif_done:
                 ldif_done_file = os.path.join(cl_dir, changelog_ldif_done[0])
                 ldif_file = os.path.join(cl_dir, f"{replica_name}.ldif")
@@ -1774,7 +1780,7 @@ class Replicas(DSLdapObjects):
                 if ldif_file_exists:
                     copy_with_permissions(ldif_file, f'{ldif_file}.backup')
                 copy_with_permissions(ldif_done_file, ldif_file)
-                replica.begin_task_cl2ldif()
+                replica.begin_task_ldif2cl()
                 os.remove(ldif_file)
                 if ldif_file_exists:
                     os.rename(f'{ldif_file}.backup', ldif_file)
