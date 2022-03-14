@@ -43,6 +43,7 @@ from lib389.passwd import password_generate
 from lib389.nss_ssl import NssSsl, CERT_NAME
 from lib389.paths import Paths
 from lib389.config import LDBMConfig
+from lib389.utils import get_default_db_lib
 from lib389._constants import (
     DSRC_CONTAINER,
     CONTAINER_TLS_SERVER_KEY,
@@ -89,14 +90,17 @@ def _begin_environment_config():
     # TODO: Should we set replication agreements from env?
     autotune_pct = os.getenv("DS_MEMORY_PERCENTAGE", None)
     if autotune_pct is not None:
-        try:
-            autotune_pct = int(autotune_pct)
-        except:
-            log.error("Invalid DS_MEMORY_PERCENTAGE - resetting to system default value")
-            autotune_pct = 0
-        log.debug("Setting LDBM Autotune Percentage to: %s", autotune_pct)
-        ldbmconfig = LDBMConfig(inst)
-        ldbmconfig.set("nsslapd-cache-autosize", str(autotune_pct))
+        if get_default_db_lib() == "mdb":
+            log.warning("DS_MEMORY_PERCENTAGE is present, but setting entry cache is not supported for MDB")
+        else:
+            try:
+                autotune_pct = int(autotune_pct)
+            except:
+                log.warning("Invalid DS_MEMORY_PERCENTAGE - resetting to system default value")
+                autotune_pct = 0
+            log.debug("Setting LDBM Autotune Percentage to: %s", autotune_pct)
+            ldbmconfig = LDBMConfig(inst)
+            ldbmconfig.set("nsslapd-cache-autosize", str(autotune_pct))
 
     inst.close()
 
@@ -274,6 +278,10 @@ def begin_magic():
         basedn = '# basedn = dc=example,dc=com'
         suffix = os.getenv("SUFFIX_NAME")
         if suffix is not None:
+            log.warning("SUFFIX_NAME is deprecated, please use DS_SUFFIX_NAME instead")
+        else:
+            suffix = os.getenv("DS_SUFFIX_NAME")
+        if suffix is not None:
             basedn = f'basedn = {suffix}'
         config_file = """
 [localhost]
@@ -295,6 +303,10 @@ binddn = cn=Directory Manager
     _begin_check_reindex()
 
     loglevel = os.getenv("ERRORLOG_LEVEL")
+    if loglevel is not None:
+        log.warning("ERRORLOG_LEVEL is deprecated, please use DS_ERRORLOG_LEVEL instead")
+    else:
+        loglevel = os.getenv("DS_ERRORLOG_LEVEL")
     if loglevel is not None:
         try:
             n_loglevel = str(int(loglevel) | 266354688)
