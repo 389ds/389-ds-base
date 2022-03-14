@@ -848,7 +848,11 @@ class RUV(object):
                 # Don't add rids if they have no csn (no writes) yet.
                 rid = pr[1]
                 self._rids.append(rid)
-                self._rid_url[rid] = pr[2]
+                try:
+                    self._rid_url[rid] = pr[2]
+                except IndexError:
+                    self._rids.remove(rid)
+                    continue
                 self._rid_rawruv[rid] = r
                 try:
                     self._rid_csn[rid] = pr[3]
