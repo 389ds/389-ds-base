@@ -10,6 +10,7 @@ import re
 import os
 import json
 import ldap
+import logging
 import stat
 from shutil import copyfile
 from getpass import getpass
@@ -1086,17 +1087,20 @@ def dump_cl(inst, basedn, log, args):
         replicas.process_and_dump_changelog(replica_roots=args.replica_roots,
                                             csn_only=args.csn_only,
                                             preserve_ldif_done=args.preserve_ldif_done,
-                                            log=log)
+                                            log=log, output_file=args.output_file)
     else:
         try:
             assert os.path.exists(args.changelog_ldif)
         except AssertionError:
             raise FileNotFoundError(f"File {args.changelog_ldif} was not found")
-        cl_ldif = ChangelogLDIF(args.changelog_ldif, log)
+        cl_ldif = ChangelogLDIF(args.changelog_ldif, log, output_file=args.output_file)
         if args.csn_only:
             cl_ldif.grep_csn()
         else:
             cl_ldif.decode()
+
+    if args.output_file:
+        log.removeHandler(fh)
 
 
 def restore_cl_ldif(inst, basedn, log, args):
@@ -1233,7 +1237,7 @@ def create_parser(subparsers):
     repl_dump_cl.add_argument('-i', '--changelog-ldif',
                               help="If you already have a ldif-like changelog, but the changes in that file are encoded,"
                                    " you may use this option to decode that ldif-like changelog. It should be base64 encoded.")
-    repl_dump_cl.add_argument('-o', '--output-file', help="Path name for the final result. Default to STDOUT if omitted.")
+    repl_dump_cl.add_argument('-o', '--output-file', default=None, help="Path name for the final result. Default to STDOUT if omitted.")
     repl_dump_cl.add_argument('-r', '--replica-roots', nargs="+",
                               help="Specify replica roots whose changelog you want to dump. The replica "
                                    "roots may be seperated by comma. All the replica roots would be dumped if the option is omitted.")
