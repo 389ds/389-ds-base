@@ -851,6 +851,7 @@ class RUV(object):
                 try:
                     self._rid_url[rid] = pr[2]
                 except IndexError:
+                    self._rids.remove(rid)
                     continue
                 self._rid_rawruv[rid] = r
                 try:
