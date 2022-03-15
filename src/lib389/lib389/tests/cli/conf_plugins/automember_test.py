@@ -33,7 +33,6 @@ def test_namenotexists_listdefinition(topology):
     
     with pytest.raises(ldap.NO_SUCH_OBJECT):
         automember_cli.list_definition(topology.standalone, None, topology.logcap.log, args)
-        log.info("Definition for instance {} does not exist".format(args.name))
         
 
 def test_createdefinition(topology):
@@ -69,7 +68,6 @@ def test_invalidattributes_createdefinition(topology):
 
     with pytest.raises(ldap.INVALID_SYNTAX):
         automember_cli.create_definition(topology.standalone, None, topology.logcap.log, args)
-        log.info("There are invalid attributes in the definition.")
 
 
 def test_ifnameexists_createdefinition(topology):
@@ -88,7 +86,6 @@ def test_ifnameexists_createdefinition(topology):
     
     with pytest.raises(ldap.ALREADY_EXISTS):
         automember_cli.create_definition(topology.standalone, None, topology.logcap.log, args)
-        log.info("Definition for instance {} already exists.".format(args.name))
 
 
 def test_editdefinition(topology):
@@ -119,4 +116,3 @@ def test_nonexistentinstance_removedefinition(topology):
 
     with pytest.raises(ldap.NO_SUCH_OBJECT):
         automember_cli.remove_definition(topology.standalone, None, topology.logcap.log, args)
-        log.info("Definition for instance {} does not exist.".format(args.name))

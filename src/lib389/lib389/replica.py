@@ -36,7 +36,7 @@ from lib389.idm.services import ServiceAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.conflicts import ConflictEntries
 from lib389.lint import (DSREPLLE0001, DSREPLLE0002, DSREPLLE0003, DSREPLLE0004,
-                         DSREPLLE0005)
+                         DSREPLLE0005, DSCLLE0001)
 
 
 class ReplicaLegacy(object):
@@ -1588,8 +1588,7 @@ class Replica(DSLdapObject):
                 # it should have all the logic for figuring out the credentials
                 credentials = get_credentials(host, port)
                 if not credentials["binddn"]:
-                    report_data[supplier] = {"status": "Unavailable",
-                                             "reason": "Bind DN was not specified"}
+                    self._log.debug("Bind DN was not specified")
                     continue
 
                 # Open a connection to the consumer
@@ -1810,8 +1809,8 @@ class Replicas(DSLdapObjects):
     def restore_changelog(self, replica_root, log=None):
         """Restore Directory Server replication changelog from '.ldif' or '.ldif.done' file
 
-        :param replica_roots: Replica suffixes that need to be processed (and optional LDIF file path)
-        :type replica_roots: list of str
+        :param replica_root: Replica suffixes that need to be processed (and optional LDIF file path)
+        :type replica_root: list of str
         :param log: The logger object
         :type log: logger
         """
@@ -1820,7 +1819,7 @@ class Replicas(DSLdapObjects):
         try:
             replica = self.get(replica_root)
         except:
-            raise ValueError(f'The specified root "{repl_root}" is not enbaled for replication')
+            raise ValueError(f'The specified root "{replica_root}" is not enbaled for replication')
 
         replica_name = replica.get_attr_val_utf8_l("nsDS5ReplicaName")
         ldif_dir = self._instance.get_ldif_dir()
@@ -1833,8 +1832,8 @@ class Replicas(DSLdapObjects):
             if not replica.task_finished():
                 raise ValueError("The changelog import task (LDIF2CL) did not complete in time")
         elif changelog_ldif_done:
-            ldif_done_file = os.path.join(cl_dir, changelog_ldif_done[0])
-            ldif_file = os.path.join(cl_dir, f"{replica_name}_cl.ldif")
+            ldif_done_file = os.path.join(ldif_dir, changelog_ldif_done[0])
+            ldif_file = os.path.join(ldif_dir, f"{replica_name}_cl.ldif")
             ldif_file_exists = os.path.exists(ldif_file)
             if ldif_file_exists:
                 copy_with_permissions(ldif_file, f'{ldif_file}.backup')
@@ -1846,7 +1845,7 @@ class Replicas(DSLdapObjects):
             if ldif_file_exists:
                 os.rename(f'{ldif_file}.backup', ldif_file)
         else:
-            log.error(f"Changelog LDIF for '{repl_root}' was not found")
+            log.error(f"Changelog LDIF for '{replica_root}' was not found")
 
 
 class BootstrapReplicationManager(DSLdapObject):
