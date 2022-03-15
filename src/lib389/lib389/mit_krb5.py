@@ -92,7 +92,7 @@ class MitKrb5(object):
         # Raise a scary warning about eating your krb settings
         if self.warnings:
             print("This will alter / erase your krb5 and kdc settings.")
-            raw_input("Ctrl-C to exit, or press ENTER to continue.")
+            input("Ctrl-C to exit, or press ENTER to continue.")
         print("Kerberos primary password: %s" % self.krb_primary_password)
 
         # If we don't have the directories for this, create them.
@@ -169,7 +169,7 @@ class MitKrb5(object):
         assert(self.check_realm())
         if self.warnings:
             print("This will ERASE your kdc settings.")
-            raw_input("Ctrl-C to exit, or press ENTER to continue.")
+            input("Ctrl-C to exit, or press ENTER to continue.")
         # If the pid exissts, try to kill it.
         if os.path.isfile(self.kdcpid):
             with open(self.kdcpid, 'r') as pfile:

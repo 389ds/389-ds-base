@@ -21,6 +21,7 @@ MUST_ATTRIBUTES_NESTED = [
     'cn',
     'nsRoleDN'
 ]
+RDN = 'cn'
 
 class RoleState(Enum):
     ACTIVATED = "activated"
@@ -47,7 +48,7 @@ class Role(DSLdapObject):
 
     def __init__(self, instance, dn=None):
         super(Role, self).__init__(instance, dn)
-        self._rdn_attribute = 'cn'
+        self._rdn_attribute = RDN
         self._create_objectclasses = [
             'top',
             'LDAPsubentry',
@@ -256,7 +257,7 @@ class FilteredRole(Role):
 
     def __init__(self, instance, dn=None):
         super(FilteredRole, self).__init__(instance, dn)
-        self._rdn_attribute = 'cn'
+        self._rdn_attribute = RDN
         self._create_objectclasses = ['nsComplexRoleDefinition', 'nsFilteredRoleDefinition']
 
         self._protected = False
@@ -291,7 +292,7 @@ class ManagedRole(Role):
 
     def __init__(self, instance, dn=None):
         super(ManagedRole, self).__init__(instance, dn)
-        self._rdn_attribute = 'cn'
+        self._rdn_attribute = RDN
         self._create_objectclasses = ['nsSimpleRoleDefinition', 'nsManagedRoleDefinition']
 
         self._protected = False
@@ -327,7 +328,7 @@ class NestedRole(Role):
     def __init__(self, instance, dn=None):
         super(NestedRole, self).__init__(instance, dn)
         self._must_attributes = MUST_ATTRIBUTES_NESTED
-        self._rdn_attribute = 'cn'
+        self._rdn_attribute = RDN
         self._create_objectclasses = ['nsComplexRoleDefinition', 'nsNestedRoleDefinition']
 
         self._protected = False
