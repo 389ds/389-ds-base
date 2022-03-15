@@ -23,10 +23,8 @@ from setuptools.command.build_py import build_py
 here = path.abspath(path.dirname(__file__))
 
 # fedora/rhel versioning or PEP440?; ATM semantic versioning
-# with open(path.join(here, 'VERSION'), 'r') as version_file:
-# version = version_file.read().strip()
 
-version = "1.4.0.1"
+version = "@RPM_VERSION@"
 
 with open(path.join(here, 'README.md'), 'r') as f:
     long_description = f.read()

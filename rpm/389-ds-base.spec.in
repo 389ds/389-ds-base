@@ -497,6 +497,7 @@ autoreconf -fiv
 
 %if 0%{?rhel} > 7 || 0%{?fedora}
 # lib389
+make src/lib389/setup.py
 pushd ./src/lib389
 %py3_build
 popd
