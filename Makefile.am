@@ -570,7 +570,7 @@ dist_noinst_DATA = \
 	$(srcdir)/VERSION.sh \
 	$(srcdir)/wrappers/*.in \
 	$(srcdir)/dirsrvtests \
-	$(srcdir)/src/lib389/setup.py \
+	$(srcdir)/src/lib389/setup.py.in \
 	$(srcdir)/src/lib389
 
 
