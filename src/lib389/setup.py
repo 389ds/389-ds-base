@@ -13,7 +13,8 @@
 #
 
 from setuptools import setup, find_packages
-from os import path
+from os import path, environ
+from sys import argv
 import build_manpages as bm
 if bm.__version__ < '2.1':
     from build_manpages import build_manpages as bm
@@ -29,6 +30,18 @@ version = "1.4.0.1"
 
 with open(path.join(here, 'README.md'), 'r') as f:
     long_description = f.read()
+
+#
+# For some historical reason when using prefix install 
+#  files that should be in /usr/sbin/, /usr/share/ are
+#  in $PREFIX/sbin, $PREFIX/share
+# So lets mimick this behavior
+
+prefix=environ.get('INSTALL_PREFIX', '/usr')
+print(f"argv={argv}")
+if prefix != "/usr" and 'install' in argv and '--prefix' not in argv:
+    argv.append('--prefix')
+    argv.append(prefix)
 
 setup(
     name='lib389',
@@ -59,21 +72,21 @@ setup(
 
     # find lib389/clitools -name ds\* -exec echo \''{}'\', \;
     data_files=[
-        ('/usr/sbin/', [
+        (prefix+'/sbin/', [
             'cli/dsctl',
             'cli/dsconf',
             'cli/dscreate',
             'cli/dsidm',
             'cli/openldap_to_ds',
             ]),
-        ('/usr/share/man/man8', [
+        (prefix+'/share/man/man8', [
             'man/dsctl.8',
             'man/dsconf.8',
             'man/dscreate.8',
             'man/dsidm.8',
             'man/openldap_to_ds.8',
             ]),
-        ('/usr/libexec/dirsrv/', [
+        (prefix+'/libexec/dirsrv/', [
             'cli/dscontainer',
             ]),
     ],
