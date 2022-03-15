@@ -509,6 +509,7 @@ class Backend(DSLdapObject):
 
     def _lint_cl_trimming(self):
         """Check that cl trimming is at least defined to prevent unbounded growth"""
+        suffix = self.get_attr_val_utf8('nsslapd-suffix')
         bename = self.lint_uid()
         replicas = Replicas(self._instance)
         try:
