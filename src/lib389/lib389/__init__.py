@@ -241,7 +241,9 @@ def _ds_shutil_copytree(src, dst, symlinks=False, ignore=None, copy_function=cop
                     # code with a custom `copy_function` may rely on copytree
                     # doing the right thing.
                     os.symlink(linkto, dstname)
-                    copystat(srcname, dstname, follow_symlinks=not symlinks)
+                    shutil.copystat(
+                        srcname, dstname, follow_symlinks=not symlinks
+                    )
                 else:
                     # ignore dangling symlink if the flag is on
                     if not os.path.exists(linkto) and ignore_dangling_symlinks:
@@ -303,6 +305,7 @@ class DirSrv(SimpleLDAPObject, object):
 
             @raise ldap.CONFIDENTIALITY_REQUIRED - missing TLS:
         """
+        uri = self.toLDAPURL()
         if hasattr(ldap, 'PYLDAP_VERSION') and MAJOR >= 3:
             super(DirSrv, self).__init__(uri, bytes_mode=False, trace_level=TRACE_LEVEL)
         else:
@@ -922,7 +925,7 @@ class DirSrv(SimpleLDAPObject, object):
         with suppress(Exception):
             dse_ldif = DSEldif(None, self)
             self._db_lib = dse_ldif.get(DN_CONFIG_LDBM, "nsslapd-backend-implement", single=True)
-            return _self.db_lib
+            return self._db_lib
         return get_default_db_lib()
 
     def delete(self):
@@ -1471,7 +1474,7 @@ class DirSrv(SimpleLDAPObject, object):
         for f in glob.glob("%s*" % self.accesslog):
             self.log.debug("restoreFS: before restore remove file %s", f)
             os.remove(f)
-        log.debug("restoreFS: remove audit logs %s" % self.accesslog)
+        self.log.debug("restoreFS: remove audit logs %s" % self.auditlog)
         for f in glob.glob("%s*" % self.auditlog):
             self.log.debug("restoreFS: before restore remove file %s", f)
             os.remove(f)

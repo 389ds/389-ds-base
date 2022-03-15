@@ -14,6 +14,7 @@ import binascii
 from ldap.cidict import cidict
 import sys
 
+from lib389.exceptions import MissingEntryError
 from lib389._constants import *
 from lib389.properties import *
 from lib389.utils import (ensure_str, ensure_bytes, ensure_list_bytes, display_log_data)
