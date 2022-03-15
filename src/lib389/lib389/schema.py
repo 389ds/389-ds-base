@@ -710,7 +710,7 @@ class SchemaLegacy(object):
         if len(matchingRule) != 1:
             # This is an error.
             if json:
-                raise ValueError('Could not find matchingrule: ' + objectclassname)
+                raise ValueError('Could not find matchingrule: ' + mr_name)
             else:
                 return None
         matchingRule = matchingRule[0]

@@ -15,8 +15,9 @@ from lib389.idm.role import (
     FilteredRoles,
     NestedRoles,
     MUST_ATTRIBUTES,
-    MUST_ATTRIBUTES_NESTED
-    )
+    MUST_ATTRIBUTES_NESTED,
+    RDN,
+)
 from lib389.cli_base import (
     populate_attr_arguments,
     _get_arg,

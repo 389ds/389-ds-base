@@ -19,6 +19,7 @@ import time
 import shutil
 import subprocess
 import tarfile
+import urllib
 import re
 import glob
 import pwd
@@ -487,7 +488,7 @@ class DirSrvTools(object):
         """run the remove instance command"""
         prog = os.path.join(_ds_paths.sbin_dir, 'dsctl')
         try:
-            cmd = "%s slapd-%s remove --do-it" % (prog, self.serverid)
+            cmd = "%s slapd-%s remove --do-it" % (prog, dirsrv.serverid)
             log.info('Running: {}'.format(" ".join(cmd)))
             subprocess.check_call(cmd)
         except subprocess.CalledProcessError as e:
@@ -508,7 +509,8 @@ class DirSrvTools(object):
                 instance.prefix
                 instance.backup
         '''
-        instance = lib389.DirSrv(verbose=True)
+        from lib389 import DirSrv
+        instance = DirSrv(verbose=True)
         instance.allocate(args)
 
         return instance

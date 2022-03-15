@@ -204,7 +204,7 @@ class Paths(object):
                 raise KeyError('Invalid defaults.inf, missing key %s' % k)
         return True
 
-    def _pretty_exception(err, msg):
+    def _pretty_exception(self, err, msg):
         # Remap LDAPError exceptions to get a nicer stack than python-ldap one
         # Lets grab the data from the exception (a bit painfull but I did not find any better way)
         result = None
@@ -250,7 +250,7 @@ class Paths(object):
                 # Search in config.
                 break
             if err is not None:
-                raise _pretty_exception(err, f"while searching attribute {attr} in entry {dn} on server {self.serverid}")
+                raise self._pretty_exception(err, f"while searching attribute {attr} in entry {dn} on server {self.serverid}")
             # If the server doesn't have it, fall back to our configuration.
             if attr is not None:
                 v = ensure_str(ent.getValue(attr))
