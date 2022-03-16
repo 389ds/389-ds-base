@@ -21,7 +21,8 @@ from itertools import permutations
 from lib389._constants import *
 from lib389.properties import *
 from lib389.utils import (normalizeDN, escapeDNValue, ensure_bytes, ensure_str,
-                          ensure_list_str, ds_is_older, copy_with_permissions)
+                          ensure_list_str, ds_is_older, copy_with_permissions,
+                          ds_supports_new_changelog)
 from lib389 import DirSrv, Entry, NoSuchEntryError, InvalidArgumentError
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.passwd import password_generate
