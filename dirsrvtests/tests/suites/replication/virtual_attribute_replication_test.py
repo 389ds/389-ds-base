@@ -15,6 +15,7 @@ from lib389.idm.organization import Organization
 from lib389.topologies import topology_m1c1 as topo
 from lib389.idm.role import FilteredRoles, ManagedRoles
 from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
+from lib389.replica import ReplicationManager
 
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
@@ -87,6 +88,10 @@ def test_vattr_on_cos_definition_with_replication(topo, reset_ignore_vattr):
     c.start()
     log.info("Delete a cos definition")
     cosdef.delete()
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    log.info("Check Delete was propagated")
+    repl.wait_for_replication(s, c)
+
     log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs is back to ON over consumer")
     s.restart()
     c.restart()
