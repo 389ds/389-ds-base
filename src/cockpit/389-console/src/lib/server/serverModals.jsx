@@ -125,7 +125,7 @@ export class SASLMappingModal extends React.Component {
                         <GridItem span={4}>
                             <Button
                                 className="ds-left-margin"
-                                isDisabled={this.props.testBtnDisabled}
+                                isDisabled={this.props.testBtnDisabled || this.props.error.saslMapRegex}
                                 variant="primary"
                                 onClick={this.props.handleTestRegex}
                             >
