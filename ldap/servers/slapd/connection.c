@@ -1831,9 +1831,11 @@ connection_threadmain()
                 PR_ExitMonitor(conn->c_mutex);
             }
             /* ps_add makes a shallow copy of the pb - so we
-                 * can't free it or init it here - just set operation to NULL.
-                 * ps_send_results will call connection_remove_operation_ext to free it
-                 */
+             * can't free it or init it here - just set operation to NULL.
+             * ps_send_results will call connection_remove_operation_ext to free it
+             * The connection_thread private pblock ('pb') has be cloned and should only
+             * be reinit (slapi_pblock_init)
+             */
             slapi_pblock_set(pb, SLAPI_OPERATION, NULL);
             slapi_pblock_init(pb);
         } else {
