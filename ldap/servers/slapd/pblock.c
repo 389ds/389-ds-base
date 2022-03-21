@@ -292,6 +292,12 @@ _pblock_assert_pb_deprecated(Slapi_PBlock *pblock)
     }
 }
 
+/* It clones the pblock
+ * the content of the source pblock is transfered
+ * to the target pblock (returned)
+ * The source pblock should not be used for any operation
+ * it needs to be reinit (slapi_pblock_init)
+ */
 Slapi_PBlock *
 slapi_pblock_clone(Slapi_PBlock *pb)
 {
@@ -312,28 +318,32 @@ slapi_pblock_clone(Slapi_PBlock *pb)
     if (pb->pb_task != NULL) {
         _pblock_assert_pb_task(new_pb);
         *(new_pb->pb_task) = *(pb->pb_task);
+        memset(pb->pb_task, 0, sizeof(slapi_pblock_task));
     }
     if (pb->pb_mr != NULL) {
         _pblock_assert_pb_mr(new_pb);
         *(new_pb->pb_mr) = *(pb->pb_mr);
+        memset(pb->pb_mr, 0, sizeof(slapi_pblock_matching_rule));
     }
     if (pb->pb_misc != NULL) {
         _pblock_assert_pb_misc(new_pb);
         *(new_pb->pb_misc) = *(pb->pb_misc);
+        memset(pb->pb_misc, 0, sizeof(slapi_pblock_misc));
     }
     if (pb->pb_intop != NULL) {
         _pblock_assert_pb_intop(new_pb);
         *(new_pb->pb_intop) = *(pb->pb_intop);
-        /* set pwdpolicy to NULL so this clone allocates its own policy */
-        new_pb->pb_intop->pwdpolicy = NULL;
+        memset(pb->pb_intop, 0, sizeof(slapi_pblock_intop));
     }
     if (pb->pb_intplugin != NULL) {
         _pblock_assert_pb_intplugin(new_pb);
         *(new_pb->pb_intplugin) = *(pb->pb_intplugin);
+        memset(pb->pb_intplugin, 0,sizeof(slapi_pblock_intplugin));
     }
     if (pb->pb_deprecated != NULL) {
         _pblock_assert_pb_deprecated(new_pb);
         *(new_pb->pb_deprecated) = *(pb->pb_deprecated);
+        memset(pb->pb_deprecated, 0, sizeof(slapi_pblock_deprecated));
     }
 #ifdef PBLOCK_ANALYTICS
     new_pb->analytics = NULL;
