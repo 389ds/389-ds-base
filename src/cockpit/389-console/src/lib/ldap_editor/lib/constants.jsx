@@ -7,6 +7,7 @@ export const ENTRY_MENU = {
   new: 'new',
   rename: 'rename',
   acis: 'acis',
+  cos: 'cos',
   delete: 'delete',
   refresh: 'refresh'
 };
