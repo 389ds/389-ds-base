@@ -81,7 +81,7 @@ class AddRole extends React.Component {
             allAttributesSelected: false,
             stepIdReached: 0,
             // currentStepId: 1,
-            itemCountAddUser: 0,
+            itemCountAddRole: 0,
             pageAddRole: 1,
             perpageAddRole: 10,
             columnsRole: [
@@ -321,7 +321,7 @@ class AddRole extends React.Component {
             selectedAttributes: ['cn',
                                 ...(this.state.roleType === 'filtered' ? ['nsRoleFilter'] : []),
                                 ...(this.state.roleType === 'nested' ? ['nsRoleDN'] : [])],
-            itemCountAddUser: attributesArray.length,
+            itemCountAddRole: attributesArray.length,
             rowsRole: attributesArray,
             pagedRowsRole: attributesArray.slice(0, this.state.perpageAddRole),
             parentDN: this.props.wizardEntryDn,
@@ -343,7 +343,7 @@ class AddRole extends React.Component {
         });
     };
 
-    onPerPageSelectAddUser = (_event, perPage) => {
+    onPerPageSelectAddRole = (_event, perPage) => {
         this.setState({
             pageAddRole: 1,
             perpageAddRole: perPage,
@@ -464,7 +464,7 @@ class AddRole extends React.Component {
             if (this.state.roleType === 'nested') {
                 for (const userObj of this.state.rolesChosenOptions) {
                     const dn_val = userObj.props.title.replace(/^dn: /, "");
-                    editableTableData = editableTableData.filter((item) => (item.val !== dn_val));
+                    editableTableData = editableTableData.filter((item) => ((item.attr.toLowerCase() !== 'nsroledn') || (item.val !== dn_val)));
                     editableTableData.push({id: generateUniqueId(),
                                             attr: 'nsRoleDN',
                                             val: dn_val,
@@ -511,7 +511,7 @@ class AddRole extends React.Component {
             if (this.state.roleType === 'nested') {
                 for (const userObj of this.state.rolesChosenOptions) {
                     const dn_val = userObj.props.title.replace(/^dn: /, "");
-                    editableTableData = editableTableData.filter((item) => (item.val !== dn_val));
+                    editableTableData = editableTableData.filter((item) => ((item.attr.toLowerCase() !== 'nsroledn') || (item.val !== dn_val)));
                     editableTableData.push({id: generateUniqueId(),
                                             attr: 'nsRoleDN',
                                             val: dn_val,
@@ -630,7 +630,7 @@ class AddRole extends React.Component {
         for (const item of this.state.savedRows) {
             const attrName = item.attr;
             valueData.push(`${attrName}: ${item.val}`);
-            if (objectClassData.length === 5) { // There will a maximum of 4 ObjectClasses.
+            if (objectClassData.length === 5) { // There will a maximum of 5 ObjectClasses.
                 continue;
             }
             // TODO: Find a better logic!
@@ -663,7 +663,7 @@ class AddRole extends React.Component {
 
     render () {
         const {
-            itemCountAddUser, pageAddRole, perpageAddRole, columnsRole, pagedRowsRole,
+            itemCountAddRole, pageAddRole, perpageAddRole, columnsRole, pagedRowsRole,
             ldifArray, cleanLdifArray, columnsValues, noEmptyValue, alertVariant,
             namingAttrVal, namingAttr, resultVariant, editableTableData,
             stepIdReached, namingVal, rolesSearchBaseDn, rolesAvailableOptions,
@@ -822,12 +822,12 @@ class AddRole extends React.Component {
                     {this.buildAttrDropdown()}
                 </div>
                 <Pagination
-                    itemCount={itemCountAddUser}
+                    itemCount={itemCountAddRole}
                     page={pageAddRole}
                     perPage={perpageAddRole}
                     onSetPage={this.onSetpageAddRole}
-                    widgetId="pagination-options-menu-add-user"
-                    onPerPageSelect={this.onPerPageSelectAddUser}
+                    widgetId="pagination-options-menu-add-role"
+                    onPerPageSelect={this.onPerPageSelectAddRole}
                     isCompact
                 />
                 <Table
@@ -835,7 +835,7 @@ class AddRole extends React.Component {
                     rows={pagedRowsRole}
                     onSelect={this.onSelect}
                     variant={TableVariant.compact}
-                    aria-label="Pagination User Attributes"
+                    aria-label="Pagination Role Attributes"
                 >
                     <TableHeader />
                     <TableBody />
