@@ -4,16 +4,32 @@ import {
     BadgeToggle,
     Bullseye,
     Button,
-    Card, CardHeader, CardBody, CardTitle,
-    Dropdown, DropdownItem, DropdownPosition,
-    Grid, GridItem,
-    Label, LabelGroup,
+    Card,
+    CardBody,
+    CardTitle,
+    Dropdown,
+    DropdownItem,
+    DropdownPosition,
+    Form,
+    Grid,
+    GridItem,
+    NumberInput,
+    Modal,
+    ModalVariant,
     Pagination,
     SearchInput,
-    SimpleList, SimpleListItem,
+    SimpleList,
+    SimpleListItem,
     Spinner,
-    Text, TextContent, TextVariants,
+    Text,
+    TextContent,
+    TextInput,
+    TextList,
+    TextListItem,
+    TextVariants,
     Title,
+    Tooltip,
+    ValidatedOptions,
     Wizard,
 } from '@patternfly/react-core';
 import {
@@ -22,27 +38,22 @@ import {
     headerCol,
 } from '@patternfly/react-table';
 import {
-    b64DecodeUnicode,
     createLdapEntry,
-    foldLine,
     generateUniqueId,
-    getBaseLevelEntryAttributes,
-    getRdnInfo,
     getSingleValuedAttributes,
 } from '../../lib/utils.jsx';
-import EditableTable from '../../lib/editableTable.jsx';
 import {
-    LDAP_OPERATIONS,
-    BINARY_ATTRIBUTES,
-    LDIF_MAX_CHAR_PER_LINE
-} from '../../lib/constants.jsx';
+    InfoCircleIcon
+} from '@patternfly/react-icons';
+import EditableTable from '../../lib/editableTable.jsx';
+import AddCosDefinition from './addCosDefinition.jsx';
 
-class AddLdapEntry extends React.Component {
+class AddCosTemplate extends React.Component {
     constructor (props) {
         super(props);
 
         this.originalEntryRows = [];
-        this.singleValuedAttributes = [];
+        this.singleValuedAttributes = ['cn'];
         this.requiredAttributes = ['dn'];
         this.operationColumns = [
             { title: 'Statement' },
@@ -57,15 +68,16 @@ class AddLdapEntry extends React.Component {
             namingAttributeData: ['', ''],
             namingAttrPropsName: '',
             namingRowID: -1,
-            namingVal: '',
+            namingAttr: "",
+            namingVal: "",
+            cospriority: 0,
             editableTableData: [],
-            statementRows: [],
             ldifArray: [],
             cleanLdifArray: [],
             validMods: false,
             commandOutput: '',
             resultVariant: 'default',
-            stepIdReached: 1,
+            stepIdReached: this.props.stepReached,
             itemCountOc: 0,
             pageOc: 1,
             perPageOc: 6,
@@ -89,9 +101,45 @@ class AddLdapEntry extends React.Component {
             selectedObjectClasses: [],
             selectedAttributes: [],
             attrsToRemove: [],
-            namingAttr: "",
             adding: true,
+            goBackToCoSDefinition: false,
+            createdTemplate: "",
+            isConfirmModalOpen: false,
+            createTemplateEnd: false
         };
+
+        this.handleConfirmModalToggle = () => {
+            this.setState(({ isConfirmModalOpen }) => ({
+              isConfirmModalOpen: !isConfirmModalOpen,
+            }));
+          };
+
+        this.handleCreateTemplateEnd = () => {
+            this.setState({
+                createTemplateEnd: true
+            }, () => { this.props.onReload() });
+        };
+
+        this.onMinusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            });
+        };
+        this.onConfigChange = (event, id, min, max) => {
+            let maxValue = this.maxValue;
+            if (max !== 0) {
+                maxValue = max;
+            }
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            this.setState({
+                [id]: newValue > maxValue ? maxValue : newValue < min ? min : newValue
+            });
+        };
+        this.onPlusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            });
+        }
 
         this.onNext = ({ id }) => {
             this.setState({
@@ -99,29 +147,30 @@ class AddLdapEntry extends React.Component {
             });
             // The function updateValuesTableRows() is called upon new seletion(s)
             // Make sure the values table is updated in case no selection was made.
-            if (id === 2) {
+            if (id === 4) {
                 // Just call this function in order to make sure the values table is up-to-date
                 // even after navigating back and forth.
                 this.updateAttributeTableRows();
-            } else if (id === 3) {
+            } else if (id === 5) {
                 // Remove attributes from removed objectclasses
                 this.cleanUpEntry();
-            } else if (id === 4) {
-                // Generate the LDIF data at step 4.
+            } else if (id === 6) {
+                // Generate the LDIF data at step 5
                 this.generateLdifData();
-            } else if (id === 5) {
+            } else if (id === 7) {
                 // Create the LDAP entry.
                 createLdapEntry(this.props.editorLdapServer,
                     this.state.ldifArray,
                     (result) => {
+                        const myDn = this.state.ldifArray[0].substring(4);
                         this.setState({
                             commandOutput: result.output,
                             commandOutput: result.errorCode === 0 ? 'Successfully added entry!' : 'Failed to add entry, error: ' + result.errorCode ,
                             resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                             adding: false,
+                            createdTemplate: myDn,
                         }, () => { this.props.onReload() });
 
-                        const myDn = this.state.ldifArray[0].substring(4);
                         const opInfo = {
                             operationType: 'ADD',
                             resultCode: result.errorCode,
@@ -132,7 +181,31 @@ class AddLdapEntry extends React.Component {
                         this.props.setWizardOperationInfo(opInfo);
                     }
                 );
+            } else if ((id === 8) && (this.props.cosDefCreateMoreTemplate)) {
+                this.setState({
+                    isConfirmModalOpen: true
+                });
+            } else if ((id === 8) && (this.props.definitionWizardEntryDn !== '')) {
+                this.setState({
+                    goBackToCoSDefinition: true
+                }, () => { this.props.onReload() });
             }
+        };
+
+        this.toggleOpenWizard = () => {
+            if (this.props.definitionWizardEntryDn !== '') {
+                this.setState({
+                    goBackToCoSDefinition: true
+                }, () => { this.props.onReload() });
+            } else {
+                this.props.toggleOpenWizard();
+            }
+        };
+
+        this.handleCreateTemplate = () => {
+            this.setState({
+                goBackToCoSDefinition: true
+            });
         };
 
         this.cleanUpEntry = () => {
@@ -172,6 +245,9 @@ class AddLdapEntry extends React.Component {
                 if (oc.name === "top") {
                     // Can not remove objectclass=top
                     selectionDisabled = true;
+                } else if (oc.name === 'costemplate') {
+                    selectionDisabled = true;
+                    selected = true;
                 }
                 allOCs.push(
                     {
@@ -254,20 +330,42 @@ class AddLdapEntry extends React.Component {
 
         this.props.allObjectclasses.map(oc => {
             let selectionDisabled = false;
+            let selected = false;
             if (oc.name === "top") {
                 // Can not remove objectclass=top
                 selectionDisabled = true;
             }
-            ocArray.push(
-                {
-                    cells: [
-                        oc.name,
-                        oc.required.join(', '),
-                        oc.optional.join(', '),
-                    ],
-                    selected: false,
-                    disableSelection: selectionDisabled
+            if (oc.name === 'costemplate') {
+                selectionDisabled = true;
+                selected = true;
+                // For costemplate, make all of the attribute
+                ocArray.push(
+                    {
+                        cells: [
+                            oc.name,
+                            oc.required.concat(oc.optional).join(', '),
+                            ''
+                        ],
+                        selected: selected,
+                        disableSelection: selectionDisabled
+                    });
+                let selectedOC = [...this.state.selectedObjectClasses];
+                selectedOC.push(ocArray[ocArray.length - 1]);
+                this.setState({
+                    selectedObjectClasses: selectedOC,
                 });
+            } else {
+                ocArray.push(
+                    {
+                        cells: [
+                            oc.name,
+                            oc.required.join(', '),
+                            oc.optional.join(', '),
+                        ],
+                        selected: selected,
+                        disableSelection: selectionDisabled
+                    });
+            }
         });
 
         this.setState({
@@ -434,9 +532,10 @@ class AddLdapEntry extends React.Component {
         const attrList = [];
         let namingRowID = this.state.namingRowID;
         let namingAttr = this.state.namingAttr;
-        let isNamingAttr = false;
+        let namingVal = this.state.namingVal;
+        let cospriority = this.state.cospriority;
 
-        for (let oc of ocToProcess) {
+        for (const oc of ocToProcess) {
             // Rebuild the attribute arrays.
             const required = oc.cells[1].split(',');
             const optional = oc.cells[2].split(',');
@@ -470,17 +569,21 @@ class AddLdapEntry extends React.Component {
                 const found = this.state.editableTableData.filter(item => (item.attr.toLowerCase() === attr));
                 if (found.length === 0 && attr !== 'objectclass') {
                     const new_id = generateUniqueId();
-
                     if (namingRowID === -1) {
                         namingRowID = new_id;
                         namingAttr = attr;
-                        isNamingAttr = true;
                     }
 
                     let obj = {};
                     obj.id = new_id;
                     obj.attr = attr;
-                    obj.val = "";
+                    if (attr.toLowerCase() == 'cn') {
+                        obj.val = namingVal;
+                    } else if (attr.toLowerCase() == 'cospriority') {
+                        obj.val = cospriority;
+                    } else {
+                        obj.val = '';
+                    }
                     obj.namingAttr = false;
                     obj.required = true;
 
@@ -668,35 +771,163 @@ class AddLdapEntry extends React.Component {
         });
     };
 
+    handleChange (e) {
+        const attr = e.target.id;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.setState({
+            [attr]: value,
+        })
+    }
 
     render () {
         const {
             loading, itemCountOc, pageOc, perPageOc, columnsOc, pagedRowsOc,
             itemCountAttr, pageAttr, perPageAttr, columnsAttr, pagedRowsAttr,
-            commandOutput, namingAttr, namingVal, stepIdReached,
-            itemCount, pageAddUser, perPageAddUser, ldifArray, statementRows,
-            resultVariant, editableTableData, numOfChanges, validMods,
-            cleanLdifArray, selectedAttributes, selectedObjectClasses
+            commandOutput, namingAttr, namingVal, cospriority, stepIdReached,
+            ldifArray, resultVariant, editableTableData, validMods, cleanLdifArray,
+            selectedAttributes, selectedObjectClasses, goBackToCoSDefinition, createTemplateEnd
         } = this.state;
 
-        const loadingStateRows = [{
-            heightAuto: true,
-            cells: [
-                {
-                    props: { colSpan: 8 },
-                    title: (
-                        <Bullseye key="add-entry-bulleye" >
-                            <Title headingLevel="h2" size="lg" key="loading-title" >
-                                Loading...
-                            </Title>
-                            <center><Spinner size="xl" key="loading-spinner" /></center>
-                        </Bullseye>
-                    )
-                },
-                'Loading...',
-                'Loading...'
-            ]
-        }];
+        if (createTemplateEnd) {
+            return <AddCosTemplate
+                isWizardOpen={this.props.isWizardOpen}
+                toggleOpenWizard={this.props.toggleOpenWizard}
+                wizardEntryDn={this.props.wizardEntryDn}
+                editorLdapServer={this.props.editorLdapServer}
+                setWizardOperationInfo={this.props.setWizardOperationInfo}
+                firstStep={this.props.firstStep}
+                onReload={this.props.onReload}
+                allObjectclasses={this.props.allObjectclasses}
+                treeViewRootSuffixes={this.props.treeViewRootSuffixes}
+                stepReached={2}
+                cosDefCreateMoreTemplate
+            />
+        } else if (goBackToCoSDefinition) {
+            let myDn = this.state.createdTemplate;
+            if (resultVariant === 'danger') {
+                myDn = ""
+            }
+            return <AddCosDefinition
+                isWizardOpen={this.props.isWizardOpen}
+                toggleOpenWizard={this.props.toggleOpenWizard}
+                wizardEntryDn={this.props.definitionWizardEntryDn}
+                editorLdapServer={this.props.editorLdapServer}
+                setWizardOperationInfo={this.props.setWizardOperationInfo}
+                firstStep={this.props.firstStep}
+                onReload={this.props.onReload}
+                allObjectclasses={this.props.allObjectclasses}
+                treeViewRootSuffixes={this.props.treeViewRootSuffixes}
+                createdTemplateDN={myDn}
+                stepReached={2}
+                cosDefName={this.props.cosDefName}
+                cosDefDesc={this.props.cosDefDesc}
+                cosDefType={this.props.cosDefType}
+            />
+        }
+
+        const namingValAndPriority = (
+            <div>
+                <Grid>
+                    <GridItem span={12}>
+                        <TextContent>
+                            <Text component={TextVariants.h3}>Select Name And CoS Priority</Text>
+                        </TextContent>
+                    </GridItem>
+                    <GridItem span={12}>
+                        <TextContent className="ds-margin-top">
+                            <Text>
+                                The CoS template entry contains the value or values of the attributes generated
+                                by the CoS logic. The CoS template entry contains a general object
+                                class of cosTemplate. The CoS template entries for a given CoS are stored in the
+                                directory tree along with the CoS definition.
+                            </Text>
+                            <Text>
+                                The relative distinguished name (RDN) of the template entry is determined
+                                by one of the following:
+                            </Text>
+                            <TextList>
+                                <TextListItem>
+                                    The DN of the template entry alone. This type of template is associated
+                                    with a pointer CoS definition.
+                                </TextListItem>
+                                <TextListItem>
+                                    The value of one of the target entry's attributes. The attribute used
+                                    to provide the relative DN to the template entry is specified in the
+                                    CoS definition entry using the cosIndirectSpecifier attribute.
+                                    This type of template is associated with an indirect CoS definition.
+                                </TextListItem>
+                                <TextListItem>
+                                    By a combination of the DN of the subtree where the CoS performs a one
+                                    level search for templates and the value of one of the target entry's attributes.
+                                    This type of template is associated with a classic CoS definition.
+                                </TextListItem>
+                            </TextList>
+                            <Text>
+                                Please, consult official documentation for more information and examples.
+                            </Text>
+                        </TextContent>
+                    </GridItem>
+                </Grid>
+                <Form autoComplete="off">
+                    <Grid className="ds-margin-top-xlg">
+                        <GridItem span={3} className="ds-label">
+                            <TextContent>
+                                <Text>
+                                    CoS Template Name
+                                </Text>
+                            </TextContent>
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                value={namingVal}
+                                type="text"
+                                id="namingVal"
+                                aria-describedby="namingVal"
+                                name="namingVal"
+                                onChange={(str, e) => {
+                                    this.handleChange(e);
+                                }}
+                                validated={this.state.namingVal === '' ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid className="ds-margin-top">
+                        <GridItem className="ds-label" span={3}>
+                            <TextContent>
+                                <Text>CoS Priority <Tooltip
+                                    position="bottom"
+                                    content={
+                                        <div>
+                                            Specifies which template provides the attribute value when CoS templates
+                                            compete to provide an attribute value. This attribute represents the global
+                                            priority of a template. A priority of zero is the highest priority.
+                                        </div>
+                                    }
+                                >
+                                    <a className="ds-font-size-md"><InfoCircleIcon className="ds-info-icon" /></a>
+                                </Tooltip></Text>
+                            </TextContent>
+                        </GridItem>
+                        <GridItem span={9}>
+                            <NumberInput
+                                value={cospriority}
+                                min={0}
+                                max={2147483647}
+                                onMinus={() => { this.onMinusConfig("cospriority") }}
+                                onChange={(e) => { this.onConfigChange(e, "cospriority", 0, 2147483647) }}
+                                onPlus={() => { this.onPlusConfig("cospriority") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={8}
+                            />
+                        </GridItem>
+                    </Grid>
+                </Form>
+            </div>
+        );
+
 
         const objectClassStep = (
             <>
@@ -886,47 +1117,113 @@ class AddLdapEntry extends React.Component {
                         </CardBody>
                     </Card>
                 }
+                <Modal
+                    variant={ModalVariant.small}
+                    title="Create CoS Template"
+                    isOpen={this.state.isConfirmModalOpen}
+                    onClose={this.handleConfirmModalToggle}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={this.handleCreateTemplateEnd}>
+                        Create Template
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.handleConfirmModalToggle}>
+                        Cancel
+                        </Button>
+                    ]}
+                    >
+                    <Grid>
+                        <GridItem span={12}>
+                            <TextContent className="ds-margin-top">
+                                <Text>
+                                    You've chosen 'Classic' CoS type.
+                                    cosTemplateDN attribute is set to {this.props.wizardEntryDn}.
+                                </Text>
+                                <Text>
+                                    Do you want to create a CoS template now?
+                                </Text>
+                                <Text>
+                                    It will be added as a child to this entry: '{this.props.wizardEntryDn}'
+                                </Text>
+                            </TextContent>
+                        </GridItem>
+                    </Grid>
+                </Modal>
             </div>
         );
 
+        let finishButtonName;
+        if (this.props.cosDefCreateMoreTemplate) {
+            finishButtonName = 'Create More Templates';
+        } else if (this.props.definitionWizardEntryDn !== '') {
+            finishButtonName = 'Back to CoS Definition';
+        } else {
+            finishButtonName = 'Finish';
+        }
+
         const addEntrySteps = [
-            {
-                id: 1,
-                name: 'Select ObjectClasses',
-                component: objectClassStep,
-                canJumpTo: stepIdReached >= 1 && stepIdReached < 5,
-                enableNext: selectedObjectClasses.length > 0,
-            },
+            ...((this.props.definitionWizardEntryDn !== '') || (this.props.cosDefCreateMoreTemplate) ? [] : [
+                {
+                    id: 1,
+                    name: this.props.firstStep[0].name,
+                    component: this.props.firstStep[0].component,
+                    canJumpTo: stepIdReached >= 1 && stepIdReached < 8,
+                    hideBackButton: true
+                },
+            ]),
             {
                 id: 2,
-                name: 'Select Attributes',
-                component: attributeStep,
-                canJumpTo: stepIdReached >= 2 && stepIdReached < 5,
-                enableNext: selectedAttributes.length > 0,
+                name: 'Select Name & Priority',
+                component: namingValAndPriority,
+                enableNext: namingVal === '' ? false : true,
+                canJumpTo: stepIdReached >= 2 && stepIdReached < 8,
             },
             {
                 id: 3,
-                name: 'Edit Values',
-                component: entryValuesStep,
-                canJumpTo: stepIdReached >= 3 && stepIdReached < 5,
-                enableNext: validMods
+                name: 'Select ObjectClasses',
+                component: objectClassStep,
+                canJumpTo: stepIdReached >= 3 && stepIdReached < 8,
+                enableNext: selectedObjectClasses.length > 1,
             },
             {
                 id: 4,
-                name: 'LDIF Statements',
-                component: ldifStatementsStep,
-                nextButtonText: 'Create Entry',
-                canJumpTo: stepIdReached >= 4 && stepIdReached < 5
+                name: 'Select Attributes',
+                component: attributeStep,
+                canJumpTo: stepIdReached >= 4 && stepIdReached < 8,
+                enableNext: selectedAttributes.length > 0,
             },
             {
                 id: 5,
+                name: 'Edit Values',
+                component: entryValuesStep,
+                canJumpTo: stepIdReached >= 5 && stepIdReached < 8,
+                enableNext: validMods
+            },
+            {
+                id: 6,
+                name: 'LDIF Statements',
+                component: ldifStatementsStep,
+                nextButtonText: 'Create Entry',
+                canJumpTo: stepIdReached >= 6 && stepIdReached < 8
+            },
+            {
+                id: 7,
                 name: 'Review Result',
                 component: entryReviewStep,
-                nextButtonText: 'Finish',
-                canJumpTo: stepIdReached > 5,
+                nextButtonText: finishButtonName,
+                canJumpTo: stepIdReached >= 7 && stepIdReached < 8,
                 hideBackButton: true,
                 enableNext: !this.state.adding,
-            }
+            },
+            ...((this.props.definitionWizardEntryDn !== '') || (this.props.cosDefCreateMoreTemplate) ? [
+                {
+                    id: 8,
+                    name: this.props.cosDefCreateMoreTemplate ? 'Create More Templates' : 'Back to CoS Definition',
+                    component: entryReviewStep,
+                    nextButtonText: 'Finish',
+                    canJumpTo: stepIdReached >= 7 && stepIdReached < 8,
+                    hideBackButton: true,
+                },
+            ] : []),
         ];
 
         const title = <>
@@ -936,9 +1233,9 @@ class AddLdapEntry extends React.Component {
         return (
             <Wizard
                 isOpen={this.props.isWizardOpen}
-                onClose={this.props.toggleOpenWizard}
+                onClose={this.toggleOpenWizard}
                 steps={addEntrySteps}
-                title="Add An LDAP Entry"
+                title="Add CoS Template"
                 description={title}
                 onNext={this.onNext}
             />
@@ -946,4 +1243,4 @@ class AddLdapEntry extends React.Component {
     }
 }
 
-export default AddLdapEntry;
+export default AddCosTemplate;
