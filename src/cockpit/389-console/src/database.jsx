@@ -115,7 +115,6 @@ export class Database extends React.Component {
         this.closeSuffixModal = this.closeSuffixModal.bind(this);
         this.createSuffix = this.createSuffix.bind(this);
         this.loadSuffix = this.loadSuffix.bind(this);
-        this.loadSuffixConfig = this.loadSuffixConfig.bind(this);
         this.loadIndexes = this.loadIndexes.bind(this);
         this.loadVLV = this.loadVLV.bind(this);
         this.loadAttrEncrypt = this.loadAttrEncrypt.bind(this);
@@ -765,7 +764,7 @@ export class Database extends React.Component {
                 .done(content => {
                     const config = JSON.parse(content);
                     if ('nsslapd-cache-autosize' in config.attrs &&
-                        config.attrs['nsslapd-cache-autosize'] !== "0") {
+                        config.attrs['nsslapd-cache-autosize'][0] !== "0") {
                         this.setState({
                             [suffix]: {
                                 ...this.state[suffix],
@@ -773,47 +772,6 @@ export class Database extends React.Component {
                             },
                         });
                     }
-                });
-    }
-
-    loadSuffixConfig(suffix) {
-        const cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "suffix", "get", suffix
-        ];
-        log_cmd("loadSuffixConfig", "Load suffix config", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    const config = JSON.parse(content);
-                    let refs = [];
-                    let readonly = false;
-                    let requireindex = false;
-                    if ('nsslapd-referral' in config.attrs) {
-                        refs = config.attrs['nsslapd-referral'];
-                    }
-                    if ('nsslapd-readonly' in config.attrs) {
-                        if (config.attrs['nsslapd-readonly'] === "on") {
-                            readonly = true;
-                        }
-                    }
-                    if ('nsslapd-require-index' in config.attrs) {
-                        if (config.attrs['nsslapd-require-index'] === "on") {
-                            requireindex = true;
-                        }
-                    }
-                    this.setState({
-                        [suffix]: {
-                            ...this.state[suffix],
-                            refRows: refs,
-                            cachememsize: config.attrs['nsslapd-cachememsize'][0],
-                            cachesize: config.attrs['nsslapd-cachesize'][0],
-                            dncachememsize: config.attrs['nsslapd-dncachememsize'][0],
-                            dbstate: config.attrs['nsslapd-state'][0],
-                            readOnly: readonly,
-                            requireIndex: requireindex,
-                        }
-                    }, this.getAutoTuning(suffix));
                 });
     }
 
@@ -963,12 +921,12 @@ export class Database extends React.Component {
                         refs = config.attrs['nsslapd-referral'];
                     }
                     if ('nsslapd-readonly' in config.attrs) {
-                        if (config.attrs['nsslapd-readonly'] === "on") {
+                        if (config.attrs['nsslapd-readonly'][0] === "on") {
                             readonly = true;
                         }
                     }
                     if ('nsslapd-require-index' in config.attrs) {
-                        if (config.attrs['nsslapd-require-index'] === "on") {
+                        if (config.attrs['nsslapd-require-index'][0] === "on") {
                             requireindex = true;
                         }
                     }
