@@ -441,6 +441,14 @@ class EditorTreeView extends React.Component {
             >
                 ACIs ...
             </DropdownItem>,
+            <DropdownItem
+                key="tree-view-cos"
+                component="button"
+                name={ENTRY_MENU.cos}
+                value={entryDn}
+            >
+                Class of Service ...
+            </DropdownItem>,
             /*
             <DropdownItem
                 isDisabled

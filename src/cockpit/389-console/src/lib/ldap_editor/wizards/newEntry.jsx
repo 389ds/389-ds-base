@@ -4,14 +4,8 @@ import {
     Card,
     CardTitle,
     CardBody,
-    Pagination,
     Radio,
-    TextArea,
-    Wizard,
 }   from '@patternfly/react-core';
-import {
-    Table, TableHeader, TableBody, TableVariant, headerCol
-} from '@patternfly/react-table';
 import {
     ENTRY_TYPE
 } from '../lib/constants.jsx';
@@ -117,17 +111,6 @@ class NewEntryWizard extends React.Component {
                           name="radio-new-step-start"
                           id="radio-new-step-start-4"
                         />
-                        {/* <Radio
-                          className="ds-margin-top-lg"
-                          value="CoS"
-                          isDisabled
-                          isChecked={this.state.getStartedStepRadio === 'CoS'}
-                          onChange={this.handleOnChange}
-                          label="Create a new CoS"
-                          description="Add a new Class of Service (Classic / Indirect / Pointer)"
-                          name="radio-new-step-start"
-                          id="radio-new-step-start-5"
-                        /> */}
                         <Radio
                             className="ds-margin-top-lg"
                             value="Other"
@@ -136,7 +119,7 @@ class NewEntryWizard extends React.Component {
                             label="Create a new custom Entry"
                             description="Add a new entry by selecting ObjectClasses and Attributes"
                             name="radio-new-step-start"
-                            id="radio-new-step-start-6"
+                            id="radio-new-step-start-7"
                         />
                     </div>
                 )
@@ -150,9 +133,6 @@ class NewEntryWizard extends React.Component {
         } = this.state;
 
         const initialStep = this.createInitialLayout();
-
-        let mySteps;
-        let myTitle = '';
 
         const wizardProps = {
             isWizardOpen: this.props.isWizardOpen,
@@ -189,15 +169,6 @@ class NewEntryWizard extends React.Component {
                 firstStep={initialStep}
                 onReload={this.props.onReload}
             />;
-        } else if (getStartedStepRadio === 'CoS') {
-            myTitle = 'Add a new Class of Service Entry';
-            mySteps = [
-                // ...this.state.initialStep,
-                { id: 2, name: 'CoS 2', component: <p>Step 2</p>, canJumpTo: this.state.stepIdReached >= 2 },
-                { id: 3, name: 'CoS 3', component: <p>Step 3</p>, canJumpTo: this.state.stepIdReached >= 3 },
-                { id: 4, name: 'CoS 4', component: <p>Step 4</p>, canJumpTo: this.state.stepIdReached >= 4 },
-                { id: 5, name: 'CoS End', component: <p>Review Step</p>, nextButtonText: 'Finish', canJumpTo: this.state.stepIdReached >= 5 }
-            ];
         } else {
             return <AddLdapEntry
                 allObjectclasses={this.props.allObjectclasses}
