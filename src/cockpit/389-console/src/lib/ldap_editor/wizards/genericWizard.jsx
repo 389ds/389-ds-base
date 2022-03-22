@@ -1,5 +1,6 @@
 import React from 'react';
 import AciWizard from './aci.jsx';
+import CoSEntryWizard from './cos.jsx';
 import NewEntryWizard from './newEntry.jsx';
 import EditLdapEntry from './operations/editLdapEntry.jsx';
 import RenameEntry from './operations/renameEntry.jsx';
@@ -40,6 +41,12 @@ class GenericWizard extends React.Component {
                 />;
             case ENTRY_MENU.rename:
                 return <RenameEntry
+                    {...wizardProps}
+                    allObjectclasses={this.props.allObjectclasses}
+                    treeViewRootSuffixes={this.props.treeViewRootSuffixes}
+                />;
+            case ENTRY_MENU.cos:
+                return <CoSEntryWizard
                     {...wizardProps}
                     allObjectclasses={this.props.allObjectclasses}
                     treeViewRootSuffixes={this.props.treeViewRootSuffixes}
