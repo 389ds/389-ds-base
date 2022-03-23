@@ -210,7 +210,9 @@ static int time_shutdown = 0;
 char *
 disk_mon_get_mount_point(char *dir)
 {
+    struct mntent mntbuf;
     struct mntent *mnt;
+    char buf[4096 + 1] = {0}; /* enough for 2 paths */
     struct stat s;
     dev_t dev_id;
     FILE *fp;
@@ -223,7 +225,7 @@ disk_mon_get_mount_point(char *dir)
     if ((fp = setmntent("/proc/mounts", "r")) == NULL) {
         return NULL;
     }
-    while ((mnt = getmntent(fp))) {
+    while ((mnt = getmntent_r(fp, &mntbuf, buf, 4096))) {
         if (stat(mnt->mnt_dir, &s) != 0) {
             continue;
         }
