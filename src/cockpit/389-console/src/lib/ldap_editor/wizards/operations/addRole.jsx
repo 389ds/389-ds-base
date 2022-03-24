@@ -79,7 +79,7 @@ class AddRole extends React.Component {
             commandOutput: '',
             resultVariant: 'default',
             allAttributesSelected: false,
-            stepIdReached: 0,
+            stepIdReached: 1,
             // currentStepId: 1,
             itemCountAddRole: 0,
             pageAddRole: 1,
@@ -149,17 +149,17 @@ class AddRole extends React.Component {
             this.setState({
                 stepIdReached: this.state.stepIdReached < id ? id : this.state.stepIdReached
             });
-            if (id === 3) {
+            if (id === 4) {
                 // Update the attributes table.
                 this.updateAttributesTableRows();
                 this.updateValuesTableRows();
-            } else if (id === 4) {
+            } else if (id === 5) {
                 // Update the values table.
                 this.updateValuesTableRows();
-            } else if (id === 5) {
+            } else if (id === 6) {
                 // Generate the LDIF data.
                 this.generateLdifData();
-            } else if (id === 6) {
+            } else if (id === 7) {
                 // Create the LDAP entry.
                 const myLdifArray = this.state.ldifArray;
                 createLdapEntry(this.props.editorLdapServer,
@@ -189,7 +189,7 @@ class AddRole extends React.Component {
         };
 
         this.onBack = ({ id }) => {
-            if (id === 4) {
+            if (id === 5) {
                 // true ==> Do not check the attribute selection when navigating back.
                 this.updateValuesTableRows(true);
             }
@@ -945,45 +945,52 @@ class AddRole extends React.Component {
         const addRoleSteps = [
             {
                 id: 1,
+                name: this.props.firstStep[0].name,
+                component: this.props.firstStep[0].component,
+                canJumpTo: stepIdReached >= 1 && stepIdReached < 7,
+                hideBackButton: true
+            },
+            {
+                id: 2,
                 name: 'Select Name & Type',
                 component: namingValAndTypeStep,
                 enableNext: namingVal === '' ? false : true,
-                hideBackButton: true
+                canJumpTo: stepIdReached >= 2 && stepIdReached < 7,
             },
             ...(roleType === 'nested' ? [
                 {
-                    id: 2,
+                    id: 3,
                     name: 'Add Nested Roles',
                     component: addRolesStep,
-                    canJumpTo: stepIdReached >= 2 && stepIdReached < 6
+                    canJumpTo: stepIdReached >= 3 && stepIdReached < 7
                 },
             ] : []),
             {
-                id: 3,
+                id: 4,
                 name: 'Select Attributes',
                 component: roleAttributesStep,
-                canJumpTo: stepIdReached >= 3 && stepIdReached < 6
-            },
-            {
-                id: 4,
-                name: 'Set Values',
-                component: roleValuesStep,
-                canJumpTo: stepIdReached >= 4 && stepIdReached < 6,
-                enableNext: noEmptyValue
+                canJumpTo: stepIdReached >= 4 && stepIdReached < 7
             },
             {
                 id: 5,
-                name: 'Create Role',
-                component: roleCreationStep,
-                nextButtonText: 'Create',
-                canJumpTo: stepIdReached >= 5 && stepIdReached < 6
+                name: 'Set Values',
+                component: roleValuesStep,
+                canJumpTo: stepIdReached >= 5 && stepIdReached < 7,
+                enableNext: noEmptyValue
             },
             {
                 id: 6,
+                name: 'Create Role',
+                component: roleCreationStep,
+                nextButtonText: 'Create',
+                canJumpTo: stepIdReached >= 6 && stepIdReached < 7
+            },
+            {
+                id: 7,
                 name: 'Review Result',
                 component: roleReviewStep,
                 nextButtonText: 'Finish',
-                canJumpTo: stepIdReached >= 5,
+                canJumpTo: stepIdReached >= 7,
                 hideBackButton: true,
                 enableNext: !this.state.adding
             }

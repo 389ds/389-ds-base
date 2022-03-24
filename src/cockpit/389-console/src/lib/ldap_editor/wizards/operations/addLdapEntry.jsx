@@ -99,17 +99,17 @@ class AddLdapEntry extends React.Component {
             });
             // The function updateValuesTableRows() is called upon new seletion(s)
             // Make sure the values table is updated in case no selection was made.
-            if (id === 2) {
+            if (id === 3) {
                 // Just call this function in order to make sure the values table is up-to-date
                 // even after navigating back and forth.
                 this.updateAttributeTableRows();
-            } else if (id === 3) {
+            } else if (id === 4) {
                 // Remove attributes from removed objectclasses
                 this.cleanUpEntry();
-            } else if (id === 4) {
+            } else if (id === 5) {
                 // Generate the LDIF data at step 4.
                 this.generateLdifData();
-            } else if (id === 5) {
+            } else if (id === 6) {
                 // Create the LDAP entry.
                 createLdapEntry(this.props.editorLdapServer,
                     this.state.ldifArray,
@@ -892,38 +892,45 @@ class AddLdapEntry extends React.Component {
         const addEntrySteps = [
             {
                 id: 1,
-                name: 'Select ObjectClasses',
-                component: objectClassStep,
-                canJumpTo: stepIdReached >= 1 && stepIdReached < 5,
-                enableNext: selectedObjectClasses.length > 0,
+                name: this.props.firstStep[0].name,
+                component: this.props.firstStep[0].component,
+                canJumpTo: stepIdReached >= 1 && stepIdReached < 6,
+                hideBackButton: true
             },
             {
                 id: 2,
-                name: 'Select Attributes',
-                component: attributeStep,
-                canJumpTo: stepIdReached >= 2 && stepIdReached < 5,
-                enableNext: selectedAttributes.length > 0,
+                name: 'Select ObjectClasses',
+                component: objectClassStep,
+                canJumpTo: stepIdReached >= 2 && stepIdReached < 6,
+                enableNext: selectedObjectClasses.length > 0,
             },
             {
                 id: 3,
-                name: 'Edit Values',
-                component: entryValuesStep,
-                canJumpTo: stepIdReached >= 3 && stepIdReached < 5,
-                enableNext: validMods
+                name: 'Select Attributes',
+                component: attributeStep,
+                canJumpTo: stepIdReached >= 3 && stepIdReached < 6,
+                enableNext: selectedAttributes.length > 0,
             },
             {
                 id: 4,
-                name: 'LDIF Statements',
-                component: ldifStatementsStep,
-                nextButtonText: 'Create Entry',
-                canJumpTo: stepIdReached >= 4 && stepIdReached < 5
+                name: 'Edit Values',
+                component: entryValuesStep,
+                canJumpTo: stepIdReached >= 4 && stepIdReached < 6,
+                enableNext: validMods
             },
             {
                 id: 5,
+                name: 'LDIF Statements',
+                component: ldifStatementsStep,
+                nextButtonText: 'Create Entry',
+                canJumpTo: stepIdReached >= 5 && stepIdReached < 6
+            },
+            {
+                id: 6,
                 name: 'Review Result',
                 component: entryReviewStep,
                 nextButtonText: 'Finish',
-                canJumpTo: stepIdReached > 5,
+                canJumpTo: stepIdReached >= 6,
                 hideBackButton: true,
                 enableNext: !this.state.adding,
             }
