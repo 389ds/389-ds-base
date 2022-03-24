@@ -83,6 +83,10 @@ export class Changelog extends React.Component {
         this.deleteChangelog = this.deleteChangelog.bind(this);
     }
 
+    componentDidMount() {
+        this.props.enableTree();
+    }
+
     saveSettings () {
         const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
@@ -203,6 +207,7 @@ export class Changelog extends React.Component {
         let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'delete-changelog'
         ];
+        log_cmd("deleteChangelog", "Delete changelog", cmd);
         cockpit
                 .spawn(cmd, {superuser: true, "err": "message"})
                 .done(content => {
@@ -242,6 +247,7 @@ export class Changelog extends React.Component {
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'create-changelog'
         ];
+        log_cmd("createChangelog", "Create changelog", cmd);
         cockpit
                 .spawn(cmd, {superuser: true, "err": "message"})
                 .done(content => {
