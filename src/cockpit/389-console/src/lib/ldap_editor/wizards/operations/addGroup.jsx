@@ -62,7 +62,7 @@ class AddGroup extends React.Component {
             ldifArray: [],
             resultVariant: 'default',
             commandOutput: "",
-            stepIdReached: 0,
+            stepIdReached: 1,
             noEmptyValue: false,
             adding: true,
             posixGroup: false,
@@ -99,10 +99,10 @@ class AddGroup extends React.Component {
             this.setState({
                 stepIdReached: this.state.stepIdReached < id ? id : this.state.stepIdReached
             });
-            if (id === 4) {
+            if (id === 5) {
                 // Generate the LDIF data.
                 this.generateLdifData();
-            } else if (id === 5) {
+            } else if (id === 6) {
                 // Create the LDAP entry.
                 const myLdifArray = this.state.ldifArray;
                 createLdapEntry(this.props.editorLdapServer,
@@ -132,7 +132,7 @@ class AddGroup extends React.Component {
         };
 
         this.onBack = ({ id }) => {
-            if (id === 4) {
+            if (id === 5) {
                 this.updateValuesTableRows(true);
             }
         };
@@ -598,37 +598,43 @@ class AddGroup extends React.Component {
         const addGroupSteps = [
             {
                 id: 1,
-                name: 'Select Group Type',
-                component: groupSelectStep,
-                canJumpTo: stepIdReached >= 1 && stepIdReached < 5,
+                name: this.props.firstStep[0].name,
+                component: this.props.firstStep[0].component,
+                canJumpTo: stepIdReached >= 1 && stepIdReached < 6,
                 hideBackButton: true
             },
             {
                 id: 2,
-                name: 'Select Name',
-                component: groupNameStep,
-                canJumpTo: stepIdReached >= 2 && stepIdReached < 5,
-                enableNext: groupName === '' ? false : true,
+                name: 'Select Group Type',
+                component: groupSelectStep,
+                canJumpTo: stepIdReached >= 2 && stepIdReached < 6,
             },
             {
                 id: 3,
-                name: 'Add Members',
-                component: selectMembersStep,
-                canJumpTo: stepIdReached >= 3 && stepIdReached < 5,
+                name: 'Select Name',
+                component: groupNameStep,
+                canJumpTo: stepIdReached >= 3 && stepIdReached < 6,
+                enableNext: groupName === '' ? false : true,
             },
             {
                 id: 4,
-                name: 'Create Group',
-                component: groupCreationStep,
-                nextButtonText: 'Create',
-                canJumpTo: stepIdReached >= 4 && stepIdReached < 5
+                name: 'Add Members',
+                component: selectMembersStep,
+                canJumpTo: stepIdReached >= 4 && stepIdReached < 6,
             },
             {
                 id: 5,
+                name: 'Create Group',
+                component: groupCreationStep,
+                nextButtonText: 'Create',
+                canJumpTo: stepIdReached >= 5 && stepIdReached < 6
+            },
+            {
+                id: 6,
                 name: 'Review Result',
                 component: groupReviewStep,
                 nextButtonText: 'Finish',
-                canJumpTo: stepIdReached >= 5,
+                canJumpTo: stepIdReached >= 6,
                 hideBackButton: true,
                 enableNext: !this.state.adding
             }
