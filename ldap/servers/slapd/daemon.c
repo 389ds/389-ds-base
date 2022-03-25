@@ -77,8 +77,7 @@ short slapd_housekeeping_timer = 10;
 
 #define FDS_SIGNAL_PIPE 0
 
-#define NUM_CT_LISTS 2
-static signal_pipe signalpipes[NUM_CT_LISTS]; /* One signal pipe per connection table list */
+static signal_pipe signalpipes[MAX_NUM_CT_LISTS]; /* One signal pipe per connection table list */
 static PRInt32 ct_shutdown = 0;
 static PRThread *disk_thread_p = NULL;
 static PRThread *accept_thread_p = NULL;
@@ -125,7 +124,7 @@ static PRIntn setup_pr_read_pds(Connection_Table *ct, int num_ct_lists);
 static void *catch_signals();
 #endif
 
-static int createsignalpipe(int num_ct_lists);
+static int createsignalpipe(void);
 
 static char *
 get_pid_file(void)
@@ -960,7 +959,7 @@ slapd_daemon(daemon_ports_t *ports)
     i_unix = ports->i_socket;
 #endif /* ENABLE_LDAPI */
 
-    createsignalpipe(NUM_CT_LISTS);
+    createsignalpipe();
     /* Setup our signal interception. */
     init_shutdown_detect();
 
@@ -2428,11 +2427,11 @@ netaddr2string(const PRNetAddr *addr, char *addrbuf, size_t addrbuflen)
 
 
 static int
-createsignalpipe(int numsigpipes)
+createsignalpipe(void)
 {
     int i;
     /* there is a signal pipe for each ct list/thread mapping */
-    for (i = 0; i < numsigpipes; i++) {
+    for (i = 0; i < the_connection_table->list_num; i++) {
         if (PR_CreatePipe(&signalpipes[i].signalpipe[0], &signalpipes[i].signalpipe[1]) != 0) {
             PRErrorCode prerr = PR_GetError();
             slapi_log_err(SLAPI_LOG_ERR, "createsignalpipe",
