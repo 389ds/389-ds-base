@@ -21,7 +21,7 @@
     "@babel/eslint-parser": "^7.13.14",
     "@babel/preset-env": "^7.5.4",
     "@babel/preset-react": "^7.0.0",
-    "audit-ci": "^3.1.1",
+    "audit-ci": "^6.1.1",
     "babel-loader": "^8.0.6",
     "cockpit": "^0.1.1",
     "compression-webpack-plugin": "^9.0.0",
