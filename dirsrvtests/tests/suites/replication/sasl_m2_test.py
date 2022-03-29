@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -91,6 +91,8 @@ def use_valgrind(topo_m2, request):
     set_sasl_md5_client_auth(m2, m1)
     m1.stop()
     m2.stop()
+    m1.systemd_override = False
+    m2.systemd_override = False
     valgrind_enable(m1.ds_paths.sbin_dir, gen_valgrind_wrapper(m1.ds_paths.sbin_dir))
 
     def fin():
@@ -128,6 +130,7 @@ def test_repl_sasl_md5_auth(topo_m2):
     repl.test_replication_topology(topo_m2)
 
 
+@pytest.mark.skipif(not os.path.exists('/usr/bin/valgrind'), reason="valgrind is not installed.")
 def test_repl_sasl_leak(topo_m2, use_valgrind):
     """Test replication with SASL digest-md5 authentication
 
