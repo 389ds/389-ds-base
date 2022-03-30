@@ -644,8 +644,14 @@ get_extensible_filter(BerElement *ber, mr_filter_t *mrf)
         }
     }
 
-    if ((tag != LBER_ERROR) && (len != -1)) {
-        goto parsing_error;
+    if (tag == LBER_ERROR) {
+        if (len == -1) {
+            /* means that the ber sequence ended without  LBER_END_OF_SEQORSET tag
+             * and it is considered as valid to ensure compatibility with open ldap.
+             */
+        } else {
+            goto parsing_error;
+        }
     }
 
     slapi_log_err(SLAPI_LOG_FILTER, "get_extensible_filter", "<= %i\n", rc);
