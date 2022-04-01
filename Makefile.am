@@ -634,7 +634,6 @@ sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	$(srcdir)/ldap/schema/60changelog.ldif \
 	$(srcdir)/ldap/schema/60inetmail.ldif \
 	$(srcdir)/ldap/schema/60krb5kdc.ldif \
-	$(srcdir)/ldap/schema/60kerberos.ldif \
 	$(srcdir)/ldap/schema/60nis.ldif \
 	$(srcdir)/ldap/schema/60qmail.ldif \
 	$(srcdir)/ldap/schema/60radius.ldif \
@@ -672,6 +671,7 @@ systemschema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/60posix-winsync-plugin.ldif \
 	$(srcdir)/ldap/schema/60autofs.ldif \
 	$(srcdir)/ldap/schema/60eduperson.ldif \
+	$(srcdir)/ldap/schema/60kerberos.ldif \
 	$(srcdir)/ldap/schema/60mozilla.ldif \
 	$(srcdir)/ldap/schema/60pureftpd.ldif \
 	$(srcdir)/ldap/schema/60rfc2739.ldif \
