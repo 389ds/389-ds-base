@@ -43,7 +43,6 @@ from lib389.passwd import password_generate
 from lib389.nss_ssl import NssSsl, CERT_NAME
 from lib389.paths import Paths
 from lib389.config import LDBMConfig
-from lib389.utils import get_default_db_lib
 from lib389._constants import (
     DSRC_CONTAINER,
     CONTAINER_TLS_SERVER_KEY,
@@ -90,17 +89,14 @@ def _begin_environment_config():
     # TODO: Should we set replication agreements from env?
     autotune_pct = os.getenv("DS_MEMORY_PERCENTAGE", None)
     if autotune_pct is not None:
-        if get_default_db_lib() == "mdb":
-            log.warning("DS_MEMORY_PERCENTAGE is present, but setting entry cache is not supported for MDB")
-        else:
-            try:
-                autotune_pct = int(autotune_pct)
-            except:
-                log.warning("Invalid DS_MEMORY_PERCENTAGE - resetting to system default value")
-                autotune_pct = 0
-            log.debug("Setting LDBM Autotune Percentage to: %s", autotune_pct)
-            ldbmconfig = LDBMConfig(inst)
-            ldbmconfig.set("nsslapd-cache-autosize", str(autotune_pct))
+        try:
+            autotune_pct = int(autotune_pct)
+        except:
+            log.warning("Invalid DS_MEMORY_PERCENTAGE - resetting to system default value")
+            autotune_pct = 0
+        log.debug("Setting LDBM Autotune Percentage to: %s", autotune_pct)
+        ldbmconfig = LDBMConfig(inst)
+        ldbmconfig.set("nsslapd-cache-autosize", str(autotune_pct))
 
     inst.close()
 
