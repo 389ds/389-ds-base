@@ -275,7 +275,13 @@ export function getSearchEntries (params, resultCallback) {
       }
       const lines = searchResult.split('\n');
       let ldapsubentry = false;
+      let isRole = false;
+      let isLockable = false;
       lines.map(currentLine => {
+        const accountObjectclasses = ['nsaccount', 'nsperson', 'simplesecurityobject',
+                                      'organization', 'person', 'account', 'organizationalunit',
+                                      'netscapeserver', 'domain', 'posixaccount', 'shadowaccount',
+                                      'posixgroup', 'mailrecipient', 'nsroledefinition'];
         if (isAttributeLine(currentLine, 'dn:')) {
           // Convert base64-encoded DNs
           const pos = currentLine.indexOf(':');
@@ -285,20 +291,32 @@ export function getSearchEntries (params, resultCallback) {
             dn = currentLine.substring(pos + 1).trim();
           }
           ldapsubentry = false;
+          isRole = false;
+          isLockable = false;
         } else if (isAttributeLine(currentLine, 'numSubordinates:')) {
           numSubordinates = (currentLine.split(':')[1]).trim()
         } else if (isAttributeLine(currentLine, 'modifyTimestamp:')) {
           modifyTimestamp = (currentLine.split(':')[1]).trim()
         } else if (isAttributeLine(currentLine, 'objectclass: ldapsubentry')) {
           ldapsubentry = true;
+        } else if (isAttributeLine(currentLine, 'objectclass: nsroledefinition')) {
+          isRole = true;
         }
+        for (const accountOC of accountObjectclasses) {
+          if (isAttributeLine(currentLine, `objectclass: ${accountOC}`)) {
+              isLockable = true;
+          }
+        }
+
         if (currentLine === '' && dn !== '') {
           const result = JSON.stringify(
             {
               dn: dn,
               numSubordinates: numSubordinates,
               modifyTimestamp: getModDateUTC(modifyTimestamp),
-              ldapsubentry: ldapsubentry
+              ldapsubentry: ldapsubentry,
+              isRole: isRole,
+              isLockable: isLockable,
             });
           allEntries.push(result);
 
@@ -341,7 +359,7 @@ export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCa
     `ldapsearch -LLL -o ldif-wrap=no -Y EXTERNAL -b "${baseDn}"` +
     ` -H ldapi://%2fvar%2frun%2fslapd-${serverId}.socket` +
     ` ${optionTimeLimit}` +
-    ' -s base "(|(objectClass=*)(objectClass=ldapSubEntry))" nsRoleDN \\*' // +
+    ' -s base "(|(objectClass=*)(objectClass=ldapSubEntry))" nsRoleDN nsAccountLock \\*' // +
     // ' | /usr/bin/head -c 150001' // Taking 1 additional character to check if the
     // the entry was indeed bigger than 150K.
   ];
@@ -542,7 +560,13 @@ export function getOneLevelEntries (params, oneLevelCallback) {
       }
       const lines = searchResult.split('\n');
       let ldapsubentry = false;
+      let isRole = false;
+      let isLockable = false;
       lines.map(currentLine => {
+        const accountObjectclasses = ['nsaccount', 'nsperson', 'simplesecurityobject',
+                                      'organization', 'person', 'account', 'organizationalunit',
+                                      'netscapeserver', 'domain', 'posixaccount', 'shadowaccount',
+                                      'posixgroup', 'mailrecipient', 'nsroledefinition'];
         if (isAttributeLine(currentLine, 'dn:')) {
           // Convert base64-encoded DNs
           const pos = currentLine.indexOf(':');
@@ -552,26 +576,38 @@ export function getOneLevelEntries (params, oneLevelCallback) {
             dn = currentLine.substring(pos + 1).trim();
           }
           ldapsubentry = false;
+          isRole = false;
+          isLockable = false;
         } else if (isAttributeLine(currentLine, 'numSubordinates:')) {
           numSubordinates = (currentLine.split(':')[1]).trim()
         } else if (isAttributeLine(currentLine, 'modifyTimestamp:')) {
           modifyTimestamp = (currentLine.split(':')[1]).trim()
         } else if (isAttributeLine(currentLine, 'objectclass: ldapsubentry')) {
           ldapsubentry = true;
+        } else if (isAttributeLine(currentLine, 'objectclass: nsroledefinition')) {
+          isRole = true;
         }
+        for (const accountOC of accountObjectclasses) {
+          if (isAttributeLine(currentLine, `objectclass: ${accountOC}`)) {
+              isLockable = true;
+          }
+        }
+
         if (currentLine === '' && dn !== '') {
           const result = JSON.stringify(
             {
               dn: dn,
               numSubordinates: numSubordinates,
               modifyTimestamp: getModDateUTC(modifyTimestamp),
-              ldapsubentry: ldapsubentry
+              ldapsubentry: ldapsubentry,
+              isRole: isRole,
+              isLockable: isLockable,
             });
           allEntries.push(result);
 
           // Reset the variables:
           dn = '';
-          numSubordinates = '';
+          numSubordinates = '0';
           modifyTimestamp = '';
         }
       });
