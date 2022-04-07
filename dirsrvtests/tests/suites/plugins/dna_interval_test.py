@@ -189,3 +189,6 @@ def test_dna_interval_with_different_values(topology_st, dna_plugin, attr_value)
         log.info("Make an update and verify it raises error as the new interval value is more than dnaMaxValue")
         with pytest.raises(ldap.OPERATIONS_ERROR):
             user.replace('uidNumber', '-1')
+
+        # Check that instance did not crashed
+        assert topology_st.standalone.status()
