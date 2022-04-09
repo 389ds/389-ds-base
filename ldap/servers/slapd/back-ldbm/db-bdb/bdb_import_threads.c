@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -2357,7 +2357,7 @@ foreman_do_entrydn(ImportJob *job, FifoItem *fi)
          * LDBM_ERROR_FOUND_DUPDN.
          * Otherwise, add entrydn to the entrydn index file.
          */
-        if (IDL) {
+        if (IDL && IDL->b_nids > 0) {
             ID id = idl_firstid(IDL); /* entrydn is a single attr */
             idl_free(&IDL);
             if (id != entry->ep_id) { /* case (2) */
@@ -2367,9 +2367,10 @@ foreman_do_entrydn(ImportJob *job, FifoItem *fi)
                 return LDBM_ERROR_FOUND_DUPDN;
             }
         } else {
+            idl_free(&IDL);
             ret = index_addordel_string(be, "entrydn",
                                         bv.bv_val, entry->ep_id,
-                                        BE_INDEX_ADD | BE_INDEX_NORMALIZED, NULL);
+                                        BE_INDEX_ADD | BE_INDEX_EQUALITY | BE_INDEX_NORMALIZED, NULL);
             if (ret) {
                 import_log_notice(job, SLAPI_LOG_ERR, "foreman_do_entrydn",
                                   "Error writing entrydn index (error %d: %s)",
@@ -2379,7 +2380,7 @@ foreman_do_entrydn(ImportJob *job, FifoItem *fi)
         }
     } else {
         /* Did this work ? */
-        if (IDL) {
+        if (IDL && IDL->b_nids > 0) {
             /* IMPOSTER ! Get thee hence... */
             import_log_notice(job, SLAPI_LOG_WARNING, "foreman_do_entrydn",
                               "Skipping duplicate entry \"%s\" found at line %d of file \"%s\"",
@@ -2391,8 +2392,9 @@ foreman_do_entrydn(ImportJob *job, FifoItem *fi)
             job->skipped++;
             return -1; /* skip to next entry */
         }
+        idl_free(&IDL);
         ret = index_addordel_string(be, "entrydn", bv.bv_val, entry->ep_id,
-                                    BE_INDEX_ADD | BE_INDEX_NORMALIZED, NULL);
+                                    BE_INDEX_ADD | BE_INDEX_EQUALITY | BE_INDEX_NORMALIZED, NULL);
         if (ret) {
             import_log_notice(job, SLAPI_LOG_ERR, "foreman_do_entrydn",
                               "Error writing entrydn index (error %d: %s)",
@@ -2567,8 +2569,8 @@ import_foreman(void *param)
             }
 
             if (parent_status == IMPORT_ADD_OP_ATTRS_NO_PARENT) {
-/* If this entry is a suffix entry, this is not a problem */
-/* However, if it is not, this is an error---it means that
+                /* If this entry is a suffix entry, this is not a problem .
+                 * However, if it is not, this is an error---it means that
                  * someone tried to import an entry before importing its parent
                  * we reject the entry but carry on since we've not stored
                  * anything related to this entry.
@@ -2679,6 +2681,24 @@ import_foreman(void *param)
                 }
             } else if (0 != ret) {
                 goto error;
+            }
+        } else if (!entryrdn_get_switch() &&
+             slapi_entry_flag_is_set(fi->entry->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) &&
+             strncmp(backentry_get_ndn(fi->entry), RUVRDN, strlen(RUVRDN)))
+        {
+            /*
+             * If we are using the old db format(entrydn) then we need to index
+             * tombstone dn's
+             */
+            ret = foreman_do_entrydn(job, fi);
+            if (ret) {
+                import_log_notice(job, SLAPI_LOG_ERR, "import_foreman",
+                        "foreman_do_entrydn failed %d", ret);
+                if (-1 == ret) {
+                    goto cont; /* skip entry */
+                } else {
+                    goto error;
+                }
             }
         }
 

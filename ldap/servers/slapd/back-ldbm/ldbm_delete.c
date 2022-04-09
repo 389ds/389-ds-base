@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -1004,6 +1004,20 @@ replace_entry:
                     DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
                     goto error_return;
                 }
+            } else {
+                /* Add tombstone to the entrydn index */
+                struct berval bv;
+                int ret;
+
+                bv.bv_val = (void *)backentry_get_ndn(tombstone);
+                bv.bv_len = strlen(bv.bv_val);
+                ret = index_addordel_string(be, "entrydn", bv.bv_val, tombstone->ep_id,
+                                            BE_INDEX_ADD | BE_INDEX_EQUALITY | BE_INDEX_NORMALIZED, &txn);
+                if (ret) {
+                    slapi_log_err(SLAPI_LOG_ALERT, "ldbm_back_delete",
+                            "Adding entry (%s) to entrydn index failed! %d", bv.bv_val, ret);
+                    goto error_return;
+                }
             }
         } /* create_tombstone_entry */
         else if (delete_tombstone_entry) {
@@ -1149,6 +1163,20 @@ replace_entry:
                         disk_full = 1;
                     DEL_SET_ERROR(ldap_result_code,
                                   LDAP_OPERATIONS_ERROR, retry_count);
+                    goto error_return;
+                }
+            } else {
+                /* Remove tombstone from entrydn index */
+                struct berval bv;
+                int ret;
+
+                bv.bv_val = (void *)backentry_get_ndn(e);
+                bv.bv_len = strlen(bv.bv_val);
+                ret = index_addordel_string(be, "entrydn", bv.bv_val, e->ep_id,
+                                            BE_INDEX_DEL | BE_INDEX_EQUALITY | BE_INDEX_NORMALIZED, &txn);
+                if (ret) {
+                    slapi_log_err(SLAPI_LOG_ALERT, "ldbm_back_delete",
+                            "Removing entry (%s) from entrydn index failed! %d", bv.bv_val, ret);
                     goto error_return;
                 }
             }

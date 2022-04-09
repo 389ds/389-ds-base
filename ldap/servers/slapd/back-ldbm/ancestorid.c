@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -144,7 +144,8 @@ ldbm_ancestorid_index_update(
             ndnv.bv_len = slapi_sdn_get_ndn_len(&sdn);
             err = 0;
             idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY, &ndnv, txn, &err);
-            if (idl == NULL) {
+            if (idl == NULL || idl->b_nids == 0) {
+                idl_free(&idl);
                 if (err != 0 && err != DB_NOTFOUND) {
                     ldbm_nasty("ldbm_ancestorid_index_update", sourcefile, 13140, err);
                     ret = err;

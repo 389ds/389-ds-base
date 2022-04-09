@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -46,7 +46,7 @@ uniqueid2entry(
         idv.bv_len = strlen(idv.bv_val);
 
         if ((idl = index_read(be, SLAPI_ATTR_UNIQUEID, indextype_EQUALITY, &idv, txn,
-                              err)) == NULL) {
+                              err)) == NULL || idl->b_nids == 0) {
             if (*err != 0 && *err != DB_NOTFOUND) {
                 goto ext;
             }
@@ -71,9 +71,7 @@ uniqueid2entry(
     }
 
 ext:
-    if (NULL != idl) {
-        slapi_ch_free((void **)&idl);
-    }
+    idl_free(&idl);
 
     slapi_log_err(SLAPI_LOG_TRACE, "uniqueid2entry", "<= %p\n", e);
     return (e);

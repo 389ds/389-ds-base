@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2019 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -180,11 +180,12 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
             bv.bv_val = pdn;
             bv.bv_len = strlen(pdn);
             if ((idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY,
-                                  &bv, NULL, &err)) != NULL) {
+                                  &bv, NULL, &err)) != NULL && idl->b_nids > 0) {
                 pid = idl_firstid(idl);
                 idl_free(&idl);
             } else {
                 /* empty idl */
+                idl_free(&idl);
                 if (0 != err && DB_NOTFOUND != err) {
                     slapi_log_err(SLAPI_LOG_ERR, "add_op_attrs", "database error %d\n", err);
                     slapi_ch_free_string(&pdn);
@@ -502,7 +503,7 @@ bdb_fetch_subtrees(backend *be, char **include, int *err)
             bv.bv_val = include[i];
             bv.bv_len = strlen(include[i]);
             idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY, &bv, txn, err);
-            if (idl == NULL) {
+            if (idl == NULL || idl->b_nids == 0) {
                 if (DB_NOTFOUND == *err) {
                     slapi_log_err(SLAPI_LOG_INFO,
                                   "bdb_fetch_subtrees", "entrydn not indexed on '%s'; "

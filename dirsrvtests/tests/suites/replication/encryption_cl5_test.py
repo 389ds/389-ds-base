@@ -64,7 +64,7 @@ def _check_unhashed_userpw_encrypted(inst, change_type, user_dn, user_pw, is_enc
     count = 0
     for entry in dbscanOut.split(b'dbid: '):
         if ensure_bytes('operation: {}'.format(change_type)) in entry and\
-           ensure_bytes(ATTRIBUTE) in entry and ensure_bytes(user_dn) in entry:
+           ensure_bytes(ATTRIBUTE) in entry and ensure_bytes(user_dn.lower()) in entry.lower():
             count += 1
             user_pw_attr = ensure_bytes('{}: {}'.format(ATTRIBUTE, user_pw))
             if is_encrypted:
