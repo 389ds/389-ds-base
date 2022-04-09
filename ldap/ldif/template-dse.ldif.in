@@ -1086,6 +1086,7 @@ objectclass: nsIndex
 cn: nsTombstoneCSN
 nssystemindex: true
 nsindextype: eq
+nsindextype: pres
 
 dn: cn=targetuniqueid,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top

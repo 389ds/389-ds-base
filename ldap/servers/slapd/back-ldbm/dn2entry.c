@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -38,6 +38,7 @@ dn2entry_ext(
     int flags,
     int *err)
 {
+    IDList *idl = NULL;
     ldbm_instance *inst;
     struct berval ndnv;
     struct backentry *e = NULL;
@@ -80,14 +81,12 @@ dn2entry_ext(
             }
             indexname = LDBM_ENTRYRDN_STR;
         } else {
-            IDList *idl = NULL;
             if ((idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY,
-                                  &ndnv, txn, err)) == NULL) {
+                                  &ndnv, txn, err)) == NULL || idl->b_nids == 0) {
                 /* There's no entry with this DN. */
                 goto bail;
             }
             id = idl_firstid(idl);
-            slapi_ch_free((void **)&idl);
             indexname = LDBM_ENTRYDN_STR;
         }
         /* convert entry id to entry */
@@ -111,6 +110,7 @@ dn2entry_ext(
         }
     }
 bail:
+    idl_free(&idl);
     slapi_log_err(SLAPI_LOG_TRACE, "dn2entry_ext", "<= %p\n", e);
     return (e);
 }
