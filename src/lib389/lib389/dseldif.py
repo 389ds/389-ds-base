@@ -34,11 +34,13 @@ class DSEldif(DSLint):
     :type instance: lib389.DirSrv
     """
 
-    def __init__(self, instance, serverid=None):
+    def __init__(self, instance, serverid=None, path=None):
         self._instance = instance
         self._contents = []
 
-        if serverid:
+        if path:
+            self.path = path
+        elif serverid:
             # Get the dse.ldif from the instance name
             prefix = os.environ.get('PREFIX', ""),
             if serverid.startswith("slapd-"):
@@ -93,6 +95,11 @@ class DSEldif(DSLint):
 
         with open(self.path, "w") as file_dse:
             file_dse.write("".join(self._contents))
+
+    def globalSubstitute(self, strfrom, strto):
+        for i in range(0, len(self._contents)-1):
+            self._contents[i] = self._contents[i].replace(strfrom, strto)
+        self._update()
 
     def _find_attr(self, entry_dn, attr):
         """Find all attribute values and indexes under a given entry
