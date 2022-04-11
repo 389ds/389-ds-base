@@ -51,7 +51,7 @@ interactive_parser.set_defaults(func=cli_instance.instance_create_interactive)
 template_parser = subparsers.add_parser('create-template', help="Display an example inf answer file, or provide a file name to write it to disk.")
 template_parser.add_argument('--advanced', action='store_true', default=False,
     help="Add advanced options to the template - changing the advanced options may make your instance install fail")
-template_parser.add_argument('template_file', nargs="?", default='None', help="Write example template to this file")
+template_parser.add_argument('template_file', nargs="?", default=None, help="Write example template to this file")
 template_parser.set_defaults(func=cli_instance.instance_example)
 
 subtree_parser = subparsers.add_parser('ds-root', help="Prepare a root directory in which non root user can create, run and administer instances.")
