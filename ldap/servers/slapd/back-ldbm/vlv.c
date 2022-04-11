@@ -1080,6 +1080,16 @@ vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db __attribute__((unused)), DBC
         idl_append(idl, *(ID *)data.data);
         if (++recno <= stop + 1) {
             err = dbc->c_get(dbc, &key, &data, DB_NEXT);
+            if (err == DB_NOTFOUND) {
+                 /* The provided limit (stop) is outdated and there
+                  * is no more record after the current limit.
+                  * This can occur if entries are deleted at the same time
+                  * of vlv search.
+                  */
+                 err = 0;
+                 break;
+            }
+
         }
     }
     if (err != 0) {
