@@ -1,0 +1,73 @@
+# base
+dn: dc=ldapdom,dc=net
+dc: ldapdom
+objectClass: top
+objectClass: domain
+
+dn: ou=UnixUser,dc=ldapdom,dc=net
+ou: People
+objectClass: top
+objectClass: organizationalUnit
+
+dn: ou=UnixGroup,dc=ldapdom,dc=net
+ou: Group
+objectClass: top
+objectClass: organizationalUnit
+
+# users
+dn: uid=testuser1,ou=UnixUser,dc=ldapdom,dc=net
+objectClass: account
+objectClass: posixAccount
+objectClass: top
+objectClass: shadowAccount
+uid: testuser1
+cn: testuser1
+userPassword: {crypt}$6$7syqq.EQ$68iOWF0BTWC24aKE0rJ8cUtPd2Cs7HkruwjEikcJAD5dNNEgMMJ5Jk7w2sC2hYUwN2s65srTQTU83ADt2.t4l0
+loginShell: /bin/bash
+uidNumber: 9000
+gidNumber: 8000
+homeDirectory: /tmp
+
+dn: uid=testuser2,ou=UnixUser,dc=ldapdom,dc=net
+objectClass: account
+objectClass: posixAccount
+objectClass: top
+objectClass: shadowAccount
+uid: testuser2
+cn: testuser2
+userPassword: {crypt}$6$7syqq.EQ$68iOWF0BTWC24aKE0rJ8cUtPd2Cs7HkruwjEikcJAD5dNNEgMMJ5Jk7w2sC2hYUwN2s65srTQTU83ADt2.t4l0
+loginShell: /bin/bash
+uidNumber: 9001
+gidNumber: 8000
+homeDirectory: /tmp
+
+# groups
+dn: cn=group1,ou=UnixGroup,dc=ldapdom,dc=net
+objectClass: groupOfNames
+objectClass: posixGroup
+objectClass: top
+cn: group1
+gidNumber: 8000
+member: uid=testuser1,ou=UnixUser,dc=ldapdom,dc=net
+memberUid: 9000
+member: uid=testuser2,ou=UnixUser,dc=ldapdom,dc=net
+memberUid: 9001
+
+dn: cn=group2,ou=UnixGroup,dc=ldapdom,dc=net
+objectClass: groupOfNames
+objectClass: posixGroup
+objectClass: top
+cn: group2
+gidNumber: 8001
+member: uid=testuser1,ou=UnixUser,dc=ldapdom,dc=net
+memberUid: 9000
+
+dn: cn=group3,ou=UnixGroup,dc=ldapdom,dc=net
+objectClass: groupOfNames
+objectClass: posixGroup
+objectClass: top
+cn: group3
+gidNumber: 8002
+member: uid=testuser2,ou=UnixUser,dc=ldapdom,dc=net
+memberUid: 9001
+

@@ -1,0 +1,153 @@
+# AUTO-GENERATED FILE - DO NOT EDIT!! Use ldapmodify.
+# CRC32 746f71bc
+dn: cn={3}rfc2307bis
+objectClass: olcSchemaConfig
+cn: {3}rfc2307bis
+olcAttributeTypes: {0}( 1.3.6.1.1.1.1.2 NAME 'gecos' DESC 'The GECOS field; th
+ e common name' EQUALITY caseIgnoreIA5Match SUBSTR caseIgnoreIA5SubstringsMatc
+ h SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE )
+olcAttributeTypes: {1}( 1.3.6.1.1.1.1.3 NAME 'homeDirectory' DESC 'The absolut
+ e path to the home directory' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1
+ 466.115.121.1.26 SINGLE-VALUE )
+olcAttributeTypes: {2}( 1.3.6.1.1.1.1.4 NAME 'loginShell' DESC 'The path to th
+ e login shell' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.2
+ 6 SINGLE-VALUE )
+olcAttributeTypes: {3}( 1.3.6.1.1.1.1.5 NAME 'shadowLastChange' EQUALITY integ
+ erMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE )
+olcAttributeTypes: {4}( 1.3.6.1.1.1.1.6 NAME 'shadowMin' EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE )
+olcAttributeTypes: {5}( 1.3.6.1.1.1.1.7 NAME 'shadowMax' EQUALITY integerMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE )
+olcAttributeTypes: {6}( 1.3.6.1.1.1.1.8 NAME 'shadowWarning' EQUALITY integerM
+ atch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE )
+olcAttributeTypes: {7}( 1.3.6.1.1.1.1.9 NAME 'shadowInactive' EQUALITY integer
+ Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE )
+olcAttributeTypes: {8}( 1.3.6.1.1.1.1.10 NAME 'shadowExpire' EQUALITY integerM
+ atch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE )
+olcAttributeTypes: {9}( 1.3.6.1.1.1.1.11 NAME 'shadowFlag' EQUALITY integerMat
+ ch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE )
+olcAttributeTypes: {10}( 1.3.6.1.1.1.1.12 NAME 'memberUid' EQUALITY caseExactI
+ A5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+olcAttributeTypes: {11}( 1.3.6.1.1.1.1.13 NAME 'memberNisNetgroup' EQUALITY ca
+ seExactIA5Match SUBSTR caseExactIA5SubstringsMatch SYNTAX 1.3.6.1.4.1.1466.11
+ 5.121.1.26 )
+olcAttributeTypes: {12}( 1.3.6.1.1.1.1.14 NAME 'nisNetgroupTriple' DESC 'Netgr
+ oup triple' EQUALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 
+ )
+olcAttributeTypes: {13}( 1.3.6.1.1.1.1.15 NAME 'ipServicePort' DESC 'Service p
+ ort number' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE
+ -VALUE )
+olcAttributeTypes: {14}( 1.3.6.1.1.1.1.16 NAME 'ipServiceProtocol' DESC 'Servi
+ ce protocol name' SUP name )
+olcAttributeTypes: {15}( 1.3.6.1.1.1.1.17 NAME 'ipProtocolNumber' DESC 'IP pro
+ tocol number' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SING
+ LE-VALUE )
+olcAttributeTypes: {16}( 1.3.6.1.1.1.1.18 NAME 'oncRpcNumber' DESC 'ONC RPC nu
+ mber' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE
+  )
+olcAttributeTypes: {17}( 1.3.6.1.1.1.1.19 NAME 'ipHostNumber' DESC 'IPv4 addre
+ sses as a dotted decimal omitting leading        zeros or IPv6 addresses as d
+ efined in RFC2373' SUP name )
+olcAttributeTypes: {18}( 1.3.6.1.1.1.1.20 NAME 'ipNetworkNumber' DESC 'IP netw
+ ork as a dotted decimal, eg. 192.168,        omitting leading zeros' SUP name
+  SINGLE-VALUE )
+olcAttributeTypes: {19}( 1.3.6.1.1.1.1.21 NAME 'ipNetmaskNumber' DESC 'IP netm
+ ask as a dotted decimal, eg. 255.255.255.0,        omitting leading zeros' EQ
+ UALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE )
+olcAttributeTypes: {20}( 1.3.6.1.1.1.1.22 NAME 'macAddress' DESC 'MAC address 
+ in maximal, colon separated hex        notation, eg. 00:00:92:90:ee:e2' EQUAL
+ ITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+olcAttributeTypes: {21}( 1.3.6.1.1.1.1.23 NAME 'bootParameter' DESC 'rpc.bootp
+ aramd parameter' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1
+ .26 )
+olcAttributeTypes: {22}( 1.3.6.1.1.1.1.24 NAME 'bootFile' DESC 'Boot image nam
+ e' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+olcAttributeTypes: {23}( 1.3.6.1.1.1.1.26 NAME 'nisMapName' DESC 'Name of a A 
+ generic NIS map' SUP name )
+olcAttributeTypes: {24}( 1.3.6.1.1.1.1.27 NAME 'nisMapEntry' DESC 'A generic N
+ IS entry' EQUALITY caseExactIA5Match SUBSTR caseExactIA5SubstringsMatch SYNTA
+ X 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE )
+olcAttributeTypes: {25}( 1.3.6.1.1.1.1.28 NAME 'nisPublicKey' DESC 'NIS public
+  key' EQUALITY octetStringMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 SINGLE-V
+ ALUE )
+olcAttributeTypes: {26}( 1.3.6.1.1.1.1.29 NAME 'nisSecretKey' DESC 'NIS secret
+  key' EQUALITY octetStringMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 SINGLE-V
+ ALUE )
+olcAttributeTypes: {27}( 1.3.6.1.1.1.1.30 NAME 'nisDomain' DESC 'NIS domain' E
+ QUALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+olcAttributeTypes: {28}( 1.3.6.1.1.1.1.31 NAME 'automountMapName' DESC 'automo
+ unt Map Name' EQUALITY caseExactIA5Match SUBSTR caseExactIA5SubstringsMatch S
+ YNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE )
+olcAttributeTypes: {29}( 1.3.6.1.1.1.1.32 NAME 'automountKey' DESC 'Automount 
+ Key value' EQUALITY caseExactIA5Match SUBSTR caseExactIA5SubstringsMatch SYNT
+ AX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE )
+olcAttributeTypes: {30}( 1.3.6.1.1.1.1.33 NAME 'automountInformation' DESC 'Au
+ tomount information' EQUALITY caseExactIA5Match SUBSTR caseExactIA5Substrings
+ Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE )
+olcObjectClasses: {0}( 1.3.6.1.1.1.2.0 NAME 'posixAccount' DESC 'Abstraction o
+ f an account with POSIX attributes' SUP top AUXILIARY MUST ( cn $ uid $ uidNu
+ mber $ gidNumber $ homeDirectory ) MAY ( userPassword $ loginShell $ gecos $ 
+ description ) )
+olcObjectClasses: {1}( 1.3.6.1.1.1.2.1 NAME 'shadowAccount' DESC 'Additional a
+ ttributes for shadow passwords' SUP top AUXILIARY MUST uid MAY ( userPassword
+  $ description $ shadowLastChange $ shadowMin $ shadowMax $ shadowWarning $ s
+ hadowInactive $ shadowExpire $ shadowFlag ) )
+olcObjectClasses: {2}( 1.3.6.1.1.1.2.2 NAME 'posixGroup' DESC 'Abstraction of 
+ a group of accounts' SUP top AUXILIARY MUST gidNumber MAY ( userPassword $ me
+ mberUid $ description ) )
+olcObjectClasses: {3}( 1.3.6.1.1.1.2.3 NAME 'ipService' DESC 'Abstraction an I
+ nternet Protocol service.        Maps an IP port and protocol (such as tcp or
+  udp)        to one or more names; the distinguished value of        the cn a
+ ttribute denotes the services canonical        name' SUP top STRUCTURAL MUST 
+ ( cn $ ipServicePort $ ipServiceProtocol ) MAY description )
+olcObjectClasses: {4}( 1.3.6.1.1.1.2.4 NAME 'ipProtocol' DESC 'Abstraction of 
+ an IP protocol. Maps a protocol number        to one or more names. The disti
+ nguished value of the cn        attribute denotes the protocols canonical nam
+ e' SUP top STRUCTURAL MUST ( cn $ ipProtocolNumber ) MAY description )
+olcObjectClasses: {5}( 1.3.6.1.1.1.2.5 NAME 'oncRpc' DESC 'Abstraction of an O
+ pen Network Computing (ONC)       [RFC1057] Remote Procedure Call (RPC) bindi
+ ng.       This class maps an ONC RPC number to a name.       The distinguishe
+ d value of the cn attribute denotes       the RPC services canonical name' SU
+ P top STRUCTURAL MUST ( cn $ oncRpcNumber ) MAY description )
+olcObjectClasses: {6}( 1.3.6.1.1.1.2.6 NAME 'ipHost' DESC 'Abstraction of a ho
+ st, an IP device. The distinguished        value of the cn attribute denotes 
+ the hosts canonical        name. Device SHOULD be used as a structural class'
+  SUP top AUXILIARY MUST ( cn $ ipHostNumber ) MAY ( userPassword $ l $ descri
+ ption $ manager ) )
+olcObjectClasses: {7}( 1.3.6.1.1.1.2.7 NAME 'ipNetwork' DESC 'Abstraction of a
+  network. The distinguished value of        the cn attribute denotes the netw
+ orks canonical name' SUP top STRUCTURAL MUST ipNetworkNumber MAY ( cn $ ipNet
+ maskNumber $ l $ description $ manager ) )
+olcObjectClasses: {8}( 1.3.6.1.1.1.2.8 NAME 'nisNetgroup' DESC 'Abstraction of
+  a netgroup. May refer to other netgroups' SUP top STRUCTURAL MUST cn MAY ( n
+ isNetgroupTriple $ memberNisNetgroup $ description ) )
+olcObjectClasses: {9}( 1.3.6.1.1.1.2.9 NAME 'nisMap' DESC 'A generic abstracti
+ on of a NIS map' SUP top STRUCTURAL MUST nisMapName MAY description )
+olcObjectClasses: {10}( 1.3.6.1.1.1.2.10 NAME 'nisObject' DESC 'An entry in a 
+ NIS map' SUP top STRUCTURAL MUST ( cn $ nisMapEntry $ nisMapName ) MAY descri
+ ption )
+olcObjectClasses: {11}( 1.3.6.1.1.1.2.11 NAME 'ieee802Device' DESC 'A device w
+ ith a MAC address; device SHOULD be        used as a structural class' SUP to
+ p AUXILIARY MAY macAddress )
+olcObjectClasses: {12}( 1.3.6.1.1.1.2.12 NAME 'bootableDevice' DESC 'A device 
+ with boot parameters; device SHOULD be        used as a structural class' SUP
+  top AUXILIARY MAY ( bootFile $ bootParameter ) )
+olcObjectClasses: {13}( 1.3.6.1.1.1.2.14 NAME 'nisKeyObject' DESC 'An object w
+ ith a public and secret key' SUP top AUXILIARY MUST ( cn $ nisPublicKey $ nis
+ SecretKey ) MAY ( uidNumber $ description ) )
+olcObjectClasses: {14}( 1.3.6.1.1.1.2.15 NAME 'nisDomainObject' DESC 'Associat
+ es a NIS domain with a naming context' SUP top AUXILIARY MUST nisDomain )
+olcObjectClasses: {15}( 1.3.6.1.1.1.2.16 NAME 'automountMap' SUP top STRUCTURA
+ L MUST automountMapName MAY description )
+olcObjectClasses: {16}( 1.3.6.1.1.1.2.17 NAME 'automount' DESC 'Automount info
+ rmation' SUP top STRUCTURAL MUST ( automountKey $ automountInformation ) MAY 
+ description )
+olcObjectClasses: {17}( 1.3.6.1.4.1.5322.13.1.1 NAME 'namedObject' SUP top STR
+ UCTURAL MAY cn )
+structuralObjectClass: olcSchemaConfig
+entryUUID: bae05988-4e5c-103c-8e41-83bde8bbc3e8
+creatorsName: cn=config
+createTimestamp: 20220412033105Z
+entryCSN: 20220412033105.684579Z#000000#000#000000
+modifiersName: cn=config
+modifyTimestamp: 20220412033105Z

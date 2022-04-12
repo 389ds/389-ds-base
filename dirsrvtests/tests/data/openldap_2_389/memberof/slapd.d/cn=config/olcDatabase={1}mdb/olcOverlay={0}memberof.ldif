@@ -1,0 +1,15 @@
+# AUTO-GENERATED FILE - DO NOT EDIT!! Use ldapmodify.
+# CRC32 f9e64128
+dn: olcOverlay={0}memberof
+objectClass: olcOverlayConfig
+objectClass: olcMemberOfConfig
+olcOverlay: {0}memberof
+olcMemberOfDangling: ignore
+olcMemberOfRefInt: FALSE
+structuralObjectClass: olcMemberOfConfig
+entryUUID: bae06a4a-4e5c-103c-8e46-83bde8bbc3e8
+creatorsName: cn=config
+createTimestamp: 20220412033105Z
+entryCSN: 20220412033105.684579Z#000000#000#000000
+modifiersName: cn=config
+modifyTimestamp: 20220412033105Z

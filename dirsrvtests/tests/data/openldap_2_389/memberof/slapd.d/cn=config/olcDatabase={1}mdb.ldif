@@ -1,0 +1,33 @@
+# AUTO-GENERATED FILE - DO NOT EDIT!! Use ldapmodify.
+# CRC32 397d9772
+dn: olcDatabase={1}mdb
+objectClass: olcDatabaseConfig
+objectClass: olcMdbConfig
+olcDatabase: {1}mdb
+olcSuffix: dc=ldapdom,dc=net
+olcAddContentAcl: FALSE
+olcLastMod: TRUE
+olcLastBind: TRUE
+olcMaxDerefDepth: 15
+olcReadOnly: FALSE
+olcRootDN: cn=root,dc=ldapdom,dc=net
+olcRootPW:: cGFzcw==
+olcSyncUseSubentry: FALSE
+olcMonitoring: TRUE
+olcDbDirectory: /tmp/ldap-sssdtest
+olcDbCheckpoint: 1024 5
+olcDbNoSync: FALSE
+olcDbIndex: objectClass eq
+olcDbMaxReaders: 0
+olcDbMaxSize: 10485760
+olcDbMode: 0600
+olcDbSearchStack: 16
+olcDbMaxEntrySize: 0
+olcDbRtxnSize: 10000
+structuralObjectClass: olcMdbConfig
+entryUUID: bae06806-4e5c-103c-8e45-83bde8bbc3e8
+creatorsName: cn=config
+createTimestamp: 20220412033105Z
+entryCSN: 20220412033105.684579Z#000000#000#000000
+modifiersName: cn=config
+modifyTimestamp: 20220412033105Z
