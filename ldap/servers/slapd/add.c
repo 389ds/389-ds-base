@@ -386,7 +386,7 @@ slapi_exists_or_add_internal(
         0,
         NULL,
         NULL,
-        NULL,
+        plugin_get_default_component_id(),
         0);
 
     slapi_search_internal_pb(search_pb);
@@ -421,7 +421,7 @@ slapi_exists_or_add_internal(
         /* do the add */
         Slapi_PBlock *add_pb = slapi_pblock_new();
 
-        slapi_add_entry_internal_set_pb(add_pb, s_entry, NULL, NULL, 0);
+        slapi_add_entry_internal_set_pb(add_pb, s_entry, NULL, plugin_get_default_component_id(), 0);
         slapi_add_internal_pb(add_pb);
 
         slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &create_result);

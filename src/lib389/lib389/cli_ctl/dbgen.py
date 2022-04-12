@@ -161,7 +161,7 @@ def dbgen_create_users(inst, log, args):
         """
         Interactively get all the info ...
         """
-        log.info("Missing required parameters, switching to Interactive mode ...")
+        log.info("Missing required parameters '--number' and/or '--suffix', switching to Interactive mode ...")
 
         # Get the suffix
         args.suffix = get_input(log, "Enter the suffix", "dc=example,dc=com", "dn")
@@ -205,7 +205,7 @@ def dbgen_create_groups(inst, log, args):
         """
         Interactively get all the info ...
         """
-        log.info("Missing required parameters, switching to Interactive mode ...")
+        log.info("Missing required parameters '--number' and/or '--suffix', switching to Interactive mode ...")
 
         # Get the number of users to create
         args.number = get_input(log, "Enter the number of groups to create", 1, "int")
@@ -257,7 +257,7 @@ def dbgen_create_cos_def(inst, log, args):
     if args.type is None or args.parent is None or len(args.cos_attr) == 0 or \
         ((args.type == "classic" or args.type == "indirect") and args.cos_specifier is None) \
         or ((args.type == "classic" or args.type == "pointer") and args.cos_template is None):
-        log.info("Missing required parameters, switching to Interactive mode ...")
+        log.info("Missing some required parameters '--parent',  '--type', '--cos-specifier', or '--cos-template', switching to Interactive mode ...")
 
         # Get the number of users to create
         args.type = get_input(log, "Type of COS definition: \"classic\", \"pointer\", or \"indirect\"",
@@ -309,7 +309,7 @@ def dbgen_create_cos_tmp(inst, log, args):
     Create a COS template entry
     """
     if args.parent is None or args.cos_priority is None or args.cos_attr_val is None:
-        log.info("Missing required parameters, switching to Interactive mode ...")
+        log.info("Missing required parameters '--parent', '--cos-priority' or '--cos-attr-val', switching to Interactive mode ...")
 
         # Get the parent
         args.parent = get_input(log, "Enter the parent entry to add the COS template under", "dc=example,dc=com", "dn")
@@ -348,7 +348,7 @@ def dbgen_create_role(inst, log, args):
     if args.type is None or args.parent is None or \
         (args.type == "filtered" and args.filter is None) or \
         (args.type == "nested" and len(args.role_dn) == 0):
-        log.info("Missing required parameters, switching to Interactive mode ...")
+        log.info("Missing some required parameters '--type', '--parent'. '--filter', '--role-dn', switching to Interactive mode ...")
 
         # Get the number of users to create
         args.type = get_input(log, "Type of Role: \"managed\", \"filtered\", or \"nested\"",
@@ -407,7 +407,7 @@ def dbgen_create_mods(inst, log, args):
     """
 
     if args.num_users is None or args.parent is None:
-        log.info("Missing required parameters, switching to Interactive mode ...")
+        log.info("Missing required parameters '--num-users' and/or '--parent', switching to Interactive mode ...")
 
         # Create users
         args.create_users = get_input(log, "Do you want to create the user entries (yes/no)", True, "bool")
