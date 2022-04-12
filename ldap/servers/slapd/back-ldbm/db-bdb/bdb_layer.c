@@ -5805,7 +5805,7 @@ bdb__import_file_name(ldbm_instance *inst)
     char *fname = slapi_ch_smprintf("%s/.import_%s",
                                     inst->inst_parent_dir_name,
                                     inst->inst_dir_name);
-slapi_log_err(SLAPI_LOG_INFO, "bdb__import_file_name", "DBG: fname=%s\n", fname);
+    slapi_log_err(SLAPI_LOG_DEBUG, "bdb__import_file_name", "DBG: fname=%s\n", fname);
     return fname;
 }
 
