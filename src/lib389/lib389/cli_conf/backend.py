@@ -40,7 +40,6 @@ arg_to_attr = {
         'directory': 'nsslapd-directory',
         'dbcachesize': 'nsslapd-dbcachesize',
         'logdirectory': 'nsslapd-db-logdirectory',
-        'durable_txn': 'nsslapd-db-durable-transaction',
         'txn_wait': 'nsslapd-db-transaction-wait',
         'checkpoint_interval': 'nsslapd-db-checkpoint-interval',
         'compactdb_interval': 'nsslapd-db-compactdb-interval',
@@ -1020,7 +1019,6 @@ def create_parser(subparsers):
     set_db_config_parser.add_argument('--directory', help='Specifies absolute path to database instance')
     set_db_config_parser.add_argument('--dbcachesize', help='Specifies the database index cache size in bytes')
     set_db_config_parser.add_argument('--logdirectory', help='Specifies the path to the directory that contains the database transaction logs')
-    set_db_config_parser.add_argument('--durable-txn', help='Enables or disables whether database transaction log entries are immediately written to the disk')
     set_db_config_parser.add_argument('--txn-wait', help='Sets whether the server should should wait if there are no db locks available')
     set_db_config_parser.add_argument('--checkpoint-interval', help='Sets the amount of time in seconds after which the server sends a '
                                                                     'checkpoint entry to the database transaction log')
@@ -1063,7 +1061,7 @@ def create_parser(subparsers):
                                                                   'WARNING: This parameter can trigger experimental code.')
     set_db_config_parser.add_argument('--deadlock-policy', help='Adjusts the backend database deadlock policy (Advanced setting)')
     set_db_config_parser.add_argument('--db-home-directory', help='Sets the directory for the database mmapped files (Advanced setting)')
-    set_db_config_parser.add_argument('--db_lib', help='Sets which db lib is used. Valid values are: bdb or mdb')
+    set_db_config_parser.add_argument('--db-lib', help='Sets which db lib is used. Valid values are: bdb or mdb')
 
     #######################################################
     # Database & Suffix Monitor

@@ -33,7 +33,7 @@ from lib389.cli_base import (
     format_error_to_dict)
 from lib389._constants import DSRC_CONTAINER
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(allow_abbrev=False)
 parser.add_argument('-v', '--verbose',
         help="Display verbose operation tracing during command execution",
         action='store_true', default=False
