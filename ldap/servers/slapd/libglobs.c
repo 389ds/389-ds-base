@@ -958,6 +958,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.conntablesize,
      CONFIG_INT, NULL, NULL, NULL /* deletion is not allowed */},
+    {CONFIG_CONNTABLENUMLISTS_ATTRIBUTE, config_set_conntable_numlists,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.conntable_numlists,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_CONNTABLE_NUMLISTS_STR, NULL /* deletion is not allowed */},
     {CONFIG_SSLCLIENTAUTH_ATTRIBUTE, config_set_SSLclientAuth,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.SSLclientAuth,
@@ -1693,6 +1697,7 @@ FrontendConfig_init(void)
     cfg->conntablesize = getdtablesize();
 #endif /* USE_SYSCONF */
 
+    cfg->conntable_numlists = SLAPD_DEFAULT_CONNTABLE_NUMLISTS;
     init_accesscontrol = cfg->accesscontrol = LDAP_ON;
 
     /* nagle triggers set/unset TCP_CORK setsockopt per operation
@@ -4877,6 +4882,41 @@ config_set_conntablesize(const char *attrname, char *value, char *errorbuf, int 
 }
 
 int
+config_set_conntable_numlists(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    long nValue = 0;
+    int minVal = 1;
+    int maxVal = 4;
+    int defVal = SLAPD_DEFAULT_CONNTABLE_NUMLISTS;
+    char *endp = NULL;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    errno = 0;
+    nValue = strtol(value, &endp, 0);
+    if (*endp != '\0' || errno == ERANGE || nValue < minVal || nValue > maxVal) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: invalid value \"%s\", connection table num lists must range from %d to %d. "
+                              "Server will use a setting of %d.",
+                              attrname, value, minVal, maxVal, defVal);
+        if (nValue > maxVal || nValue < minVal) {
+            nValue = defVal;
+        }
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->conntable_numlists = nValue;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+int
 config_set_reservedescriptors(const char *attrname, char *value, char *errorbuf, int apply)
 {
     int retVal = LDAP_SUCCESS;
@@ -6603,6 +6643,19 @@ config_get_conntablesize(void)
 
     CFG_LOCK_READ(slapdFrontendConfig);
     retVal = slapdFrontendConfig->conntablesize;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_get_conntable_numlists(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->conntable_numlists;
     CFG_UNLOCK_READ(slapdFrontendConfig);
 
     return retVal;

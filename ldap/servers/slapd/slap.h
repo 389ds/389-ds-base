@@ -281,6 +281,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR "-1"
 /* We'd like this number to be prime for the hash into the Connection table */
 #define SLAPD_DEFAULT_CONNTABLESIZE 4093 /* connection table size */
+#define SLAPD_DEFAULT_CONNTABLE_NUMLISTS 2 /* connection table lists */
+#define SLAPD_DEFAULT_CONNTABLE_NUMLISTS_STR "2"
 #define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL 3600
 #define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL_STR "3600"
 
@@ -2189,6 +2191,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_MAXTHREADSPERCONN_ATTRIBUTE "nsslapd-maxthreadsperconn"
 #define CONFIG_MAXDESCRIPTORS_ATTRIBUTE "nsslapd-maxdescriptors"
 #define CONFIG_CONNTABLESIZE_ATTRIBUTE "nsslapd-conntablesize"
+#define CONFIG_CONNTABLENUMLISTS_ATTRIBUTE "nsslapd-conntablenumlists"
 #define CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE "nsslapd-reservedescriptors"
 #define CONFIG_IDLETIMEOUT_ATTRIBUTE "nsslapd-idletimeout"
 #define CONFIG_IOBLOCKTIMEOUT_ATTRIBUTE "nsslapd-ioblocktimeout"
@@ -2388,6 +2391,7 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t lastmod;
     int64_t maxdescriptors;
     int conntablesize;
+    int conntable_numlists;
     slapi_int_t maxthreadsperconn;
     int outbound_ldap_io_timeout;
     slapi_onoff_t nagle;

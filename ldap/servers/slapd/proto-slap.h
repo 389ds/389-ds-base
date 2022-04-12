@@ -351,6 +351,7 @@ int config_set_return_exact_case(const char *attrname, char *value, char *errorb
 int config_set_result_tweak(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_referral_mode(const char *attrname, char *url, char *errorbuf, int apply);
 int config_set_conntablesize(const char *attrname, char *url, char *errorbuf, int apply);
+int config_set_conntable_numlists(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_maxbersize(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_maxsasliosize(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_versionstring(const char *attrname, char *versionstring, char *errorbuf, int apply);
@@ -513,6 +514,7 @@ int config_get_auditlog_logging_enabled(void);
 int config_get_auditfaillog_logging_enabled(void);
 char *config_get_referral_mode(void);
 int config_get_conntablesize(void);
+int config_get_conntable_numlists(void);
 int config_check_referral_mode(void);
 ber_len_t config_get_maxbersize(void);
 int32_t config_get_maxsasliosize(void);
