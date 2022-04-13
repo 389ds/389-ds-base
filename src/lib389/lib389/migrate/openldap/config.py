@@ -79,7 +79,7 @@ class olOverlay(object):
         self.classes = ensure_list_str(self.config[1]['objectClass'])
         self.log.debug(f"{self.name} {self.classes}")
 
-        if 'olcMemberOf' in self.classes:
+        if 'olcMemberOf' in self.classes or 'olcMemberOfConfig' in self.classes:
             self.otype = olOverlayType.MEMBEROF
             #
         elif 'olcRefintConfig' in self.classes:
