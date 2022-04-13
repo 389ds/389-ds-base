@@ -226,29 +226,8 @@ class Paths(object):
         # Are we online? Is our key in the config map?
         if name in CONFIG_MAP and self._instance is not None and self._instance.state == DIRSRV_STATE_ONLINE:
             # Get the online value.
-<<<<<<< HEAD
             (dn, attr) = CONFIG_MAP[name]
             ent = self._instance.getEntry(dn, attrlist=[attr,])
-=======
-            err = None
-            try:
-                (dn, attr) = CONFIG_MAP[name]
-                ent = self._instance.getEntry(dn, attrlist=[attr,])
-            except ldap.LDAPError as e:
-                err = e
-            if isinstance(err, ldap.NO_SUCH_OBJECT) and name in CONFIG_MAP2:
-                try:
-                    (dn, attr) = CONFIG_MAP2[name]
-                    ent = self._instance.getEntry(dn, attrlist=[attr,])
-                    err = None
-                except ldap.LDAPError as e:
-                    err = e
-            if isinstance(err, ldap.SERVER_DOWN):
-                # Search in config.
-                break
-            if err is not None:
-                raise self._pretty_exception(err, f"while searching attribute {attr} in entry {dn} on server {self.serverid}")
->>>>>>> 42fa04d67 (Issue 5210 - Python undefined names in lib389)
             # If the server doesn't have it, fall back to our configuration.
             if attr is not None:
                 v = ensure_str(ent.getValue(attr))
