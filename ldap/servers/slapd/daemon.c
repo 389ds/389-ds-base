@@ -1248,12 +1248,14 @@ slapd_daemon(daemon_ports_t *ports)
 #endif
 
     if (!in_referral_mode) {
-        /* Close SNMP collator after the plugins closed...
+        /* Close SNMP collator (if counters are enabled) after the plugins closed...
          * Replication plugin still performs internal ops that
          * may try to increment snmp stats.
          * Fix for defect 523780
          */
-        snmp_collator_stop();
+        if (config_get_slapi_counters()) {
+            snmp_collator_stop();
+        }
         mapping_tree_free();
     }
 
