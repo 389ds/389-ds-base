@@ -2577,7 +2577,7 @@ import_foreman(void *param)
                  */
 #define RUVRDN SLAPI_ATTR_UNIQUEID "=" RUV_STORAGE_ENTRY_UNIQUEID
                 if (!slapi_be_issuffix(inst->inst_be, backentry_get_sdn(fi->entry)) &&
-                    strcasecmp(backentry_get_ndn(fi->entry), RUVRDN) /* NOT nsuniqueid=ffffffff-... */) {
+                    strcasecmp(slapi_entry_get_nrdn_const(fi->entry->ep_entry), RUVRDN) /* NOT nsuniqueid=ffffffff-... */) {
                     import_log_notice(job, SLAPI_LOG_WARNING, "import_foreman",
                                       "Skipping entry \"%s\" which has no parent, ending at line %d "
                                       "of file \"%s\"",
