@@ -587,7 +587,7 @@ class EditLdapEntry extends React.Component {
                 }
             }
 
-            // If we're editing a user then add nsRoleDN attribute to the possible list
+            // If we're editing a user then add nsRoleDN and nsAccountLock attributes to the possible list
             let personOC = false;
             for (const existingOC of this.state.selectedObjectClasses) {
                 if (existingOC.cells[0].toLowerCase() === 'person' ||
@@ -596,23 +596,25 @@ class EditLdapEntry extends React.Component {
                     break;
                 }
             }
-            let roleDNAttr = 'nsRoleDN'
-            if ((personOC && !attrList.includes(roleDNAttr))) {
-                let selected = false;
-                for (const existingRow of this.state.editableTableData) {
-                    if (existingRow.attr.toLowerCase() === roleDNAttr.toLowerCase()) {
-                        selected = true;
-                        break;
+            const additionalAttrs = ['nsRoleDN', 'nsAccountLock'];
+            for (const addAttr of additionalAttrs) {
+                if ((personOC && !attrList.includes(addAttr))) {
+                    let selected = false;
+                    for (const existingRow of this.state.editableTableData) {
+                        if (existingRow.attr.toLowerCase() === addAttr.toLowerCase()) {
+                            selected = true;
+                            break;
+                        }
                     }
-                }
 
-                attrList.push(roleDNAttr);
-                rowsAttr.push({
-                    attributeName: roleDNAttr,
-                    isAttributeSelected: selected,
-                    selected: selected,
-                    cells: [roleDNAttr, '']
-                });
+                    attrList.push(addAttr);
+                    rowsAttr.push({
+                        attributeName: addAttr,
+                        isAttributeSelected: selected,
+                        selected: selected,
+                        cells: [addAttr, '']
+                    });
+                }
             }
         });
 

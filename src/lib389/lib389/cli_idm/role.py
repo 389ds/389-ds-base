@@ -7,6 +7,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import json
 import ldap
 from lib389.idm.role import (
     Role,
@@ -86,10 +87,20 @@ def rename(inst, basedn, log, args, warn=True):
 def entry_status(inst, basedn, log, args):
     dn = _get_dn_arg(args.dn, msg="Enter dn to check")
     roles = Roles(inst, basedn)
-    role = roles.get(dn=dn)
+    try:
+        role = roles.get(dn=dn)
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError("Role \"{}\" is not found or the entry is not a role.".format(dn))
+
     status = role.status()
-    log.info(f'Entry DN: {dn}')
-    log.info(f'Entry State: {status["state"].describe(status["role_dn"])}\n')
+    info_dict = {}
+    if args.json:
+        info_dict["dn"] = dn
+        info_dict["state"] = f'{status["state"].describe(status["role_dn"])}'
+        log.info(json.dumps({"type": "status", "info": info_dict}, indent=4))
+    else:
+        log.info(f'Entry DN: {dn}')
+        log.info(f'Entry State: {status["state"].describe(status["role_dn"])}\n')
 
 
 def subtree_status(inst, basedn, log, args):
