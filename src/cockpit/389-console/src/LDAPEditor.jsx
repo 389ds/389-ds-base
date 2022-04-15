@@ -4,22 +4,30 @@ import {
     expandable
 } from '@patternfly/react-table';
 import {
-    CatalogIcon,
-    ExclamationTriangleIcon,
-    ResourcesEmptyIcon,
     AngleRightIcon,
+    CatalogIcon,
+    ExclamationCircleIcon,
+    ExclamationTriangleIcon,
     InfoCircleIcon,
+    LockIcon,
+    ResourcesEmptyIcon,
 } from '@patternfly/react-icons';
 import {
     Breadcrumb,
     BreadcrumbItem,
+    Button,
+    Modal,
+    ModalVariant,
     Spinner,
     Tab,
     Tabs,
     TabTitleText,
     Text,
     TextContent,
+    TextList,
+    TextListItem,
     TextVariants,
+    Tooltip,
 } from "@patternfly/react-core";
 import {
     generateUniqueId,
@@ -97,6 +105,15 @@ export class LDAPEditor extends React.Component {
             pagedRows: [],
             refreshing: false,
             allObjectclasses: [],
+            isConfirmModalOpen: false,
+            isTreeViewAction: false,
+            currentRowKey: -1
+        };
+
+        this.handleConfirmModalToggle = () => {
+            this.setState(({ isConfirmModalOpen }) => ({
+                isConfirmModalOpen: !isConfirmModalOpen,
+            }));
         };
 
         // Toggle currently active tab
@@ -130,6 +147,42 @@ export class LDAPEditor extends React.Component {
                     activeTabKey: 2,
                     searchBase: aTarget.value
                 });
+                return;
+            }
+            if (aTarget.name === ENTRY_MENU.lockRole) {
+                this.setState({
+                    entryDn: aTarget.value,
+                    entryType: "role",
+                    operationType: "lock",
+                    isTreeViewAction: true
+                }, () => { this.handleConfirmModalToggle() });
+                return;
+            }
+            if (aTarget.name === ENTRY_MENU.lockAccount) {
+                this.setState({
+                    entryDn: aTarget.value,
+                    entryType: "account",
+                    operationType: "lock",
+                    isTreeViewAction: true
+                }, () => { this.handleConfirmModalToggle() });
+                return;
+            }
+            if (aTarget.name === ENTRY_MENU.unlockRole) {
+                this.setState({
+                    entryDn: aTarget.value,
+                    entryType: "role",
+                    operationType: "unlock",
+                    isTreeViewAction: true
+                }, () => { this.handleConfirmModalToggle() });
+                return;
+            }
+            if (aTarget.name === ENTRY_MENU.unlockAccount) {
+                this.setState({
+                    entryDn: aTarget.value,
+                    entryType: "account",
+                    operationType: "unlock",
+                    isTreeViewAction: true
+                }, () => { this.handleConfirmModalToggle() });
                 return;
             }
 
@@ -187,6 +240,7 @@ export class LDAPEditor extends React.Component {
         this.onNavItemClick = this.onNavItemClick.bind(this);
         this.handleReload = this.handleReload.bind(this);
         this.getAttributes = this.getAttributes.bind(this);
+        this.handleLockUnlockEntry = this.handleLockUnlockEntry.bind(this);
     }
 
     handleReload(refresh) {
@@ -219,6 +273,61 @@ export class LDAPEditor extends React.Component {
             });
             getOneLevelEntries(params, this.processDirectChildren);
         }
+    }
+
+    handleLockUnlockEntry() {
+        const {
+            entryDn,
+            entryType,
+            operationType,
+            isTreeViewAction
+        } = this.state;
+
+        const cmd = ["dsidm", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "-b", entryDn, entryType, operationType, entryDn];
+        log_cmd("handleLockUnlockEntry", `${operationType} entry`, cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: 'message' })
+                .done(_ => {
+                    this.setState({
+                        entryMenuIsOpen: !this.state.entryMenuIsOpen,
+                    }, () => {
+                        this.handleConfirmModalToggle();
+                        if (isTreeViewAction) {
+                            this.setState({
+                                refreshEntryTime: Date.now(),
+                                isTreeViewAction: false
+                            });
+                        } else {
+                            this.handleReload(true);
+                        }
+                    });
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    console.error(
+                        "handleLockUnlockEntry",
+                        `${entryType} ${operationType} operation failed -`,
+                        errMsg.desc
+                    );
+                    this.props.addNotification(
+                        `${errMsg.desc.includes(`is already ${operationType === "unlock" ? "active" : "locked"}`) ? 'warning' : 'error'}`,
+                        `${errMsg.desc}`
+                    );
+                    this.setState({
+                        entryMenuIsOpen: !this.state.entryMenuIsOpen,
+                    }, () => {
+                        this.handleConfirmModalToggle();
+                        if (isTreeViewAction) {
+                            this.setState({
+                                refreshEntryTime: Date.now(),
+                                isTreeViewAction: false
+                            });
+                        } else {
+                            this.handleReload(true);
+                        }
+                    });
+                });
     }
 
     getAttributes(callbackFunc) {
@@ -395,6 +504,8 @@ export class LDAPEditor extends React.Component {
 
             // TODO Test for a JPEG photo!!!
             // if ( info.fullEntry.contains)
+
+            // TODO Add isActive func
             let dn = info.dn;
             if (info.ldapsubentry) {
                 dn =
@@ -411,7 +522,11 @@ export class LDAPEditor extends React.Component {
                         numSubCellInfo,
                         info.modifyTimestamp,
                     ],
-                    rawdn: info.dn
+                    rawdn: info.dn,
+                    entryState: "",
+                    isRole: info.isRole,
+                    isLockable: info.isLockable,
+                    ldapsubentry: info.ldapsubentry
                 },
                 {
                     // customRowId: info.parentId + 1,
@@ -433,6 +548,10 @@ export class LDAPEditor extends React.Component {
             pagedRows: childrenRows.slice(0, 2 * this.state.perPage),
             total: childrenRows.length / 2,
             page: 1
+        }, () => {
+            if (this.state.currentRowKey >= 0) {
+                this.handleCollapse(null, this.state.currentRowKey, true, null);
+            }
         });
     }
 
@@ -452,24 +571,102 @@ export class LDAPEditor extends React.Component {
 
         const firstTime = (pagedRows[rowKey + 1].cells[0].title) === this.initialChildText;
         if (firstTime) {
-            const baseDn = pagedRows[rowKey].rawdn; // The DN is the first element in the array.
-            getBaseLevelEntryAttributes(this.props.serverId, baseDn, (entryArray) => {
-                pagedRows[rowKey + 1].cells = [{
-                    title: (
-                        <>
-                            {entryArray.map((line) => (
-                                <div key={line.attribute + line.value}>
-                                    <strong>{line.attribute}</strong>
-                                    {line.value.toLowerCase() === ": ldapsubentry" ? <span className="ds-info-color">{line.value}</span> : line.attribute.toLowerCase() === "userpassword" ? ": ********" : line.value}
-                                </div>
-                            ))}
-                        </>
-                    )
-                }];
-                // Update the row.
-                this.setState({
-                    pagedRows
+            const entryRows = [];
+            let entryStateIcon = "";
+            let isRole = false;
+            const entryDn = pagedRows[rowKey].rawdn; // The DN is the first element in the array.
+            getBaseLevelEntryAttributes(this.props.serverId, entryDn, (entryArray) => {
+                entryArray.map(line => {
+                    const attr = line.attribute;
+                    const val = line.value.toLowerCase() === ": ldapsubentry" ? <span className="ds-info-color">{line.value}</span> : line.attribute.toLowerCase() === "userpassword" ? ": ********" : line.value;
+
+                    // <div key={line.attribute + line.value}></div>
+                    entryRows.push({ attr: attr, value: val });
+
+                    const myVal = line.value.substring(1).trim()
+                            .toLowerCase();
+                    const accountObjectclasses = ['nsaccount', 'nsperson', 'simplesecurityobject',
+                        'organization', 'person', 'account', 'organizationalunit',
+                        'netscapeserver', 'domain', 'posixaccount', 'shadowaccount',
+                        'posixgroup', 'mailrecipient', 'nsroledefinition'];
+                    if (accountObjectclasses.includes(myVal)) {
+                        entryStateIcon = <LockIcon className="ds-pf-blue-color" />;
+                    }
+                    if (myVal === 'nsroledefinition') {
+                        isRole = true;
+                    }
                 });
+                let entryState = "";
+                const cmd = ["dsidm", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                    "-b", entryDn, isRole ? "role" : "account", "entry-status", entryDn];
+                log_cmd("handleCollapse", "Checking if entry is activated", cmd);
+                cockpit
+                        .spawn(cmd, { superuser: true, err: 'message' })
+                        .done(content => {
+                            if ((entryDn !== 'Root DSE') && (entryStateIcon !== "")) {
+                                const status = JSON.parse(content);
+                                entryState = status.info.state;
+                                if (entryState === 'inactivity limit exceeded' || entryState.startsWith("probably activated or")) {
+                                    entryStateIcon = <ExclamationTriangleIcon className="ds-pf-yellow-color ct-icon-exclamation-triangle" />;
+                                }
+                            }
+                        })
+                        .fail(err => {
+                            const errMsg = JSON.parse(err);
+                            if ((entryDn !== 'Root DSE') && (entryStateIcon !== "") && !(errMsg.desc.includes("Root suffix can't be locked or unlocked"))) {
+                                console.error(
+                                    "handleCollapse",
+                                    `${isRole ? "role" : "account"} account entry-status operation failed`,
+                                    errMsg.desc
+                                );
+                                entryState = "error: please, check browser logs";
+                                entryStateIcon = <ExclamationCircleIcon className="ds-pf-red-color ct-exclamation-circle" />;
+                            }
+                        })
+                        .finally(() => {
+                            let entryStateIconFinal = "";
+                            if ((entryState !== "") && (entryStateIcon !== "") && (entryState !== "activated")) {
+                                entryStateIconFinal =
+                                    <Tooltip
+                                        position="bottom"
+                                        content={
+                                            <div className="ds-info-icon">
+                                                {entryState}
+                                            </div>
+                                        }
+                                    >
+                                        <a className="ds-font-size-md">{entryStateIcon}</a>
+                                    </Tooltip>;
+                            }
+                            pagedRows[rowKey].entryState = entryState;
+                            pagedRows[rowKey + 1].cells = [{
+                                title: (
+                                    <>
+                                        {entryRows.map((line) => {
+                                            let attrLine = "";
+                                            if (line.attr === "dn") {
+                                                attrLine =
+                                                    <div key={line.attr + line.value}>
+                                                        <strong>{line.attr}</strong>{line.value} {entryStateIconFinal}
+                                                    </div>;
+                                            } else {
+                                                attrLine =
+                                                    <div key={line.attr + line.value}>
+                                                        <strong>{line.attr}</strong>{line.value}
+                                                    </div>;
+                                            }
+                                            return attrLine;
+                                        }
+                                        )}
+                                    </>
+                                )
+                            }];
+                            // Update the rows.
+                            this.setState({
+                                pagedRows,
+                                currentRowKey: -1
+                            });
+                        });
             });
         }
     }
@@ -521,7 +718,8 @@ export class LDAPEditor extends React.Component {
                     ],
                     rawdn: info.dn,
                     customRowId: info.parentId,
-                    isEmptySuffix: isEmptySuffix
+                    isEmptySuffix: isEmptySuffix,
+                    entryState: ""
                 },
                 {
                     customRowId: info.parentId + 1,
@@ -708,6 +906,55 @@ export class LDAPEditor extends React.Component {
                 }
             }];
         }
+
+        let lockingDropdown = [];
+        if (rowData.isLockable) {
+            if (rowData.entryState !== "" && rowData.entryState !== "activated") {
+                if (rowData.entryState.includes("probably activated") || rowData.entryState.includes("indirectly locked")) {
+                    lockingDropdown = [{
+                        title: 'Lock ...',
+                        onClick:
+                        () => {
+                            const entryType = rowData.isRole ? "role" : "account";
+                            this.setState({
+                                entryDn: rowData.rawdn,
+                                entryType: entryType,
+                                operationType: "lock",
+                                currentRowKey: rowData.secretTableRowKeyId
+                            }, () => { this.handleConfirmModalToggle() });
+                        }
+                    }];
+                } else {
+                    lockingDropdown = [{
+                        title: 'Unlock ...',
+                        onClick:
+                        () => {
+                            const entryType = rowData.isRole ? "role" : "account";
+                            this.setState({
+                                entryDn: rowData.rawdn,
+                                entryType: entryType,
+                                operationType: "unlock",
+                                currentRowKey: rowData.secretTableRowKeyId
+                            }, () => { this.handleConfirmModalToggle() });
+                        }
+                    }];
+                }
+            } else if (rowData.entryState === "activated") {
+                lockingDropdown = [{
+                    title: 'Lock ...',
+                    onClick:
+                    () => {
+                        const entryType = rowData.isRole ? "role" : "account";
+                        this.setState({
+                            entryDn: rowData.rawdn,
+                            entryType: entryType,
+                            operationType: "lock",
+                            currentRowKey: rowData.secretTableRowKeyId
+                        }, () => { this.handleConfirmModalToggle() });
+                    }
+                }];
+            }
+        }
         const keyIndex = this.state.keyIndex + 1;
         const updateActions =
             [{
@@ -760,6 +1007,7 @@ export class LDAPEditor extends React.Component {
                     });
                 }
             },
+            ...lockingDropdown,
             {
                 title: 'ACIs ...',
                 onClick:
@@ -786,21 +1034,6 @@ export class LDAPEditor extends React.Component {
                     });
                 }
             },
-            /*
-            {
-                title: 'Roles ...',
-                isDisabled: true,
-                onClick: (event, rowId, rowData, extra) => {
-                    // TODO
-                    console.log(`clicked on Third action, on row ${rowId}`);
-                    console.log('extra = ' + extra);
-                }
-            },
-            {
-                title: 'Smart Referrals ...',
-                isDisabled: true
-            },
-            */
             {
                 isSeparator: true
             },
@@ -960,13 +1193,59 @@ export class LDAPEditor extends React.Component {
                         />
                     </Tab>
                 </Tabs>
-                { this.state.showEmptySuffixModal &&
+                {this.state.showEmptySuffixModal &&
                     <CreateRootSuffix
                         showEmptySuffixModal={this.state.showEmptySuffixModal}
                         handleEmptySuffixToggle={this.onHandleEmptySuffixToggle}
                         suffixDn={this.state.emptyDN}
                         editorLdapServer={this.props.serverId}
                     />}
+                <Modal
+                    // TODO: Fix confirmation modal formatting and size; add operation to the tables
+                    variant={ModalVariant.medium}
+                    title={
+                        `Are you sure you want to ${this.state.operationType} the ${this.state.entryType}?`
+                    }
+                    isOpen={this.state.isConfirmModalOpen}
+                    onClose={this.handleConfirmModalToggle}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={this.handleLockUnlockEntry}>
+                            Confirm
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.handleConfirmModalToggle}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <TextContent className="ds-margin-top ds-hide-vertical-scrollbar">
+                        <Text>
+                            {this.state.entryType === "account"
+                                ? `It will ${this.state.operationType === "lock" ? "add" : "remove"} nsAccountLock attribute
+                            ${this.state.operationType === "lock" ? "to" : "from"} the entry - ${this.state.entryDn}.`
+                                : `This operation will make sure that these five entries are created at the entry's root suffix (if not, they will be created):`}
+                        </Text>
+                        {this.state.entryType === "role" &&
+                        <>
+                            <TextList>
+                                <TextListItem>
+                                    cn=nsManagedDisabledRole
+                                </TextListItem>
+                                <TextListItem>
+                                    cn=nsDisabledRole
+                                </TextListItem>
+                                <TextListItem>
+                                    cn=nsAccountInactivationTmp (with a child)
+                                </TextListItem>
+                                <TextListItem>
+                                    cn=nsAccountInactivation_cos
+                                </TextListItem>
+                            </TextList>
+                            <Text>
+                                {`The entry - ${this.state.entryDn} - will be ${this.state.operationType === "lock" ? "added to" : "removed from"} nsRoleDN attribute in cn=nsDisabledRole entry in the root suffix.`}
+                            </Text>
+                        </>}
+                    </TextContent>
+                </Modal>
             </>
         );
     }

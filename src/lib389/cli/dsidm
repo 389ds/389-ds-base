@@ -10,11 +10,12 @@
 #
 # PYTHON_ARGCOMPLETE_OK
 
+import json
+import sys
+import signal
 import ldap
 import argparse
 import argcomplete
-import sys
-import signal
 from lib389._constants import DSRC_HOME
 from lib389.cli_idm import account as cli_account
 from lib389.cli_idm import initialise as cli_init

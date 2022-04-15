@@ -76,6 +76,18 @@ td {
     margin-top: 20px;
 }
 
+.ds-pf-red-color {
+    color: #f54f42 !important;
+}
+
+.ds-pf-blue-color {
+    color: #39a5dc !important;
+}
+
+.ds-pf-yellow-color {
+    color: #f0ab00 !important;
+}
+
 .ds-editor-tree {
     max-height: 70vh;
     overflow: auto;
@@ -268,6 +280,10 @@ textarea {
 
 .modal {
   overflow-y:auto;
+}
+
+.ds-hide-vertical-scrollbar {
+    overflow-y: hidden !important;
 }
 
 .ds-indent {
