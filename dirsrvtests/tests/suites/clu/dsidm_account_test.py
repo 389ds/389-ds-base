@@ -81,6 +81,7 @@ def test_dsidm_account_entry_status_with_lock(topology_st, create_test_user):
 
     args = FakeArgs()
     args.dn = test_user.dn
+    args.json = False
 
     log.info('Test dsidm account entry-status')
     entry_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
