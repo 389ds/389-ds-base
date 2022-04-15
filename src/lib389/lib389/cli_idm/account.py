@@ -7,6 +7,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import json
 import ldap
 import math
 from datetime import datetime
@@ -52,23 +53,39 @@ def rename(inst, basedn, log, args, warn=True):
     _generic_rename_dn(inst, basedn, log.getChild('_generic_rename_dn'), MANY, dn, args)
 
 
-def _print_entry_status(status, dn, log):
-    log.info(f'Entry DN: {dn}')
+def _print_entry_status(status, dn, log, args):
+    info_dict = {}
+    if args.json:
+        info_dict["dn"] = dn
+    else:
+        log.info(f'Entry DN: {dn}')
     for name, value in status["params"].items():
         if "Time" in name and value is not None:
             inactivation_date = datetime.fromtimestamp(status["calc_time"] + value)
-            log.info(f"Entry {name}: {int(math.fabs(value))} seconds ({inactivation_date.strftime('%Y-%m-%d %H:%M:%S')})")
+            if args.json:
+                info_dict[name] = f"{int(math.fabs(value))} seconds ({inactivation_date.strftime('%Y-%m-%d %H:%M:%S')})"
+            else:
+                log.info(f"Entry {name}: {int(math.fabs(value))} seconds ({inactivation_date.strftime('%Y-%m-%d %H:%M:%S')})")
         elif "Date" in name and value is not None:
-            log.info(f"Entry {name}: {value.strftime('%Y%m%d%H%M%SZ')} ({value.strftime('%Y-%m-%d %H:%M:%S')})")
-    log.info(f'Entry State: {status["state"].describe(status["role_dn"])}\n')
+            if args.json:
+                info_dict[name] = f"{value.strftime('%Y%m%d%H%M%SZ')} ({value.strftime('%Y-%m-%d %H:%M:%S')})"
+            else:
+                log.info(f"Entry {name}: {value.strftime('%Y%m%d%H%M%SZ')} ({value.strftime('%Y-%m-%d %H:%M:%S')})")
+    else:
+        if args.json:
+            info_dict["state"] = f'{status["state"].describe(status["role_dn"])}'
+        else:
+            log.info(f'Entry State: {status["state"].describe(status["role_dn"])}\n')
 
+    if args.json:
+        log.info(json.dumps({"type": "status", "info": info_dict}, indent=4))
 
 def entry_status(inst, basedn, log, args):
     dn = _get_dn_arg(args.dn, msg="Enter dn to check")
     accounts = Accounts(inst, basedn)
     acct = accounts.get(dn=dn)
     status = acct.status()
-    _print_entry_status(status, dn, log)
+    _print_entry_status(status, dn, log, args)
 
 
 def subtree_status(inst, basedn, log, args):

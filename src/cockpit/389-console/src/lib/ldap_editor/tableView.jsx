@@ -19,7 +19,6 @@ class EditorTableView extends React.Component {
 
     render () {
         const {
-            instanceList,
             loading
         } = this.props;
 

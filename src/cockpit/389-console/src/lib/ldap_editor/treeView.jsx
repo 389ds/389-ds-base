@@ -11,7 +11,6 @@ import {
     Grid, GridItem,
     KebabToggle,
     Label,
-    List, ListItem, ListVariant,
     Spinner,
     Title,
     TextContent, Text, TextVariants, TextList,
@@ -22,9 +21,11 @@ import {
     ArrowRightIcon,
     CatalogIcon,
     CubeIcon,
-    DatabaseIcon,
     DomainIcon,
+    ExclamationCircleIcon,
+    ExclamationTriangleIcon,
     InfoCircleIcon,
+    LockIcon,
     ResourcesEmptyIcon,
     SyncAltIcon,
     UserIcon,
@@ -35,6 +36,7 @@ import GenericPagination from './lib/genericPagination.jsx';
 import LdapNavigator from './lib/ldapNavigator.jsx';
 import CreateRootSuffix from './lib/rootSuffix.jsx';
 import { ENTRY_MENU } from './lib/constants.jsx';
+import { log_cmd } from "../tools.jsx";
 import {
     showCertificate,
     b64DecodeUnicode
@@ -84,6 +86,8 @@ class EditorTreeView extends React.Component {
             entryIsLoading: true,
             entryIcon: null,
             entryDn: '',
+            entryState: '',
+            entryStateIcon: null,
             isSuffixEntry: false,
             entryModTime: '',
             isEmptySuffix: false,
@@ -98,6 +102,7 @@ class EditorTreeView extends React.Component {
             refreshButtonTriggerTime: 0,
             latestEntryRefreshTime: 0,
             searching: false,
+            isRole: false
         };
 
         this.addAlert = (title, variant, key) => {
@@ -188,11 +193,13 @@ class EditorTreeView extends React.Component {
         const entryRows = [];
         const isEmptySuffix = treeViewItem.isEmptySuffix;
         let entryIcon = treeViewItem.icon; // Only already set for special suffixes.
+        let entryStateIcon = "";
         const entryDn = treeViewItem.dn === '' ? 'Root DSE' : treeViewItem.dn;
         const isSuffixEntry = treeViewItem.id === "0";
         const entryModTime = treeViewItem.modTime;
         const fullEntry = treeViewItem.fullEntry;
         const encodedValues = [];
+        let isRole = false;
         fullEntry
             .filter(data => (data.attribute + data.value !== '') && // Filter out empty lines
             (data.attribute !== '???: ')) // and data for empty suffix(es) and in case of failure.
@@ -222,11 +229,21 @@ class EditorTreeView extends React.Component {
                 }
 
                 entryRows.push([{ title: <strong>{attr}</strong> }, val]);
+                const myVal = val.trim().toLowerCase();
+                const accountObjectclasses = ['nsaccount', 'nsperson', 'simplesecurityobject',
+                                              'organization', 'person', 'account', 'organizationalunit',
+                                              'netscapeserver', 'domain', 'posixaccount', 'shadowaccount',
+                                              'posixgroup', 'mailrecipient', 'nsroledefinition'];
+                if (accountObjectclasses.includes(myVal)) {
+                    entryStateIcon = <LockIcon className="ds-pf-blue-color"/>
+                }
+                if (myVal === 'nsroledefinition') {
+                    isRole = true;
+                }
                 // TODO: Use a better logic to assign icons!
                 // console.log(`!entryIcon = ${!entryIcon}`);
                 if (!entryIcon && attrLowerCase === 'objectclass') {
                     // console.log(`val.trim().toLowerCase() = ${val.trim().toLowerCase()}`);
-                    const myVal = val.trim().toLowerCase();
                     if (myVal === 'inetorgperson' || myVal === 'posixaccount' || myVal === 'person') {
                         entryIcon = <UserIcon/>
                     } else if (myVal === 'organizationalunit' || myVal === 'groupofuniquenames' || myVal === 'groupofnames') {
@@ -253,149 +270,215 @@ class EditorTreeView extends React.Component {
 
         // Update the rows of the selected entry.
         const entryIsLoading = false;
+        let entryState = "";
 
-        const tableModificationTime = Date.now();
-        this.setState({
-            entryRows,
-            entryDn,
-            isSuffixEntry,
-            entryModTime,
-            isEmptySuffix,
-            entryIsLoading,
-            isEntryTooLarge,
-            tableModificationTime,
-            entryIcon
-        },
-        () => {
-            // Now decode the encoded values.
-            // A sample object stored in the variable encodedValues looks like { index: entryRows.length, line: line }
-            const finalRows = [...this.state.entryRows];
-            let numberDecoded = 0;
-            // console.log(`encodedValues.length = ${encodedValues.length}`);
-
-            encodedValues.map(myObj => {
-                const attr = myObj.line.attribute;
-                // console.log('Processing attribute = ' + attr);
-                const attrLowerCase = attr.trim().toLowerCase();
-                const encVal = myObj.line.value.substring(3); // eg ==> "jpegPhoto:: <VALUE>". Removing 2 colons and 1 space character.
-                let decodedValue = encVal; // Show the encoded value in case the decoding fails.
-
-                // See list of attribute types:
-                // https://pagure.io/389-ds-console/blob/master/f/src/com/netscape/admin/dirserv/propedit/DSPropertyModel.java
-                switch (attrLowerCase) {
-                    case 'jpegphoto':
-                    {
-                        decodedValue =
-                            <React.Fragment>
-                                <img
-                                    src={`data:image/png;base64,${encVal}`}
-                                    alt={attr}
-                                />
-                            </React.Fragment>;
-
-                        // Use the picture as an icon:
-                        const myPhoto = <img
-                            src={`data:image/png;base64,${encVal}`}
-                            alt=""
-                            // style={{ width: '24px', height: '24px' }}
-                            style={{ width: '48px' }} // height will adjust automatically.
-                        />
-                        const newRow = [{ title: <strong>{attr}</strong> }, decodedValue];
-                        finalRows.splice(myObj.index, 1, newRow);
-                        numberDecoded++;
-
-                        this.setState({ entryIcon: myPhoto });
-                        break;
+        const cmd = ["dsidm", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.editorLdapServer + ".socket",
+            "-b", entryDn, isRole ? "role" : "account", "entry-status", entryDn];
+        log_cmd("updateEntryRows", "Checking if entry is activated", cmd);
+        cockpit
+            .spawn(cmd, { superuser: true, err: 'message' })
+            .done(content => {
+                if ((entryDn !== 'Root DSE') && (entryStateIcon !== "")) {
+                    const status = JSON.parse(content);
+                    entryState = status.info.state;
+                    if (entryState === 'inactivity limit exceeded' || entryState.startsWith("probably activated or")) {
+                        entryStateIcon = <ExclamationTriangleIcon className="ds-pf-yellow-color ct-icon-exclamation-triangle"/>
                     }
+                }
+            })
+            .fail(err => {
+                const errMsg = JSON.parse(err);
+                if ((entryDn !== 'Root DSE') && (entryStateIcon !== "") && !(errMsg.desc.includes("Root suffix can't be locked or unlocked"))) {
+                    console.error(
+                        "updateEntryRow",
+                        `${isRole ? "role" : "account"} account entry-status operation failed`,
+                        errMsg.desc
+                    );
+                    entryState = "error: please, check browser logs";
+                    entryStateIcon = <ExclamationCircleIcon className="ds-pf-red-color ct-exclamation-circle"/>
+                }
+            })
+            .finally(() => {
+                const tableModificationTime = Date.now();
+                this.setState({
+                    entryRows,
+                    entryDn,
+                    entryState,
+                    isSuffixEntry,
+                    entryModTime,
+                    isEmptySuffix,
+                    entryIsLoading,
+                    isEntryTooLarge,
+                    tableModificationTime,
+                    entryIcon,
+                    entryStateIcon,
+                    isRole
+                },
+                () => {
+                    // Now decode the encoded values.
+                    // A sample object stored in the variable encodedValues looks like { index: entryRows.length, line: line }
+                    const finalRows = [...this.state.entryRows];
+                    let numberDecoded = 0;
+                    // console.log(`encodedValues.length = ${encodedValues.length}`);
 
-                    case 'usercertificate':
-                    case 'usercertificate;binary':
-                    case 'cacertificate':
-                    case 'cacertificate;binary':
-                        showCertificate(encVal,
-                            (result) => {
-                                // const dataArray = [];
-                                if (result.code === 'OK') {
-                                    const timeDiff = result.timeDifference;
-                                    const certDays = Math.ceil(Math.abs(timeDiff) / (1000 * 3600 * 24));
-                                    const dayMsg = certDays > 1
-                                        ? `${certDays} days`
-                                        : `${certDays} day`;
-                                    const diffMessage = timeDiff > 0
-                                        ? `Certificate is valid for ${dayMsg}`
-                                        : `Certificate is expired since ${dayMsg}`;
-                                    const type = timeDiff < 0
-                                        ? 'danger'
-                                        : timeDiff < (1000 * 3600 * 24 * 30) // 30 days.
-                                            ? 'warning'
-                                            : 'info';
-                                    const certItems = result.data
-                                    .map(datum => {
-                                        return (
-                                            <React.Fragment key={datum.param} >
-                                                <TextListItem component={TextListItemVariants.dt}>{datum.param}</TextListItem>
-                                                <TextListItem component={TextListItemVariants.dd}>{datum.paramVal}</TextListItem>
-                                            </React.Fragment>);
+                    encodedValues.map(myObj => {
+                        const attr = myObj.line.attribute;
+                        // console.log('Processing attribute = ' + attr);
+                        const attrLowerCase = attr.trim().toLowerCase();
+                        const encVal = myObj.line.value.substring(3); // eg ==> "jpegPhoto:: <VALUE>". Removing 2 colons and 1 space character.
+                        let decodedValue = encVal; // Show the encoded value in case the decoding fails.
+
+                        // See list of attribute types:
+                        // https://pagure.io/389-ds-console/blob/master/f/src/com/netscape/admin/dirserv/propedit/DSPropertyModel.java
+                        switch (attrLowerCase) {
+                            case 'jpegphoto':
+                            {
+                                decodedValue =
+                                    <React.Fragment>
+                                        <img
+                                            src={`data:image/png;base64,${encVal}`}
+                                            alt={attr}
+                                        />
+                                    </React.Fragment>;
+
+                                // Use the picture as an icon:
+                                const myPhoto = <img
+                                    src={`data:image/png;base64,${encVal}`}
+                                    alt=""
+                                    // style={{ width: '24px', height: '24px' }}
+                                    style={{ width: '48px' }} // height will adjust automatically.
+                                />
+                                const newRow = [{ title: <strong>{attr}</strong> }, decodedValue];
+                                finalRows.splice(myObj.index, 1, newRow);
+                                numberDecoded++;
+
+                                this.setState({ entryIcon: myPhoto });
+                                break;
+                            }
+
+                            case 'usercertificate':
+                            case 'usercertificate;binary':
+                            case 'cacertificate':
+                            case 'cacertificate;binary':
+                                showCertificate(encVal,
+                                    (result) => {
+                                        // const dataArray = [];
+                                        if (result.code === 'OK') {
+                                            const timeDiff = result.timeDifference;
+                                            const certDays = Math.ceil(Math.abs(timeDiff) / (1000 * 3600 * 24));
+                                            const dayMsg = certDays > 1
+                                                ? `${certDays} days`
+                                                : `${certDays} day`;
+                                            const diffMessage = timeDiff > 0
+                                                ? `Certificate is valid for ${dayMsg}`
+                                                : `Certificate is expired since ${dayMsg}`;
+                                            const type = timeDiff < 0
+                                                ? 'danger'
+                                                : timeDiff < (1000 * 3600 * 24 * 30) // 30 days.
+                                                    ? 'warning'
+                                                    : 'info';
+                                            const certItems = result.data
+                                            .map(datum => {
+                                                return (
+                                                    <React.Fragment key={datum.param} >
+                                                        <TextListItem component={TextListItemVariants.dt}>{datum.param}</TextListItem>
+                                                        <TextListItem component={TextListItemVariants.dd}>{datum.paramVal}</TextListItem>
+                                                    </React.Fragment>);
+                                            });
+
+                                            decodedValue =
+                                                (<React.Fragment>
+                                                    <div>
+                                                        <Alert variant={type} isInline title={diffMessage} />
+                                                        <TextContent>
+                                                            <TextList component={TextListVariants.dl}>
+                                                                {certItems}
+                                                            </TextList>
+                                                        </TextContent>
+                                                    </div>
+                                                </React.Fragment>);
+
+                                            const newRow = [{ title: <strong>{attr}</strong> }, decodedValue];
+                                            finalRows.splice(myObj.index, 1, newRow);
+                                            numberDecoded++;
+
+                                            if (encodedValues.length === numberDecoded) {
+                                                // Caution: We need to update the entryRows here
+                                                // ( AFTER the decoding of the certificate is completed ).
+                                                // The decoding is done asynchronously in showCertificate()!
+                                                this.setState({
+                                                    entryRows: finalRows,
+                                                    tableModificationTime: Date.now()
+                                                });
+                                            }
+                                        }
                                     });
 
-                                    decodedValue =
-                                        (<React.Fragment>
-                                            <div>
-                                                <Alert variant={type} isInline title={diffMessage} />
-                                                <TextContent>
-                                                    <TextList component={TextListVariants.dl}>
-                                                        {certItems}
-                                                    </TextList>
-                                                </TextContent>
-                                            </div>
-                                        </React.Fragment>);
-
-                                    const newRow = [{ title: <strong>{attr}</strong> }, decodedValue];
-                                    finalRows.splice(myObj.index, 1, newRow);
-                                    numberDecoded++;
-
-                                    if (encodedValues.length === numberDecoded) {
-                                        // Caution: We need to update the entryRows here
-                                        // ( AFTER the decoding of the certificate is completed ).
-                                        // The decoding is done asynchronously in showCertificate()!
-                                        this.setState({
-                                            entryRows: finalRows,
-                                            tableModificationTime: Date.now()
-                                        });
-                                    }
-                                }
+                                break;
+                            default:
+                                console.log(`Got an unexpected line ==> ${myObj.line}`);
+                                console.log(`Got an unexpected line attr ==> ${myObj.line.attribute}`);
+                                console.log(`Got an unexpected line value ==> ${myObj.line.value}`);
+                        }
+                        // Update the entry table once all encoded attributes have been processed:
+                        if (encodedValues.length === numberDecoded) {
+                            this.setState({
+                                entryRows: finalRows,
+                                tableModificationTime: Date.now(),
                             });
-
-                        break;
-                    default:
-                        console.log(`Got an unexpected line ==> ${myObj.line}`);
-                        console.log(`Got an unexpected line attr ==> ${myObj.line.attribute}`);
-                        console.log(`Got an unexpected line value ==> ${myObj.line.value}`);
-                }
-                // Update the entry table once all encoded attributes have been processed:
-                if (encodedValues.length === numberDecoded) {
-                    this.setState({
-                        entryRows: finalRows,
-                        tableModificationTime: Date.now(),
+                        }
                     });
-                }
+
+                    // Update the refresh time.
+                    this.setState({
+                        latestEntryRefreshTime: Date.now(),
+                    });
+                });
             });
-            // Update the refresh time.
-            this.setState({
-                latestEntryRefreshTime: Date.now(),
-            });
-        });
     };
 
     render () {
         const {
-            alerts, searching, isSuffixEntry,
+            alerts, searching, isSuffixEntry, isRole,
             firstClickOnTree, entryColumns, entryRows, entryIcon, entryDn, entryModTime, isEmptySuffix,
-            entryIsLoading, isEntryTooLarge, tableModificationTime, showEmptySuffixModal,
-            newSuffixData, isTreeLoading, refreshButtonTriggerTime, latestEntryRefreshTime
+            entryIsLoading, isEntryTooLarge, tableModificationTime, showEmptySuffixModal, entryState,
+            newSuffixData, isTreeLoading, refreshButtonTriggerTime, latestEntryRefreshTime, entryStateIcon
         } = this.state;
 
         const { loading } = this.props;
+        let lockingDropdown = [];
+        if (entryState !== "" && !entryState.startsWith("error:")) {
+            if (entryState !== "activated") {
+                if (entryState.includes("probably activated") || entryState.includes("indirectly locked")) {
+                    lockingDropdown = [<DropdownItem
+                                            key="tree-view-lock"
+                                            component="button"
+                                            name={isRole ? ENTRY_MENU.lockRole : ENTRY_MENU.lockAccount}
+                                            value={entryDn}
+                                        >
+                                            Lock ...
+                                        </DropdownItem>];
+                } else {
+                    lockingDropdown = [<DropdownItem
+                                            key="tree-view-unlock"
+                                            component="button"
+                                            name={isRole ? ENTRY_MENU.unlockRole : ENTRY_MENU.unlockAccount}
+                                            value={entryDn}
+                                        >
+                                            Unlock ...
+                                        </DropdownItem>];
+                }
+            } else {
+                lockingDropdown = [<DropdownItem
+                                        key="tree-view-lock"
+                                        component="button"
+                                        name={isRole ? ENTRY_MENU.lockRole : ENTRY_MENU.lockAccount}
+                                        value={entryDn}
+                                    >
+                                        Lock ...
+                                    </DropdownItem>];
+            }
+        }
 
         const dropdownItems = [
             <DropdownItem
@@ -435,6 +518,8 @@ class EditorTreeView extends React.Component {
             >
                 Rename ...
             </DropdownItem>,
+            // Lock and Unlock buttons
+            ...lockingDropdown,
             <DropdownItem
                 key="tree-view-acis"
                 component="button"
@@ -452,15 +537,6 @@ class EditorTreeView extends React.Component {
                 Class of Service ...
             </DropdownItem>,
             /*
-            <DropdownItem
-                isDisabled
-                key="tree-view-roles"
-                component="button"
-                name="roles"
-                value={entryDn}
-            >
-                Roles ...
-            </DropdownItem>,
             <DropdownItem
                 isDisabled
                 key="tree-view-refs"
@@ -632,7 +708,19 @@ class EditorTreeView extends React.Component {
                                             {entryIcon}
                                         </CardHeaderMain>
                                         <Title headingLevel="h6" size="md">
-                                            <span>&ensp;{entryDn}</span>
+                                            <span>&ensp;{entryDn} </span>
+                                            {(entryState !== "") && (entryStateIcon !== "") && (entryState !== "activated")?
+                                            <Tooltip
+                                                position="bottom"
+                                                content={
+                                                    <div>
+                                                        {entryState}
+                                                    </div>
+                                                }
+                                            >
+                                                <a className="ds-font-size-md">{entryStateIcon}</a>
+                                            </Tooltip>
+                                            : ""}
                                         </Title>
                                     </CardHeader>
                                     { isEntryTooLarge &&
