@@ -1,5 +1,6 @@
 import React from "react";
 import {
+    Button,
     Checkbox,
     Grid,
     GridItem,
@@ -9,31 +10,34 @@ import {
     FormSelect,
     FormSelectOption,
     Label,
+    Modal,
+    ModalVariant,
     NumberInput,
     SearchInput,
     Select,
     SelectOption,
     SelectVariant,
     Spinner,
+    Switch,
     Text,
     TextContent,
     TextInput,
+    TextList,
+    TextListItem,
     TextVariants,
     ToggleGroup,
     ToggleGroupItem,
+    Tooltip,
     ValidatedOptions
 } from "@patternfly/react-core";
 import {
-    Table,
-    TableHeader,
-    TableBody,
-    TableVariant,
-    EditableTextCell,
     expandable
 } from '@patternfly/react-table';
 import {
-    AngleRightIcon,
-    InfoCircleIcon
+    ExclamationCircleIcon,
+    ExclamationTriangleIcon,
+    InfoCircleIcon,
+    LockIcon,
 } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 import {
@@ -41,7 +45,7 @@ import {
 } from './lib/utils.jsx';
 import { ENTRY_MENU } from './lib/constants.jsx';
 import EditorTableView from './tableView.jsx';
-import { valid_dn } from '../tools.jsx';
+import { log_cmd, valid_dn } from '../tools.jsx';
 import GenericWizard from './wizards/genericWizard.jsx';
 
 
@@ -77,6 +81,8 @@ export class SearchDatabase extends React.Component {
             uniqueMember: false,
             customSearchAttrs: [],
             isCustomAttrOpen: false,
+            isConfirmModalOpen: false,
+            checkIfLocked: false,
             // Table
             columns: [
                 {
@@ -102,6 +108,12 @@ export class SearchDatabase extends React.Component {
         }
 
         this.initialResultText = 'Loading...';
+
+        this.handleChangeSwitch = checkIfLocked => {
+            this.setState({
+                checkIfLocked
+            });
+        };
 
         this.onToggle = isExpanded => {
             this.setState({
@@ -191,20 +203,21 @@ export class SearchDatabase extends React.Component {
             }
             // Do search
             this.setState({
+                rows: [],
                 isExpanded: false,
                 searching: true,
+            }, () => {
+                let params = {
+                    serverId: this.props.serverId,
+                    searchBase: this.state.searchBase,
+                    searchFilter: this.state.searchFilter,
+                    searchScope: this.state.searchScope,
+                    sizeLimit: this.state.sizeLimit,
+                    timeLimit: this.state.timeLimit,
+                    addNotification: this.props.addNotification,
+                };
+                getSearchEntries(params, this.processResults);
             });
-
-            let params = {
-                serverId: this.props.serverId,
-                searchBase: this.state.searchBase,
-                searchFilter: this.state.searchFilter,
-                searchScope: this.state.searchScope,
-                sizeLimit: this.state.sizeLimit,
-                timeLimit: this.state.timeLimit,
-                addNotification: this.props.addNotification,
-            };
-            getSearchEntries(params, this.processResults);
         };
 
         this.handleSearchTypeClick = (isSelected, event) => {
@@ -245,6 +258,12 @@ export class SearchDatabase extends React.Component {
             });
         }
 
+        this.handleConfirmModalToggle = () => {
+            this.setState(({ isConfirmModalOpen }) => ({
+                isConfirmModalOpen: !isConfirmModalOpen,
+            }));
+        };
+
         this.handleChange = this.handleChange.bind(this);
         this.handleSearchChange = this.handleSearchChange.bind(this);
         this.handleSuffixChange = this.handleSuffixChange.bind(this);
@@ -253,6 +272,7 @@ export class SearchDatabase extends React.Component {
         this.processResults = this.processResults.bind(this);
         this.handleCollapse = this.handleCollapse.bind(this);
         this.actionResolver = this.actionResolver.bind(this);
+        this.handleLockUnlockEntry = this.handleLockUnlockEntry.bind(this);
     }
 
     componentDidMount() {
@@ -305,43 +325,148 @@ export class SearchDatabase extends React.Component {
 
     // Process the entries that are direct children.
     processResults = (searchResults, resObj) => {
-        const resultRows = [];
+        let resultRows = [];
         let rowNumber = 0;
 
         if (searchResults) {
-            searchResults.map(aChild => {
-                const info = JSON.parse(aChild);
+            if (this.state.checkIfLocked) {
+                searchResults.map(aChild => {
+                    const info = JSON.parse(aChild);
+                    resultRows = [...this.state.rows];
+                    let entryState = "";
+                    let entryStateIcon = "";
 
-                // TODO Test for a JPEG photo!!!
+                    entryStateIcon = <LockIcon className="ds-pf-blue-color"/>
+                    const cmd = ["dsidm", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                        "-b", info.dn, info.isRole ? "role" : "account", "entry-status", info.dn];
+                    log_cmd("processResults", "Checking if entry is activated", cmd);
+                    cockpit
+                        .spawn(cmd, { superuser: true, err: 'message' })
+                        .done(content => {
+                            if (info.isLockable) {
+                                const status = JSON.parse(content);
+                                entryState = status.info.state;
+                                if (entryState === 'inactivity limit exceeded' || entryState.startsWith("probably activated or")) {
+                                    entryStateIcon = <ExclamationTriangleIcon className="ds-pf-yellow-color ct-icon-exclamation-triangle"/>
+                                }
+                            }
+                        })
+                        .fail(err => {
+                            const errMsg = JSON.parse(err);
+                            if ((info.isLockable) && !(errMsg.desc.includes("Root suffix can't be locked or unlocked"))) {
+                                console.error(
+                                    "processResults",
+                                    `${info.isRole ? "role" : "account"} account entry-status operation failed`,
+                                    errMsg.desc
+                                );
+                                entryState = "error: please, check browser logs";
+                                entryStateIcon = <ExclamationCircleIcon className="ds-pf-red-color ct-exclamation-circle"/>
+                            }
+                        })
+                        .finally(() => {
+                            // TODO Test for a JPEG photo!!!
+                            if (!info.isLockable) {
+                                console.info("processResults:", `${info.dn} entry is not lockable`);
+                            }
 
-                let dn = info.dn;
-                if (info.ldapsubentry) {
-                    dn =
-                        <div className="ds-info-icon">
-                            {info.dn} <InfoCircleIcon title="This is a hidden LDAP subentry" className="ds-info-icon" />
-                        </div>;
-                }
+                            let ldapsubentryIcon = "";
+                            let entryStateIconFinal = "";
+                            if (info.ldapsubentry) {
+                                ldapsubentryIcon = <InfoCircleIcon title="This is a hidden LDAP subentry" className="ds-pf-blue-color ds-info-icon" />;
+                            }
+                            if ((entryState !== "") && (entryStateIcon !== "") && (entryState !== "activated")) {
+                                entryStateIconFinal = <Tooltip
+                                    position="bottom"
+                                    content={
+                                        <div className="ds-info-icon">
+                                            {entryState}
+                                        </div>
+                                    }
+                                >
+                                    <a className="ds-font-size-md">{entryStateIcon}</a>
+                                </Tooltip>;
+                            }
 
-                resultRows.push(
-                    {
-                        isOpen: false,
-                        cells: [
-                            { title: dn },
-                            info.numSubordinates,
-                            info.modifyTimestamp,
-                        ],
-                        rawdn: info.dn
-                    },
-                    {
-                        parent: rowNumber,
-                        cells: [
-                            { title: this.initialResultText }
-                        ]
-                    });
+                            let dn = <>
+                                {info.dn} {ldapsubentryIcon} {entryStateIconFinal}
+                            </>
 
-                // Increment by 2 the row number.
-                rowNumber += 2;
-            });
+                            resultRows.push(
+                                {
+                                    isOpen: false,
+                                    cells: [
+                                        { title: dn },
+                                        info.numSubordinates,
+                                        info.modifyTimestamp,
+                                    ],
+                                    rawdn: info.dn,
+                                    isLockable: info.isLockable,
+                                    isRole: info.isRole,
+                                    entryState: entryState
+                                },
+                                {
+                                    parent: rowNumber,
+                                    cells: [
+                                        { title: this.initialResultText }
+                                    ]
+                                });
+
+                            // Increment by 2 the row number.
+                            rowNumber += 2;
+                            this.setState({
+                                searching: false,
+                                rows: resultRows,
+                                // Each row is composed of a parent and its single child.
+                                pagedRows: resultRows.slice(0, 2 * this.state.perPage),
+                                total: resultRows.length / 2,
+                                page: 1
+                            });
+                        });
+                });
+            } else {
+                searchResults.map(aChild => {
+                    const info = JSON.parse(aChild);
+                    // TODO Test for a JPEG photo!!!
+
+                    // TODO Add isActive func
+                    let dn = info.dn;
+                    if (info.ldapsubentry) {
+                        dn =
+                            <div className="ds-info-icon">
+                                {info.dn} <InfoCircleIcon title="This is a hidden LDAP subentry" className="ds-info-icon" />
+                            </div>;
+                    }
+
+                    resultRows.push(
+                        {
+                            isOpen: false,
+                            cells: [
+                                { title: dn },
+                                info.numSubordinates,
+                                info.modifyTimestamp,
+                            ],
+                            rawdn: info.dn,
+                            entryState: ""
+                        },
+                        {
+                            parent: rowNumber,
+                            cells: [
+                                { title: this.initialResultText }
+                            ]
+                        });
+
+                    // Increment by 2 the row number.
+                    rowNumber += 2;
+                });
+                this.setState({
+                    searching: false,
+                    rows: resultRows,
+                    // Each row is composed of a parent and its single child.
+                    pagedRows: resultRows.slice(0, 2 * this.state.perPage),
+                    total: resultRows.length / 2,
+                    page: 1
+                });
+            }
         } else {
             if (resObj.status !== 0) {
                 this.props.addNotification(
@@ -349,16 +474,16 @@ export class SearchDatabase extends React.Component {
                     `Error searching the database: ${resObj.msg}`
                 );
             }
+            this.setState({
+                searching: false,
+                rows: resultRows,
+                // Each row is composed of a parent and its single child.
+                pagedRows: resultRows.slice(0, 2 * this.state.perPage),
+                total: resultRows.length / 2,
+                page: 1
+            });
         }
 
-        this.setState({
-            searching: false,
-            rows: resultRows,
-            // Each row is composed of a parent and its single child.
-            pagedRows: resultRows.slice(0, 2 * this.state.perPage),
-            total: resultRows.length / 2,
-            page: 1
-        });
     }
 
     handleCustomAttrChange (value) {
@@ -413,12 +538,100 @@ export class SearchDatabase extends React.Component {
         }
     }
 
+    handleLockUnlockEntry() {
+        const {
+            entryDn,
+            entryType,
+            operationType
+        } = this.state;
+
+        const cmd = ["dsidm", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "-b", entryDn, entryType, operationType, entryDn];
+        log_cmd("handleLockUnlockEntry", `${operationType} entry`, cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: 'message' })
+                .done(_ => {
+                    this.setState({
+                        entryMenuIsOpen: !this.state.entryMenuIsOpen,
+                        refreshEntryTime: Date.now()
+                    }, () => {
+                        this.onSearch();
+                        this.handleConfirmModalToggle();
+                    });
+        
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    console.error(
+                        "handleLockUnlockEntry",
+                        `${entryType} ${operationType} operation failed -`,
+                        errMsg.desc
+                    );
+                    this.props.addNotification(
+                        `${errMsg.desc.includes(`is already ${operationType === "unlock" ? "active" : "locked"}`) ? 'warning' : 'error'}`,
+                        `${errMsg.desc}`
+                    );
+                    this.setState({
+                        entryMenuIsOpen: !this.state.entryMenuIsOpen,
+                        refreshEntryTime: Date.now()
+                    }, () => {
+                        this.onSearch();
+                        this.handleConfirmModalToggle();
+                    });
+                });
+    }
+
     actionResolver = (rowData, { rowIndex }) => {
         // No action on the children.
         if ((rowIndex % 2) === 1) {
             return null;
         }
 
+        let lockingDropdown = [];
+        if (rowData.entryState !== "" && !rowData.entryState.startsWith("error:")) {
+            if (rowData.entryState !== "activated") {
+                if (rowData.entryState.includes("probably activated") || rowData.entryState.includes("indirectly locked")) {
+                    lockingDropdown = [{
+                        title: 'Lock ...',
+                        onClick:
+                        () => {
+                            const entryType = rowData.isRole ? "role" : "account";
+                            this.setState({
+                                entryDn: rowData.rawdn,
+                                entryType: entryType,
+                                operationType: "lock"
+                            }, () => { this.handleConfirmModalToggle() });
+                        }
+                    }];
+                } else {
+                    lockingDropdown = [{
+                        title: 'Unlock ...',
+                        onClick:
+                        () => {
+                            const entryType = rowData.isRole ? "role" : "account";
+                            this.setState({
+                                entryDn: rowData.rawdn,
+                                entryType: entryType,
+                                operationType: "unlock"
+                            }, () => { this.handleConfirmModalToggle() });
+                        }
+                    }];
+                }
+            } else {
+                lockingDropdown = [{
+                    title: 'Lock ...',
+                    onClick:
+                    () => {
+                        const entryType = rowData.isRole ? "role" : "account";
+                        this.setState({
+                            entryDn: rowData.rawdn,
+                            entryType: entryType,
+                            operationType: "lock"
+                        }, () => { this.handleConfirmModalToggle() });
+                    }
+                }];
+            }
+        }
         const updateActions =
             [{
                 title: 'Search ...',
@@ -452,6 +665,7 @@ export class SearchDatabase extends React.Component {
                     });
                 }
             },
+            ...lockingDropdown,
             {
                 isSeparator: true
             },
@@ -467,17 +681,17 @@ export class SearchDatabase extends React.Component {
                 }
             },
             {
-                title: 'Roles ...',
-                isDisabled: true,
-                onClick: (event, rowId, rowData, extra) => {
-                    // TODO
-                    console.log(`clicked on Third action, on row ${rowId}`);
-                    console.log('extra = ' + extra);
+                title: 'Class of Service ...',
+                onClick:
+                () => {
+                    this.setState({
+                        wizardName: ENTRY_MENU.cos,
+                        wizardEntryDn: rowData.rawdn,
+                        isWizardOpen: true,
+                        isTreeWizardOpen: false,
+                        keyIndex,
+                    });
                 }
-            },
-            {
-                title: 'Smart Referrals ...',
-                isDisabled: true
             },
             {
                 isSeparator: true
@@ -501,9 +715,6 @@ export class SearchDatabase extends React.Component {
 
     render() {
         const {
-            showModal,
-            closeHandler,
-            logData,
             suffixList
         } = this.props;
 
@@ -713,6 +924,14 @@ export class SearchDatabase extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
+                        <Grid className="ds-margin-left ds-margin-top" title="Check if the search result entries are locked, and add Lock/Unlock options to the dropdown. This setting vastly impacts the search's performance. Use only when needed."> 
+                            <GridItem span={2} className="ds-label">
+                                Show Locking
+                            </GridItem>
+                            <GridItem span={10}>
+                                <Switch id="no-label-switch-on" aria-label="Message when on" isChecked={this.state.checkIfLocked} onChange={this.handleChangeSwitch} />
+                            </GridItem>
+                        </Grid>
                         <div hidden={this.state.searchType == "Search Filter"}>
                             <Grid
                                 className="ds-margin-left ds-margin-top"
@@ -900,6 +1119,52 @@ export class SearchDatabase extends React.Component {
                         />
                     </div>
                 </div>
+                <Modal
+                    // TODO: Fix confirmation modal formatting and size; add operation to the tables
+                    variant={ModalVariant.medium}
+                    title={
+                        `Are you sure you want to ${this.state.operationType} the ${this.state.entryType}?`
+                    }
+                    isOpen={this.state.isConfirmModalOpen}
+                    onClose={this.handleConfirmModalToggle}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={this.handleLockUnlockEntry}>
+                            Confirm
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.handleConfirmModalToggle}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <TextContent className="ds-margin-top">
+                        <Text>
+                            {this.state.entryType === "account"
+                                ? `It will ${this.state.operationType === "lock" ? "add" : "remove"} nsAccountLock attribute
+                            ${this.state.operationType === "lock" ? "to" : "from"} the entry - ${this.state.entryDn}.`
+                                : `This operation will make sure that these five entries are created at the entry's root suffix (if not, they will be created):`}
+                        </Text>
+                        {this.state.entryType === "role" &&
+                        <>
+                            <TextList>
+                                <TextListItem>
+                                    cn=nsManagedDisabledRole
+                                </TextListItem>
+                                <TextListItem>
+                                    cn=nsDisabledRole
+                                </TextListItem>
+                                <TextListItem>
+                                    cn=nsAccountInactivationTmp (with a child)
+                                </TextListItem>
+                                <TextListItem>
+                                    cn=nsAccountInactivation_cos
+                                </TextListItem>
+                            </TextList>
+                            <Text>
+                                {`The entry - ${this.state.entryDn} - will be ${this.state.operationType === "lock" ? "added to" : "removed from"} nsRoleDN attribute in cn=nsDisabledRole entry in the root suffix.`}
+                            </Text>
+                        </>}
+                    </TextContent>
+                </Modal>
             </div>
         );
     }
