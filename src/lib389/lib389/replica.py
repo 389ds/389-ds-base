@@ -1745,6 +1745,19 @@ class Replicas(DSLdapObjects):
         self._childobject = Replica
         self._basedn = DN_MAPPING_TREE
 
+    def create(self, rdn=None, properties=None):
+        replica = super(Replicas, self).create(rdn, properties)
+
+        # Set up changelog trimming by default
+        if properties is not None:
+            for attr, val in properties.items():
+                if attr.lower() == 'nsds5replicaroot':
+                    cl = Changelog(self._instance, val[0])
+                    cl.set_max_age("7d")
+                    break
+
+        return replica
+
     def get(self, selector=[], dn=None):
         """Get a child entry (DSLdapObject, Replica, etc.) with dn or selector
         using a base DN and objectClasses of our object (DSLdapObjects, Replicas, etc.)
@@ -2448,7 +2461,7 @@ class ReplicationManager(object):
     def wait_while_replication_is_progressing(self, from_instance, to_instance, timeout=5):
         """ Wait while replication is progressing
             used by wait_for_replication to avoid timeout because of
-              slow replication (typically when traces have been added) 
+              slow replication (typically when traces have been added)
             Returns true is repliaction is stalled.
 
         :param from_instance: The instance whos state we we want to check from
