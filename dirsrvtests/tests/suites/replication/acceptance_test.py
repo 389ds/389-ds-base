@@ -15,7 +15,7 @@ from lib389.topologies import topology_m4 as topo_m4
 from lib389.topologies import topology_m2 as topo_m2
 from . import get_repl_entries
 from lib389.idm.user import UserAccount
-from lib389.replica import ReplicationManager
+from lib389.replica import ReplicationManager, Changelog
 from lib389._constants import *
 
 pytestmark = pytest.mark.tier0
@@ -643,6 +643,22 @@ def test_csngen_task(topo_m2):
     time.sleep(10)
     log.info('Check the error log contains strings showing csn generator is tested')
     assert m1.searchErrorsLog("_csngen_gen_tester_main")
+
+
+def test_default_cl_trimming_enabled(topo_m2):
+    """Check that changelog trimming was enabled by default
+
+    :id: c37b9a28-f961-4867-b8a1-e81edd7f9bf3
+    :setup: Supplier Instance
+    :steps:
+        1. Check changelog has trimming set up by default
+    :expectedresults:
+        1. Success
+    """
+
+    # Set up changelog trimming by default
+    cl = Changelog(topo_m2.ms["supplier1"], DEFAULT_SUFFIX)
+    assert cl.get_attr_val_utf8("nsslapd-changelogmaxage") == "7d"
 
 
 if __name__ == '__main__':
