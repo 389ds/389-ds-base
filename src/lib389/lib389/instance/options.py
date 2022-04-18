@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -328,6 +328,7 @@ class Backend2Base(Options2):
         super(Backend2Base, self).__init__(log)
         self._section = section
 
+        # Suffix settings
         self._options['suffix'] = ''
         self._type['suffix'] = str
         self._helptext['suffix'] = ("Sets the root suffix stored in this database.  If you do not uncomment and set the suffix " +
@@ -350,4 +351,39 @@ class Backend2Base(Options2):
         self._type['require_index'] = bool
         self._helptext['require_index'] = "Set this parameter to \"True\" to refuse unindexed searches in this database."
 
-        # TODO - Add other backend settings
+        # Replication settings
+        self._options['enable_replication'] = False
+        self._type['enable_replication'] = bool
+        self._helptext['enable_replication'] = ("Enable replication for this backend.  By default it will setup the backend as " +
+                                                "a supplier, with replica ID 1, and \"cn=replication manager,cn=config\" as the " +
+                                                "replication binddn.")
+
+        self._options['replica_role'] = "supplier"
+        self._type['replica_role'] = str
+        self._helptext['replica_role'] = "Set the replication role.  Choose either 'supplier', 'hub', or 'consumer'"
+
+        self._options['replica_id'] = "1"
+        self._type['replica_id'] = str
+        self._helptext['replica_id'] = "Set the unique replication identifier for this replica's database (suppliers only)"
+
+        self._options['replica_binddn'] = "cn=replication manager,cn=config"
+        self._type['replica_binddn'] = str
+        self._helptext['replica_binddn'] = "Set the replication manager DN"
+
+        self._options['replica_bindpw'] = ""
+        self._type['replica_bindpw'] = str
+        self._helptext['replica_bindpw'] = ("Sets the password of the Replication Manager account (\"replica_binddn\" parameter)." +
+                                            "Note that setting a plain text password can be a security risk if unprivileged " +
+                                            "users can read this INF file!")
+
+        self._options['replica_bindgroup'] = ""
+        self._type['replica_bindgroup'] = str
+        self._helptext['replica_bindgroup'] = "Set the replication bind group DN"
+
+        self._options['changelog_max_age'] = "7d"
+        self._type['changelog_max_age'] = str
+        self._helptext['changelog_max_age'] = ("How long an entry should remain in the replication changelog.  The default is 7 days, or '7d'. (requires that replication is enabled).")
+
+        self._options['changelog_max_entries'] = "-1"
+        self._type['changelog_max_entries'] = str
+        self._helptext['changelog_max_entries'] = ("The maximum number of entries to keep in the replication changelog.  The default is '-1', which means unlimited. (requires that replication is enabled).")

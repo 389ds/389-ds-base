@@ -16,7 +16,7 @@ from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.dbgen import dbgen_users
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389._constants import DN_DM, PASSWORD, PW_DM
+from lib389._constants import DN_DM, PASSWORD, PW_DM, ReplicaRole
 from lib389.paths import Paths
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.config import LDBMConfig
@@ -24,6 +24,7 @@ from lib389.dseldif import DSEldif
 from lib389.rootdse import RootDSE
 from ....conftest import get_rpm_version
 from lib389._mapped_object import DSLdapObjects
+from lib389.replica import Replicas, Changelog
 
 
 pytestmark = pytest.mark.tier0
@@ -1438,12 +1439,8 @@ def test_ldbm_modification_audit_log(topology_st):
         assert conn.searchAuditLog('replace: %s' % attr)
         assert conn.searchAuditLog('%s: %s' % (attr, VALUE))
 
-
-@pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.0.0'),
-                    reason="This test is only required if perl is enabled, and requires root.")
 def test_dscreate(request):
-    """Test that dscreate works, we need this for now until setup-ds.pl is
-    fully discontinued.
+    """Test that dscreate works
 
     :id: 5bf75c47-a283-430e-a65c-3c5fd8dbadb9
     :setup: None
@@ -1508,6 +1505,133 @@ sample_entries = yes
     request.addfinalizer(fin)
 
 
+def test_dscreate_with_replication(request):
+    """Test dscreate works with replication shortcuts
+
+    :id: 8391ffc4-5158-4141-9312-0f47ae56f1ed
+    :setup: Standalone Instance
+    :steps:
+        1. Create instance and prepare DirSrv object
+        2. Check replication is enabled
+        3. Check repl role
+        4. Check rid
+        5. Check bind dn
+        6. Changelog trimming settings
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+    template_file = "/tmp/dssetup.inf"
+    template_text = """[general]
+config_version = 2
+# This invalid hostname ...
+full_machine_name = localhost.localdomain
+# Means we absolutely require this.
+strict_host_checking = False
+# In tests, we can be run in containers, NEVER trust
+# that systemd is there, or functional in any capacity
+systemd = False
+
+[slapd]
+instance_name = dscreate_repl
+root_dn = cn=directory manager
+root_password = someLongPassword_123
+# We do not have access to high ports in containers,
+# so default to something higher.
+port = 38999
+secure_port = 63699
+
+[backend-userroot]
+suffix = dc=example,dc=com
+sample_entries = yes
+enable_replication = True
+replica_binddn = cn=replication manager,cn=config
+replica_bindpw = password
+replica_id = 111
+replica_role = supplier
+changelog_max_age = 8d
+changelog_max_entries = 200000
+"""
+
+    with open(template_file, "w") as template_fd:
+        template_fd.write(template_text)
+
+    # Unset PYTHONPATH to avoid mixing old CLI tools and new lib389
+    tmp_env = os.environ
+    if "PYTHONPATH" in tmp_env:
+        del tmp_env["PYTHONPATH"]
+    try:
+        subprocess.check_call([
+            'dscreate',
+            'from-file',
+            template_file
+        ], env=tmp_env)
+    except subprocess.CalledProcessError as e:
+        log.fatal("dscreate failed!  Error ({}) {}".format(e.returncode, e.output))
+        assert False
+
+    def fin():
+        os.remove(template_file)
+        try:
+            subprocess.check_call(['dsctl', 'dscreate_repl', 'remove', '--do-it'])
+        except subprocess.CalledProcessError as e:
+            log.fatal("Failed to remove test instance  Error ({}) {}".format(e.returncode, e.output))
+
+    request.addfinalizer(fin)
+
+    # Prepare Dirsrv instance
+    from lib389 import DirSrv
+    container_result = subprocess.run(["systemd-detect-virt", "-c"], stdout=subprocess.PIPE)
+    if container_result.returncode == 0:
+        ds_instance = DirSrv(False, containerised=True)
+    else:
+        ds_instance = DirSrv(False)
+    args = {
+        SER_HOST: "localhost.localdomain",
+        SER_PORT: 38999,
+        SER_SECURE_PORT: 63699,
+        SER_SERVERID_PROP: 'dscreate_repl',
+        SER_ROOT_DN: 'cn=directory manager',
+        SER_ROOT_PW: 'someLongPassword_123',
+        SER_LDAPI_ENABLED: 'on',
+        SER_LDAPI_AUTOBIND: 'on'
+    }
+    ds_instance.allocate(args)
+    ds_instance.start(timeout=60)
+
+    dse_ldif = DSEldif(ds_instance, serverid="dscreate_repl")
+    socket_path = dse_ldif.get("cn=config", "nsslapd-ldapifilepath")
+    ldapiuri=f"ldapi://{socket_path[0].replace('/', '%2f')}"
+    ds_instance.open(uri=ldapiuri)
+
+    # Check replication is enabled
+    replicas = Replicas(ds_instance)
+    replica = replicas.get(DEFAULT_SUFFIX)
+    assert replica
+
+    # Check role
+    assert replica.get_role() == ReplicaRole.SUPPLIER
+
+    # Check rid
+    assert replica.get_rid() == '111'
+
+    # Check bind dn is in config
+    assert replica.get_attr_val_utf8('nsDS5ReplicaBindDN') == 'cn=replication manager,cn=config'
+
+    # Check repl manager entry was created
+    repl_mgr = UserAccount(ds_instance, 'cn=replication manager,cn=config')
+    assert repl_mgr.exists()
+
+    # Changelog trimming settings
+    cl = Changelog(ds_instance, DEFAULT_SUFFIX)
+    assert cl.get_attr_val_utf8('nsslapd-changelogmaxage') == '8d'
+    assert cl.get_attr_val_utf8('nsslapd-changelogmaxentries') == '200000'
+
+
 @pytest.fixture(scope="function")
 def dscreate_long_instance(request):
     template_file = "/tmp/dssetup.inf"
@@ -1555,8 +1679,7 @@ sample_entries = yes
         assert False
 
     inst = DirSrv(verbose=True, external_log=log)
-    dse_ldif = DSEldif(inst,
-                       serverid=longname_serverid)
+    dse_ldif = DSEldif(inst, serverid=longname_serverid)
 
     socket_path = dse_ldif.get("cn=config", "nsslapd-ldapifilepath")
     inst.local_simple_allocate(
