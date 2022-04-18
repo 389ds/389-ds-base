@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -35,6 +35,7 @@ from lib389.paths import Paths
 from lib389.saslmap import SaslMappings
 from lib389.instance.remove import remove_ds_instance
 from lib389.index import Indexes
+from lib389.replica import Replicas, BootstrapReplicationManager, Changelog
 from lib389.utils import (
     assert_c,
     is_a_dn,
@@ -195,6 +196,25 @@ class SetupDs(object):
                     req_idx = config.getboolean(section, 'require_index', fallback=False)
                     if req_idx:
                         be[BACKEND_REQ_INDEX] = "on"
+
+                    # Replication settings
+                    be[BACKEND_REPL_ENABLED] = False
+                    if config.get(section, BACKEND_REPL_ENABLED, fallback=False):
+                        be[BACKEND_REPL_ENABLED] = True
+                        role = config.get(section, BACKEND_REPL_ROLE, fallback="supplier")
+                        be[BACKEND_REPL_ROLE] = role
+                        rid = config.get(section, BACKEND_REPL_ID, fallback="1")
+                        be[BACKEND_REPL_ID] = rid
+                        binddn = config.get(section, BACKEND_REPL_BINDDN, fallback=None)
+                        be[BACKEND_REPL_BINDDN] = binddn
+                        bindpw = config.get(section, BACKEND_REPL_BINDPW, fallback=None)
+                        be[BACKEND_REPL_BINDPW] = bindpw
+                        bindgrp = config.get(section, BACKEND_REPL_BINDGROUP, fallback=None)
+                        be[BACKEND_REPL_BINDGROUP] = bindgrp
+                        cl_max_entries = config.get(section, BACKEND_REPL_CL_MAX_ENTRIES, fallback="-1")
+                        be[BACKEND_REPL_CL_MAX_ENTRIES] = cl_max_entries
+                        cl_max_age = config.get(section, BACKEND_REPL_CL_MAX_AGE, fallback="7d")
+                        be[BACKEND_REPL_CL_MAX_AGE] = cl_max_age
 
                     # Add this backend to the list
                     backends.append(be)
@@ -980,6 +1000,15 @@ class SetupDs(object):
             self.log.info(f"Create database backend: {backend['nsslapd-suffix']} ...")
             is_sample_entries_in_props = "sample_entries" in backend
             create_suffix_entry_in_props = backend.pop('create_suffix_entry', False)
+            repl_enabled = backend.pop(BACKEND_REPL_ENABLED, False)
+            rid = backend.pop(BACKEND_REPL_ID, False)
+            role = backend.pop(BACKEND_REPL_ROLE, False)
+            binddn = backend.pop(BACKEND_REPL_BINDDN, False)
+            bindpw = backend.pop(BACKEND_REPL_BINDPW, False)
+            bindgrp = backend.pop(BACKEND_REPL_BINDGROUP, False)
+            cl_maxage = backend.pop(BACKEND_REPL_CL_MAX_AGE, False)
+            cl_maxentries = backend.pop(BACKEND_REPL_CL_MAX_ENTRIES, False)
+
             ds_instance.backends.create(properties=backend)
             if not is_sample_entries_in_props and create_suffix_entry_in_props:
                 # Set basic ACIs
@@ -1007,6 +1036,74 @@ class SetupDs(object):
                 else:
                     # Unsupported rdn
                     raise ValueError("Suffix RDN '{}' in '{}' is not supported.  Supported RDN's are: 'c', 'cn', 'dc', 'o', and 'ou'".format(suffix_rdn_attr, backend['nsslapd-suffix']))
+
+            if repl_enabled:
+                # Okay enable replication....
+                self.log.info(f"Enable replication for: {backend['nsslapd-suffix']} ...")
+                repl_root = backend['nsslapd-suffix']
+                if role == "supplier":
+                    repl_type = '3'
+                    repl_flag = '1'
+                elif role == "hub":
+                    repl_type = '2'
+                    repl_flag = '1'
+                elif role == "consumer":
+                    repl_type = '2'
+                    repl_flag = '0'
+                else:
+                    # error - unknown type
+                    raise ValueError("Unknown replication role ({}), you must use \"supplier\", \"hub\", or \"consumer\"".format(role))
+
+                # Start the propeties and update them as needed
+                repl_properties = {
+                    'cn': 'replica',
+                    'nsDS5ReplicaRoot': repl_root,
+                    'nsDS5Flags': repl_flag,
+                    'nsDS5ReplicaType': repl_type,
+                    'nsDS5ReplicaId': '65535'
+                    }
+
+                # Validate supplier settings
+                if role == "supplier":
+                    try:
+                        rid_num = int(rid)
+                        if rid_num < 1 or rid_num > 65534:
+                            raise ValueError
+                        repl_properties['nsDS5ReplicaId'] = rid
+                    except ValueError:
+                        raise ValueError("replica_id expects a number between 1 and 65534")
+
+                    # rid is good add it to the props
+                    repl_properties['nsDS5ReplicaId'] = rid
+
+                # Bind DN & Group
+                if binddn:
+                    repl_properties['nsDS5ReplicaBindDN'] = binddn
+                if bindgrp:
+                    repl_properties['nsDS5ReplicaBindDNGroup'] = bindgrp
+
+                # Enable replication
+                replicas = Replicas(ds_instance)
+                replicas.create(properties=repl_properties)
+
+                # Create replication manager if password was provided
+                if binddn is not None and bindpw:
+                    rdn = binddn.split(",", 1)[0]
+                    rdn_attr, rdn_val = rdn.split("=", 1)
+                    manager = BootstrapReplicationManager(ds_instance, dn=binddn, rdn_attr=rdn_attr)
+                    manager.create(properties={
+                        'cn': rdn_val,
+                        'uid': rdn_val,
+                        'userPassword': bindpw
+                    })
+
+                # Changelog settings
+                if role != "consumer":
+                    cl = Changelog(ds_instance, repl_root)
+                    cl.set_max_age(cl_maxage)
+                    if cl_maxentries != "-1":
+                        cl.set_max_entries(cl_maxentries)
+
 
         # Create all required sasl maps: if we have a single backend ...
         # our default maps are really really bad, and we should feel bad.

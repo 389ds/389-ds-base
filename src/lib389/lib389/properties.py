@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -108,8 +108,15 @@ BACKEND_CHAIN_BIND_PW = 'chain-bind-pw'
 BACKEND_CHAIN_URLS = 'chain-urls'
 BACKEND_STATS = 'stats'
 BACKEND_SAMPLE_ENTRIES = 'sample_entries'
-
 BACKEND_OBJECTCLASS_VALUE = 'nsBackendInstance'
+BACKEND_REPL_ENABLED = 'enable_replication'
+BACKEND_REPL_ROLE = 'replica_role'
+BACKEND_REPL_ID = 'replica_id'
+BACKEND_REPL_BINDDN = 'replica_binddn'
+BACKEND_REPL_BINDPW = 'replica_bindpw'
+BACKEND_REPL_BINDGROUP = 'replica_bindgroup'
+BACKEND_REPL_CL_MAX_ENTRIES = "changelog_max_entries"
+BACKEND_REPL_CL_MAX_AGE = "changelog_max_age"
 
 # THIS NEEDS TO BE REMOVED. HACKS!!!!
 BACKEND_PROPNAME_TO_ATTRNAME = {BACKEND_SUFFIX: 'nsslapd-suffix',
