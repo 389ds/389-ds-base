@@ -77,7 +77,7 @@ short slapd_housekeeping_timer = 10;
 
 #define FDS_SIGNAL_PIPE 0
 
-static signal_pipe signalpipes[MAX_NUM_CT_LISTS]; /* One signal pipe per connection table list */
+static signal_pipe signalpipes[SLAPD_MAX_NUM_LISTENERS]; /* One signal pipe per connection table list */
 static PRInt32 ct_shutdown = 0;
 static PRThread *disk_thread_p = NULL;
 static PRThread *accept_thread_p = NULL;
@@ -85,8 +85,8 @@ static pthread_cond_t diskmon_cvar;
 static pthread_mutex_t diskmon_mutex;
 
 void disk_monitoring_stop(void);
-void init_ct_list_threads(void);
-void ct_thread_cleanup(void);
+static void init_ct_list_threads(void);
+static void ct_thread_cleanup(void);
 
 typedef struct listener_info
 {
@@ -1117,7 +1117,7 @@ slapd_daemon(daemon_ports_t *ports)
     /* The meat of the operation is in a loop on a call to select */
     while (!g_get_shutdown()) {
 
-        usleep(250);
+        usleep(1000);
     }
     /* We get here when the server is shutting down */
     /* Do what we have to do before death */
@@ -1158,7 +1158,7 @@ slapd_daemon(daemon_ports_t *ports)
     threads = g_get_active_threadcnt();
     if (threads > 0) {
         slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon",
-                       "slapd shutting down - waiting for %" PRIu64 " thread%s to terminate\n",
+                      "slapd shutting down - waiting for %" PRIu64 " thread%s to terminate\n",
                       threads, (threads > 1) ? "s" : "");
     }
 
@@ -1171,8 +1171,7 @@ slapd_daemon(daemon_ports_t *ports)
 
         /* try to read from the signal pipe, in case threads are
          * blocked on it. */
-        for(i = 0; i < the_connection_table->list_num; i++)
-        {
+        for(i = 0; i < the_connection_table->list_num; i++) {
             xpd.fd = signalpipes[i].signalpipe[0];
             xpd.in_flags = PR_POLL_READ;
             xpd.out_flags = 0;

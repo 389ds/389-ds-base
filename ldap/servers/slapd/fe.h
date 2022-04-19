@@ -73,13 +73,6 @@ int connection_call_io_layer_callbacks(Connection *c);
  * conntable.c
  */
 
-/* Used to determine the number connection table lists */
-#define MIN_CT_HW_THREADS 1
-#define MAX_CT_HW_THREADS 64
-#define FLEX_POINT_NUM_CT_HW_THREADS 8 /* HW thread to CT list inflection point */
-#define MIN_NUM_CT_LISTS 2
-#define MAX_NUM_CT_LISTS 4
-
 /*
  * Note: the correct order to use when acquiring multiple locks is
  * c[i]->c_mutex followed by table_mutex.
@@ -87,9 +80,9 @@ int connection_call_io_layer_callbacks(Connection *c);
 struct connection_table
 {
     int size;
-    int list_size;
-    int list_num;
-    int list_select; /* Balance the ct lists. */
+    int list_size;   /* Size of each connection table list. */
+    int list_num;    /* Number of connection table lists. */
+    int *num_active; /* list_num size buffer to track the number of connections on each connection table list. */
     /* An array of connections, file descriptors, and a mapping between them. */
     Connection **c;
     /* An array of free connections awaiting allocation. */;
@@ -123,7 +116,7 @@ Connection *connection_table_get_first_active_connection(Connection_Table *ct, s
 Connection *connection_table_get_next_active_connection(Connection_Table *ct, Connection *c);
 typedef int (*Connection_Table_Iterate_Function)(Connection *c, void *arg);
 int connection_table_iterate_active_connections(Connection_Table *ct, void *arg, Connection_Table_Iterate_Function f);
-size_t connection_table_get_list(Connection_Table *ct);
+int connection_table_get_list(Connection_Table *ct);
 
 /*
  * daemon.c

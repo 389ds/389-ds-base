@@ -127,22 +127,15 @@ connection_table_new(int table_size)
     size_t i = 0;
     int ct_list = 0;
     int free_idx = 0;
-    int num_hw_threads = 0;
     ber_len_t maxbersize = config_get_maxbersize();
     ct = (Connection_Table *)slapi_ch_calloc(1, sizeof(Connection_Table));
     ct->size = table_size;
-    ct->list_select = 0;
-    #if 0
-    /* Number of processors determine if we use two or four CT lists */
-    num_hw_threads = util_get_capped_hardware_threads(MIN_CT_HW_THREADS, MAX_CT_HW_THREADS);
-    ct->list_num = (num_hw_threads >= FLEX_POINT_NUM_CT_HW_THREADS) ? MAX_NUM_CT_LISTS : MIN_NUM_CT_LISTS;
-    #else
-    ct->list_num = config_get_conntable_numlists();
-    #endif
+    ct->list_num = config_get_num_listeners();
 
     slapi_log_err(SLAPI_LOG_INFO, "connection_table_new", "number of lists: %d\n", ct->list_num);
 
     ct->list_size = table_size/ct->list_num + 1; /* +1 to avoid rounding issue */
+    ct->num_active = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
     ct->c = (Connection **)slapi_ch_calloc(1, table_size * sizeof(Connection));
     ct->fd = (struct POLL_STRUCT **)slapi_ch_calloc(1, table_size * sizeof(struct POLL_STRUCT));
     ct->table_mutex = PR_NewLock();
@@ -227,6 +220,7 @@ connection_table_free(Connection_Table *ct)
     slapi_ch_free((void **)&ct->c);
     slapi_ch_free((void **)&ct->fd);
     PR_DestroyLock(ct->table_mutex);
+    slapi_ch_free((void *)&ct->num_active);
     slapi_ch_free((void **)&ct);
 }
 
@@ -445,6 +439,10 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connec
     /* We need to lock here because we're modifying the linked list */
     PR_Lock(ct->table_mutex);
 
+    /* Decrement the number of active connections on the ct list this connection was assigned. */
+    (*(ct->num_active + c->c_ct_list))--;
+    c->c_ct_list = -1;
+
     c->c_prev->c_next = c->c_next;
 
     if (c->c_next) {
@@ -502,8 +500,9 @@ connection_table_move_connection_on_to_active_list(Connection_Table *ct, Connect
     connection_table_dump_active_connection(c);
 #endif
 
-    /* Map new connection to connection table list */
+    /* Get the least used ct list and incremant its number of active connections. */
     c->c_ct_list = connection_table_get_list(ct);
+    (*(ct->num_active + c->c_ct_list))++;
 
     c->c_next = ct->c[c->c_ct_list][0].c_next;
     if (c->c_next != NULL) {
@@ -518,15 +517,21 @@ connection_table_move_connection_on_to_active_list(Connection_Table *ct, Connect
     connection_table_dump_active_connections(ct);
 #endif
 }
-/* Get which active list to use */
-size_t
+
+/* Find a connection table list with the lowest number of connections. */
+int
 connection_table_get_list(Connection_Table *ct)
 {
-    int ret = -1;
-    /* No need to lock here as calling function will have the ct lock */
-    ret = ct->list_select;
-    ct->list_select = (ct->list_select + 1) % ct->list_num;
-    return ret;
+    size_t i;
+    int list = 0;
+    int lowest = ct->num_active[0];
+    for (i = 1; i < ct->list_num; i++) {
+        if (*(ct->num_active + i) < lowest) {
+            lowest = *(ct->num_active + i);
+            list = i;
+        }
+    }
+    return list;
 }
 
 /*
