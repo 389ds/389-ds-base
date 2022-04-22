@@ -16,6 +16,7 @@ import signal
 import ldap
 import argparse
 import argcomplete
+from lib389.utils import get_instance_list, instance_choices
 from lib389._constants import DSRC_HOME
 from lib389.cli_idm import account as cli_account
 from lib389.cli_idm import initialise as cli_init
@@ -30,12 +31,11 @@ from lib389.cli_base import connect_instance, disconnect_instance, setup_script_
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
 from lib389.cli_base import format_error_to_dict
 
-
 parser = argparse.ArgumentParser(allow_abbrev=True)
 # First, add the LDAP options
 parser.add_argument('instance',
         help="The name of the instance or its LDAP URL, such as ldap://server.example.com:389",
-    )
+    ).completer = instance_choices
 parser.add_argument('-b', '--basedn',
         help="Base DN (root naming context) of the instance to manage",
         default=None
