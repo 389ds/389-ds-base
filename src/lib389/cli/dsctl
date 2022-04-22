@@ -15,7 +15,7 @@ import argparse, argcomplete
 import sys
 import signal
 import os
-from lib389.utils import get_instance_list
+from lib389.utils import get_instance_list, instance_choices
 from lib389 import DirSrv
 from lib389.cli_ctl import instance as cli_instance
 from lib389.cli_ctl import dbtasks as cli_dbtasks
@@ -39,7 +39,7 @@ parser.add_argument('-v', '--verbose',
     )
 parser.add_argument('instance', nargs='?', default=False,
         help="The name of the instance to act upon",
-    )
+    ).completer = instance_choices
 parser.add_argument('-j', '--json',
         help="Return result in JSON object",
         default=False, action='store_true'
