@@ -1307,6 +1307,15 @@ def get_instance_list():
     insts.sort()
     return insts
 
+# used by arg parse completers
+def instance_choices(prefix, parsed_args, **kwargs):
+    insts = get_instance_list()
+    inst_names = []
+    for inst in insts:
+        inst_names.append(inst)
+        inst_names.append(inst.replace("slapd-", ""))
+
+    return inst_names
 
 def get_user_is_ds_owner():
     # Check if we have permission to administer the DS instance. This is required
