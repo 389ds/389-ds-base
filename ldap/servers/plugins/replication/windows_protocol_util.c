@@ -1231,8 +1231,8 @@ process_replay_add(Private_Repl_Protocol *prp, Slapi_Entry *add_entry, Slapi_Ent
                 mapped_entry = NULL;
                 if (NULL == entryattrs) {
                     slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
-                                  "process_replay_add - %s - Cannot convert entry to LDAPMods.\n",
-                                  agmt_get_long_name(prp->agmt));
+                                  "process_replay_add - %s - Cannot convert entry (%s) to LDAPMods.\n",
+                                  slapi_sdn_get_dn(remote_dn), agmt_get_long_name(prp->agmt));
                     return_value = CONN_LOCAL_ERROR;
                 } else {
                     int ldap_op = 0;
@@ -1268,8 +1268,9 @@ process_replay_add(Private_Repl_Protocol *prp, Slapi_Entry *add_entry, Slapi_Ent
                      * missing_entry is set to 0 at the top of this function. */
                     if (return_value) {
                         slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
-                                      "process_replay_add - %s: Cannot replay add operation.\n",
-                                      agmt_get_long_name(prp->agmt));
+                                      "process_replay_add - %s: Cannot replay add operation. Error %d (%s)\n",
+                                      agmt_get_long_name(prp->agmt), return_value,
+                                      conn_result2string(return_value));
                     }
                     ldap_mods_free(entryattrs, 1);
                     entryattrs = NULL;
@@ -1534,10 +1535,11 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
                               "windows_replay_update - %s - Failed to fetch local entry "
-                              "for %s operation dn=\"%s\"\n",
+                              "for %s operation dn=\"%s\".  Error %d (%s)\n",
                               agmt_get_long_name(prp->agmt),
                               op2string(op->operation_type),
-                              REPL_GET_DN(&op->target_address));
+                              REPL_GET_DN(&op->target_address),
+                              rc, ldap_err2string(rc));
                 goto error;
             }
             op->operation_type = SLAPI_OPERATION_DELETE;
@@ -1572,7 +1574,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
     windows_is_local_entry_user_or_group(local_entry, &is_user, &is_group);
 
     slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
-                  "windows_replay_update - %s -Looking at %s operation local dn=\"%s\" (%s,%s,%s)\n",
+                  "windows_replay_update - %s - Looking at %s operation local dn=\"%s\" (%s,%s,%s)\n",
                   agmt_get_long_name(prp->agmt),
                   op2string(op->operation_type),
                   REPL_GET_DN(&op->target_address), is_ours ? "ours" : "not ours",
@@ -4282,7 +4284,6 @@ windows_create_local_entry(Private_Repl_Protocol *prp, Slapi_Entry *remote_entry
     int is_user = 0;
     int is_group = 0;
     char *local_entry_template = NULL;
-    char *user_entry_template = NULL;
     char *username = extract_username_from_entry(remote_entry);
     Slapi_Attr *attr = NULL;
     int rc = 0;
@@ -4291,16 +4292,6 @@ windows_create_local_entry(Private_Repl_Protocol *prp, Slapi_Entry *remote_entry
     Slapi_Entry *post_entry = NULL;
 
     char *local_user_entry_template =
-        "dn: %s\n"
-        "objectclass:top\n"
-        "objectclass:person\n"
-        "objectclass:organizationalperson\n"
-        "objectclass:inetOrgPerson\n"
-        "objectclass:ntUser\n"
-        "ntUserDeleteAccount:true\n"
-        "uid:%s\n";
-
-    char *local_nt4_user_entry_template =
         "dn: %s\n"
         "objectclass:top\n"
         "objectclass:person\n"
@@ -4321,8 +4312,7 @@ windows_create_local_entry(Private_Repl_Protocol *prp, Slapi_Entry *remote_entry
     slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_create_local_entry\n");
 
     windows_is_remote_entry_user_or_group(remote_entry, &is_user, &is_group);
-    user_entry_template = is_nt4 ? local_nt4_user_entry_template : local_user_entry_template;
-    local_entry_template = is_user ? user_entry_template : local_group_entry_template;
+    local_entry_template = is_user ? local_user_entry_template : local_group_entry_template;
     /* Create a new entry */
     /* Give it its DN and username */
     entry_string = slapi_ch_smprintf(local_entry_template, slapi_sdn_get_dn(local_sdn), username, username);
@@ -4381,8 +4371,9 @@ windows_create_local_entry(Private_Repl_Protocol *prp, Slapi_Entry *remote_entry
         /* Fatal error : need the guid */
         goto error;
     }
-    /* Hack for NT4, which has no surname */
-    if (is_nt4 && is_user) {
+
+    /* Need "sn" for users via objectclass "person" */
+    if (is_user && !slapi_entry_attr_exists(local_entry, "sn")) {
         slapi_entry_add_string(local_entry, "sn", username);
     }
 
@@ -5087,9 +5078,9 @@ windows_update_local_entry(Private_Repl_Protocol *prp, Slapi_Entry *remote_entry
         slapi_pblock_destroy(pb);
         if (LDAP_SUCCESS != retval) {
             slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
-                          "windows_update_local_entry - Failed to rename entry (\"%s\"); LDAP error - %d "
-                          "(newrdn: \"%s\", newsuperior: \"%s\"\n",
-                          newdn, retval,
+                          "windows_update_local_entry - Failed to rename entry (\"%s\"); LDAP error - %d (%s) "
+                          "newrdn: \"%s\", newsuperior: \"%s\"\n",
+                          newdn, retval, ldap_err2string(retval),
                           newrdn ? newrdn : "NULL", newsuperior ? newsuperior : "NULL");
             slapi_ch_free_string(&newsuperior);
             slapi_rdn_done(&rdn);
@@ -5204,7 +5195,7 @@ windows_update_local_entry(Private_Repl_Protocol *prp, Slapi_Entry *remote_entry
                         slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
                                       "windows_update_local_entry - "
                                       "Failed to modify entry %s replacing %s with %s "
-                                      "- error %d:%s\n",
+                                      "- error %d (%s)\n",
                                       slapi_entry_get_dn(*ep), prev_member, new_member,
                                       retval, ldap_err2string(retval));
                     }
@@ -5251,7 +5242,7 @@ windows_update_local_entry(Private_Repl_Protocol *prp, Slapi_Entry *remote_entry
             }
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
-                              "windows_update_local_entry - Failed to modify entry %s - error %d:%s\n",
+                              "windows_update_local_entry - Failed to modify entry %s - error %d (%s)\n",
                               dn, rc, ldap_err2string(rc));
             }
             slapi_pblock_destroy(pb);
@@ -5308,9 +5299,9 @@ windows_process_total_add(Private_Repl_Protocol *prp, Slapi_Entry *e, Slapi_DN *
         slapi_sdn_copy(slapi_entry_get_sdn(mapped_entry), remote_dn);
         (void)slapi_entry2mods(mapped_entry, NULL /* &entrydn : We don't need it */, &entryattrs);
         if (NULL == entryattrs) {
-            slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name, "windows_process_total_add - %s - "
-                                                                   "Cannot convert entry to LDAPMods.\n",
-                          agmt_get_long_name(prp->agmt));
+            slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
+                    "windows_process_total_add - %s - Cannot convert entry (%s) to LDAPMods.\n",
+                    agmt_get_long_name(prp->agmt), slapi_entry_get_dn(mapped_entry));
             retval = CONN_LOCAL_ERROR;
         } else {
             int ldap_op = 0;
@@ -5344,8 +5335,9 @@ windows_process_total_add(Private_Repl_Protocol *prp, Slapi_Entry *e, Slapi_DN *
             /* It's possible that the entry already exists in AD, in which case we fall back to modify it */
             if (retval) {
                 slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name, "windows_process_total_add - %s - "
-                                                                       "Cannot replay add operation.\n",
-                              agmt_get_long_name(prp->agmt));
+                              "Cannot replay add operation.  Error %d (%s)\n",
+                              agmt_get_long_name(prp->agmt),
+                              retval, conn_result2string(retval));
             }
             ldap_mods_free(entryattrs, 1);
             entryattrs = NULL;
@@ -5801,7 +5793,8 @@ windows_dirsync_inc_run(Private_Repl_Protocol *prp)
         rc = send_dirsync_search(prp->conn);
         if (rc != CONN_OPERATION_SUCCESS) {
             slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
-                          "windows_dirsync_inc_run - Failed to send dirsync search request: %d\n", rc);
+                    "windows_dirsync_inc_run - Failed to send dirsync search request: error %d (%s)\n",
+                    rc, conn_result2string(rc));
             goto error;
         }
 

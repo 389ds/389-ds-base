@@ -351,330 +351,332 @@ export class WinsyncAgmtModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
-                    <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                        <Tab eventKey={0} title={<>{mainSettingsError}<TabTitleText>Main Settings</TabTitleText></>}>
-                            <Grid className="ds-margin-top">
-                                <GridItem className="ds-label" span={3}>
-                                    Agreement Name
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtName}
-                                        type="text"
-                                        id="agmtName"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtName"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        isDisabled={this.props.edit}
-                                        validated={error.agmtName ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top-lg">
-                                <GridItem className="ds-label" span={3}>
-                                    Windows AD Host
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtHost}
-                                        type="text"
-                                        id="agmtHost"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtHost"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        validated={error.agmtHost ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top-lg">
-                                <GridItem className="ds-label" span={3}>
-                                    Windows AD Port
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtPort}
-                                        type="number"
-                                        id="agmtPort"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtPort"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top-lg">
-                                <GridItem className="ds-label" span={3}>
-                                    Bind DN
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtBindDN}
-                                        type="text"
-                                        id="agmtBindDN"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtBindDN"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        validated={error.agmtBindDN ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                    <FormHelperText isError isHidden={!error.agmtBindDN || agmtBindDN == ""}>
-                                        Value must be a valid DN
-                                    </FormHelperText>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top">
-                                <GridItem className="ds-label" span={3}>
-                                    Bind Password
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtBindPW}
-                                        type="password"
-                                        id="agmtBindPW"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtBindPW"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        validated={error.agmtBindPW ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                    <FormHelperText isError isHidden={!error.agmtBindPW || agmtBindPW == "" || agmtBindPWConfirm == ""}>
-                                        Passwords must match
-                                    </FormHelperText>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top">
-                                <GridItem className="ds-label" span={3}>
-                                    Confirm Password
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtBindPWConfirm}
-                                        type="password"
-                                        id="agmtBindPWConfirm"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtBindPWConfirm"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        validated={error.agmtBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                    <FormHelperText isError isHidden={!error.agmtBindPWConfirm || agmtBindPWConfirm == ""}>
-                                        Passwords must match
-                                    </FormHelperText>
-                                </GridItem>
-                            </Grid>
-                            {initRow}
-                        </Tab>
-                        <Tab eventKey={1} title={<>{domainError}<TabTitleText>Domain & Content</TabTitleText></>}>
-                            <Grid className="ds-margin-top">
-                                <GridItem className="ds-label" span={3}>
-                                    Windows Domain Name
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtWinDomain}
-                                        type="text"
-                                        id="agmtWinDomain"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtWinDomain"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        validated={error.agmtWinDomain ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top-lg" title="The Active Directory subtree to synchronize">
-                                <GridItem className="ds-label" span={3}>
-                                    Windows Subtree
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtWinSubtree}
-                                        type="text"
-                                        id="agmtWinSubtree"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtWinSubtree"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        placeholder="e.g. cn=Users,dc=domain,dc=com"
-                                        validated={error.agmtWinSubtree ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                    <FormHelperText isError isHidden={!error.agmtWinSubtree || agmtWinSubtree == ""}>
-                                        Value must be a valid DN
-                                    </FormHelperText>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top" title="Directory Server subtree to synchronize">
-                                <GridItem className="ds-label" span={3}>
-                                    DS Subtree
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtDSSubtree}
-                                        type="text"
-                                        id="agmtDSSubtree"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtDSSubtree"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        placeholder="e.g. ou=People,dc=domain,dc=com"
-                                        validated={error.agmtDSSubtree ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                    <FormHelperText isError isHidden={!error.agmtDSSubtree || agmtDSSubtree == ""}>
-                                        Value must be a valid DN
-                                    </FormHelperText>
-                                </GridItem>
-                            </Grid>
-                        </Tab>
-                        <Tab eventKey={2} title={<TabTitleText>Advanced Settings</TabTitleText>}>
-                            <Grid className="ds-margin-top">
-                                <GridItem className="ds-label" span={3}>
-                                    Connection Protocol
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <FormSelect
-                                        value={agmtProtocol}
-                                        id="agmtProtocol"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        aria-label="FormSelect Input"
-                                    >
-                                        <FormSelectOption key={0} value="LDAPS" label="LDAPS" />
-                                        <FormSelectOption key={1} value="StartTLS" label="StartTLS" />
-                                    </FormSelect>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top">
-                                <GridItem className="ds-label" span={3}>
-                                    Synchronization Direction
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <FormSelect
-                                        value={agmtOneWaySync}
-                                        id="agmtOneWaySync"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        aria-label="FormSelect Input"
-                                    >
-                                        <FormSelectOption title="Synchronization in both directions (default behavior)." key={0} value="both" label="both" />
-                                        <FormSelectOption title="Only synchronize Directory Server updates to Windows." key={1} value="toWindows" label="toWindows" />
-                                        <FormSelectOption title="Only synchronize Windows updates to Directory Server." key={2} value="fromWindows" label="fromWindows" />
-                                    </FormSelect>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top" title="The interval to check for updates on Windows.  Default is 300 seconds">
-                                <GridItem className="ds-label" span={3}>
-                                    Synchronization Interval
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtSyncInterval}
-                                        type="number"
-                                        id="agmtSyncInterval"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtSyncInterval"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        validated={error.agmtSyncInterval ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top" title="Attribute to exclude from replication">
-                                <GridItem className="ds-label" span={3}>
-                                    Exclude Attributes
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <Select
-                                        variant={SelectVariant.typeaheadMulti}
-                                        typeAheadAriaLabel="Type an attribute"
-                                        onToggle={onSelectToggle}
-                                        onSelect={(e, selection) => { handleFracChange(selection) }}
-                                        onClear={onSelectClear}
-                                        selections={agmtFracAttrs}
-                                        isOpen={isExcludeAttrOpen}
-                                        aria-labelledby="typeAhead-exclude-attrs"
-                                        placeholderText="Start typing an attribute..."
-                                        noResultsFoundText="There are no matching entries"
-                                    >
-                                        {availAttrs.map((attr, index) => (
-                                            <SelectOption
-                                                key={index}
-                                                value={attr}
-                                            />
-                                        ))}
-                                    </Select>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top-med">
-                                <GridItem>
-                                    <Checkbox
-                                        id="agmtSyncGroups"
-                                        onChange={(checked, e) => {
-                                            handleChange(e);
-                                        }}
-                                        name={name}
-                                        isChecked={agmtSyncGroups}
-                                        label="Synchronize New Windows Groups"
-                                    />
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top">
-                                <GridItem>
-                                    <Checkbox
-                                        id="agmtSyncUsers"
-                                        onChange={(checked, e) => {
-                                            handleChange(e);
-                                        }}
-                                        name={name}
-                                        isChecked={agmtSyncUsers}
-                                        label="Synchronize New Windows Users"
-                                    />
-                                </GridItem>
-                            </Grid>
+                <div className={spinning ? "ds-disabled" : ""}>
+                    <Form isHorizontal autoComplete="off">
+                        <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                            <Tab eventKey={0} title={<>{mainSettingsError}<TabTitleText>Main Settings</TabTitleText></>}>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={3}>
+                                        Agreement Name
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtName}
+                                            type="text"
+                                            id="agmtName"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtName"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            isDisabled={this.props.edit}
+                                            validated={error.agmtName ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top-lg">
+                                    <GridItem className="ds-label" span={3}>
+                                        Windows AD Host
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtHost}
+                                            type="text"
+                                            id="agmtHost"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtHost"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            validated={error.agmtHost ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top-lg">
+                                    <GridItem className="ds-label" span={3}>
+                                        Windows AD Port
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtPort}
+                                            type="number"
+                                            id="agmtPort"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtPort"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top-lg">
+                                    <GridItem className="ds-label" span={3}>
+                                        Bind DN
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtBindDN}
+                                            type="text"
+                                            id="agmtBindDN"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtBindDN"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            validated={error.agmtBindDN ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                        <FormHelperText isError isHidden={!error.agmtBindDN || agmtBindDN == ""}>
+                                            Value must be a valid DN
+                                        </FormHelperText>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={3}>
+                                        Bind Password
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtBindPW}
+                                            type="password"
+                                            id="agmtBindPW"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtBindPW"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            validated={error.agmtBindPW ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                        <FormHelperText isError isHidden={!error.agmtBindPW || agmtBindPW == "" || agmtBindPWConfirm == ""}>
+                                            Passwords must match
+                                        </FormHelperText>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={3}>
+                                        Confirm Password
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtBindPWConfirm}
+                                            type="password"
+                                            id="agmtBindPWConfirm"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtBindPWConfirm"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            validated={error.agmtBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                        <FormHelperText isError isHidden={!error.agmtBindPWConfirm || agmtBindPWConfirm == ""}>
+                                            Passwords must match
+                                        </FormHelperText>
+                                    </GridItem>
+                                </Grid>
+                                {initRow}
+                            </Tab>
+                            <Tab eventKey={1} title={<>{domainError}<TabTitleText>Domain & Content</TabTitleText></>}>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={3}>
+                                        Windows Domain Name
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtWinDomain}
+                                            type="text"
+                                            id="agmtWinDomain"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtWinDomain"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            validated={error.agmtWinDomain ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top-lg" title="The Active Directory subtree to synchronize">
+                                    <GridItem className="ds-label" span={3}>
+                                        Windows Subtree
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtWinSubtree}
+                                            type="text"
+                                            id="agmtWinSubtree"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtWinSubtree"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            placeholder="e.g. cn=Users,dc=domain,dc=com"
+                                            validated={error.agmtWinSubtree ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                        <FormHelperText isError isHidden={!error.agmtWinSubtree || agmtWinSubtree == ""}>
+                                            Value must be a valid DN
+                                        </FormHelperText>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top" title="Directory Server subtree to synchronize">
+                                    <GridItem className="ds-label" span={3}>
+                                        DS Subtree
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtDSSubtree}
+                                            type="text"
+                                            id="agmtDSSubtree"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtDSSubtree"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            placeholder="e.g. ou=People,dc=domain,dc=com"
+                                            validated={error.agmtDSSubtree ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                        <FormHelperText isError isHidden={!error.agmtDSSubtree || agmtDSSubtree == ""}>
+                                            Value must be a valid DN
+                                        </FormHelperText>
+                                    </GridItem>
+                                </Grid>
+                            </Tab>
+                            <Tab eventKey={2} title={<TabTitleText>Advanced Settings</TabTitleText>}>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={3}>
+                                        Connection Protocol
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <FormSelect
+                                            value={agmtProtocol}
+                                            id="agmtProtocol"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            aria-label="FormSelect Input"
+                                        >
+                                            <FormSelectOption key={0} value="LDAPS" label="LDAPS" />
+                                            <FormSelectOption key={1} value="StartTLS" label="StartTLS" />
+                                        </FormSelect>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={3}>
+                                        Synchronization Direction
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <FormSelect
+                                            value={agmtOneWaySync}
+                                            id="agmtOneWaySync"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            aria-label="FormSelect Input"
+                                        >
+                                            <FormSelectOption title="Synchronization in both directions (default behavior)." key={0} value="both" label="both" />
+                                            <FormSelectOption title="Only synchronize Directory Server updates to Windows." key={1} value="toWindows" label="toWindows" />
+                                            <FormSelectOption title="Only synchronize Windows updates to Directory Server." key={2} value="fromWindows" label="fromWindows" />
+                                        </FormSelect>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top" title="The interval to check for updates on Windows.  Default is 300 seconds">
+                                    <GridItem className="ds-label" span={3}>
+                                        Synchronization Interval
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtSyncInterval}
+                                            type="number"
+                                            id="agmtSyncInterval"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtSyncInterval"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            validated={error.agmtSyncInterval ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top" title="Attribute to exclude from replication">
+                                    <GridItem className="ds-label" span={3}>
+                                        Exclude Attributes
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type an attribute"
+                                            onToggle={onSelectToggle}
+                                            onSelect={(e, selection) => { handleFracChange(selection) }}
+                                            onClear={onSelectClear}
+                                            selections={agmtFracAttrs}
+                                            isOpen={isExcludeAttrOpen}
+                                            aria-labelledby="typeAhead-exclude-attrs"
+                                            placeholderText="Start typing an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                        >
+                                            {availAttrs.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                            ))}
+                                        </Select>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top-med">
+                                    <GridItem>
+                                        <Checkbox
+                                            id="agmtSyncGroups"
+                                            onChange={(checked, e) => {
+                                                handleChange(e);
+                                            }}
+                                            name={name}
+                                            isChecked={agmtSyncGroups}
+                                            label="Synchronize New Windows Groups"
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem>
+                                        <Checkbox
+                                            id="agmtSyncUsers"
+                                            onChange={(checked, e) => {
+                                                handleChange(e);
+                                            }}
+                                            name={name}
+                                            isChecked={agmtSyncUsers}
+                                            label="Synchronize New Windows Users"
+                                        />
+                                    </GridItem>
+                                </Grid>
 
-                        </Tab>
-                        <Tab eventKey={3} title={<>{scheduleError}<TabTitleText>Scheduling</TabTitleText></>}>
-                            <Grid className="ds-margin-top">
-                                <GridItem span={12}>
-                                    <TextContent>
-                                        <Text component={TextVariants.h5}>
-                                            By default replication updates are sent to the replica as soon as possible, but
-                                            if there is a need for replication updates to only be sent on certains days and
-                                            within certain windows of time then you can setup a custom replication schedule.
-                                        </Text>
-                                    </TextContent>
-                                </GridItem>
-                                <GridItem className="ds-margin-top-lg" span={12}>
-                                    <Checkbox
-                                        id="agmtSync"
-                                        isChecked={agmtSync}
-                                        onChange={(checked, e) => {
-                                            handleChange(e);
-                                        }}
-                                        name={name}
-                                        label="Use A Custom Schedule"
-                                    />
-                                </GridItem>
-                            </Grid>
-                            {scheduleRow}
-                        </Tab>
-                    </Tabs>
-                </Form>
+                            </Tab>
+                            <Tab eventKey={3} title={<>{scheduleError}<TabTitleText>Scheduling</TabTitleText></>}>
+                                <Grid className="ds-margin-top">
+                                    <GridItem span={12}>
+                                        <TextContent>
+                                            <Text component={TextVariants.h5}>
+                                                By default replication updates are sent to the replica as soon as possible, but
+                                                if there is a need for replication updates to only be sent on certains days and
+                                                within certain windows of time then you can setup a custom replication schedule.
+                                            </Text>
+                                        </TextContent>
+                                    </GridItem>
+                                    <GridItem className="ds-margin-top-lg" span={12}>
+                                        <Checkbox
+                                            id="agmtSync"
+                                            isChecked={agmtSync}
+                                            onChange={(checked, e) => {
+                                                handleChange(e);
+                                            }}
+                                            name={name}
+                                            label="Use A Custom Schedule"
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                {scheduleRow}
+                            </Tab>
+                        </Tabs>
+                    </Form>
+                </div>
             </Modal>
         );
     }
@@ -1125,301 +1127,303 @@ export class ReplAgmtModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
-                    <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                        <Tab eventKey={0} title={<>{mainSettingsError}<TabTitleText>Main Settings</TabTitleText></>}>
-                            <Grid className="ds-margin-top">
-                                <GridItem className="ds-label" span={3}>
-                                    Agreement Name
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtName}
-                                        type="text"
-                                        id="agmtName"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtName"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        isDisabled={this.props.edit}
-                                        validated={error.agmtName ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                    <FormHelperText isError isHidden={!error.agmtName || agmtName == ""}>
-                                        Required field
-                                    </FormHelperText>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top">
-                                <GridItem className="ds-label" span={3}>
-                                    Consumer Host
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtHost}
-                                        type="text"
-                                        id="agmtHost"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtHost"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        validated={error.agmtHost ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                    <FormHelperText isError isHidden={!error.agmtHost || agmtHost == ""}>
-                                        Required field
-                                    </FormHelperText>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top">
-                                <GridItem className="ds-label" span={3}>
-                                    Consumer Port
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtPort}
-                                        type="number"
-                                        id="agmtPort"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtPort"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                    <FormHelperText isError isHidden={!error.agmtPort}>
-                                        Port must be between 1 and 65535
-                                    </FormHelperText>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top">
-                                <GridItem className="ds-label" span={3}>
-                                    Bind DN
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtBindDN}
-                                        type="text"
-                                        id="agmtBindDN"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtBindDN"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        validated={error.agmtBindDN ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                    <FormHelperText isError isHidden={!error.agmtBindDN}>
-                                        Value must be a valid DN
-                                    </FormHelperText>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top">
-                                <GridItem className="ds-label" span={3}>
-                                    Bind Password
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtBindPW}
-                                        type="password"
-                                        id="agmtBindPW"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtBindPW"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        validated={error.agmtBindPW ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                    <FormHelperText isError isHidden={!error.agmtBindPW || error.agmtBindPW == "" || error.agmtBindPWConfirm == ""}>
-                                        Passwords must match
-                                    </FormHelperText>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top">
-                                <GridItem className="ds-label" span={3}>
-                                    Confirm Password
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <TextInput
-                                        value={agmtBindPWConfirm}
-                                        type="password"
-                                        id="agmtBindPWConfirm"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="agmtBindPWConfirm"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        validated={error.agmtBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
-                                    />
-                                    <FormHelperText isError isHidden={!error.agmtBindPWConfirm || agmtBindPWConfirm == ""}>
-                                        Passwords must match
-                                    </FormHelperText>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top">
-                                <GridItem className="ds-label" span={3}>
-                                    Connection Protocol
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <FormSelect
-                                        value={agmtProtocol}
-                                        id="agmtProtocol"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        aria-label="FormSelect Input"
-                                        validated={error.agmtProtocol ? ValidatedOptions.error : ValidatedOptions.default}
-                                    >
-                                        <FormSelectOption key={0} value="LDAP" label="LDAP" />
-                                        <FormSelectOption key={1} value="LDAPS" label="LDAPS" />
-                                        <FormSelectOption key={2} value="STARTTLS" label="STARTTLS" />
-                                    </FormSelect>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top-lg">
-                                <GridItem className="ds-label" span={3}>
-                                    Authentication Method
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <FormSelect
-                                        value={agmtBindMethod}
-                                        id="agmtBindMethod"
-                                        onChange={(str, e) => {
-                                            handleChange(e);
-                                        }}
-                                        aria-label="FormSelect Input"
-                                        validated={error.agmtBindMethod ? ValidatedOptions.error : ValidatedOptions.default}
-                                    >
-                                        {agmtBindMethodOptions.map((option, index) => (
-                                            <FormSelectOption key={index} value={option} label={option} />
-                                        ))}
-                                    </FormSelect>
-                                </GridItem>
-                            </Grid>
-                            {initRow}
-                        </Tab>
-                        <Tab eventKey={1} title={<TabTitleText>Fractional Settings</TabTitleText>}>
-                            <Grid className="ds-margin-top-lg" title="Attribute to exclude from replication">
-                                <GridItem className="ds-label" span={3}>
-                                    Exclude Attributes
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <Select
-                                        variant={SelectVariant.typeaheadMulti}
-                                        typeAheadAriaLabel="Type an attribute"
-                                        onToggle={onExcludeAttrsToggle}
-                                        onSelect={(e, selection) => { handleFracChange(selection) }}
-                                        onClear={onExcludeAttrsClear}
-                                        selections={agmtFracAttrs}
-                                        isOpen={isExcludeAttrsOpen}
-                                        aria-labelledby="typeAhead-exclude-attrs"
-                                        placeholderText="Start typing an attribute..."
-                                    >
-                                        {availAttrs.map((attr, index) => (
-                                            <SelectOption
-                                                key={index}
-                                                value={attr}
-                                            />
-                                        ))}
-                                    </Select>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top" title="Attribute to exclude from replica Initializations">
-                                <GridItem className="ds-label" span={3}>
-                                    Exclude Init Attributes
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <Select
-                                        variant={SelectVariant.typeaheadMulti}
-                                        typeAheadAriaLabel="Type an attribute"
-                                        onToggle={onExcludeAttrsInitToggle}
-                                        onSelect={(e, selection) => { handleFracInitChange(selection) }}
-                                        onClear={onExcludeAttrsInitClear}
-                                        selections={agmtFracInitAttrs}
-                                        isOpen={isExcludeInitAttrsOpen}
-                                        aria-labelledby="typeAhead-exclude-init-attrs"
-                                        placeholderText="Start typing an attribute..."
-                                        noResultsFoundText="There are no matching entries"
-                                    >
-                                        {availAttrs.map((attr, index) => (
-                                            <SelectOption
-                                                key={index}
-                                                value={attr}
-                                            />
-                                        ))}
-                                    </Select>
-                                </GridItem>
-                            </Grid>
-                            <Grid className="ds-margin-top" title="Attributes to strip from a replicatio<Selectn update">
-                                <GridItem className="ds-label" span={3}>
-                                    Strip Attributes
-                                </GridItem>
-                                <GridItem span={9}>
-                                    <Select
-                                        variant={SelectVariant.typeaheadMulti}
-                                        typeAheadAriaLabel="Type an attribute"
-                                        onToggle={onStripAttrsToggle}
-                                        onSelect={(e, selection) => { handleStripChange(selection) }}
-                                        onClear={onStripAttrsClear}
-                                        selections={agmtStripAttrs}
-                                        isOpen={isStripAttrsOpen}
-                                        aria-labelledby="typeAhead-strip-attrs"
-                                        placeholderText="Start typing an attribute..."
-                                        noResultsFoundText="There are no matching entries"
-                                    >
-                                        {availAttrs.map((attr, index) => (
-                                            <SelectOption
-                                                key={index}
-                                                value={attr}
-                                            />
-                                        ))}
-                                    </Select>
-                                </GridItem>
-                            </Grid>
-                        </Tab>
-                        <Tab eventKey={2} title={<>{bootSettingsError}<TabTitleText>Bootstrap Settings</TabTitleText></>}>
-                            <Grid className="ds-margin-top-med">
-                                <GridItem span={9}>
-                                    <Checkbox
-                                        id="agmtBootstrap"
-                                        isChecked={agmtBootstrap}
-                                        onChange={(checked, e) => {
-                                            handleChange(e);
-                                        }}
-                                        name={name}
-                                        title={bootstrapTitle}
-                                        label="Enable Bootstrap Settings"
-                                    />
-                                </GridItem>
-                            </Grid>
-                            {bootstrapRow}
-                        </Tab>
-                        <Tab eventKey={3} title={<>{scheduleSettingsError}<TabTitleText>Scheduling</TabTitleText></>}>
-                            <Grid className="ds-margin-top-med">
-                                <GridItem span={12}>
-                                    <TextContent>
-                                        <Text component={TextVariants.h5}>
-                                            By default replication updates are sent to the replica as soon as possible, but
-                                            if there is a need for replication updates to only be sent on certains days and within certain
-                                            windows of time then you can setup a custom replication schedule.
-                                        </Text>
-                                    </TextContent>
-                                </GridItem>
-                                <GridItem className="ds-margin-top-lg" span={12}>
-                                    <Checkbox
-                                        id="agmtSync"
-                                        isChecked={agmtSync}
-                                        onChange={(checked, e) => {
-                                            handleChange(e);
-                                        }}
-                                        name={name}
-                                        label="Use A Custom Schedule"
-                                    />
-                                </GridItem>
-                            </Grid>
-                            {scheduleRow}
-                        </Tab>
-                    </Tabs>
-                </Form>
+                <div className={spinning ? "ds-disabled" : ""}>
+                    <Form isHorizontal autoComplete="off">
+                        <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                            <Tab eventKey={0} title={<>{mainSettingsError}<TabTitleText>Main Settings</TabTitleText></>}>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={3}>
+                                        Agreement Name
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtName}
+                                            type="text"
+                                            id="agmtName"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtName"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            isDisabled={this.props.edit}
+                                            validated={error.agmtName ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                        <FormHelperText isError isHidden={!error.agmtName || agmtName == ""}>
+                                            Required field
+                                        </FormHelperText>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={3}>
+                                        Consumer Host
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtHost}
+                                            type="text"
+                                            id="agmtHost"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtHost"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            validated={error.agmtHost ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                        <FormHelperText isError isHidden={!error.agmtHost || agmtHost == ""}>
+                                            Required field
+                                        </FormHelperText>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={3}>
+                                        Consumer Port
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtPort}
+                                            type="number"
+                                            id="agmtPort"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtPort"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                        <FormHelperText isError isHidden={!error.agmtPort}>
+                                            Port must be between 1 and 65535
+                                        </FormHelperText>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={3}>
+                                        Bind DN
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtBindDN}
+                                            type="text"
+                                            id="agmtBindDN"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtBindDN"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            validated={error.agmtBindDN ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                        <FormHelperText isError isHidden={!error.agmtBindDN}>
+                                            Value must be a valid DN
+                                        </FormHelperText>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={3}>
+                                        Bind Password
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtBindPW}
+                                            type="password"
+                                            id="agmtBindPW"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtBindPW"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            validated={error.agmtBindPW ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                        <FormHelperText isError isHidden={!error.agmtBindPW || error.agmtBindPW == "" || error.agmtBindPWConfirm == ""}>
+                                            Passwords must match
+                                        </FormHelperText>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={3}>
+                                        Confirm Password
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <TextInput
+                                            value={agmtBindPWConfirm}
+                                            type="password"
+                                            id="agmtBindPWConfirm"
+                                            aria-describedby="horizontal-form-name-helper"
+                                            name="agmtBindPWConfirm"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            validated={error.agmtBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
+                                        />
+                                        <FormHelperText isError isHidden={!error.agmtBindPWConfirm || agmtBindPWConfirm == ""}>
+                                            Passwords must match
+                                        </FormHelperText>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top">
+                                    <GridItem className="ds-label" span={3}>
+                                        Connection Protocol
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <FormSelect
+                                            value={agmtProtocol}
+                                            id="agmtProtocol"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            aria-label="FormSelect Input"
+                                            validated={error.agmtProtocol ? ValidatedOptions.error : ValidatedOptions.default}
+                                        >
+                                            <FormSelectOption key={0} value="LDAP" label="LDAP" />
+                                            <FormSelectOption key={1} value="LDAPS" label="LDAPS" />
+                                            <FormSelectOption key={2} value="STARTTLS" label="STARTTLS" />
+                                        </FormSelect>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top-lg">
+                                    <GridItem className="ds-label" span={3}>
+                                        Authentication Method
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <FormSelect
+                                            value={agmtBindMethod}
+                                            id="agmtBindMethod"
+                                            onChange={(str, e) => {
+                                                handleChange(e);
+                                            }}
+                                            aria-label="FormSelect Input"
+                                            validated={error.agmtBindMethod ? ValidatedOptions.error : ValidatedOptions.default}
+                                        >
+                                            {agmtBindMethodOptions.map((option, index) => (
+                                                <FormSelectOption key={index} value={option} label={option} />
+                                            ))}
+                                        </FormSelect>
+                                    </GridItem>
+                                </Grid>
+                                {initRow}
+                            </Tab>
+                            <Tab eventKey={1} title={<TabTitleText>Fractional Settings</TabTitleText>}>
+                                <Grid className="ds-margin-top-lg" title="Attribute to exclude from replication">
+                                    <GridItem className="ds-label" span={3}>
+                                        Exclude Attributes
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type an attribute"
+                                            onToggle={onExcludeAttrsToggle}
+                                            onSelect={(e, selection) => { handleFracChange(selection) }}
+                                            onClear={onExcludeAttrsClear}
+                                            selections={agmtFracAttrs}
+                                            isOpen={isExcludeAttrsOpen}
+                                            aria-labelledby="typeAhead-exclude-attrs"
+                                            placeholderText="Start typing an attribute..."
+                                        >
+                                            {availAttrs.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                            ))}
+                                        </Select>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top" title="Attribute to exclude from replica Initializations">
+                                    <GridItem className="ds-label" span={3}>
+                                        Exclude Init Attributes
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type an attribute"
+                                            onToggle={onExcludeAttrsInitToggle}
+                                            onSelect={(e, selection) => { handleFracInitChange(selection) }}
+                                            onClear={onExcludeAttrsInitClear}
+                                            selections={agmtFracInitAttrs}
+                                            isOpen={isExcludeInitAttrsOpen}
+                                            aria-labelledby="typeAhead-exclude-init-attrs"
+                                            placeholderText="Start typing an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                        >
+                                            {availAttrs.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                            ))}
+                                        </Select>
+                                    </GridItem>
+                                </Grid>
+                                <Grid className="ds-margin-top" title="Attributes to strip from a replicatio<Selectn update">
+                                    <GridItem className="ds-label" span={3}>
+                                        Strip Attributes
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <Select
+                                            variant={SelectVariant.typeaheadMulti}
+                                            typeAheadAriaLabel="Type an attribute"
+                                            onToggle={onStripAttrsToggle}
+                                            onSelect={(e, selection) => { handleStripChange(selection) }}
+                                            onClear={onStripAttrsClear}
+                                            selections={agmtStripAttrs}
+                                            isOpen={isStripAttrsOpen}
+                                            aria-labelledby="typeAhead-strip-attrs"
+                                            placeholderText="Start typing an attribute..."
+                                            noResultsFoundText="There are no matching entries"
+                                        >
+                                            {availAttrs.map((attr, index) => (
+                                                <SelectOption
+                                                    key={index}
+                                                    value={attr}
+                                                />
+                                            ))}
+                                        </Select>
+                                    </GridItem>
+                                </Grid>
+                            </Tab>
+                            <Tab eventKey={2} title={<>{bootSettingsError}<TabTitleText>Bootstrap Settings</TabTitleText></>}>
+                                <Grid className="ds-margin-top-med">
+                                    <GridItem span={9}>
+                                        <Checkbox
+                                            id="agmtBootstrap"
+                                            isChecked={agmtBootstrap}
+                                            onChange={(checked, e) => {
+                                                handleChange(e);
+                                            }}
+                                            name={name}
+                                            title={bootstrapTitle}
+                                            label="Enable Bootstrap Settings"
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                {bootstrapRow}
+                            </Tab>
+                            <Tab eventKey={3} title={<>{scheduleSettingsError}<TabTitleText>Scheduling</TabTitleText></>}>
+                                <Grid className="ds-margin-top-med">
+                                    <GridItem span={12}>
+                                        <TextContent>
+                                            <Text component={TextVariants.h5}>
+                                                By default replication updates are sent to the replica as soon as possible, but
+                                                if there is a need for replication updates to only be sent on certains days and within certain
+                                                windows of time then you can setup a custom replication schedule.
+                                            </Text>
+                                        </TextContent>
+                                    </GridItem>
+                                    <GridItem className="ds-margin-top-lg" span={12}>
+                                        <Checkbox
+                                            id="agmtSync"
+                                            isChecked={agmtSync}
+                                            onChange={(checked, e) => {
+                                                handleChange(e);
+                                            }}
+                                            name={name}
+                                            label="Use A Custom Schedule"
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                {scheduleRow}
+                            </Tab>
+                        </Tabs>
+                    </Form>
+                </div>
             </Modal>
         );
     }
