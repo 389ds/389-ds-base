@@ -829,7 +829,11 @@ export class WinsyncAgmts extends React.Component {
             cmd.push('--ds-subtree=' + this.state.agmtDSSubtree);
         }
         if (this.state.agmtOneWaySync != this.state._agmtOneWaySync) {
-            cmd.push('--one-way-sync=' + this.state.agmtOneWaySync);
+            let value = this.state.agmtOneWaySync;
+            if (value == "both") {
+                value = "";
+            }
+            cmd.push('--one-way-sync=' + value);
         }
         if (this.state.agmtSyncInterval != this.state._agmtSyncInterval) {
             cmd.push('--sync-interval=' + this.state.agmtSyncInterval);
@@ -1217,7 +1221,7 @@ export class WinsyncAgmts extends React.Component {
                     </Button>
                     <Button
                         className="ds-left-margin"
-                        variant="default"
+                        variant="secondary"
                         onClick={() => {
                             this.props.reload(this.props.suffix);
                         }}
