@@ -938,7 +938,7 @@ def add_winsync_agmt(inst, basedn, log, args):
         properties['nsds7newwingroupsyncenabled'] = args.sync_groups
     if args.sync_interval is not None:
         properties['winsyncinterval'] = args.sync_interval
-    if args.one_way_sync is not None:
+    if args.one_way_sync is not None and args.one_way_sync != "both":
         properties['onewaysync'] = args.one_way_sync
     if args.move_action is not None:
         properties['winsyncmoveAction'] = args.move_action
@@ -977,6 +977,9 @@ def set_winsync_agmt(inst, basedn, log, args):
     modlist = []
     did_something = False
     for attr, value in list(attrs.items()):
+        if attr == "onewaysync" and value == "both":
+            value == ""
+
         if value == "":
             # Delete value
             agmt.remove_all(attr)
@@ -1572,7 +1575,7 @@ def create_parser(subparsers):
     winsync_agmt_add_parser.add_argument('--sync-users', help="Synchronizes users between AD and DS")
     winsync_agmt_add_parser.add_argument('--sync-groups', help="Synchronizes groups between AD and DS")
     winsync_agmt_add_parser.add_argument('--sync-interval', help="Sets the interval that DS checks AD for changes in entries")
-    winsync_agmt_add_parser.add_argument('--one-way-sync', help="Sets which direction to perform synchronization: \"toWindows\", \"fromWindows\", \"both\"")
+    winsync_agmt_add_parser.add_argument('--one-way-sync', help="Sets which direction to perform synchronization: \"toWindows\", or \"fromWindows\,.  By default sync occurs in both directions.")
     winsync_agmt_add_parser.add_argument('--move-action', help="Sets instructions on how to handle moved or deleted entries: \"none\", \"unsync\", or \"delete\"")
     winsync_agmt_add_parser.add_argument('--win-filter', help="Sets a custom filter for finding users in AD Server")
     winsync_agmt_add_parser.add_argument('--ds-filter', help="Sets a custom filter for finding AD users in DS")
@@ -1602,7 +1605,7 @@ def create_parser(subparsers):
     winsync_agmt_set_parser.add_argument('--sync-users', help="Synchronizes users between AD and DS")
     winsync_agmt_set_parser.add_argument('--sync-groups', help="Synchronizes groups between AD and DS")
     winsync_agmt_set_parser.add_argument('--sync-interval', help="Sets the interval that DS checks AD for changes in entries")
-    winsync_agmt_set_parser.add_argument('--one-way-sync', help="Sets which direction to perform synchronization: \"toWindows\", \"fromWindows\", \"both\"")
+    winsync_agmt_set_parser.add_argument('--one-way-sync', help="Sets which direction to perform synchronization: \"toWindows\", or \"fromWindows\".  By default sync occurs in both directions.")
     winsync_agmt_set_parser.add_argument('--move-action', help="Sets instructions on how to handle moved or deleted entries: \"none\", \"unsync\", or \"delete\"")
     winsync_agmt_set_parser.add_argument('--win-filter', help="Sets a custom filter for finding users in AD Server")
     winsync_agmt_set_parser.add_argument('--ds-filter', help="Sets a custom filter for finding AD users in DS")

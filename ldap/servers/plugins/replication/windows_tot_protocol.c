@@ -162,7 +162,7 @@ windows_tot_run(Private_Repl_Protocol *prp)
 
     agmt_set_update_in_progress(prp->agmt, PR_TRUE);
 
-    slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name, "windows_tot_run - Beginning total update of replica "
+    slapi_log_err(SLAPI_LOG_INFO, windows_repl_plugin_name, "windows_tot_run - Beginning total update of replica "
                                                            "\"%s\".\n",
                   agmt_get_long_name(prp->agmt));
 
@@ -223,7 +223,7 @@ windows_tot_run(Private_Repl_Protocol *prp)
                       agmt_get_long_name(prp->agmt), rc);
         agmt_set_last_init_status(prp->agmt, 0, 0, rc, "Total update aborted");
     } else {
-        slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name, "windows_tot_run - Finished total update of replica "
+        slapi_log_err(SLAPI_LOG_INFO, windows_repl_plugin_name, "windows_tot_run - Finished total update of replica "
                                                                "\"%s\". Sent %lu entries.\n",
                       agmt_get_long_name(prp->agmt), cb_data.num_entries);
         agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total update succeeded");
