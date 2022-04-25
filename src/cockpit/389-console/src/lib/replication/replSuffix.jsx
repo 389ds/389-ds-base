@@ -47,6 +47,7 @@ export class ReplSuffix extends React.Component {
             enableBindPW: "",
             enableBindPWConfirm: "",
             enableBindGroupDN: "",
+            enableSpinning: false,
             disabled: true, // Disable repl enable button
             // Disable replication
             showDisableReplModal: false,
@@ -113,7 +114,8 @@ export class ReplSuffix extends React.Component {
         } else {
             // Enable replication
             this.setState({
-                showEnableReplModal: true
+                showEnableReplModal: true,
+                enableSpinning: false,
             });
         }
     }
@@ -222,6 +224,10 @@ export class ReplSuffix extends React.Component {
         if (this.state.enableRole == "Supplier") {
             cmd.push('--replica-id=' + this.state.enableRID);
         }
+
+        this.setState({
+            enableSpinning: true
+        });
 
         this.props.disableTree();
         log_cmd('enableReplication', 'Enable replication', cmd);
@@ -403,7 +409,7 @@ export class ReplSuffix extends React.Component {
                     closeHandler={this.closeEnableReplModal}
                     handleChange={this.handleEnableChange}
                     saveHandler={this.enableReplication}
-                    spinning={this.state.addManagerSpinning}
+                    spinning={this.state.enableSpinning}
                     enableRole={this.state.enableRole}
                     enableRID={this.state.enableRID}
                     enableBindDN={this.state.enableBindDN}

@@ -1663,7 +1663,7 @@ bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password)
     if (rc == LDAP_SUCCESS) {
         if (conn->last_ldap_error != rc) {
             conn->last_ldap_error = rc;
-            slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
+            slapi_log_err(SLAPI_LOG_INFO, windows_repl_plugin_name,
                           "bind_and_check_pwp - %s: Replication bind with %s auth resumed\n",
                           agmt_get_long_name(conn->agmt),
                           mech ? mech : "SIMPLE");
@@ -1683,7 +1683,7 @@ bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password)
                     if ((ctrls[i]->ldctl_value.bv_val != NULL) &&
                         (ctrls[i]->ldctl_value.bv_len > 0)) {
                         int password_expiring = atoi(ctrls[i]->ldctl_value.bv_val);
-                        slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
+                        slapi_log_err(SLAPI_LOG_WARNING, windows_repl_plugin_name,
                                       "bind_and_check_pwp - %s: Successfully bound %s to consumer, "
                                       "but password is expiring on consumer in %d seconds.\n",
                                       agmt_get_long_name(conn->agmt), binddn, password_expiring);

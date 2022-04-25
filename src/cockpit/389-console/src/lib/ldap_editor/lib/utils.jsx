@@ -1043,9 +1043,15 @@ export function showCertificate (certificate, showCertCallback) {
 // From https://stackoverflow.com/questions/30106476/using-javascripts-atob-to-decode-base64-doesnt-properly-decode-utf-8-strings
 export function b64DecodeUnicode (str) {
   // Going backwards: from bytestream, to percent-encoding, to original string.
-  return decodeURIComponent(atob(str).split('').map(c => {
-    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-  }).join(''));
+  try {
+      result = decodeURIComponent(atob(str).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return result;
+  } catch(e) {
+      console.debug("b64DecodeUnicode failed to decode: ", str);
+      return str;
+  }
 }
 
 // Takes a line with an encoded attribute.
