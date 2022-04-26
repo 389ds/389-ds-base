@@ -142,7 +142,8 @@ class Paths(object):
     def _get_defaults_loc(self, search_paths):
         ## THIS IS HOW WE HANDLE A PREFIX INSTALL
         prefix = os.getenv('PREFIX')
-        if prefix is not None:
+        # When we run 389-ds in Ansible, its processing sets PREFIX to "", so we should check for both - None and ""
+        if prefix:
             spath = os.path.join(prefix, 'share/dirsrv/inf/defaults.inf')
             if os.path.isfile(spath):
                 return spath
