@@ -91,15 +91,16 @@ class Task(DSLdapObject):
     def wait(self, timeout=120):
         """Wait until task is complete."""
 
-        count = 0
+        time_passed = 0
+        sleep_interval = 2
         if timeout is None:
             self._log.debug("No timeout is set, this may take a long time ...")
 
-        while timeout is None or count < timeout:
+        while timeout is None or time_passed < timeout:
             if self.is_complete():
                 break
-            count = count + 1
-            time.sleep(2)
+            time_passed = time_passed + sleep_interval
+            time.sleep(sleep_interval)
 
     def create(self, rdn=None, properties={}, basedn=None):
         """Create a Task entry

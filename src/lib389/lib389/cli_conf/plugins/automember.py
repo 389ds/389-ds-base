@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -9,9 +9,9 @@
 import ldap
 import json
 from lib389.plugins import (AutoMembershipPlugin, AutoMembershipDefinition, AutoMembershipDefinitions,
-                            AutoMembershipRegexRule, AutoMembershipRegexRules)
+                            AutoMembershipRegexRule, AutoMembershipRegexRules, AutoMembershipFixupTasks)
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
-
+from lib389.utils import get_task_status
 
 arg_to_attr_definition = {
     'default_group': 'autoMemberDefaultGroup',
@@ -156,12 +156,21 @@ def fixup(inst, basedn, log, args):
     if not plugin.status():
         log.error("'%s' is disabled. Rebuild membership task can't be executed" % plugin.rdn)
     fixup_task = plugin.fixup(args.DN, args.filter)
-    fixup_task.wait()
-    exitcode = fixup_task.get_exit_code()
-    if exitcode != 0:
-        log.error('Rebuild membership task for %s has failed. Please, check logs')
+    if args.wait:
+        log.info(f'Waiting for fixup task "{fixup_task.dn}" to complete.  You can safely exit by pressing Control C ...')
+        fixup_task.wait(timeout=None)
+        exitcode = fixup_task.get_exit_code()
+        if exitcode != 0:
+            log.error(f'Rebuild membership task "{fixup_task.dn}" for {args.DN} has failed (error {exitcode}). Please, check logs')
+        else:
+            log.info('Fixup task successfully completed')
     else:
-        log.info('Successfully added task entry')
+        log.info(f'Successfully added task entry "{fixup_task.dn}". This task is running in the background. To track its progress you can use the "fixup-status" command.')
+
+
+def do_fixup_status(inst, basedn, log, args):
+    get_task_status(inst, log, AutoMembershipFixupTasks, dn=args.dn, show_log=args.show_log,
+                    watch=args.watch, use_json=args.json)
 
 
 def abort(inst, basedn, log, args):
@@ -254,6 +263,15 @@ def create_parser(subparsers):
     fixup.add_argument('-f', '--filter', required=True, help='Sets the LDAP filter for entries to fix up')
     fixup.add_argument('-s', '--scope', required=True, choices=['sub', 'base', 'one'], type=str.lower,
                        help='Sets the LDAP search scope for entries to fix up')
+    fixup.add_argument('--wait', action='store_true',
+                       help="Wait for the task to finish, this could take a long time")
+
+    fixup_status = subcommands.add_parser('fixup-status', help='Check the status of a fix-up task')
+    fixup_status.set_defaults(func=do_fixup_status)
+    fixup_status.add_argument('--dn', help="The task entry's DN")
+    fixup_status.add_argument('--show-log', action='store_true', help="Display the task log")
+    fixup_status.add_argument('--watch', action='store_true',
+                       help="Watch the task's status and wait for it to finish")
 
     abort_fixup = subcommands.add_parser('abort-fixup', help='Abort the rebuild membership task.')
     abort_fixup.set_defaults(func=abort)
