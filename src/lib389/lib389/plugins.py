@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -15,7 +15,9 @@ from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.lint import DSRILE0001, DSRILE0002
 from lib389.utils import ensure_str, ensure_list_bytes
 from lib389.schema import Schema
-from lib389._constants import DN_PLUGIN
+from lib389._constants import (
+        DN_PLUGIN, DN_MBO_TASK, DN_AUTOMEMBER_REBUILD_TASK, DN_FIXUP_LINKED_ATTIBUTES,
+        DN_EUUID_TASK)
 from lib389.properties import (
         PLUGINS_OBJECTCLASS_VALUE, PLUGIN_PROPNAME_TO_ATTRNAME,
         PLUGINS_ENABLE_ON_VALUE, PLUGINS_ENABLE_OFF_VALUE, PLUGIN_ENABLE
@@ -953,7 +955,10 @@ class MemberOfPlugin(Plugin):
         task_properties = {'basedn': basedn}
         if _filter is not None:
             task_properties['filter'] = _filter
-        task.create(properties=task_properties)
+        try:
+            task.create(properties=task_properties)
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError("The fixup task can not be run, the memberOf plugin is not fully enabled.")
 
         return task
 
@@ -2080,6 +2085,78 @@ class DNAPluginSharedConfigs(DSLdapObjects):
 
         co = self._entry_to_instance(dn=None, entry=None)
         return co.create(properties, self._basedn)
+
+
+class MemberOfFixupTasks(DSLdapObjects):
+    """A DSLdapObjects entity which represents memberOf fixup tasks
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param task_dn: dn for a specific task
+    :type basedn: str
+    """
+
+    def __init__(self, instance, task_dn=None):
+        super(MemberOfFixupTasks, self).__init__(instance)
+        self._objectclasses = ['top']
+        self._filterattrs = ['cn']
+        self._childobject = DSLdapObject
+        self._basedn = DN_MBO_TASK
+        self._scope = ldap.SCOPE_ONELEVEL
+
+
+class AutoMembershipFixupTasks(DSLdapObjects):
+    """A DSLdapObjects entity which represents automember fixup tasks
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param task_dn: dn for a specific task
+    :type basedn: str
+    """
+
+    def __init__(self, instance, task_dn=None):
+        super(AutoMembershipFixupTasks, self).__init__(instance)
+        self._objectclasses = ['top']
+        self._filterattrs = ['cn']
+        self._childobject = DSLdapObject
+        self._basedn = DN_AUTOMEMBER_REBUILD_TASK
+        self._scope = ldap.SCOPE_ONELEVEL
+
+
+class LinkedAttributesFixupTasks(DSLdapObjects):
+    """A DSLdapObjects entity which represents automember fixup tasks
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param task_dn: dn for a specific task
+    :type basedn: str
+    """
+
+    def __init__(self, instance, task_dn=None):
+        super(LinkedAttributesFixupTasks, self).__init__(instance)
+        self._objectclasses = ['top']
+        self._filterattrs = ['cn']
+        self._childobject = DSLdapObject
+        self._basedn = DN_FIXUP_LINKED_ATTIBUTES
+        self._scope = ldap.SCOPE_ONELEVEL
+
+
+class EntryUUIDFixupTasks(DSLdapObjects):
+    """A DSLdapObjects entity which represents automember fixup tasks
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param task_dn: dn for a specific task
+    :type basedn: str
+    """
+
+    def __init__(self, instance, task_dn=None):
+        super(EntryUUIDFixupTasks, self).__init__(instance)
+        self._objectclasses = ['top']
+        self._filterattrs = ['cn']
+        self._childobject = DSLdapObject
+        self._basedn = DN_EUUID_TASK
+        self._scope = ldap.SCOPE_ONELEVEL
 
 
 class Plugins(DSLdapObjects):
