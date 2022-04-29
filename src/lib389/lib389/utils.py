@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -24,6 +24,7 @@ except ImportError:
         p.stdout, p.stdin = popen2(cmd_l)
         return p
 
+import json
 import re
 import os
 import logging
@@ -32,7 +33,7 @@ import ldap
 import socket
 import time
 import stat
-from datetime import datetime
+from datetime import (datetime, timedelta)
 import sys
 import filecmp
 import pwd
@@ -1456,3 +1457,145 @@ def is_fips():
     else:
         return False
 
+
+def convert_timestamp(timestamp):
+    """Convert createtimestamp to ctime: 20170405184656Z ----> Wed Apr  5 19:46:56 2017
+    :param timestamp - A timestamp from the server
+    :return - the ctime of the timestamp
+    """
+    if timestamp:
+        time_tuple = (int(timestamp[:4]), int(timestamp[4:6]), int(timestamp[6:8]),
+                      int(timestamp[8:10]), int(timestamp[10:12]), int(timestamp[12:14]),
+                      0, 0, 0)
+        secs = time.mktime(time_tuple)
+        return time.ctime(secs)
+    else:
+        return ""
+
+
+def elapsed_time(timestamp1, timestamp2):
+    """Take two timestamps from the server and get the diff
+    """
+    if timestamp1 and timestamp2:
+        time1_tuple = (int(timestamp1[:4]), int(timestamp1[4:6]), int(timestamp1[6:8]),
+                       int(timestamp1[8:10]), int(timestamp1[10:12]), int(timestamp1[12:14]),
+                       0, 0, 0)
+        time2_tuple = (int(timestamp2[:4]), int(timestamp2[4:6]), int(timestamp2[6:8]),
+                       int(timestamp2[8:10]), int(timestamp2[10:12]), int(timestamp2[12:14]),
+                       0, 0, 0)
+        time1_secs = time.mktime(time1_tuple)
+        time2_secs = time.mktime(time2_tuple)
+        elapsed_secs = time2_secs - time1_secs
+        return str(timedelta(seconds=elapsed_secs))
+    else:
+        return ""
+
+def get_task_status(inst, log, taskObj, dn=None, show_log=False, watch=False, use_json=False):
+    """Get the status of a Task, if "watching" keep looping over the tasks
+    :param inst: DirSrv Object
+    :type inst: Object
+    :param log: Logging Object
+    :type log: Object
+    :param taskObj: Lib389 Object (task object from plugins.py)
+    :type taskObj: Object
+    :param dn: A task DN to get the status for (if omitted all tasks for checked)
+    :type dn: str
+    :param show_log: Show the task's log attribute (could be lengthy)
+    :type show_log: boolean
+    :param watch: Keep looping over the task until it completes
+    :type watch: boolean
+    :param use_json: Report the status in JSON
+    :type use_json: boolean
+    """
+
+    tasks = taskObj(inst).list()
+    all_finished = False
+    while not all_finished:
+        task_list = []
+        all_finished = True
+        for task in tasks:
+            task_base_dn = task.get_attr_val_utf8_l('basedn')
+            if task_base_dn is None:
+                # Try linked attr, it uses a different attr name
+                task_base_dn = task.get_attr_val_utf8_l('linkdn')
+            task_filter = task.get_attr_val_utf8_l('filter')
+            status = task.get_attr_val_utf8('nsTaskStatus')
+            exitcode = task.get_attr_val_utf8('nsTaskExitcode')
+            task_log =  task.get_attr_val_utf8('nsTaskLog')
+            task_created = task.get_attr_val_utf8('nsTaskCreated')
+            task_ended = task.get_attr_val_utf8('modifyTimestamp')
+            if task_base_dn is None:
+                task_base_dn = ""
+            if task_filter is None:
+                task_filter = ""
+            if status is None:
+                status = ""
+            if exitcode is None:
+                all_finished = False
+                task_ended = ""
+                exitcode = "Not finished ..."
+
+                # Calc elapsed time for running task
+                curr_time = int(time.time())  # Use the current time
+                time_tuple = (int(task_created[:4]), int(task_created[4:6]), int(task_created[6:8]),
+                              int(task_created[8:10]), int(task_created[10:12]), int(task_created[12:14]),
+                              0, 0, 0)
+                start_time = int(time.mktime(time_tuple))
+                elapsed_secs = curr_time - start_time
+                elapsed_time_str = str(timedelta(seconds=elapsed_secs))
+            else:
+                # Task is finished, use start and end times to calc elapsed time
+                elapsed_time_str = elapsed_time(task_created, task_ended)
+
+            if not show_log:
+                task_log = ""
+
+            if (dn is not None and dn.lower() == task.dn.lower()) or dn is None:
+                    task_list.append({
+                        'dn': task.dn,
+                        'basedn': task_base_dn,
+                        'filter': task_filter,
+                        'log': task_log,
+                        'status': status,
+                        'created': task_created,
+                        'created_str': convert_timestamp(task_created),
+                        'ended': task_ended,
+                        'ended_str': convert_timestamp(task_ended),
+                        'elapsed_time':  elapsed_time_str,
+                        'exitcode': exitcode
+                    })
+
+        # Display the status
+        if use_json:
+            log.info(json.dumps({"type": "list", "items": task_list}, indent=4))
+        else:
+            num_of_tasks = len(task_list)
+            count = 1
+            plural = ""
+            if num_of_tasks != 1:
+                plural = "s"
+            log.info(f'Found {num_of_tasks} fix-up task{plural}\n')
+
+            for task in task_list:
+                log.info(f"[{count}] Task: {task['dn']}")
+                log.info("-" * 80)
+                log.info(f" - Base DN:       {task['basedn']}")
+                if task['filter']:
+                    log.info(f" - Filter:        {task['filter']}")
+                log.info(f" - Status:        {task['status']}")
+                log.info(f" - Started:       {task['created_str']} ({task['created']})")
+                if task['ended_str']:
+                    log.info(f" - Ended:         {task['ended_str']} ({task['ended']})")
+                else:
+                    log.info(" - Ended:")
+                log.info(f" - Elapsed Time:  {task['elapsed_time']}")
+                log.info(f" - Exit Code:     {task['exitcode']}")
+                if show_log:
+                    log.info(f" - Log:\n{task['log']}")
+                log.info("")
+                count += 1
+        if not watch or all_finished:
+            break
+        elif not use_json:
+            log.info("Refreshing status ...")
+        time.sleep(2)
