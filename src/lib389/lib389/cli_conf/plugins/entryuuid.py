@@ -1,14 +1,16 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2021 William Brown <william@blackhats.net.au>
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-import ldap
-from lib389.plugins import EntryUUIDPlugin
-from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
+
+from lib389.plugins import EntryUUIDPlugin, EntryUUIDFixupTasks
+from lib389.cli_conf import add_generic_plugin_parsers
+from lib389.utils import get_task_status
 
 def do_fixup(inst, basedn, log, args):
     plugin = EntryUUIDPlugin(inst)
@@ -17,12 +19,21 @@ def do_fixup(inst, basedn, log, args):
         log.error("'%s' is disabled. Fix up task can't be executed" % plugin.rdn)
         return
     fixup_task = plugin.fixup(args.DN, args.filter)
-    fixup_task.wait()
-    exitcode = fixup_task.get_exit_code()
-    if exitcode != 0:
-        log.error('EntryUUID fixup task has failed. Please, check the error log for more - %s' % exitcode)
+    if args.wait:
+        log.info(f'Waiting for fixup task "{fixup_task.dn}" to complete.  You can safely exit by pressing Control C ...')
+        fixup_task.wait(timeout=None)
+        exitcode = fixup_task.get_exit_code()
+        if exitcode != 0:
+            log.error(f'EntryUUID fixup task "{fixup_task.dn}" for {args.DN} has failed (error {exitcode}). Please, check logs')
+        else:
+            log.info('Fixup task successfully completed')
     else:
-        log.info('Successfully added task entry')
+        log.info(f'Successfully added task entry "{fixup_task.dn}". This task is running in the background. To track its progress you can use the "fixup-status" command.')
+
+
+def do_fixup_status(inst, basedn, log, args):
+    get_task_status(inst, log, EntryUUIDFixupTasks, dn=args.dn, show_log=args.show_log,
+                    watch=args.watch, use_json=args.json)
 
 def create_parser(subparsers):
     referint = subparsers.add_parser('entryuuid', help='Manage and configure EntryUUID plugin')
@@ -36,4 +47,12 @@ def create_parser(subparsers):
     fixup.add_argument('-f', '--filter',
                        help='Filter for entries to fix up.\n If omitted, all entries under base DN'
                             'will have their EntryUUID attribute regenerated if not present.')
+    fixup.add_argument('--wait', action='store_true',
+                       help="Wait for the task to finish, this could take a long time")
 
+    fixup_status = subcommands.add_parser('fixup-status', help='Check the status of a fix-up task')
+    fixup_status.set_defaults(func=do_fixup_status)
+    fixup_status.add_argument('--dn', help="The task entry's DN")
+    fixup_status.add_argument('--show-log', action='store_true', help="Display the task log")
+    fixup_status.add_argument('--watch', action='store_true',
+                       help="Watch the task's status and wait for it to finish")
