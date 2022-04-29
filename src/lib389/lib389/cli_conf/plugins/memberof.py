@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -7,8 +7,10 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import json
 import ldap
-from lib389.plugins import MemberOfPlugin, MemberOfSharedConfig
+from lib389.plugins import MemberOfPlugin, MemberOfSharedConfig, MemberOfFixupTasks
+from lib389.utils import get_task_status
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
 
 arg_to_attr = {
@@ -71,18 +73,26 @@ def memberof_del_config(inst, basedn, log, args):
 
 def do_fixup(inst, basedn, log, args):
     plugin = MemberOfPlugin(inst)
-    log.info('Attempting to add task entry...')
+    log.info('Adding fixup task entry...')
     if not plugin.status():
         log.error("'%s' is disabled. Fix up task can't be executed" % plugin.rdn)
         return
     fixup_task = plugin.fixup(args.DN, args.filter)
-    fixup_task.wait()
-    exitcode = fixup_task.get_exit_code()
-    if exitcode != 0:
-        log.error('MemberOf fixup task for %s has failed. Please, check logs')
+    if args.wait:
+        log.info(f'Waiting for fixup task "{fixup_task.dn}" to complete.  You can safely exit by pressing Control C ...')
+        fixup_task.wait(timeout=None)
+        exitcode = fixup_task.get_exit_code()
+        if exitcode != 0:
+            log.error(f'MemberOf fixup task "{fixup_task.dn}" for {args.DN} has failed (error {exitcode}). Please, check logs')
+        else:
+            log.info('Fixup task successfully completed')
     else:
-        log.info('Successfully added task entry')
+        log.info(f'Successfully added task entry "{fixup_task.dn}". This task is running in the background. To track its progress you can use the "fixup-status" command.')
 
+
+def do_fixup_status(inst, basedn, log, args):
+    get_task_status(inst, log, MemberOfFixupTasks, dn=args.dn, show_log=args.show_log,
+                    watch=args.watch, use_json=args.json)
 
 def _add_parser_args(parser):
     parser.add_argument('--attr',
@@ -142,3 +152,12 @@ def create_parser(subparsers):
                        help='Filter for entries to fix up.\n If omitted, all entries with objectclass '
                             'inetuser/inetadmin/nsmemberof under the specified base will have '
                             'their memberOf attribute regenerated.')
+    fixup.add_argument('--wait', action='store_true',
+                       help="Wait for the task to finish, this could take a long time")
+
+    fixup_status = subcommands.add_parser('fixup-status', help='Check the status of a fix-up task')
+    fixup_status.set_defaults(func=do_fixup_status)
+    fixup_status.add_argument('--dn', help="The task entry's DN")
+    fixup_status.add_argument('--show-log', action='store_true', help="Display the task log")
+    fixup_status.add_argument('--watch', action='store_true',
+                       help="Watch the task's status and wait for it to finish")

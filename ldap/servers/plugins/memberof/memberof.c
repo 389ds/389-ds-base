@@ -2830,7 +2830,7 @@ memberof_fixup_task_thread(void *arg)
     slapi_td_set_dn(slapi_ch_strdup(td->bind_dn));
 
     slapi_task_begin(task, 1);
-    slapi_task_log_notice(task, "Memberof task starts (arg: %s) ...\n",
+    slapi_task_log_notice(task, "Memberof task starts (arg: %s) ...",
                           td->filter_str);
     slapi_log_err(SLAPI_LOG_INFO, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "memberof_fixup_task_thread - Memberof task starts (filter: \"%s\") ...\n",
@@ -2864,7 +2864,7 @@ memberof_fixup_task_thread(void *arg)
             slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                           "memberof_fixup_task_thread - Failed to get be backend from (%s)\n",
                           td->dn);
-            slapi_task_log_notice(task, "Memberof task - Failed to get be backend from (%s)\n",
+            slapi_task_log_notice(task, "Memberof task - Failed to get be backend from (%s)",
                                   td->dn);
             rc = -1;
             goto done;
@@ -2885,8 +2885,8 @@ done:
     }
     memberof_free_config(&configCopy);
 
-    slapi_task_log_notice(task, "Memberof task finished.");
-    slapi_task_log_status(task, "Memberof task finished.");
+    slapi_task_log_notice(task, "Memberof task finished.\n");
+    slapi_task_log_status(task, "Memberof task finished.\n");
     slapi_task_inc_progress(task);
 
     /* this will queue the destruction of the task */
@@ -3013,7 +3013,7 @@ memberof_fix_memberof(MemberOfConfig *config, Slapi_Task *task, task_data *td)
         errmsg = ldap_err2string(result);
         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                       "memberof_fix_memberof - Failed (%s)\n", errmsg);
-        slapi_task_log_notice(task, "Memberof task failed (%s)\n", errmsg);
+        slapi_task_log_notice(task, "Memberof task failed (%s)", errmsg);
     }
 
     slapi_pblock_destroy(search_pb);
