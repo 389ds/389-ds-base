@@ -246,6 +246,7 @@ conn_delete_internal(Repl_Connection *conn)
     PR_ASSERT(NULL != conn);
     close_connection_internal(conn);
     /* slapi_ch_free accepts NULL pointer */
+    slapi_ch_free_string(&conn->last_ldap_errmsg);
     slapi_ch_free((void **)&conn->hostname);
     slapi_ch_free((void **)&conn->binddn);
     slapi_ch_free((void **)&conn->plain);
@@ -452,6 +453,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
         char *s = NULL;
 
         rc = slapi_ldap_get_lderrno(conn->ld, NULL, &s);
+        slapi_ch_free_string(&conn->last_ldap_errmsg);
         conn->last_ldap_errmsg = s;
         conn->last_ldap_error = rc;
         /* some errors will require a disconnect and retry the connection
@@ -1945,6 +1947,7 @@ bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password)
                           agmt_get_long_name(conn->agmt),
                           mech ? mech : "SIMPLE", rc,
                           ldap_err2string(rc), errmsg ? errmsg : "");
+            slapi_ch_free_string(&errmsg);
         } else {
             char *errmsg = NULL;
             /* errmsg is a pointer directly into the ld structure - do not free */
@@ -1954,6 +1957,7 @@ bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password)
                           agmt_get_long_name(conn->agmt),
                           mech ? mech : "SIMPLE", rc,
                           ldap_err2string(rc), errmsg ? errmsg : "");
+            slapi_ch_free_string(&errmsg);
         }
 
         return (CONN_OPERATION_FAILED);
