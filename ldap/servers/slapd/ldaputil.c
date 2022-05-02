@@ -375,6 +375,8 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
 
 #include <sasl/sasl.h>
 
+
+/* Warning: caller must free s (if not NULL) */
 int
 slapi_ldap_get_lderrno(LDAP *ld, char **m, char **s)
 {
@@ -389,6 +391,9 @@ slapi_ldap_get_lderrno(LDAP *ld, char **m, char **s)
         ldap_get_option(ld, LDAP_OPT_DIAGNOSTIC_MESSAGE, s);
 #else
         ldap_get_option(ld, LDAP_OPT_ERROR_STRING, s);
+        if (*s) {
+            *s = slapi_ch_strdup(*s);
+        }
 #endif
     }
     return rc;
@@ -1517,6 +1522,7 @@ slapd_ldap_sasl_interactive_bind(
                           mech ? mech : "SIMPLE",
                           rc, ldap_err2string(rc), errmsg,
                           errno, slapd_system_strerror(errno));
+            slapi_ch_free_string(&errmsg);
             if (can_retry_bind(ld, mech, bindid, creds, rc, errmsg)) {
                 ; /* pass through to retry one time */
             } else {
