@@ -51,7 +51,7 @@ from ldapurl import LDAPUrl
 from contextlib import closing
 
 import lib389
-from lib389.paths import Paths
+from lib389.paths import ( Paths, DEFAULTS_PATH )
 from lib389.dseldif import DSEldif
 from lib389._constants import (
         DEFAULT_USER, VALGRIND_WRAPPER, DN_CONFIG, CFGSUFFIX, LOCALHOST,
@@ -494,8 +494,10 @@ def valgrind_enable(sbin_dir, wrapper=None):
     :raise EnvironmentError: If script is not run as 'root'
     '''
 
-    if os.geteuid() != 0:
-        log.error('This script must be run as root to use valgrind')
+    if not os.access(sbin_dir, os.W_OK):
+        # Note: valgrind has no limitation but  ns-slapd must be replaced
+        # This check allows non root user to use custom install prefix
+        log.error('This script must be run as root to use valgrind (Should at least be able to write in {sbin_dir})')
         raise EnvironmentError
 
     if not wrapper:
@@ -541,7 +543,20 @@ def valgrind_enable(sbin_dir, wrapper=None):
                       e.strerror)
 
     # Disable selinux
-    os.system('setenforce 0')
+    if os.geteuid() == 0:
+        os.system('setenforce 0')
+
+    # Disable systemd by turning off with_system in .inf file
+    old_path = Paths()._get_defaults_loc(DEFAULTS_PATH)
+    new_path = f'{old_path}.orig'
+    os.rename(old_path, new_path)
+    with open(new_path, 'rt') as fin:
+       with open(old_path, 'wt') as fout:
+            for line in fin:
+                if line.startswith('with_systemd'):
+                    fout.write('with_systemd = 0\n')
+                else:
+                    fout.write(line)
 
     log.info('Valgrind is now enabled.')
 
@@ -558,8 +573,10 @@ def valgrind_disable(sbin_dir):
     :raise EnvironmentError: If script is not run as 'root'
     '''
 
-    if os.geteuid() != 0:
-        log.error('This script must be run as root to use valgrind')
+    if not os.access(sbin_dir, os.W_OK):
+        # Note: valgrind has no limitation but  ns-slapd must be replaced
+        # This check allows non root user to use custom install prefix
+        log.error('This script must be run as root to use valgrind (Should at least be able to write in {sbin_dir})')
         raise EnvironmentError
 
     nsslapd_orig = '%s/ns-slapd' % sbin_dir
@@ -583,7 +600,14 @@ def valgrind_disable(sbin_dir):
                          e.strerror)
 
     # Enable selinux
-    os.system('setenforce 1')
+    if os.geteuid() == 0:
+        os.system('setenforce 1')
+
+    # Restore .inf file (for systemd)
+    new_path = Paths()._get_defaults_loc(DEFAULTS_PATH)
+    old_path = f'{new_path}.orig'
+    if os.path.exists(old_path):
+        os.replace(old_path, new_path)
 
     log.info('Valgrind is now disabled.')
 
@@ -609,7 +633,7 @@ def valgrind_get_results_file(dirsrv_inst):
 
     # Run the command and grab the output
     p = os.popen(cmd)
-    results_file = p.readline()
+    results_file = p.readline().strip()
     p.close()
 
     return results_file
