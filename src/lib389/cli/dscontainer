@@ -354,7 +354,7 @@ binddn = cn=Directory Manager
     # Wait on the health check to show we are ready for ldapi.
     healthy = False
     startup_timeout = os.getenv("DS_STARTUP_TIMEOUT", 60)
-    max_failure_count = int(startup_timeout / 3)
+    max_failure_count = int(int(startup_timeout) / 3)
     for i in range(0, max_failure_count):
         if ds_proc is None:
             log.warning("ns-slapd pid has disappeared ...")
