@@ -1660,6 +1660,12 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, basesdn);
     }
     slapi_sdn_free(&old_repl_sdn);
+    /*
+     * Now optimise the filter for use: note that unlike ldbm_search,
+     * because we don't change the outer filter container, we don't need
+     * to set back into pb.
+     */
+    slapi_filter_optimise(filter);
 
     switch (scope) {
     case LDAP_SCOPE_BASE: {

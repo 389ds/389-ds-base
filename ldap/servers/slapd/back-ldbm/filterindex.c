@@ -701,6 +701,9 @@ list_candidates(
     struct berval *vpairs[2] = {NULL, NULL};
     int is_and = 0;
     IDListSet *idl_set = NULL;
+    back_search_result_set *sr = NULL;
+
+    slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
 
     slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "=> 0x%x\n", ftype);
 
@@ -891,6 +894,7 @@ list_candidates(
              * and allids - we should not process anymore, and fallback to full
              * table scan at this point.
              */
+            sr->sr_flags |= SR_FLAG_MUST_APPLY_FILTER_TEST;
             goto apply_set_op;
         }
 
@@ -899,11 +903,12 @@ list_candidates(
              * If we encounter a zero length idl, we bail now because this can never
              * result in a meaningful result besides zero.
              */
+            sr->sr_flags |= SR_FLAG_MUST_APPLY_FILTER_TEST;
             goto apply_set_op;
         }
     }
 
-/*
+    /*
      * Do the idl_set operation if required.
      * these are far more efficient than the iterative union and
      * intersections we previously used.

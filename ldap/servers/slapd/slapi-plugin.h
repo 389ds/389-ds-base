@@ -7398,6 +7398,7 @@ typedef enum _slapi_op_note_t {
 #define SLAPI_SEARCH_REQATTRS  1161
 #define SLAPI_SEARCH_ATTRSONLY  117
 #define SLAPI_SEARCH_IS_AND     118
+#define SLAPI_SEARCH_FILTER_INTENDED 119
 
 /* abandon arguments */
 #define SLAPI_ABANDON_MSGID 120

@@ -92,13 +92,8 @@ vlvSearch_reinit(struct vlvSearch *p, const struct backentry *base)
     p->vlv_slapifilter = slapi_str2filter(p->vlv_filter);
     filter_normalize(p->vlv_slapifilter);
     /* make (&(parentid=idofbase)(|(originalfilter)(objectclass=referral))) */
-    {
-        Slapi_Filter *fid2kids = NULL;
-        Slapi_Filter *focref = NULL;
-        Slapi_Filter *fand = NULL;
-        Slapi_Filter *forr = NULL;
-        p->vlv_slapifilter = create_onelevel_filter(p->vlv_slapifilter, base, 0 /* managedsait */, &fid2kids, &focref, &fand, &forr);
-    }
+    p->vlv_slapifilter = create_onelevel_filter(p->vlv_slapifilter, base, 0 /* managedsait */);
+    slapi_filter_optimise(p->vlv_slapifilter);
 }
 
 /*
@@ -174,22 +169,16 @@ vlvSearch_init(struct vlvSearch *p, Slapi_PBlock *pb, const Slapi_Entry *e, ldbm
 
         /* make (&(parentid=idofbase)(|(originalfilter)(objectclass=referral))) */
         {
-            Slapi_Filter *fid2kids = NULL;
-            Slapi_Filter *focref = NULL;
-            Slapi_Filter *fand = NULL;
-            Slapi_Filter *forr = NULL;
-            p->vlv_slapifilter = create_onelevel_filter(p->vlv_slapifilter, e, 0 /* managedsait */, &fid2kids, &focref, &fand, &forr);
-            /* jcm: fid2kids, focref, fand, and forr get freed when we free p->vlv_slapifilter */
+            p->vlv_slapifilter = create_onelevel_filter(p->vlv_slapifilter, e, 0 /* managedsait */);
+            slapi_filter_optimise(p->vlv_slapifilter);
             CACHE_RETURN(&inst->inst_cache, &e);
         }
     } break;
     case LDAP_SCOPE_SUBTREE: {
         /* make (|(originalfilter)(objectclass=referral))) */
         /* No need for scope-filter since we apply a scope test before the filter test */
-        Slapi_Filter *focref = NULL;
-        Slapi_Filter *forr = NULL;
-        p->vlv_slapifilter = create_subtree_filter(p->vlv_slapifilter, 0 /* managedsait */, &focref, &forr);
-        /* jcm: focref and forr get freed when we free p->vlv_slapifilter */
+        p->vlv_slapifilter = create_subtree_filter(p->vlv_slapifilter, 0 /* managedsait */);
+        slapi_filter_optimise(p->vlv_slapifilter);
     } break;
     }
 }
