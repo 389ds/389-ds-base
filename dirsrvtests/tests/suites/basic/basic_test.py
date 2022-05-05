@@ -985,7 +985,6 @@ def test_basic_systemctl(topology_st, import_example_ldif):
     log.info('test_basic_systemctl: PASSED')
 
 
-pytestmark = pytest.mark.skipif(get_rpm_version("389-ds-base-snmp") == "not installed", reason="389-ds-base-snmp package is not present")
 def test_basic_ldapagent(topology_st, import_example_ldif):
     """Tests that the ldap agent starts
 
@@ -1004,6 +1003,8 @@ def test_basic_ldapagent(topology_st, import_example_ldif):
 
     log.info('Running test_basic_ldapagent...')
 
+    if not os.path.exists(os.path.join(topology_st.standalone.get_sbin_dir(), 'ldap-agent')):
+        pytest.skip("ldap-agent is not present")
     var_dir = topology_st.standalone.get_local_state_dir()
 
     config_file = os.path.join(topology_st.standalone.get_sysconf_dir(), 'dirsrv/config/agent.conf')
