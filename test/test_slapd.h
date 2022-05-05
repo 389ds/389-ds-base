@@ -27,6 +27,9 @@ int run_plugin_tests(void);
 /* libslapd */
 void test_libslapd_hello(void **state);
 
+/* libslapd-filter-optimise */
+void test_libslapd_filter_optimise(void **state);
+
 /* libslapd-pblock-analytics */
 void test_libslapd_pblock_analytics(void **state);
 

@@ -31,7 +31,7 @@
 /* prototypes */
 static int build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const char *base, int scope, int *lookup_returned_allidsp, IDList **candidates);
 static IDList *base_candidates(Slapi_PBlock *pb, struct backentry *e);
-static IDList *onelevel_candidates(Slapi_PBlock *pb, backend *be, const char *base, struct backentry *e, Slapi_Filter *filter, int managedsait, int *lookup_returned_allidsp, int *err);
+static IDList *onelevel_candidates(Slapi_PBlock *pb, backend *be, const char *base, Slapi_Filter *filter, int *lookup_returned_allidsp, int *err);
 static back_search_result_set *new_search_result_set(IDList *idl, int vlv, int lookthroughlimit);
 static void delete_search_result_set(Slapi_PBlock *pb, back_search_result_set **sr);
 static int can_skip_filter_test(Slapi_PBlock *pb, struct slapi_filter *f, int scope, IDList *idl);
@@ -922,17 +922,19 @@ ldbm_back_search(Slapi_PBlock *pb)
             tmp_desc = "Filter is not set";
             goto bail;
         }
-        if (can_skip_filter_test(pb, filter, scope, candidates)) {
-            sr->sr_flags |= SR_FLAG_CAN_SKIP_FILTER_TEST;
+        if (can_skip_filter_test(pb, filter, scope, candidates) == 0) {
+            sr->sr_flags |= SR_FLAG_MUST_APPLY_FILTER_TEST;
         }
     }
 
     /* if we need to perform the filter test, pre-digest the filter to
        speed up the filter test */
-    if (!(sr->sr_flags & SR_FLAG_CAN_SKIP_FILTER_TEST) ||
+    if ((sr->sr_flags & SR_FLAG_MUST_APPLY_FILTER_TEST) ||
         li->li_filter_bypass_check) {
         int rc = 0, filt_errs = 0;
         Slapi_Filter *filter = NULL;
+
+        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Applying Filter Test\n");
 
         slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
         if (NULL == filter) {
@@ -956,6 +958,8 @@ ldbm_back_search(Slapi_PBlock *pb)
                 tmp_desc = "Could not compile regex for filter matching";
             }
         }
+    } else {
+        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Skipped Filter Test\n");
     }
 bail:
     /* Fix for bugid #394184, SD, 05 Jul 00 */
@@ -981,8 +985,10 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int managedsait = 0;
     Slapi_Filter *filter = NULL;
+    Slapi_Filter *filter_exec = NULL;
     int err = 0;
     int r = 0;
+    char logbuf[1024] = {0};
 
     slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
     if (NULL == filter) {
@@ -999,13 +1005,35 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
         break;
 
     case LDAP_SCOPE_ONELEVEL:
-        *candidates = onelevel_candidates(pb, be, base, e, filter, managedsait,
-                                          lookup_returned_allidsp, &err);
+        /* Now optimise the filter for use */
+        slapi_filter_optimise(filter);
+        /* modify the filter to be: (&(|(originalfilter)(objectclass=referral))(parentid=idofbase)) */
+        filter_exec = create_onelevel_filter(filter, e, managedsait);
+
+        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Optimised ONE filter to - %s\n",
+             slapi_filter_to_string(filter_exec, logbuf, sizeof(logbuf)));
+
+        *candidates = onelevel_candidates(pb, be, base, filter_exec, lookup_returned_allidsp, &err);
+
+        slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, filter_exec);
+        slapi_pblock_set(pb, SLAPI_SEARCH_FILTER_INTENDED, filter);
+
         break;
 
     case LDAP_SCOPE_SUBTREE:
-        *candidates = subtree_candidates(pb, be, base, e, filter, managedsait,
-                                         lookup_returned_allidsp, &err);
+        /* Now optimise the filter for use */
+        slapi_filter_optimise(filter);
+        /* make (|(originalfilter)(objectclass=referral)) */
+        filter_exec = create_subtree_filter(filter, managedsait);
+
+        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Optimised SUB filter to - %s\n",
+             slapi_filter_to_string(filter_exec, logbuf, sizeof(logbuf)));
+
+        *candidates = subtree_candidates(pb, be, base, e, filter_exec, lookup_returned_allidsp, &err);
+
+        slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, filter_exec);
+        slapi_pblock_set(pb, SLAPI_SEARCH_FILTER_INTENDED, filter);
+
         break;
 
     default:
@@ -1064,15 +1092,15 @@ base_candidates(Slapi_PBlock *pb __attribute__((unused)), struct backentry *e)
  * non-recursively when done with the returned filter.
  */
 static Slapi_Filter *
-create_referral_filter(Slapi_Filter *filter, Slapi_Filter **focref, Slapi_Filter **forr)
+create_referral_filter(Slapi_Filter *filter)
 {
     char *buf = slapi_ch_strdup("objectclass=referral");
 
-    *focref = slapi_str2filter(buf);
-    *forr = slapi_filter_join(LDAP_FILTER_OR, filter, *focref);
+    Slapi_Filter *focref = slapi_str2filter(buf);
+    Slapi_Filter *forr = slapi_filter_join(LDAP_FILTER_OR, filter, focref);
 
     slapi_ch_free((void **)&buf);
-    return *forr;
+    return forr;
 }
 
 /*
@@ -1086,20 +1114,20 @@ create_referral_filter(Slapi_Filter *filter, Slapi_Filter **focref, Slapi_Filter
  * This function is exported for the VLV code to use.
  */
 Slapi_Filter *
-create_onelevel_filter(Slapi_Filter *filter, const struct backentry *baseEntry, int managedsait, Slapi_Filter **fid2kids, Slapi_Filter **focref, Slapi_Filter **fand, Slapi_Filter **forr)
+create_onelevel_filter(Slapi_Filter *filter, const struct backentry *baseEntry, int managedsait)
 {
     Slapi_Filter *ftop = filter;
     char buf[40];
 
     if (!managedsait) {
-        ftop = create_referral_filter(filter, focref, forr);
+        ftop = create_referral_filter(filter);
     }
 
     sprintf(buf, "parentid=%lu", (u_long)(baseEntry != NULL ? baseEntry->ep_id : 0));
-    *fid2kids = slapi_str2filter(buf);
-    *fand = slapi_filter_join(LDAP_FILTER_AND, ftop, *fid2kids);
+    Slapi_Filter *fid2kids = slapi_str2filter(buf);
+    Slapi_Filter *fand = slapi_filter_join(LDAP_FILTER_AND, ftop, fid2kids);
 
-    return *fand;
+    return fand;
 }
 
 /*
@@ -1110,37 +1138,15 @@ onelevel_candidates(
     Slapi_PBlock *pb,
     backend *be,
     const char *base,
-    struct backentry *e,
     Slapi_Filter *filter,
-    int managedsait,
     int *lookup_returned_allidsp,
     int *err)
 {
-    Slapi_Filter *fid2kids = NULL;
-    Slapi_Filter *focref = NULL;
-    Slapi_Filter *fand = NULL;
-    Slapi_Filter *forr = NULL;
-    Slapi_Filter *ftop = NULL;
     IDList *candidates;
 
-    /*
-     * modify the filter to be something like this:
-     *
-     *    (&(parentid=idofbase)(|(originalfilter)(objectclass=referral)))
-     */
-
-    ftop = create_onelevel_filter(filter, e, managedsait, &fid2kids, &focref, &fand, &forr);
-
-    /* from here, it's just like subtree_candidates */
-    candidates = filter_candidates(pb, be, base, ftop, NULL, 0, err);
+    candidates = filter_candidates(pb, be, base, filter, NULL, 0, err);
 
     *lookup_returned_allidsp = slapi_be_is_flag_set(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
-
-    /* free up just the filter stuff we allocated above */
-    slapi_filter_free(fid2kids, 0);
-    slapi_filter_free(fand, 0);
-    slapi_filter_free(forr, 0);
-    slapi_filter_free(focref, 0);
 
     return (candidates);
 }
@@ -1156,12 +1162,12 @@ onelevel_candidates(
  * This function is exported for the VLV code to use.
  */
 Slapi_Filter *
-create_subtree_filter(Slapi_Filter *filter, int managedsait, Slapi_Filter **focref, Slapi_Filter **forr)
+create_subtree_filter(Slapi_Filter *filter, int managedsait)
 {
     Slapi_Filter *ftop = filter;
 
     if (!managedsait) {
-        ftop = create_referral_filter(filter, focref, forr);
+        ftop = create_referral_filter(filter);
     }
 
     return ftop;
@@ -1178,13 +1184,9 @@ subtree_candidates(
     const char *base,
     const struct backentry *e,
     Slapi_Filter *filter,
-    int managedsait,
     int *allids_before_scopingp,
     int *err)
 {
-    Slapi_Filter *focref = NULL;
-    Slapi_Filter *forr = NULL;
-    Slapi_Filter *ftop = NULL;
     IDList *candidates;
     PRBool has_tombstone_filter;
     int isroot = 0;
@@ -1193,13 +1195,8 @@ subtree_candidates(
     Operation *op = NULL;
     PRBool is_bulk_import = PR_FALSE;
 
-    /* make (|(originalfilter)(objectclass=referral)) */
-    ftop = create_subtree_filter(filter, managedsait, &focref, &forr);
-
     /* Fetch a candidate list for the original filter */
-    candidates = filter_candidates_ext(pb, be, base, ftop, NULL, 0, err, allidslimit);
-    slapi_filter_free(forr, 0);
-    slapi_filter_free(focref, 0);
+    candidates = filter_candidates_ext(pb, be, base, filter, NULL, 0, err, allidslimit);
 
     /* set 'allids before scoping' flag */
     if (NULL != allids_before_scopingp) {
@@ -1406,6 +1403,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
     int managedsait;
     Slapi_Attr *attr;
     Slapi_Filter *filter;
+    Slapi_Filter *filter_intent;
     back_search_result_set *sr;
     ID id;
     struct backentry *e;
@@ -1439,6 +1437,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_SEARCH_SCOPE, &scope);
     slapi_pblock_get(pb, SLAPI_MANAGEDSAIT, &managedsait);
     slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
+    slapi_pblock_get(pb, SLAPI_SEARCH_FILTER_INTENDED, &filter_intent);
     slapi_pblock_get(pb, SLAPI_NENTRIES, &nentries);
     slapi_pblock_get(pb, SLAPI_SEARCH_SIZELIMIT, &slimit);
     slapi_pblock_get(pb, SLAPI_SEARCH_TIMELIMIT, &tlimit);
@@ -1695,31 +1694,51 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
                 filter_test = -1;
             } else {
                 /* it's a regular entry, check if it matches the filter, and passes the ACL check */
-                if (0 != (sr->sr_flags & SR_FLAG_CAN_SKIP_FILTER_TEST)) {
-                    /* Since we do access control checking in the filter test (?Why?) we need to check access now */
+                /*
+                 * Remember, MUST_APPLY is set during a shortcut condition from the IDL backend,
+                 * which means we can NOT ignore it! When it's 0, we assume that IDL fully resolved
+                 * which means we then check the ACL only, we have a decision about if we do the
+                 * test based on the configuration.
+                 */
+                if (0 == (sr->sr_flags & SR_FLAG_MUST_APPLY_FILTER_TEST)) {
+                    /*
+                     * Since we do access control checking in the filter test we need to check access now
+                     * This checks access to the filter as INTENDED by the user - not the query that
+                     * we have messed with internally - remember, our internal changes are safe!
+                     */
                     slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
                                   "Bypassing filter test\n");
                     if (ACL_CHECK_FLAG) {
-                        filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
+                        filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
                     } else {
                         filter_test = 0;
                     }
-                    if (li->li_filter_bypass_check) {
-                        int ft_rc;
 
+                    /* If we don't check this, we could stomp the filter_test aci denied result. */
+                    if (filter_test == 0 && li->li_filter_bypass_check) {
                         slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry", "Checking bypass\n");
-                        ft_rc = slapi_vattr_filter_test(pb, e->ep_entry, filter,
-                                                        ACL_CHECK_FLAG);
-                        if (filter_test != ft_rc) {
+                        filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, 0);
+                        if (filter_test != 0) {
                             /* Oops ! This means that we thought we could bypass the filter test, but noooo... */
                             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry",
                                           "Filter bypass ERROR on entry %s\n", backentry_get_ndn(e));
-                            filter_test = ft_rc; /* Fix the error */
                         }
                     }
                 } else {
-                    /* Old-style case---we need to do a filter test */
-                    filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, ACL_CHECK_FLAG);
+                    /* MUST APPLY - This occurs when we have a partial candidate set */
+                    /*
+                     * IMPORTANT - there is a large and important difference between "filter as intended"
+                     * and filter as executed. The filter as executed is what we optimised to, and this
+                     * can importantly include items like parentid in a one level search. The filter as
+                     * intended however is what the user ASKED for. We shouldn't penalise the user because
+                     * we mucked with their filter, so we check the ACI with the "filter as intended", but
+                     * we need to STILL apply the filter test with "as executed" in case of a test threshold
+                     * shortcut (lest we accidentally prevent the user seeing what they wanted ....)
+                     */
+                    filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
+                    if (filter_test == 0) {
+                        filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, 0);
+                    }
                 }
             }
             if ((filter_test == 0) || (sr->sr_virtuallistview && (filter_test != -1)))
