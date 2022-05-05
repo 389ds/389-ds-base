@@ -2164,8 +2164,13 @@ moddn_get_children(back_txn *ptxn,
          * being moved */
         strcpy(filterstr, "objectclass=*");
         filter = slapi_str2filter(filterstr);
+        /*
+         * We used to set managedSAIT here, but because the subtree create
+         * referral step is now in build_candidate_list, we can trust the filter
+         * we provide here is exactly as we provide it IE no referrals involved.
+         */
         candidates = subtree_candidates(pb, be, slapi_sdn_get_ndn(dn_parentdn),
-                                        parententry, filter, 1 /* ManageDSAIT */,
+                                        parententry, filter,
                                         NULL /* allids_before_scopingp */, &err);
         slapi_filter_free(filter, 1);
     }
