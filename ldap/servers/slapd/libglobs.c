@@ -181,6 +181,10 @@ slapi_onoff_t init_accesslog_rotationsync_enabled;
 slapi_onoff_t init_errorlog_rotationsync_enabled;
 slapi_onoff_t init_auditlog_rotationsync_enabled;
 slapi_onoff_t init_auditfaillog_rotationsync_enabled;
+slapi_onoff_t init_accesslog_compress_enabled;
+slapi_onoff_t init_auditlog_compress_enabled;
+slapi_onoff_t init_auditfaillog_compress_enabled;
+slapi_onoff_t init_errorlog_compress_enabled;
 slapi_onoff_t init_accesslog_logging_enabled;
 slapi_onoff_t init_accesslogbuffering;
 slapi_onoff_t init_external_libs_debug_enabled;
@@ -332,6 +336,22 @@ static struct config_get_and_set
      log_set_logging, SLAPD_ACCESS_LOG,
      (void **)&global_slapdFrontendConfig.accesslog_logging_enabled,
      CONFIG_ON_OFF, NULL, &init_accesslog_logging_enabled, NULL},
+    {CONFIG_ACCESSLOG_COMPRESS_ENABLED_ATTRIBUTE, NULL,
+     log_set_compression, SLAPD_ACCESS_LOG,
+     (void **)&global_slapdFrontendConfig.accesslog_compress,
+     CONFIG_ON_OFF, NULL, &init_accesslog_compress_enabled, NULL},
+    {CONFIG_AUDITLOG_COMPRESS_ENABLED_ATTRIBUTE, NULL,
+     log_set_compression, SLAPD_AUDIT_LOG,
+     (void **)&global_slapdFrontendConfig.auditlog_compress,
+     CONFIG_ON_OFF, NULL, &init_auditlog_compress_enabled, NULL},
+    {CONFIG_AUDITFAILLOG_COMPRESS_ENABLED_ATTRIBUTE, NULL,
+     log_set_compression, SLAPD_AUDITFAIL_LOG,
+     (void **)&global_slapdFrontendConfig.auditfaillog_compress,
+     CONFIG_ON_OFF, NULL, &init_auditfaillog_compress_enabled, NULL},
+    {CONFIG_ERRORLOG_COMPRESS_ENABLED_ATTRIBUTE, NULL,
+     log_set_compression, SLAPD_ERROR_LOG,
+     (void **)&global_slapdFrontendConfig.errorlog_compress,
+     CONFIG_ON_OFF, NULL, &init_errorlog_compress_enabled, NULL},
     {CONFIG_PORT_ATTRIBUTE, config_set_port,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.port,
@@ -1746,6 +1766,7 @@ FrontendConfig_init(void)
     cfg->accessloglevel = SLAPD_DEFAULT_ACCESSLOG_LEVEL;
     init_accesslogbuffering = cfg->accesslogbuffering = LDAP_ON;
     init_csnlogging = cfg->csnlogging = LDAP_ON;
+    init_accesslog_compress_enabled = cfg->accesslog_compress = LDAP_OFF;
 
     init_errorlog_logging_enabled = cfg->errorlog_logging_enabled = LDAP_ON;
     init_external_libs_debug_enabled = cfg->external_libs_debug_enabled = LDAP_OFF;
@@ -1763,6 +1784,7 @@ FrontendConfig_init(void)
     cfg->errorlog_exptime = SLAPD_DEFAULT_LOG_EXPTIME;
     cfg->errorlog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     cfg->errorloglevel = SLAPD_DEFAULT_FE_ERRORLOG_LEVEL;
+    init_errorlog_compress_enabled = cfg->errorlog_compress = LDAP_OFF;
 
     init_auditlog_logging_enabled = cfg->auditlog_logging_enabled = LDAP_OFF;
     cfg->auditlog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
@@ -1780,6 +1802,7 @@ FrontendConfig_init(void)
     cfg->auditlog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     init_auditlog_logging_hide_unhashed_pw =
         cfg->auditlog_logging_hide_unhashed_pw = LDAP_ON;
+    init_auditlog_compress_enabled = cfg->auditlog_compress = LDAP_OFF;
 
     init_auditfaillog_logging_enabled = cfg->auditfaillog_logging_enabled = LDAP_OFF;
     cfg->auditfaillog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
@@ -1797,6 +1820,7 @@ FrontendConfig_init(void)
     cfg->auditfaillog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     init_auditfaillog_logging_hide_unhashed_pw =
         cfg->auditfaillog_logging_hide_unhashed_pw = LDAP_ON;
+    init_auditfaillog_compress_enabled = cfg->auditfaillog_compress = LDAP_OFF;
 
 #ifdef HAVE_CLOCK_GETTIME
     init_logging_hr_timestamps =

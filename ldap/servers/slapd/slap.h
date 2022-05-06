@@ -2135,6 +2135,10 @@ typedef struct _slapdEntryPoints
 #define CONFIG_AUDITFAILLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-auditfaillog-logging-enabled"
 #define CONFIG_AUDITLOG_LOGGING_HIDE_UNHASHED_PW "nsslapd-auditlog-logging-hide-unhashed-pw"
 #define CONFIG_AUDITFAILLOG_LOGGING_HIDE_UNHASHED_PW "nsslapd-auditfaillog-logging-hide-unhashed-pw"
+#define CONFIG_ACCESSLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-accesslog-compress"
+#define CONFIG_AUDITLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-auditlog-compress"
+#define CONFIG_AUDITFAILLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-auditfaillog-compress"
+#define CONFIG_ERRORLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-errorlog-compress"
 #define CONFIG_UNHASHED_PW_SWITCH_ATTRIBUTE "nsslapd-unhashed-pw-switch"
 #define CONFIG_ROOTDN_ATTRIBUTE "nsslapd-rootdn"
 #define CONFIG_ROOTPW_ATTRIBUTE "nsslapd-rootpw"
@@ -2457,6 +2461,7 @@ typedef struct _slapdFrontendConfig
     int accessloglevel;
     slapi_onoff_t accesslogbuffering;
     slapi_onoff_t csnlogging;
+    slapi_onoff_t accesslog_compress;
 
     /* ERROR LOG */
     slapi_onoff_t errorlog_logging_enabled;
@@ -2474,6 +2479,7 @@ typedef struct _slapdFrontendConfig
     char *errorlog_exptimeunit;
     int errorloglevel;
     slapi_onoff_t external_libs_debug_enabled;
+    slapi_onoff_t errorlog_compress;
 
     /* AUDIT LOG */
     char *auditlog; /* replication audit file */
@@ -2492,6 +2498,7 @@ typedef struct _slapdFrontendConfig
     int auditlog_exptime;
     char *auditlog_exptimeunit;
     slapi_onoff_t auditlog_logging_hide_unhashed_pw;
+    slapi_onoff_t auditlog_compress;
 
     /* AUDIT FAIL LOG */
     char *auditfaillog;
@@ -2510,6 +2517,7 @@ typedef struct _slapdFrontendConfig
     int auditfaillog_exptime;
     char *auditfaillog_exptimeunit;
     slapi_onoff_t auditfaillog_logging_hide_unhashed_pw;
+    slapi_onoff_t auditfaillog_compress;
 
     char *logging_backend;
 #ifdef HAVE_CLOCK_GETTIME

@@ -87,6 +87,7 @@ struct logfileinfo
 {
     PRInt64 l_size;             /* size is in bytes */
     time_t l_ctime;             /* log creation time*/
+    PRBool l_compressed;        /* log was compressed */
     struct logfileinfo *l_next; /* next log */
 };
 typedef struct logfileinfo LogFileInfo;
@@ -120,15 +121,15 @@ struct logging_opts
     int log_access_exptime;              /* time */
     int log_access_exptimeunit;          /* unit time */
     int log_access_exptime_secs;         /* time in secs */
-
-    int log_access_level;               /* access log level */
-    char *log_access_file;              /* access log file path */
-    LOGFD log_access_fdes;              /* fp for the cur access log */
-    unsigned int log_numof_access_logs; /* number of logs */
-    time_t log_access_ctime;            /* log creation time */
-    LogFileInfo *log_access_logchain;   /* all the logs info */
-    char *log_accessinfo_file;          /* access log rotation info file */
-    LogBufferInfo *log_access_buffer;   /* buffer for access log */
+    int log_access_level;                /* access log level */
+    char *log_access_file;               /* access log file path */
+    LOGFD log_access_fdes;               /* fp for the cur access log */
+    unsigned int log_numof_access_logs;  /* number of logs */
+    time_t log_access_ctime;             /* log creation time */
+    LogFileInfo *log_access_logchain;    /* all the logs info */
+    char *log_accessinfo_file;           /* access log rotation info file */
+    LogBufferInfo *log_access_buffer;    /* buffer for access log */
+    int log_access_compress;             /* Compress rotated logs */
 
     /* These are error log specific */
     int log_error_state;
@@ -147,14 +148,14 @@ struct logging_opts
     int log_error_exptime;              /* time */
     int log_error_exptimeunit;          /* unit time */
     int log_error_exptime_secs;         /* time in secs */
-
-    char *log_error_file;              /* error log file path */
-    LOGFD log_error_fdes;              /* fp for the cur error log */
-    unsigned int log_numof_error_logs; /* number of logs */
-    time_t log_error_ctime;            /* log creation time */
-    LogFileInfo *log_error_logchain;   /* all the logs info */
-    char *log_errorinfo_file;          /* error log rotation info file */
-    Slapi_RWLock *log_error_rwlock;    /* lock on error*/
+    int log_error_compress;             /* Compress rotated logs */
+    char *log_error_file;               /* error log file path */
+    LOGFD log_error_fdes;               /* fp for the cur error log */
+    unsigned int log_numof_error_logs;  /* number of logs */
+    time_t log_error_ctime;             /* log creation time */
+    LogFileInfo *log_error_logchain;    /* all the logs info */
+    char *log_errorinfo_file;           /* error log rotation info file */
+    Slapi_RWLock *log_error_rwlock;     /* lock on error*/
 
     /* These are audit log specific */
     int log_audit_state;
@@ -173,14 +174,14 @@ struct logging_opts
     int log_audit_exptime;              /* time */
     int log_audit_exptimeunit;          /* unit time */
     int log_audit_exptime_secs;         /* time in secs */
-
-    char *log_audit_file;              /* aufit log name */
-    LOGFD log_audit_fdes;              /* audit log  fdes */
-    unsigned int log_numof_audit_logs; /* number of logs */
-    time_t log_audit_ctime;            /* log creation time */
-    LogFileInfo *log_audit_logchain;   /* all the logs info */
-    char *log_auditinfo_file;          /* audit log rotation info file */
-    Slapi_RWLock *log_audit_rwlock;    /* lock on audit*/
+    char *log_audit_file;               /* audit log name */
+    LOGFD log_audit_fdes;               /* audit log fdes */
+    unsigned int log_numof_audit_logs;  /* number of logs */
+    time_t log_audit_ctime;             /* log creation time */
+    LogFileInfo *log_audit_logchain;    /* all the logs info */
+    char *log_auditinfo_file;           /* audit log rotation info file */
+    Slapi_RWLock *log_audit_rwlock;     /* lock on audit*/
+    int log_audit_compress;             /* Compress rotated logs */
 
     /* These are auditfail log specific */
     int log_auditfail_state;
@@ -199,20 +200,22 @@ struct logging_opts
     int log_auditfail_exptime;              /* time */
     int log_auditfail_exptimeunit;          /* unit time */
     int log_auditfail_exptime_secs;         /* time in secs */
+    char *log_auditfail_file;               /* auditfail log name */
+    LOGFD log_auditfail_fdes;               /* auditfail log fdes */
+    unsigned int log_numof_auditfail_logs;  /* number of logs */
+    time_t log_auditfail_ctime;             /* log creation time */
+    LogFileInfo *log_auditfail_logchain;    /* all the logs info */
+    char *log_auditfailinfo_file;           /* auditfail log rotation info file */
+    Slapi_RWLock *log_auditfail_rwlock;     /* lock on auditfail */
+    int log_auditfail_compress;             /* Compress rotated logs */
 
-    char *log_auditfail_file;              /* auditfail log name */
-    LOGFD log_auditfail_fdes;              /* auditfail log  fdes */
-    unsigned int log_numof_auditfail_logs; /* number of logs */
-    time_t log_auditfail_ctime;            /* log creation time */
-    LogFileInfo *log_auditfail_logchain;   /* all the logs info */
-    char *log_auditfailinfo_file;          /* auditfail log rotation info file */
-    Slapi_RWLock *log_auditfail_rwlock;    /* lock on auditfail */
     int log_backend;
 };
 
 /* For log_state */
 #define LOGGING_ENABLED    (int)0x1 /* logging is enabled */
 #define LOGGING_NEED_TITLE 0x2 /* need to write title */
+#define LOGGING_COMPRESS_ENABLED (int)0x1 /* log compression is enabled */
 
 #define LOG_ACCESS_LOCK_READ()    PR_Lock(loginfo.log_access_buffer->lock)
 #define LOG_ACCESS_UNLOCK_READ()  PR_Unlock(loginfo.log_access_buffer->lock)
@@ -235,6 +238,6 @@ struct logging_opts
 #define LOG_AUDITFAIL_UNLOCK_WRITE() slapi_rwlock_unlock(loginfo.log_auditfail_rwlock)
 
 /* For using with slapi_log_access */
-#define TBUFSIZE 50                         /* size for time buffers */
+#define TBUFSIZE 75                         /* size for time buffers */
 #define SLAPI_LOG_BUFSIZ 2048               /* size for data buffers */
 #define SLAPI_ACCESS_LOG_FMTBUF 128         /* size for access log formating line buffer */

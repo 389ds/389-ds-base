@@ -29,6 +29,7 @@
 #include "log.h"
 #include "fe.h"
 #include <pwd.h> /* getpwnam */
+#include "zlib.h"
 #define _PSEP '/'
 
 #ifdef SYSTEMTAP
@@ -85,6 +86,7 @@ static int slapi_log_map[] = {
 
 #define SLAPI_LOG_MIN SLAPI_LOG_FATAL /* from slapi-plugin.h */
 #define SLAPI_LOG_MAX SLAPI_LOG_DEBUG /* from slapi-plugin.h */
+#define LOG_CHUNK 16384 /* zlib compression */
 
 /**************************************************************************
  * PROTOTYPES
@@ -102,7 +104,7 @@ static int log__access_rotationinfof(char *pathname);
 static int log__error_rotationinfof(char *pathname);
 static int log__audit_rotationinfof(char *pathname);
 static int log__auditfail_rotationinfof(char *pathname);
-static int log__extract_logheader(FILE *fp, long *f_ctime, PRInt64 *f_size);
+static int log__extract_logheader(FILE *fp, long *f_ctime, PRInt64 *f_size, PRBool *compressed);
 static int log__check_prevlogs(FILE *fp, char *filename);
 static PRInt64 log__getfilesize(LOGFD fp);
 static PRInt64 log__getfilesize_with_filename(char *filename);
@@ -154,6 +156,44 @@ get_syslog_loglevel(int loglevel)
     }
 
     return default_level;
+}
+
+static int
+compress_log_file(char *log_name)
+{
+    char gzip_log[BUFSIZ] = {0};
+    char buf[LOG_CHUNK] = {0};
+    size_t bytes_read = 0;
+    gzFile outfile = NULL;
+    FILE *source = NULL;
+
+    PR_snprintf(gzip_log, sizeof(gzip_log), "%s.gz", log_name);
+    if ((outfile = gzopen(gzip_log,"wb")) == NULL) {
+        /* Failed to open new gzip file */
+        return -1;
+    }
+
+    if ((source = fopen(log_name, "r")) == NULL) {
+        /* Failed to open log file */
+        gzclose(outfile);
+        return -1;
+    }
+    bytes_read = fread(buf, 1, LOG_CHUNK, source);
+    while (bytes_read > 0) {
+        int bytes_written = gzwrite(outfile, buf, bytes_read);
+        if (bytes_written == 0)
+        {
+            fclose(source);
+            gzclose(outfile);
+            return -1;
+        }
+        bytes_read = fread(buf, 1, LOG_CHUNK, source);
+    }
+    gzclose(outfile);
+    fclose(source);
+    PR_Delete(log_name); /* remove the old uncompressed log */
+
+    return 0;
 }
 
 int
@@ -277,6 +317,7 @@ g_log_init()
     loginfo.log_numof_access_logs = 1;
     loginfo.log_access_logchain = NULL;
     loginfo.log_access_buffer = log_create_buffer(LOG_BUFFER_MAXSIZE);
+    loginfo.log_access_compress = cfg->accesslog_compress;
     if (loginfo.log_access_buffer == NULL) {
         exit(-1);
     }
@@ -307,6 +348,7 @@ g_log_init()
     loginfo.log_error_fdes = NULL;
     loginfo.log_numof_error_logs = 1;
     loginfo.log_error_logchain = NULL;
+    loginfo.log_error_compress = cfg->errorlog_compress;
     if ((loginfo.log_error_rwlock = slapi_new_rwlock()) == NULL) {
         exit(-1);
     }
@@ -334,11 +376,12 @@ g_log_init()
     loginfo.log_numof_audit_logs = 1;
     loginfo.log_audit_fdes = NULL;
     loginfo.log_audit_logchain = NULL;
+    loginfo.log_audit_compress = cfg->auditlog_compress;
     if ((loginfo.log_audit_rwlock = slapi_new_rwlock()) == NULL) {
         exit(-1);
     }
 
-    /* AUDIT LOG */
+    /* AUDIT FAIL LOG */
     loginfo.log_auditfail_state = cfg->auditfaillog_logging_enabled;
     loginfo.log_auditfail_mode = SLAPD_DEFAULT_FILE_MODE;
     loginfo.log_auditfail_maxnumlogs = cfg->auditfaillog_maxnumlogs;
@@ -362,6 +405,7 @@ g_log_init()
     loginfo.log_auditfail_fdes = NULL;
     loginfo.log_auditfail_logchain = NULL;
     loginfo.log_backend = LOGGING_BACKEND_INTERNAL;
+    loginfo.log_auditfail_compress = cfg->auditfaillog_compress;
     if ((loginfo.log_auditfail_rwlock = slapi_new_rwlock()) == NULL) {
         exit(-1);
     }
@@ -434,6 +478,80 @@ log_set_logging(const char *attrname, char *value, int logtype, char *errorbuf, 
             loginfo.log_auditfail_state |= LOGGING_ENABLED;
         } else {
             loginfo.log_auditfail_state &= ~LOGGING_ENABLED;
+        }
+        LOG_AUDITFAIL_UNLOCK_WRITE();
+        break;
+    }
+
+    return LDAP_SUCCESS;
+}
+
+/******************************************************************************
+* Tell me if log is going to be compressed
+******************************************************************************/
+int
+log_set_compression(const char *attrname, char *value, int logtype, char *errorbuf, int apply)
+{
+    int v;
+    slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
+
+    if (NULL == value) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: NULL value; valid values are \"on\" or \"off\"", attrname);
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (strcasecmp(value, "on") == 0) {
+        v = LOGGING_COMPRESS_ENABLED;
+    } else if (strcasecmp(value, "off") == 0) {
+        v = 0;
+    } else {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", valid values are \"on\" or \"off\"",
+                              attrname, value);
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (!apply) {
+        return LDAP_SUCCESS;
+    }
+
+    switch (logtype) {
+    case SLAPD_ACCESS_LOG:
+        LOG_ACCESS_LOCK_WRITE();
+        fe_cfg->accesslog_compress = v;
+        if (v) {
+            loginfo.log_access_compress |= LOGGING_COMPRESS_ENABLED;
+        } else {
+            loginfo.log_access_compress &= ~LOGGING_COMPRESS_ENABLED;
+        }
+        LOG_ACCESS_UNLOCK_WRITE();
+        break;
+    case SLAPD_ERROR_LOG:
+        LOG_ERROR_LOCK_WRITE();
+        fe_cfg->errorlog_compress = v;
+        if (v) {
+            loginfo.log_error_compress |= LOGGING_COMPRESS_ENABLED;
+        } else {
+            loginfo.log_error_compress &= ~LOGGING_COMPRESS_ENABLED;
+        }
+        LOG_ERROR_UNLOCK_WRITE();
+        break;
+    case SLAPD_AUDIT_LOG:
+        LOG_AUDIT_LOCK_WRITE();
+        fe_cfg->auditlog_compress = v;
+        if (v) {
+            loginfo.log_audit_compress |= LOGGING_COMPRESS_ENABLED;
+        } else {
+            loginfo.log_audit_compress &= ~LOGGING_COMPRESS_ENABLED;
+        }
+        LOG_AUDIT_UNLOCK_WRITE();
+        break;
+    case SLAPD_AUDITFAIL_LOG:
+        LOG_AUDITFAIL_LOCK_WRITE();
+        fe_cfg->auditfaillog_compress = v;
+        if (v) {
+            loginfo.log_auditfail_compress |= LOGGING_COMPRESS_ENABLED;
+        } else {
+            loginfo.log_auditfail_compress &= ~LOGGING_COMPRESS_ENABLED;
         }
         LOG_AUDITFAIL_UNLOCK_WRITE();
         break;
@@ -1979,7 +2097,7 @@ error_log_openf(char *pathname, int locked)
     slapi_ch_free_string(&loginfo.log_error_file);
     loginfo.log_error_file = slapi_ch_strdup(pathname);
 
-    /* store the rotation info fiel path name */
+    /* store the rotation info file path name */
     slapi_ch_free_string(&loginfo.log_errorinfo_file);
     loginfo.log_errorinfo_file = slapi_ch_smprintf("%s.rotationinfo", pathname);
 
@@ -2333,7 +2451,7 @@ vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
     }
 #endif
 
-    PR_snprintf(buffer, sizeof(buffer), "%s - EMERG - %s\n", tbuf, msg);
+    PR_snprintf(buffer, sizeof(buffer), "%s- EMERG - %s\n", tbuf, msg);
     size = strlen(buffer);
 
     if (!locked) {
@@ -2792,7 +2910,7 @@ log__open_accesslogfile(int logfile_state, int locked)
             log = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
             log->l_ctime = loginfo.log_access_ctime;
             log->l_size = f_size;
-
+            log->l_compressed = PR_FALSE;
             log_convert_time(log->l_ctime, tbuf, 1 /*short */);
             PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_access_file, tbuf);
             if (PR_Rename(loginfo.log_access_file, newfile) != PR_SUCCESS) {
@@ -2806,6 +2924,14 @@ log__open_accesslogfile(int logfile_state, int locked)
                         LOG_ACCESS_UNLOCK_WRITE();
                     slapi_ch_free((void **)&log);
                     return LOG_UNABLE_TO_OPENFILE;
+                }
+            } else if (loginfo.log_access_compress) {
+                if (compress_log_file(newfile) != 0) {
+                    slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile",
+                            "failed to compress rotated access log (%s)\n",
+                            newfile);
+                } else {
+                    log->l_compressed = PR_TRUE;
                 }
             }
             /* add the log to the chain */
@@ -2855,8 +2981,21 @@ log__open_accesslogfile(int logfile_state, int locked)
 
     logp = loginfo.log_access_logchain;
     while (logp) {
-        log_convert_time(logp->l_ctime, tbuf, 1 /*short*/);
-        PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" PRId64 "d)\n", PREVLOGFILE, loginfo.log_access_file, tbuf,
+        log_convert_time(logp->l_ctime, tbuf, 1 /* short */);
+        if (logp->l_compressed) {
+            char logfile[BUFSIZ] = {0};
+
+            /* reset tbuf to include .gz extension */
+            PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
+
+            /* get and set the size of the new gziped file */
+            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_access_file, tbuf);
+            if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
+                /* Then assume that we have the max size */
+                logp->l_size = loginfo.log_access_maxlogsize;
+            }
+        }
+        PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" PRId64 ")\n", PREVLOGFILE, loginfo.log_access_file, tbuf,
                     logp->l_ctime, logp->l_size);
         LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
         logp = logp->l_next;
@@ -3150,7 +3289,7 @@ delete_logfile:
     }
 
     if (p_delete_logp == delete_logp) {
-        /* then we are deleteing the first one */
+        /* then we are deleting the first one */
         loginfo.log_access_logchain = delete_logp->l_next;
     } else {
         p_delete_logp->l_next = delete_logp->l_next;
@@ -3163,16 +3302,31 @@ delete_logfile:
     if (PR_Delete(buffer) != PR_SUCCESS) {
         PRErrorCode prerr = PR_GetError();
         if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-            slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
-                          "File %s already removed\n", loginfo.log_access_file);
+            /*
+             * Log not found, perhaps log was compressed, try .gz extension
+             */
+            PR_snprintf(buffer, sizeof(buffer), "%s.gz", buffer);
+            if (PR_Delete(buffer) != PR_SUCCESS) {
+                prerr = PR_GetError();
+                if (PR_FILE_NOT_FOUND_ERROR != prerr) {
+                    slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
+                            "Unable to remove file: %s error %d (%s)\n",
+                            buffer, prerr, slapd_pr_strerror(prerr));
+                } else {
+                    slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
+                            "File %s already removed\n",
+                            loginfo.log_access_file);
+                }
+            }
         } else {
             slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
-                          "Unable to remove file:%s.%s error %d (%s)\n",
-                          loginfo.log_access_file, tbuf, prerr, slapd_pr_strerror(prerr));
+                    "Unable to remove file: %s error %d (%s)\n",
+                    buffer, prerr, slapd_pr_strerror(prerr));
         }
     } else {
         slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
-                      "Removed file:%s.%s because of (%s)\n", loginfo.log_access_file, tbuf, logstr);
+                      "Removed file:%s.%s because of (%s)\n",
+                      loginfo.log_access_file, tbuf, logstr);
     }
     slapi_ch_free((void **)&delete_logp);
     loginfo.log_numof_access_logs--;
@@ -3201,7 +3355,7 @@ log__delete_rotated_logs()
     while (logp) {
         tbuf[0] = buffer[0] = '\0';
         log_convert_time(logp->l_ctime, tbuf, 1);
-        PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_access_file, tbuf);
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s%s", loginfo.log_access_file, tbuf, logp->l_compressed ? ".gz" : "");
         if (PR_Delete(buffer) != PR_SUCCESS) {
             PRErrorCode prerr = PR_GetError();
             slapi_log_err(SLAPI_LOG_ERR, "log__delete_rotated_logs",
@@ -3223,7 +3377,7 @@ log__delete_rotated_logs()
     while (logp) {
         tbuf[0] = buffer[0] = '\0';
         log_convert_time(logp->l_ctime, tbuf, 1);
-        PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_audit_file, tbuf);
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s%s", loginfo.log_audit_file, tbuf, logp->l_compressed ? ".gz" : "");
         if (PR_Delete(buffer) != PR_SUCCESS) {
             PRErrorCode prerr = PR_GetError();
             slapi_log_err(SLAPI_LOG_ERR, "log__delete_rotated_logs",
@@ -3245,7 +3399,7 @@ log__delete_rotated_logs()
     while (logp) {
         tbuf[0] = buffer[0] = '\0';
         log_convert_time(logp->l_ctime, tbuf, 1);
-        PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_auditfail_file, tbuf);
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s%s", loginfo.log_auditfail_file, tbuf, logp->l_compressed ? ".gz" : "");
         if (PR_Delete(buffer) != PR_SUCCESS) {
             PRErrorCode prerr = PR_GetError();
             slapi_log_err(SLAPI_LOG_ERR, "log__delete_rotated_logs",
@@ -3267,7 +3421,7 @@ log__delete_rotated_logs()
     while (logp) {
         tbuf[0] = buffer[0] = '\0';
         log_convert_time(logp->l_ctime, tbuf, 1);
-        PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_error_file, tbuf);
+        PR_snprintf(buffer, sizeof(buffer), "%s.%s%s", loginfo.log_error_file, tbuf, logp->l_compressed ? ".gz" : "");
         if (PR_Delete(buffer) != PR_SUCCESS) {
             PRErrorCode prerr = PR_GetError();
             slapi_log_err(SLAPI_LOG_ERR, "log__delete_rotated_logs",
@@ -3351,7 +3505,7 @@ log__fix_rotationinfof(char *pathname)
     }
     /* length of (pathname + .YYYYMMDD-hhmmss)
      * pathname includes ".rotationinfo", but that's fine. */
-    rotated_log_len = strlen(pathname) + 17;
+    rotated_log_len = strlen(pathname) + 20;
     rotated_log = (char *)slapi_ch_malloc(rotated_log_len);
     /* read the directory entries into a linked list */
     for (dirent = PR_ReadDir(dirptr, dirflags); dirent;
@@ -3363,31 +3517,42 @@ log__fix_rotationinfof(char *pathname)
                 break;
             case ACCESSLOG:
                 loginfo.log_numof_access_logs++;
+
                 break;
             case AUDITLOG:
                 loginfo.log_numof_audit_logs++;
                 break;
             }
         } else if (0 == strncmp(log_type, dirent->name, strlen(log_type)) &&
-                   (p = strrchr(dirent->name, '.')) != NULL &&
-                   15 == strlen(++p) &&
-                   NULL != strchr(p, '-')) { /* e.g., errors.20051123-165135 */
+                   (p = strchr(dirent->name, '.')) != NULL &&
+                   NULL != strchr(p, '-')) /* e.g., errors.20051123-165135 */
+        {
             struct logfileinfo *logp;
             char *q;
             int ignoreit = 0;
 
-            for (q = p; q && *q; q++) {
-                if (*q != '-' && !isdigit(*q))
+            for (q = ++p; q && *q; q++) {
+                if (*q != '-' &&
+                    *q != '.' && /* .gz */
+                    *q != 'g' &&
+                    *q != 'z' &&
+                    !isdigit(*q))
+                {
                     ignoreit = 1;
+                }
             }
-            if (ignoreit)
+            if (ignoreit || (q - p != 15)) {
                 continue;
-
+            }
             logp = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
             logp->l_ctime = log_reverse_convert_time(p);
-
+            logp->l_compressed = PR_FALSE;
+            if (strcmp(p + strlen(p) - 3, ".gz") == 0) {
+                logp->l_compressed = PR_TRUE;
+            }
             PR_snprintf(rotated_log, rotated_log_len, "%s/%s",
                         logsdir, dirent->name);
+
             switch (log_type_id) {
             case ERRORSLOG:
                 logp->l_size = log__getfilesize_with_filename(rotated_log);
@@ -3438,6 +3603,7 @@ log__access_rotationinfof(char *pathname)
     int main_log = 1;
     time_t now;
     FILE *fp;
+    PRBool compressed = PR_FALSE;
     int rval, logfile_type = LOGFILE_REOPENED;
 
     /*
@@ -3446,7 +3612,6 @@ log__access_rotationinfof(char *pathname)
     ** parsing module. Since this will be called only during the startup
     ** and never aftre that, we can live by it.
     */
-
     if ((fp = fopen(pathname, "r")) == NULL) {
         return LOGFILE_NEW;
     }
@@ -3457,16 +3622,17 @@ log__access_rotationinfof(char *pathname)
     ** We have reopened the log access file. Now we need to read the
     ** log file info and update the values.
     */
-    while ((rval = log__extract_logheader(fp, &f_ctime, &f_size)) == LOG_CONTINUE) {
+    while ((rval = log__extract_logheader(fp, &f_ctime, &f_size, &compressed)) == LOG_CONTINUE) {
         /* first we would get the main log info */
-        if (f_ctime == 0 && f_size == 0)
+        if (f_ctime == 0 && f_size == 0) {
             continue;
+        }
 
         time(&now);
         if (main_log) {
-            if (f_ctime > 0L)
+            if (f_ctime > 0L) {
                 loginfo.log_access_ctime = f_ctime;
-            else {
+            } else {
                 loginfo.log_access_ctime = now;
             }
             main_log = 0;
@@ -3474,17 +3640,18 @@ log__access_rotationinfof(char *pathname)
             struct logfileinfo *logp;
 
             logp = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
-            if (f_ctime > 0L)
+            if (f_ctime > 0L) {
                 logp->l_ctime = f_ctime;
-            else
+            } else {
                 logp->l_ctime = now;
-            if (f_size > 0)
+            }
+            if (f_size > 0) {
                 logp->l_size = f_size;
-            else {
+            } else {
                 /* make it the max log size */
                 logp->l_size = loginfo.log_access_maxlogsize;
             }
-
+            logp->l_compressed = compressed;
             logp->l_next = loginfo.log_access_logchain;
             loginfo.log_access_logchain = logp;
         }
@@ -3549,21 +3716,26 @@ log__check_prevlogs(FILE *fp, char *pathname)
          dirent = PR_ReadDir(dirptr, dirflags)) {
         if (0 == strncmp(log_type, dirent->name, strlen(log_type)) &&
             (p = strrchr(dirent->name, '.')) != NULL &&
-            15 == strlen(++p) &&
             NULL != strchr(p, '-')) { /* e.g., errors.20051123-165135 */
             char *q;
             int ignoreit = 0;
 
-            for (q = p; q && *q; q++) {
-                if (*q != '-' && !isdigit(*q))
+            for (q = ++p; q && *q; q++) {
+                if (*q != '-' &&
+                    *q != '.' && /* .gz */
+                    *q != 'g' &&
+                    *q != 'z' &&
+                    !isdigit(*q))
+                {
                     ignoreit = 1;
+                }
             }
-            if (ignoreit)
+            if (ignoreit || (q - p != 15))
                 continue;
 
             fseek(fp, 0, SEEK_SET);
             buf[BUFSIZ - 1] = '\0';
-            rval = LOG_ERROR; /* pessmistic default */
+            rval = LOG_ERROR; /* pessimistic default */
             while (fgets(buf, BUFSIZ - 1, fp)) {
                 if (strstr(buf, dirent->name)) {
                     rval = LOG_CONTINUE; /* found in .rotationinfo */
@@ -3585,11 +3757,11 @@ done:
 /******************************************************************************
 * log__extract_logheader
 *
-*    Extract each LOGINFO heder line. From there extract the time and
+*    Extract each LOGINFO header line. From there extract the time and
 *    size info of all the old log files.
 ******************************************************************************/
 static int
-log__extract_logheader(FILE *fp, long *f_ctime, PRInt64 *f_size)
+log__extract_logheader(FILE *fp, long *f_ctime, PRInt64 *f_size, PRBool *compressed)
 {
 
     char buf[BUFSIZ];
@@ -3659,6 +3831,9 @@ log__extract_logheader(FILE *fp, long *f_ctime, PRInt64 *f_size)
         }
         if (PR_SUCCESS != PR_Access(p, PR_ACCESS_EXISTS)) {
             return LOG_ERROR;
+        }
+        if (strcmp(p + strlen(p) - 3, ".gz") == 0) {
+            *compressed = PR_TRUE;
         }
     }
 
@@ -3742,7 +3917,7 @@ log__enough_freespace(char *path)
     return 1;
 }
 /******************************************************************************
-* log__getaccesslist
+* log_get_loglist
 *  Update the previous access files in the slapdFrontendConfig_t.
 * Returns:
 *    num > 1  -- how many are there
@@ -3980,6 +4155,10 @@ delete_logfile:
             PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Unable to remove file:%s.%s error %d (%s)\n",
                         loginfo.log_error_file, tbuf, prerr, slapd_pr_strerror(prerr));
             log__error_emergency(buffer, 0, locked);
+        } else {
+            /* Log not found, perhaps log was compressed, try .gz extension */
+            PR_snprintf(buffer, sizeof(buffer), "%s.gz", buffer);
+            PR_Delete(buffer);
         }
     }
     slapi_ch_free((void **)&delete_logp);
@@ -4141,13 +4320,30 @@ delete_logfile:
     if (PR_Delete(buffer) != PR_SUCCESS) {
         PRErrorCode prerr = PR_GetError();
         if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-            slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile", "File %s already removed\n", loginfo.log_audit_file);
+            /*
+             * Log not found, perhaps log was compressed, try .gz extension
+             */
+            PR_snprintf(buffer, sizeof(buffer), "%s.gz", buffer);
+            if (PR_Delete(buffer) != PR_SUCCESS) {
+                prerr = PR_GetError();
+                if (PR_FILE_NOT_FOUND_ERROR != prerr) {
+                    slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile",
+                            "Unable to remove file: %s error %d (%s)\n",
+                            buffer, prerr, slapd_pr_strerror(prerr));
+                } else {
+                    slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile",
+                            "File %s already removed\n", loginfo.log_auditfail_file);
+                }
+            }
         } else {
-            slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile", "Unable to remove file:%s.%s error %d (%s)\n",
-                          loginfo.log_audit_file, tbuf, prerr, slapd_pr_strerror(prerr));
+            slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile",
+                    "Unable to remove file: %s error %d (%s)\n",
+                    buffer, prerr, slapd_pr_strerror(prerr));
         }
     } else {
-        slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile", "Removed file:%s.%s because of (%s)\n", loginfo.log_audit_file, tbuf, logstr);
+        slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile",
+                "Removed file:%s.%s because of (%s)\n",
+                loginfo.log_audit_file, tbuf, logstr);
     }
     slapi_ch_free((void **)&delete_logp);
     loginfo.log_numof_audit_logs--;
@@ -4308,13 +4504,28 @@ delete_logfile:
     if (PR_Delete(buffer) != PR_SUCCESS) {
         PRErrorCode prerr = PR_GetError();
         if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-            slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile", "File %s already removed\n", loginfo.log_auditfail_file);
+            /*
+             * Log not found, perhaps log was compressed, try .gz extension
+             */
+            PR_snprintf(buffer, sizeof(buffer), "%s.gz", buffer);
+            if (PR_Delete(buffer) != PR_SUCCESS) {
+                prerr = PR_GetError();
+                if (PR_FILE_NOT_FOUND_ERROR != prerr) {
+                    slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile",
+                            "Unable to remove file: %s error %d (%s)\n",
+                            buffer, prerr, slapd_pr_strerror(prerr));
+                } else {
+                    slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile",
+                            "File %s already removed\n", loginfo.log_auditfail_file);
+                }
+            }
         } else {
-            slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile", "Unable to remove file:%s.%s error %d (%s)\n",
-                          loginfo.log_auditfail_file, tbuf, prerr, slapd_pr_strerror(prerr));
+            slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile", "Unable to remove file: %s error %d (%s)\n",
+                    buffer, prerr, slapd_pr_strerror(prerr));
         }
     } else {
-        slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile", "Removed file:%s.%s because of (%s)\n", loginfo.log_auditfail_file, tbuf, logstr);
+        slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile",
+                "Removed file:%s.%s because of (%s)\n", loginfo.log_auditfail_file, tbuf, logstr);
     }
     slapi_ch_free((void **)&delete_logp);
     loginfo.log_numof_auditfail_logs--;
@@ -4338,13 +4549,14 @@ log__error_rotationinfof(char *pathname)
     int main_log = 1;
     time_t now;
     FILE *fp;
+    PRBool compressed = PR_FALSE;
     int rval, logfile_type = LOGFILE_REOPENED;
 
     /*
     ** Okay -- I confess, we want to use NSPR calls but I want to
     ** use fgets and not use PR_Read() and implement a complicated
     ** parsing module. Since this will be called only during the startup
-    ** and never aftre that, we can live by it.
+    ** and never after that, we can live by it.
     */
 
     if ((fp = fopen(pathname, "r")) == NULL) {
@@ -4357,7 +4569,7 @@ log__error_rotationinfof(char *pathname)
     ** We have reopened the log error file. Now we need to read the
     ** log file info and update the values.
     */
-    while ((rval = log__extract_logheader(fp, &f_ctime, &f_size)) == LOG_CONTINUE) {
+    while ((rval = log__extract_logheader(fp, &f_ctime, &f_size, &compressed)) == LOG_CONTINUE) {
         /* first we would get the main log info */
         if (f_ctime == 0 && f_size == 0)
             continue;
@@ -4384,7 +4596,7 @@ log__error_rotationinfof(char *pathname)
                 /* make it the max log size */
                 logp->l_size = loginfo.log_error_maxlogsize;
             }
-
+            logp->l_compressed = compressed;
             logp->l_next = loginfo.log_error_logchain;
             loginfo.log_error_logchain = logp;
         }
@@ -4425,6 +4637,7 @@ log__audit_rotationinfof(char *pathname)
     int main_log = 1;
     time_t now;
     FILE *fp;
+    PRBool compressed = PR_FALSE;
     int rval, logfile_type = LOGFILE_REOPENED;
 
     /*
@@ -4444,7 +4657,7 @@ log__audit_rotationinfof(char *pathname)
     ** We have reopened the log audit file. Now we need to read the
     ** log file info and update the values.
     */
-    while ((rval = log__extract_logheader(fp, &f_ctime, &f_size)) == LOG_CONTINUE) {
+    while ((rval = log__extract_logheader(fp, &f_ctime, &f_size, &compressed)) == LOG_CONTINUE) {
         /* first we would get the main log info */
         if (f_ctime == 0 && f_size == 0)
             continue;
@@ -4471,7 +4684,7 @@ log__audit_rotationinfof(char *pathname)
                 /* make it the max log size */
                 logp->l_size = loginfo.log_audit_maxlogsize;
             }
-
+            logp->l_compressed = compressed;
             logp->l_next = loginfo.log_audit_logchain;
             loginfo.log_audit_logchain = logp;
         }
@@ -4512,6 +4725,7 @@ log__auditfail_rotationinfof(char *pathname)
     int main_log = 1;
     time_t now;
     FILE *fp;
+    PRBool compressed = PR_FALSE;
     int rval, logfile_type = LOGFILE_REOPENED;
 
     /*
@@ -4531,7 +4745,7 @@ log__auditfail_rotationinfof(char *pathname)
     ** We have reopened the log audit file. Now we need to read the
     ** log file info and update the values.
     */
-    while ((rval = log__extract_logheader(fp, &f_ctime, &f_size)) == LOG_CONTINUE) {
+    while ((rval = log__extract_logheader(fp, &f_ctime, &f_size, &compressed)) == LOG_CONTINUE) {
         /* first we would get the main log info */
         if (f_ctime == 0 && f_size == 0) {
             continue;
@@ -4559,7 +4773,7 @@ log__auditfail_rotationinfof(char *pathname)
                 /* make it the max log size */
                 logp->l_size = loginfo.log_auditfail_maxlogsize;
             }
-
+            logp->l_compressed = compressed;
             logp->l_next = loginfo.log_auditfail_logchain;
             loginfo.log_auditfail_logchain = logp;
         }
@@ -4701,6 +4915,13 @@ log__open_errorlogfile(int logfile_state, int locked)
                         LOG_ERROR_UNLOCK_WRITE();
                     return LOG_UNABLE_TO_OPENFILE;
                 }
+            } else if (loginfo.log_error_compress) {
+                if (compress_log_file(newfile) != 0) {
+                    PR_snprintf(buffer, sizeof(buffer), "Failed to compress errors log file (%s)\n", newfile);
+                    log__error_emergency(buffer, 1, 1);
+                } else {
+                    log->l_compressed = PR_TRUE;
+                }
             }
 
             /* add the log to the chain */
@@ -4776,6 +4997,19 @@ log__open_errorlogfile(int logfile_state, int locked)
     logp = loginfo.log_error_logchain;
     while (logp) {
         log_convert_time(logp->l_ctime, tbuf, 1 /*short */);
+        if (loginfo.log_error_compress) {
+            char logfile[BUFSIZ] = {0};
+
+            /* reset tbuf to include .gz extension */
+            PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
+
+            /* get and set the size of the new gziped file */
+            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_error_file, tbuf);
+            if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
+                /* Then assume that we have the max size */
+                logp->l_size = loginfo.log_error_maxlogsize;
+            }
+        }
         PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" PRId64 "d)\n", PREVLOGFILE, loginfo.log_error_file, tbuf,
                     logp->l_ctime, logp->l_size);
         LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
@@ -4859,6 +5093,14 @@ log__open_auditlogfile(int logfile_state, int locked)
                     slapi_ch_free((void **)&log);
                     return LOG_UNABLE_TO_OPENFILE;
                 }
+            } else if (loginfo.log_audit_compress) {
+                if (compress_log_file(newfile) != 0) {
+                    slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile",
+                            "failed to compress rotated audit log (%s)\n",
+                            newfile);
+                } else {
+                    log->l_compressed = PR_TRUE;
+                }
             }
 
             /* add the log to the chain */
@@ -4910,6 +5152,19 @@ log__open_auditlogfile(int logfile_state, int locked)
     logp = loginfo.log_audit_logchain;
     while (logp) {
         log_convert_time(logp->l_ctime, tbuf, 1 /*short */);
+        if (loginfo.log_audit_compress) {
+            char logfile[BUFSIZ] = {0};
+
+            /* reset tbuf to include .gz extension */
+            PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
+
+            /* get and set the size of the new gziped file */
+            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_audit_file, tbuf);
+            if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
+                /* Then assume that we have the max size */
+                logp->l_size = loginfo.log_audit_maxlogsize;
+            }
+        }
         PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" PRId64 "d)\n", PREVLOGFILE, loginfo.log_audit_file, tbuf,
                     logp->l_ctime, logp->l_size);
         LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
@@ -4992,6 +5247,14 @@ log__open_auditfaillogfile(int logfile_state, int locked)
                     slapi_ch_free((void **)&log);
                     return LOG_UNABLE_TO_OPENFILE;
                 }
+            } else if (loginfo.log_auditfail_compress) {
+                if (compress_log_file(newfile) != 0) {
+                    slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile",
+                            "failed to compress rotated auditfail log (%s)\n",
+                            newfile);
+                } else {
+                    log->l_compressed = PR_TRUE;
+                }
             }
 
             /* add the log to the chain */
@@ -5043,6 +5306,19 @@ log__open_auditfaillogfile(int logfile_state, int locked)
     logp = loginfo.log_auditfail_logchain;
     while (logp) {
         log_convert_time(logp->l_ctime, tbuf, 1 /*short */);
+        if (loginfo.log_auditfail_compress) {
+            char logfile[BUFSIZ] = {0};
+
+            /* reset tbuf to include .gz extension */
+            PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
+
+            /* get and set the size of the new gziped file */
+            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_auditfail_file, tbuf);
+            if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
+                /* Then assume that we have the max size */
+                logp->l_size = loginfo.log_auditfail_maxlogsize;
+            }
+        }
         PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" PRId64 "d)\n", PREVLOGFILE, loginfo.log_auditfail_file, tbuf,
                     logp->l_ctime, logp->l_size);
         LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
@@ -5240,7 +5516,8 @@ log_reverse_convert_time(char *tbuf)
         char tbuf_with_sep[] = "yyyy-mm-dd HH:MM:SS";
         if (sscanf(tbuf, "%4c%2c%2c-%2c%2c%2c", tbuf_with_sep,
                    tbuf_with_sep + 5, tbuf_with_sep + 8, tbuf_with_sep + 11,
-                   tbuf_with_sep + 14, tbuf_with_sep + 17) != 6) {
+                   tbuf_with_sep + 14, tbuf_with_sep + 17) != 6)
+        {
             return 0;
         }
         strptime(tbuf_with_sep, "%Y-%m-%d %H:%M:%S", &tm);
