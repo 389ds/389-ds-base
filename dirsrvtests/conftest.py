@@ -5,6 +5,7 @@ import shutil
 import glob
 import ldap
 import os
+import gzip
 
 from .report import getReport
 from lib389.paths import Paths
@@ -115,7 +116,13 @@ def pytest_runtest_makereport(item, call):
                     text = asan_report.read()
                     extra.append(pytest_html.extras.text(text, name=os.path.basename(f)))
             for f in glob.glob(f'{p.log_dir.split("/slapd",1)[0]}/*/*'):
-                if 'rotationinfo' not in f:
+                if f.endswith('gz'):
+                    with gzip.open(f, 'rb') as dirsrv_log:
+                        text = dirsrv_log.read()
+                        log_name = os.path.basename(f)
+                        instance_name = os.path.basename(os.path.dirname(f)).split("slapd-",1)[1]
+                        extra.append(pytest_html.extras.text(text, name=f"{instance_name}-{log_name}"))
+                elif 'rotationinfo' not in f:
                     with open(f) as dirsrv_log:
                         text = dirsrv_log.read()
                         log_name = os.path.basename(f)

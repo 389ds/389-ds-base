@@ -1624,6 +1624,10 @@ class DirSrv(SimpleLDAPObject, object):
         """Return the server identifier."""
         return self.serverid
 
+    def get_log_dir(self):
+        """Return the server instance ldif directory."""
+        return self.ds_paths.log_dir
+
     def get_ldif_dir(self):
         """Return the server instance ldif directory."""
         return self.ds_paths.ldif_dir

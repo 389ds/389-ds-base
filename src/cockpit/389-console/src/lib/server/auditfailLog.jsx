@@ -11,6 +11,7 @@ import {
     GridItem,
     NumberInput,
     Spinner,
+    Switch,
     Tab,
     Tabs,
     TabTitleText,
@@ -42,6 +43,7 @@ const rotation_attrs = [
     'nsslapd-auditfaillog-logrotationtimeunit',
     'nsslapd-auditfaillog-maxlogsize',
     'nsslapd-auditfaillog-maxlogsperdir',
+    'nsslapd-auditfaillog-compress'
 ];
 
 const rotation_attrs_no_time = [
@@ -50,6 +52,7 @@ const rotation_attrs_no_time = [
     'nsslapd-auditfaillog-logrotationtimeunit',
     'nsslapd-auditfaillog-maxlogsize',
     'nsslapd-auditfaillog-maxlogsperdir',
+    'nsslapd-auditfaillog-compress'
 ];
 
 const exp_attrs = [
@@ -80,6 +83,7 @@ export class ServerAuditFailLog extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
+        this.handleSwitchChange = this.handleSwitchChange.bind(this);
         this.handleTimeChange = this.handleTimeChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.refreshConfig = this.refreshConfig.bind(this);
@@ -162,6 +166,14 @@ export class ServerAuditFailLog extends React.Component {
         }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
     }
 
+    handleSwitchChange(value) {
+        // log compression
+        this.setState({
+            'nsslapd-auditfaillog-compress': value
+        }, () => {
+            this.validateSaveBtn('rotation', 'nsslapd-auditfaillog-compress', value);
+        });
+    }
 
     handleTimeChange(time_str) {
         let disableSaveBtn = true;
@@ -269,9 +281,13 @@ export class ServerAuditFailLog extends React.Component {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
                     let enabled = false;
+                    let compressed = false;
 
                     if (attrs['nsslapd-auditfaillog-logging-enabled'][0] == "on") {
                         enabled = true;
+                    }
+                    if (attrs['nsslapd-auditfaillog-compress'][0] == "on") {
+                        compressed = true;
                     }
 
                     this.setState(() => (
@@ -294,6 +310,7 @@ export class ServerAuditFailLog extends React.Component {
                             'nsslapd-auditfaillog-logrotationtimeunit': attrs['nsslapd-auditfaillog-logrotationtimeunit'][0],
                             'nsslapd-auditfaillog-maxlogsize': attrs['nsslapd-auditfaillog-maxlogsize'][0],
                             'nsslapd-auditfaillog-maxlogsperdir': attrs['nsslapd-auditfaillog-maxlogsperdir'][0],
+                            'nsslapd-auditfaillog-compress': compressed,
                             // Record original values
                             '_nsslapd-auditfaillog': attrs['nsslapd-auditfaillog'][0],
                             '_nsslapd-auditfaillog-logexpirationtime': attrs['nsslapd-auditfaillog-logexpirationtime'][0],
@@ -308,6 +325,7 @@ export class ServerAuditFailLog extends React.Component {
                             '_nsslapd-auditfaillog-logrotationtimeunit': attrs['nsslapd-auditfaillog-logrotationtimeunit'][0],
                             '_nsslapd-auditfaillog-maxlogsize': attrs['nsslapd-auditfaillog-maxlogsize'][0],
                             '_nsslapd-auditfaillog-maxlogsperdir': attrs['nsslapd-auditfaillog-maxlogsperdir'][0],
+                            '_nsslapd-auditfaillog-compress': compressed,
                         })
                     );
                 })
@@ -327,9 +345,13 @@ export class ServerAuditFailLog extends React.Component {
     loadConfig() {
         const attrs = this.state.attrs;
         let enabled = false;
+        let compressed = false;
 
         if (attrs['nsslapd-auditfaillog-logging-enabled'][0] == "on") {
             enabled = true;
+        }
+        if (attrs['nsslapd-auditfaillog-compress'][0] == "on") {
+            compressed = true;
         }
 
         this.setState({
@@ -351,6 +373,7 @@ export class ServerAuditFailLog extends React.Component {
             'nsslapd-auditfaillog-logrotationtimeunit': attrs['nsslapd-auditfaillog-logrotationtimeunit'][0],
             'nsslapd-auditfaillog-maxlogsize': attrs['nsslapd-auditfaillog-maxlogsize'][0],
             'nsslapd-auditfaillog-maxlogsperdir': attrs['nsslapd-auditfaillog-maxlogsperdir'][0],
+            'nsslapd-auditfaillog-compress': compressed,
             // Record original values,
             '_nsslapd-auditfaillog': attrs['nsslapd-auditfaillog'][0],
             '_nsslapd-auditfaillog-logexpirationtime': attrs['nsslapd-auditfaillog-logexpirationtime'][0],
@@ -365,6 +388,7 @@ export class ServerAuditFailLog extends React.Component {
             '_nsslapd-auditfaillog-logrotationtimeunit': attrs['nsslapd-auditfaillog-logrotationtimeunit'][0],
             '_nsslapd-auditfaillog-maxlogsize': attrs['nsslapd-auditfaillog-maxlogsize'][0],
             '_nsslapd-auditfaillog-maxlogsperdir': attrs['nsslapd-auditfaillog-maxlogsperdir'][0],
+            '_nsslapd-auditfaillog-compress': compressed,
         }, this.props.enableTree);
     }
 
@@ -532,6 +556,18 @@ export class ServerAuditFailLog extends React.Component {
                                         time={rotationTime}
                                         onChange={this.handleTimeChange}
                                         is24Hour
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title="Compress (gzip) the log after it's rotated.">
+                                <GridItem className="ds-label" span={3}>
+                                    Compress Rotated Logs
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <Switch
+                                        id="nsslapd-auditfaillog-compress"
+                                        isChecked={this.state['nsslapd-auditfaillog-compress']}
+                                        onChange={this.handleSwitchChange}
                                     />
                                 </GridItem>
                             </Grid>

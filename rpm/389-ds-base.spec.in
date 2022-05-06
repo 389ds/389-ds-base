@@ -190,6 +190,8 @@ Requires:         perl-sigtrap
 %endif
 # Needed for password dictionary checks
 Requires:         cracklib-dicts
+# Log compression
+Requires:         zlib-devel
 # Picks up our systemd deps.
 %{?systemd_requires}
 

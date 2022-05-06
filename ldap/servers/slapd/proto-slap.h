@@ -860,6 +860,7 @@ int log_update_errorlogdir(char *pathname, int apply);
 int log_update_auditlogdir(char *pathname, int apply);
 int log_update_auditfaillogdir(char *pathname, int apply);
 int log_set_logging(const char *attrname, char *value, int logtype, char *errorbuf, int apply);
+int log_set_compression(const char *attrname, char *value, int logtype, char *errorbuf, int apply);
 int check_log_max_size(
     char *maxdiskspace_str,
     char *mlogsize_str,

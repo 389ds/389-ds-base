@@ -308,7 +308,7 @@ class DirsrvErrorLog(DirsrvLog):
     """Directory Server Error log class"""
     def __init__(self, dirsrv):
         """Init the Error log class
-        @param diursrv - A DirSrv object
+        @param dirsrv - A DirSrv object
         """
         super(DirsrvErrorLog, self).__init__(dirsrv)
         self.prog_m1 = re.compile(r'^(?P<timestamp>\[.*\])\s(?P<message>.*)')

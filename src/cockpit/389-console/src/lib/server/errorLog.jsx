@@ -13,6 +13,7 @@ import {
     GridItem,
     NumberInput,
     Spinner,
+    Switch,
     Tab,
     Tabs,
     TabTitleText,
@@ -49,6 +50,7 @@ const rotation_attrs = [
     'nsslapd-errorlog-logrotationtimeunit',
     'nsslapd-errorlog-maxlogsize',
     'nsslapd-errorlog-maxlogsperdir',
+    'nsslapd-errorlog-compress'
 ];
 
 const rotation_attrs_no_time = [
@@ -57,6 +59,7 @@ const rotation_attrs_no_time = [
     'nsslapd-errorlog-logrotationtimeunit',
     'nsslapd-errorlog-maxlogsize',
     'nsslapd-errorlog-maxlogsperdir',
+    'nsslapd-errorlog-compress'
 ];
 
 const exp_attrs = [
@@ -114,6 +117,7 @@ export class ServerErrorLog extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
+        this.handleSwitchChange = this.handleSwitchChange.bind(this);
         this.handleTimeChange = this.handleTimeChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.refreshConfig = this.refreshConfig.bind(this);
@@ -206,6 +210,15 @@ export class ServerErrorLog extends React.Component {
         this.setState({
             [attr]: value,
         }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
+    }
+
+    handleSwitchChange(value) {
+        // log compression
+        this.setState({
+            'nsslapd-errorlog-compress': value
+        }, () => {
+            this.validateSaveBtn('rotation', 'nsslapd-errorlog-compress', value);
+        });
     }
 
     handleTimeChange(time_str) {
@@ -327,12 +340,17 @@ export class ServerErrorLog extends React.Component {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
                     let enabled = false;
+                    let compressed = false;
                     const level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
                     const rows = [...this.state.rows];
 
                     if (attrs['nsslapd-errorlog-logging-enabled'][0] == "on") {
                         enabled = true;
                     }
+                    if (attrs['nsslapd-errorlog-compress'][0] == "on") {
+                        compressed = true;
+                    }
+
                     for (const row in rows) {
                         if (rows[row].level & level_val) {
                             rows[row].selected = true;
@@ -362,6 +380,7 @@ export class ServerErrorLog extends React.Component {
                             'nsslapd-errorlog-logrotationtimeunit': attrs['nsslapd-errorlog-logrotationtimeunit'][0],
                             'nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
                             'nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
+                            'nsslapd-errorlog-compress': compressed,
                             rows: rows,
                             // Record original values
                             _rows:  JSON.parse(JSON.stringify(rows)),
@@ -379,6 +398,7 @@ export class ServerErrorLog extends React.Component {
                             '_nsslapd-errorlog-logrotationtimeunit': attrs['nsslapd-errorlog-logrotationtimeunit'][0],
                             '_nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
                             '_nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
+                            '_nsslapd-errorlog-compress': compressed,
                         })
                     );
                 })
@@ -398,11 +418,15 @@ export class ServerErrorLog extends React.Component {
     loadConfig() {
         const attrs = this.state.attrs;
         let enabled = false;
+        let compressed = false;
         const level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
         const rows = [...this.state.rows];
 
         if (attrs['nsslapd-errorlog-logging-enabled'][0] == "on") {
             enabled = true;
+        }
+        if (attrs['nsslapd-errorlog-compress'][0] == "on") {
+            compressed = true;
         }
         for (const row in rows) {
             if (rows[row].level & level_val) {
@@ -432,6 +456,7 @@ export class ServerErrorLog extends React.Component {
             'nsslapd-errorlog-logrotationtimeunit': attrs['nsslapd-errorlog-logrotationtimeunit'][0],
             'nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
             'nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
+            'nsslapd-errorlog-compress': compressed,
             rows: rows,
             // Record original values
             _rows: JSON.parse(JSON.stringify(rows)),
@@ -449,6 +474,7 @@ export class ServerErrorLog extends React.Component {
             '_nsslapd-errorlog-logrotationtimeunit': attrs['nsslapd-errorlog-logrotationtimeunit'][0],
             '_nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
             '_nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
+            '_nsslapd-errorlog-compress': compressed,
         }, this.props.enableTree);
     }
 
@@ -671,6 +697,18 @@ export class ServerErrorLog extends React.Component {
                                         time={rotationTime}
                                         onChange={this.handleTimeChange}
                                         is24Hour
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title="Compress (gzip) the log after it's rotated.">
+                                <GridItem className="ds-label" span={3}>
+                                    Compress Rotated Logs
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <Switch
+                                        id="nsslapd-errorlog-compress"
+                                        isChecked={this.state['nsslapd-errorlog-compress']}
+                                        onChange={this.handleSwitchChange}
                                     />
                                 </GridItem>
                             </Grid>

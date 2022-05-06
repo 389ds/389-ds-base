@@ -12,6 +12,7 @@ import {
     GridItem,
     NumberInput,
     Spinner,
+    Switch,
     Tab,
     Tabs,
     TabTitleText,
@@ -43,6 +44,7 @@ const rotation_attrs = [
     'nsslapd-auditlog-logrotationtimeunit',
     'nsslapd-auditlog-maxlogsize',
     'nsslapd-auditlog-maxlogsperdir',
+    'nsslapd-auditlog-compress'
 ];
 
 const rotation_attrs_no_time = [
@@ -51,6 +53,7 @@ const rotation_attrs_no_time = [
     'nsslapd-auditlog-logrotationtimeunit',
     'nsslapd-auditlog-maxlogsize',
     'nsslapd-auditlog-maxlogsperdir',
+    'nsslapd-auditlog-compress'
 ];
 
 const exp_attrs = [
@@ -81,6 +84,7 @@ export class ServerAuditLog extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
+        this.handleSwitchChange = this.handleSwitchChange.bind(this);
         this.handleTimeChange = this.handleTimeChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.refreshConfig = this.refreshConfig.bind(this);
@@ -153,7 +157,7 @@ export class ServerAuditLog extends React.Component {
             [disableBtnName]: disableSaveBtn
         });
     }
-l
+
     handleChange(e, nav_tab) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
@@ -161,6 +165,15 @@ l
         this.setState({
             [attr]: value,
         }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
+    }
+
+    handleSwitchChange(value) {
+        // log compression
+        this.setState({
+            'nsslapd-auditlog-compress': value
+        }, () => {
+            this.validateSaveBtn('rotation', 'nsslapd-auditlog-compress', value);
+        });
     }
 
     handleTimeChange(time_str) {
@@ -268,9 +281,13 @@ l
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
                     let enabled = false;
+                    let compressed = false;
 
                     if (attrs['nsslapd-auditlog-logging-enabled'][0] == "on") {
                         enabled = true;
+                    }
+                    if (attrs['nsslapd-auditlog-compress'][0] == "on") {
+                        compressed = true;
                     }
 
                     this.setState({
@@ -292,6 +309,7 @@ l
                         'nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
                         'nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
                         'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+                        'nsslapd-auditlog-compress': compressed,
                         // Record original values
                         '_nsslapd-auditlog': attrs['nsslapd-auditlog'][0],
                         '_nsslapd-auditlog-logexpirationtime': attrs['nsslapd-auditlog-logexpirationtime'][0],
@@ -306,6 +324,7 @@ l
                         '_nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
                         '_nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
                         '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+                        '_nsslapd-auditlog-compress': compressed,
                     });
                 })
                 .fail(err => {
@@ -324,9 +343,13 @@ l
     loadConfig() {
         const attrs = this.state.attrs;
         let enabled = false;
+        let compressed = false;
 
         if (attrs['nsslapd-auditlog-logging-enabled'][0] == "on") {
             enabled = true;
+        }
+        if (attrs['nsslapd-auditlog-compress'][0] == "on") {
+            compressed = true;
         }
 
         this.setState({
@@ -348,6 +371,7 @@ l
             'nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
             'nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
             'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+            'nsslapd-auditlog-compress': compressed,
             // Record original values,
             '_nsslapd-auditlog': attrs['nsslapd-auditlog'][0],
             '_nsslapd-auditlog-logexpirationtime': attrs['nsslapd-auditlog-logexpirationtime'][0],
@@ -362,6 +386,7 @@ l
             '_nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
             '_nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
             '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+            '_nsslapd-auditlog-compress': compressed,
         }, this.props.enableTree);
     }
 
@@ -531,6 +556,18 @@ l
                                         onChange={this.handleTimeChange}
                                         is24Hour
                                     />
+                                </GridItem>
+                            </Grid>
+                            <Grid title="Compress (gzip) the log after it's rotated.">
+                                <GridItem className="ds-label" span={3}>
+                                    Compress Rotated Logs
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <Switch
+                                        id="nsslapd-auditlog-compress"
+                                        isChecked={this.state['nsslapd-auditlog-compress']}
+                                        onChange={this.handleSwitchChange}
+                                    />`
                                 </GridItem>
                             </Grid>
                         </Form>

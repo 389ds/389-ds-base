@@ -13,6 +13,7 @@ import {
     GridItem,
     NumberInput,
     Spinner,
+    Switch,
     Tab,
     Tabs,
     TabTitleText,
@@ -50,6 +51,7 @@ const rotation_attrs = [
     'nsslapd-accesslog-logrotationtimeunit',
     'nsslapd-accesslog-maxlogsize',
     'nsslapd-accesslog-maxlogsperdir',
+    'nsslapd-accesslog-compress'
 ];
 
 const rotation_attrs_no_time = [
@@ -58,6 +60,7 @@ const rotation_attrs_no_time = [
     'nsslapd-accesslog-logrotationtimeunit',
     'nsslapd-accesslog-maxlogsize',
     'nsslapd-accesslog-maxlogsperdir',
+    'nsslapd-accesslog-compress'
 ];
 
 const exp_attrs = [
@@ -104,6 +107,7 @@ export class ServerAccessLog extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
+        this.handleSwitchChange = this.handleSwitchChange.bind(this);
         this.handleTimeChange = this.handleTimeChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.refreshConfig = this.refreshConfig.bind(this);
@@ -196,6 +200,15 @@ export class ServerAccessLog extends React.Component {
         this.setState({
             [attr]: value,
         }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
+    }
+
+    handleSwitchChange(value) {
+        // log compression
+        this.setState({
+            'nsslapd-accesslog-compress': value
+        }, () => {
+            this.validateSaveBtn('rotation', 'nsslapd-accesslog-compress', value);
+        });
     }
 
     handleTimeChange(time_str) {
@@ -318,6 +331,7 @@ export class ServerAccessLog extends React.Component {
                     const attrs = config.attrs;
                     let enabled = false;
                     let buffering = false;
+                    let compress = false;
                     const level_val = parseInt(attrs['nsslapd-accesslog-level'][0]);
                     const rows = [...this.state.rows];
 
@@ -326,6 +340,9 @@ export class ServerAccessLog extends React.Component {
                     }
                     if (attrs['nsslapd-accesslog-logbuffering'][0] == "on") {
                         buffering = true;
+                    }
+                    if (attrs['nsslapd-accesslog-compress'][0] == "on") {
+                        compress = true;
                     }
                     for (const row in rows) {
                         if (rows[row].level & level_val) {
@@ -356,6 +373,7 @@ export class ServerAccessLog extends React.Component {
                         'nsslapd-accesslog-logrotationtimeunit': attrs['nsslapd-accesslog-logrotationtimeunit'][0],
                         'nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
                         'nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
+                        'nsslapd-accesslog-compress': compress,
                         rows: rows,
                         // Record original values
                         _rows:  JSON.parse(JSON.stringify(rows)),
@@ -374,6 +392,7 @@ export class ServerAccessLog extends React.Component {
                         '_nsslapd-accesslog-logrotationtimeunit': attrs['nsslapd-accesslog-logrotationtimeunit'][0],
                         '_nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
                         '_nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
+                        '_nsslapd-accesslog-compress': compress,
                     });
                 })
                 .fail(err => {
@@ -393,6 +412,7 @@ export class ServerAccessLog extends React.Component {
         const attrs = this.state.attrs;
         let enabled = false;
         let buffering = false;
+        let compress = false;
         const level_val = parseInt(attrs['nsslapd-accesslog-level'][0]);
         const rows = [...this.state.rows];
 
@@ -401,6 +421,9 @@ export class ServerAccessLog extends React.Component {
         }
         if (attrs['nsslapd-accesslog-logbuffering'][0] == "on") {
             buffering = true;
+        }
+        if (attrs['nsslapd-accesslog-compress'][0] == "on") {
+            compress = true;
         }
         for (const row in rows) {
             if (rows[row].level & level_val) {
@@ -431,6 +454,7 @@ export class ServerAccessLog extends React.Component {
             'nsslapd-accesslog-logrotationtimeunit': attrs['nsslapd-accesslog-logrotationtimeunit'][0],
             'nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
             'nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
+            'nsslapd-accesslog-compress': compress,
             rows: rows,
             // Record original values
             _rows: JSON.parse(JSON.stringify(rows)),
@@ -449,6 +473,7 @@ export class ServerAccessLog extends React.Component {
             '_nsslapd-accesslog-logrotationtimeunit': attrs['nsslapd-accesslog-logrotationtimeunit'][0],
             '_nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
             '_nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
+            '_nsslapd-accesslog-compress': compress,
         }, this.props.enableTree);
     }
 
@@ -682,6 +707,18 @@ export class ServerAccessLog extends React.Component {
                                         time={rotationTime}
                                         onChange={this.handleTimeChange}
                                         is24Hour
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title="Compress (gzip) the log after it's rotated.">
+                                <GridItem className="ds-label" span={3}>
+                                    Compress Rotated Logs
+                                </GridItem>
+                                <GridItem className="ds-label" span={8}>
+                                    <Switch
+                                        id="nsslapd-accesslog-compress"
+                                        isChecked={this.state['nsslapd-accesslog-compress']}
+                                        onChange={this.handleSwitchChange}
                                     />
                                 </GridItem>
                             </Grid>
