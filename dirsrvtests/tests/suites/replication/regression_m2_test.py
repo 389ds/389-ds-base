@@ -18,11 +18,13 @@ from lib389.idm.user import TEST_USER_PROPERTIES, UserAccounts
 from lib389.pwpolicy import PwPolicyManager
 from lib389.utils import *
 from lib389._constants import *
+from lib389.idm.domain import Domain
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.user import UserAccount
 from lib389.idm.group import Groups, Group
 from lib389.idm.domain import Domain
 from lib389.idm.directorymanager import DirectoryManager
+from lib389.idm.services import ServiceAccounts, ServiceAccount
 from lib389.replica import Replicas, ReplicationManager, ReplicaRole
 from lib389.agreement import Agreements
 from lib389 import pid_from_file
@@ -47,6 +49,105 @@ if DEBUGGING:
 else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
+
+
+class _AgmtHelper:
+    """test_change_repl_passwd helper (Easy access to bind and agmt entries)"""
+
+    def __init__(self, from_inst, to_inst, cn = None):
+        self.from_inst = from_inst
+        self.to_inst = to_inst
+        if cn:
+            self.usedn = True
+            self.cn = cn
+            self.binddn = f'cn={cn},cn=config'
+        else:
+            self.usedn = False
+            self.cn = f'{self.from_inst.host}:{self.from_inst.sslport}'
+            self.binddn = f'cn={self.cn}, ou=Services, {DEFAULT_SUFFIX}'
+        self.original_state = []
+        self._pass = False
+
+    def _save_vals(self, entry, attrslist, name):
+        """Get current property value for cn and requested attributes"""
+        repl_prop = []
+        del_prop = []
+        for attr in attrslist:
+            try:
+                val = entry.get_attr_val_utf8(attr)
+                if val is None:
+                    del_prop.append((attr,))
+                else:
+                    repl_prop.append((attr,val))
+            except ldap.NO_SUCH_OBJECT:
+                del_prop.append((attr,))
+        self.original_state.append((entry, repl_prop, del_prop))
+
+    def init(self, request):
+        """Initialize the _AgmtHelper"""
+        agmt = self.get_agmt()
+        replica = Replicas(self.to_inst).get(DEFAULT_SUFFIX)
+        bind_entry = self.get_bind_entry()
+        # Preserve current configuartion
+        self._save_vals(agmt, ('nsds5ReplicaCredentials', 'nsds5ReplicaBindDN'), 'agmt')
+        self._save_vals(replica, ('nsds5ReplicaBindDN', 'nsDS5ReplicaBindDNGroup'), 'replica')
+        if not self.usedn:
+            self._save_vals(bind_entry, ('userPassword',), 'bind_entry')
+
+        if self.usedn:
+            # if using bind group, the topology is already initted (by topo_m2)
+            # if using bind dn, should create the bind entry and configure the agmt and replica
+            passwd='replrepl'
+            # Creates the bind entry
+            bind_entry.ensure_state(properties={
+                'cn' : self.cn,
+                'userPassword': passwd
+            })
+            # Modify the replica
+            replica.replace('nsds5ReplicaBindDN', self.binddn)
+            replica.remove_all('nsds5ReplicaBindDNGroup')
+            # Modify the agmt
+            agmt.replace_many( ('nsds5ReplicaCredentials', passwd),
+                               ('nsds5ReplicaBindDN', self.binddn))
+        # Add a finalizer to restore the original configuration
+        def fin():
+            if not self._pass and "-x" in sys.argv:
+                # Keep config as is if debugging a failed test
+                return
+            # remove the added bind entry
+            if self.usedn:
+                bind_entry.delete()
+            # Restore the original entries
+            for entry, repl_prop, del_prop, in self.original_state:
+                log.debug(f"dn: {entry.dn} repl_prop={repl_prop} del_prop={del_prop}")
+                if repl_prop:
+                    entry.replace_many(*repl_prop)
+                if del_prop:
+                    for attr, in del_prop:
+                        entry.remove_all(attr)
+        request.addfinalizer(fin)
+
+
+    def get_bind_entry(self):
+        """Get bind entry (on consumer)"""
+        return ServiceAccount(self.to_inst, dn=self.binddn)
+
+    def get_agmt(self):
+        """Get agmt entry (on supplier)"""
+        agmts = Agreements(self.from_inst)
+        for agmt in agmts.list():
+            port = agmt.get_attr_val_utf8('nsDS5ReplicaPort')
+            if port == str(self.to_inst.port) or port == str(self.to_inst.sslport):
+                return agmt
+        raise AssertionError(f'no agmt toward {self.to_inst.serverid} found on {self.from_inst.serverid}')
+
+    def change_pw(self, passwd):
+        """Change bind entry and agmt entry password"""
+        self.get_bind_entry().replace('userPassword', passwd)
+        self.get_agmt().replace('nsds5ReplicaCredentials', passwd)
+
+    def testok(self):
+        self._pass = True
 
 
 def find_start_location(file, no):
@@ -844,6 +945,62 @@ def test_online_init_should_create_keepalive_entries(topo_m2):
     verify_keepalive_entries(topo_m2, True);
 
 
+# Parameters for test_change_repl_passwd
+@pytest.mark.parametrize(
+    "bind_cn",
+    [
+        pytest.param( None, id="using-bind-group"),
+        pytest.param( "replMgr", id="using-bind-dn"),
+    ],
+)
+
+
+@pytest.mark.bz1956987
+def test_change_repl_passwd(topo_m2, request, bind_cn):
+    """Replication may break after changing password.
+       Testing when agmt bind group are used.
+
+    :id: a305913a-cc76-11ec-b324-482ae39447e5
+    :setup: 2 Supplier Instances
+    :steps:
+        1. Insure agmt from supplier1 to supplier2 is properly set to use bind group
+        2. Insure agmt from supplier2 to supplier1 is properly set to use bind group
+        3. Check that replication is working
+        4. Modify supplier1 agreement password and the associated bind entry
+        5. Modify supplier2 agreement password and the associated bind entry
+        6. Check that replication is working
+    :expectedresults:
+        1. Step should run sucessfully without errors
+        2. Step should run sucessfully without errors
+        3. Replication should work
+        4. Step should run sucessfully without errors
+        5. Step should run sucessfully without errors
+        6. Replication should work
+    """
+
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
+    # Step 1
+    a1 = _AgmtHelper(m1, m2, cn=bind_cn)
+    a1.init(request)
+    # Step 2
+    a2 = _AgmtHelper(m2, m1, cn=bind_cn)
+    a2.init(request)
+    # Step 3
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_for_replication(m1, m2)
+    # Step 4
+    TEST_ENTRY_NEW_PASS = 'new_pass2'
+    a1.change_pw(TEST_ENTRY_NEW_PASS)
+    # Step 5
+    a2.change_pw(TEST_ENTRY_NEW_PASS)
+    # Step 6
+    repl.wait_for_replication(m1, m2)
+    # Mark test as successul before exiting
+    a1.testok()
+    a2.testok()
+
+
 @pytest.mark.ds49915
 @pytest.mark.bz1626375
 def test_online_reinit_may_hang(topo_with_sigkill):
@@ -892,6 +1049,13 @@ def test_online_reinit_may_hang(topo_with_sigkill):
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
+
+
+##############################################################################
+#### WARNING ! New tests must be added before test_online_reinit_may_hang ####
+#### because topo_with_sigkill and topo_m2 fixtures are not compatible as ####
+#### topo_with_sigkill stops and destroy topo_m2 instances.               ####
+##############################################################################
 
 
 if __name__ == '__main__':
