@@ -57,7 +57,8 @@ typedef struct repl_connection
     PRLock *lock;
     struct timeval timeout;
     int flag_agmt_changed;
-    char *plain;
+    char *plain;            /* Clear password */
+    char *creds;            /* Encrypted password */
     void *tot_init_callback; /* Used during total update to do flow control */
 } repl_connection;
 
@@ -205,6 +206,7 @@ conn_new(Repl_Agmt *agmt)
     rpc->timeout.tv_usec = 0;
     rpc->flag_agmt_changed = 0;
     rpc->plain = NULL;
+    rpc->creds = NULL;
     return rpc;
 loser:
     conn_delete_internal(rpc);
@@ -1115,7 +1117,11 @@ conn_connect_with_bootstrap(Repl_Connection *conn, PRBool bootstrap)
         conn->timeout.tv_sec = agmt_get_timeout(conn->agmt);
         conn->flag_agmt_changed = 0;
         conn->port = agmt_get_port(conn->agmt); /* port could be updated */
+    }
 
+    if (conn->plain && conn->creds && strcmp(creds->bv_val, conn->creds)) {
+        /* Password has changed. */
+        slapi_ch_free_string(&conn->plain);
     }
 
     if (conn->plain == NULL) {
@@ -1140,6 +1146,8 @@ conn_connect_with_bootstrap(Repl_Connection *conn, PRBool bootstrap)
             goto done;
         } /* Else, does not mean that the plain is correct, only means the we had no internal
            decoding pb */
+        slapi_ch_free_string(&conn->creds);
+        conn->creds = slapi_ch_strdup(creds->bv_val);
         conn->plain = slapi_ch_strdup(plain);
         if (!pw_ret) {
             slapi_ch_free_string(&plain);
