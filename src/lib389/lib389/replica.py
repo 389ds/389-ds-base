@@ -2524,12 +2524,23 @@ class ReplicationManager(object):
 
         for i in range(0, timeout):
             desc = to_group.get_attr_val_utf8('description')
-            if change == desc:
+            from_desc = from_group.get_attr_val_utf8('description')
+
+            if change == desc and change == from_desc:
                 self._log.info("SUCCESS: Replication from %s to %s is working" % (from_instance.ldapuri, to_instance.ldapuri))
                 return True
-            self._log.info("Retry: Replication from %s to %s is NOT working (expect %s / got description=%s)" % (from_instance.ldapuri, to_instance.ldapuri, change, desc))
+            if desc == from_desc:
+                self._log.info("Retry: Replication from %s to %s is in sync but not having expected value (expect %s / got description=%s)" % (from_instance.ldapuri, to_instance.ldapuri, change, desc))
+                from_group.replace('description', change)
+            else:
+                self._log.info("Retry: Replication from %s to %s is NOT in sync (description=%s / description=%s)" % (from_instance.ldapuri, to_instance.ldapuri, from_desc, desc))
             time.sleep(1)
-        self._log.info("FAIL: Replication from %s to %s is NOT working (expect %s / got description=%s)" % (from_instance.ldapuri, to_instance.ldapuri, change, desc))
+        self._log.info("FAIL: Replication from %s to %s is NOT working. (too many retries)" % (from_instance.ldapuri, to_instance.ldapuri))
+        # Replication is broken ==> Lets get the replication error logs
+        for inst in (from_instance, to_instance):
+            self._log.info(f"*** {inst.serverid} Error log: ***")
+            for line in DirsrvErrorLog(inst).match('NSMMReplicationPlugin'):
+                self._log.info(line)
         raise Exception("Replication did not sync in time!")
 
 
