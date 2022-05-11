@@ -28,6 +28,7 @@ from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.passwd import password_generate
 from lib389.mappingTree import MappingTrees
 from lib389.agreement import Agreements
+from lib389.dirsrv_log import DirsrvErrorLog
 from lib389.tombstone import Tombstones
 from lib389.tasks import CleanAllRUVTask
 from lib389.idm.domain import Domain
@@ -2499,7 +2500,7 @@ class ReplicationManager(object):
         return True
 
 
-    def wait_for_replication(self, from_instance, to_instance, timeout=20):
+    def wait_for_replication(self, from_instance, to_instance, timeout=60):
         """Wait for a replication event to occur from instance to instance. This
         shows some point of synchronisation has occured.
 
@@ -2539,8 +2540,13 @@ class ReplicationManager(object):
         # Replication is broken ==> Lets get the replication error logs
         for inst in (from_instance, to_instance):
             self._log.info(f"*** {inst.serverid} Error log: ***")
-            for line in DirsrvErrorLog(inst).match('NSMMReplicationPlugin'):
-                self._log.info(line)
+            lines = DirsrvErrorLog(inst).match('.*NSMMReplicationPlugin.*')
+            # Keep only last lines (enough to be sure to log last replication session)
+            n = 30
+            if len(lines) > n:
+                lines = lines[-n:]
+            for line in lines:
+                self._log.info(line.strip())
         raise Exception("Replication did not sync in time!")
 
 
