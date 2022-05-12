@@ -203,6 +203,7 @@ NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
 EVENT_LINK = $(EVENT_LIBS)
 PW_CRACK_LINK = -lcrack
+ZLIB_LINK = -lz
 
 LIBSOCKET=@LIBSOCKET@
 LIBNSL=@LIBNSL@
@@ -217,7 +218,7 @@ if HPUX
 AM_LDFLAGS = -lpthread
 else
 #AM_LDFLAGS = -Wl,-z,defs
-AM_LDFLAGS = $(PW_CRACK_LINK) $(RUST_LDFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CLANG_LDFLAGS) $(EXPORT_LDFLAGS)
+AM_LDFLAGS = $(ZLIB_LINK) $(PW_CRACK_LINK) $(RUST_LDFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CLANG_LDFLAGS) $(EXPORT_LDFLAGS)
 endif #end hpux
 
 # https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html#Updating-version-info
