@@ -28,6 +28,7 @@ from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.passwd import password_generate
 from lib389.mappingTree import MappingTrees
 from lib389.agreement import Agreements
+from lib389.dirsrv_log import DirsrvErrorLog
 from lib389.tombstone import Tombstones
 from lib389.tasks import CleanAllRUVTask
 from lib389.idm.domain import Domain
@@ -2455,7 +2456,8 @@ class ReplicationManager(object):
             time.sleep(1)
         raise Exception("RUV did not sync in time!")
 
-    def wait_for_replication(self, from_instance, to_instance, timeout=20):
+
+    def wait_for_replication(self, from_instance, to_instance, timeout=60):
         """Wait for a replication event to occur from instance to instance. This
         shows some point of synchronisation has occured.
 
@@ -2479,12 +2481,28 @@ class ReplicationManager(object):
 
         for i in range(0, timeout):
             desc = to_group.get_attr_val_utf8('description')
-            if change == desc:
+            from_desc = from_group.get_attr_val_utf8('description')
+
+            if change == desc and change == from_desc:
                 self._log.info("SUCCESS: Replication from %s to %s is working" % (from_instance.ldapuri, to_instance.ldapuri))
                 return True
-            self._log.info("Retry: Replication from %s to %s is NOT working (expect %s / got description=%s)" % (from_instance.ldapuri, to_instance.ldapuri, change, desc))
+            if desc == from_desc:
+                self._log.info("Retry: Replication from %s to %s is in sync but not having expected value (expect %s / got description=%s)" % (from_instance.ldapuri, to_instance.ldapuri, change, desc))
+                from_group.replace('description', change)
+            else:
+                self._log.info("Retry: Replication from %s to %s is NOT in sync (description=%s / description=%s)" % (from_instance.ldapuri, to_instance.ldapuri, from_desc, desc))
             time.sleep(1)
-        self._log.info("FAIL: Replication from %s to %s is NOT working (expect %s / got description=%s)" % (from_instance.ldapuri, to_instance.ldapuri, change, desc))
+        self._log.info("FAIL: Replication from %s to %s is NOT working. (too many retries)" % (from_instance.ldapuri, to_instance.ldapuri))
+        # Replication is broken ==> Lets get the replication error logs
+        for inst in (from_instance, to_instance):
+            self._log.info(f"*** {inst.serverid} Error log: ***")
+            lines = DirsrvErrorLog(inst).match('.*NSMMReplicationPlugin.*')
+            # Keep only last lines (enough to be sure to log last replication session)
+            n = 30
+            if len(lines) > n:
+                lines = lines[-n:]
+            for line in lines:
+                self._log.info(line.strip())
         raise Exception("Replication did not sync in time!")
 
 
