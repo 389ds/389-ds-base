@@ -1219,7 +1219,7 @@ def create_parser(subparsers):
     # Replication Configuration
     ############################################
 
-    repl_parser = subparsers.add_parser('replication', help='Manage replication for a suffix')
+    repl_parser = subparsers.add_parser('replication', aliases=['repl'], help='Manage replication for a suffix')
     repl_subcommands = repl_parser.add_subparsers(help='Replication Configuration')
 
     repl_enable_parser = repl_subcommands.add_parser('enable', help='Enable replication for a suffix')
