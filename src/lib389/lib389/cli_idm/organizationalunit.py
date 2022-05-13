@@ -56,7 +56,7 @@ def rename(inst, basedn, log, args, warn=True):
     _generic_rename(inst, basedn, log.getChild('_generic_rename'), MANY, rdn, args)
 
 def create_parser(subparsers):
-    ou_parser = subparsers.add_parser('organizationalunit', help='Manage organizational units')
+    ou_parser = subparsers.add_parser('organizationalunit', aliases=['ou'], help='Manage organizational units')
 
     subcommands = ou_parser.add_subparsers(help='action')
 
