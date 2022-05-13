@@ -488,14 +488,19 @@ def test_fetch_bindDnGroup(topo_m2):
     repl = ReplicationManager(DEFAULT_SUFFIX)
     repl.wait_for_replication(M1, M2, timeout=20)
 
+    save_values = [] # Save original value to restore them at the end of the test
     # Define the group as the replication manager and fetch interval as 60sec
     replicas = Replicas(M1)
     replica = replicas.list()[0]
+    save_values.append((replica, 'nsDS5ReplicaBindDnGroupCheckInterval', replica.get_attr_val_utf8('nsDS5ReplicaBindDnGroupCheckInterval')))
+    save_values.append((replica, 'nsDS5ReplicaBindDnGroup', replica.get_attr_val_utf8('nsDS5ReplicaBindDnGroup')))
     replica.apply_mods([(ldap.MOD_REPLACE, 'nsDS5ReplicaBindDnGroupCheckInterval', '60'),
                         (ldap.MOD_REPLACE, 'nsDS5ReplicaBindDnGroup', group_M1.dn)])
 
     replicas = Replicas(M2)
     replica = replicas.list()[0]
+    save_values.append((replica, 'nsDS5ReplicaBindDnGroupCheckInterval', replica.get_attr_val_utf8('nsDS5ReplicaBindDnGroupCheckInterval')))
+    save_values.append((replica, 'nsDS5ReplicaBindDnGroup', replica.get_attr_val_utf8('nsDS5ReplicaBindDnGroup')))
     replica.apply_mods([(ldap.MOD_REPLACE, 'nsDS5ReplicaBindDnGroupCheckInterval', '60'),
                         (ldap.MOD_REPLACE, 'nsDS5ReplicaBindDnGroup', group_M1.dn)])
 
@@ -507,6 +512,8 @@ def test_fetch_bindDnGroup(topo_m2):
     for inst in (M1, M2):
         agmts = Agreements(inst)
         agmt = agmts.list()[0]
+        save_values.append((agmt, 'nsDS5ReplicaBindDN', agmt.get_attr_val_utf8('nsDS5ReplicaBindDN')))
+        save_values.append((agmt, 'nsds5ReplicaCredentials', agmt.get_attr_val_utf8('nsds5ReplicaCredentials')))
         agmt.replace('nsDS5ReplicaBindDN', create_user.dn.encode())
         agmt.replace('nsds5ReplicaCredentials', PASSWD.encode())
 
@@ -572,6 +579,10 @@ def test_fetch_bindDnGroup(topo_m2):
     assert(count <= 1)
     count = pattern_errorlog(errorlog_M2, regex, start_location=restart_location_M2)
     assert(count <= 1)
+
+    # Restore the agmt values to avoid impacting the other tests.
+    for entry, attr, val in save_values:
+        entry.replace(attr, val)
 
 
 def test_plugin_bind_dn_tracking_and_replication(topo_m2):
