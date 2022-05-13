@@ -16,7 +16,7 @@ def initialise(inst, basedn, log, args):
     s_ent.apply()
 
 def create_parser(subparsers):
-    initialise_parser = subparsers.add_parser('initialise', help="Initialise a backend with domain information and sample entries")
+    initialise_parser = subparsers.add_parser('initialise', aliases=['init'], help="Initialise a backend with domain information and sample entries")
     initialise_parser.set_defaults(func=initialise)
     initialise_parser.add_argument('--version', help="The version of entries to create.", default=INSTALL_LATEST_CONFIG)
 
