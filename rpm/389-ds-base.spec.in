@@ -4,7 +4,7 @@
 %global bundle_jemalloc __BUNDLE_JEMALLOC__
 %if %{bundle_jemalloc}
 %global jemalloc_name jemalloc
-%global jemalloc_ver 5.2.1
+%global jemalloc_ver 5.3.0
 %endif
 
 # This is used in certain builds to help us know if it has extra features.
