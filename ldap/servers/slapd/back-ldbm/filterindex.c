@@ -185,10 +185,10 @@ ava_candidates(
     Operation *pb_op;
     Connection *pb_conn;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "=>\n");
+    slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "=>\n");
 
     if (slapi_filter_get_ava(f, &type, &bval) != 0) {
-        slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "slapi_filter_get_ava failed\n");
+        slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "slapi_filter_get_ava failed\n");
         return (NULL);
     }
 
@@ -197,8 +197,7 @@ ava_candidates(
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
     slapi_attr_init(&sattr, type);
 
-#ifdef LDAP_ERROR_LOGGING
-    if (loglevel_is_set(LDAP_DEBUG_TRACE)) {
+    if (slapi_is_loglevel_set(SLAPI_LOG_FILTER)) {
         char *op = NULL;
         char buf[BUFSIZ];
 
@@ -216,10 +215,8 @@ ava_candidates(
             op = "~=";
             break;
         }
-        slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "   %s%s%s\n", type, op,
-                      encode(bval, buf));
+        slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "   %s%s%s\n", type, op, encode(bval, buf));
     }
-#endif
 
     switch (ftype) {
     case LDAP_FILTER_GE:
@@ -229,14 +226,16 @@ ava_candidates(
              * is on strict, we reject in search.c, if we ar off, the flag will NOT
              * be set on the filter at all!
              */
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "WARNING - filter contains an INVALID attribute!\n");
             slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
         }
         if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "REJECTING invalid filter per policy!\n");
             idl = idl_alloc(0);
         } else {
             idl = range_candidates(pb, be, type, bval, NULL, err, &sattr, allidslimit);
         }
-        slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "<= %lu\n",
+        slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "<= idl len %lu\n",
                       (u_long)IDL_NIDS(idl));
         goto done;
         break;
@@ -247,14 +246,16 @@ ava_candidates(
              * is on strict, we reject in search.c, if we ar off, the flag will NOT
              * be set on the filter at all!
              */
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "WARNING - filter contains an INVALID attribute!\n");
             slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
         }
         if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "REJECTING invalid filter per policy!\n");
             idl = idl_alloc(0);
         } else {
             idl = range_candidates(pb, be, type, NULL, bval, err, &sattr, allidslimit);
         }
-        slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "<= %lu\n",
+        slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "<= idl len %lu\n",
                       (u_long)IDL_NIDS(idl));
         goto done;
         break;
@@ -265,7 +266,7 @@ ava_candidates(
         indextype = (char *)indextype_APPROX;
         break;
     default:
-        slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "<= invalid filter\n");
+        slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "<= invalid filter\n");
         goto done;
         break;
     }
@@ -303,9 +304,11 @@ ava_candidates(
              * is on strict, we reject in search.c, if we ar off, the flag will NOT
              * be set on the filter at all!
              */
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "WARNING - filter contains an INVALID attribute!\n");
             slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
         }
         if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "REJECTING invalid filter per policy!\n");
             idl = idl_alloc(0);
         } else {
             slapi_attr_assertion2keys_ava_sv(&sattr, &tmp, (Slapi_Value ***)&ivals, LDAP_FILTER_EQUALITY_FAST);
@@ -338,9 +341,11 @@ ava_candidates(
              * is on strict, we reject in search.c, if we ar off, the flag will NOT
              * be set on the filter at all!
              */
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "WARNING - filter contains an INVALID attribute!\n");
             slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
         }
         if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
+            slapi_log_err(SLAPI_LOG_FILTER, "ava_candidates", "REJECTING invalid filter per policy!\n");
             idl = idl_alloc(0);
         } else {
             slapi_value_init_berval(&sv, bval);
@@ -894,6 +899,7 @@ list_candidates(
              * and allids - we should not process anymore, and fallback to full
              * table scan at this point.
              */
+                slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "OR shortcut condition - must apply filter test\n");
             sr->sr_flags |= SR_FLAG_MUST_APPLY_FILTER_TEST;
             goto apply_set_op;
         }
@@ -903,6 +909,7 @@ list_candidates(
              * If we encounter a zero length idl, we bail now because this can never
              * result in a meaningful result besides zero.
              */
+            slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "AND shortcut condition - must apply filter test\n");
             sr->sr_flags |= SR_FLAG_MUST_APPLY_FILTER_TEST;
             goto apply_set_op;
         }
@@ -932,8 +939,7 @@ apply_set_op:
         idl = idl_set_intersect(idl_set, be);
     }
 
-    slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "<= %lu\n",
-                  (u_long)IDL_NIDS(idl));
+    slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "<= idl len %lu\n", (u_long)IDL_NIDS(idl));
 out:
     idl_set_destroy(idl_set);
     if (is_and) {
