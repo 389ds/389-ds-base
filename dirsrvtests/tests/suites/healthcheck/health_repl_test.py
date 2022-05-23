@@ -74,7 +74,7 @@ def set_changelog_trimming(instance):
     inst_changelog = Changelog5(instance)
 
     log.info('Set nsslapd-changelogmaxage to 30d')
-    inst_changelog.set_max_age('30d')
+    inst_changelog.add('nsslapd-changelogmaxage', '30')
 
 
 @pytest.mark.ds50873
