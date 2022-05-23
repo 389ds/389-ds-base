@@ -881,9 +881,9 @@ AC_ARG_WITH(libldap-r, AS_HELP_STRING([--with-libldap-r],[Use lldap_r shared lib
     AC_SUBST(with_libldap_r)
   fi
 ],
-OPENLDAP_VERSION=`ldapsearch -VV 2> >(sed -n '/ldapsearch/ s/.*ldapsearch \([0-9]\+\.[0-9]\+\.[0-9]\+\) .*/\1/p')`
-AC_MSG_RESULT([$OPENLDAP_VERSION])
-AX_COMPARE_VERSION([$OPENLDAP_VERSION], [lt], [2.5], [ with_libldap_r=no ], [ with_libldap_r=yes ]))
+OPENLDAP_VERSION=`ldapsearch -VV 2> >(sed -n '/ldapsearch/ s/.*ldapsearch \([[[0-9]]]\+\.[[[0-9]]]\+\.[[[0-9]]]\+\) .*/\1/p')`
+AX_COMPARE_VERSION([$OPENLDAP_VERSION], [lt], [2.5], [ with_libldap_r=yes ], [ with_libldap_r=no ])
+AC_MSG_RESULT($with_libldap_r))
 
 AM_CONDITIONAL([WITH_LIBLDAP_R],[test "$with_libldap_r" = yes])
 
