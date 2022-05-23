@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "389-ds-base-*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/389ds/ci-images:test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Create tarball
+        run: TAG=${{ github.ref_name}} make -f rpm.mk dist-bz2
+
+      - name: Upload tarball
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ github.ref_name}}.tar.bz2
+          path: ${{ github.ref_name}}.tar.bz2
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            ${{ github.ref_name}}.tar.bz2
