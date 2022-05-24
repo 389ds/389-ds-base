@@ -26,14 +26,17 @@ jobs:
         matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+
+      - name: Add GITHUB_WORKSPACE as a safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Get a list of all test suites
         id: set-matrix
         run: echo "::set-output name=matrix::$(python3 .github/scripts/generate_matrix.py ${{ github.event.inputs.pytest_tests }})"
 
       - name: Build RPMs
-        run: cd $GITHUB_WORKSPACE && SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
+        run: SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
 
       - name: Tar build artifacts
         run: tar -cvf dist.tar dist/
@@ -54,7 +57,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3

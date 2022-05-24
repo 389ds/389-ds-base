@@ -53,9 +53,9 @@ jobs:
       image: ${{ matrix.image }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Checkout and configure
-        run: cd $GITHUB_WORKSPACE && autoreconf -fvi && ./configure
+        run: autoreconf -fvi && ./configure
         env:
           CC: ${{ matrix.compiler }}
           CXX: ${{ matrix.cpp-compiler }}
