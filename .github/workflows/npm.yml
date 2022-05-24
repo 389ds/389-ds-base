@@ -14,7 +14,7 @@ jobs:
       image: quay.io/389ds/ci-images:test
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run NPM Audit CI
         run: cd $GITHUB_WORKSPACE/src/cockpit/389-console && npx audit-ci --config audit-ci.json
