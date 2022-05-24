@@ -958,10 +958,6 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.conntablesize,
      CONFIG_INT, NULL, NULL, NULL /* deletion is not allowed */},
-    {CONFIG_NUMLISTENERS_ATTRIBUTE, config_set_num_listeners,
-     NULL, 0,
-     (void **)&global_slapdFrontendConfig.num_listeners,
-     CONFIG_INT, NULL, SLAPD_DEFAULT_NUM_LISTENERS_STR, NULL /* deletion is not allowed */},
     {CONFIG_SSLCLIENTAUTH_ATTRIBUTE, config_set_SSLclientAuth,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.SSLclientAuth,
@@ -1697,7 +1693,6 @@ FrontendConfig_init(void)
     cfg->conntablesize = getdtablesize();
 #endif /* USE_SYSCONF */
 
-    cfg->num_listeners = SLAPD_DEFAULT_NUM_LISTENERS;
     init_accesscontrol = cfg->accesscontrol = LDAP_ON;
 
     /* nagle triggers set/unset TCP_CORK setsockopt per operation
@@ -4882,40 +4877,6 @@ config_set_conntablesize(const char *attrname, char *value, char *errorbuf, int 
 }
 
 int
-config_set_num_listeners(const char *attrname, char *value, char *errorbuf, int apply)
-{
-    int retVal = LDAP_SUCCESS;
-    long nValue = 0;
-    int minVal = SLAPD_MIN_NUM_LISTENERS;
-    int maxVal = SLAPD_MAX_NUM_LISTENERS;
-    int defVal = SLAPD_DEFAULT_NUM_LISTENERS;
-    char *endp = NULL;
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-
-    if (config_value_is_null(attrname, value, errorbuf, 0)) {
-        return LDAP_OPERATIONS_ERROR;
-    }
-
-    errno = 0;
-    nValue = strtol(value, &endp, 0);
-    if (*endp != '\0' || errno == ERANGE || nValue < minVal || nValue > maxVal) {
-        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                              "%s: invalid value \"%s\", number of listeners must range from %d to %d. "
-                              "Server will use a setting of %d.",
-                              attrname, value, minVal, maxVal, defVal);
-        nValue = defVal;
-        retVal = LDAP_OPERATIONS_ERROR;
-    }
-
-    if (apply) {
-        CFG_LOCK_WRITE(slapdFrontendConfig);
-        slapdFrontendConfig->num_listeners = nValue;
-        CFG_UNLOCK_WRITE(slapdFrontendConfig);
-    }
-    return retVal;
-}
-
-int
 config_set_reservedescriptors(const char *attrname, char *value, char *errorbuf, int apply)
 {
     int retVal = LDAP_SUCCESS;
@@ -6642,19 +6603,6 @@ config_get_conntablesize(void)
 
     CFG_LOCK_READ(slapdFrontendConfig);
     retVal = slapdFrontendConfig->conntablesize;
-    CFG_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
-}
-
-int
-config_get_num_listeners(void)
-{
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal;
-
-    CFG_LOCK_READ(slapdFrontendConfig);
-    retVal = slapdFrontendConfig->num_listeners;
     CFG_UNLOCK_READ(slapdFrontendConfig);
 
     return retVal;

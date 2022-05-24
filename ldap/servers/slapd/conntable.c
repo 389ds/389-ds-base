@@ -130,9 +130,7 @@ connection_table_new(int table_size)
     ber_len_t maxbersize = config_get_maxbersize();
     ct = (Connection_Table *)slapi_ch_calloc(1, sizeof(Connection_Table));
     ct->size = table_size;
-    ct->list_num = config_get_num_listeners();
-
-    slapi_log_err(SLAPI_LOG_INFO, "connection_table_new", "number of lists: %d\n", ct->list_num);
+    ct->list_num = SLAPD_DEFAULT_NUM_LISTENERS;
 
     ct->list_size = table_size/ct->list_num + 1; /* +1 to avoid rounding issue */
     ct->num_active = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));

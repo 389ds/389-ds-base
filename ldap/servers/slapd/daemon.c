@@ -77,7 +77,7 @@ short slapd_housekeeping_timer = 10;
 
 #define FDS_SIGNAL_PIPE 0
 
-static signal_pipe signalpipes[SLAPD_MAX_NUM_LISTENERS]; /* One signal pipe per connection table list */
+static signal_pipe signalpipes[SLAPD_DEFAULT_NUM_LISTENERS]; /* One signal pipe per CT list */
 static PRInt32 ct_shutdown = 0;
 static PRThread *disk_thread_p = NULL;
 static PRThread *accept_thread_p = NULL;
