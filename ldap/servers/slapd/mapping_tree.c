@@ -880,6 +880,25 @@ mt_suffix_ord_cmp(const void *p1, const void *p2)
     }
 }
 
+/*
+ * Handles compatibility option to revert github issue 4373 change
+ * https://github.com/389ds/389-ds-base/issues/4373
+ * and be able to disconnect a sub-suffix from its parent
+ * by adding orphan: true in the mapping tree entry
+ */
+static int
+is_orphan(const Slapi_Entry *entry)
+{
+    Slapi_Value *v = NULL;
+    Slapi_Attr *a = NULL;
+    struct berval bv;
+    bv.bv_val = "true";
+    bv.bv_len = 4;
+    slapi_entry_attr_find(entry, "orphan",  &a);
+    return (a && VALUE_PRESENT == attr_value_find_wsi(a, &bv, &v));
+}
+
+
 static int
 mapping_tree_node_build_tree(void)
 {
@@ -944,7 +963,7 @@ mapping_tree_node_build_tree(void)
         mapping_tree_node *child = NULL;
         /* Locate the parent of this suffix. */
         mapping_tree_node *parent = slapi_get_mapping_tree_node_by_dn(m1->mtn_subtree);
-        if (parent == NULL) {
+        if (parent == NULL || is_orphan(entries[m1->index])) {
             parent = mapping_tree_root;
         }
         /* Create the MT node for it */
