@@ -56,7 +56,8 @@ def run_ldapmodify_from_file(instance, ldif_file, output_to_check=None):
     LDAP_MOD = '/usr/bin/ldapmodify'
     log.info('Add entries from ldif file with ldapmodify')
     result = subprocess.check_output([LDAP_MOD, '-cx', '-D', DN_DM, '-w', PASSWORD,
-                                      '-h', instance.host, '-p', str(instance.port), '-af', ldif_file])
+        '-H', f'ldap://{instance.host}:{instance.port}', '-af', ldif_file])
+
     if output_to_check is not None:
         assert output_to_check in ensure_str(result)
 
