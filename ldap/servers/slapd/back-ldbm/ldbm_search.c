@@ -1677,7 +1677,6 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
                 /* ugaston - we don't want to mistake this filter failure with the one below due to ACL,
                  * because whereas the former should be read as 'no entry must be returned', the latter
                  * might still lead to return an empty entry. */
-
                 if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_LDAPSUBENTRY)) {
                     /* If the entry is an LDAP subentry and RFC 3672 Subentries control is present
                      * and its value is set to false OR filter don't filter subentries
@@ -1712,55 +1711,51 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
                     }
                 }
 
-                /* If any of the ... "logic" above failed, leave the failure in place. */
-                if (filter_test == 0) {
-                    filter_test = -1;
-                    if (0 == (sr->sr_flags & SR_FLAG_MUST_APPLY_FILTER_TEST)) {
-                        /* BYPASS - it's a regular entry, check if it passes the ACL check */
-                        /*
-                         * Since we do access control checking in the filter test we need to check access now
-                         * This checks access to the filter as INTENDED by the user - not the query that
-                         * we have messed with internally - remember, our internal changes are secure!
-                         */
-                        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
-                                      "Bypassing filter test\n");
-                        if (ACL_CHECK_FLAG) {
-                            filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
-                        } else {
-                            filter_test = 0;
-                        }
-
-                        /* If we don't check this, we could stomp the filter_test aci denied result. */
-                        if (filter_test == 0 && li->li_filter_bypass_check) {
-                            slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry", "Checking bypass\n");
-                            filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, 0);
-                            if (filter_test != 0) {
-                                /* Oops ! This means that we thought we could bypass the filter test, but noooo... */
-                                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry",
-                                              "Filter bypass ERROR on entry %s\n", backentry_get_ndn(e));
-                            }
-                        }
-                    } else {
-                        /* MUST APPLY - This occurs when we have a partial candidate set */
-                        /*
-                         * Remember, MUST_APPLY is set during a shortcut condition from the IDL backend,
-                         * which means we can NOT ignore it! When it's 0, we assume that IDL fully resolved
-                         * which means we then check the ACL only, we have a decision about if we do the
-                         * test based on the configuration.
-                         */
-                        /*
-                         * IMPORTANT - there is a large and important difference between "filter as intended"
-                         * and filter as executed. The filter as executed is what we optimised to, and this
-                         * can importantly include items like parentid in a one level search. The filter as
-                         * intended however is what the user ASKED for. We shouldn't penalise the user because
-                         * we mucked with their filter, so we check the ACI with the "filter as intended", but
-                         * we need to STILL apply the filter test with "as executed" in case of a test threshold
-                         * shortcut (lest we accidentally prevent the user seeing what they wanted ....)
-                         */
+                /* it's a regular entry, check if it matches the filter, and passes the ACL check */
+                /*
+                 * Remember, MUST_APPLY is set during a shortcut condition from the IDL backend,
+                 * which means we can NOT ignore it! When it's 0, we assume that IDL fully resolved
+                 * which means we then check the ACL only, we have a decision about if we do the
+                 * test based on the configuration.
+                 */
+                if (0 == (sr->sr_flags & SR_FLAG_MUST_APPLY_FILTER_TEST)) {
+                    /*
+                     * Since we do access control checking in the filter test we need to check access now
+                     * This checks access to the filter as INTENDED by the user - not the query that
+                     * we have messed with internally - remember, our internal changes are safe!
+                     */
+                    slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
+                                  "Bypassing filter test\n");
+                    if (ACL_CHECK_FLAG) {
                         filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
-                        if (filter_test == 0) {
-                            filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, 0);
+                    } else {
+                        filter_test = 0;
+                    }
+
+                    /* If we don't check this, we could stomp the filter_test aci denied result. */
+                    if (filter_test == 0 && li->li_filter_bypass_check) {
+                        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry", "Checking bypass\n");
+                        filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, 0);
+                        if (filter_test != 0) {
+                            /* Oops ! This means that we thought we could bypass the filter test, but noooo... */
+                            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry",
+                                          "Filter bypass ERROR on entry %s\n", backentry_get_ndn(e));
                         }
+                    }
+                } else {
+                    /* MUST APPLY - This occurs when we have a partial candidate set */
+                    /*
+                     * IMPORTANT - there is a large and important difference between "filter as intended"
+                     * and filter as executed. The filter as executed is what we optimised to, and this
+                     * can importantly include items like parentid in a one level search. The filter as
+                     * intended however is what the user ASKED for. We shouldn't penalise the user because
+                     * we mucked with their filter, so we check the ACI with the "filter as intended", but
+                     * we need to STILL apply the filter test with "as executed" in case of a test threshold
+                     * shortcut (lest we accidentally prevent the user seeing what they wanted ....)
+                     */
+                    filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
+                    if (filter_test == 0) {
+                        filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, 0);
                     }
                 }
             }
