@@ -1013,8 +1013,6 @@ vattr_test_filter_list_or(
                 continue;
             }
         }
-        if (only_check_access)
-            continue;
         /* now check if filter matches */
         undefined = 0;
         rc = slapi_vattr_filter_test_ext_internal(pb, e, f, 0, 0, access_check_done);
