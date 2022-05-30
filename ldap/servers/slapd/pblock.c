@@ -1724,15 +1724,6 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
             (*(struct slapi_filter **)value) = pblock->pb_op->o_params.p.p_search.search_filter;
         }
         break;
-    case SLAPI_SEARCH_FILTER_INTENDED:
-        if (pblock->pb_op != NULL) {
-            if (pblock->pb_op->o_params.p.p_search.search_filter_intended) {
-                (*(struct slapi_filter **)value) = pblock->pb_op->o_params.p.p_search.search_filter_intended;
-            } else {
-                (*(struct slapi_filter **)value) = pblock->pb_op->o_params.p.p_search.search_filter;
-            }
-        }
-        break;
     case SLAPI_SEARCH_STRFILTER:
         if (pblock->pb_op != NULL) {
             (*(char **)value) = pblock->pb_op->o_params.p.p_search.search_strfilter;
@@ -3619,13 +3610,6 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
     case SLAPI_SEARCH_FILTER:
         if (pblock->pb_op != NULL) {
             pblock->pb_op->o_params.p.p_search.search_filter = (struct slapi_filter *)value;
-            /* Prevent UAF by reseting this on set. */
-            pblock->pb_op->o_params.p.p_search.search_filter_intended = NULL;
-        }
-        break;
-    case SLAPI_SEARCH_FILTER_INTENDED:
-        if (pblock->pb_op != NULL) {
-            pblock->pb_op->o_params.p.p_search.search_filter_intended = (struct slapi_filter *)value;
         }
         break;
     case SLAPI_SEARCH_STRFILTER:

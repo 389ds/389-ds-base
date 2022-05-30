@@ -521,9 +521,9 @@ int indexfile_primary_modifyall(backend *be, LDAPMod **mods_to_perform, char **i
 /*
  * ldbm_search.c
  */
-Slapi_Filter *create_onelevel_filter(Slapi_Filter *filter, const struct backentry *e, int managedsait);
-Slapi_Filter *create_subtree_filter(Slapi_Filter *filter, int managedsait);
-IDList *subtree_candidates(Slapi_PBlock *pb, backend *be, const char *base, const struct backentry *e, Slapi_Filter *filter, int *allids_before_scopingp, int *err);
+Slapi_Filter *create_onelevel_filter(Slapi_Filter *filter, const struct backentry *e, int managedsait, Slapi_Filter **fid2kids, Slapi_Filter **focref, Slapi_Filter **fand, Slapi_Filter **forr);
+Slapi_Filter *create_subtree_filter(Slapi_Filter *filter, int managedsait, Slapi_Filter **focref, Slapi_Filter **forr);
+IDList *subtree_candidates(Slapi_PBlock *pb, backend *be, const char *base, const struct backentry *e, Slapi_Filter *filter, int managedsait, int *allids_before_scopingp, int *err);
 void search_set_tune(struct ldbminfo *li, int val);
 int search_get_tune(struct ldbminfo *li);
 int compute_lookthrough_limit(Slapi_PBlock *pb, struct ldbminfo *li);

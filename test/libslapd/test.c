@@ -30,7 +30,6 @@ run_libslapd_tests(void)
         cmocka_unit_test(test_libslapd_operation_v3c_target_spec),
         cmocka_unit_test(test_libslapd_counters_atomic_usage),
         cmocka_unit_test(test_libslapd_counters_atomic_overflow),
-        cmocka_unit_test(test_libslapd_filter_optimise),
         cmocka_unit_test(test_libslapd_pal_meminfo),
         cmocka_unit_test(test_libslapd_util_cachesane),
     };

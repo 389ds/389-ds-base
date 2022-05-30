@@ -803,7 +803,7 @@ typedef struct _back_search_result_set
     int sr_current_sizelimit;     /* Current sizelimit */
     Slapi_Filter *sr_norm_filter; /* search filter pre-normalized */
 } back_search_result_set;
-#define SR_FLAG_MUST_APPLY_FILTER_TEST 1 /* If set in sr_flags, means that we MUST apply the filter test */
+#define SR_FLAG_CAN_SKIP_FILTER_TEST 1 /* If set in sr_flags, means that we can safely skip the filter test */
 
 #include "proto-back-ldbm.h"
 #include "ldbm_config.h"
