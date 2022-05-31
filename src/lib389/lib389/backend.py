@@ -16,7 +16,7 @@ from lib389 import Entry
 
 # Need to fix this ....
 
-from lib389._mapped_object import DSLdapObjects, DSLdapObject
+from lib389._mapped_object import DSLdapObjects, DSLdapObject, CompositeDSLdapObject
 from lib389.mappingTree import MappingTrees
 from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
 from lib389.replica import Replicas, Changelog
@@ -1134,3 +1134,27 @@ class DatabaseConfig(DSLdapObject):
             else:
                 # Unknown attribute
                 raise ValueError("Can not update database configuration with unknown attribute: " + attr)
+
+
+class BackendSuffixView(CompositeDSLdapObject):
+    """ Composite view between backend and mapping tree entries
+        used by: dsconf instance backend suffix ...
+    """
+
+    def __init__(self, instance, be):
+        super(BackendSuffixView, self).__init__(instance, be.dn)
+        be_args = [
+            'nsslapd-cachememsize',
+            'nsslapd-cachesize',
+            'nsslapd-dncachememsize',
+            'nsslapd-readonly',
+            'nsslapd-referral',
+            'nsslapd-require-index',
+        ]
+        mt_args = [
+            'orphan',
+            'nsslapd-state',
+        ]
+        mt = be._mts.get(be.get_suffix())
+        self.add_component(be, be_args)
+        self.add_component(mt, mt_args)
