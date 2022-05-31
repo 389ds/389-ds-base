@@ -1276,3 +1276,204 @@ class DSLdapObjects(DSLogging, DSLints):
                 raise ldap.NO_SUCH_OBJECT
             insts = []
         return insts
+
+class CompositeDSLdapObject(DSLdapObject):
+    """A virtual view as a single object that merges two entry attributes.
+       This class is not supposed to be called directly but through subclasses.
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Global dn
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
+        super(CompositeDSLdapObject, self).__init__(instance, dn)
+        self._entries =[]
+        self._map = {}
+        self.log = None
+
+    def add_component(self, entry, attrs):
+        """Add a new entry as element of the composite entry.
+           An attribute may belong to different entries,
+           if that is the case:
+                the attribute is written in all entries
+                the attribute is read from last entry containing it.
+
+        :param entry: An entry object
+        :type entry: DSLdapObject
+        :param attrs: Attributes from the entry that are in the composite entry.
+        :type attrs: (str,...)
+        """
+
+        idx = len(self._entries)
+        self._entries.append(entry)
+        for attr in attrs:
+            nattr = attr.lower()
+            if nattr in self._map:
+                self._map[nattr].append(idx)
+            else:
+                self._map[nattr] = [idx,]
+
+    def _find_idx(self, attr, must_have=True):
+        """Find the entry index."""
+        nattr = ensure_str(attr).lower()
+        try:
+            return self._map[nattr]
+        except KeyError:
+            if must_have:
+                raise ValueError(f'No mapping for attribute {attr} in composite object')
+            return []
+
+    def _unsafe_raw_entry(self):
+        raise NotImplementedError("Composite objects have no raw view.")
+
+    def exists(self):
+        for entry in self._entries:
+            if not entry.exists():
+                return False
+        return True
+
+    def search(self, scope="subtree", filter='objectclass=*'):
+        raise NotImplementedError("Cannot use this method on composite objects.")
+
+    def get_basedn(self):
+        raise NotImplementedError("Cannot use this method on composite objects.")
+
+    def present(self, attr, value=None):
+        for entry in self._entries:
+            if not entry.present():
+                return False
+        return True
+
+    def _spread_set(self, dataset, set2attr_fn):
+        """Separate a set of data to a set per entry."""
+        res = []
+        for entry in self._entries:
+            res.append([])
+        for data in dataset:
+            attr = set2attr_fn(data)
+            for idx in self._find_idx(attr):
+                res[idx].append(data)
+        return res
+
+    def _spread_dict(self, datadict):
+        """Separate a dict of data where key is the attribure to a dict per entry."""
+        res = {}
+        for entry in self._entries:
+            res.append({})
+        for attr in datadict.keys():
+            for idx in self._find_idx(attr):
+                res[idx][attr] = datadict[attr]
+        return res
+
+    def replace_many(self, *args):
+        dataset = self._spread_set(*args, lambda x: x[0])
+        for idx in range(0, self._entries):
+            if len(dataset[idx]) > 0:
+                self._entries[idx].replace_many(*dataset[idx])
+
+    def ensure_attr_state(self, state):
+        # Hard to implement because some requires attributes may be common to several entries
+        raise NotImplementedError("Cannot use this method on composite objects.")
+
+    def set(self, key, value, action=ldap.MOD_REPLACE):
+        v = { ldap.MOD_REPLACE : "REPLACE",
+              ldap.MOD_ADD : "ADD",
+              ldap.MOD_DELETE: "DEL" }
+        for idx in self._find_idx(key):
+            self._entries[idx].set(key, value, action)
+
+    def apply_mods(self, mods):
+        dataset = self._spread_set(*args, lambda x: x[1])
+        for idx in range(0, self._entries):
+            if len(dataset[idx]) > 0:
+                self._entries[idx].apply_mods(*dataset[idx])
+
+    def get_all_attrs(self, use_json=False):
+        res = {}
+        idx = 0
+        for entry in self._entries:
+            attrs = entry.get_all_attrs(use_json)
+            for attr in attrs.keys():
+                if idx in self._find_idx(attr, False):
+                    res[attr] = attrs[attr]
+            idx += 1
+        return res
+
+    def get_all_attrs_utf8(self, use_json=False):
+        res = {}
+        idx = 0
+        for entry in self._entries:
+            attrs = entry.get_all_attrs_utf8(use_json)
+            for attr in attrs.keys():
+                if idx in self._find_idx(attr, False):
+                    res[attr] = attrs[attr]
+            idx += 1
+        return res
+
+    def get_attrs_vals(self, keys, use_json=False):
+        res = {}
+        dataset = self._spread_set(*args, lambda x: x)
+        for idx in range(0, self._entries):
+            if len(dataset[idx]) > 0:
+                res.update(self._entries[idx].apply_mods(*dataset[idx], use_json))
+
+    def get_attrs_vals_utf8(self, keys, use_json=False):
+        res = {}
+        dataset = self._spread_set(*args, lambda x: x)
+        for idx in range(0, self._entries):
+            if len(dataset[idx]) > 0:
+                res.update(self._entries[idx].apply_mods(*dataset[idx], use_json))
+
+    def get_attr_vals(self, key, use_json=False):
+        idx = self._find_idx(key)[-1]
+        return self._entries[idx].get_attr_vals(key, use_json)
+
+    def get_attr_val(self, key, use_json=False):
+        idx = self._find_idx(key)[-1]
+        return self._entries[idx].get_attr_vals(key, use_json)
+
+    def add_values(self, values):
+        raise DeprecationWarning("Not implemented any more.")
+
+    def replace_values(self, values):
+        raise DeprecationWarning("Not implemented any more.")
+
+    def set_values(self, values, action=ldap.MOD_REPLACE):
+        raise DeprecationWarning("Not implemented any more.")
+
+    def rename(self, new_rdn, newsuperior=None, deloldrdn=True):
+        raise NotImplementedError("Cannot use this method on composite objects.")
+
+    def delete(self, recursive=False):
+        raise NotImplementedError("Cannot use this method on composite objects.")
+
+    def _validate(self, rdn, properties, basedn):
+        raise NotImplementedError("Cannot use this method on composite objects.")
+
+    def _create(self, rdn=None, properties=None, basedn=None, ensure=False):
+        raise NotImplementedError("Cannot use this method on composite objects.")
+
+    def create(self, rdn=None, properties=None, basedn=None):
+        raise NotImplementedError("Cannot use this method on composite objects.")
+
+    def ensure_state(self, rdn=None, properties=None, basedn=None):
+        raise NotImplementedError("Cannot use this method on composite objects.")
+
+    def display(self, attrlist=['*']):
+        """Get an entry but represent it as a string LDIF
+        :returns: LDIF formatted string
+        """
+        eattrs = {}
+        idx = 0
+        for entry in self._entries:
+            e = _search_ext_s(entry._instance,entry._dn, ldap.SCOPE_BASE, entry._object_filter, attrlist=attrlist,
+                                        serverctrls=entry._server_controls, clientctrls=entry._client_controls,
+                                        escapehatch='i am sure')[0]
+            for attr, vals in e.iterAttrs():
+                if idx in self._find_idx(attr, False):
+                    eattrs[attr] = vals
+            idx += 1
+        e = Entry((self.dn, eattrs))
+        return e.__repr__()
