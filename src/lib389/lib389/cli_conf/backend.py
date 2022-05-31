@@ -7,7 +7,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389.backend import Backend, Backends, DatabaseConfig
+from lib389.backend import Backend, Backends, DatabaseConfig, BackendSuffixView
 from lib389.configurations.sample import (
     create_base_domain,
     create_base_org,
@@ -164,16 +164,14 @@ def backend_list(inst, basedn, log, args):
 def backend_get(inst, basedn, log, args):
     rdn = _get_arg(args.selector, msg="Enter %s to retrieve" % RDN)
     be = _get_backend(inst, rdn)
-    be_state = be.get_state()
+    bev = BackendSuffixView(inst, be)
     if args.json:
-        entry = be.get_all_attrs_json()
+        entry = bev.get_all_attrs_json()
         entry_dict = json.loads(entry)
-        entry_dict['attrs']['nsslapd-state'] = [be_state]
         log.info(json.dumps(entry_dict, indent=4))
     else:
-        entry = be.display()
+        entry = bev.display()
         updated_entry = entry[:-1]  # remove \n
-        updated_entry += "nsslapd-state: " + be_state
         log.info(updated_entry)
 
 
@@ -474,35 +472,47 @@ def backend_set(inst, basedn, log, args):
     if args.enable and args.disable:
         raise ValueError("You can not enable and disable a backend at the same time")
     if args.enable_readonly and args.disable_readonly:
-        raise ValueError("You can not set the backend to be both enabled and disabled at the same time")
+        raise ValueError("You can not set the backend readonly mode to be both enabled and disabled at the same time")
+    if args.enable_orphan and args.disable_orphan:
+        raise ValueError("You can not set the backend orphan mode to be both enabled and disabled at the same time")
 
     # Update backend
+    need_restart = False
     be = _get_backend(inst, args.be_name)
+    bev = BackendSuffixView(inst, be)
     if args.enable_readonly:
-        be.set('nsslapd-readonly', 'on')
+        bev.set('nsslapd-readonly', 'on')
     if args.disable_readonly:
-        be.set('nsslapd-readonly', 'off')
+        bev.set('nsslapd-readonly', 'off')
+    if args.enable_orphan:
+        bev.set('orphan', 'true')
+        need_restart = True
+    if args.disable_orphan:
+        bev.set('orphan', 'false')
+        need_restart = True
     if args.add_referral:
-        be.add('nsslapd-referral', args.add_referral)
+        bev.add('nsslapd-referral', args.add_referral)
     if args.del_referral:
-        be.remove('nsslapd-referral', args.del_referral)
+        bev.remove('nsslapd-referral', args.del_referral)
     if args.cache_size:
-        be.set('nsslapd-cachesize', args.cache_size)
+        bev.set('nsslapd-cachesize', args.cache_size)
     if args.cache_memsize:
-        be.set('nsslapd-cachememsize', args.cache_memsize)
+        bev.set('nsslapd-cachememsize', args.cache_memsize)
     if args.dncache_memsize:
-        be.set('nsslapd-dncachememsize', args.dncache_memsize)
+        bev.set('nsslapd-dncachememsize', args.dncache_memsize)
     if args.require_index:
-        be.set('nsslapd-require-index', 'on')
+        bev.set('nsslapd-require-index', 'on')
     if args.ignore_index:
-        be.set('nsslapd-require-index', 'off')
+        bev.set('nsslapd-require-index', 'off')
     if args.state:
-        be.set_state(args.state)
+        bev.set_state(args.state)
     if args.enable:
         be.enable()
     if args.disable:
         be.disable()
     log.info("The backend configuration was successfully updated")
+    if need_restart:
+        log.warn("Warning! The server instance must be restarted to take in account that configuration change.")
 
 
 def db_config_get(inst, basedn, log, args):
@@ -856,6 +866,8 @@ def create_parser(subparsers):
     set_backend_parser.set_defaults(func=backend_set)
     set_backend_parser.add_argument('--enable-readonly', action='store_true', help='Enables read-only mode for the backend database')
     set_backend_parser.add_argument('--disable-readonly', action='store_true', help='Disables read-only mode for the backend database')
+    set_backend_parser.add_argument('--enable-orphan', action='store_true', help='Disconnect a subsuffix from its parent suffix.')
+    set_backend_parser.add_argument('--disable-orphan', action='store_true', help='Let the subsuffix be connected to its parent suffix.')
     set_backend_parser.add_argument('--require-index', action='store_true', help='Allows only indexed searches')
     set_backend_parser.add_argument('--ignore-index', action='store_true', help='Allows all searches even if they are unindexed')
     set_backend_parser.add_argument('--add-referral', help='Adds an LDAP referral to the backend')
