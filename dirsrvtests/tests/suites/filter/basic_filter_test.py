@@ -38,7 +38,7 @@ def test_search_attr(topo):
     user = Accounts(topo.standalone, DEFAULT_SUFFIX)
 
     assert len(user.filter('(mail=*)')) == 4
-    assert len(user.filter('(uid=*)')) == 4
+    assert len(user.filter('(uid=*)')) == 5
 
     # Testing filter is working for other filters
     assert len(user.filter("(objectclass=inetOrgPerson)")) == 4

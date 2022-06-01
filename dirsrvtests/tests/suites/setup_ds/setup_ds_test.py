@@ -27,6 +27,7 @@ def create_instance(config_attr):
     # Args for the instance
     args_instance[SER_HOST] = instance_data[SER_HOST]
     args_instance[SER_PORT] = instance_data[SER_PORT]
+    args_instance[SER_SECURE_PORT] = instance_data[SER_SECURE_PORT]
     args_instance[SER_SERVERID_PROP] = instance_data[SER_SERVERID_PROP]
     args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
     args_instance[SER_INST_SCRIPTS_ENABLED] = config_attr
@@ -38,8 +39,10 @@ def create_instance(config_attr):
     standalone.open()
     return standalone
 
-
-@pytest.mark.parametrize("config_attr", ('true', 'false'))
+# During UI & CLI rebase in 1.4.3 (8abefc754351dac6163c669d3087b8721e6e796c)
+# the use of setup-ds.pl was dropped
+# only support 'false'
+@pytest.mark.parametrize("config_attr", ('false'))
 def test_slapd_InstScriptsEnabled(config_attr):
     """Tests InstScriptsEnabled attribute with "True" and "False" options
 
