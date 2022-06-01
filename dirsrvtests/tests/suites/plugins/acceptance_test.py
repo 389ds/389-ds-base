@@ -162,6 +162,7 @@ def test_acctpolicy(topo, args=None):
     directoryOperation X-ORIGIN 'dirsrvtests' )"
     Schema(inst).add('attributetypes', test_attribute)
     ap_config.replace('stateattrname', 'testLastLoginTime')
+    time.sleep(1)
 
     ############################################################################
     # Test plugin
