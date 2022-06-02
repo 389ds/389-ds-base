@@ -107,7 +107,8 @@ class olDatabase(object):
         assert len(entries) == 1
         self.config = entries.pop()
         self.log.debug(f"{self.config}")
-        monitoring_database = ((self.config[1]['olcDatabase'][0]).decode().split('}', 1)[1].lower()) == "monitor"
+
+        monitoring_database = "monitor" in (self.config[1]['olcDatabase'][0]).decode().lower()
 
         # olcSuffix, olcDbIndex, entryUUID
         if not monitoring_database:
