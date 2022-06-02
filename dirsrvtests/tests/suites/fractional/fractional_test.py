@@ -102,7 +102,7 @@ def test_fractional_agreements(_create_entries):
         3. The attributes should be present on the two suppliers with traditional replication
            agreements
         4. Should be missing on both consumers with fractional agreements.
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -131,7 +131,7 @@ def test_read_only_consumer(_create_entries):
         1. Add test entry
         2. First attempt to modify an attribute that should be visible (mail)
         3. Then attempt to modify one that should not be visible (roomnumber)
-    :expected results:
+    :expectedresults:
         1. Success
         2. Fail(ldap.INSUFFICIENT_ACCESS)
         3. Fail(ldap.INSUFFICIENT_ACCESS)
@@ -160,7 +160,7 @@ def test_read_write_supplier(_create_entries):
         3. Then attempt to modify one that should not be visible (roomnumber)
         4. The change to mail should appear on all servers; the change to
            room number should only appear on the suppliers INST[0] and INST[1].
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -203,7 +203,7 @@ def test_filtered_attributes(_create_entries):
            CONSUMER1 or CONSUMER2.
         3. The entry should be present in all servers.  Filtered attributes should not
            be available from the consumers with fractional replication agreements.
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -244,7 +244,7 @@ def test_fewer_changes_in_single_operation(_create_entries):
         2. Fewer changes (but more than one) in a single operation to fractionally
            replicated attributes than the number of fractionally replicated attributes.
         3. All servers are still alive.
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -303,7 +303,7 @@ def test_newly_added_attribute_nsds5replicatedattributelisttotal(_create_entries
         2. No memberOf plugin enabled on read only replicas
         3. The attributes mentioned in the nsds5replicatedattributelist
            excluded from incremental updates.
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -333,7 +333,7 @@ def test_attribute_nsds5replicatedattributelisttotal(_create_entries, _add_user_
         3. No memberOf plugin enabled in other consumers,ie., the read only replicas
            won't get incremental updates for the attributes mentioned in the list.
         4. Run total update and verify the same attributes added/modified in the read-only replicas.
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -369,7 +369,7 @@ def test_implicit_replication_of_password_policy(_create_entries):
         3. Try binding user with incorrect password (twice)
         4. Make sure user got locked
         5. Run total update and verify the same attributes added/modified in the read-only replicas.
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. FAIL(ldap.INVALID_CREDENTIALS)

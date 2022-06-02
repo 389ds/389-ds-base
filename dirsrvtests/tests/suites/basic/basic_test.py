@@ -718,18 +718,25 @@ def test_basic_search_lookthroughlimit(topology_st, limit, resp, import_example_
     :setup: Standalone instance, add example.ldif to the database, search filter (uid=*).
 
     :steps:
-         1. Import ldif user file.
-         2. Change lookthroughlimit to 200.
-         3. Bind to server as low priv user
-         4. Run search 1 with "high" lookthroughlimit.
-         5. Change lookthroughlimit to 50.
-         6. Run search 2 with "low" lookthroughlimit.
-         8. Delete user from DB.
-         9. Reset lookthroughlimit to original.
+        1. Import ldif user file.
+        2. Change lookthroughlimit to 200.
+        3. Bind to server as low priv user
+        4. Run search 1 with "high" lookthroughlimit.
+        5. Change lookthroughlimit to 50.
+        6. Run search 2 with "low" lookthroughlimit.
+        7. Delete user from DB.
+        8. Reset lookthroughlimit to original.
 
     :expectedresults:
-         1. First search should complete with no error.
-         2. Second search should return ldap.ADMINLIMIT_EXCEEDED error.
+        1. Success
+        2. Success
+        3. Success
+        4. Success, first search should complete with no error.
+        5. Success
+        6. Success, second search should return ldap.ADMINLIMIT_EXCEEDED error.
+        7. Success
+        8. Success
+
     """
 
     log.info('Running test_basic_search_lookthroughlimit...')
@@ -1268,8 +1275,8 @@ def test_bind_entry_missing_passwd(topology_st):
     :steps:
         1. Bind as database entry that does not have userpassword set
         2. Bind as database entry that does not exist
-        1. Bind as cn=config entry that does not have userpassword set
-        2. Bind as cn=config entry that does not exist
+        3. Bind as cn=config entry that does not have userpassword set
+        4. Bind as cn=config entry that does not exist
     :expectedresults:
         1. Fails with error 49
         2. Fails with error 49

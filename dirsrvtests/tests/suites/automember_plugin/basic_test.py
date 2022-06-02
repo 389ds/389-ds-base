@@ -314,7 +314,7 @@ def test_disable_the_plug_in(topo, _create_all_entries):
     :steps:
         1. Disable the plug-in and check the status
         2. Enable the plug-in and check the status
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """
@@ -333,7 +333,7 @@ def test_custom_config_area(topo, _create_all_entries):
     :steps:
         1. Check whether the plugin can be configured for custom config area
         2. After adding custom config area can be removed
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """
@@ -359,7 +359,7 @@ def test_ability_to_control_behavior_of_modifiers_name(topo, _create_all_entries
         6. Check the internalModifiersname in the user entry
         7. Unset nsslapd-plugin-binddn-tracking attribute under
            cn=config and delete the test enteries
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -400,7 +400,7 @@ def test_posixaccount_objectclass_automemberdefaultgroup(topo, _create_all_entri
     :steps:
         1. Add users with PosixAccount ObjectClass
         2. Verify the same user added as a member to autoMemberDefaultGroup
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """
@@ -425,7 +425,7 @@ def test_duplicated_member_attributes_added_when_the_entry_is_re_created(topo, _
         4. It should not present as member in all automember groups
         5. Recreate same user
         6. It should present as member in all automember groups
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -455,7 +455,7 @@ def test_multi_valued_automemberdefaultgroup_for_hostgroups(topo, _create_all_en
         2. Check user is present in all Automember Groups as member
         3. Delete the user
         4. Check user is not present in all Automember Groups
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -483,7 +483,7 @@ def test_plugin_creates_member_attributes_of_the_automemberdefaultgroup(topo, _c
         1. Add a non existing user to some groups as member
         2. Then Create the user
         3. Check the same user is present to other groups also as member
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -515,7 +515,7 @@ def test_multi_valued_automemberdefaultgroup_with_uniquemember(topo, _create_all
         3. Add user uniquemember attributes
         4. Check uniqueMember attribute in groups
         5. Revert the changes done above
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -566,7 +566,7 @@ def test_invalid_automembergroupingattr_member(topo, _create_all_entries):
         3. Check member attribute on other groups
         4. Check member attribute on group where object class was changed
         5. Revert the object class where it was changed
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should fail (ldap.UNWILLING_TO_PERFORM)
         3. Should success
@@ -596,7 +596,7 @@ def test_valid_and_invalid_automembergroupingattr(topo, _create_all_entries):
         3. Check member attribute on other groups
         4. Check member attribute on groups where object class was changed
         5. Revert the object class where it was changed
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should fail (ldap.UNWILLING_TO_PERFORM)
         3. Should success
@@ -636,7 +636,7 @@ def test_add_regular_expressions_for_user_groups_and_check_for_member_attribute_
     :steps:
         1. Add user with a match with regular expressions for user groups
         2. check for member attribute after adding users
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """
@@ -669,7 +669,7 @@ def test_matching_gid_role_inclusive_regular_expression(topo, _create_all_entrie
         1. Create users with matching gid nos and Role for the Inclusive regular expression
         2. It will be filtered with gidNumber, uidNumber and nsAdminGroupName
         3. It will a match for contract_grp
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -711,7 +711,7 @@ def test_gid_and_role_inclusive_exclusive_regular_expression(topo, _create_all_e
         2. It will be filtered with gidNumber, uidNumber and nsAdminGroupName
         3. It will not match for contract_grp(Exclusive regular expression)
         4. It will match for default_group(Inclusive regular expression)
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -749,7 +749,7 @@ def test_managers_contractors_exclusive_regex_rules_member_uid(topo, _create_all
         memberUid created in Default grp
         2. It will be filtered with gidNumber, uidNumber and nsAdminGroupName
         3. It will match for default_group1 and default_group2(Inclusive regular expression)
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -784,7 +784,7 @@ def test_managers_inclusive_regex_rule(topo, _create_all_entries,
         2. It will be filtered with gidNumber, uidNumber and nsAdminGroupName(Supervisor)
         3. It will match for managers_grp(Inclusive regular expression)
         4. It will not match for contract_grp(Exclusive regular expression)
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -807,7 +807,7 @@ def test_reject_invalid_config_and_we_donot_deadlock_the_server(topo, _create_al
     :steps:
         1. Verify DS reject invalid config,
         2. This operation don't deadlock the server
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """
@@ -887,7 +887,7 @@ def test_automemtask_re_build_task(topo, _create_all_entries, _startuptask, _fix
         1. Add 10 users and enable autoMembers plug-in
         2. Run automembers re-build task to create the member attributes
         3. Search for any error logs
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -950,7 +950,7 @@ def test_automemtask_export_task(topo, _create_all_entries, _startuptask, _fixtu
     :steps:
         1. Add 10 users and enable autoMembers plug-in
         2. Run automembers export task to create an ldif file with member attributes
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
     """
@@ -986,7 +986,7 @@ def test_automemtask_mapping(topo, _create_all_entries, _startuptask, _fixture_f
     :steps:
         1. Add 10 users and enable autoMembers plug-in
         2. Run automembers Mapping task with input/output ldif files
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """
@@ -1019,7 +1019,7 @@ def test_automemtask_re_build(topo, _create_all_entries, _startuptask, _fixture_
     :steps:
         1. Add 10 users with inetOrgPerson object class
         2. Run automembers re-build task to create the member attributes, exp to FAIL
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should not success
     """
@@ -1053,7 +1053,7 @@ def test_automemtask_export(topo, _create_all_entries, _startuptask, _fixture_fo
     :steps:
         1. Add 10 users with inetOrgPerson objectClass
         2. Run automembers export task to create an ldif file with member attributes, exp to FAIL
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should not success
     """
@@ -1092,7 +1092,7 @@ def test_automemtask_run_re_build(topo, _create_all_entries, _startuptask, _fixt
         1. Add 10 users with inetOrgPerson obj class
         2. Change plugin config
         3. Enable plug-in and run re-build task to create the member attributes
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -1137,7 +1137,7 @@ def test_automemtask_run_export(topo, _create_all_entries, _startuptask, _fixtur
         1. Add 10 users with inetOrgPerson objectClass
         2. change plugin config
         3. Run export task to create an ldif file with member attributes
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success

@@ -95,7 +95,7 @@ def tls_client_auth(topo_m2):
 def test_ssl_transport(tls_client_auth):
     """Test different combinations for nsDS5ReplicaTransportInfo values
 
-    :id: 922d16f8-662a-4915-a39e-0aecd7c8e6e2
+    :id: a3157108-cb98-43e9-ba16-8fb21a4a03e9
     :setup: Two supplier replication, enabled TLS client auth
     :steps:
         1. Set nsDS5ReplicaTransportInfoCheck: SSL or StartTLS or TLS

@@ -607,7 +607,7 @@ def test_matching_rules(topology_st):
     :steps:
         1. Search for matching rule.
         2. Matching rule should be there in schema.
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
     """
@@ -626,7 +626,7 @@ def test_add_attribute_types(topology_st):
     :setup: Standalone
     :steps:
         1. Add new attribute types to schema.
-    :expected results:
+    :expectedresults:
         1. Pass
     """
     for attribute in ATTR:
@@ -645,7 +645,7 @@ def test_valid_invalid_attributes(topology_st, rule):
         2. Delete existing entry
         3. Create entry with an attribute that uses that matching rule providing duplicate
            values that are duplicates according to the equality matching rule.
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
         3. Fail(ldap.TYPE_OR_VALUE_EXISTS)
@@ -672,7 +672,7 @@ def test_valid_invalid_modes(topology_st, mode):
         2. Add an attribute that uses that matching mode providing duplicate
            values that are duplicates according to the equality matching.
         3. Delete existing entry
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Fail(ldap.TYPE_OR_VALUE_EXISTS)
         3. Pass
@@ -701,7 +701,7 @@ def test_valid_invalid_mode_replace(topology_st, mode):
         4. Delete existing attribute
         5. Try to delete the deleted attribute again.
         6. Delete entry
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
         3. Fail(ldap.TYPE_OR_VALUE_EXISTS)
@@ -748,7 +748,7 @@ def test_match_count(topology_st, _searches, attr, po_value, ne_attr):
     :steps:
         1. Filter rules as per the condition and assert the no of output.
         2. Negative filter with no outputs.
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
     """
@@ -766,7 +766,7 @@ def test_extensible_search(topology_st, _searches, attr, value):
     :setup: Standalone
     :steps:
         1. Filer output should match the exact value given.
-    :expected results:
+    :expectedresults:
         1. Pass
     """
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)

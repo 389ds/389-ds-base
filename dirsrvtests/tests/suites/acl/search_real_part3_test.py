@@ -50,7 +50,7 @@ def aci_of_user(request, topo):
 
 
 @pytest.fixture(scope="module")
-def test_uer(request, topo):
+def add_test_user(request, topo):
     topo.standalone.config.loglevel((ErrorLog.ACL_SUMMARY,))
 
     for i in ['Product Development', 'Accounting']:
@@ -79,7 +79,7 @@ def test_uer(request, topo):
     })
 
 
-def test_deny_search_access_to_userdn_with_ldap_url(topo, test_uer, aci_of_user):
+def test_deny_search_access_to_userdn_with_ldap_url(topo, add_test_user, aci_of_user):
     """Search Test 23 Deny search access to userdn with LDAP URL
 
     :id: 94f082d8-6e12-11e8-be72-8c16451d917b
@@ -115,7 +115,7 @@ def test_deny_search_access_to_userdn_with_ldap_url(topo, test_uer, aci_of_user)
     UserAccount(topo.standalone, USER_ANANDA).remove('roomnumber', '3445')
 
 
-def test_deny_search_access_to_userdn_with_ldap_url_two(topo, test_uer, aci_of_user):
+def test_deny_search_access_to_userdn_with_ldap_url_two(topo, add_test_user, aci_of_user):
     """Search Test 24 Deny search access to != userdn with LDAP URL
 
     :id: a1ee05d2-6e12-11e8-8260-8c16451d917b
@@ -152,7 +152,7 @@ def test_deny_search_access_to_userdn_with_ldap_url_two(topo, test_uer, aci_of_u
 
 
 def test_deny_search_access_to_userdn_with_ldap_url_matching_all_users(
-    topo, test_uer, aci_of_user
+    topo, add_test_user, aci_of_user
 ):
     """Search Test 25 Deny search access to userdn with LDAP URL matching all users
 
@@ -186,7 +186,7 @@ def test_deny_search_access_to_userdn_with_ldap_url_matching_all_users(
     assert 4 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
 
 
-def test_deny_read_access_to_a_dynamic_group(topo, test_uer, aci_of_user):
+def test_deny_read_access_to_a_dynamic_group(topo, add_test_user, aci_of_user):
     """Search Test 26 Deny read access to a dynamic group
 
     :id: c0c5290e-6e12-11e8-a900-8c16451d917b
@@ -226,7 +226,7 @@ def test_deny_read_access_to_a_dynamic_group(topo, test_uer, aci_of_user):
 
 
 def test_deny_read_access_to_dynamic_group_with_host_port_set_on_ldap_url(
-    topo, test_uer, aci_of_user
+    topo, add_test_user, aci_of_user
 ):
     """Search Test 27 Deny read access to dynamic group with host:port set on LDAP URL
 
@@ -267,7 +267,7 @@ def test_deny_read_access_to_dynamic_group_with_host_port_set_on_ldap_url(
 
 
 def test_deny_read_access_to_dynamic_group_with_scope_set_to_one_in_ldap_url(
-    topo, test_uer, aci_of_user
+    topo, add_test_user, aci_of_user
 ):
     """Search Test 28 Deny read access to dynamic group with scope set to "one" in LDAP URL
 
@@ -308,7 +308,7 @@ def test_deny_read_access_to_dynamic_group_with_scope_set_to_one_in_ldap_url(
     group.delete()
 
 
-def test_deny_read_access_to_dynamic_group_two(topo, test_uer, aci_of_user):
+def test_deny_read_access_to_dynamic_group_two(topo, add_test_user, aci_of_user):
     """Search Test 29 Deny read access to != dynamic group
 
     :id: eae2a6c6-6e12-11e8-80f3-8c16451d917b
@@ -351,7 +351,7 @@ def test_deny_read_access_to_dynamic_group_two(topo, test_uer, aci_of_user):
 
 
 def test_deny_access_to_group_should_deny_access_to_all_uniquemember(
-    topo, test_uer, aci_of_user, request
+    topo, add_test_user, aci_of_user, request
 ):
     """Search Test 38 Deny access to group should deny access to all uniquemember (including chain group)
 
@@ -404,7 +404,7 @@ def test_deny_access_to_group_should_deny_access_to_all_uniquemember(
     assert 4 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
 
 
-def test_entry_with_lots_100_attributes(topo, test_uer, aci_of_user):
+def test_entry_with_lots_100_attributes(topo, add_test_user, aci_of_user):
     """Search Test 39 entry with lots (>100) attributes
 
     :id: fc155f74-6e12-11e8-96ac-8c16451d917b

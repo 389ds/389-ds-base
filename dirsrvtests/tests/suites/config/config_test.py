@@ -284,26 +284,6 @@ def test_defaultnamingcontext(topo):
     b2.delete()
 
 
-@pytest.mark.xfail(reason="This may fail due to bug 1610234")
-def test_defaultnamingcontext_1(topo):
-    """This test case should be part of function test_defaultnamingcontext
-       Please move it back after we have a fix for bug 1610234
-    """
-    log.info("Remove the original suffix which is currently nsslapd-defaultnamingcontext"
-             "and check nsslapd-defaultnamingcontext become empty.")
-
-    """ Please remove these declarations after moving the test
-        to function test_defaultnamingcontext
-    """
-    backends = Backends(topo.standalone)
-    test_db2 = 'test2_db'
-    test_suffix2 = 'dc=test2,dc=com'
-    b2 = backends.create(properties={'cn': test_db2,
-                                     'nsslapd-suffix': test_suffix2})
-    b2.delete()
-    assert topo.standalone.config.get_attr_val_utf8('nsslapd-defaultnamingcontext') == ' '
-
-
 @pytest.mark.bz602456
 def test_allow_add_delete_config_attributes(topo):
     """Tests configuration attributes are allowed to add and delete
@@ -563,8 +543,7 @@ def test_require_internal_index(topo):
         1. Set "nsslapd-require-internalop-index" to "on"
         2. Enable RI plugin, and configure it to use an attribute that is not indexed
         3. Create a user and add it a group
-        4. Deleting user should be rejected as the RI plugin issues an
-        unindexed internal search
+        4. Deleting user should be rejected as the RI plugin issues an unindexed internal search
     :expectedresults:
         1. Success
         2. Success

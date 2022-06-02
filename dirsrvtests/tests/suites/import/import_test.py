@@ -205,13 +205,13 @@ def test_import_with_index(topo, _import_clean):
     """
     Add an index, then import via cn=tasks
 
-    :id: 5bf75c47-a283-430e-a65c-3c5fd8dbadb8
+    :id: 9ddaf0df-7298-42bb-bdfa-a889ee68bc09
     :setup: Standalone Instance
     :steps:
         1. Creating the room number index
         2. Importing online
         3. Import is done -- verifying that it worked
-    :expected results:
+    :expectedresults:
         1. Operation successful
         2. Operation successful
         3. Operation successful
@@ -241,13 +241,13 @@ def test_online_import_with_warning(topo, _import_clean):
     """
     Import an ldif file with syntax errors, verify skipped entry warning code
 
-    :id: 5bf75c47-a283-430e-a65c-3c5fd8dbadb8
+    :id: 9b44cd0e-9d4b-4ae9-b750-cc7ba58d4529
     :setup: Standalone Instance
     :steps:
         1. Create standalone Instance
         2. Create an ldif file with an entry that violates syntax check (empty givenname)
         3. Online import of troublesome ldif file
-    :expected results:
+    :expectedresults:
         1. Successful import with skipped entry warning
         """
     topo.standalone.restart()
@@ -275,7 +275,7 @@ def test_crash_on_ldif2db(topo, _import_clean):
     :steps:
         1. Delete the cn=monitor entry for an LDBM backend instance
         2. Restart the server and verify that the LDBM monitor entry was re-created.
-    :expected results:
+    :expectedresults:
         1. Operation successful
         2. Operation successful
     """
@@ -296,7 +296,7 @@ def test_ldif2db_allows_entries_without_a_parent_to_be_imported(topo, _import_cl
     :steps:
         1. Import the offending LDIF data - offline
         2. Violates schema, ending line
-    :expected results:
+    :expectedresults:
         1. Operation successful
         2. Operation Fail
     """
@@ -312,6 +312,7 @@ def test_ldif2db_allows_entries_without_a_parent_to_be_imported(topo, _import_cl
 
 def test_ldif2db_syntax_check(topo, _import_clean):
     """ldif2db should return a warning when a skipped entry has occured.
+
     :id: 85e75670-42c5-4062-9edc-7f117c97a06f
     :setup:
         1. Standalone Instance
@@ -319,7 +320,7 @@ def test_ldif2db_syntax_check(topo, _import_clean):
     :steps:
         1. Create an ldif file which violates the syntax checking rule
         2. Stop the server and import ldif file with ldif2db
-    :expected results:
+    :expectedresults:
         1. ldif2db import returns a warning to signify skipped entries
     """
     import_ldif1 = _create_syntax_err_ldif(topo)
@@ -342,7 +343,7 @@ def test_issue_a_warning_if_the_cache_size_is_smaller(topo, _import_clean):
         3. Check that cachememsize is sufficiently small
         4. Import some users to make id2entry.db big
         5. Warning message should be there in error logs
-    :expected results:
+    :expectedresults:
         1. Operation successful
         2. Operation successful
         3. Operation successful
@@ -397,7 +398,7 @@ def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
         8. Now nsslapd-db-private-import-mem:off
         9. Measure offline import time duration total_time2
         10. total_time1 < total_time2
-    :expected results:
+    :expectedresults:
         1. Operation successful
         2. Operation successful
         3. Operation successful
@@ -456,7 +457,7 @@ def test_entry_with_escaped_characters_fails_to_import_and_index(topo, _import_c
         2. Remove some of the other entries that were successfully imported.
         3. Now re-index the database.
         4. Should not return error.
-    :expected results:
+    :expectedresults:
         1. Operation successful
         2. Operation successful
         3. Operation successful

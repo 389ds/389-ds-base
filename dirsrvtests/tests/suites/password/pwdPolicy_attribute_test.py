@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="module")
-def test_user(topology_st, request):
+def add_test_user(topology_st, request):
     """User for binding operation"""
     topology_st.standalone.config.set('nsslapd-auditlog-logging-enabled', 'on')
     log.info('Adding test user {}')
@@ -60,7 +60,7 @@ def test_user(topology_st, request):
 
 
 @pytest.fixture(scope="module")
-def password_policy(topology_st, test_user):
+def password_policy(topology_st, add_test_user):
     """Set up password policy for subtree and user"""
 
     pwp = PwPolicyManager(topology_st.standalone)
@@ -73,7 +73,7 @@ def password_policy(topology_st, test_user):
 
 @pytest.mark.bz1845094
 @pytest.mark.skipif(ds_is_older('1.4.3.3'), reason="Not implemented")
-def test_pwdReset_by_user_DM(topology_st, test_user):
+def test_pwdReset_by_user_DM(topology_st, add_test_user):
     """Test new password policy attribute "pwdReset"
 
     :id: 232bc7dc-8cb6-11eb-9791-98fa9ba19b65
@@ -85,7 +85,7 @@ def test_pwdReset_by_user_DM(topology_st, test_user):
         3. Check that the pwdReset attribute is set to TRUE
         4. Bind as the Directory manager and attempt to change the pwdReset to FALSE
         5. Check that pwdReset is NOT SET to FALSE
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Successful bind as DS user, pwdReset as DS user fails w UNWILLING_TO_PERFORM
@@ -116,7 +116,7 @@ def test_pwdReset_by_user_DM(topology_st, test_user):
 
 
 @pytest.mark.skipif(ds_is_older('1.4.3.3'), reason="Not implemented")
-def test_pwd_reset(topology_st, test_user):
+def test_pwd_reset(topology_st, add_test_user):
     """Test new password policy attribute "pwdReset"
 
     :id: 03db357b-4800-411e-a36e-28a534293004
@@ -129,7 +129,7 @@ def test_pwd_reset(topology_st, test_user):
         4. Bind as the user and change its password
         5. Check that pwdReset is now set to FALSE
         6. Reset password policy configuration
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -170,7 +170,7 @@ def test_pwd_reset(topology_st, test_user):
                          [('on', 'off', ldap.UNWILLING_TO_PERFORM),
                           ('off', 'off', ldap.UNWILLING_TO_PERFORM),
                           ('off', 'on', False), ('on', 'on', False)])
-def test_change_pwd(topology_st, test_user, password_policy,
+def test_change_pwd(topology_st, add_test_user, password_policy,
                     subtree_pwchange, user_pwchange, exception):
     """Verify that 'passwordChange' attr works as expected
     User should have a priority over a subtree.
@@ -230,7 +230,7 @@ def test_change_pwd(topology_st, test_user, password_policy,
         user.reset_password(TEST_USER_PWD)
 
 
-def test_pwd_min_age(topology_st, test_user, password_policy):
+def test_pwd_min_age(topology_st, add_test_user, password_policy):
     """If we set passwordMinAge to some value, for example to 10, then it
     should not allow the user to change the password within 10 seconds after
     his previous change.

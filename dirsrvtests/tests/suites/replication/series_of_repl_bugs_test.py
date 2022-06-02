@@ -49,7 +49,7 @@ def test_deletions_are_not_replicated(topo_m2):
         6. Check user`s USN on Supplier 2
         7. Delete user
         8. Check that deletion of user propagated to Supplier 1
-    :expected results:
+    :expectedresults:
         1. Should succeeds
         2. Should succeeds
         3. Should succeeds
@@ -96,7 +96,7 @@ def test_error_20(topo_m2, _delete_after):
     :steps:
         1. Add user
         2. Change multivalue attribute
-    :expected results:
+    :expectedresults:
         1. Should succeeds
         2. Should succeeds
     """
@@ -159,7 +159,7 @@ def test_segfaults(topo_m2, _delete_after):
         3. Search for tombstone entry
         4. Try to delete tombstone entry
         5. Check if server is still alive
-    :expected results:
+    :expectedresults:
         1. Should succeeds
         2. Should succeeds
         3. Should succeeds
@@ -191,7 +191,7 @@ def test_adding_deleting(topo_m2, _delete_after):
         1. Adding entry
         2. Adding attribute with 11 values to entry
         3. Removing 4 values from the attribute in the entry
-    :expected results:
+    :expectedresults:
         1. Should succeeds
         2. Should succeeds
         3. Should succeeds
@@ -229,7 +229,7 @@ def test_deleting_twice(topo_m2):
         1. Adding entry
         2. Deleting the same entry from s1
         3. Deleting the same entry from s2 after some seconds
-    :expected results:
+    :expectedresults:
         1. Should succeeds
         2. Should succeeds
         3. Should succeeds
@@ -264,7 +264,7 @@ def test_rename_entry(topo_m2, _delete_after):
         4. Change will not reflect on other supplier
         5. Turn on agreement on both
         6. Change will reflect on other supplier
-    :expected results:
+    :expectedresults:
         1. Should succeeds
         2. Should succeeds
         3. Should succeeds
@@ -310,7 +310,7 @@ def test_userpassword_attribute(topo_m2, _delete_after):
         2. Check that user's  has been propogated to Supplier 2
         3. modify user's userpassword attribute on supplier 2
         4. check the error logs on suppler 1 to make sure the error message is not there
-    :expected results:
+    :expectedresults:
         1. Should succeeds
         2. Should succeeds
         3. Should succeeds
@@ -357,7 +357,7 @@ def test_tombstone_modrdn(topo_m2):
         2. Delete user - should leave tombstone entry
         3. Search for tombstone entry
         4. Try to modrdn with deleteoldrdn
-    :expected results:
+    :expectedresults:
         1. Should succeeds
         2. Should succeeds
         3. Should succeeds

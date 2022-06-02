@@ -66,14 +66,11 @@ def test_mapping_tree_inverted(topology):
     https://www.port389.org/docs/389ds/design/mapping_tree_assembly.html
 
     :id: 024c4960-3aac-4d05-bc51-963dfdeb16ca
-
     :setup: Standalone instance (no backends)
-
     :steps:
         1. Add two backends without mapping trees.
         2. Add the mapping trees with inverted parent-suffix definitions.
         3. Attempt to search the definitions
-
     :expectedresults:
         1. Success
         2. Success
@@ -116,14 +113,11 @@ def test_mapping_tree_nonexist_parent(topology):
     https://www.port389.org/docs/389ds/design/mapping_tree_assembly.html
 
     :id: 7a9a09bd-7604-48f7-93cb-abff9e0d0131
-
     :setup: Standalone instance (no backends)
-
     :steps:
         1. Add one backend without mapping tree
         2. Configure the mapping tree with a non-existant parent suffix
         3. Attempt to search the backend
-
     :expectedresults:
         1. Success
         2. Success
@@ -149,11 +143,26 @@ def test_mapping_tree_nonexist_parent(topology):
 
 # Two same length (dc=example,dc=com    dc=abcdefg,dc=abc)
 def test_mapping_tree_same_length(topology):
+    """Test mapping tree with backends that have same lengths (dc=example,dc=com and dc=abcdefg,dc=abc)
+
+    :id: 7b9fcffe-e786-4895-b530-00215aaa7e84
+    :setup: Standalone instance (no backends)
+    :steps:
+        1. Add two backends without mapping trees
+        2. Create the mapping trees for these backends
+        3. Check that domains exist
+        4. Restart and check again
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success 
+        4. Success
+    """
     inst = topology.standalone
     # First create two Backends, without mapping trees.
     be1 = create_backend(inst, 'userRootA', 'dc=example,dc=com')
     be2 = create_backend(inst, 'userRootB', 'dc=abcdefg,dc=hij')
-    # Okay, now we create the mapping trees for these backends, and we *invert* them in the parent config setting
+    # Okay, now we create the mapping trees for these backends
     mts = MappingTrees(inst)
     mtb = mts.create(properties={
         'cn': 'dc=example,dc=com',
@@ -179,11 +188,26 @@ def test_mapping_tree_same_length(topology):
 
 # Flipped DC comps (dc=exmaple,dc=com  dc=com,dc=example)
 def test_mapping_tree_flipped_components(topology):
+    """Test mapping tree with backends that have flipped DC components (dc=example,dc=com and dc=com,dc=example)
+
+    :id: 55264933-2a81-428b-aec9-c8f9a64400d1
+    :setup: Standalone instance (no backends)
+    :steps:
+        1. Add two backends without mapping trees
+        2. Create the mapping trees for these backends
+        3. Check that domains exist
+        4. Restart and check again
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success 
+        4. Success
+    """
     inst = topology.standalone
     # First create two Backends, without mapping trees.
     be1 = create_backend(inst, 'userRootA', 'dc=example,dc=com')
     be2 = create_backend(inst, 'userRootB', 'dc=com,dc=example')
-    # Okay, now we create the mapping trees for these backends, and we *invert* them in the parent config setting
+    # Okay, now we create the mapping trees for these backends
     mts = MappingTrees(inst)
     mtb = mts.create(properties={
         'cn': 'dc=example,dc=com',
@@ -207,10 +231,25 @@ def test_mapping_tree_flipped_components(topology):
     assert dc_ex.exists()
     assert dc_ab.exists()
 
-# Weirdnesting (dc=exmaple,dc=com, dc=com,dc=example, dc=com,dc=example,dc=com)
+# Weird nesting (dc=exmaple,dc=com, dc=com,dc=example, dc=com,dc=example,dc=com)
 def test_mapping_tree_weird_nesting(topology):
+    """Test mapping tree with backends that have weired nesting (dc=exmaple,dc=com, dc=com,dc=example, dc=com,dc=example,dc=com)
+
+    :id: 02fbfaa5-15ef-43d2-a52f-c011e496e8cd
+    :setup: Standalone instance (no backends)
+    :steps:
+        1. Add 3 backends without mapping trees
+        2. Create the mapping trees for these backends
+        3. Check that domains exist
+        4. Restart and check again
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success 
+        4. Success
+    """
     inst = topology.standalone
-    # First create two Backends, without mapping trees.
+    # First create 3 Backends, without mapping trees.
     be1 = create_backend(inst, 'userRootA', 'dc=example,dc=com')
     be2 = create_backend(inst, 'userRootB', 'dc=com,dc=example')
     be3 = create_backend(inst, 'userRootC', 'dc=com,dc=example,dc=com')
@@ -249,13 +288,28 @@ def test_mapping_tree_weird_nesting(topology):
 
 # Diff lens (dc=myserver, dc=a,dc=b,dc=c,dc=d, dc=example,dc=com)
 def test_mapping_tree_mixed_length(topology):
+    """Test mapping tree with backends that have different lengths (dc=myserver, dc=a,dc=b,dc=c,dc=d, dc=example,dc=com)
+
+    :id: ce43abf2-335c-4327-a883-b20a40e5571c
+    :setup: Standalone instance (no backends)
+    :steps:
+        1. Add 5 backends without mapping trees
+        2. Create the mapping trees for these backends
+        3. Check that domains exist
+        4. Restart and check again
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success 
+        4. Success
+    """
     inst = topology.standalone
-    # First create two Backends, without mapping trees.
+    # First create 5 Backends, without mapping trees.
     be1 = create_backend(inst, 'userRootA', 'dc=myserver')
-    be1 = create_backend(inst, 'userRootB', 'dc=m')
-    be1 = create_backend(inst, 'userRootC', 'dc=a,dc=b,dc=c,dc=d,dc=e')
-    be1 = create_backend(inst, 'userRootD', 'dc=example,dc=com')
-    be1 = create_backend(inst, 'userRootE', 'dc=myldap')
+    be2 = create_backend(inst, 'userRootB', 'dc=m')
+    be3 = create_backend(inst, 'userRootC', 'dc=a,dc=b,dc=c,dc=d,dc=e')
+    be4 = create_backend(inst, 'userRootD', 'dc=example,dc=com')
+    be5 = create_backend(inst, 'userRootE', 'dc=myldap')
 
     mts = MappingTrees(inst)
     mts.create(properties={
@@ -304,6 +358,21 @@ def test_mapping_tree_mixed_length(topology):
 
 # 50 suffixes, shallow nest (dc=example,dc=com, then dc=00 -> dc=50)
 def test_mapping_tree_many_shallow(topology):
+    """Test mapping tree with 50 backends, shallow nesting 
+
+    :id: c15dc565-fa9d-41c9-91f9-24543079ce31
+    :setup: Standalone instance (no backends)
+    :steps:
+        1. Add 50 backends without mapping trees
+        2. Create the mapping trees for these backends
+        3. Check that domains exist
+        4. Restart and check again
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success 
+        4. Success
+    """
     inst = topology.standalone
     dcs = [ ('dc=x%s,dc=example,dc=com' % x, 'userRoot%s' % x) for x in range(0,50) ]
 
@@ -327,6 +396,21 @@ def test_mapping_tree_many_shallow(topology):
 
 # 50 suffixes, deeper nesting (dc=example,dc=com, dc=00  -> dc=10 and dc=a,dc=b,dc=c,dc=d,dc=XX,dc=example,dc=com)
 def test_mapping_tree_many_deep_nesting(topology):
+    """Test mapping tree with 50 backends, deep nesting (dc=example,dc=com, dc=00  -> dc=10 and dc=a,dc=b,dc=c,dc=d,dc=XX,dc=example,dc=com)
+
+    :id: 519e5fb7-e8d1-42fe-800c-ba157054a7d9
+    :setup: Standalone instance (no backends)
+    :steps:
+        1. Add 50 backends without mapping trees
+        2. Create the mapping trees for these backends
+        3. Check that domains exist
+        4. Restart and check again
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success 
+        4. Success
+    """
     inst = topology.standalone
     be_count = 0
     dcs = []
@@ -362,10 +446,4 @@ def test_mapping_tree_many_deep_nesting(topology):
     inst.restart()
     for dc_a in dc_asserts:
         assert dc_a.exists()
-
-
-
-
-
-
 

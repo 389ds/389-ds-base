@@ -51,7 +51,7 @@ def test_check_password_scheme(topo, value):
         1. Change password scheme and create user with password.
         2. check password scheme is set .
         3. Delete user
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
         3. Pass
@@ -71,7 +71,7 @@ def test_clear_scheme(topo):
         1. Change password scheme and create user with password.
         2. check password scheme is set .
         3. Delete user
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
         3. Pass
@@ -90,7 +90,7 @@ def test_check_two_scheme(topo):
         1. Change password scheme and create user with password.
         2. check password scheme is set .
         3. Delete user
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
         3. Pass
@@ -114,7 +114,7 @@ def test_check_pbkdf2_sha256(topo):
     :steps:
         1. Try to delete PBKDF2_SHA256.
         2. Should not deleted PBKDF2_SHA256 and server should up.
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
     """
@@ -140,7 +140,7 @@ def test_check_ssha512(topo):
         1. Try to delete SSHA512Plugin.
         2. Should deleted SSHA512Plugin and server should not up.
         3. Restore dse file to recover
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
         3. Pass

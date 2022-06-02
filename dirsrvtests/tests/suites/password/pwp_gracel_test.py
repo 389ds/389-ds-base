@@ -39,7 +39,7 @@ def test_password_gracelimit_section(topo):
         11. Setting the passwordMaxAge to 3 seconds once more and the passwordGraceLimit to 0
         12. Modify the users passwords to start the clock
         13. Users should be blocked automatically after 3 second
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success

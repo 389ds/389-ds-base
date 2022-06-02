@@ -74,22 +74,23 @@ def test_aci_with_exclude_filter(topo, add_anon_aci_access):
     :steps:
         1. Bind to a new Standalone instance
         2. Generate text for the Access Control Instruction(ACI) and add to the standalone instance
-           -Create a test user 'admin' with a marker -> deniedattr = 'telephonenumber'
-        3. Create 2 top Organizational units (ou) under the same root suffix
-        4. Create 2 test users for each Organizational unit (ou) above with the same username 'admin'
-        5. Bind to the Standalone instance as the user 'admin' from the ou created in step 4 above
-           - Search for user(s) ' admin in the subtree that satisfy this criteria:
-               DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, cn_filter, [deniedattr, 'dn']
-        6.  The search should return 2 entries with the username 'admin'
-        7.  Verify that the users found do not have the --> deniedattr = 'telephonenumber' marker
+        3. Create a test user 'admin' with a marker -> deniedattr = 'telephonenumber'
+        4. Create 2 top Organizational units (ou) under the same root suffix
+        5. Create 2 test users for each Organizational unit (ou) above with the same username 'admin'
+        6. Bind to the Standalone instance as the user 'admin' from the ou created in step 4 above
+        7. Search for user(s) ' admin in the subtree that satisfy this criteria: DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, cn_filter, [deniedattr, 'dn']
+        8. The search should return 2 entries with the username 'admin'
+        9. Verify that the users found do not have the --> deniedattr = 'telephonenumber' marker
     :expectedresults:
         1. Bind should be successful
-        2. Operation to create 2 Orgs (ou) should be successful
-        3. Operation to create 2 (admin*) users should be successful
-        4. Operation should be successful.
-        5. Operation should be successful 
-        6. Should successfully return 2 users that match "admin*"
-        7. PASS - users found do not have the --> deniedattr = 'telephonenumber' marker
+        2. Operation should be successful
+        3. Operation should be successful
+        4. Operation to create 2 Orgs (ou) should be successful
+        5. Operation to create 2 (admin*) users should be successful
+        6. Operation should be successful
+        7. Operation should be successful 
+        8. Should successfully return 2 users that match "admin*"
+        9. PASS - users found do not have the --> deniedattr = 'telephonenumber' marker
 
     """
 

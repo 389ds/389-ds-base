@@ -377,7 +377,7 @@ def test_glremv_lastlogin(topology_st, accpol_global):
         5. Check if users are inactivated, expected error 19.
         6. Replace lastLoginTime attribute and check if account is activated
         7. User should be activated based on lastLoginTime attribute, expected 0
-    :assert:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -419,7 +419,7 @@ def test_glact_login(topology_st, accpol_global):
         3. Run ldapsearch as normal user, expected error 19.
         4. Replace the lastLoginTime attribute and check if account is activated
         5. Run ldapsearch as normal user, expected 0.
-    :assert:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -465,7 +465,7 @@ def test_glinact_limit(topology_st, accpol_global):
         14. Replace the lastLoginTime attribute and check if account is activated
         15. Modify accountInactivityLimit to 12 secs, which is the default
         16. Run ldapsearch as normal user, expected 0.
-    :assert:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -547,7 +547,7 @@ def test_glnologin_attr(topology_st, accpol_global):
         16. Replace the lastLoginTime attribute and check if account is activated
         17. Modify accountInactivityLimit to 12 secs, which is the default
         18. Run ldapsearch as normal user, expected 0.
-    :assert:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -626,7 +626,7 @@ def test_glnoalt_stattr(topology_st, accpol_global):
         4. Remove lastLoginTime attribute from the user entry
         5. Run ldapsearch as normal user, expected 0. no lastLoginTime attribute present
         6. Wait till it reaches accountInactivityLimit and check users, expected error 19
-    :assert:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -674,7 +674,7 @@ def test_glattr_modtime(topology_st, accpol_global):
         5. Check if user is activated based on ModifyTimeStamp attribute, expected 0
         6. Change the plugin to use createTimeStamp and remove lastLoginTime attribute
         7. Check if account is inactivated, expected error 19
-    :assert:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -728,7 +728,7 @@ def test_glnoalt_nologin(topology_st, accpol_global):
         8. Set altstateattrname to createTimeStamp
         9. Check if user account is inactivated based on createTimeStamp attribute.
         10. Account should be inactivated, expected error 19
-    :assert:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -787,7 +787,7 @@ def test_glinact_nsact(topology_st, accpol_global):
         7. Check if account is activated, expected error 19
         8. Replace the lastLoginTime attribute and check if account is activated
         9. Run ldapsearch as normal user, expected 0.
-    :assert:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -837,7 +837,7 @@ def test_glinact_acclock(topology_st, accpol_global):
         5. Wait for passwordlockoutduration and check if account is active
         6. Check if account is unlocked, expected error 19, since account is inactivated
         7. Replace the lastLoginTime attribute and check users, expected 0
-    :assert:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -897,7 +897,7 @@ def test_glnact_pwexp(topology_st, accpol_global):
         7. Run ldapsearch as normal user, expected error 19.
         8. Replace the lastLoginTime attribute and check if account is activated
         9. Run ldapsearch as normal user, expected 0.
-    :assert:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -979,7 +979,7 @@ def test_locact_inact(topology_st, accpol_local):
         4. Wait till accountInactivityLimit is exceeded
         5. Run ldapsearch as normal user and check if its inactivated, expected error 19.
         6. Replace user's lastLoginTime attribute and check if its activated, expected 0
-    :assert:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -1026,7 +1026,7 @@ def test_locinact_modrdn(topology_st, accpol_local):
         5. Wait till accountInactivityLimit exceeded
         6. Move users from ou=groups subtree to ou=people subtree
         7. Check if users are inactivated, expected error 19
-    :assert:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -1073,7 +1073,7 @@ def test_locact_modrdn(topology_st, accpol_local):
         3. Move users from ou=people to ou=groups subtree
         4. Wait till accountInactivityLimit is exceeded
         5. Check if users are active in ou=groups subtree, expected 0
-    :assert:
+    :expectedresults:
         1. Success
         2. Success
         3. Success

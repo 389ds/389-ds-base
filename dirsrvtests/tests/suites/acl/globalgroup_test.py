@@ -56,7 +56,7 @@ def aci_of_user(request, topo):
 
 
 @pytest.fixture(scope="module")
-def test_user(request, topo):
+def add_test_user(request, topo):
     for demo in ['Product Development', 'Accounting', 'Product Testing', 'nestedgroup', 'ACLGroup']:
         OrganizationalUnit(topo.standalone, "ou={},{}".format(demo, DEFAULT_SUFFIX)).create(properties={'ou': demo})
 
@@ -122,7 +122,7 @@ def test_user(request, topo):
                            })
 
 
-def test_caching_changes(topo, aci_of_user, test_user):
+def test_caching_changes(topo, aci_of_user, add_test_user):
     """
         Add user and then test deny
 
@@ -152,7 +152,7 @@ def test_caching_changes(topo, aci_of_user, test_user):
     UserAccount(topo.standalone, 'uid=test_user_1000,ou=ACLGroup,dc=example,dc=com').delete()
 
 
-def test_deny_group_member_all_rights_to_user(topo, aci_of_user, test_user):
+def test_deny_group_member_all_rights_to_user(topo, aci_of_user, add_test_user):
     """
         Try deleting user while no access
 
@@ -179,7 +179,7 @@ def test_deny_group_member_all_rights_to_user(topo, aci_of_user, test_user):
         user.delete()
 
 
-def test_deny_group_member_all_rights_to_group_members(topo, aci_of_user, test_user):
+def test_deny_group_member_all_rights_to_group_members(topo, aci_of_user, add_test_user):
     """
         Deny group member all rights
 
@@ -208,7 +208,7 @@ def test_deny_group_member_all_rights_to_group_members(topo, aci_of_user, test_u
     UserAccount(topo.standalone, 'uid=test_user_1000,ou=ACLGroup,dc=example,dc=com').delete()
 
 
-def test_deeply_nested_groups_aci_denial(topo, test_user, aci_of_user):
+def test_deeply_nested_groups_aci_denial(topo, add_test_user, aci_of_user):
     """
         Test deeply nested groups (1)
         This aci will not allow search or modify to a user too deep to be detected.
@@ -237,7 +237,7 @@ def test_deeply_nested_groups_aci_denial(topo, test_user, aci_of_user):
         user.delete()
 
 
-def test_deeply_nested_groups_aci_denial_two(topo, test_user, aci_of_user):
+def test_deeply_nested_groups_aci_denial_two(topo, add_test_user, aci_of_user):
     """
         Test deeply nested groups (2)
         This aci will allow search and modify
@@ -265,7 +265,7 @@ def test_deeply_nested_groups_aci_denial_two(topo, test_user, aci_of_user):
     user.remove("sn", "Fred")
 
 
-def test_deeply_nested_groups_aci_allow(topo, test_user, aci_of_user):
+def test_deeply_nested_groups_aci_allow(topo, add_test_user, aci_of_user):
     """
         Test deeply nested groups (3)
         This aci will allow search and modify
@@ -293,7 +293,7 @@ def test_deeply_nested_groups_aci_allow(topo, test_user, aci_of_user):
     user.remove("sn", "Fred")
 
 
-def test_deeply_nested_groups_aci_allow_two(topo, test_user, aci_of_user):
+def test_deeply_nested_groups_aci_allow_two(topo, add_test_user, aci_of_user):
     """
         This aci will not allow search or modify to a user too deep to be detected.
 
@@ -321,7 +321,7 @@ def test_deeply_nested_groups_aci_allow_two(topo, test_user, aci_of_user):
     assert user.get_attr_val_utf8('uid') == 'scratchEntry'
 
 
-def test_undefined_in_group_eval(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval(topo, add_test_user, aci_of_user):
     """
 
         This aci will not allow access .
@@ -350,7 +350,7 @@ def test_undefined_in_group_eval(topo, test_user, aci_of_user):
     assert user.get_attr_val_utf8('uid') == 'scratchEntry'
 
 
-def test_undefined_in_group_eval_two(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_two(topo, add_test_user, aci_of_user):
     """
         This aci will allow access
 
@@ -378,7 +378,7 @@ def test_undefined_in_group_eval_two(topo, test_user, aci_of_user):
     user.remove("sn", "Fred")
 
 
-def test_undefined_in_group_eval_three(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_three(topo, add_test_user, aci_of_user):
     """
         This aci will allow access
 
@@ -406,7 +406,7 @@ def test_undefined_in_group_eval_three(topo, test_user, aci_of_user):
     user.remove("sn", "Fred")
 
 
-def test_undefined_in_group_eval_four(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_four(topo, add_test_user, aci_of_user):
     """
         This aci will not allow access
 

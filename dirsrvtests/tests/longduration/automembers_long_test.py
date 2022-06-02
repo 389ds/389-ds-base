@@ -218,7 +218,7 @@ def test_adding_300_user(topo_m4, _create_entries):
     :steps:
         1. Add 300 user entries matching the inclusive regex rules at topo_m4.ms['supplier1']
         2. Check the same created in rest suppliers
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
     """
@@ -258,7 +258,7 @@ def test_adding_1000_users(topo_m4, _create_entries):
         1. Add 1000 user entries matching the inclusive/exclusive
         regex rules at topo_m4.ms['supplier1']
         2. Check the same created in rest suppliers
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
     """
@@ -299,7 +299,7 @@ def test_adding_3000_users(topo_m4, _create_entries):
         1. Add 3000 user entries matching the inclusive/exclusive regex
         rules at topo_m4.ms['supplier1']
         2. Check the same created in rest suppliers
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
     """
@@ -339,7 +339,7 @@ def test_3000_users_matching_all_exclusive_regex(topo_m4, _create_entries):
         1. Add 3000 user entries matching the inclusive/exclusive regex
         rules at topo_m4.ms['supplier1']
         2. Check the same created in rest suppliers
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
     """
@@ -379,7 +379,7 @@ def test_no_matching_inclusive_regex_rules(topo_m4, _create_entries):
         1. Add 3000 user entries matching the inclusive/exclusive regex
         rules at topo_m4.ms['supplier1']
         2. Check the same created in rest suppliers
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
     """
@@ -419,7 +419,7 @@ def test_adding_deleting_and_re_adding_the_same_3000(topo_m4, _create_entries):
         3. Delete 3000 users
         4. Again add 3000 users
         5. Check the same created in rest suppliers
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
         3. Pass
@@ -475,7 +475,7 @@ def test_re_adding_the_same_3000_users(topo_m4, _create_entries):
         3. Delete 3000 users
         4. Again add 3000 users
         5. Check the same created in rest suppliers
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
         3. Pass
@@ -530,7 +530,7 @@ def test_users_with_different_uid_and_gid_nos(topo_m4, _create_entries):
         3. Delete 3000 users
         4. Again add 3000 users
         5. Check the same created in rest suppliers
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
         3. Pass
@@ -594,7 +594,7 @@ def test_bulk_users_to_non_automemscope(topo_m4, _create_entries):
         2. Add 3000 user entries to non-automem_scope at topo_m4.ms['supplier1']
         3. Run AutomemberRebuildMembershipTask
         4. Check the same created in rest suppliers
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
         3. Pass
@@ -660,7 +660,7 @@ def test_automemscope_and_running_modrdn(topo_m4, _create_entries):
         2. Add 3000 user entries to non-automem_scope at topo_m4.ms['supplier1']
         3. Run AutomemberRebuildMembershipTask
         4. Check the same created in rest suppliers
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
         3. Pass

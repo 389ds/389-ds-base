@@ -206,7 +206,7 @@ def test_all_together_positive(topo, _create_test_entries, filter_test, conditio
         :steps:
             1. Create Filter rules.
             2. Try to pass filter rules as per the condition .
-        :expected results:
+        :expectedresults:
             1. It should pass
             2. It should pass
         """

@@ -97,12 +97,11 @@ def test_sub_suffixes(topo, orphan_param):
     :id: 5b4421c2-d851-11ec-a760-482ae39447e5
     :feature: mapping-tree
     :setup: Standalone instance with 3 additional backends:
-             dc=parent, dc=child1,dc=parent, dc=childr21,dc=parent
+            dc=parent, dc=child1,dc=parent, dc=childr21,dc=parent
     :steps:
-        1. set orphan attribute mapping tree entry for dc=child1,dc=parent
-            according to orphan_param value
-        2. restart the server to rebuild the mapping tree
-        r32. For each suffix: search the suffix
+        1. Det orphan attribute mapping tree entry for dc=child1,dc=parent according to orphan_param value
+        2. Restart the server to rebuild the mapping tree
+        3. For each suffix: search the suffix
     :expectedresults:
         1. Success
         2. Success

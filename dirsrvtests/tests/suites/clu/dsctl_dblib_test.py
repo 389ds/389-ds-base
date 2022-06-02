@@ -79,17 +79,18 @@ def _check_db(inst, log, impl):
 
 def test_dblib_migration(topo_m2, init_user):
     """
-    Verify dsctl dblib xxxxxxx  sub commands ( migration between bdb and lmdb )
+    Verify dsctl dblib xxxxxxx sub commands (migration between bdb and lmdb)
 
     :id: 5d327c34-e77a-46e5-a8aa-0a552f9bbdef
     :setup: Two suppliers Instance
     :steps:
         1. Determine current database
         2. Switch to the other database
-        3 Check that
+        3. Check that replication works
     :expectedresults:
         1. Success
         2. Success
+        3. Success
     """
     s1 = topo_m2.ms["supplier1"]
     s2 = topo_m2.ms["supplier2"]

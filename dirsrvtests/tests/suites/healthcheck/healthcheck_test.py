@@ -259,7 +259,7 @@ def test_healthcheck_check_option(topology_st):
 def test_healthcheck_standalone_tls(topology_st):
     """Check functionality of HealthCheck Tool on TLS enabled standalone instance with no errors
 
-    :id: 4844b446-3939-4fbd-b14b-293b20bb8be0
+    :id: 832374e6-6d2c-42af-80c8-d3685dbfa234
     :setup: Standalone instance
     :steps:
         1. Create DS instance
@@ -286,7 +286,7 @@ def test_healthcheck_standalone_tls(topology_st):
 def test_healthcheck_replication(topology_m2):
     """Check functionality of HealthCheck Tool on replication instance with no errors
 
-    :id: 9ee6d491-d6d7-4c2c-ac78-70d08f054166
+    :id: d7751cc3-271c-4c33-b296-8a4c8941233e
     :setup: 2 MM topology
     :steps:
         1. Create a two suppliers replication topology
@@ -411,7 +411,7 @@ def test_healthcheck_backend_missing_mapping_tree(topology_st):
 def test_healthcheck_unable_to_query_backend(topology_st):
     """Check if HealthCheck returns DSBLE0002 code
 
-    :id: 716b1ff1-94bd-4780-98b8-96ff8ef21e30
+    :id: 01de2fe5-079d-4166-b4c9-1f1e00bb091c
     :setup: Standalone instance
     :steps:
         1. Create DS instance

@@ -265,6 +265,19 @@ def test_agmt_num_modify(topo, attr, too_small, too_big, overflow, notnum, valid
 @pytest.mark.bz1546739
 def test_same_attr_yields_same_return_code(topo):
     """Test that various operations with same incorrect attribute value yield same return code
+
+    :id: 4bae88d7-0da8-4a71-b062-9d0ff4e472cf
+    :setup: standalone instance
+    :steps:
+        1. Purge all replica details
+        2. Perform an invalid create operation
+        3. Setup replica
+        4. Perform an invalid modify operation
+    :expectedresults:
+        1. Success
+        2. Value is rejected
+        3. Success
+        4. Value is rejected
     """
     attr = 'nsDS5ReplicaId'
 

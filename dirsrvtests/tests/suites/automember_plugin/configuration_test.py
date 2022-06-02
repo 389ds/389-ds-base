@@ -25,7 +25,7 @@ def test_configuration(topo):
         1. Automembership plugin fails in a MMR setup, if data and config
         area mixed in the plugin configuration
         2. Plugin configuration should throw proper error messages if not configured properly
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """

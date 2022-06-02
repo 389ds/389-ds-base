@@ -154,18 +154,20 @@ def test_only_user_can_reset_TPR(topo, _add_user, set_global_TPR_policies):
     :customerscenario: True
     :setup: Standalone
     :steps:
-    1. Create DS Instance
-    2. Create 2 users with appropriate password
-    3. Create Global TPR policy enable passwordMustChange: on
-    3. Trigger Temporary password and reset user1 password
-    3. Bind as user#2 and attempt to Reset user#1 password as user#2
-    4. Verify admin can reset users#1,2 passwords
+        1. Create DS Instance
+        2. Create 2 users with appropriate password
+        3. Create Global TPR policy enable passwordMustChange: on
+        4. Trigger Temporary password and reset user1 password
+        5. Bind as user#2 and attempt to Reset user#1 password as user#2
+        6. Verify admin can reset users#1,2 passwords
 
-    :expected results:
-    1. Success
-    2. Success
-    3. Fail(ldap.INSUFFICIENT_ACCESS)
-    4. Success 
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Fail(ldap.INSUFFICIENT_ACCESS)
+        6. Success 
 
 """
     log.info('Creating 2 users with appropriate password')
@@ -188,26 +190,26 @@ def test_local_TPR_supercedes_global_TPR(topo, _add_user, set_global_TPR_policie
     :customerscenario: True
     :setup: Standalone
     :steps:
-    1. Create DS Instance
-    2. Create user with appropriate password
-    3. Configure the Global Password policies with passwordTPRMaxUse 5     
-    4. Configure different local password policy for passwordTPRMaxUse 3
-    5. Trigger TPR by resetting the user password above
-    6. Attempt an ldap search with an incorrect bind password for user above
-    7. Repeat as many times as set by attribute passwordTPRMaxUse
-    8. Should lock the account after value is set in the local passwordTPRMaxUse is reached
-    9. Try to search with the correct password account will be locked.
+        1. Create DS Instance
+        2. Create user with appropriate password
+        3. Configure the Global Password policies with passwordTPRMaxUse 5     
+        4. Configure different local password policy for passwordTPRMaxUse 3
+        5. Trigger TPR by resetting the user password above
+        6. Attempt an ldap search with an incorrect bind password for user above
+        7. Repeat as many times as set by attribute passwordTPRMaxUse
+        8. Should lock the account after value is set in the local passwordTPRMaxUse is reached
+        9. Try to search with the correct password account will be locked.
 
-    :expected results:
-    1. Success
-    2. Success
-    3. Fail(ldap.INSUFFICIENT_ACCESS)
-    4. Success
-    5. Success
-    6. Success
-    7. Success
-    8. Success
-    9. Success 
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Fail(ldap.INSUFFICIENT_ACCESS)
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success 
 
 """
 
@@ -241,21 +243,21 @@ def test_once_TPR_reset_old_passwd_invalid(topo, _add_user, set_global_TPR_polic
     :customerscenario: True
     :setup: Standalone
     :steps:
-    1. Create DS Instance
-    2. Create user jdoe1 with appropriate password
-    3. Configure the Global Password policies enable passwordMustChange
-    4. Trigger TPR by resetting the user jdoe1 password above
-    5. Attempt to login with the old password
-    6. Login as jdoe1 with the correct password and update the new password
+        1. Create DS Instance
+        2. Create user jdoe1 with appropriate password
+        3. Configure the Global Password policies enable passwordMustChange
+        4. Trigger TPR by resetting the user jdoe1 password above
+        5. Attempt to login with the old password
+        6. Login as jdoe1 with the correct password and update the new password
 
 
-    :expected results:
-    1. Success
-    2. Success
-    3. Success
-    4. Success
-    5. Fail(ldap.CONSTRAINT_VIOLATION)
-    6. Success
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Fail(ldap.CONSTRAINT_VIOLATION)
+        6. Success
 
 """
     new_password = 'test_password'
@@ -288,22 +290,22 @@ def test_reset_pwd_before_passwordTPRDelayValidFrom(topo, _add_user, set_global_
     :customerscenario: True
     :setup: Standalone
     :steps:
-    1. Create DS Instance
-    2. Create user jdoe2 with appropriate password
-    3. Configure the Global Password policies disable passwordTPRDelayValidFrom to -1
-    4. Trigger TPR by resetting the user jdoe1 password above
-    5. Attempt to bind and rebind immediately 
-    6. Set passwordTPRDelayValidFrom - 5secs elapses and bind rebind before 5 secs elapses
-    6. Wait for the passwordTPRDelayValidFrom value to elapse and try to reset passwd
+        1. Create DS Instance
+        2. Create user jdoe2 with appropriate password
+        3. Configure the Global Password policies disable passwordTPRDelayValidFrom to -1
+        4. Trigger TPR by resetting the user jdoe1 password above
+        5. Attempt to bind and rebind immediately 
+        6. Set passwordTPRDelayValidFrom - 5secs elapses and bind rebind before 5 secs elapses
+        7. Wait for the passwordTPRDelayValidFrom value to elapse and try to reset passwd
 
-    :expected results:
-    1. Success
-    2. Success
-    3. Success
-    4. Success
-    5. Success
-    6. Fail(ldap.LDAP_CONSTRAINT_VIOLATION)
-    7. Success
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Fail(ldap.LDAP_CONSTRAINT_VIOLATION)
+        7. Success
 
 
 """
@@ -330,16 +332,17 @@ def test_admin_resets_pwd_TPR_attrs_reset(topo, _add_user, set_global_TPR_polici
     """Test When the ‘userpassword’ is updated (update_pw_info) by an administrator 
        and it exists a TPR policy, then the server flags that the entry has a 
        TPR password with ‘pwdTPRReset: TRUE’, ‘pwdTPRExpTime’ and ‘pwdTPRUseCount’.
+
     :id: e6a84dc0-f142-11eb-8c96-fa163e1f582c
     :customerscenario: True
     :setup: Standalone
     :steps:
-    1. Create DS Instance
-    2. Create user jdoe2 with appropriate password
-    3. Configure the Global Password policies enable 
-    4. Trigger TPR by resetting the user jdoe1 password above
-    5. Reset the users password ‘userpassword’
-    6. Check that ‘pwdTPRExpTime’ and ‘pwdTPRUseCount’ are updated
+        1. Create DS Instance
+        2. Create user jdoe2 with appropriate password
+        3. Configure the Global Password policies enable 
+        4. Trigger TPR by resetting the user jdoe1 password above
+        5. Reset the users password ‘userpassword’
+        6. Check that ‘pwdTPRExpTime’ and ‘pwdTPRUseCount’ are updated
     :expectedresults:
         1. Success
         2. Success
@@ -373,16 +376,17 @@ def test_admin_resets_pwd_TPR_attrs_reset(topo, _add_user, set_global_TPR_polici
 
 def test_user_resets_pwd_TPR_attrs_reset(topo, _add_user, set_global_TPR_policies):
     """Test once password is reset attributes are set to FALSE
+
     :id: 6614068a-ee7d-11eb-b1a3-98fa9ba19b65
     :customerscenario: True
     :setup: Standalone
     :steps:
-    1. Create DS Instance
-    2. Create user jdoe2 with appropriate password
-    3. Configure the Global Password policies and set passwordMustChange on
-    4. Trigger TPR by resetting the user jdoe1 password above
-    5. Reset the users password ‘userpassword’
-    6. Check that pwdTPRReset, pwdTPRUseCount, pwdTPRValidFrom, pwdTPRExpireAt are RESET
+        1. Create DS Instance
+        2. Create user jdoe2 with appropriate password
+        3. Configure the Global Password policies and set passwordMustChange on
+        4. Trigger TPR by resetting the user jdoe1 password above
+        5. Reset the users password ‘userpassword’
+        6. Check that pwdTPRReset, pwdTPRUseCount, pwdTPRValidFrom, pwdTPRExpireAt are RESET
     :expectedresults:
         1. Success
         2. Success
@@ -424,17 +428,18 @@ def test_user_resets_pwd_TPR_attrs_reset(topo, _add_user, set_global_TPR_policie
 
 def test_TPR_replication_entry(topo_m2c2):
     """Test once password is reset attributes are set to FALSE
+
         :id: f8b98042-ff07-11eb-b938-98fa9ba19b65
         :customerscenario: True
         :setup: Replicated 2 Suppliers 2 Consumers
         :steps:
-        1. Create Replicated Topology with 2 suppliers and 2 consumers
-        2. Create users on each replica
-        3. Verify that 'pwdTPRReset', 'pwdTPRUseCount', 'pwdTPRValidFrom', 'pwdTPRExpireAt' are set to None
-        3. Configure the Global Password policies and set passwordMustChange on supplier1
-        4. Trigger TPR by resetting the users password above
-        5. Reset the users password ‘userpassword’
-        6. Check that pwdTPRReset, pwdTPRUseCount, pwdTPRValidFrom, pwdTPRExpireAt are updated on every replica
+            1. Create Replicated Topology with 2 suppliers and 2 consumers
+            2. Create users on each replica
+            3. Verify that 'pwdTPRReset', 'pwdTPRUseCount', 'pwdTPRValidFrom', 'pwdTPRExpireAt' are set to None
+            4. Configure the Global Password policies and set passwordMustChange on supplier1
+            5. Trigger TPR by resetting the users password above
+            6. Reset the users password ‘userpassword’
+            7. Check that pwdTPRReset, pwdTPRUseCount, pwdTPRValidFrom, pwdTPRExpireAt are updated on every replica
         :expectedresults:
             1. Success
             2. Success
@@ -442,6 +447,7 @@ def test_TPR_replication_entry(topo_m2c2):
             4. Success
             5. Success
             6. Success
+            7. Success
 
         """
     repl_list = ['supplier1', 'supplier2', 'consumer1', 'consumer2']

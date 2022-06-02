@@ -38,7 +38,7 @@ def test_verify_trees(topo_m4):
     :setup: 4 Instances with replication
     :steps:
         1. All 4 suppliers should have consistent data now
-    :expected results:
+    :expectedresults:
         1. Should success
     """
     # all 4 suppliers should have consistent data now
@@ -62,7 +62,7 @@ def test_sync_through_to_all_4_suppliers(topo_m4, _cleanupentris):
     :steps:
         1. Insert fresh data into M2 - about 100 entries
         2. Begin verification process
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
     """
@@ -88,7 +88,7 @@ def test_modify_some_data_in_m3(topo_m4):
     :setup: 4 Instances with replication
     :steps:
         1. Modify some data in M3 , wait for 20 seconds ,check trees on all 4 suppliers
-    :expected results:
+    :expectedresults:
         1. Should success
     """
     # modify some data in M3
@@ -122,7 +122,7 @@ def test_delete_a_few_entries_in_m4(topo_m4, _cleanupentris):
         1. Delete a few entries in M4 ,
         2. Wait for 60 seconds for them to propagate,
         3. Verify trees
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success
@@ -152,7 +152,7 @@ def test_replicated_multivalued_entries(topo_m4):
     :setup: 4 Instances with replication
     :steps:
         1. Replicated multivalued entries are ordered the same way on all consumers
-    :expected results:
+    :expectedresults:
         1. Should success
     """
     # This test case checks that replicated multivalued entries are
@@ -195,7 +195,7 @@ def test_bad_replication_agreement(topo_m4):
     :setup: 4 Instances with replication
     :steps:
         1. Create the bad replication agreement and try to add it
-    :expected results:
+    :expectedresults:
         1. Should not success
     """
     # The return code for adding a bad replication agreement to the directory server is now
@@ -265,7 +265,7 @@ def test_nsds5replicaenabled_verify(topo_m4):
         2. Add data
         3. Delete data
         4. Very the replication
-    :expected results:
+    :expectedresults:
         1. Should  success
         2. Should  success
         3. Should  success
@@ -374,7 +374,7 @@ def test_create_an_entry_on_the_supplier(topo_m4):
     :setup: standalone
     :steps:
         1. Shut down one instance and create an entry on the supplier
-    :expected results:
+    :expectedresults:
         1. Should not success
     """
     # Bug 830344: Shut down one instance and create an entry on the supplier
@@ -399,7 +399,7 @@ def test_bob_acceptance_tests(topo_m4):
         1. Add entry
         2. Run multiple modrdn_s operation on supplier1
         3. Check everything is fine.
-    :expected results:
+    :expectedresults:
         1. Should  success
         2. Should  success
         3. Should  success
@@ -451,7 +451,7 @@ def test_replica_backup_and_restore(topo_m4):
         3. Delete entries on supplier1
         4. Restore entries ldif2db
         5. Check entries
-    :expected results:
+    :expectedresults:
         1. Should success
         2. Should success
         3. Should success

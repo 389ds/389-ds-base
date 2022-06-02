@@ -48,7 +48,7 @@ def aci_of_user(request, topo):
 
 
 @pytest.fixture(scope="module")
-def test_uer(request, topo):
+def add_test_user(request, topo):
     topo.standalone.config.loglevel((ErrorLog.ACL_SUMMARY,))
 
     ous = OrganizationalUnits(topo.standalone, DEFAULT_SUFFIX)
@@ -78,7 +78,7 @@ def test_uer(request, topo):
     })
 
 
-def test_deny_all_access_with__target_set_on_non_leaf(topo, test_uer, aci_of_user):
+def test_deny_all_access_with__target_set_on_non_leaf(topo, add_test_user, aci_of_user):
     """Search Test 11 Deny all access with != target set on non-leaf
 
     :id: f1c5d72a-6e11-11e8-aa9d-8c16451d917b
@@ -112,7 +112,7 @@ def test_deny_all_access_with__target_set_on_non_leaf(topo, test_uer, aci_of_use
 
 
 def test_deny_all_access_with__target_set_on_wildcard_non_leaf(
-    topo, test_uer, aci_of_user
+    topo, add_test_user, aci_of_user
 ):
     """Search Test 12 Deny all access with != target set on wildcard non-leaf
 
@@ -148,7 +148,7 @@ def test_deny_all_access_with__target_set_on_wildcard_non_leaf(
 
 
 def test_deny_all_access_with__target_set_on_wildcard_leaf(
-    topo, test_uer, aci_of_user
+    topo, add_test_user, aci_of_user
 ):
     """Search Test 13 Deny all access with != target set on wildcard leaf
 
@@ -184,7 +184,7 @@ def test_deny_all_access_with__target_set_on_wildcard_leaf(
 
 
 def test_deny_all_access_with_targetfilter_using_equality_search(
-    topo, test_uer, aci_of_user
+    topo, add_test_user, aci_of_user
 ):
     """Search Test 14 Deny all access with targetfilter using equality search
 
@@ -220,7 +220,7 @@ def test_deny_all_access_with_targetfilter_using_equality_search(
 
 
 def test_deny_all_access_with_targetfilter_using_equality_search_two(
-    topo, test_uer, aci_of_user
+    topo, add_test_user, aci_of_user
 ):
     """Test that Search Test 15 Deny all access with targetfilter using != equality search
 
@@ -256,7 +256,7 @@ def test_deny_all_access_with_targetfilter_using_equality_search_two(
 
 
 def test_deny_all_access_with_targetfilter_using_substring_search(
-    topo, test_uer, aci_of_user
+    topo, add_test_user, aci_of_user
 ):
     """Test that Search Test 16 Deny all access with targetfilter using substring search
 
@@ -292,7 +292,7 @@ def test_deny_all_access_with_targetfilter_using_substring_search(
 
 
 def test_deny_all_access_with_targetfilter_using_substring_search_two(
-    topo, test_uer, aci_of_user
+    topo, add_test_user, aci_of_user
 ):
     """Test that Search Test 17 Deny all access with targetfilter using != substring search
 
@@ -329,7 +329,7 @@ def test_deny_all_access_with_targetfilter_using_substring_search_two(
 
 
 def test_deny_all_access_with_targetfilter_using_boolean_or_of_two_equality_search(
-    topo, test_uer, aci_of_user, request
+    topo, add_test_user, aci_of_user, request
 ):
     """Search Test 18 Deny all access with targetfilter using boolean OR of two equality search
 
@@ -368,7 +368,7 @@ def test_deny_all_access_with_targetfilter_using_boolean_or_of_two_equality_sear
     assert UserAccount(topo.standalone, USER_ANUJ).get_attr_val_utf8('uid') == 'Anuj Borah'
 
 
-def test_deny_all_access_to__userdn_two(topo, test_uer, aci_of_user):
+def test_deny_all_access_to__userdn_two(topo, add_test_user, aci_of_user):
     """Search Test 19 Deny all access to != userdn
 
     :id: 693496c0-6e12-11e8-80dc-8c16451d917b
@@ -401,7 +401,7 @@ def test_deny_all_access_to__userdn_two(topo, test_uer, aci_of_user):
     assert 4 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
 
 
-def test_deny_all_access_with_userdn(topo, test_uer, aci_of_user):
+def test_deny_all_access_with_userdn(topo, add_test_user, aci_of_user):
     """Search Test 20 Deny all access with userdn
 
     :id: 75aada86-6e12-11e8-bd34-8c16451d917b
@@ -435,7 +435,7 @@ def test_deny_all_access_with_userdn(topo, test_uer, aci_of_user):
 
 
 def test_deny_all_access_with_targetfilter_using_presence_search(
-    topo, test_uer, aci_of_user
+    topo, add_test_user, aci_of_user
 ):
     """Search Test 21 Deny all access with targetfilter using presence search
 

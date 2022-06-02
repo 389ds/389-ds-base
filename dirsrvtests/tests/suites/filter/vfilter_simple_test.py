@@ -524,7 +524,7 @@ def test_param_positive(topo, _create_test_entries, real_value):
     :steps:
         1. Create Filter rules.
         2. Try to pass filter rules as per the condition .
-    :expected results:
+    :expectedresults:
         1. It should pass
         2. It should pass
     """
@@ -543,7 +543,7 @@ def test_param_negative(topo, _create_test_entries, real_value):
         1. Create Filter rules.
         2. Try to pass filter rules as per the condition .
         3. All Filters will give 0 output as these are negative test cases.
-    :expected results:
+    :expectedresults:
         1. It should pass
         2. It should pass
         3. no output
