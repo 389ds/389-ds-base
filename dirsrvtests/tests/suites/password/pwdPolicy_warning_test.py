@@ -565,7 +565,7 @@ def test_password_expire_works(topology_st):
         5. Modify the users password
         6. Modify the user one more time to make sur etime has been reset
         7. turn off the password policy
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success

@@ -540,7 +540,6 @@ def test_readonly_on_threshold_below_half_of_the_threshold(topo, setup, reset_lo
     :customerscenario: True
     :setup: Standalone
     :steps:
-    :expectedresults:
         1. Go straight below 1/2 of the threshold
         2. Verify that the backend is in read-only mode
         3. Go back above the threshold

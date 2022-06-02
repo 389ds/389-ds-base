@@ -101,6 +101,7 @@ def test_vattr_on_filtered_role_with_replication(topo, request):
     """Test nsslapd-ignore-virtual-attrs configuration attribute
        The attribute is ON by default. If a filtered role is
        added it is moved to OFF in replication scenario
+
     :id: 7b29be88-c8ca-409b-bbb7-ce3962f73f91
     :customerscenario: True
     :setup: Supplier Consumer

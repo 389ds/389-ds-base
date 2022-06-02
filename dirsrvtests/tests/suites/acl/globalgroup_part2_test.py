@@ -53,7 +53,7 @@ def aci_of_user(request, topo):
 
 
 @pytest.fixture(scope="module")
-def test_user(request, topo):
+def add_test_user(request, topo):
     for demo in ['Product Development', 'Accounting', 'nestedgroup']:
         OrganizationalUnit(topo.standalone, "ou={},{}".format(demo, DEFAULT_SUFFIX)).create(properties={'ou': demo})
 
@@ -100,7 +100,7 @@ def test_user(request, topo):
                            })
 
 
-def test_undefined_in_group_eval_five(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_five(topo, add_test_user, aci_of_user):
     """
         Aci will not allow access as Group dn is not allowed so members will not allowed access.
 
@@ -129,7 +129,7 @@ def test_undefined_in_group_eval_five(topo, test_user, aci_of_user):
     assert user.get_attr_val_utf8('uid') == 'scratchEntry'
 
 
-def test_undefined_in_group_eval_six(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_six(topo, add_test_user, aci_of_user):
     """
         Aci will not allow access as tested user is not a member of allowed Group dn
 
@@ -157,7 +157,7 @@ def test_undefined_in_group_eval_six(topo, test_user, aci_of_user):
     assert user.get_attr_val_utf8('uid') == 'scratchEntry'
 
 
-def test_undefined_in_group_eval_seven(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_seven(topo, add_test_user, aci_of_user):
     """
         Aci will not allow access as tested user is not a member of allowed Group dn
 
@@ -185,7 +185,7 @@ def test_undefined_in_group_eval_seven(topo, test_user, aci_of_user):
     assert user.get_attr_val_utf8('uid') == 'scratchEntry'
 
 
-def test_undefined_in_group_eval_eight(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_eight(topo, add_test_user, aci_of_user):
     """
         Aci will not allow access as Group dn is not allowed so members will not allowed access.
 
@@ -213,7 +213,7 @@ def test_undefined_in_group_eval_eight(topo, test_user, aci_of_user):
     assert user.get_attr_val_utf8('uid') == 'scratchEntry'
 
 
-def test_undefined_in_group_eval_nine(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_nine(topo, add_test_user, aci_of_user):
     """
         Aci will not allow access as Group dn is not allowed so members will not allowed access.
 
@@ -241,7 +241,7 @@ def test_undefined_in_group_eval_nine(topo, test_user, aci_of_user):
     assert user.get_attr_val_utf8('uid') == 'scratchEntry'
 
 
-def test_undefined_in_group_eval_ten(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_ten(topo, add_test_user, aci_of_user):
     """
         Test the userattr keyword to ensure that it evaluates correctly.
 
@@ -270,7 +270,7 @@ def test_undefined_in_group_eval_ten(topo, test_user, aci_of_user):
     user.remove("description", [ALLGROUPS_GLOBAL, GROUPG_GLOBAL])
 
 
-def test_undefined_in_group_eval_eleven(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_eleven(topo, add_test_user, aci_of_user):
     """
         Aci will not allow access as description is there with the user entry which is not allowed in ACI
 
@@ -301,7 +301,7 @@ def test_undefined_in_group_eval_eleven(topo, test_user, aci_of_user):
     user.remove("description", [ALLGROUPS_GLOBAL, GROUPH_GLOBAL])
 
 
-def test_undefined_in_group_eval_twelve(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_twelve(topo, add_test_user, aci_of_user):
     """
         Test with the parent keyord that Yields TRUE as description is present in tested entry
 
@@ -330,7 +330,7 @@ def test_undefined_in_group_eval_twelve(topo, test_user, aci_of_user):
     user.remove("description", [ALLGROUPS_GLOBAL, GROUPD_GLOBAL])
 
 
-def test_undefined_in_group_eval_fourteen(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_fourteen(topo, add_test_user, aci_of_user):
     """
         Test with parent keyword that Yields FALSE as description is not present in tested entry
 
@@ -361,7 +361,7 @@ def test_undefined_in_group_eval_fourteen(topo, test_user, aci_of_user):
     user.remove("description", [ALLGROUPS_GLOBAL, GROUPG_GLOBAL])
 
 
-def test_undefined_in_group_eval_fifteen(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_fifteen(topo, add_test_user, aci_of_user):
     """
         Here do the same tests for userattr  with the parent keyword.
 
@@ -387,7 +387,7 @@ def test_undefined_in_group_eval_fifteen(topo, test_user, aci_of_user):
     UserAccount(conn, NEWCHILDSCRATCHENTRY_GLOBAL).add("description", DEEPUSER_GLOBAL)
 
 
-def test_undefined_in_group_eval_sixteen(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_sixteen(topo, add_test_user, aci_of_user):
     """
         Test with parent keyword with not key
 
@@ -416,7 +416,7 @@ def test_undefined_in_group_eval_sixteen(topo, test_user, aci_of_user):
         user.add("description",DEEPUSER_GLOBAL)
 
 
-def test_undefined_in_group_eval_seventeen(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_seventeen(topo, add_test_user, aci_of_user):
     """
         Test with the parent keyord that Yields TRUE as description is present in tested entry
 
@@ -444,7 +444,7 @@ def test_undefined_in_group_eval_seventeen(topo, test_user, aci_of_user):
     user.remove("description", [ALLGROUPS_GLOBAL, GROUPD_GLOBAL])
 
 
-def test_undefined_in_group_eval_eighteen(topo, test_user, aci_of_user):
+def test_undefined_in_group_eval_eighteen(topo, add_test_user, aci_of_user):
     """
         Test with parent keyword with not key
 

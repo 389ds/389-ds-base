@@ -308,7 +308,7 @@ def test_db_protect(topo):
         12. Logs the differences
         13. Assert if differences is not empty
 
-    :expected results:
+    :expectedresults:
         1. Operation successful
         2. Operation successful
         3. Operation successful

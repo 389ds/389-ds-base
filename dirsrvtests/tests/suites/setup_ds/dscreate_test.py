@@ -62,6 +62,23 @@ def topology(request):
     return TopologyInstance(instance)
 
 def test_setup_ds_minimal_dry(topology):
+    """Test minimal DS setup - dry run
+
+    :id: 82637910-e279-11ec-a785-3497f624ea11
+    :setup: standalone instance
+    :steps:
+        1. Create the setupDS
+        2. Give it the right types
+        3. Get the dicts from Type2Base, as though they were from _validate_ds_2_config
+        4. Override instance name, root password, port and secure port
+        5. Assert we did not change the system
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
     # Unset PYTHONPATH to avoid mixing old CLI tools and new lib389
     tmp_env = os.environ
     if "PYTHONPATH" in tmp_env:
@@ -95,6 +112,29 @@ def test_setup_ds_minimal_dry(topology):
     assert(len(insts) == 0)
 
 def test_setup_ds_minimal(topology):
+    """Test minimal DS setup
+
+    :id: 563c3ec4-e27b-11ec-970e-3497f624ea11
+    :setup: standalone instance
+    :steps:
+        1. Create the setupDS
+        2. Give it the right types
+        3. Get the dicts from Type2Base, as though they were from _validate_ds_2_config
+        4. Override instance name, root password, port and secure port
+        5. Assert we did change the system
+        6. Make sure we can connect
+        7. Make sure we can start stop.
+        8. Remove the instance
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+    """
     # Create the setupDs
     lc = LogCapture()
     # Give it the right types.

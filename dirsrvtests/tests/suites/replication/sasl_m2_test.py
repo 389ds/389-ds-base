@@ -144,11 +144,11 @@ def test_repl_sasl_leak(topo_m2, use_valgrind):
         5. Poke replication 100 times
         6. Stop server
         7. Check presence of "SASL(-4): no mechanism available: No worthy mechs found" message in error log
-        8 Check that there is no leak about slapi_ldap_get_lderrno
+        8. Check that there is no leak about slapi_ldap_get_lderrno
     :expectedresults:
         1. Success
         2. Success
-        2. Success
+        3. Success
         4. Success
         5. Success
         6. Success

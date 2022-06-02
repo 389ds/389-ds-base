@@ -123,7 +123,16 @@ def atgetdiffs(ldschema, at1, at2):
 
 
 def test_schema_comparewithfiles(topology_st):
-    '''Compare the schema from ldap cn=schema with the schema files'''
+    """Compare the schema from ldap cn=schema with the schema files
+
+    :id: 31f0233e-a7e6-442f-8b05-c0b095e93387
+    :setup: Standalone instance
+    :steps:
+        1. Compare the schema from ldap cn=schema with the schema from files
+
+    :expectedresults:
+        1. Schema in cn=schema and files should be the same
+    """
 
     log.info('Running test_schema_comparewithfiles...')
 
@@ -203,7 +212,7 @@ def test_gecos_mixed_definition_topo(topo_m2, request):
     """Check that replication is still working if schema contains
        definitions that does not conform with a replicated entry
 
-    :id: d5940e71-d18a-4b71-aaf7-b9185361fffe
+    :id: 0a1b4f8c-e84a-4cc4-82c8-2561b1126786
     :setup: Two suppliers replication setup
     :steps:
         1. Create a testuser on M1

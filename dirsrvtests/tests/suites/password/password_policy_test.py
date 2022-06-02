@@ -198,7 +198,7 @@ def test_password_change_section(topo, _policy_setup, _fixture_for_password_chan
         25. Administrator Reseting to original password
         26. Try to change password with invalid credentials.  Should see error message
         27. Changing current password (('passwordchange', 'off') for joe)
-    :expected results:
+    :expectedresults:
         1. Success(As its is not belong to any password policy)
         2. Success
         3. Fail(pw policy is set to no)
@@ -439,7 +439,7 @@ def test_password_syntax_section(topo, _policy_setup, _fixture_for_syntax_sectio
         18. Setting policy to Check Password Syntax again
         19. Try to change to a password that violates length
         20. Change to a password that meets length requirement
-    :expected results:
+    :expectedresults:
         1. Fail(invalid cred)
         2. Fail(constaint viol.)
         3. Fail(Syntax error)
@@ -693,7 +693,7 @@ def test_password_history_section(topo, _policy_setup, _fixture_for_password_his
             13. Setting policy to NOT keep password histories
             14. Changing current password from ``*2 to ``*2``
             15. Try to change ``*2`` to ``*1``, should succeed
-        :expected results:
+        :expectedresults:
             1. Success
             2. Success
             3. Fail(ldap.CONSTRAINT_VIOLATION)
@@ -881,7 +881,7 @@ def test_password_minimum_age_section(topo, _policy_setup, _fixture_for_password
             3. Wait 5 secs and try to change again.  Should fail.
             4. Wait more time to complete password min age
             5. Now user can change password
-        :expected results:
+        :expectedresults:
             1. Success
             2. Success
             3. Fail(ldap.CONSTRAINT_VIOLATION)
@@ -959,7 +959,7 @@ def test_account_lockout_and_lockout_duration_section(topo, _policy_setup, _fixt
             4. Try to bind with invalid credentials
             5. Attempt to bind with valid pw after timeout is up
             6. Resetting with root can break lockout
-        :expected results:
+        :expectedresults:
             1. Fail(ldap.INVALID_CREDENTIALS)
             2. Fail(ldap.CONSTRAINT_VIOLATION)
             3. Success
@@ -1090,7 +1090,7 @@ def test_grace_limit_section(topo, _policy_setup, _fixture_for_grace_limit):
         13. Modify the users passwords to start the clock
         14. Users should be blocked
         15. Removing the passwordgracelimit attribute should make it default to 0
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Fail(ldap.INVALID_CREDENTIALS)
@@ -1304,7 +1304,7 @@ def test_additional_corner_cases(topo, _policy_setup, _fixture_for_additional_ca
         6. Try to change password to the value of ou, which is trivial. Should get error.
         7. No error for fred and dbyers as they are not included in PW policy.
         8. Revert changes for fred and dbyers
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Fail(CONSTRAINT_VIOLATION)

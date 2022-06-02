@@ -245,7 +245,7 @@ def test_sync_repl_mep(topology, request):
         3. start sync_repl client
         4. Add users with PosixAccount ObjectClass (mep will update it several times)
         5. Check that the received cookie are progressing
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -453,22 +453,21 @@ def test_sync_repl_cookie_with_failure(topology, init_sync_repl_plugins, request
     :id: e0103448-170e-4080-8f22-c34606447ce2
     :setup: Standalone Instance
     :steps:
-      1.: initialization/cleanup done by init_sync_repl_plugins fixture
-      2.: update group2 so that it will not accept 'member' attribute (set by memberof)
-      3.: create a thread dedicated to run a sync repl client
-      4.: Create a group that will be the only update received by sync repl client
-      5.: Create (9) users that will generate nested updates (automember/memberof).
-          creation will fail because 'member' attribute is not allowed in group2
-      6.: stop sync repl client and collect the list of cookie.change_no
-      7.: check that the list of cookie.change_no contains only the group 'step 11'
+      1. initialization/cleanup done by init_sync_repl_plugins fixture
+      2. update group2 so that it will not accept 'member' attribute (set by memberof)
+      3. create a thread dedicated to run a sync repl client
+      4. Create a group that will be the only update received by sync repl client
+      5. Create (9) users that will generate nested updates (automember/memberof). Creation will fail because 'member' attribute is not allowed in group2
+      6. stop sync repl client and collect the list of cookie.change_no
+      7. check that the list of cookie.change_no contains only the group 'step 11'
     :expectedresults:
-      1.: succeeds
-      2.: succeeds
-      3.: succeeds
-      4.: succeeds
-      5.: Fails (expected)
-      6.: succeeds
-      7.: succeeds
+      1. succeeds
+      2. succeeds
+      3. succeeds
+      4. succeeds
+      5. Fails (expected)
+      6. succeeds
+      7. succeeds
     """
     inst = topology[0]
 

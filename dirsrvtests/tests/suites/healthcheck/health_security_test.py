@@ -266,7 +266,7 @@ def test_healthcheck_pwdfile_bad_file_perm(topology_st):
 def test_healthcheck_certif_expiring_within_30d(topology_st):
     """Check if HealthCheck returns DSCERTLE0001 code
 
-    :id: c2165032-88ba-4978-a4ca-2fecfd8c35d8
+    :id: f30b8115-0fd3-4c1d-9f5a-383bea7ea869
     :setup: Standalone instance
     :steps:
         1. Create DS instance

@@ -151,17 +151,14 @@ def test_monitor_backend(topo):
 @pytest.mark.bz1903539
 @pytest.mark.ds4528
 def test_num_subordinates_with_monitor_suffix(topo):
-    """This test is to compare the numSubordinates value on the root entry
-    with the actual number of direct subordinate(s).
+    """This test is to compare the numSubordinates value on the root entry with the actual number of direct subordinate(s).
 
     :id: fdcfe0ac-33c3-4252-bf38-79819ec58a51
     :setup: Single instance
     :steps:
-        1. Create sample entries and perform a search with basedn as cn=monitor,
-        filter as "(objectclass=*)" and scope as base.
+        1. Create sample entries and perform a search with basedn as cn=monitor, filter as "(objectclass=*)" and scope as base.
         2. Extract the numSubordinates value.
-        3. Perform another search with basedn as cn=monitor, filter as
-        "(|(objectclass=*)(objectclass=ldapsubentry))" and scope as one.
+        3. Perform another search with basedn as cn=monitor, filter as "(\|(objectclass=*)(objectclass=ldapsubentry))" and scope as one.
         4. Compare numSubordinates value with the number of sub-entries.
     :expectedresults:
         1. Success

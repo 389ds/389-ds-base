@@ -165,8 +165,8 @@ def test_password_hash_on_upgrade_clearcrypt(topology_st):
             2. The bind succeeds
             3. The PW is CLEAR
             4. The set succeeds
-            4. The bind succeeds
-            5. The PW is CRYPT
+            5. The bind succeeds
+            6. The PW is CRYPT
     """
     # Make sure the server is set to pkbdf
     topology_st.standalone.config.set('nsslapd-allow-hashed-passwords', 'on')

@@ -1,0 +1,14 @@
+---
+id:
+    required: True
+setup: {}
+steps: {}
+expectedresults: {}
+requirement:
+    required: False
+feature:
+    required: False
+customerscenario:
+    required: False
+parametrized:
+    required: False

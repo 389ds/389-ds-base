@@ -77,7 +77,7 @@ def test_global_tpr_maxuse_1(topology_st, test_user, request):
         7. Bind with a valid password 5 times and check CONSTRAINT_VIOLATION
            and check passwordTPRRetryCount overpass the limit by 1 (6)
         8. Reset password policy configuration
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -191,7 +191,7 @@ def test_global_tpr_maxuse_2(topology_st, test_user, request):
         7. Bind successfully with a valid password 10 times
            and check passwordTPRRetryCount returns to 0
         8. Reset password policy configuration
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -296,7 +296,7 @@ def test_global_tpr_maxuse_3(topology_st, test_user, request):
         7. Bindd with valid password and reset the password
         8. Check we can bind again and SRCH succeeds
         9. Reset password policy configuration
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -407,7 +407,7 @@ def test_global_tpr_maxuse_4(topology_st, test_user, request):
         8. Bind as user and reset its password
         9. Check that user can not update pwdTPRUseCount => INSUFFICIENT_ACCESS
         10. Check that DM can update pwdTPRUseCount
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -523,7 +523,7 @@ def test_local_tpr_maxuse_5(topology_st, test_user, request):
         9. Bind with a valid password 10 times and check CONSTRAINT_VIOLATION
            and check passwordTPRUseCount increases
         10. Reset password policy configuration and remove local password from user
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -671,7 +671,7 @@ def test_global_tpr_delayValidFrom_1(topology_st, test_user, request):
         6. Check that Validity is not reached yet
            pwdTPRValidFrom >= now + passwordTPRDelayValidFrom - 2 (safety)
         7. Bind with valid password, Fails because of CONSTRAINT_VIOLATION
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -738,7 +738,7 @@ def test_global_tpr_delayValidFrom_2(topology_st, test_user, request):
         7. Bind with valid password, reset password
            to allow further searches
         8. Check bound user can search attribute ('uid')
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -817,7 +817,7 @@ def test_global_tpr_delayValidFrom_3(topology_st, test_user, request):
         11. Bound as DM, check user has the right to
             modify pwdTPRValidFrom
 
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -912,7 +912,7 @@ def test_global_tpr_delayExpireAt_1(topology_st, test_user, request):
         5. Reset the password
         6. Wait for passwordTPRDelayExpireAt=6s + 2s (safety)
         7. Bind with valid password should fail with ldap.CONSTRAINT_VIOLATION
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -983,7 +983,7 @@ def test_global_tpr_delayExpireAt_2(topology_st, test_user, request):
         5. Reset the password
         6. Wait for 1s
         7. Bind with valid password should succeeds
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -1064,7 +1064,7 @@ def test_global_tpr_delayExpireAt_3(topology_st, test_user, request):
         11. Bound as DM, check user has the right to
             modify pwdTPRExpireAt
 
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success

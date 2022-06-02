@@ -346,7 +346,7 @@ def test_telephone(topo, _create_entries, real_value):
         :setup: Standalone
         :steps:
             1. Pass filter rules as per the condition .
-        :expected results:
+        :expectedresults:
             2. Pass
         """
     conn = UserAccount(topo.standalone, f'uid=jreuter,ou=People,{DEFAULT_SUFFIX}').bind(PW_DM)
@@ -363,7 +363,7 @@ def test_all_positive(topo, _create_entries, real_value):
         :setup: Standalone
         :steps:
             1. Pass filter rules as per the condition .
-        :expected results:
+        :expectedresults:
             1. Pass
         """
     conn = UserAccount(topo.standalone, f'uid=tclow,ou=People,{DEFAULT_SUFFIX}').bind(PW_DM)
@@ -379,7 +379,7 @@ def test_all_negative(topo, _create_entries, real_value):
         :setup: Standalone
         :steps:
             1. Pass filter rules as per the negative condition .
-        :expected results:
+        :expectedresults:
             1. Fail
         """
     conn = UserAccount(topo.standalone, f'uid=tclow,ou=People,{DEFAULT_SUFFIX}').bind(PW_DM)

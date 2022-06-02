@@ -87,7 +87,7 @@ def test_passwordchange_to_no(topo, _fix_password):
         5. Set Password change to May Change Password
         6. Try to change password fo a user even password
         7. Try to change password with invalid credentials.  Should see error message.
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -137,7 +137,7 @@ def test_password_check_syntax(topo, _fix_password):
         15. Setting policy to Check Password Syntax again
         16. Try to change to a password that violates length
         17. Reset Password
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -209,7 +209,7 @@ def test_too_big_password(topo, _fix_password):
         4. Checking that the passwordhistory attribute has been added
         5. Add a password test for long long password
         6. Changing number of password in history to 6 and passwordhistory off
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -253,7 +253,7 @@ def test_pwminage(topo, _fix_password):
         3. Change current password
         4. Try to change password again
         5. Try now after 3 secs is up,  should work.
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -293,7 +293,7 @@ def test_invalid_credentials(topo, _fix_password):
         8. Now bind again with valid password: We should be locked
         9. Delete dby3rs before exiting
         10. Reset server
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -370,7 +370,7 @@ def test_expiration_date(topo, _fix_password):
         10. Set password history ON
         11. Modify password Once
         12. Try to change the password with same one
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -443,7 +443,7 @@ def test_passwordlockout(topo, _fix_password):
         17. Reset password using admin login
         18. Try to login as the user to check the unlocking of account. Will also change the
             password back to original
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success

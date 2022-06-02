@@ -1,0 +1,22 @@
+name: Validate tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/389ds/ci-images:test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Run testimony
+        if: always()
+        run: testimony validate -c dirsrvtests/testimony.yaml dirsrvtests/tests/suites
+
+      - name: Check for duplicate IDs
+        if: always()
+        run: python3 dirsrvtests/check_for_duplicate_ids.py dirsrvtests/tests/suites

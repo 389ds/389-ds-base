@@ -106,7 +106,7 @@ def test_positive(topo, _create_entries, real_value):
     :setup: Standalone
     :steps:
         1. Try to pass filter rules as per the condition .
-    :expected results:
+    :expectedresults:
         1. Pass
     """
     assert Accounts(topo.standalone, DEFAULT_SUFFIX).filter(real_value)
@@ -120,7 +120,7 @@ def test_indexing_schema(topo, _create_entries):
     :steps:
         1. Add attribute types to Schema.
         2. Try to pass filter rules as per the condition .
-    :expected results:
+    :expectedresults:
         1. Pass
         2. Pass
     """
@@ -142,7 +142,7 @@ def test_indexing(topo, _create_entries, real_value):
     :setup: Standalone
     :steps:
         1. Try to pass filter rules as per the condition .
-    :expected results:
+    :expectedresults:
         1. Pass
     """
     cos = CosTemplates(topo.standalone, DEFAULT_SUFFIX, rdn='ou=People')
@@ -158,7 +158,7 @@ def test_indexing_negative(topo, _create_entries, real_value):
     :setup: Standalone
     :steps:
         1. Try to pass negative filter rules as per the condition .
-    :expected results:
+    :expectedresults:
         1. Fail
     """
     cos = CosTemplates(topo.standalone, DEFAULT_SUFFIX, rdn='ou=People')

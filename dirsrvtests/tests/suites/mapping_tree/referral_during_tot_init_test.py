@@ -19,6 +19,23 @@ pytestmark = pytest.mark.tier1
 
 @pytest.mark.skipif(ds_is_older("1.4.0.0"), reason="Not implemented")
 def test_referral_during_tot(topology_m2):
+    """Test referrals during total init
+
+    :id: 2a030f15-89ae-4acc-880d-bd2263a6be33
+    :setup: 2 suppliers
+    :steps:
+        1. Create test user on supplier2
+        2. Create a bunch of entries in supplier1
+        3. Recreate the user on supplier1 also, so that if the init finishes first we don't lose the user on supplier2
+        4. Initialize replica on supplier1
+        5. While that's happening try to bind as a user to supplier2
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. This should trigger the referral code.
+    """
 
     supplier1 = topology_m2.ms["supplier1"]
     supplier2 = topology_m2.ms["supplier2"]
@@ -37,7 +54,7 @@ def test_referral_during_tot(topology_m2):
     supplier1.stop()
     supplier1.ldif2db(bename=None, excludeSuffixes=None, encrypt=False, suffixes=[DEFAULT_SUFFIX], import_file=import_ldif)
     supplier1.start()
-    # Recreate the user on m1 also, so that if the init finishes first ew don't lose the user on m2
+    # Recreate the user on supplier1 also, so that if the init finishes first we don't lose the user on supplier2
     users = UserAccounts(supplier1, DEFAULT_SUFFIX)
     u = users.create(properties=TEST_USER_PROPERTIES)
     u.set('userPassword', 'password')

@@ -740,6 +740,17 @@ def test_access_log_truncated_search_message(topology_st, clean_access_logs):
 @pytest.mark.bz1732053
 @pytest.mark.ds50510
 def test_etime_at_border_of_second(topology_st, clean_access_logs):
+    """Test that the etime reported in the access log doesn't contain wrong nsec value
+
+    :id: 622be191-235b-4e1f-b581-2627fb10e494
+    :setup: Standalone instance
+    :steps:
+         1. Run rsearch
+         2. Check access logs
+    :expectedresults:
+         1. Success
+         2. No etime with 0.199xxx (everything should be few ms)
+    """
     topo = topology_st.standalone
 
     prog = os.path.join(topo.ds_paths.bin_dir, 'rsearch')

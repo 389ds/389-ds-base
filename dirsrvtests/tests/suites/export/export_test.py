@@ -45,14 +45,14 @@ def run_db2ldif_and_clear_logs(topology, instance, backend, ldif, output_msg, en
 def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path(topo):
     """Export with dsctl db2ldif, giving a ldif file path which can't be accessed by the user (dirsrv by default)
 
-    :id: ca91eda7-27b1-4750-a013-531a63d3f5b0
+    :id: 511e7702-7685-4951-9966-38f402d6214b
     :setup: Standalone Instance - entries imported in the db
     :steps:
         1. Stop the server
         2. Launch db2ldif with an non accessible ldif file path 
         3. Catch the reported error code
         4. check the error reported in the errors log
-    :expected results:
+    :expectedresults:
         1. Operation successful
         2. Operation properly fails, without crashing
         3. An error code different from 139 (segmentation fault) should be reported
@@ -92,7 +92,7 @@ def test_db2ldif_cli_with_non_accessible_ldif_file_path(topo):
         2. Launch db2ldif with an non accessible ldif file path 
         3. Catch the reported error code
         4. check the error reported in the errors log
-    :expected results:
+    :expectedresults:
         1. Operation successful
         2. Operation properly fails, without crashing
         3. An error code different from 139 (segmentation fault) should be reported
@@ -135,7 +135,7 @@ def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path_output(topo):
         1. Stop the server
         2. Launch db2ldif with a non accessible ldif file path 
         3. check the error reported in the command output
-    :expected results:
+    :expectedresults:
         1. Operation successful
         2. Operation properly fails
         3. An clear error message is reported as output of the cli

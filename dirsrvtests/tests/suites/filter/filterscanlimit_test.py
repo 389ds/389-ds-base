@@ -176,7 +176,7 @@ def test_invalid_configuration(topo):
     :setup: Standalone instance
     :steps:
         1. Try change nsIndexIDListScanLimit
-    :expected results:
+    :expectedresults:
         1. This should pass
     """
     for i in ['4000',
@@ -214,7 +214,7 @@ def test_idlistscanlimit(topo):
          5. restart instance
          6. Search created entries
          7. indexing works after restart
-    :expected results:
+    :expectedresults:
          1. This should pass
          2. This should pass
          3. This should pass

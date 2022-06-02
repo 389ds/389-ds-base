@@ -132,7 +132,7 @@ def test_filter_validation_warn_safe(topology_st):
     """Test that queries which are invalid, are correctly marked as "notes=F" in
     the access log, and return no entries or partial sets.
 
-    :id: 8b2b23fe-d878-435c-bc84-8c298be4ca1f
+    :id: 7c8b3374-63c7-4201-9032-faae84c86d50
     :setup: Standalone instance
     :steps:
         1. Search a well formed query

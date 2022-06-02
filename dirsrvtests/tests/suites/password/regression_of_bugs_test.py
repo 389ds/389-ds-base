@@ -121,7 +121,7 @@ def test_local_password_policy(topo, _add_user):
         6. Add another generic user but do not include the password (userpassword)
         7. Use admin user to perform a password update on generic user
         8. We don't need this ACI anymore. Delete it
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -165,7 +165,7 @@ def test_passwordexpirationtime_attribute(topo, _add_user):
     :setup: Standalone
     :steps:
         1. Check that the passwordExpirationTime attribute is set to the epoch date
-    :expected results:
+    :expectedresults:
         1. Success
     """
     Config(topo.standalone).replace('passwordMustChange', 'on')
@@ -218,7 +218,7 @@ def test_admin_group_to_modify_password(topo, _add_user):
         28. Change admins
         29. Change user's password by ex-admin user
         30. Change admin user's password by ex-admin user
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -429,7 +429,7 @@ def test_password_max_failure_should_lockout_password(topo):
         3. Set maximum number of login tries to 3
         4. Turn off passwordLegacyPolicy
         5. Turn off local password policy, so that global is applied
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -472,7 +472,7 @@ def test_pwd_update_time_attribute(topo):
             check passwordUpdateTime should be changed
         11. Try setting Invalid value for passwordTrackUpdateTime
         12. Try setting Invalid value for pwdupdatetime
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -537,7 +537,7 @@ def test_password_track_update_time(topo):
         9. Check current pwdUpdateTime
         10. Set passwordTrackUpdateTime to ON and modify test entry's pwd,
             check passwordUpdateTime should be changed
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -606,7 +606,7 @@ def test_signal_11(topo):
     :steps:
         1. Adding new user
         2. Modifying user passwod of uid=bz973583
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
     """

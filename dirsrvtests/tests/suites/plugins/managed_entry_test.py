@@ -59,7 +59,7 @@ def test_binddn_tracking(topo, _create_inital):
         7. Check the time stamp of UPG should be changed now
         8. Check the creatorsname should be user dn and internalCreatorsname should be plugin name
         9. Check if a managed group entry was created
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -115,7 +115,7 @@ class WithObjectClass(Account):
 def test_mentry01(topo, _create_inital):
     """Test Managed Entries basic functionality
 
-    :id: 9b87493b-0493-46f9-8364-6099d0e5d806
+    :id: 863678bb-9383-42cf-b2a8-8763f4908650
     :setup: Standalone Instance
     :steps:
         1. Check the plug-in status
@@ -133,7 +133,7 @@ def test_mentry01(topo, _create_inital):
         13. Deleting mepManagedBy attribute and running ModRDN operation to check if it creates a new UPG
         14. Change the RDN of template entry, DSA Unwilling to perform error expected
         15. Change the RDN of cn=Users to cn=TestUsers and check UPG are deleted
-    :expected results:
+    :expectedresults:
         1. Success
         2. Success
         3. Success

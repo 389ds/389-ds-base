@@ -186,8 +186,8 @@ def test_csngen_state_not_updated_if_different_uuid(topo_m2c2):
              (to clear the ruvs and generates different generation uuid)
         5. Perform on line init from supplier1 to consumer1 and supplier2 to consumer2
         6. Perform update on both suppliers
-        7: Check that c1 has no time skew
-        8: Check that c2 has time skew
+        7. Check that c1 has no time skew
+        8. Check that c2 has time skew
         9. Init supplier2 from supplier1
         10. Perform update on supplier2
         11. Check that c1 has time skew

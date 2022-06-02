@@ -32,7 +32,7 @@ def test_positive(topo):
         :steps:
             1. Create entries with userCertificate field.
             2. Try to search/filter them with userCertificate field.
-        :expected results:
+        :expectedresults:
             1. Pass
             2. Pass
     """
