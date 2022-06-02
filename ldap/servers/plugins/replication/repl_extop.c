@@ -73,6 +73,18 @@ done:
     return rc;
 }
 
+static void
+ruv_dump_to_log(const RUV *ruv, char *log_name)
+{
+    if (!ruv) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "%s: RUV: None\n", log_name);
+    } else {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "%s: RUV:\n", log_name);
+        ruv_dump(ruv, log_name, NULL);
+    }
+}
+
+
 /* The data_guid and data parameters should only be set if we
  * are talking with a 9.0 replica. */
 static struct berval *
@@ -95,33 +107,60 @@ create_ReplicationExtopPayload(const char *protocol_oid,
     PR_ASSERT(protocol_oid != NULL || send_end);
     PR_ASSERT(repl_root != NULL);
 
-    /* Create the request data */
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                "encoding '%s' payload...\n",
+                send_end ? "End Replication" : "Start Replication");
+    }
 
+    /* Create the request data */
     if ((tmp_bere = der_alloc()) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                "encoding failed: der_alloc failed\n");
         rc = LDAP_ENCODING_ERROR;
         goto loser;
     }
     if (!send_end) {
         if (ber_printf(tmp_bere, "{ss", protocol_oid, repl_root) == -1) {
+            slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                    "encoding failed: ber_printf failed - protocol_oid (%s) repl_root (%s)\n",
+                    protocol_oid, repl_root);
             rc = LDAP_ENCODING_ERROR;
             goto loser;
         }
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                    "encoding protocol_oid: %s\n", protocol_oid);
+        }
     } else {
         if (ber_printf(tmp_bere, "{s", repl_root) == -1) {
+            slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                    "encoding failed: ber_printf failed - repl_root (%s)\n",
+                    repl_root);
             rc = LDAP_ENCODING_ERROR;
             goto loser;
+        }
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                    "encoding repl_root: %s\n", repl_root);
         }
     }
 
     sdn = slapi_sdn_new_dn_byref(repl_root);
     repl = replica_get_replica_from_dn(sdn);
     if (repl == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                "encoding failed: failed to get replica from dn (%s)\n",
+                slapi_sdn_get_dn(sdn));
         rc = LDAP_OPERATIONS_ERROR;
         goto loser;
     }
 
     ruv_obj = replica_get_ruv(repl);
     if (ruv_obj == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                "encoding failed: failed to get ruv from replica suffix (%s)\n",
+                slapi_sdn_get_dn(sdn));
         rc = LDAP_OPERATIONS_ERROR;
         goto loser;
     }
@@ -134,7 +173,13 @@ create_ReplicationExtopPayload(const char *protocol_oid,
     /* We need to encode and send each time the local ruv in case we have changed it */
     rc = encode_ruv(tmp_bere, ruv);
     if (rc != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                "encoding failed: encode_ruv failed for replica suffix (%s)\n",
+                slapi_sdn_get_dn(sdn));
         goto loser;
+    }
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        ruv_dump_to_log(ruv, "create_ReplicationExtopPayload");
     }
 
     if (!send_end) {
@@ -157,36 +202,67 @@ create_ReplicationExtopPayload(const char *protocol_oid,
         charray_merge(&referrals_to_send, local_replica_referral, 0);
         if (NULL != referrals_to_send) {
             if (ber_printf(tmp_bere, "[v]", referrals_to_send) == -1) {
+                slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                        "encoding failed: ber_printf (referrals_to_send)\n");
                 rc = LDAP_ENCODING_ERROR;
                 goto loser;
+            }
+            if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                for (size_t i = 0; referrals_to_send[i]; i++) {
+                    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                            "encoding ref: %s\n", referrals_to_send[i]);
+                }
             }
             slapi_ch_free((void **)&referrals_to_send);
         }
         /* Add the CSN */
         PR_ASSERT(NULL != csn);
         if (ber_printf(tmp_bere, "s", csn_as_string(csn, PR_FALSE, s)) == -1) {
+            slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                    "encoding failed: ber_printf (csnstr)\n");
             rc = LDAP_ENCODING_ERROR;
             goto loser;
+        }
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                    "encoding csn: %s\n", csn_as_string(csn, PR_FALSE, s));
         }
     }
 
     /* If we have data to send to a 9.0 style replica, set it here. */
     if (data_guid && data) {
         if (ber_printf(tmp_bere, "sO", data_guid, data) == -1) {
+            slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                    "encoding failed: ber_printf (data_guid, data)\n");
             rc = LDAP_ENCODING_ERROR;
             goto loser;
         }
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                    "encoding data_guid (%s) data (%s:%ld)\n",
+                    data_guid, data->bv_val, data->bv_len);
+        }
     }
 
+
     if (ber_printf(tmp_bere, "}") == -1) {
+        slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                "encoding failed: ber_printf\n");
         rc = LDAP_ENCODING_ERROR;
         goto loser;
     }
 
     if (ber_flatten(tmp_bere, &req_data) == -1) {
+        slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
+                "encoding failed: ber_flatten failed\n");
         rc = LDAP_LOCAL_ERROR;
         goto loser;
     }
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "create_ReplicationExtopPayload - "
+                "Encoding finished\n");
+    }
+
     /* Success */
     goto done;
 
@@ -293,8 +369,14 @@ decode_startrepl_extop(Slapi_PBlock *pb, char **protocol_oid, char **repl_root, 
     if ((NULL == extop_oid) ||
         ((strcmp(extop_oid, REPL_START_NSDS50_REPLICATION_REQUEST_OID) != 0) &&
          (strcmp(extop_oid, REPL_START_NSDS90_REPLICATION_REQUEST_OID) != 0)) ||
-        !BV_HAS_DATA(extop_value)) {
+        !BV_HAS_DATA(extop_value))
+    {
         /* bogus */
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: extop_oid (%s) (%s) extop_value (%s)\n",
+                NULL == extop_oid ? "NULL" : "Ok",
+                extop_oid ? extop_oid : "",
+                extop_value ? !BV_HAS_DATA(extop_value) ? "No data" : "Ok" : "No data");
         rc = -1;
         goto free_and_return;
     }
@@ -307,25 +389,36 @@ decode_startrepl_extop(Slapi_PBlock *pb, char **protocol_oid, char **repl_root, 
     }
 
     if ((tmp_bere = ber_init(extop_value)) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: ber_init for extop_value (%s:%lu)\n",
+                extop_value->bv_val, extop_value->bv_len);
         rc = -1;
         goto free_and_return;
     }
     if (ber_scanf(tmp_bere, "{") == LBER_ERROR) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: ber_scanf 1\n");
         rc = -1;
         goto free_and_return;
     }
     /* Get the required protocol OID and root of replicated subtree */
     if (ber_get_stringa(tmp_bere, protocol_oid) == LBER_DEFAULT) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: ber_get_stringa (protocol_oid)\n");
         rc = -1;
         goto free_and_return;
     }
     if (ber_get_stringa(tmp_bere, repl_root) == LBER_DEFAULT) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: ber_get_stringa (repl_root)\n");
         rc = -1;
         goto free_and_return;
     }
 
     /* get supplier's ruv */
     if (decode_ruv(tmp_bere, supplier_ruv) == -1) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: decode_ruv (supplier_ruv)\n");
         rc = -1;
         goto free_and_return;
     }
@@ -333,33 +426,45 @@ decode_startrepl_extop(Slapi_PBlock *pb, char **protocol_oid, char **repl_root, 
     /* Get the optional set of referral URLs */
     if (ber_peek_tag(tmp_bere, &len) == LBER_SET) {
         if (ber_scanf(tmp_bere, "[v]", extra_referrals) == LBER_ERROR) {
+            slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                    "decoding failed: ber_scanf (extra_referrals)\n");
             rc = -1;
             goto free_and_return;
         }
     }
     /* Get the CSN */
     if (ber_get_stringa(tmp_bere, csnstr) == LBER_ERROR) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: ber_get_stringa (csnstr)\n");
         rc = -1;
         goto free_and_return;
     }
     /* Get the optional replication session callback data. */
     if (ber_peek_tag(tmp_bere, &len) == LBER_OCTETSTRING) {
         if (ber_get_stringa(tmp_bere, data_guid) == LBER_ERROR) {
+            slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                    "decoding failed: ber_get_stringa (data_guid)\n");
             rc = -1;
             goto free_and_return;
         }
         /* If a data_guid was specified, data must be specified as well. */
         if (ber_peek_tag(tmp_bere, &len) == LBER_OCTETSTRING) {
             if (ber_get_stringal(tmp_bere, data) == LBER_ERROR) {
+                slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                        "decoding failed: ber_get_stringal (data)\n");
                 rc = -1;
                 goto free_and_return;
             }
         } else {
+            slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                    "decoding failed: ber_peek_tag\n");
             rc = -1;
             goto free_and_return;
         }
     }
     if (ber_scanf(tmp_bere, "}") == LBER_ERROR) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_startrepl_extop",
+                "decoding failed: ber_scanf 2\n");
         rc = -1;
         goto free_and_return;
     }
@@ -378,6 +483,22 @@ free_and_return:
         if (*supplier_ruv) {
             ruv_destroy(supplier_ruv);
         }
+    } else if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "decode_startrepl_extop - decoding payload...\n");
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "decode_startrepl_extop - decoded protocol_oid: %s\n", *protocol_oid);
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "decode_startrepl_extop - decoded repl_root: %s\n", *repl_root);
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "decode_startrepl_extop - decoded csn: %s\n", *csnstr);
+        ruv_dump_to_log(*supplier_ruv, "decode_startrepl_extop");
+        for (size_t i = 0; *extra_referrals && *extra_referrals[i]; i++) {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "decode_startrepl_extop - "
+                "decoded referral: %s\n", *extra_referrals[i]);
+        }
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "decode_startrepl_extop - Finshed decoding payload.\n");
     }
     if (NULL != tmp_bere) {
         ber_free(tmp_bere, 1);
@@ -406,28 +527,52 @@ decode_endrepl_extop(Slapi_PBlock *pb, char **repl_root)
 
     if ((NULL == extop_oid) ||
         (strcmp(extop_oid, REPL_END_NSDS50_REPLICATION_REQUEST_OID) != 0) ||
-        !BV_HAS_DATA(extop_value)) {
+        !BV_HAS_DATA(extop_value))
+    {
         /* bogus */
+        slapi_log_err(SLAPI_LOG_ERR, "decode_endrepl_extop",
+                "decoding failed: extop_oid (%s) correct oid (%s) extop_value data (%s)\n",
+                extop_oid ? extop_oid : "NULL",
+                extop_oid ? strcmp(extop_oid, REPL_END_NSDS50_REPLICATION_REQUEST_OID) != 0 ? "wrong oid" : "correct oid" : "NULL",
+                !BV_HAS_DATA(extop_value) ? "No data" : "Has data");
         rc = -1;
         goto free_and_return;
     }
 
     if ((tmp_bere = ber_init(extop_value)) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_endrepl_extop",
+                "decoding failed: ber_init failed:  extop_value (%s:%lu)\n",
+                extop_value->bv_val, extop_value->bv_len);
         rc = -1;
         goto free_and_return;
     }
     if (ber_scanf(tmp_bere, "{") == LBER_DEFAULT) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_endrepl_extop",
+                "decoding failed: ber_scanf failed1\n");
         rc = -1;
         goto free_and_return;
     }
     /* Get the required root of replicated subtree */
     if (ber_get_stringa(tmp_bere, repl_root) == LBER_DEFAULT) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_endrepl_extop",
+                "decoding failed: ber_get_stringa failed\n");
         rc = -1;
         goto free_and_return;
     }
     if (ber_scanf(tmp_bere, "}") == LBER_DEFAULT) {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_endrepl_extop",
+                "decoding failed: ber_scanf2 failed\n");
         rc = -1;
         goto free_and_return;
+    }
+
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, "decode_endrepl_extop",
+                "Decoding payload...\n");
+        slapi_log_err(SLAPI_LOG_REPL, "decode_endrepl_extop",
+                "Decoded repl_root: %s\n", *repl_root);
+        slapi_log_err(SLAPI_LOG_REPL, "decode_endrepl_extop",
+                "Finished decoding payload.\n");
     }
 
 free_and_return:
@@ -461,27 +606,46 @@ decode_repl_ext_response(struct berval *bvdata, int *response_code, struct berva
     PR_ASSERT(NULL != ruv_bervals);
 
     if ((NULL == response_code) || (NULL == ruv_bervals) ||
-        (NULL == data_guid) || (NULL == data) || !BV_HAS_DATA(bvdata)) {
+        (NULL == data_guid) || (NULL == data) || !BV_HAS_DATA(bvdata))
+    {
+        slapi_log_err(SLAPI_LOG_ERR, "decode_repl_ext_response",
+                "decoding failed: response_code (%s) ruv_bervals (%s) data_guid (%s) data (%s) bvdata (%s)\n",
+                NULL == response_code ? "NULL" : "Ok",
+                NULL == ruv_bervals ? "NULL" : "Ok",
+                NULL == data_guid ? "NULL" : "Ok",
+                NULL == data ? "NULL" : "Ok",
+               !BV_HAS_DATA(bvdata) ? "No data" : "Ok");
         return_value = -1;
     } else {
         ber_len_t len;
         ber_int_t temp_response_code = 0;
         *ruv_bervals = NULL;
         if ((tmp_bere = ber_init(bvdata)) == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "decode_repl_ext_response",
+                    "decoding failed: ber_init failed from bvdata (%s:%lu)\n",
+                    bvdata->bv_val, bvdata->bv_len);
             return_value = -1;
         } else if (ber_scanf(tmp_bere, "{e", &temp_response_code) == LBER_ERROR) {
+            slapi_log_err(SLAPI_LOG_ERR, "decode_repl_ext_response",
+                    "decoding failed: ber_scanf failed\n");
             return_value = -1;
         } else if (ber_peek_tag(tmp_bere, &len) == LBER_SEQUENCE) {
             if (ber_scanf(tmp_bere, "{V}", ruv_bervals) == LBER_ERROR) {
+                slapi_log_err(SLAPI_LOG_ERR, "decode_repl_ext_response",
+                     "decoding failed: ber_scanf2 failed from ruv_bervals\n");
                 return_value = -1;
             }
         }
         /* Check for optional data from replication session callback */
         if (ber_peek_tag(tmp_bere, &len) == LBER_OCTETSTRING) {
             if (ber_scanf(tmp_bere, "aO}", data_guid, data) == LBER_ERROR) {
+                slapi_log_err(SLAPI_LOG_ERR, "decode_repl_ext_response",
+                        "decoding failed: ber_scanf3 failed from data_guid & data\n");
                 return_value = -1;
             }
         } else if (ber_scanf(tmp_bere, "}") == LBER_ERROR) {
+            slapi_log_err(SLAPI_LOG_ERR, "decode_repl_ext_response",
+                    "decoding failed: ber_scanf4 failed\n");
             return_value = -1;
         }
 
@@ -934,16 +1098,35 @@ send_response:
         /* ONREPL - not sure what we suppose to do here */
     }
     ber_printf(resp_bere, "{e", response);
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "multisupplier_extop_StartNSDS50ReplicationRequest - encoded response: %d\n",
+                response);
+    }
     if (NULL != ruv_bervals) {
         ber_printf(resp_bere, "{V}", ruv_bervals);
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            ruv_dump_to_log(ruv, "multisupplier_extop_StartNSDS50ReplicationRequest");
+        }
     }
+
     /* Add extra data from replication session callback if necessary */
     if (is90 && data_guid && data) {
         ber_printf(resp_bere, "sO", data_guid, data);
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                    "multisupplier_extop_StartNSDS50ReplicationRequest - encoded data_guid (%s) data (%s:%ld)\n",
+                    data_guid, data->bv_val, data->bv_len);
+        }
     }
 
     ber_printf(resp_bere, "}");
     ber_flatten(resp_bere, &resp_bval);
+
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                "multisupplier_extop_StartNSDS50ReplicationRequest - Finished encoding payload\n");
+    }
 
     if (is90) {
         slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, REPL_NSDS90_REPLICATION_RESPONSE_OID);
@@ -1006,7 +1189,7 @@ send_response:
              * The situation is confused
              */
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multisupplier_extop_StartNSDS50ReplicationRequest - "
-                                                            "already acquired replica: replica not ready (%d) (replica=%s)\n",
+                          "already acquired replica: replica not ready (%d) (replica=%s)\n",
                           response, replica_get_name(r) ? replica_get_name(r) : "no name");
 
             /*
@@ -1017,7 +1200,7 @@ send_response:
 
                 r_locking_conn = replica_get_locking_conn(r);
                 slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multisupplier_extop_StartNSDS50ReplicationRequest - "
-                                                                "already acquired replica: locking_conn=%" PRIu64 ", current connid=%" PRIu64 "\n",
+                              "already acquired replica: locking_conn=%" PRIu64 ", current connid=%" PRIu64 "\n",
                               r_locking_conn, connid);
 
                 if ((r_locking_conn != ULONG_MAX) && (r_locking_conn == connid)) {
@@ -1033,7 +1216,7 @@ send_response:
              * that the RA will restart a new session in a clear state
              */
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multisupplier_extop_StartNSDS50ReplicationRequest - "
-                                                            "already acquired replica: disconnect conn=%" PRIu64 "\n",
+                           "already acquired replica: disconnect conn=%" PRIu64 "\n",
                           connid);
             slapi_disconnect_server(conn);
         }
@@ -1211,6 +1394,10 @@ send_response:
     /* Send the response code */
     if ((resp_bere = der_alloc()) == NULL) {
         goto free_and_return;
+    }
+    if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+        slapi_log_err(SLAPI_LOG_REPL, "multisupplier_extop_EndNSDS50ReplicationRequest",
+                "encoded response: %d\n", response);
     }
     ber_printf(resp_bere, "{e}", response);
     ber_flatten(resp_bere, &resp_bval);
