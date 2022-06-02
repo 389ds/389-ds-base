@@ -88,7 +88,6 @@ slapi_lock_mutex(Slapi_Mutex *mutex)
 inline int __attribute__((always_inline))
 slapi_unlock_mutex(Slapi_Mutex *mutex)
 {
-    PR_ASSERT(mutex != NULL);
     if (mutex == NULL || pthread_mutex_unlock((pthread_mutex_t *)mutex) != 0) {
         return (0);
     } else {
