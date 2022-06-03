@@ -1723,9 +1723,9 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
                          * we have messed with internally - remember, our internal changes are secure!
                          */
                         slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
-                                      "Bypassing filter test\n");
+                                      "Bypassing filter test for %s\n", slapi_entry_get_dn_const(e->ep_entry));
                         if (ACL_CHECK_FLAG) {
-                            filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
+                            filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG);
                         } else {
                             filter_test = 0;
                         }
@@ -1757,13 +1757,19 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
                          * we need to STILL apply the filter test with "as executed" in case of a test threshold
                          * shortcut (lest we accidentally prevent the user seeing what they wanted ....)
                          */
-                        filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
+                        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
+                                      "Applying filter test to %s\n", slapi_entry_get_dn_const(e->ep_entry));
+                        filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG);
+                        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
+                                      "Applying filter test intermediate value %d \n", filter_test);
                         if (filter_test == 0) {
                             filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, 0);
                         }
                     }
                 }
             }
+            slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
+                          "filter test value %d %s \n", filter_test, slapi_entry_get_dn_const(e->ep_entry));
             if ((filter_test == 0) || (sr->sr_virtuallistview && (filter_test != -1)))
             /* ugaston - if filter failed due to subentries or tombstones (filter_test=-1),
              * just forget about it, since we don't want to return anything at all. */

@@ -764,6 +764,12 @@ slapi_vattr_filter_test_ext(
     int rc = 0; /* a no op request succeeds */
     int access_check_done = 0;
 
+    if (only_check_access != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_vattr_filter_test_ext",
+            "⚠️  DANGER ⚠️  - only_check_access mode is BROKEN!!! YOU MUST CHECK ACCESS WITH FILTER MATCHING");
+    }
+    PR_ASSERT(only_check_access == 0);
+
     /* Fix for ticket 48275
      * If we want to handle or components which can contain nonmatching components without access propoerly
      * always filter verification and access check have to be done together for each component
@@ -940,6 +946,9 @@ test_filter_access(Slapi_PBlock *pb,
     rc = plugin_call_acl_plugin(pb, e, attrs, attr_val,
                                 SLAPI_ACL_SEARCH, ACLPLUGIN_ACCESS_DEFAULT, NULL);
 
+    slapi_log_err(SLAPI_LOG_FILTER, "slapi_vattr_filter_test_ext_internal",
+                  "acl result for %s %s = %d\n", slapi_entry_get_dn_const(e), attr_type, rc);
+
     return (rc);
 }
 
@@ -1013,14 +1022,17 @@ vattr_test_filter_list_or(
                 continue;
             }
         }
-        if (only_check_access)
-            continue;
         /* now check if filter matches */
+        /*
+         * We can NOT skip this because we need to know if the item we matched on
+         * is the item with access denied.
+         */
         undefined = 0;
         rc = slapi_vattr_filter_test_ext_internal(pb, e, f, 0, 0, access_check_done);
         if (rc == 0) {
             undefined = 0;
             nomatch = 0;
+            /* We matched, and have access. we can now return */
             break;
         } else if (rc > 0) {
             undefined = rc;
