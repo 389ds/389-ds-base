@@ -10,9 +10,9 @@ vendor="389 Project"
 # PACKAGE_VERSION is constructed from these
 VERSION_MAJOR=2
 VERSION_MINOR=1
-VERSION_MAINT=1
+VERSION_MAINT=2
 # NOTE: VERSION_PREREL is automatically set for builds made out of a git tree
-VERSION_PREREL=1
+VERSION_PREREL=
 VERSION_DATE=$(date -u +%Y%m%d%H%M)
 
 # Set the version and release numbers for local developer RPM builds. We
