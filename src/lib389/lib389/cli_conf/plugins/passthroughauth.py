@@ -238,12 +238,6 @@ def create_parser(subparsers):
     subcommands = passthroughauth_parser.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, PassThroughAuthenticationPlugin)
 
-    enable = subcommands.add_parser('enable', help='Enable the pass through authentication plugins')
-    enable.set_defaults(func=enable_plugins)
-
-    disable = subcommands.add_parser('disable', help='Disable the pass through authentication plugins')
-    disable.set_defaults(func=disable_plugins)
-
     list = subcommands.add_parser('list', help='List pass-though plugin URLs or PAM configurations')
     subcommands_list = list.add_subparsers(help='action')
     list_urls = subcommands_list.add_parser('urls', help='Lists URLs')
