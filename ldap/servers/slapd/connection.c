@@ -177,6 +177,10 @@ connection_cleanup(Connection *conn)
 
     /* Call the plugin extension destructors */
     factory_destroy_extension(connection_type, conn, NULL /*Parent*/, &(conn->c_extension));
+#ifdef ENABLE_EPOLL
+    /* These will be disarmed on close, but just in case */
+    epoll_arm_pd(conn, the_connection_table->epollfd, EPOLL_PD_DISARM);
+#endif /* ENABLE_EPOLL */
     /*
      * We hang onto these, since we can reuse them.
      * Sockbuf *c_sb;

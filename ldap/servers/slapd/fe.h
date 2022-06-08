@@ -14,6 +14,10 @@
 #ifndef _SLAPD_FE_H_
 #define _SLAPD_FE_H_
 
+#if defined(HAVE_SYS_EPOLL_H)
+#include <sys/epoll.h>
+#endif
+
 #include <prio.h>
 #include "slap.h"
 
@@ -87,6 +91,9 @@ struct connection_table
     size_t conn_next_offset;
     size_t conn_free_offset;
     struct POLL_STRUCT *fd;
+#ifdef ENABLE_EPOLL
+    int epollfd;
+#endif
     PRLock *table_mutex;
 };
 typedef struct connection_table Connection_Table;
