@@ -68,7 +68,16 @@ setup(
         'Topic :: Software Development :: Testing'],
 
     keywords='389 directory server test configure',
-    packages=find_packages(exclude=['tests*']),
+    packages=find_packages(
+        exclude=[
+            '*.tests',
+            '*.tests.*',
+            'lib389.topologies',
+            'lib389.topologies.*',
+            'lib389.perftools',
+            'lib389.perftools.*',
+        ]
+    ),
 
     # find lib389/clitools -name ds\* -exec echo \''{}'\', \;
     data_files=[
