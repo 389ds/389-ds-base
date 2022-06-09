@@ -57,11 +57,11 @@ def test_positive(topo):
     user1_cert = users_people.list()[0].get_attr_val("userCertificate;binary")
     assert Accounts(topo.standalone, DEFAULT_SUFFIX).filter(
         f'(userCertificate;binary={search_filter_escape_bytes(user1_cert)})')[0].dn == \
-           'uid=test_user_1,ou=People,dc=example,dc=com'
+           'uid=test_user_1,ou=people,dc=example,dc=com'
     user2_cert = users_people.list()[1].get_attr_val("userCertificate;binary")
     assert Accounts(topo.standalone, DEFAULT_SUFFIX).filter(
         f'(userCertificate;binary={search_filter_escape_bytes(user2_cert)})')[0].dn == \
-           'uid=test_user_2,ou=People,dc=example,dc=com'
+           'uid=test_user_2,ou=people,dc=example,dc=com'
 
 
 if __name__ == '__main__':

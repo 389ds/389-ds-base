@@ -145,11 +145,11 @@ def test_openldap_no_nss_crypto(topology_m2):
 
     log.info('##### Searching for entries on supplier1...')
     entries = m1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
-    assert 10 == len(entries)
+    assert 11 == len(entries)
 
     log.info('##### Searching for entries on supplier2...')
     entries = m2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
-    assert 10 == len(entries)
+    assert 11 == len(entries)
 
     relocate_pem_files(topology_m2)
 
@@ -161,11 +161,11 @@ def test_openldap_no_nss_crypto(topology_m2):
 
     log.info('##### Searching for entries on supplier1...')
     entries = m1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
-    assert 20 == len(entries)
+    assert 21 == len(entries)
 
     log.info('##### Searching for entries on supplier2...')
     entries = m2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
-    assert 20 == len(entries)
+    assert 21 == len(entries)
 
     output_file = os.path.join(m1.get_ldif_dir(), "supplier1.ldif")
     m1.tasks.exportLDIF(benamebase='userRoot', output_file=output_file, args={'wait': True})

@@ -435,14 +435,14 @@ def test_passwordlockout(topo, _fix_password):
         10. Try to bind with valid pw, should give lockout error
         11. Reset password using admin login
         12. Try to login as the user to check the unlocking of account. Will also change
-        the password back to original
+            the password back to original
         13. Change to account lockout forever until reset
         14. Reset password retry count (to 0)
         15. Try to bind with invalid credentials(3 times)
         16. Try to bind with valid pw, should give lockout error
         17. Reset password using admin login
         18. Try to login as the user to check the unlocking of account. Will also change the
-        password back to original
+            password back to original
     :expected results:
         1. Success
         2. Success
@@ -469,7 +469,7 @@ def test_passwordlockout(topo, _fix_password):
     user.replace('userpassword', 'dby3rs2')
     admin = _create_user(topo, 'diradmin', 'Anuj Borah', '1002', 'diradmin')
     # Adding admin user diradmin to Directory Administrator group
-    Group(topo.standalone, f'cn=Directory Administrators,{DEFAULT_SUFFIX}').add('uniquemember', admin.dn)
+    Group(topo.standalone, f'cn=user_passwd_reset,ou=permissions,{DEFAULT_SUFFIX}').add('member', admin.dn)
     # Turn on passwordlockout
     # Sets lockout duration to 30 seconds
     # Sets failure count reset duration to 30 sec

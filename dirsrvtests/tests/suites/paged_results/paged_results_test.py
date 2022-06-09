@@ -45,16 +45,19 @@ NEW_SUFFIX_2 = 'ou={},{}'.format(NEW_SUFFIX_2_NAME, NEW_SUFFIX_1)
 NEW_BACKEND_1 = 'parent_base'
 NEW_BACKEND_2 = 'child_base'
 
-HOSTNAME = socket.getfqdn()
+OLD_HOSTNAME = socket.gethostname()
+socket.sethostname('localhost')
+HOSTNAME = socket.gethostname()
 IP_ADDRESS = socket.gethostbyname(HOSTNAME)
-
+OLD_IP_ADDRESS = socket.gethostbyname(OLD_HOSTNAME)
 
 @pytest.fixture(scope="module")
 def create_user(topology_st, request):
     """User for binding operation"""
 
     log.info('Adding user simplepaged_test')
-
+    new_uri = topology_st.standalone.ldapuri.replace(OLD_HOSTNAME, HOSTNAME)
+    topology_st.standalone.ldapuri = new_uri
     users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
     user = users.create(properties={
         'uid': 'simplepaged_test',
@@ -318,8 +321,7 @@ def test_search_limits_fail(topology_st, create_user, page_size, users_num,
         pctrls = []
         while True:
             log.info('Getting page %d' % (pages,))
-            if pages == 0 and (time_val or attr_name in ('nsslapd-lookthroughlimit',
-                                                         'nsslapd-pagesizelimit')):
+            if pages == 0 and (time_val or attr_name == 'nsslapd-pagesizelimit'):
                 rtype, rdata, rmsgid, rctrls = conn.result3(msgid)
             else:
                 with pytest.raises(expected_err):
@@ -506,22 +508,19 @@ def test_search_with_timelimit(topology_st, create_user):
     finally:
         del_users(users_list)
 
-#unstable or unstatus tests, skipped for now
-@pytest.mark.flaky(max_runs=2, min_passes=1)
-@pytest.mark.parametrize('aci_subject',
-                         ('dns = "{}"'.format(HOSTNAME),
-                          'ip = "{}"'.format(IP_ADDRESS)))
-def test_search_dns_ip_aci(topology_st, create_user, aci_subject):
+
+def test_search_ip_aci(topology_st, create_user):
     """Verify that after performing multiple simple paged searches
     to completion on the suffix with DNS or IP based ACI
 
     :id: bbfddc46-a8c8-49ae-8c90-7265d05b22a9
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
         1. Back up and remove all previous ACI from suffix
-        2. Add an anonymous ACI for DNS check
+        2. Add an anonymous ACI for IP check
         3. Bind as test user
         4. Search through added users with a simple paged control
         5. Perform steps 4 three times in a row
@@ -537,25 +536,30 @@ def test_search_dns_ip_aci(topology_st, create_user, aci_subject):
         6. ACI should be successfully returned
         7. Results should be the same with ACI with IP subject dn
     """
-
-    users_num = 100
+    users_num = 20
     page_size = 5
     users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
+
+    log.info("test_search_dns_ip_aci: HOSTNAME: " + HOSTNAME)
+    log.info("test_search_dns_ip_aci: IP_ADDRESS: " + IP_ADDRESS)
 
     try:
         log.info('Back up current suffix ACI')
         acis_bck = topology_st.standalone.aci.list(DEFAULT_SUFFIX, ldap.SCOPE_BASE)
 
         log.info('Add test ACI')
+        bind_rule = 'ip = "{}" or ip = "::1" or ip = "{}"'.format(IP_ADDRESS, OLD_IP_ADDRESS)
         ACI_TARGET = '(targetattr != "userPassword")'
         ACI_ALLOW = '(version 3.0;acl "Anonymous access within domain"; allow (read,compare,search)'
-        ACI_SUBJECT = '(userdn = "ldap:///anyone") and (%s);)' % aci_subject
+        ACI_SUBJECT = '(userdn = "ldap:///anyone") and (%s);)' % bind_rule
         ACI_BODY = ensure_bytes(ACI_TARGET + ACI_ALLOW + ACI_SUBJECT)
         topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_REPLACE, 'aci', ACI_BODY)])
+        time.sleep(.5)
+
         log.info('Set user bind')
-        conn = create_user.bind(TEST_USER_PWD, uri=f'ldap://{IP_ADDRESS}:{topology_st.standalone.port}')
+        conn = create_user.bind(TEST_USER_PWD, uri=f'ldap://{HOSTNAME}:{topology_st.standalone.port}')
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
@@ -575,6 +579,7 @@ def test_search_dns_ip_aci(topology_st, create_user, aci_subject):
         topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_DELETE, 'aci', None)])
         for aci in acis_bck:
             topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD, 'aci', aci.getRawAci())])
+        time.sleep(1)
         del_users(users_list)
 
 

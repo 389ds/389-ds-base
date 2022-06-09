@@ -654,7 +654,7 @@ def test_internal_log_level_516(topology_st, add_user_log_level_516, disable_acc
                                     r'SRCH base="cn=group,ou=Groups,dc=example,dc=com".*')
     # (Internal) op=10(1)(2) ENTRY dn="cn=group,ou=Groups,dc=example,dc=com"
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) '
-                                    r'ENTRY dn="cn=group,ou=Groups,dc=example,dc=com".*')
+                                    r'ENTRY dn="cn=group,ou=groups,dc=example,dc=com".*')
     # (Internal) op=10(1)(2) RESULT err=0 tag=48 nentries=1*')
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1*')
     # (Internal) op=10(1)(1) RESULT err=0 tag=48

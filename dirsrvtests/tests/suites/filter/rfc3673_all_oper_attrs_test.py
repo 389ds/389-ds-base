@@ -60,7 +60,7 @@ TEST_PARAMS = [(DN_ROOT, False, [
                 'entryid', 'modifyTimestamp', 'nsUniqueId', 'parentid', 'entryUUID'
                ]),
                (DN_CONFIG, False, [
-                'numSubordinates', 'passwordHistory'
+                'numSubordinates', 'passwordHistory', 'modifyTimestamp', 'modifiersName'
                ])
             ]
 

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -88,14 +88,14 @@ def send_updates_now(server):
 
 
 def _find_memberof(server, member_dn, group_dn):
-    #To get the specific server's (M1, C1 and H1) user and group
+    # To get the specific server's (M1, C1 and H1) user and group
     user = UserAccount(server, member_dn)
     assert user.exists()
     group = Group(server, group_dn)
     assert group.exists()
 
-    #test that the user entry should have memberof attribute with sepecified group dn value
-    assert group._dn in user.get_attr_vals_utf8('memberOf')
+    # test that the user entry should have memberof attribute with specified group dn value
+    assert group._dn.lower() in user.get_attr_vals_utf8_l('memberOf')
 
 
 @pytest.mark.bz1352121
@@ -149,6 +149,7 @@ def test_memberof_with_repl(topo):
     M1 = topo.ms["supplier1"]
     H1 = topo.hs["hub1"]
     C1 = topo.cs["consumer1"]
+    repl = ReplicationManager(DEFAULT_SUFFIX)
 
     # Step 1 & 2
     M1.config.enable_log('audit')
@@ -168,8 +169,8 @@ def test_memberof_with_repl(topo):
     test_groups = []
 
     # Step 3
-    #In for loop create users and add them in the user list
-    #it creates user_0 to user_9 (range is fun)
+    # In for loop create users and add them in the user list
+    # it creates user_0 to user_9 (range is fun)
     for i in range(10):
         CN = '%s%d' % (USER_CN, i)
         users = UserAccounts(M1, SUFFIX)
@@ -179,8 +180,8 @@ def test_memberof_with_repl(topo):
         time.sleep(2)
         test_users.append(testuser)
 
-    #In for loop create groups and add them to the group list
-    #it creates group_0 to group_2 (range is fun)
+    # In for loop create groups and add them to the group list
+    # it creates group_0 to group_2 (range is fun)
     for i in range(3):
         CN = '%s%d' % (GROUP_CN, i)
         groups = Groups(M1, SUFFIX)
@@ -189,7 +190,7 @@ def test_memberof_with_repl(topo):
         test_groups.append(testgroup)
 
     # Step 4
-    #Now start testing by adding differnt user to differn group
+    # Now start testing by adding differnt user to differn group
     if not ds_is_older('1.3.7'):
         test_groups[0].remove('objectClass', 'nsMemberOf')
 
@@ -265,6 +266,7 @@ def test_memberof_with_repl(topo):
 
     # Step 18
     memberof.fixup(SUFFIX)
+    # have to sleep instead of task.wait() because the task opens a thread and exits
     time.sleep(5)
 
     # Step 19
@@ -317,7 +319,7 @@ def test_scheme_violation_errors_logged(topo_m2):
     assert user_memberof_attr
     log.info('memberOf attr value - {}'.format(user_memberof_attr))
 
-    pattern = ".*oc_check_allowed_sv.*{}.*memberOf.*not allowed.*".format(testuser.dn)
+    pattern = ".*oc_check_allowed_sv.*{}.*memberOf.*not allowed.*".format(testuser.dn.lower())
     log.info("pattern = %s" % pattern)
     assert inst.ds_error_log.match(pattern)
 
@@ -713,7 +715,7 @@ def test_silent_memberof_failure(topology_st):
         10. should succeed
         11. should fail OPERATION_ERROR because memberof plugin fails to add 'memberof' to members.
         12. should succeed
-        14. should fail OPERATION_ERROR because memberof plugin fails to add 'memberof' to members
+        13. should fail OPERATION_ERROR because memberof plugin fails to add 'memberof' to members
         14. should succeed
     """
     # only scopes peoplebase

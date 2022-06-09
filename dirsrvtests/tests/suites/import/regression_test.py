@@ -285,6 +285,7 @@ ou: myDups00001
     with open(ldif_file, "w") as fd:
         fd.write(l)
         fd.close()
+    os.chmod(ldif_file, 0o777)
 
     log.info('Import ldif with duplicate entry')
     assert standalone.tasks.importLDIF(suffix=DEFAULT_SUFFIX, input_file=ldif_file, args={TASK_WAIT: True})
