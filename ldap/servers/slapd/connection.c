@@ -1199,7 +1199,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                 /* Connection is closed */
                 disconnect_server_nomutex(conn, conn->c_connid, -1, SLAPD_DISCONNECT_BAD_BER_TAG, 0);
                 conn->c_gettingber = 0;
-                signal_listner();
+                signal_listner(conn->c_ct_list);
                 ret = CONN_DONE;
                 goto done;
             }
@@ -1355,7 +1355,7 @@ connection_make_readable(Connection *conn)
     pthread_mutex_lock(&(conn->c_mutex));
     conn->c_gettingber = 0;
     pthread_mutex_unlock(&(conn->c_mutex));
-    signal_listner();
+    signal_listner(conn->c_ct_list);
 }
 
 void
@@ -1731,7 +1731,7 @@ connection_threadmain(void *arg)
                 pthread_mutex_unlock(&(conn->c_mutex));
                 /* once the connection is readable, another thread may access conn,
                  * so need locking from here on */
-                signal_listner();
+                signal_listner(conn->c_ct_list);
             } else { /* more data in conn - just put back on work_q - bypass poll */
                 bypasspollcnt++;
                 pthread_mutex_lock(&(conn->c_mutex));
@@ -1809,7 +1809,7 @@ connection_threadmain(void *arg)
             slapi_counter_decrement(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
             connection_release_nolock(conn);
             pthread_mutex_unlock(&(conn->c_mutex));
-            signal_listner();
+            signal_listner(conn->c_ct_list);
             slapi_pblock_destroy(pb);
             return;
         }
@@ -1896,13 +1896,13 @@ connection_threadmain(void *arg)
                      * before that call.
                      */
                     if (need_wakeup) {
-                        signal_listner();
+                        signal_listner(conn->c_ct_list);
                         need_wakeup = 0;
                     }
                 } else if (1 == is_timedout) {
                     /* covscan reports this code is unreachable  (2019/6/4) */
                     connection_make_readable_nolock(conn);
-                    signal_listner();
+                    signal_listner(conn->c_ct_list);
                 }
             }
             pthread_mutex_unlock(&(conn->c_mutex));
