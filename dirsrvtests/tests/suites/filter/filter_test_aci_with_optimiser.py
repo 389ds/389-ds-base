@@ -83,6 +83,35 @@ def test_filter_access(topo):
         assert len(entries) == 0
 
 
+def test_base_search_with_substring_filter(topo):
+    """Test that filter normalization works correctly with base search using
+    substring filter
+
+    :id: abc24774-4b07-481b-9f1f-9a209e459955
+    :setup: Standalone Instance
+    :steps:
+        1. Add ACI allowing search on "description"
+        2. Add "description" to root suffix and make it upper case to test normalization
+        3. Do base search with substring filter
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+
+    # Add aci
+    ACI_TEXT = ('(targetattr="description")(version 3.0; acl "Anonymous read access"; allow' +
+                '(read, search, compare) userdn = "ldap:///anyone";)')
+    domain = Domain(topo.standalone, DEFAULT_SUFFIX)
+    domain.replace('aci', ACI_TEXT)
+    domain.replace('description', 'ACCESS')  # case is important
+
+    # open anonymous connection and do base search with substring filter
+    conn = Anonymous(topo.standalone).bind()
+    entries = conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_BASE, "description=ACCE*")
+    assert len(entries) == 1
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
