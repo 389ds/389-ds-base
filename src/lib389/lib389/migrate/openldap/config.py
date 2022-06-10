@@ -108,26 +108,24 @@ class olDatabase(object):
         self.config = entries.pop()
         self.log.debug(f"{self.config}")
 
-        monitoring_database = "monitor" in (self.config[1]['olcDatabase'][0]).decode().lower()
+        self.monitoring_database = "monitor" in (self.config[1]['olcDatabase'][0]).decode().lower()
+
+        if self.monitoring_database:
+            return
 
         # olcSuffix, olcDbIndex, entryUUID
-        if not monitoring_database:
-            self.suffix = ensure_str(self.config[1]['olcSuffix'][0])
-        else:
-            self.suffix = ""
+        self.suffix = ensure_str(self.config[1]['olcSuffix'][0])
         self.idx = name.split('}', 1)[0].split('{', 1)[1]
         self.uuid = ensure_str(self.config[1]['entryUUID'][0])
 
         self.index = []
-        if not monitoring_database:
-            for x in self.config[1]['olcDbIndex']:
-                (attr, idx_types) = ensure_str(x).split(' ', 1)
-                attr = attr.strip()
-                for idx_type in idx_types.split(','):
-                    self.index.append((attr, idx_type.strip()))
+        for x in self.config[1]['olcDbIndex']:
+            (attr, idx_types) = ensure_str(x).split(' ', 1)
+            attr = attr.strip()
+            for idx_type in idx_types.split(','):
+                self.index.append((attr, idx_type.strip()))
 
         self.log.debug(f"settings -> {self.suffix}, {self.idx}, {self.uuid}, {self.index}")
-
 
         overlay_path = os.path.join(path, name)
 
@@ -137,6 +135,7 @@ class olDatabase(object):
                 olOverlay(overlay_path, x, log)
                 for x in sorted(os.listdir(overlay_path))
             ]
+
 
 # See https://www.python-ldap.org/en/latest/reference/ldap-schema.html
 class olAttribute(ldap.schema.models.AttributeType):
@@ -312,6 +311,13 @@ class olConfig(object):
             olDatabase(os.path.join(path, f'cn=config/'), db, self.log)
             for db in dbs
         ]
+
+        self.databases = [
+            db
+            for db in self.databases
+            if not db.monitoring_database
+        ]
+
         self.log.info('Completed OpenLDAP Configuration Parsing.')
 
 
