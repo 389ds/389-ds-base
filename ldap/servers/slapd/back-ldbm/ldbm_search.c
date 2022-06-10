@@ -933,10 +933,12 @@ ldbm_back_search(Slapi_PBlock *pb)
         li->li_filter_bypass_check) {
         int rc = 0, filt_errs = 0;
         Slapi_Filter *filter = NULL;
+        Slapi_Filter *filter_intent = NULL;
 
         slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Applying Filter Test\n");
 
         slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
+        slapi_pblock_get(pb, SLAPI_SEARCH_FILTER_INTENDED, &filter_intent);
         if (NULL == filter) {
             tmp_err = LDAP_OPERATIONS_ERROR;
             tmp_desc = "Filter is not set";
@@ -944,11 +946,21 @@ ldbm_back_search(Slapi_PBlock *pb)
         }
         slapi_filter_free(sr->sr_norm_filter, 1);
         sr->sr_norm_filter = slapi_filter_dup(filter);
+
         /* step 1 - normalize all of the values used in the search filter */
         slapi_filter_normalize(sr->sr_norm_filter, PR_TRUE /* normalize values too */);
         /* step 2 - pre-compile the substr regex and the equality flags */
         rc = slapi_filter_apply(sr->sr_norm_filter, ldbm_search_compile_filter,
                                 NULL, &filt_errs);
+
+        if (rc == SLAPI_FILTER_SCAN_NOMORE && filter_intent) {
+            slapi_filter_free(sr->sr_norm_filter_intent, 1);
+            sr->sr_norm_filter_intent = slapi_filter_dup(filter_intent);
+            slapi_filter_normalize(sr->sr_norm_filter_intent, PR_TRUE /* normalize values too */);
+            rc = slapi_filter_apply(sr->sr_norm_filter_intent, ldbm_search_compile_filter,
+                                    NULL, &filt_errs);
+        }
+
         if (rc != SLAPI_FILTER_SCAN_NOMORE) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "ldbm_back_search", "Could not pre-compile the search filter - error %d %d\n",
@@ -1468,8 +1480,13 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
 
     if (sr->sr_norm_filter) {
         int val = 1;
-        slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &val);
         filter = sr->sr_norm_filter;
+    }
+
+    if (sr->sr_norm_filter_intent) {
+        int val = 1;
+        slapi_pblock_set(pb, SLAPI_PLUGIN_SYNTAX_FILTER_NORMALIZED, &val);
+        filter_intent = sr->sr_norm_filter_intent;
     }
 
     if (op_is_pagedresults(op)) {
