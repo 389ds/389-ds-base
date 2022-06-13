@@ -11,6 +11,9 @@ import pytest
 import time
 import shutil
 import uuid
+import subprocess
+import pytest
+import logging
 from lib389.idm.user import nsUserAccounts, UserAccounts
 from lib389.idm.account import Accounts
 from lib389.idm.domain import Domain
@@ -24,6 +27,7 @@ from lib389.plugins import EntryUUIDPlugin
 default_paths = Paths()
 
 pytestmark = pytest.mark.tier1
+log = logging.getLogger(__name__)
 
 DATADIR1 = os.path.join(os.path.dirname(__file__), '../../data/entryuuid/')
 IMPORT_UUID_A = "973e1bbf-ba9c-45d4-b01b-ff7371fd9008"
@@ -32,12 +36,44 @@ IMPORT_UUID_B = "f6df8fe9-6b30-46aa-aa13-f0bf755371e8"
 UUID_MIN = "00000000-0000-0000-0000-000000000000"
 UUID_MAX = "ffffffff-ffff-ffff-ffff-ffffffffffff"
 
+@pytest.mark.skipif(ds_is_older('1.4.3.27'), reason="CLI Entryuuid is not available in prior versions")
+def test_cli_entryuuid_plugin_fixup(topology):
+    """Test that dsconf CLI entryuuid attribute is enabled and can execute.
+    :id: 91b46be2-ac3f-11ec-a38a-98fa9ba19b65
+    :parametrized: yes
+    :customerscenario: True
+    :setup: Standalone Instance
+    :steps:
+        1. Create DS Instance
+        2. Create a user "jdoe" with a dn
+        3. Verify dsconf command is working correctly with plugin entryuuid fixup
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+
+    """
+    log.info("Use dsconf tool to configure entryuuid plugin")
+    parent = "ou=People,dc=example,dc=com"
+    name = 'jdoe'
+    dn = 'uid=%s,%s' % (name, parent)
+    log.info('Testing with User created for dn :{} .'.format(dn))
+    cmd=['/usr/sbin/dsconf',topology.standalone.get_ldap_uri(),'-D',DN_DM,'-w','password','plugin','entryuuid','fixup',dn]
+    log.info(f'Dsconf Command used : %{cmd}')
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    msg = proc.communicate()
+    log.info(f'output message : {msg[0]}')
+    assert proc.returncode == 0
+
+
 def _entryuuid_import_and_search(topology):
     # 1
     ldif_dir = topology.standalone.get_ldif_dir()
     target_ldif = os.path.join(ldif_dir, 'localhost-userRoot-2020_03_30_13_14_47.ldif')
     import_ldif = os.path.join(DATADIR1, 'localhost-userRoot-2020_03_30_13_14_47.ldif')
     shutil.copyfile(import_ldif, target_ldif)
+    os.chmod(target_ldif, 0o777)
 
     be = Backends(topology.standalone).get('userRoot')
     task = be.import_ldif([target_ldif])

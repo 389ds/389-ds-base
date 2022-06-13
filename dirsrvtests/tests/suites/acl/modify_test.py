@@ -42,7 +42,18 @@ def cleanup_tree(request, topo):
 
 @pytest.fixture(scope="function")
 def aci_of_user(request, topo):
-    aci_list = Domain(topo.standalone, DEFAULT_SUFFIX).get_attr_vals('aci')
+    # Add anonymous access aci
+    ACI_TARGET = "(targetattr=\"*\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare)"
+    ACI_SUBJECT = "(userdn=\"ldap:///anyone\");)"
+    ANON_ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+    try:
+        suffix.add('aci', ANON_ACI)
+    except ldap.TYPE_OR_VALUE_EXISTS:
+        pass
+
+    aci_list = suffix.get_attr_vals('aci')
 
     def finofaci():
         domain = Domain(topo.standalone, DEFAULT_SUFFIX)
@@ -55,8 +66,8 @@ def aci_of_user(request, topo):
 
 def test_allow_write_access_to_targetattr_with_a_single_attribute(
         topo, aci_of_user, cleanup_tree):
-    """
-    Modify Test 1 Allow write access to targetattr with a single attribute
+    """Modify Test 1 Allow write access to targetattr with a single attribute
+
     :id: 620d7b82-7abf-11e8-a4db-8c16451d917b
     :setup: server
     :steps:
@@ -96,8 +107,8 @@ def test_allow_write_access_to_targetattr_with_a_single_attribute(
 
 def test_allow_write_access_to_targetattr_with_multiple_attibutes(
         topo, aci_of_user, cleanup_tree):
-    """
-    Modify Test 2 Allow write access to targetattr with multiple attibutes
+    """Modify Test 2 Allow write access to targetattr with multiple attibutes
+
     :id: 6b9f05c6-7abf-11e8-9ba1-8c16451d917b
     :setup: server
     :steps:
@@ -137,8 +148,8 @@ def test_allow_write_access_to_targetattr_with_multiple_attibutes(
 
 
 def test_allow_write_access_to_userdn_all(topo, aci_of_user, cleanup_tree):
-    """
-    Modify Test 3 Allow write access to userdn 'all'
+    """Modify Test 3 Allow write access to userdn 'all'
+
     :id: 70c58818-7abf-11e8-afa1-8c16451d917b
     :setup: server
     :steps:
@@ -181,8 +192,8 @@ def test_allow_write_access_to_userdn_all(topo, aci_of_user, cleanup_tree):
 
 def test_allow_write_access_to_userdn_with_wildcards_in_dn(
         topo, aci_of_user, cleanup_tree):
-    """
-    Modify Test 4 Allow write access to userdn with wildcards in DN
+    """Modify Test 4 Allow write access to userdn with wildcards in DN
+
     :id: 766c2312-7abf-11e8-b57d-8c16451d917b
     :setup: server
     :steps:
@@ -220,8 +231,8 @@ def test_allow_write_access_to_userdn_with_wildcards_in_dn(
 
 
 def test_allow_write_access_to_userdn_with_multiple_dns(topo, aci_of_user, cleanup_tree):
-    """
-    Modify Test 5 Allow write access to userdn with multiple DNs
+    """Modify Test 5 Allow write access to userdn with multiple DNs
+
     :id: 7aae760a-7abf-11e8-bc3a-8c16451d917b
     :setup: server
     :steps:
@@ -262,11 +273,11 @@ def test_allow_write_access_to_userdn_with_multiple_dns(topo, aci_of_user, clean
     ua = UserAccount(conn, USER_DELADD)
     ua.add("title", "Architect")
     assert ua.get_attr_val('title')
-    
+
 
 def test_allow_write_access_to_target_with_wildcards(topo, aci_of_user, cleanup_tree):
-    """
-    Modify Test 6 Allow write access to target with wildcards
+    """Modify Test 6 Allow write access to target with wildcards
+
     :id: 825fe884-7abf-11e8-8541-8c16451d917b
     :setup: server
     :steps:
@@ -310,9 +321,9 @@ def test_allow_write_access_to_target_with_wildcards(topo, aci_of_user, cleanup_
     assert ua.get_attr_val('title')
 
 
-def test_allow_write_access_to_userdnattr(topo, aci_of_user, cleanup_tree):
-    """
-    Modify Test 7 Allow write access to userdnattr
+def test_allow_write_access_to_userdnattr(topo, aci_of_user, cleanup_tree, request):
+    """Modify Test 7 Allow write access to userdnattr
+
     :id: 86b418f6-7abf-11e8-ae28-8c16451d917b
     :setup: server
     :steps:
@@ -324,7 +335,7 @@ def test_allow_write_access_to_userdnattr(topo, aci_of_user, cleanup_tree):
         2. Operation should  succeed
         3. Operation should  succeed
     """
-    ACI_BODY = '(target = ldap:///{})(targetattr=*)(version 3.0; acl "$tet_thistest";allow (write) (userdn = "ldap:///anyone"); )'.format(DEFAULT_SUFFIX)
+    ACI_BODY = '(target = ldap:///{})(targetattr="*")(version 3.0; acl "{}";allow (write) (userdn = "ldap:///anyone"); )'.format(DEFAULT_SUFFIX, request.node.name)
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", ACI_BODY)
 
     for i in ['Product Development', 'Accounting']:
@@ -355,18 +366,18 @@ def test_allow_write_access_to_userdnattr(topo, aci_of_user, cleanup_tree):
 
 
 def test_allow_selfwrite_access_to_anyone(topo, aci_of_user, cleanup_tree):
-    """
-       Modify Test 8 Allow selfwrite access to anyone
-       :id: 8b3becf0-7abf-11e8-ac34-8c16451d917b
-       :setup: server
-       :steps:
-           1. Add test entry
-           2. Add ACI
-           3. User should follow ACI role
-       :expectedresults:
-           1. Entry should be added
-           2. Operation should  succeed
-           3. Operation should  succeed
+    """Modify Test 8 Allow selfwrite access to anyone
+
+    :id: 8b3becf0-7abf-11e8-ac34-8c16451d917b
+    :setup: server
+    :steps:
+        1. Add test entry
+        2. Add ACI
+        3. User should follow ACI role
+    :expectedresults:
+        1. Entry should be added
+        2. Operation should  succeed
+        3. Operation should  succeed
     """
     groups = Groups(topo.standalone, DEFAULT_SUFFIX)
     group = groups.create(properties={"cn": "group1",
@@ -393,14 +404,13 @@ def test_allow_selfwrite_access_to_anyone(topo, aci_of_user, cleanup_tree):
     conn = UserAccount(topo.standalone, USER_DELADD).bind(PW_DM)
     # Allow selfwrite access to anyone
     groups = Groups(conn, DEFAULT_SUFFIX)
-    groups.list()[0].add_member(USER_DELADD)
-    group.delete()
+    groups.list()[1].add_member(USER_DELADD)
 
 
 def test_uniquemember_should_also_be_the_owner(topo,  aci_of_user):
-    """
-    Modify Test 10 groupdnattr = \"ldap:///$BASEDN?owner\" if owner is a group, group's
+    """Modify Test 10 groupdnattr = \"ldap:///$BASEDN?owner\" if owner is a group, group's
     uniquemember should also be the owner
+
     :id: 9456b2d4-7abf-11e8-829d-8c16451d917b
     :setup: server
     :steps:
@@ -482,8 +492,8 @@ def test_uniquemember_should_also_be_the_owner(topo,  aci_of_user):
 
 
 def test_aci_with_both_allow_and_deny(topo, aci_of_user, cleanup_tree):
-    """
-    Modify Test 12 aci with both allow and deny
+    """Modify Test 12 aci with both allow and deny
+
     :id: 9dcfe902-7abf-11e8-86dc-8c16451d917b
     :setup: server
     :steps:
@@ -524,9 +534,9 @@ def test_aci_with_both_allow_and_deny(topo, aci_of_user, cleanup_tree):
         UserAccount(conn, USER_WITH_ACI_DELADD).get_attr_val('uid')
 
 
-def test_allow_owner_to_modify_entry(topo, aci_of_user, cleanup_tree):
-    """
-    Modify Test 14 allow userdnattr = owner to modify entry
+def test_allow_owner_to_modify_entry(topo, aci_of_user, cleanup_tree, request):
+    """Modify Test 14 allow userdnattr = owner to modify entry
+
     :id: aa302090-7abf-11e8-811a-8c16451d917b
     :setup: server
     :steps:
@@ -544,7 +554,7 @@ def test_allow_owner_to_modify_entry(topo, aci_of_user, cleanup_tree):
         'ou': 'groups'})
     grp.set('owner', USER_WITH_ACI_DELADD)
 
-    ACI_BODY = '(target ="ldap:///cn=intranet, {}") (targetattr ="*")(targetfilter ="(objectclass=groupOfUniqueNames)") (version 3.0;acl "$tet_thistest";allow(read, write, delete, search, compare, add) (userdnattr = "owner");)'.format(DEFAULT_SUFFIX)
+    ACI_BODY = '(target ="ldap:///cn=intranet, {}") (targetattr ="*")(targetfilter ="(objectclass=groupOfUniqueNames)") (version 3.0;acl "{}";allow(read, write, delete, search, compare, add) (userdnattr = "owner");)'.format(DEFAULT_SUFFIX, request.node.name)
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", ACI_BODY)
 
     for i in ['Product Development', 'Accounting']:
