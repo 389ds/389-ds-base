@@ -215,7 +215,14 @@ set_retry_cnt_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
             /* Remove lock_account function to perform all mods at once */
             /* lock_account ( pb ); */
             /* reach the retry limit, lock the account  */
-            if (pwpolicy->pw_unlock == 0) {
+            /*
+             * we check if pw_lockduration == 0 here which is to maintain compat
+             * with openldap ppolicy. In ppolicy 0 means "wait for the admin to unlock"
+             * the same as our pw_unlock == 0.
+             * But generally a pw_lockduration of 0 doesn't really make sense anyway, so
+             * it's probably better to err on the side of caution.
+             */
+            if (pwpolicy->pw_unlock == 0 || pwpolicy->pw_lockduration == 0) {
                 /* lock until admin reset password */
                 unlock_time = NO_TIME;
             } else {
