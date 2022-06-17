@@ -578,3 +578,9 @@ pre {
     min-height: 250px !important;
     max-height: 250px !important;
 }
+
+.ds-vert-scroll {
+    /* max-height: 100vh !important; */
+    max-height: 75%;
+    overflow-y: auto;
+}

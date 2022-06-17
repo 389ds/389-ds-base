@@ -60,9 +60,10 @@ def test_logging_digit_config(topo, attr, invalid_vals, valid_vals):
     auditlog_attr = "nsslapd-auditlog-{}".format(attr)
     auditfaillog_attr = "nsslapd-auditfaillog-{}".format(attr)
     errorlog_attr = "nsslapd-errorlog-{}".format(attr)
+    securitylog_attr = "nsslapd-securitylog-{}".format(attr)
 
     # Test each log
-    for attr in [accesslog_attr, auditlog_attr, auditfaillog_attr, errorlog_attr]:
+    for attr in [accesslog_attr, auditlog_attr, auditfaillog_attr, errorlog_attr, securitylog_attr]:
         # Invalid values
         for invalid_val in invalid_vals:
             with pytest.raises(ldap.LDAPError):

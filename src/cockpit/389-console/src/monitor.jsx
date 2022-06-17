@@ -10,6 +10,7 @@ import AccessLogMonitor from "./lib/monitor/accesslog.jsx";
 import AuditLogMonitor from "./lib/monitor/auditlog.jsx";
 import AuditFailLogMonitor from "./lib/monitor/auditfaillog.jsx";
 import ErrorLogMonitor from "./lib/monitor/errorlog.jsx";
+import SecurityLogMonitor from "./lib/monitor/securitylog.jsx";
 import ReplMonitor from "./lib/monitor/replMonitor.jsx";
 import {
     FormSelect,
@@ -77,6 +78,7 @@ export class Monitor extends React.Component {
             errorlogLocation: "",
             auditlogLocation: "",
             auditfaillogLocation: "",
+            securitylogLocation: "",
         };
 
         // Bindings
@@ -197,6 +199,12 @@ export class Monitor extends React.Component {
                                     name: "Errors Log",
                                     icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                                     id: "error-log-monitor",
+                                    type: "log",
+                                },
+                                {
+                                    name: "Security Log",
+                                    icon: <FontAwesomeIcon size="sm" icon={faBook} />,
+                                    id: "security-log-monitor",
                                     type: "log",
                                 },
                             ]
@@ -364,7 +372,8 @@ export class Monitor extends React.Component {
         }
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "config", "get", "nsslapd-auditlog", "nsslapd-accesslog", "nsslapd-errorlog", "nsslapd-auditfaillog"
+            "config", "get", "nsslapd-auditlog", "nsslapd-accesslog", "nsslapd-errorlog",
+            "nsslapd-auditfaillog", "nsslapd-securitylog"
         ];
         log_cmd("loadLogLocations", "Get log locations", cmd);
         cockpit
@@ -376,6 +385,7 @@ export class Monitor extends React.Component {
                         auditlogLocation: config.attrs['nsslapd-auditlog'][0],
                         auditfaillogLocation: config.attrs['nsslapd-auditfaillog'][0],
                         errorlogLocation: config.attrs['nsslapd-errorlog'][0],
+                        securitylogLocation: config.attrs['nsslapd-securitylog'][0],
                     });
                 }, this.loadReplicatedSuffixes());
     }
@@ -844,6 +854,12 @@ export class Monitor extends React.Component {
                 monitor_element =
                     <ErrorLogMonitor
                         logLocation={this.state.errorlogLocation}
+                        enableTree={this.enableTree}
+                    />;
+            } else if (this.state.node_name === "security-log-monitor") {
+                monitor_element =
+                    <SecurityLogMonitor
+                        logLocation={this.state.securitylogLocation}
                         enableTree={this.enableTree}
                     />;
             } else if (this.state.node_name === "replication-monitor") {

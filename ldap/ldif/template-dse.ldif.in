@@ -12,6 +12,7 @@ nsslapd-bakdir: %bak_dir%
 nsslapd-rundir: %run_dir%
 nsslapd-instancedir: %inst_dir%
 nsslapd-accesslog: %log_dir%/access
+nsslapd-securitylog: %log_dir%/security
 nsslapd-localhost: %fqdn%
 nsslapd-port: %ds_port%
 nsslapd-localuser: %ds_user%

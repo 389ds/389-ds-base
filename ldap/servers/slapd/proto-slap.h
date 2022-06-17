@@ -292,10 +292,12 @@ int config_set_defaultreferral(const char *attrname, struct berval **value, char
 int config_set_timelimit(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_errorlog_level(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_accesslog_level(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_securitylog_level(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditlog(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditfaillog(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_userat(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_accesslog(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_securitylog(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_errorlog(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_change(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_pw_must_change(const char *attrname, char *value, char *errorbuf, int apply);
@@ -378,6 +380,7 @@ int config_set_minssf(const char *attrname, char *value, char *errorbuf, int app
 int config_set_minssf_exclude_rootdse(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_validate_cert_switch(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_securitylogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_csnlogging(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_force_sasl_external(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_entryusn_global(const char *attrname, char *value, char *errorbuf, int apply);
@@ -501,6 +504,7 @@ int config_get_timelimit(void);
 char *config_get_pw_admin_dn(void);
 char *config_get_useroc(void);
 char *config_get_accesslog(void);
+char *config_get_securitylog(void);
 char *config_get_errorlog(void);
 char *config_get_auditlog(void);
 char *config_get_auditfaillog(void);
@@ -509,6 +513,7 @@ long long config_get_pw_minage(void);
 long long config_get_pw_warning(void);
 int config_get_errorlog_level(void);
 int config_get_accesslog_level(void);
+int config_get_securitylog_level(void);
 int config_get_auditlog_logging_enabled(void);
 int config_get_auditfaillog_logging_enabled(void);
 char *config_get_referral_mode(void);
@@ -531,6 +536,7 @@ char *config_get_rundir(void);
 char *config_get_saslpath(void);
 char **config_get_errorlog_list(void);
 char **config_get_accesslog_list(void);
+char **config_get_securitylog_list(void);
 char **config_get_auditlog_list(void);
 char **config_get_auditfaillog_list(void);
 int config_get_attrname_exceptions(void);
@@ -553,6 +559,7 @@ void config_set_accesslog_enabled(int value);
 void config_set_auditlog_enabled(int value);
 void config_set_auditfaillog_enabled(int value);
 int config_get_accesslog_logging_enabled(void);
+int config_get_securitylog_logging_enabled(void);
 int config_get_external_libs_debug_enabled(void);
 int config_get_disk_monitoring(void);
 int config_get_disk_threshold_readonly(void);
@@ -822,14 +829,16 @@ int slapi_log_access(int level, const char *fmt, ...)
 #else
     ;
 #endif
+int slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg);
+int slapi_log_security_tcp(Connection *pb_conn, PRErrorCode error, const char *msg);
 int slapd_log_audit(char *buffer, int buf_len, int sourcelog);
 int slapd_log_audit_internal(char *buffer, int buf_len, int *state);
 int slapd_log_auditfail(char *buffer, int buf_len);
 int slapd_log_auditfail_internal(char *buffer, int buf_len);
-void log_access_flush(void);
-
+void logs_flush(void);
 
 int access_log_openf(char *pathname, int locked);
+int security_log_openf(char *pathname, int locked);
 int error_log_openf(char *pathname, int locked);
 int audit_log_openf(char *pathname, int locked);
 int auditfail_log_openf(char *pathname, int locked);
@@ -840,7 +849,6 @@ char *g_get_access_log(void);
 char *g_get_error_log(void);
 char *g_get_audit_log(void);
 char *g_get_auditfail_log(void);
-void g_set_accesslog_level(int val);
 
 int log_set_mode(const char *attrname, char *mode_str, int logtype, char *errorbuf, int apply);
 int log_set_numlogsperdir(const char *attrname, char *numlogs_str, int logtype, char *errorbuf, int apply);
@@ -856,6 +864,7 @@ int log_set_expirationtime(const char *attrname, char *exptime_str, int logtype,
 int log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, char *errorbuf, int apply);
 char **log_get_loglist(int logtype);
 int log_update_accesslogdir(char *pathname, int apply);
+int log_update_securitylogdir(char *pathname, int apply);
 int log_update_errorlogdir(char *pathname, int apply);
 int log_update_auditlogdir(char *pathname, int apply);
 int log_update_auditfaillogdir(char *pathname, int apply);
@@ -871,6 +880,7 @@ int check_log_max_size(
 
 
 void g_set_accesslog_level(int val);
+void g_set_securitylog_level(int val);
 void log__delete_rotated_logs(void);
 
 /*

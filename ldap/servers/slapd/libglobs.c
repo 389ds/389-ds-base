@@ -178,15 +178,19 @@ static int invalid_sasl_mech(char *str);
 
 /* CONFIG_ON_OFF */
 slapi_onoff_t init_accesslog_rotationsync_enabled;
+slapi_onoff_t init_securitylog_rotationsync_enabled;
 slapi_onoff_t init_errorlog_rotationsync_enabled;
 slapi_onoff_t init_auditlog_rotationsync_enabled;
 slapi_onoff_t init_auditfaillog_rotationsync_enabled;
 slapi_onoff_t init_accesslog_compress_enabled;
+slapi_onoff_t init_securitylog_compress_enabled;
 slapi_onoff_t init_auditlog_compress_enabled;
 slapi_onoff_t init_auditfaillog_compress_enabled;
 slapi_onoff_t init_errorlog_compress_enabled;
 slapi_onoff_t init_accesslog_logging_enabled;
 slapi_onoff_t init_accesslogbuffering;
+slapi_onoff_t init_securitylog_logging_enabled;
+slapi_onoff_t init_securitylogbuffering;
 slapi_onoff_t init_external_libs_debug_enabled;
 slapi_onoff_t init_errorlog_logging_enabled;
 slapi_onoff_t init_auditlog_logging_enabled;
@@ -340,6 +344,10 @@ static struct config_get_and_set
      log_set_compression, SLAPD_ACCESS_LOG,
      (void **)&global_slapdFrontendConfig.accesslog_compress,
      CONFIG_ON_OFF, NULL, &init_accesslog_compress_enabled, NULL},
+    {CONFIG_SECURITYLOG_COMPRESS_ENABLED_ATTRIBUTE, NULL,
+     log_set_compression, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_compress,
+     CONFIG_ON_OFF, NULL, &init_securitylog_compress_enabled, NULL},
     {CONFIG_AUDITLOG_COMPRESS_ENABLED_ATTRIBUTE, NULL,
      log_set_compression, SLAPD_AUDIT_LOG,
      (void **)&global_slapdFrontendConfig.auditlog_compress,
@@ -722,6 +730,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.accessloglevel,
      CONFIG_INT, NULL, SLAPD_DEFAULT_ACCESSLOG_LEVEL_STR, NULL},
+    {CONFIG_SECURITYLOGLEVEL_ATTRIBUTE, config_set_securitylog_level,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.securityloglevel,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_ACCESSLOG_LEVEL_STR, NULL},
     {CONFIG_ERRORLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE, NULL,
      log_set_rotationtimeunit, SLAPD_ERROR_LOG,
      (void **)&global_slapdFrontendConfig.errorlog_rotationunit,
@@ -805,6 +817,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.accesslogbuffering,
      CONFIG_ON_OFF, NULL, &init_accesslogbuffering, NULL},
+    {CONFIG_SECURITYLOG_BUFFERING_ATTRIBUTE, config_set_securitylogbuffering,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.securitylogbuffering,
+     CONFIG_ON_OFF, NULL, &init_securitylogbuffering, NULL},
     {CONFIG_CSNLOGGING_ATTRIBUTE, config_set_csnlogging,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.csnlogging,
@@ -1276,7 +1292,66 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.auditfaillog,
      CONFIG_STRING_OR_EMPTY, NULL, "", NULL /* prevents deletion when null */},
-/* End audit fail log configuration */
+    /* Security Audit log configuration */
+    {CONFIG_SECURITYLOG_MODE_ATTRIBUTE, NULL,
+     log_set_mode, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_mode,
+     CONFIG_STRING, NULL, SLAPD_INIT_LOG_MODE, NULL},
+    {CONFIG_SECURITYLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE, NULL,
+     log_set_rotationsync_enabled, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_rotationsync_enabled,
+     CONFIG_ON_OFF, NULL, &init_securitylog_rotationsync_enabled, NULL},
+    {CONFIG_SECURITYLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE, NULL,
+     log_set_rotationsynchour, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_rotationsynchour,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR_STR, NULL},
+    {CONFIG_SECURITYLOG_LOGROTATIONSYNCMIN_ATTRIBUTE, NULL,
+     log_set_rotationsyncmin, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_rotationsyncmin,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONSYNCMIN_STR, NULL},
+    {CONFIG_SECURITYLOG_LOGROTATIONTIME_ATTRIBUTE, NULL,
+     log_set_rotationtime, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_rotationtime,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONTIME_STR, NULL},
+    {CONFIG_SECURITYLOG_MAXLOGDISKSPACE_ATTRIBUTE, NULL,
+     log_set_maxdiskspace, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_maxdiskspace,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MAXDISKSPACE_STR, NULL},
+    {CONFIG_SECURITYLOG_MAXLOGSIZE_ATTRIBUTE, NULL,
+     log_set_logsize, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_maxlogsize,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MAXLOGSIZE_STR, NULL},
+    {CONFIG_SECURITYLOG_LOGEXPIRATIONTIME_ATTRIBUTE, NULL,
+     log_set_expirationtime, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_exptime,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_EXPTIME_STR, NULL},
+    {CONFIG_SECURITYLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE, NULL,
+     log_set_numlogsperdir, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_maxnumlogs,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MAXNUMLOGS_STR, NULL},
+    {CONFIG_SECURITYLOG_LIST_ATTRIBUTE, NULL,
+     NULL, 0, NULL,
+     CONFIG_CHARRAY, (ConfigGetFunc)config_get_securitylog_list, NULL, NULL},
+    {CONFIG_SECURITYLOG_LOGGING_ENABLED_ATTRIBUTE, NULL,
+     log_set_logging, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_logging_enabled,
+     CONFIG_ON_OFF, NULL, &init_securitylog_logging_enabled, NULL},
+    {CONFIG_SECURITYLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE, NULL,
+     log_set_expirationtimeunit, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_exptimeunit,
+     CONFIG_STRING_OR_UNKNOWN, NULL, SLAPD_INIT_LOG_EXPTIMEUNIT, NULL},
+    {CONFIG_SECURITYLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
+     log_set_mindiskspace, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_minfreespace,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MINFREESPACE_STR, NULL},
+    {CONFIG_SECURITYLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE, NULL,
+     log_set_rotationtimeunit, SLAPD_SECURITY_LOG,
+     (void **)&global_slapdFrontendConfig.securitylog_rotationunit,
+     CONFIG_STRING_OR_UNKNOWN, NULL, SLAPD_INIT_SECURITYLOG_ROTATIONUNIT, NULL},
+    {CONFIG_SECURITYFILE_ATTRIBUTE, config_set_securitylog,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.securitylog,
+     CONFIG_STRING_OR_EMPTY, NULL, "", NULL /* prevents deletion when null */},
 /* warning: initialization makes pointer from integer without a cast [enabled by default]. Why do we get this? */
 #ifdef HAVE_CLOCK_GETTIME
     {CONFIG_LOGGING_HR_TIMESTAMPS, config_set_logging_hr_timestamps,
@@ -1767,6 +1842,24 @@ FrontendConfig_init(void)
     init_accesslogbuffering = cfg->accesslogbuffering = LDAP_ON;
     init_csnlogging = cfg->csnlogging = LDAP_ON;
     init_accesslog_compress_enabled = cfg->accesslog_compress = LDAP_OFF;
+
+    init_securitylog_logging_enabled = cfg->securitylog_logging_enabled = LDAP_ON;
+    cfg->securitylog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
+    cfg->securitylog_maxnumlogs = SLAPD_DEFAULT_LOG_SECURITY_MAXNUMLOGS;
+    cfg->securitylog_maxlogsize = SLAPD_DEFAULT_LOG_MAXLOGSIZE;
+    cfg->securitylog_rotationtime = SLAPD_DEFAULT_LOG_ROTATIONTIME;
+    cfg->securitylog_rotationunit = slapi_ch_strdup(SLAPD_INIT_SECURITYLOG_ROTATIONUNIT);
+    init_securitylog_rotationsync_enabled =
+        cfg->securitylog_rotationsync_enabled = LDAP_OFF;
+    cfg->securitylog_rotationsynchour = SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR;
+    cfg->securitylog_rotationsyncmin = SLAPD_DEFAULT_LOG_ROTATIONSYNCMIN;
+    cfg->securitylog_maxdiskspace = SLAPD_DEFAULT_LOG_SECURITY_MAXDISKSPACE;
+    cfg->securitylog_minfreespace = SLAPD_DEFAULT_LOG_MINFREESPACE;
+    cfg->securitylog_exptime = SLAPD_DEFAULT_LOG_EXPTIME;
+    cfg->securitylog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
+    cfg->securityloglevel = SLAPD_DEFAULT_SECURITYLOG_LEVEL;
+    init_securitylogbuffering = cfg->securitylogbuffering = LDAP_ON;
+    init_securitylog_compress_enabled = cfg->securitylog_compress = LDAP_ON;
 
     init_errorlog_logging_enabled = cfg->errorlog_logging_enabled = LDAP_ON;
     init_external_libs_debug_enabled = cfg->external_libs_debug_enabled = LDAP_OFF;
@@ -5109,7 +5202,6 @@ config_set_useroc(const char *attrname, char *value, char *errorbuf, int apply)
     return retVal;
 }
 
-
 int
 config_set_accesslog(const char *attrname, char *value, char *errorbuf, int apply)
 {
@@ -5124,13 +5216,41 @@ config_set_accesslog(const char *attrname, char *value, char *errorbuf, int appl
 
     if (retVal != LDAP_SUCCESS) {
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                              "Cannot open accesslog directory \"%s\", client accesses will not be logged.", value);
+                "Cannot open accesslog directory \"%s\", client accesses will not be logged.",
+                value);
     }
 
     if (apply) {
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapi_ch_free((void **)&(slapdFrontendConfig->accesslog));
         slapdFrontendConfig->accesslog = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+int
+config_set_securitylog(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 1)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    retVal = log_update_securitylogdir(value, apply);
+
+    if (retVal != LDAP_SUCCESS) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Cannot open securitylog directory \"%s\", client accesses will not be logged.",
+                value);
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free((void **)&(slapdFrontendConfig->securitylog));
+        slapdFrontendConfig->securitylog = slapi_ch_strdup(value);
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
     return retVal;
@@ -5334,7 +5454,6 @@ config_set_errorlog_level(const char *attrname, char *value, char *errorbuf, int
     return retVal;
 }
 
-
 int
 config_set_accesslog_level(const char *attrname, char *value, char *errorbuf, int apply)
 {
@@ -5363,6 +5482,39 @@ config_set_accesslog_level(const char *attrname, char *value, char *errorbuf, in
         CFG_LOCK_WRITE(slapdFrontendConfig);
         g_set_accesslog_level(level);
         slapdFrontendConfig->accessloglevel = level;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+int
+config_set_securitylog_level(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    long level = 0;
+    char *endp = NULL;
+
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 1)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    errno = 0;
+    level = strtol(value, &endp, 10);
+
+    if (*endp != '\0' || errno == ERANGE || level < 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: security log level \"%s\" is invalid,"
+                                                                   " security log level must range from 0 to %lld",
+                              attrname, value, (long long int)LONG_MAX);
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        g_set_securitylog_level(level);
+        slapdFrontendConfig->securityloglevel = level;
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
     return retVal;
@@ -6425,6 +6577,19 @@ config_get_accesslog()
 }
 
 char *
+config_get_securitylog()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = config_copy_strval(slapdFrontendConfig->securitylog);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+char *
 config_get_errorlog()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -6532,9 +6697,6 @@ config_get_errorlog_level()
     return retVal |= SLAPD_DEFAULT_ERRORLOG_LEVEL;
 }
 
-/*  return integer -- don't worry about locking similar to config_check_referral_mode
-    below */
-
 int
 config_get_accesslog_level()
 {
@@ -6546,8 +6708,16 @@ config_get_accesslog_level()
     return retVal;
 }
 
-/*  return integer -- don't worry about locking similar to config_check_referral_mode
-    below */
+int
+config_get_securitylog_level()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    retVal = slapdFrontendConfig->securityloglevel;
+
+    return retVal;
+}
 
 int
 config_get_auditlog_logging_enabled()
@@ -6578,6 +6748,17 @@ config_get_accesslog_logging_enabled()
     int retVal;
 
     retVal = (int)slapdFrontendConfig->accesslog_logging_enabled;
+
+    return retVal;
+}
+
+int
+config_get_securitylog_logging_enabled()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    retVal = (int)slapdFrontendConfig->securitylog_logging_enabled;
 
     return retVal;
 }
@@ -7361,6 +7542,12 @@ config_get_accesslog_list()
 }
 
 char **
+config_get_securitylog_list()
+{
+    return log_get_loglist(SLAPD_SECURITY_LOG);
+}
+
+char **
 config_get_auditlog_list()
 {
     return log_get_loglist(SLAPD_AUDIT_LOG);
@@ -7381,6 +7568,21 @@ config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf,
     retVal = config_set_onoff(attrname,
                               value,
                               &(slapdFrontendConfig->accesslogbuffering),
+                              errorbuf,
+                              apply);
+
+    return retVal;
+}
+
+int32_t
+config_set_securitylogbuffering(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname,
+                              value,
+                              &(slapdFrontendConfig->securitylogbuffering),
                               errorbuf,
                               apply);
 
@@ -8875,6 +9077,24 @@ config_set_accesslog_enabled(int value)
         log_set_logging(CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE, "on", SLAPD_ACCESS_LOG, errorbuf, CONFIG_APPLY);
     } else {
         log_set_logging(CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE, "off", SLAPD_ACCESS_LOG, errorbuf, CONFIG_APPLY);
+    }
+    if (errorbuf[0] != '\0') {
+        slapi_log_err(SLAPI_LOG_ERR, "config_set_accesslog_enabled", "%s\n", errorbuf);
+    }
+}
+
+void
+config_set_securitylog_enabled(int value)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+    errorbuf[0] = '\0';
+
+    slapi_atomic_store_32(&(slapdFrontendConfig->securitylog_logging_enabled), value, __ATOMIC_RELEASE);
+    if (value) {
+        log_set_logging(CONFIG_SECURITYLOG_LOGGING_ENABLED_ATTRIBUTE, "on", SLAPD_SECURITY_LOG, errorbuf, CONFIG_APPLY);
+    } else {
+        log_set_logging(CONFIG_SECURITYLOG_LOGGING_ENABLED_ATTRIBUTE, "off", SLAPD_SECURITY_LOG, errorbuf, CONFIG_APPLY);
     }
     if (errorbuf[0] != '\0') {
         slapi_log_err(SLAPI_LOG_ERR, "config_set_accesslog_enabled", "%s\n", errorbuf);

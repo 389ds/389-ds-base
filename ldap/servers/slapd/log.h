@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -50,9 +50,9 @@
 
 #define LOG_SUCCESS            0 /* fine & dandy */
 #define LOG_CONTINUE           LOG_SUCCESS
-#define LOG_ERROR              1    /* default error case */
-#define LOG_EXCEEDED           2 /*err: > max logs allowed */
-#define LOG_ROTATE             3   /*ok; go to the next log */
+#define LOG_ERROR              1 /* default error case */
+#define LOG_EXCEEDED           2 /* err: > max logs allowed */
+#define LOG_ROTATE             3 /* ok; go to the next log */
 #define LOG_UNABLE_TO_OPENFILE 4
 #define LOG_DONE               5
 
@@ -130,6 +130,33 @@ struct logging_opts
     char *log_accessinfo_file;           /* access log rotation info file */
     LogBufferInfo *log_access_buffer;    /* buffer for access log */
     int log_access_compress;             /* Compress rotated logs */
+
+    /* These are security audit log specific */
+    int log_security_state;
+    int log_security_mode;                 /* access mode */
+    int log_security_maxnumlogs;           /* Number of logs */
+    PRInt64 log_security_maxlogsize;       /* max log size in bytes*/
+    int log_security_rotationtime;         /* time in units. */
+    int log_security_rotationunit;         /* time in units. */
+    int log_security_rotationtime_secs;    /* time in seconds */
+    int log_security_rotationsync_enabled; /* 0 or 1*/
+    int log_security_rotationsynchour;     /* 0-23 */
+    int log_security_rotationsyncmin;      /* 0-59 */
+    time_t log_security_rotationsyncclock; /* clock in seconds */
+    PRInt64 log_security_maxdiskspace;     /* space in bytes */
+    PRInt64 log_security_minfreespace;     /* free space in bytes */
+    int log_security_exptime;              /* time */
+    int log_security_exptimeunit;          /* unit time */
+    int log_security_exptime_secs;         /* time in secs */
+    int log_security_level;                /* security log level */
+    char *log_security_file;               /* security log file path */
+    LOGFD log_security_fdes;               /* fp for the cur security log */
+    unsigned int log_numof_security_logs;  /* number of logs */
+    time_t log_security_ctime;             /* log creation time */
+    LogFileInfo *log_security_logchain;    /* all the logs info */
+    char *log_securityinfo_file;           /* security log rotation info file */
+    LogBufferInfo *log_security_buffer;    /* buffer for security log */
+    int log_security_compress;             /* Compress rotated logs */
 
     /* These are error log specific */
     int log_error_state;
@@ -222,6 +249,11 @@ struct logging_opts
 #define LOG_ACCESS_LOCK_WRITE()   PR_Lock(loginfo.log_access_buffer->lock)
 #define LOG_ACCESS_UNLOCK_WRITE() PR_Unlock(loginfo.log_access_buffer->lock)
 
+#define LOG_SECURITY_LOCK_READ()    PR_Lock(loginfo.log_security_buffer->lock)
+#define LOG_SECURITY_UNLOCK_READ()  PR_Unlock(loginfo.log_security_buffer->lock)
+#define LOG_SECURITY_LOCK_WRITE()   PR_Lock(loginfo.log_security_buffer->lock)
+#define LOG_SECURITY_UNLOCK_WRITE() PR_Unlock(loginfo.log_security_buffer->lock)
+
 #define LOG_ERROR_LOCK_READ()    slapi_rwlock_rdlock(loginfo.log_error_rwlock)
 #define LOG_ERROR_UNLOCK_READ()  slapi_rwlock_unlock(loginfo.log_error_rwlock)
 #define LOG_ERROR_LOCK_WRITE()   slapi_rwlock_wrlock(loginfo.log_error_rwlock)
@@ -241,3 +273,4 @@ struct logging_opts
 #define TBUFSIZE 75                         /* size for time buffers */
 #define SLAPI_LOG_BUFSIZ 2048               /* size for data buffers */
 #define SLAPI_ACCESS_LOG_FMTBUF 128         /* size for access log formating line buffer */
+#define SLAPI_SECURITY_LOG_FMTBUF 256       /* size for security log formating line buffer */

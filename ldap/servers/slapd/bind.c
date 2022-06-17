@@ -349,9 +349,9 @@ do_bind(Slapi_PBlock *pb)
             while (1) {
                 if (*pmech == NULL) {
                     /*
-                 * As we call the safe function, we receive a strdup'd saslmechanisms
-                 * charray. Therefore, we need to remove it instead of NULLing it
-                 */
+                     * As we call the safe function, we receive a strdup'd saslmechanisms
+                     * charray. Therefore, we need to remove it instead of NULLing it
+                     */
                     charray_free(supported);
                     pmech = supported = NULL;
                     break;
@@ -415,6 +415,7 @@ do_bind(Slapi_PBlock *pb)
             if (NULL == pb_conn->c_external_dn) {
                 slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Client certificate mapping failed");
                 send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, "", 0, NULL);
+                slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_CERT_MAP_FAILED);
                 /* call postop plugins */
                 plugin_call_plugins(pb, SLAPI_PLUGIN_POST_BIND_FN);
                 goto free_and_return;
@@ -441,6 +442,7 @@ do_bind(Slapi_PBlock *pb)
                 slapi_add_auth_response_control(pb, pb_conn->c_external_dn);
             }
             send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+            slapi_log_security(pb, SECURITY_BIND_SUCCESS, "");
             /* call postop plugins */
             plugin_call_plugins(pb, SLAPI_PLUGIN_POST_BIND_FN);
             goto free_and_return;
@@ -495,7 +497,7 @@ do_bind(Slapi_PBlock *pb)
                     slapi_add_auth_response_control(pb, "");
                 }
                 send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
-
+                slapi_log_security(pb, SECURITY_BIND_SUCCESS, SECURITY_MSG_ANONYMOUS_BIND);
                 /* call postop plugins */
                 plugin_call_plugins(pb, SLAPI_PLUGIN_POST_BIND_FN);
             } else {
@@ -602,6 +604,7 @@ do_bind(Slapi_PBlock *pb)
                  */
                 slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Invalid credentials");
                 send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL);
+                slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_INVALID_PASSWD);
                 /* increment BindSecurityErrorcount */
                 slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 value_done(&cv);
@@ -618,7 +621,7 @@ do_bind(Slapi_PBlock *pb)
                                                 (cred.bv_len == 0) ? "" : slapi_sdn_get_ndn(sdn));
             }
             send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
-
+            slapi_log_security(pb, SECURITY_BIND_SUCCESS, "");
             /* call postop plugins */
             plugin_call_plugins(pb, SLAPI_PLUGIN_POST_BIND_FN);
         } else {
@@ -742,6 +745,7 @@ do_bind(Slapi_PBlock *pb)
                     myrc = slapi_check_account_lock(pb, bind_target_entry, pw_response_requested, 1, 1);
                     if (1 == myrc) { /* account is locked */
                         rc = myrc;
+                        slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_ACCOUNT_LOCKED);
                         goto account_locked;
                     }
                     myrc = 0;
@@ -790,6 +794,7 @@ do_bind(Slapi_PBlock *pb)
                         if (!bind_target_entry) {
                             slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "No such entry");
                             send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, "", 0, NULL);
+                            slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_NO_ENTRY);
                             goto free_and_return;
                         }
                     }
@@ -838,6 +843,12 @@ do_bind(Slapi_PBlock *pb)
             if (rc == LDAP_OPERATIONS_ERROR) {
                 send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Function not implemented", 0, NULL);
                 goto free_and_return;
+            } else {
+                if (bind_target_entry) {
+                    slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_INVALID_PASSWD);
+                } else {
+                    slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_NO_ENTRY);
+                }
             }
         account_locked:
             if (cred.bv_len == 0) {
@@ -861,6 +872,7 @@ do_bind(Slapi_PBlock *pb)
          */
         if (rc == SLAPI_BIND_SUCCESS || rc == SLAPI_BIND_ANONYMOUS) {
             send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+            slapi_log_security(pb, SECURITY_BIND_SUCCESS, "");
         }
 
         slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &rc);

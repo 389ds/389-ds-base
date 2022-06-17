@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -84,6 +84,7 @@ CONFIG_MAP = {
     'error_log' : ('cn=config', 'nsslapd-errorlog'),
     'access_log' : ('cn=config', 'nsslapd-accesslog'),
     'audit_log' : ('cn=config', 'nsslapd-auditlog'),
+    'security_log' : ('cn=config', 'nsslapd-securitylog'),
     'ldapi': ('cn=config', 'nsslapd-ldapifilepath'),
     'version': ('', 'vendorVersion'),
 }
@@ -104,6 +105,7 @@ DSE_MAP = {
     'nsslapd-errorlog': 'error_log',
     'nsslapd-accesslog': 'access_log',
     'nsslapd-auditlog': 'audit_log',
+    'nsslapd-securitylog': 'security_log',
     'nsslapd-ldapifilepath': 'ldapi',
     'nsslapd-instancedir': 'inst_dir',
 }
@@ -221,7 +223,7 @@ class Paths(object):
         if result is None or desc is None:
             # keep original exception in unusual cases
             return (err)
-        # Lets create a new exception (with same class) to have current stack without the python-ldap internal stack 
+        # Lets create a new exception (with same class) to have current stack without the python-ldap internal stack
         # And to provide more relevant info that are useful for debug
         info = f"{msg}.\nAdditionnal info is: {info}"
         return (err.__class__({ "result":result, "desc":desc, "info":info}))

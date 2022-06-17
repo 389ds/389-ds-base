@@ -315,6 +315,7 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 
 #define SLAPD_INIT_LOG_MODE "600"
 #define SLAPD_INIT_ACCESSLOG_ROTATIONUNIT    "day"
+#define SLAPD_INIT_SECURITYLOG_ROTATIONUNIT  "week"
 #define SLAPD_INIT_ERRORLOG_ROTATIONUNIT     "week"
 #define SLAPD_INIT_AUDITLOG_ROTATIONUNIT     "week"
 #define SLAPD_INIT_AUDITFAILLOG_ROTATIONUNIT "week"
@@ -328,6 +329,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_LOG_ROTATIONTIME_STR "1"
 #define SLAPD_DEFAULT_LOG_ACCESS_MAXNUMLOGS 10
 #define SLAPD_DEFAULT_LOG_ACCESS_MAXNUMLOGS_STR "10"
+#define SLAPD_DEFAULT_LOG_SECURITY_MAXNUMLOGS 10
+#define SLAPD_DEFAULT_LOG_SECURITY_MAXNUMLOGS_STR "10"
 #define SLAPD_DEFAULT_LOG_MAXNUMLOGS 2
 #define SLAPD_DEFAULT_LOG_MAXNUMLOGS_STR "2"
 #define SLAPD_DEFAULT_LOG_EXPTIME 1
@@ -335,6 +338,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 /* This is in MB */
 #define SLAPD_DEFAULT_LOG_ACCESS_MAXDISKSPACE 500
 #define SLAPD_DEFAULT_LOG_ACCESS_MAXDISKSPACE_STR "500"
+#define SLAPD_DEFAULT_LOG_SECURITY_MAXDISKSPACE 500
+#define SLAPD_DEFAULT_LOG_SECURITY_MAXDISKSPACE_STR "500"
 #define SLAPD_DEFAULT_LOG_MAXDISKSPACE 100
 #define SLAPD_DEFAULT_LOG_MAXDISKSPACE_STR "100"
 #define SLAPD_DEFAULT_LOG_MAXLOGSIZE 100
@@ -351,6 +356,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_FE_ERRORLOG_LEVEL_STR "16384"
 #define SLAPD_DEFAULT_ACCESSLOG_LEVEL 256
 #define SLAPD_DEFAULT_ACCESSLOG_LEVEL_STR "256"
+#define SLAPD_DEFAULT_SECURITYLOG_LEVEL 256
+#define SLAPD_DEFAULT_SECURITYLOG_LEVEL_STR "256"
 
 #define SLAPD_DEFAULT_DISK_THRESHOLD 2097152
 #define SLAPD_DEFAULT_DISK_THRESHOLD_STR "2097152"
@@ -1710,6 +1717,7 @@ typedef struct conn
     int c_ct_list;                   /* ct active list this conn is part of */
     int c_ns_close_jobs;             /* number of current close jobs */
     char *c_ipaddr;                  /* ip address str - used by monitor */
+    char *c_serveripaddr;            /* server ip address str - used by monitor */
     /* per conn static config */
     ber_len_t c_maxbersize;
     int32_t c_ioblocktimeout;
@@ -2055,6 +2063,20 @@ typedef struct _slapdEntryPoints
 #define SLAPD_ERROR_LOG 0x2
 #define SLAPD_AUDIT_LOG 0x4
 #define SLAPD_AUDITFAIL_LOG 0x8
+#define SLAPD_SECURITY_LOG 0x10
+
+/* Security log events */
+#define SECURITY_BIND_SUCCESS "BIND_SUCCESS"
+#define SECURITY_BIND_FAILED "BIND_FAILED"
+#define SECURITY_AUTHZ_ERROR "AUTHZ_ERROR"
+#define SECURITY_TCP_ERROR "TCP_ERROR"
+
+/* Security log messages */
+#define SECURITY_MSG_INVALID_PASSWD "INVALID_PASSWORD"
+#define SECURITY_MSG_NO_ENTRY "NO_SUCH_ENTRY"
+#define SECURITY_MSG_CERT_MAP_FAILED "CERT_MAP_FAILED"
+#define SECURITY_MSG_ACCOUNT_LOCKED "ACCOUNT_LOCKED"
+#define SECURITY_MSG_ANONYMOUS_BIND "ANONYMOUS_BIND"
 
 #define LOGGING_BACKEND_INTERNAL 0x1
 #define LOGGING_BACKEND_SYSLOG 0x2
@@ -2082,55 +2104,69 @@ typedef struct _slapdEntryPoints
 #define CONFIG_SCHEMAREPLACE_ATTRIBUTE "nsslapd-schemareplace"
 #define CONFIG_LOGLEVEL_ATTRIBUTE "nsslapd-errorlog-level"
 #define CONFIG_ACCESSLOGLEVEL_ATTRIBUTE "nsslapd-accesslog-level"
+#define CONFIG_SECURITYLOGLEVEL_ATTRIBUTE "nsslapd-securitylog-level"
 #define CONFIG_ACCESSLOG_MODE_ATTRIBUTE "nsslapd-accesslog-mode"
+#define CONFIG_SECURITYLOG_MODE_ATTRIBUTE "nsslapd-securitylog-mode"
 #define CONFIG_ERRORLOG_MODE_ATTRIBUTE "nsslapd-errorlog-mode"
 #define CONFIG_AUDITLOG_MODE_ATTRIBUTE "nsslapd-auditlog-mode"
 #define CONFIG_AUDITFAILLOG_MODE_ATTRIBUTE "nsslapd-auditfaillog-mode"
 #define CONFIG_ACCESSLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE "nsslapd-accesslog-maxlogsperdir"
+#define CONFIG_SECURITYLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE "nsslapd-securitylog-maxlogsperdir"
 #define CONFIG_ERRORLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE "nsslapd-errorlog-maxlogsperdir"
 #define CONFIG_AUDITLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE "nsslapd-auditlog-maxlogsperdir"
 #define CONFIG_AUDITFAILLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE "nsslapd-auditfaillog-maxlogsperdir"
 #define CONFIG_ACCESSLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-accesslog-maxlogsize"
+#define CONFIG_SECURITYLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-securitylog-maxlogsize"
 #define CONFIG_ERRORLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-errorlog-maxlogsize"
 #define CONFIG_AUDITLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-auditlog-maxlogsize"
 #define CONFIG_AUDITFAILLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-auditfaillog-maxlogsize"
 #define CONFIG_ACCESSLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-accesslog-logrotationsync-enabled"
+#define CONFIG_SECURITYLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-securitylog-logrotationsync-enabled"
 #define CONFIG_ERRORLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-errorlog-logrotationsync-enabled"
 #define CONFIG_AUDITLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-auditlog-logrotationsync-enabled"
 #define CONFIG_AUDITFAILLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-auditfaillog-logrotationsync-enabled"
 #define CONFIG_ACCESSLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-accesslog-logrotationsynchour"
+#define CONFIG_SECURITYLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-securitylog-logrotationsynchour"
 #define CONFIG_ERRORLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-errorlog-logrotationsynchour"
 #define CONFIG_AUDITLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-auditlog-logrotationsynchour"
 #define CONFIG_AUDITFAILLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-auditfaillog-logrotationsynchour"
 #define CONFIG_ACCESSLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-accesslog-logrotationsyncmin"
+#define CONFIG_SECURITYLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-securitylog-logrotationsyncmin"
 #define CONFIG_ERRORLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-errorlog-logrotationsyncmin"
 #define CONFIG_AUDITLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-auditlog-logrotationsyncmin"
 #define CONFIG_AUDITFAILLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-auditfaillog-logrotationsyncmin"
 #define CONFIG_ACCESSLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-accesslog-logrotationtime"
+#define CONFIG_SECURITYLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-securitylog-logrotationtime"
 #define CONFIG_ERRORLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-errorlog-logrotationtime"
 #define CONFIG_AUDITLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-auditlog-logrotationtime"
 #define CONFIG_AUDITFAILLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-auditfaillog-logrotationtime"
 #define CONFIG_ACCESSLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-accesslog-logrotationtimeunit"
+#define CONFIG_SECURITYLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-securitylog-logrotationtimeunit"
 #define CONFIG_ERRORLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-errorlog-logrotationtimeunit"
 #define CONFIG_AUDITLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditlog-logrotationtimeunit"
 #define CONFIG_AUDITFAILLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditfaillog-logrotationtimeunit"
 #define CONFIG_ACCESSLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-accesslog-logmaxdiskspace"
+#define CONFIG_SECURITYLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-securitylog-logmaxdiskspace"
 #define CONFIG_ERRORLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-errorlog-logmaxdiskspace"
 #define CONFIG_AUDITLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-auditlog-logmaxdiskspace"
 #define CONFIG_AUDITFAILLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-auditfaillog-logmaxdiskspace"
 #define CONFIG_ACCESSLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-accesslog-logminfreediskspace"
+#define CONFIG_SECURITYLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-securitylog-logminfreediskspace"
 #define CONFIG_ERRORLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-errorlog-logminfreediskspace"
 #define CONFIG_AUDITLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-auditlog-logminfreediskspace"
 #define CONFIG_AUDITFAILLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-auditfaillog-logminfreediskspace"
 #define CONFIG_ACCESSLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-accesslog-logexpirationtime"
+#define CONFIG_SECURITYLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-securitylog-logexpirationtime"
 #define CONFIG_ERRORLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-errorlog-logexpirationtime"
 #define CONFIG_AUDITLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-auditlog-logexpirationtime"
 #define CONFIG_AUDITFAILLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-auditfaillog-logexpirationtime"
 #define CONFIG_ACCESSLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-accesslog-logexpirationtimeunit"
+#define CONFIG_SECURITYLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-securitylog-logexpirationtimeunit"
 #define CONFIG_ERRORLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-errorlog-logexpirationtimeunit"
 #define CONFIG_AUDITLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditlog-logexpirationtimeunit"
 #define CONFIG_AUDITFAILLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditfaillog-logexpirationtimeunit"
 #define CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-accesslog-logging-enabled"
+#define CONFIG_SECURITYLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-securitylog-logging-enabled"
 #define CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-errorlog-logging-enabled"
 #define CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED "nsslapd-external-libs-debug-enabled"
 #define CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-auditlog-logging-enabled"
@@ -2138,6 +2174,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_AUDITLOG_LOGGING_HIDE_UNHASHED_PW "nsslapd-auditlog-logging-hide-unhashed-pw"
 #define CONFIG_AUDITFAILLOG_LOGGING_HIDE_UNHASHED_PW "nsslapd-auditfaillog-logging-hide-unhashed-pw"
 #define CONFIG_ACCESSLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-accesslog-compress"
+#define CONFIG_SECURITYLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-securitylog-compress"
 #define CONFIG_AUDITLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-auditlog-compress"
 #define CONFIG_AUDITFAILLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-auditfaillog-compress"
 #define CONFIG_ERRORLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-errorlog-compress"
@@ -2147,6 +2184,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE "nsslapd-rootpwstoragescheme"
 #define CONFIG_AUDITFILE_ATTRIBUTE "nsslapd-auditlog"
 #define CONFIG_AUDITFAILFILE_ATTRIBUTE "nsslapd-auditfaillog"
+#define CONFIG_SECURITYFILE_ATTRIBUTE "nsslapd-securitylog"
 #define CONFIG_LASTMOD_ATTRIBUTE "nsslapd-lastmod"
 #define CONFIG_INCLUDE_ATTRIBUTE "nsslapd-include"
 #define CONFIG_DYNAMICCONF_ATTRIBUTE "nsslapd-dynamicconf"
@@ -2242,6 +2280,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_PW_ADMIN_DN_ATTRIBUTE "passwordAdminDN"
 #define CONFIG_PW_SEND_EXPIRING "passwordSendExpiringTime"
 #define CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE "nsslapd-accesslog-logbuffering"
+#define CONFIG_SECURITYLOG_BUFFERING_ATTRIBUTE "nsslapd-securitylog-logbuffering"
 #define CONFIG_CSNLOGGING_ATTRIBUTE "nsslapd-csnlogging"
 #define CONFIG_RETURN_EXACT_CASE_ATTRIBUTE "nsslapd-return-exact-case"
 #define CONFIG_RESULT_TWEAK_ATTRIBUTE "nsslapd-result-tweak"
@@ -2254,6 +2293,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE "nsslapd-enquote-sup-oc"
 #define CONFIG_BASEDN_ATTRIBUTE "nsslapd-certmap-basedn"
 #define CONFIG_ACCESSLOG_LIST_ATTRIBUTE "nsslapd-accesslog-list"
+#define CONFIG_SECURITYLOG_LIST_ATTRIBUTE "nsslapd-securitylog-list"
 #define CONFIG_ERRORLOG_LIST_ATTRIBUTE "nsslapd-errorlog-list"
 #define CONFIG_AUDITLOG_LIST_ATTRIBUTE "nsslapd-auditlog-list"
 #define CONFIG_AUDITFAILLOG_LIST_ATTRIBUTE "nsslapd-auditfaillog-list"
@@ -2464,6 +2504,25 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t accesslogbuffering;
     slapi_onoff_t csnlogging;
     slapi_onoff_t accesslog_compress;
+
+    /* SECURITY LOG */
+    char *securitylog;
+    slapi_onoff_t securitylog_logging_enabled;
+    char *securitylog_mode;
+    int securitylog_maxnumlogs;
+    int securitylog_maxlogsize;
+    slapi_onoff_t securitylog_rotationsync_enabled;
+    int securitylog_rotationsynchour;
+    int securitylog_rotationsyncmin;
+    int securitylog_rotationtime;
+    char *securitylog_rotationunit;
+    int securitylog_maxdiskspace;
+    int securitylog_minfreespace;
+    int securitylog_exptime;
+    char *securitylog_exptimeunit;
+    int securityloglevel;
+    slapi_onoff_t securitylogbuffering;
+    slapi_onoff_t securitylog_compress;
 
     /* ERROR LOG */
     slapi_onoff_t errorlog_logging_enabled;

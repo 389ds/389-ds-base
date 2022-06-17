@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -275,6 +275,7 @@ class DirSrv(SimpleLDAPObject, object):
                 self.errlog          -> nsslapd-errorlog
                 self.accesslog       -> nsslapd-accesslog
                 self.auditlog        -> nsslapd-auditlog
+                self.securitylog     -> nsslapd-securitylog
                 self.confdir         -> nsslapd-certdir
                 self.inst            -> equivalent to self.serverid
                 self.sroot/self.inst -> nsslapd-instancedir
@@ -292,6 +293,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.errlog = self.ds_paths.error_log
         self.accesslog = self.ds_paths.access_log
         self.auditlog = self.ds_paths.audit_log
+        self.securitylog = self.ds_paths.security_log
         self.confdir = self.ds_paths.config_dir
         self.schemadir = self.ds_paths.schema_dir
         self.bakdir = self.ds_paths.backup_dir
@@ -318,7 +320,7 @@ class DirSrv(SimpleLDAPObject, object):
         from lib389.aci import Aci
         from lib389.config import RSA
         from lib389.config import Encryption
-        from lib389.dirsrv_log import DirsrvAccessLog, DirsrvErrorLog
+        from lib389.dirsrv_log import DirsrvAccessLog, DirsrvErrorLog, DirsrvSecurityLog
         from lib389.ldclt import Ldclt
         from lib389.mappingTree import MappingTrees
         from lib389.mappingTree import MappingTreeLegacy as MappingTree
@@ -363,6 +365,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.encryption = Encryption(self)
         self.ds_access_log = DirsrvAccessLog(self)
         self.ds_error_log = DirsrvErrorLog(self)
+        self.ds_security_log = DirsrvSecurityLog(self)
         self.ldclt = Ldclt(self)
         self.saslmaps = SaslMappings(self)
 
@@ -1389,6 +1392,9 @@ class DirSrv(SimpleLDAPObject, object):
         if hasattr(self, 'auditlog') and os.path.dirname(self.auditlog) \
            not in ldir:
             ldir.append(os.path.dirname(self.auditlog))
+        if hasattr(self, 'securitylog') and os.path.dirname(self.securitylog) \
+           not in ldir:
+            ldir.append(os.path.dirname(self.securitylog))
 
         # now scan the directory list to find the files to backup
         for dirToBackup in ldir:
@@ -1476,6 +1482,10 @@ class DirSrv(SimpleLDAPObject, object):
             os.remove(f)
         self.log.debug("restoreFS: remove audit logs %s" % self.auditlog)
         for f in glob.glob("%s*" % self.auditlog):
+            self.log.debug("restoreFS: before restore remove file %s", f)
+            os.remove(f)
+        self.log.debug("restoreFS: remove security logs %s" % self.securitylog)
+        for f in glob.glob("%s*" % self.securitylog):
             self.log.debug("restoreFS: before restore remove file %s", f)
             os.remove(f)
 
@@ -3154,6 +3164,12 @@ class DirSrv(SimpleLDAPObject, object):
         time.sleep(1)
         return DirSrvTools.searchFile(self.errlog + "*", pattern)
 
+    def searchSecurityLog(self, pattern):
+        """
+        Search all the access logs
+        """
+        return DirSrvTools.searchFile(self.securitylog + "*", pattern)
+
     def detectDisorderlyShutdown(self):
         """
         Search the current errors log for a disorderly shutdown message
@@ -3195,6 +3211,12 @@ class DirSrv(SimpleLDAPObject, object):
         """
         self.deleteLog(self.errlog, restart)
 
+    def deleteSecurityLogs(self, restart=True):
+        """
+        Delete all the error logs.
+        """
+        self.deleteLog(self.securitylog, restart)
+
     def deleteAllLogs(self, restart=True):
         """
         Delete all the logs.
@@ -3203,6 +3225,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.deleteAccessLogs(restart=False)
         self.deleteErrorLogs(restart=False)
         self.deleteAuditLogs(restart=False)
+        self.deleteSecurityLogs(restart=False)
         self.start()
 
     def get_effective_rights(self, sourcedn, base=DEFAULT_SUFFIX,

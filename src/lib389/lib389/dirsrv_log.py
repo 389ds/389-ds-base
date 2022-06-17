@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,6 +10,7 @@
 """
 
 import copy
+import json
 import re
 import gzip
 from dateutil.parser import parse as dt_parse
@@ -41,7 +42,7 @@ MONTH_LOOKUP = {
 
 
 class DirsrvLog(DSLint):
-    """Class of functions to working with the various DIrectory Server logs
+    """Class of functions to working with the various Directory Server logs
     """
     def __init__(self, dirsrv):
         """Initial class
@@ -51,6 +52,7 @@ class DirsrvLog(DSLint):
         self.log = self.dirsrv.log
         self.prog_timestamp = re.compile(r'\[(?P<day>\d*)\/(?P<month>\w*)\/(?P<year>\d*):(?P<hour>\d*):(?P<minute>\d*):(?P<second>\d*)(.(?P<nanosecond>\d*))+\s(?P<tz>[\+\-]\d*)')   # noqa
         self.prog_datetime = re.compile(r'^(?P<timestamp>\[.*\])')
+        self.jsonFormat = False
 
     def _get_log_path(self):
         """Return the current log file location"""
@@ -136,7 +138,11 @@ class DirsrvLog(DSLint):
         @param ts - The timestamp string from a log
         @return - a "datetime" object
         """
-        timedata = self.prog_timestamp.match(ts).groupdict()
+        if self.jsonFormat:
+            timedata = self.prog_timestamp.match(ts).groupdict()
+        else:
+            timedata = self.prog_timestamp.match(ts).groupdict()
+
         # Now, have to convert month to an int.
         dt_str = '{YEAR}-{MONTH}-{DAY} {HOUR}-{MINUTE}-{SECOND} {TZ}'.format(
             YEAR=timedata['year'],
@@ -330,7 +336,38 @@ class DirsrvErrorLog(DirsrvLog):
 
     def parse_lines(self, lines):
         """Parse multiple lines from an errors log
-        @param lines - a lits of strings/lines from an errors log
+        @param lines - a list of strings/lines from an errors log
+        @return - A dictionary of the log parts for each line
+        """
+        return map(self.parse_line, lines)
+
+
+class DirsrvSecurityLog(DirsrvLog):
+    """Directory Server Security log class"""
+    def __init__(self, dirsrv):
+        """Init the Security log class
+        @param dirsrv - A DirSrv object
+        """
+        super(DirsrvSecurityLog, self).__init__(dirsrv)
+        self.jsonFormat = True
+
+    def _get_log_path(self):
+        """Return the current log file location"""
+        return self.dirsrv.ds_paths.security_log
+
+    def parse_line(self, line):
+        """Parse a Security log line
+        @line - a text string from a security log
+        @return - A dictionary of the log parts
+        """
+        line = line.strip()
+        action = json.loads(line)
+        action['datetime'] = action['date']
+        return action
+
+    def parse_lines(self, lines):
+        """Parse multiple lines from a security log
+        @param lines - a lits of strings/lines from a security log
         @return - A dictionary of the log parts for each line
         """
         return map(self.parse_line, lines)

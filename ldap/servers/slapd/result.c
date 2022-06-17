@@ -404,6 +404,9 @@ send_ldap_result_ext(
         /* first check for security errors */
         if (err == LDAP_INVALID_CREDENTIALS || err == LDAP_INAPPROPRIATE_AUTH || err == LDAP_AUTH_METHOD_NOT_SUPPORTED || err == LDAP_STRONG_AUTH_NOT_SUPPORTED || err == LDAP_STRONG_AUTH_REQUIRED || err == LDAP_CONFIDENTIALITY_REQUIRED || err == LDAP_INSUFFICIENT_ACCESS || err == LDAP_AUTH_UNKNOWN) {
             slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsSecurityErrors);
+            if (err == LDAP_INSUFFICIENT_ACCESS) {
+                slapi_log_security(pb, SECURITY_AUTHZ_ERROR, "");
+            }
         } else if (err != LDAP_REFERRAL && err != LDAP_OPT_REFERRALS && err != LDAP_PARTIAL_RESULTS) {
             /*madman man spec says not to count as normal errors
                 --security errors
