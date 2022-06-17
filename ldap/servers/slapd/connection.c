@@ -196,6 +196,7 @@ connection_cleanup(Connection *conn)
     slapi_ch_free((void **)&conn->cin_destaddr);
     slapi_ch_free((void **)&conn->cin_addr_aclip);
     slapi_ch_free_string(&conn->c_ipaddr);
+    slapi_ch_free_string(&conn->c_serveripaddr);
     if (conn->c_domain != NULL) {
         ber_bvecfree(conn->c_domain);
         conn->c_domain = NULL;
@@ -420,6 +421,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     conn->c_ssl_ssf = 0;
     conn->c_local_ssf = 0;
     conn->c_ipaddr = slapi_ch_strdup(str_ip);
+    conn->c_serveripaddr = slapi_ch_strdup(str_destip);
 }
 
 /* Create a pool of threads for handling the operations */
@@ -2312,6 +2314,7 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
                              conn->c_connid, opid, conn->c_sd,
                              slapd_pr_strerror(reason));
         }
+        slapi_log_security_tcp(conn, reason, slapd_pr_strerror(reason));
 
         if (!config_check_referral_mode()) {
             slapi_counter_decrement(g_get_per_thread_snmp_vars()->ops_tbl.dsConnections);

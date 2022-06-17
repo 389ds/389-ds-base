@@ -657,18 +657,16 @@ export class Plugins extends React.Component {
                 </div>
                 <div hidden={this.state.firstLoad} className={this.state.loading ? "ds-disabled" : ""}>
                     <Grid className="ds-margin-top-xlg" hasGutter>
-                        <GridItem span={3}>
-                            <div>
-                                <Nav key={this.state.pluginTableKey} theme="light" onSelect={this.handleSelect}>
-                                    <NavList>
-                                        {Object.entries(selectPlugins).map(([id, item]) => (
-                                            <NavItem key={item.name} itemId={item.name} isActive={this.state.activePlugin === item.name}>
-                                                {item.icon}
-                                            </NavItem>
-                                        ))}
-                                    </NavList>
-                                </Nav>
-                            </div>
+                        <GridItem span={3} className="ds-vert-scroll">
+                            <Nav key={this.state.pluginTableKey} theme="light" onSelect={this.handleSelect}>
+                                <NavList>
+                                    {Object.entries(selectPlugins).map(([id, item]) => (
+                                        <NavItem key={item.name} itemId={item.name} isActive={this.state.activePlugin === item.name}>
+                                            {item.icon}
+                                        </NavItem>
+                                    ))}
+                                </NavList>
+                            </Nav>
                         </GridItem>
                         <GridItem className="ds-indent-md" span={9}>
                             {Object.entries(selectPlugins).filter(plugin => plugin[1].name === this.state.activePlugin)

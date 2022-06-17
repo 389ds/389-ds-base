@@ -16,6 +16,7 @@ from lib389._constants import DEFAULT_SUFFIX
 from lib389.dseldif import DSEldif
 from lib389.topologies import topology_st as topo
 from lib389.idm.domain import Domain
+from lib389.idm.directorymanager import DirectoryManager
 
 log = logging.getLogger(__name__)
 
@@ -29,13 +30,16 @@ def log_rotated_count(log_type, log_dir, check_compressed=False):
     return len(glob.glob(log_file))
 
 
-def update_and_sleep(suffix, sleep=True):
+def update_and_sleep(inst, suffix, sleep=True):
     for loop in range(2):
         for count in range(10):
             suffix.replace('description', str(count))
             suffix.get_attr_val('description')
             with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
                 suffix.add('doesNotExist', 'error')
+            # For security log we need binds to populate the log
+            DirectoryManager(inst).bind()
+
         if sleep:
             # log rotation smallest unit is 1 minute
             time.sleep(61)
@@ -80,36 +84,37 @@ def test_logging_compression(topo):
     inst.config.set('nsslapd-auditlog-logging-enabled', 'on')
     inst.config.set('nsslapd-auditfaillog-logging-enabled', 'on')
     inst.config.set('nsslapd-accesslog-logbuffering', 'off')
+    inst.config.set('nsslapd-securitylog-logbuffering', 'off')
     inst.config.set('nsslapd-errorlog-level', '64')
 
     # Set an aggressive rotation/deletion policy for all logs
-    for ds_log in ['accesslog', 'auditlog', 'auditfaillog', 'errorlog']:
+    for ds_log in ['accesslog', 'auditlog', 'auditfaillog', 'errorlog', 'securitylog']:
         inst.config.set('nsslapd-' + ds_log + '-logrotationtime', '1')
         inst.config.set('nsslapd-' + ds_log + '-logrotationtimeunit', timeunit)
         inst.config.set('nsslapd-' + ds_log + '-maxlogsize', '1')
         inst.config.set('nsslapd-' + ds_log + '-maxlogsperdir', '3')
 
     # Perform ops that will write to each log
-    update_and_sleep(suffix)
+    update_and_sleep(topo.standalone, suffix)
 
     # Make sure logs are rotated
-    for log_type in ['access', 'audit', 'auditfail', 'errors']:
+    for log_type in ['access', 'audit', 'auditfail', 'errors', 'security']:
         assert log_rotated_count(log_type, log_dir) > 0
 
     # Enable log compression on all logs
-    for ds_log in ['accesslog', 'auditlog', 'auditfaillog', 'errorlog']:
+    for ds_log in ['accesslog', 'auditlog', 'auditfaillog', 'errorlog', 'securitylog']:
         inst.config.set('nsslapd-' + ds_log + '-compress', 'on')
 
     # Perform ops that will write to each log
-    update_and_sleep(suffix)
+    update_and_sleep(topo.standalone, suffix)
 
     # Make sure all logs were rotated again and are compressed
-    for log_type in ['access', 'audit', 'auditfail', 'errors']:
+    for log_type in ['access', 'audit', 'auditfail', 'errors', 'security']:
         assert log_rotated_count(log_type, log_dir, check_compressed=True) > 0
 
     # Make sure log deletion is working
-    update_and_sleep(suffix, sleep=False)
-    for log_type in ['access', 'audit', 'auditfail', 'errors']:
+    update_and_sleep(topo.standalone, suffix, sleep=False)
+    for log_type in ['access', 'audit', 'auditfail', 'errors', 'security']:
         assert log_rotated_count(log_type, log_dir) == 2
 
 
@@ -118,4 +123,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main(["-s", CURRENT_FILE])
-

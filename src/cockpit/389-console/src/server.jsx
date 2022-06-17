@@ -10,6 +10,7 @@ import { ServerAccessLog } from "./lib/server/accessLog.jsx";
 import { ServerAuditLog } from "./lib/server/auditLog.jsx";
 import { ServerAuditFailLog } from "./lib/server/auditfailLog.jsx";
 import { ServerErrorLog } from "./lib/server/errorLog.jsx";
+import { ServerSecurityLog } from "./lib/server/securityLog.jsx";
 import { Security } from "./security.jsx";
 import {
     Spinner,
@@ -182,6 +183,11 @@ export class Server extends React.Component {
                         name: "Errors Log",
                         icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                         id: "error-log-config",
+                    },
+                    {
+                        name: "Security Log",
+                        icon: <FontAwesomeIcon size="sm" icon={faBook} />,
+                        id: "security-log-config",
                     }
                 ],
                 defaultExpanded: true
@@ -297,6 +303,15 @@ export class Server extends React.Component {
             } else if (this.state.node_name === "error-log-config") {
                 server_element = (
                     <ServerErrorLog
+                        serverId={this.props.serverId}
+                        attrs={this.state.attrs}
+                        enableTree={this.enableTree}
+                        addNotification={this.props.addNotification}
+                    />
+                );
+            } else if (this.state.node_name === "security-log-config") {
+                server_element = (
+                    <ServerSecurityLog
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}

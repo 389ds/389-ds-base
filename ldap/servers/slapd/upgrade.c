@@ -147,6 +147,60 @@ upgrade_201_remove_des_rever_pwd_scheme(void)
 }
 
 /*
+ * Add the required "nsslapd-securitylog" attribute to cn=config
+ */
+static upgrade_status
+upgrade_enable_security_logging(void)
+{
+    struct slapi_pblock *pb = slapi_pblock_new();
+    Slapi_Entry **entries = NULL;
+
+    slapi_search_internal_set_pb(
+            pb, "cn=config", LDAP_SCOPE_BASE,
+            "objectclass=*", NULL, 0, NULL, NULL,
+            plugin_get_default_component_id(), 0);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+    if (entries &&
+        strcasecmp(slapi_entry_attr_get_ref(entries[0], "nsslapd-securitylog"), "") == 0)
+    {
+        slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+        Slapi_PBlock *mod_pb = slapi_pblock_new();
+        LDAPMod mod_replace;
+        LDAPMod *mods[2];
+        char *replace_val[2];
+        char security_log[BUFSIZ] = {0};
+        int log_len = strlen(slapdFrontendConfig->errorlog);
+
+        /* build the security log name based off error log location */
+        memcpy(security_log, slapdFrontendConfig->errorlog, log_len - 6);
+        strcat(security_log, "security");
+
+        replace_val[0] = security_log;
+        replace_val[1] = 0;
+        mod_replace.mod_op = LDAP_MOD_REPLACE;
+        mod_replace.mod_type = "nsslapd-securitylog";
+        mod_replace.mod_values = replace_val;
+        mods[0] = &mod_replace;
+        mods[1] = 0;
+
+        /* Update security logging */
+        slapi_modify_internal_set_pb(mod_pb, "cn=config",
+                                     mods, 0, 0, plugin_get_default_component_id(),
+                                     SLAPI_OP_FLAG_FIXUP);
+        slapi_modify_internal_pb(mod_pb);
+        slapi_pblock_destroy(mod_pb);
+
+        slapi_log_err(SLAPI_LOG_NOTICE, "upgrade_enable_security_logging",
+                "Upgrade task: enabled security audit log\n");
+    }
+    slapi_free_search_results_internal(pb);
+    slapi_pblock_destroy(pb);
+
+    return UPGRADE_SUCCESS;
+}
+
+/*
  * The replication plugin was renamed, this function cleans up all the
  * dependencies in the other plugins
  */
@@ -248,6 +302,10 @@ upgrade_server(void)
     }
 
     if (upgrade_205_fixup_repl_dep() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
+    if (upgrade_enable_security_logging() != UPGRADE_SUCCESS) {
         return UPGRADE_FAILURE;
     }
 

@@ -31,6 +31,7 @@
 #include <pwd.h> /* getpwnam */
 #include "zlib.h"
 #define _PSEP '/'
+#include <json-c/json.h>
 
 #ifdef SYSTEMTAP
 #include <sys/sdt.h>
@@ -92,15 +93,18 @@ static int slapi_log_map[] = {
  * PROTOTYPES
  *************************************************************************/
 static int log__open_accesslogfile(int logfile_type, int locked);
+static int log__open_securitylogfile(int logfile_type, int locked);
 static int log__open_errorlogfile(int logfile_type, int locked);
 static int log__open_auditlogfile(int logfile_type, int locked);
 static int log__open_auditfaillogfile(int logfile_type, int locked);
 static int log__needrotation(LOGFD fp, int logtype);
 static int log__delete_access_logfile(void);
+static int log__delete_security_logfile(void);
 static int log__delete_error_logfile(int locked);
 static int log__delete_audit_logfile(void);
 static int log__delete_auditfail_logfile(void);
 static int log__access_rotationinfof(char *pathname);
+static int log__security_rotationinfof(char *pathname);
 static int log__error_rotationinfof(char *pathname);
 static int log__audit_rotationinfof(char *pathname);
 static int log__auditfail_rotationinfof(char *pathname);
@@ -109,19 +113,21 @@ static int log__check_prevlogs(FILE *fp, char *filename);
 static PRInt64 log__getfilesize(LOGFD fp);
 static PRInt64 log__getfilesize_with_filename(char *filename);
 static int log__enough_freespace(char *path);
-
 static int vslapd_log_error(LOGFD fp, int sev_level, const char *subsystem, const char *fmt, va_list ap, int locked);
 static int vslapd_log_access(const char *fmt, va_list ap);
+static int vslapd_log_security(const char *log_data);
 static void log_convert_time(time_t ctime, char *tbuf, int type);
 static time_t log_reverse_convert_time(char *tbuf);
 static LogBufferInfo *log_create_buffer(size_t sz);
 static void log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2);
+static void log_append_security_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
 static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now);
 static void log_write_title(LOGFD fp);
 static void log__error_emergency(const char *errstr, int reopen, int locked);
 static void vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked);
 static int get_syslog_loglevel(int loglevel);
 static void log_external_libs_debug_openldap_print(char *buffer);
+static int log__fix_rotationinfof(char *pathname);
 
 static int
 get_syslog_loglevel(int loglevel)
@@ -274,6 +280,17 @@ g_set_accesslog_level(int val)
 }
 
 /******************************************************************************
+* Set the security level
+******************************************************************************/
+void
+g_set_securitylog_level(int val)
+{
+    LOG_SECURITY_LOCK_WRITE();
+    loginfo.log_security_level = val;
+    LOG_SECURITY_UNLOCK_WRITE();
+}
+
+/******************************************************************************
 * Set whether the process is alive or dead
 * If it is detached, then we write the error in 'stderr'
 ******************************************************************************/
@@ -322,6 +339,39 @@ g_log_init()
         exit(-1);
     }
     if ((loginfo.log_access_buffer->lock = PR_NewLock()) == NULL) {
+        exit(-1);
+    }
+
+    /* SECURITY LOG */
+    loginfo.log_security_state = cfg->securitylog_logging_enabled;
+    loginfo.log_security_mode = SLAPD_DEFAULT_FILE_MODE;
+    loginfo.log_security_maxnumlogs = cfg->securitylog_maxnumlogs;
+    loginfo.log_security_maxlogsize = cfg->securitylog_maxlogsize * LOG_MB_IN_BYTES;
+    loginfo.log_security_rotationsync_enabled = cfg->securitylog_rotationsync_enabled;
+    loginfo.log_security_rotationsynchour = cfg->securitylog_rotationsynchour;
+    loginfo.log_security_rotationsyncmin = cfg->securitylog_rotationsyncmin;
+    loginfo.log_security_rotationsyncclock = -1;
+    loginfo.log_security_rotationtime = cfg->securitylog_rotationtime; /* default: 1 */
+    loginfo.log_security_rotationunit = LOG_UNIT_WEEKS;                /* default: week */
+    loginfo.log_security_rotationtime_secs = 604800;                   /* default: 1 day */
+    loginfo.log_security_maxdiskspace = cfg->securitylog_maxdiskspace * LOG_MB_IN_BYTES;
+    loginfo.log_security_minfreespace = cfg->securitylog_minfreespace * LOG_MB_IN_BYTES;
+    loginfo.log_security_exptime = cfg->securitylog_exptime; /* default: -1 */
+    loginfo.log_security_exptimeunit = LOG_UNIT_MONTHS;      /* default: month */
+    loginfo.log_security_exptime_secs = -1;                  /* default: -1 */
+    loginfo.log_security_level = cfg->securityloglevel;
+    loginfo.log_security_ctime = 0L;
+    loginfo.log_security_fdes = NULL;
+    loginfo.log_security_file = NULL;
+    loginfo.log_securityinfo_file = NULL;
+    loginfo.log_numof_access_logs = 1;
+    loginfo.log_security_logchain = NULL;
+    loginfo.log_security_buffer = log_create_buffer(LOG_BUFFER_MAXSIZE);
+    loginfo.log_security_compress = cfg->securitylog_compress;
+    if (loginfo.log_security_buffer == NULL) {
+        exit(-1);
+    }
+    if ((loginfo.log_security_buffer->lock = PR_NewLock()) == NULL) {
         exit(-1);
     }
 
@@ -451,6 +501,16 @@ log_set_logging(const char *attrname, char *value, int logtype, char *errorbuf, 
         }
         LOG_ACCESS_UNLOCK_WRITE();
         break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_LOCK_WRITE();
+        fe_cfg->securitylog_logging_enabled = v;
+        if (v) {
+            loginfo.log_security_state |= LOGGING_ENABLED;
+        } else {
+            loginfo.log_security_state &= ~LOGGING_ENABLED;
+        }
+        LOG_SECURITY_UNLOCK_WRITE();
+        break;
     case SLAPD_ERROR_LOG:
         LOG_ERROR_LOCK_WRITE();
         fe_cfg->errorlog_logging_enabled = v;
@@ -524,6 +584,16 @@ log_set_compression(const char *attrname, char *value, int logtype, char *errorb
             loginfo.log_access_compress &= ~LOGGING_COMPRESS_ENABLED;
         }
         LOG_ACCESS_UNLOCK_WRITE();
+        break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_LOCK_WRITE();
+        fe_cfg->securitylog_compress = v;
+        if (v) {
+            loginfo.log_security_compress |= LOGGING_COMPRESS_ENABLED;
+        } else {
+            loginfo.log_security_compress &= ~LOGGING_COMPRESS_ENABLED;
+        }
+        LOG_SECURITY_UNLOCK_WRITE();
         break;
     case SLAPD_ERROR_LOG:
         LOG_ERROR_LOCK_WRITE();
@@ -650,6 +720,7 @@ g_get_access_log()
 
     return logfile;
 }
+
 /******************************************************************************
 * Point to a new access logdir
 *
@@ -714,6 +785,7 @@ log_update_accesslogdir(char *pathname, int apply)
     LOG_ACCESS_UNLOCK_WRITE();
     return rv;
 }
+
 /******************************************************************************
 * Tell me  the error log file name inc path
 ******************************************************************************/
@@ -1002,6 +1074,22 @@ log_set_mode(const char *attrname, char *value, int logtype, char *errorbuf, int
         }
         LOG_ACCESS_UNLOCK_WRITE();
         break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_LOCK_WRITE();
+        if (loginfo.log_security_file &&
+            (chmod(loginfo.log_security_file, v) != 0)) {
+            int oserr = errno;
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "%s: Failed to chmod security audit log file to %s: errno %d (%s)",
+                                  attrname, value, oserr, slapd_system_strerror(oserr));
+            retval = LDAP_UNWILLING_TO_PERFORM;
+        } else { /* only apply the changes if no file or if successful */
+            slapi_ch_free((void **)&fe_cfg->securitylog_mode);
+            fe_cfg->securitylog_mode = slapi_ch_strdup(value);
+            loginfo.log_security_mode = v;
+        }
+        LOG_SECURITY_UNLOCK_WRITE();
+        break;
     case SLAPD_ERROR_LOG:
         LOG_ERROR_LOCK_WRITE();
         if (loginfo.log_error_file &&
@@ -1050,6 +1138,7 @@ log_set_numlogsperdir(const char *attrname, char *numlogs_str, int logtype, char
     int64_t numlogs;
 
     if (logtype != SLAPD_ACCESS_LOG &&
+        logtype != SLAPD_SECURITY_LOG &&
         logtype != SLAPD_ERROR_LOG &&
         logtype != SLAPD_AUDIT_LOG &&
         logtype != SLAPD_AUDITFAIL_LOG) {
@@ -1077,6 +1166,12 @@ log_set_numlogsperdir(const char *attrname, char *numlogs_str, int logtype, char
             loginfo.log_access_maxnumlogs = numlogs;
             fe_cfg->accesslog_maxnumlogs = numlogs;
             LOG_ACCESS_UNLOCK_WRITE();
+            break;
+        case SLAPD_SECURITY_LOG:
+            LOG_SECURITY_LOCK_WRITE();
+            loginfo.log_security_maxnumlogs = numlogs;
+            fe_cfg->securitylog_maxnumlogs = numlogs;
+            LOG_SECURITY_UNLOCK_WRITE();
             break;
         case SLAPD_ERROR_LOG:
             LOG_ERROR_LOCK_WRITE();
@@ -1144,6 +1239,14 @@ log_set_logsize(const char *attrname, char *logsize_str, int logtype, char *retu
             loginfo.log_access_maxlogsize = max_logsize;
             fe_cfg->accesslog_maxlogsize = logsize;
             LOG_ACCESS_UNLOCK_WRITE();
+        }
+        break;
+    case SLAPD_SECURITY_LOG:
+        if (apply) {
+            LOG_SECURITY_LOCK_WRITE();
+            loginfo.log_security_maxlogsize = max_logsize;
+            fe_cfg->securitylog_maxlogsize = logsize;
+            LOG_SECURITY_UNLOCK_WRITE();
         }
         break;
     case SLAPD_ERROR_LOG:
@@ -1237,6 +1340,12 @@ log_set_rotationsync_enabled(const char *attrname, char *value, int logtype, cha
         loginfo.log_access_rotationsync_enabled = v;
         LOG_ACCESS_UNLOCK_WRITE();
         break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_LOCK_WRITE();
+        fe_cfg->securitylog_rotationsync_enabled = v;
+        loginfo.log_security_rotationsync_enabled = v;
+        LOG_SECURITY_UNLOCK_WRITE();
+        break;
     case SLAPD_ERROR_LOG:
         LOG_ERROR_LOCK_WRITE();
         fe_cfg->errorlog_rotationsync_enabled = v;
@@ -1268,6 +1377,7 @@ log_set_rotationsynchour(const char *attrname, char *rhour_str, int logtype, cha
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
+        logtype != SLAPD_SECURITY_LOG &&
         logtype != SLAPD_ERROR_LOG &&
         logtype != SLAPD_AUDIT_LOG &&
         logtype != SLAPD_AUDITFAIL_LOG) {
@@ -1300,6 +1410,13 @@ log_set_rotationsynchour(const char *attrname, char *rhour_str, int logtype, cha
         loginfo.log_access_rotationsyncclock = log_get_rotationsyncclock(rhour, loginfo.log_access_rotationsyncmin);
         fe_cfg->accesslog_rotationsynchour = rhour;
         LOG_ACCESS_UNLOCK_WRITE();
+        break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_LOCK_WRITE();
+        loginfo.log_security_rotationsynchour = rhour;
+        loginfo.log_security_rotationsyncclock = log_get_rotationsyncclock(rhour, loginfo.log_security_rotationsyncmin);
+        fe_cfg->accesslog_rotationsynchour = rhour;
+        LOG_SECURITY_UNLOCK_WRITE();
         break;
     case SLAPD_ERROR_LOG:
         LOG_ERROR_LOCK_WRITE();
@@ -1336,6 +1453,7 @@ log_set_rotationsyncmin(const char *attrname, char *rmin_str, int logtype, char 
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
+        logtype != SLAPD_SECURITY_LOG &&
         logtype != SLAPD_ERROR_LOG &&
         logtype != SLAPD_AUDIT_LOG &&
         logtype != SLAPD_AUDITFAIL_LOG) {
@@ -1365,6 +1483,13 @@ log_set_rotationsyncmin(const char *attrname, char *rmin_str, int logtype, char 
         fe_cfg->accesslog_rotationsyncmin = rmin;
         loginfo.log_access_rotationsyncclock = log_get_rotationsyncclock(loginfo.log_access_rotationsynchour, rmin);
         LOG_ACCESS_UNLOCK_WRITE();
+        break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_LOCK_WRITE();
+        loginfo.log_security_rotationsyncmin = rmin;
+        fe_cfg->securitylog_rotationsyncmin = rmin;
+        loginfo.log_security_rotationsyncclock = log_get_rotationsyncclock(loginfo.log_security_rotationsynchour, rmin);
+        LOG_SECURITY_UNLOCK_WRITE();
         break;
     case SLAPD_ERROR_LOG:
         LOG_ERROR_LOCK_WRITE();
@@ -1409,6 +1534,7 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
+        logtype != SLAPD_SECURITY_LOG &&
         logtype != SLAPD_ERROR_LOG &&
         logtype != SLAPD_AUDIT_LOG &&
         logtype != SLAPD_AUDITFAIL_LOG) {
@@ -1440,6 +1566,11 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
         LOG_ACCESS_LOCK_WRITE();
         loginfo.log_access_rotationtime = rtime;
         runit = loginfo.log_access_rotationunit;
+        break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_LOCK_WRITE();
+        loginfo.log_security_rotationtime = rtime;
+        runit = loginfo.log_security_rotationunit;
         break;
     case SLAPD_ERROR_LOG:
         LOG_ERROR_LOCK_WRITE();
@@ -1484,6 +1615,11 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
         loginfo.log_access_rotationtime_secs = value;
         LOG_ACCESS_UNLOCK_WRITE();
         break;
+    case SLAPD_SECURITY_LOG:
+        fe_cfg->securitylog_rotationtime = rtime;
+        loginfo.log_security_rotationtime_secs = value;
+        LOG_SECURITY_UNLOCK_WRITE();
+        break;
     case SLAPD_ERROR_LOG:
         fe_cfg->errorlog_rotationtime = rtime;
         loginfo.log_error_rotationtime_secs = value;
@@ -1517,6 +1653,7 @@ log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, char *e
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
+        logtype != SLAPD_SECURITY_LOG &&
         logtype != SLAPD_ERROR_LOG &&
         logtype != SLAPD_AUDIT_LOG &&
         logtype != SLAPD_AUDITFAIL_LOG) {
@@ -1544,6 +1681,10 @@ log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, char *e
     case SLAPD_ACCESS_LOG:
         LOG_ACCESS_LOCK_WRITE();
         origvalue = loginfo.log_access_rotationtime;
+        break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_LOCK_WRITE();
+        origvalue = loginfo.log_security_rotationtime;
         break;
     case SLAPD_ERROR_LOG:
         LOG_ERROR_LOCK_WRITE();
@@ -1588,9 +1729,16 @@ log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, char *e
     case SLAPD_ACCESS_LOG:
         loginfo.log_access_rotationtime_secs = value;
         loginfo.log_access_rotationunit = runitType;
-        slapi_ch_free((void **)&fe_cfg->accesslog_rotationunit);
+        slapi_ch_free_string(&fe_cfg->accesslog_rotationunit);
         fe_cfg->accesslog_rotationunit = slapi_ch_strdup(runit);
         LOG_ACCESS_UNLOCK_WRITE();
+        break;
+    case SLAPD_SECURITY_LOG:
+        loginfo.log_security_rotationtime_secs = value;
+        loginfo.log_security_rotationunit = runitType;
+        slapi_ch_free_string(&fe_cfg->securitylog_rotationunit);
+        fe_cfg->securitylog_rotationunit = slapi_ch_strdup(runit);
+        LOG_SECURITY_UNLOCK_WRITE();
         break;
     case SLAPD_ERROR_LOG:
         loginfo.log_error_rotationtime_secs = value;
@@ -1602,14 +1750,14 @@ log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, char *e
     case SLAPD_AUDIT_LOG:
         loginfo.log_audit_rotationtime_secs = value;
         loginfo.log_audit_rotationunit = runitType;
-        slapi_ch_free((void **)&fe_cfg->auditlog_rotationunit);
+        slapi_ch_free_string(&fe_cfg->auditlog_rotationunit);
         fe_cfg->auditlog_rotationunit = slapi_ch_strdup(runit);
         LOG_AUDIT_UNLOCK_WRITE();
         break;
     case SLAPD_AUDITFAIL_LOG:
         loginfo.log_auditfail_rotationtime_secs = value;
         loginfo.log_auditfail_rotationunit = runitType;
-        slapi_ch_free((void **)&fe_cfg->auditfaillog_rotationunit);
+        slapi_ch_free_string(&fe_cfg->auditfaillog_rotationunit);
         fe_cfg->auditfaillog_rotationunit = slapi_ch_strdup(runit);
         LOG_AUDITFAIL_UNLOCK_WRITE();
         break;
@@ -1636,6 +1784,7 @@ log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, 
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
+        logtype != SLAPD_SECURITY_LOG &&
         logtype != SLAPD_ERROR_LOG &&
         logtype != SLAPD_AUDIT_LOG &&
         logtype != SLAPD_AUDITFAIL_LOG) {
@@ -1660,6 +1809,10 @@ log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, 
     case SLAPD_ACCESS_LOG:
         LOG_ACCESS_LOCK_WRITE();
         mlogsize = loginfo.log_access_maxlogsize;
+        break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_LOCK_WRITE();
+        mlogsize = loginfo.log_security_maxlogsize;
         break;
     case SLAPD_ERROR_LOG:
         LOG_ERROR_LOCK_WRITE();
@@ -1691,6 +1844,13 @@ log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, 
             fe_cfg->accesslog_maxdiskspace = s_maxdiskspace; /* in megabytes */
         }
         LOG_ACCESS_UNLOCK_WRITE();
+        break;
+    case SLAPD_SECURITY_LOG:
+        if (rv == 0 && apply) {
+            loginfo.log_security_maxdiskspace = maxdiskspace;  /* in bytes */
+            fe_cfg->securitylog_maxdiskspace = s_maxdiskspace; /* in megabytes */
+        }
+        LOG_SECURITY_UNLOCK_WRITE();
         break;
     case SLAPD_ERROR_LOG:
         if (rv == 0 && apply) {
@@ -1732,6 +1892,7 @@ log_set_mindiskspace(const char *attrname, char *minfreespace_str, int logtype, 
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
+        logtype != SLAPD_SECURITY_LOG &&
         logtype != SLAPD_ERROR_LOG &&
         logtype != SLAPD_AUDIT_LOG &&
         logtype != SLAPD_AUDITFAIL_LOG) {
@@ -1762,6 +1923,12 @@ log_set_mindiskspace(const char *attrname, char *minfreespace_str, int logtype, 
             loginfo.log_access_minfreespace = minfreespaceB;
             fe_cfg->accesslog_minfreespace = minfreespace;
             LOG_ACCESS_UNLOCK_WRITE();
+            break;
+        case SLAPD_SECURITY_LOG:
+            LOG_SECURITY_LOCK_WRITE();
+            loginfo.log_security_minfreespace = minfreespaceB;
+            fe_cfg->securitylog_minfreespace = minfreespace;
+            LOG_SECURITY_UNLOCK_WRITE();
             break;
         case SLAPD_ERROR_LOG:
             LOG_ERROR_LOCK_WRITE();
@@ -1804,6 +1971,7 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
+        logtype != SLAPD_SECURITY_LOG &&
         logtype != SLAPD_ERROR_LOG &&
         logtype != SLAPD_AUDIT_LOG &&
         logtype != SLAPD_AUDITFAIL_LOG) {
@@ -1831,6 +1999,12 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
         loginfo.log_access_exptime = exptime;
         eunit = loginfo.log_access_exptimeunit;
         rsec = loginfo.log_access_rotationtime_secs;
+        break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_LOCK_WRITE();
+        loginfo.log_security_exptime = exptime;
+        eunit = loginfo.log_security_exptimeunit;
+        rsec = loginfo.log_security_rotationtime_secs;
         break;
     case SLAPD_ERROR_LOG:
         LOG_ERROR_LOCK_WRITE();
@@ -1880,6 +2054,11 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
         fe_cfg->accesslog_exptime = exptime;
         LOG_ACCESS_UNLOCK_WRITE();
         break;
+    case SLAPD_SECURITY_LOG:
+        loginfo.log_security_exptime_secs = value;
+        fe_cfg->securitylog_exptime = exptime;
+        LOG_SECURITY_UNLOCK_WRITE();
+        break;
     case SLAPD_ERROR_LOG:
         loginfo.log_error_exptime_secs = value;
         fe_cfg->errorlog_exptime = exptime;
@@ -1917,6 +2096,7 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
+        logtype != SLAPD_SECURITY_LOG &&
         logtype != SLAPD_ERROR_LOG &&
         logtype != SLAPD_AUDIT_LOG &&
         logtype != SLAPD_AUDITFAIL_LOG) {
@@ -1949,6 +2129,12 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
         exptime = loginfo.log_access_exptime;
         rsecs = loginfo.log_access_rotationtime_secs;
         exptimeunitp = &(loginfo.log_access_exptimeunit);
+        break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_LOCK_WRITE();
+        exptime = loginfo.log_security_exptime;
+        rsecs = loginfo.log_security_rotationtime_secs;
+        exptimeunitp = &(loginfo.log_security_exptimeunit);
         break;
     case SLAPD_ERROR_LOG:
         LOG_ERROR_LOCK_WRITE();
@@ -2001,25 +2187,31 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
     switch (logtype) {
     case SLAPD_ACCESS_LOG:
         loginfo.log_access_exptime_secs = value;
-        slapi_ch_free((void **)&(fe_cfg->accesslog_exptimeunit));
+        slapi_ch_free_string(&(fe_cfg->accesslog_exptimeunit));
         fe_cfg->accesslog_exptimeunit = slapi_ch_strdup(expunit);
         LOG_ACCESS_UNLOCK_WRITE();
         break;
+    case SLAPD_SECURITY_LOG:
+        loginfo.log_security_exptime_secs = value;
+        slapi_ch_free_string(&(fe_cfg->securitylog_exptimeunit));
+        fe_cfg->securitylog_exptimeunit = slapi_ch_strdup(expunit);
+        LOG_SECURITY_UNLOCK_WRITE();
+        break;
     case SLAPD_ERROR_LOG:
         loginfo.log_error_exptime_secs = value;
-        slapi_ch_free((void **)&(fe_cfg->errorlog_exptimeunit));
+        slapi_ch_free_string(&(fe_cfg->errorlog_exptimeunit));
         fe_cfg->errorlog_exptimeunit = slapi_ch_strdup(expunit);
         LOG_ERROR_UNLOCK_WRITE();
         break;
     case SLAPD_AUDIT_LOG:
         loginfo.log_audit_exptime_secs = value;
-        slapi_ch_free((void **)&(fe_cfg->auditlog_exptimeunit));
+        slapi_ch_free_string(&(fe_cfg->auditlog_exptimeunit));
         fe_cfg->auditlog_exptimeunit = slapi_ch_strdup(expunit);
         LOG_AUDIT_UNLOCK_WRITE();
         break;
     case SLAPD_AUDITFAIL_LOG:
         loginfo.log_auditfail_exptime_secs = value;
-        slapi_ch_free((void **)&(fe_cfg->auditfaillog_exptimeunit));
+        slapi_ch_free_string(&(fe_cfg->auditfaillog_exptimeunit));
         fe_cfg->auditfaillog_exptimeunit = slapi_ch_strdup(expunit);
         LOG_AUDITFAIL_UNLOCK_WRITE();
         break;
@@ -3013,6 +3205,852 @@ log__open_accesslogfile(int logfile_state, int locked)
         LOG_ACCESS_UNLOCK_WRITE();
     return LOG_SUCCESS;
 }
+
+/******************************************************************************
+* log__open_securitylogfile
+*
+*    Open a new log file. If we have run out of the max logs we can have
+*    then delete the oldest file.
+******************************************************************************/
+static int
+log__open_securitylogfile(int logfile_state, int locked)
+{
+
+    time_t now;
+    LOGFD fp;
+    LOGFD fpinfo = NULL;
+    char tbuf[TBUFSIZE];
+    struct logfileinfo *logp;
+    char buffer[BUFSIZ];
+
+    if (!locked)
+        LOG_SECURITY_LOCK_WRITE();
+
+    /*
+    ** Here we are trying to create a new log file.
+    ** If we alredy have one, then we need to rename it as
+    ** "filename.time",  close it and update it's information
+    ** in the array stack.
+    */
+    if (loginfo.log_security_fdes != NULL) {
+        struct logfileinfo *log;
+        char newfile[BUFSIZ];
+        PRInt64 f_size;
+
+        /* get rid of the old one */
+        if ((f_size = log__getfilesize(loginfo.log_security_fdes)) == -1) {
+            /* Then assume that we have the max size (in bytes) */
+            f_size = loginfo.log_security_maxlogsize;
+        }
+
+        /* Check if I have to delete any old file, delete it if it is required.
+        ** If there is just one file, then security and security.rotation files
+        ** are deleted. After that we start fresh
+        */
+        while (log__delete_security_logfile())
+            ;
+
+        /* close the file */
+        LOG_CLOSE(loginfo.log_security_fdes);
+        /*
+         * loginfo.log_security_fdes is not set to NULL here, otherwise
+         * slapi_log_security() will not send a message to the security log
+         * if it is called between this point and where this field is
+         * set again after calling LOG_OPEN_APPEND.
+         */
+        if (loginfo.log_security_maxnumlogs > 1) {
+            log = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
+            log->l_ctime = loginfo.log_security_ctime;
+            log->l_size = f_size;
+            log->l_compressed = PR_FALSE;
+            log_convert_time(log->l_ctime, tbuf, 1 /*short */);
+            PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_security_file, tbuf);
+            if (PR_Rename(loginfo.log_security_file, newfile) != PR_SUCCESS) {
+                PRErrorCode prerr = PR_GetError();
+                /* Make "FILE EXISTS" error an exception.
+                   Even if PR_Rename fails with the error, we continue logging.
+                 */
+                if (PR_FILE_EXISTS_ERROR != prerr) {
+                    loginfo.log_security_fdes = NULL;
+                    if (!locked)
+                        LOG_SECURITY_UNLOCK_WRITE();
+                    slapi_ch_free((void **)&log);
+                    return LOG_UNABLE_TO_OPENFILE;
+                }
+            } else if (loginfo.log_security_compress) {
+                if (compress_log_file(newfile) != 0) {
+                    slapi_log_err(SLAPI_LOG_ERR, "log__open_securitylogfile",
+                            "failed to compress rotated security audit log (%s)\n",
+                            newfile);
+                } else {
+                    log->l_compressed = PR_TRUE;
+                }
+            }
+            /* add the log to the chain */
+            log->l_next = loginfo.log_security_logchain;
+            loginfo.log_security_logchain = log;
+            loginfo.log_numof_security_logs++;
+        }
+    }
+
+    /* open a new log file */
+    if (!LOG_OPEN_APPEND(fp, loginfo.log_security_file, loginfo.log_security_mode)) {
+        int oserr = errno;
+        loginfo.log_security_fdes = NULL;
+        if (!locked)
+            LOG_SECURITY_UNLOCK_WRITE();
+        slapi_log_err(SLAPI_LOG_ERR, "log__open_securitylogfile", "Security Audit file open %s failed errno %d (%s)\n",
+                      loginfo.log_security_file, oserr, slapd_system_strerror(oserr));
+        return LOG_UNABLE_TO_OPENFILE;
+    }
+
+    loginfo.log_security_fdes = fp;
+    if (logfile_state == LOGFILE_REOPENED) {
+        /* we have all the information */
+        if (!locked)
+            LOG_SECURITY_UNLOCK_WRITE();
+        return LOG_SUCCESS;
+    }
+
+    /*
+     * Do not write the title for the JSON security log
+     * loginfo.log_security_state |= LOGGING_NEED_TITLE;
+     */
+
+    if (!LOG_OPEN_WRITE(fpinfo, loginfo.log_securityinfo_file, loginfo.log_security_mode)) {
+        int oserr = errno;
+        if (!locked)
+            LOG_SECURITY_UNLOCK_WRITE();
+        slapi_log_err(SLAPI_LOG_ERR, "log__open_securitylogfile", "securityinfo file open %s failed errno %d (%s)\n",
+                      loginfo.log_securityinfo_file,
+                      oserr, slapd_system_strerror(oserr));
+        return LOG_UNABLE_TO_OPENFILE;
+    }
+
+
+    /* write the header in the log */
+    now = slapi_current_utc_time();
+    log_convert_time(now, tbuf, 2 /* long */);
+    PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
+    LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+
+    logp = loginfo.log_security_logchain;
+    while (logp) {
+        log_convert_time(logp->l_ctime, tbuf, 1 /* short */);
+        if (logp->l_compressed) {
+            char logfile[BUFSIZ] = {0};
+
+            /* reset tbuf to include .gz extension */
+            PR_snprintf(tbuf, sizeof(tbuf), "%s.gz", tbuf);
+
+            /* get and set the size of the new gziped file */
+            PR_snprintf(logfile, sizeof(tbuf), "%s.%s", loginfo.log_security_file, tbuf);
+            if ((logp->l_size = log__getfilesize_with_filename(logfile)) == -1) {
+                /* Then assume that we have the max size */
+                logp->l_size = loginfo.log_security_maxlogsize;
+            }
+        }
+        PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" PRId64 ")\n",
+                    PREVLOGFILE, loginfo.log_security_file, tbuf,
+                    logp->l_ctime, logp->l_size);
+        LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+        logp = logp->l_next;
+    }
+    /* Close the info file. We need only when we need to rotate to the
+    ** next log file.
+    */
+    if (fpinfo)
+        LOG_CLOSE(fpinfo);
+
+    /* This is now the current security log */
+    loginfo.log_security_ctime = now;
+
+    if (!locked)
+        LOG_SECURITY_UNLOCK_WRITE();
+    return LOG_SUCCESS;
+}
+
+/******************************************************************************
+* log__delete_security_logfile
+*
+*    Do we need to delete a logfile. Find out if we need to delete the log
+*    file based on expiration time, max diskspace, and minfreespace.
+*    Delete the file if we need to.
+*
+*    Assumption: A WRITE lock has been acquired for the ACCESS
+******************************************************************************/
+
+static int
+log__delete_security_logfile(void)
+{
+
+    struct logfileinfo *logp = NULL;
+    struct logfileinfo *delete_logp = NULL;
+    struct logfileinfo *p_delete_logp = NULL;
+    struct logfileinfo *prev_logp = NULL;
+    PRInt64 total_size = 0;
+    time_t cur_time;
+    PRInt64 f_size;
+    int numoflogs = loginfo.log_numof_security_logs;
+    int rv = 0;
+    char *logstr;
+    char buffer[BUFSIZ];
+    char tbuf[TBUFSIZE];
+
+    /* If we have only one log, then  will delete this one */
+    if (loginfo.log_security_maxnumlogs == 1) {
+        LOG_CLOSE(loginfo.log_security_fdes);
+        loginfo.log_security_fdes = NULL;
+        PR_snprintf(buffer, sizeof(buffer), "%s", loginfo.log_security_file);
+        if (PR_Delete(buffer) != PR_SUCCESS) {
+            PRErrorCode prerr = PR_GetError();
+            if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+                slapi_log_err(SLAPI_LOG_TRACE, "log__delete_security_logfile",
+                              "File %s already removed\n", loginfo.log_security_file);
+            } else {
+                slapi_log_err(SLAPI_LOG_TRACE, "log__delete_security_logfile",
+                              "Unable to remove file:%s error %d (%s)\n",
+                              loginfo.log_security_file, prerr, slapd_pr_strerror(prerr));
+            }
+        }
+
+        /* Delete the rotation file also. */
+        PR_snprintf(buffer, sizeof(buffer), "%s.rotationinfo", loginfo.log_security_file);
+        if (PR_Delete(buffer) != PR_SUCCESS) {
+            PRErrorCode prerr = PR_GetError();
+            if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+                slapi_log_err(SLAPI_LOG_TRACE, "log__delete_security_logfile",
+                              "File %s already removed\n", loginfo.log_security_file);
+            } else {
+                slapi_log_err(SLAPI_LOG_TRACE, "log__delete_security_logfile",
+                              "Unable to remove file:%s.rotationinfo error %d (%s)\n",
+                              loginfo.log_security_file, prerr, slapd_pr_strerror(prerr));
+            }
+        }
+        return 0;
+    }
+
+    /* If we have already the maximum number of log files, we
+    ** have to delete one any how.
+    */
+    if (++numoflogs > loginfo.log_security_maxnumlogs) {
+        logstr = "Exceeded max number of logs allowed";
+        goto delete_logfile;
+    }
+
+    /* Now check based on the maxdiskspace */
+    if (loginfo.log_security_maxdiskspace > 0) {
+        logp = loginfo.log_security_logchain;
+        while (logp) {
+            total_size += logp->l_size;
+            logp = logp->l_next;
+        }
+        if ((f_size = log__getfilesize(loginfo.log_security_fdes)) == -1) {
+            /* then just assume the max size */
+            total_size += loginfo.log_security_maxlogsize;
+        } else {
+            total_size += f_size;
+        }
+
+        /* If we have exceeded the max disk space or we have less than the
+          ** minimum, then we have to delete a file.
+        */
+        if (total_size >= loginfo.log_security_maxdiskspace) {
+            logstr = "exceeded maximum log disk space";
+            goto delete_logfile;
+        }
+    }
+
+    /* Now check based on the free space */
+    if (loginfo.log_security_minfreespace > 0) {
+        rv = log__enough_freespace(loginfo.log_security_file);
+        if (rv == 0) {
+            /* Not enough free space */
+            logstr = "Not enough free disk space";
+            goto delete_logfile;
+        }
+    }
+
+    /* Now check based on the expiration time */
+    if (loginfo.log_security_exptime_secs > 0) {
+        /* is the file old enough */
+        time(&cur_time);
+        prev_logp = logp = loginfo.log_security_logchain;
+        while (logp) {
+            if ((cur_time - logp->l_ctime) > loginfo.log_security_exptime_secs) {
+                delete_logp = logp;
+                p_delete_logp = prev_logp;
+                logstr = "The file is older than the log expiration time";
+                goto delete_logfile;
+            }
+            prev_logp = logp;
+            logp = logp->l_next;
+        }
+    }
+
+    /* No log files to delete */
+    return 0;
+
+delete_logfile:
+    if (delete_logp == NULL) {
+        time_t oldest;
+
+        time(&oldest);
+
+        prev_logp = logp = loginfo.log_security_logchain;
+        while (logp) {
+            if (logp->l_ctime <= oldest) {
+                oldest = logp->l_ctime;
+                delete_logp = logp;
+                p_delete_logp = prev_logp;
+            }
+            prev_logp = logp;
+            logp = logp->l_next;
+        }
+        /* We might face this case if we have only one log file and
+        ** trying to delete it because of deletion requirement.
+        */
+        if (!delete_logp) {
+            return 0;
+        }
+    }
+
+    if (p_delete_logp == delete_logp) {
+        /* then we are deleting the first one */
+        loginfo.log_security_logchain = delete_logp->l_next;
+    } else {
+        p_delete_logp->l_next = delete_logp->l_next;
+    }
+
+
+    /* Delete the security file */
+    log_convert_time(delete_logp->l_ctime, tbuf, 1 /*short */);
+    PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_security_file, tbuf);
+    if (PR_Delete(buffer) != PR_SUCCESS) {
+        PRErrorCode prerr = PR_GetError();
+        if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+            /*
+             * Log not found, perhaps log was compressed, try .gz extension
+             */
+            PR_snprintf(buffer, sizeof(buffer), "%s.gz", buffer);
+            if (PR_Delete(buffer) != PR_SUCCESS) {
+                prerr = PR_GetError();
+                if (PR_FILE_NOT_FOUND_ERROR != prerr) {
+                    slapi_log_err(SLAPI_LOG_TRACE, "log__delete_security_logfile",
+                            "Unable to remove file: %s error %d (%s)\n",
+                            buffer, prerr, slapd_pr_strerror(prerr));
+                } else {
+                    slapi_log_err(SLAPI_LOG_TRACE, "log__delete_security_logfile",
+                            "File %s already removed\n",
+                            loginfo.log_security_file);
+                }
+            }
+        } else {
+            slapi_log_err(SLAPI_LOG_TRACE, "log__delete_security_logfile",
+                    "Unable to remove file: %s error %d (%s)\n",
+                    buffer, prerr, slapd_pr_strerror(prerr));
+        }
+    } else {
+        slapi_log_err(SLAPI_LOG_TRACE, "log__delete_security_logfile",
+                      "Removed file:%s.%s because of (%s)\n",
+                      loginfo.log_security_file, tbuf, logstr);
+    }
+    slapi_ch_free((void **)&delete_logp);
+    loginfo.log_numof_security_logs--;
+
+    return 1;
+}
+
+/******************************************************************************
+* log__security_rotationinfof
+*
+*    Try to open the log file. If we have one already, then try to read the
+*    header and update the information.
+*
+*    Assumption: Lock has been acquired already
+******************************************************************************/
+static int
+log__security_rotationinfof(char *pathname)
+{
+    long f_ctime;
+    PRInt64 f_size;
+    int main_log = 1;
+    time_t now;
+    FILE *fp;
+    PRBool compressed = PR_FALSE;
+    int rval, logfile_type = LOGFILE_REOPENED;
+
+    /*
+    ** Okay -- I confess, we want to use NSPR calls but I want to
+    ** use fgets and not use PR_Read() and implement a complicated
+    ** parsing module. Since this will be called only during the startup
+    ** and never aftre that, we can live by it.
+    */
+    if ((fp = fopen(pathname, "r")) == NULL) {
+        return LOGFILE_NEW;
+    }
+
+    loginfo.log_numof_security_logs = 0;
+
+    /*
+    ** We have reopened the log security file. Now we need to read the
+    ** log file info and update the values.
+    */
+    while ((rval = log__extract_logheader(fp, &f_ctime, &f_size, &compressed)) == LOG_CONTINUE) {
+        /* first we would get the main log info */
+        if (f_ctime == 0 && f_size == 0) {
+            continue;
+        }
+
+        time(&now);
+        if (main_log) {
+            if (f_ctime > 0L) {
+                loginfo.log_security_ctime = f_ctime;
+            } else {
+                loginfo.log_security_ctime = now;
+            }
+            main_log = 0;
+        } else {
+            struct logfileinfo *logp;
+
+            logp = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
+            if (f_ctime > 0L) {
+                logp->l_ctime = f_ctime;
+            } else {
+                logp->l_ctime = now;
+            }
+            if (f_size > 0) {
+                logp->l_size = f_size;
+            } else {
+                /* make it the max log size */
+                logp->l_size = loginfo.log_security_maxlogsize;
+            }
+            logp->l_compressed = compressed;
+            logp->l_next = loginfo.log_security_logchain;
+            loginfo.log_security_logchain = logp;
+        }
+        loginfo.log_numof_security_logs++;
+    }
+    if (LOG_DONE == rval)
+        rval = log__check_prevlogs(fp, pathname);
+    fclose(fp);
+
+    if (LOG_ERROR == rval)
+        if (LOG_SUCCESS == log__fix_rotationinfof(pathname))
+            logfile_type = LOGFILE_NEW;
+
+    /* Check if there is a rotation overdue */
+    if (loginfo.log_security_rotationsync_enabled &&
+        loginfo.log_security_rotationunit != LOG_UNIT_HOURS &&
+        loginfo.log_security_rotationunit != LOG_UNIT_MINS &&
+        loginfo.log_security_ctime < loginfo.log_security_rotationsyncclock - PR_ABS(loginfo.log_security_rotationtime_secs)) {
+        loginfo.log_security_rotationsyncclock -= PR_ABS(loginfo.log_security_rotationtime_secs);
+    }
+    return logfile_type;
+}
+
+/******************************************************************************
+* Point to a new security logdir
+*
+* Returns:
+*    LDAP_SUCCESS -- success
+*    LDAP_UNWILLING_TO_PERFORM -- when trying to open a invalid log file
+*    LDAP_LOCAL_ERRO  -- some error
+******************************************************************************/
+int
+log_update_securitylogdir(char *pathname, int apply)
+{
+    int rv = LDAP_SUCCESS;
+    LOGFD fp;
+
+    /* try to open the file, we may have a incorrect path */
+    if (!LOG_OPEN_APPEND(fp, pathname, loginfo.log_security_mode)) {
+        slapi_log_err(SLAPI_LOG_WARNING,
+                "log_update_securitylogdir - Can't open file %s. errno %d (%s)\n",
+                pathname, errno, slapd_system_strerror(errno));
+        /* stay with the current log file */
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+    LOG_CLOSE(fp);
+
+    /* skip the rest if we aren't doing this for real */
+    if (!apply) {
+        return LDAP_SUCCESS;
+    }
+
+    /*
+     * The user has changed the security log directory. That means we need to
+     * start fresh.
+     */
+    LOG_SECURITY_LOCK_WRITE();
+    if (loginfo.log_security_fdes) {
+        LogFileInfo *logp, *d_logp;
+
+        slapi_log_err(SLAPI_LOG_TRACE,
+                      "LOGINFO:Closing the security log file. "
+                      "Moving to a new security log file (%s)\n",
+                      pathname, 0, 0);
+
+        LOG_CLOSE(loginfo.log_security_fdes);
+        loginfo.log_security_fdes = 0;
+        loginfo.log_security_ctime = 0;
+        logp = loginfo.log_security_logchain;
+        while (logp) {
+            d_logp = logp;
+            logp = logp->l_next;
+            slapi_ch_free((void **)&d_logp);
+        }
+        loginfo.log_security_logchain = NULL;
+        slapi_ch_free_string(&loginfo.log_security_file);
+        loginfo.log_security_file = NULL;
+        loginfo.log_numof_security_logs = 1;
+    }
+
+    /* Now open the new security log file */
+    if (security_log_openf(pathname, 1 /* locked */)) {
+        rv = LDAP_LOCAL_ERROR; /* error Unable to use the new dir */
+    }
+    LOG_SECURITY_UNLOCK_WRITE();
+    return rv;
+}
+
+/******************************************************************************
+* security_log_openf
+*
+*     Open the security log file
+*
+*  Returns:
+*    0 -- success
+*    1 -- fail
+******************************************************************************/
+int
+security_log_openf(char *pathname, int locked)
+{
+    int rv = 0;
+    int logfile_type = 0;
+
+    if (!locked)
+        LOG_SECURITY_LOCK_WRITE();
+
+    /* store the path name */
+    slapi_ch_free_string(&loginfo.log_security_file);
+    loginfo.log_security_file = slapi_ch_strdup(pathname);
+
+    /* store the rotation info fiel path name */
+    slapi_ch_free_string(&loginfo.log_securityinfo_file);
+    loginfo.log_securityinfo_file = slapi_ch_smprintf("%s.rotationinfo", pathname);
+
+    /*
+     * Check if we have a log file already. If we have it then we need to parse
+     * the header info and update the loginfo struct.
+     */
+    logfile_type = log__security_rotationinfof(loginfo.log_securityinfo_file);
+
+    if (log__open_securitylogfile(logfile_type, 1 /* got lock*/) != LOG_SUCCESS) {
+        rv = 1;
+    }
+
+    if (!locked)
+        LOG_SECURITY_UNLOCK_WRITE();
+
+    return rv;
+}
+
+static void
+log_append_security_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *insert_point = NULL;
+
+    /* While holding the lock, we determine if there is space in the buffer for our payload,
+       and if we need to flush.
+     */
+    PR_Lock(lbi->lock);
+    if (((lbi->current - lbi->top) + size > lbi->maxsize) ||
+        (tnl >= loginfo.log_security_rotationsyncclock &&
+         loginfo.log_security_rotationsync_enabled))
+    {
+        log_flush_buffer(lbi, SLAPD_SECURITY_LOG, 0 /* do not sync to disk */);
+    }
+    insert_point = lbi->current;
+    lbi->current += size;
+    /* Increment the copy refcount */
+    slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
+    PR_Unlock(lbi->lock);
+
+    /* Now we can copy without holding the lock */
+    memcpy(insert_point, msg, size);
+
+    /* Decrement the copy refcount */
+    slapi_atomic_decr_64(&(lbi->refcount), __ATOMIC_RELEASE);
+
+    /* If we are asked to sync to disk immediately, do so */
+    if (!slapdFrontendConfig->securitylogbuffering) {
+        PR_Lock(lbi->lock);
+        log_flush_buffer(lbi, SLAPD_SECURITY_LOG, 1 /* sync to disk now */);
+        PR_Unlock(lbi->lock);
+    }
+}
+
+/******************************************************************************
+* write in the security log
+******************************************************************************/
+static int
+vslapd_log_security(const char *log_data)
+{
+    char buffer[SLAPI_LOG_BUFSIZ];
+    time_t tnl;
+    int32_t blen = TBUFSIZE;
+    int32_t rc = LDAP_SUCCESS;
+
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, vslapd_log_security__entry);
+#endif
+
+    /* We do this sooner, because that we can use the message in other calls */
+    if ((blen = PR_snprintf(buffer, SLAPI_LOG_BUFSIZ, "%s\n", log_data)) == -1) {
+        log__error_emergency("vslapd_log_security, Unable to format message", 1, 0);
+        return -1;
+    }
+
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, vslapd_log_security__prepared);
+#endif
+    tnl = slapi_current_utc_time();
+    log_append_security_buffer(tnl, loginfo.log_security_buffer, buffer, blen);
+
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, vslapd_log_security__buffer);
+#endif
+
+    return (rc);
+}
+
+int
+slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg)
+{
+    Connection *pb_conn = NULL;
+    Slapi_Operation *operation = NULL;
+    Slapi_DN *bind_sdn = NULL;
+    ber_tag_t method = LBER_DEFAULT;
+    char method_and_mech[TBUFSIZE] = {0};
+    char authz_target[TBUFSIZE] = {0};
+    char utc_time[TBUFSIZE] = {0};
+    char binddn[BUFSIZ] = {0};
+    char *mod_dn = NULL;
+    char *saslmech = NULL;
+    const char *target_dn = NULL;
+    char *server_ip = NULL;
+    char *client_ip = NULL;
+    char local_time[TBUFSIZE] = {0};
+    char *msg_text = (char *)msg;
+    int32_t ltlen = TBUFSIZE;
+    int external_bind = 0;
+    int ldap_version = 3;
+    int isroot = 0;
+    int rc = 0;
+    uint64_t conn_id = 0;
+    int32_t op_id = 0;
+    json_object *log_json = NULL;
+
+    if (!(loginfo.log_security_state & LOGGING_ENABLED) ||
+        !loginfo.log_security_fdes ||
+        !loginfo.log_security_file)
+    {
+        return 0;
+    }
+
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+    slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &bind_sdn);  // this is not correct for mod ops
+    slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &target_dn);
+    slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
+    slapi_pblock_get(pb, SLAPI_BIND_METHOD, &method);
+    slapi_pblock_get(pb, SLAPI_BIND_SASLMECHANISM, &saslmech);
+
+    conn_id = pb_conn->c_connid,
+    op_id = operation->o_opid,
+    client_ip = pb_conn->c_ipaddr;
+    server_ip = pb_conn->c_serveripaddr;
+    ldap_version = pb_conn->c_ldapversion;
+    if (saslmech) {
+        external_bind = !strcasecmp(saslmech, LDAP_SASL_EXTERNAL);
+    }
+
+    if (strcmp(event_type, SECURITY_AUTHZ_ERROR) == 0) {
+        Slapi_DN *target_sdn = NULL;
+
+        if (target_dn == NULL) {
+            /* Add ops use SLAPI_TARGET_SDN */
+            slapi_pblock_get(pb, SLAPI_TARGET_SDN, &target_sdn);
+            if (target_sdn) {
+                target_dn = slapi_sdn_get_ndn(target_sdn);
+            }
+        }
+        if (target_dn == NULL) {
+            /* Delete ops use SLAPI_DELETE_TARGET_SDN */
+            slapi_pblock_get(pb, SLAPI_DELETE_TARGET_SDN, &target_dn);
+            if (target_sdn) {
+                target_dn = slapi_sdn_get_ndn(target_sdn);
+            }
+        }
+        if (target_dn == NULL) {
+            /* Modrdn ops use SLAPI_MODRDN_TARGET_SDN */
+            slapi_pblock_get(pb, SLAPI_MODRDN_TARGET_SDN, &target_dn);
+            if (target_sdn) {
+                target_dn = slapi_sdn_get_ndn(target_sdn);
+            }
+        }
+
+        if (target_dn && strlen(target_dn) > 500) {
+            PR_snprintf(authz_target, sizeof(authz_target), "target_dn=(%.500s...)",
+                        target_dn);
+        } else {
+            PR_snprintf(authz_target, sizeof(authz_target), "target_dn=(%s)",
+                        target_dn ? target_dn : "none");
+        }
+        msg_text = authz_target;
+        /* For modify ops the bind DN is only found in SLAPI_CONN_DN which
+         * then needs to be freed by the caller */
+        slapi_pblock_get(pb, SLAPI_CONN_DN, &mod_dn);
+        PR_snprintf(binddn, sizeof(binddn), "%s", mod_dn ? mod_dn : "" /* anonymous */);
+        slapi_ch_free_string(&mod_dn);
+    } else {
+        /* For authz events we need the connection DN, but for all other events we use
+         * normalized bind target */
+        PR_snprintf(binddn, sizeof(binddn), "%s", slapi_sdn_get_ndn(bind_sdn));
+    }
+
+    /* Determine the bind method and mechanism */
+    switch (method) {
+    case LDAP_AUTH_SASL:
+        if (external_bind && pb_conn->c_client_cert) {
+            /* Client Certificate */
+            PR_snprintf(method_and_mech, sizeof(method_and_mech), "TLSCLIENTAUTH");
+        } else if (external_bind && pb_conn->c_unix_local) {
+            /* LDAPI */
+            PR_snprintf(method_and_mech, sizeof(method_and_mech), "LDAPI");
+        } else if (!strcasecmp(saslmech, "GSSAPI") || !strcasecmp(saslmech, "DIGEST-MD5")) {
+            /* SASL */
+            PR_snprintf(method_and_mech, sizeof(method_and_mech), "SASL/%s", saslmech);
+        }
+        break;
+    default:
+        /* Simple auth */
+        PR_snprintf(method_and_mech, sizeof(method_and_mech), "SIMPLE");
+    }
+
+    /* Get the time */
+    struct timespec tsnow;
+    if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+        /* Make an error */
+        PR_snprintf(local_time, sizeof(local_time), "vslapd_log_security, Unable to determine system time");
+        log__error_emergency(local_time, 1, 0);
+        return -1;
+    }
+    if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(local_time), local_time, &ltlen) != 0) {
+        /* MSG may be truncated */
+        PR_snprintf(local_time, sizeof(local_time), "vslapd_log_security, Unable to format system time");
+        log__error_emergency(local_time, 1, 0);
+        return -1;
+    }
+
+
+    /* Truncate the bind dn if it's too long */
+    if (strlen(binddn) > 512) {
+        PR_snprintf(binddn, sizeof(binddn), "%.512s...", binddn);
+    }
+    PR_snprintf(utc_time, sizeof(utc_time), "%ld.%.09ld", tsnow.tv_sec, tsnow.tv_nsec);
+
+    log_json = json_object_new_object();
+    json_object_object_add(log_json, "date",         json_object_new_string(local_time));
+    json_object_object_add(log_json, "utc_time",     json_object_new_string(utc_time));
+    json_object_object_add(log_json, "event",        json_object_new_string(event_type));
+    json_object_object_add(log_json, "dn",           json_object_new_string(binddn));
+    json_object_object_add(log_json, "bind_method",  json_object_new_string(method_and_mech));
+    json_object_object_add(log_json, "root_dn",      json_object_new_boolean(isroot));
+    json_object_object_add(log_json, "client_ip",    json_object_new_string(client_ip));
+    json_object_object_add(log_json, "server_ip",    json_object_new_string(server_ip));
+    json_object_object_add(log_json, "ldap_version", json_object_new_int(ldap_version));
+    json_object_object_add(log_json, "conn_id",      json_object_new_int64(conn_id));
+    json_object_object_add(log_json, "op_id",        json_object_new_int(op_id));
+    json_object_object_add(log_json, "msg",          json_object_new_string(msg_text));
+
+    rc = vslapd_log_security(json_object_to_json_string(log_json));
+
+    /* Done with JSON object, this will free it */
+    json_object_put(log_json);
+
+    return rc;
+}
+
+/*
+ * Log a TCP event, since the pblock is not available when this happens we have
+ * to rely on just the Connection struct.
+ */
+int
+slapi_log_security_tcp(Connection *pb_conn, PRErrorCode error, const char *msg)
+{
+    char *server_ip = NULL;
+    char *client_ip = NULL;
+    char local_time[TBUFSIZE] = {0};
+    int32_t ltlen = TBUFSIZE;
+    char utc_time[TBUFSIZE] = {0};
+    int ldap_version = 3;
+    int rc = 0;
+    uint64_t conn_id = 0;
+    json_object *log_json = NULL;
+
+    if (!(loginfo.log_security_state & LOGGING_ENABLED) ||
+        !loginfo.log_security_fdes ||
+        !loginfo.log_security_file ||
+        (error != SLAPD_DISCONNECT_BAD_BER_TAG && /* We only care about B1, B2, B3 */
+         error != SLAPD_DISCONNECT_BER_TOO_BIG &&
+         error != SLAPD_DISCONNECT_BER_PEEK))
+    {
+        return 0;
+    }
+
+    conn_id = pb_conn->c_connid,
+    client_ip = pb_conn->c_ipaddr;
+    server_ip = pb_conn->c_serveripaddr;
+    ldap_version = pb_conn->c_ldapversion;
+
+    /* Get the time */
+    struct timespec tsnow;
+    if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+        /* Make an error */
+        PR_snprintf(local_time, sizeof(local_time), "vslapd_log_security, Unable to determine system time");
+        log__error_emergency(local_time, 1, 0);
+        return -1;
+    }
+    if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(local_time), local_time, &ltlen) != 0) {
+        /* MSG may be truncated */
+        PR_snprintf(local_time, sizeof(local_time), "vslapd_log_security, Unable to format system time");
+        log__error_emergency(local_time, 1, 0);
+        return -1;
+    }
+
+    PR_snprintf(utc_time, sizeof(utc_time), "%ld.%.09ld", tsnow.tv_sec, tsnow.tv_nsec);
+
+    log_json = json_object_new_object();
+    json_object_object_add(log_json, "date",         json_object_new_string(local_time));
+    json_object_object_add(log_json, "utc_time",     json_object_new_string(utc_time));
+    json_object_object_add(log_json, "event",        json_object_new_string(SECURITY_TCP_ERROR));
+    json_object_object_add(log_json, "client_ip",    json_object_new_string(client_ip));
+    json_object_object_add(log_json, "server_ip",    json_object_new_string(server_ip));
+    json_object_object_add(log_json, "ldap_version", json_object_new_int(ldap_version));
+    json_object_object_add(log_json, "conn_id",      json_object_new_int64(conn_id));
+    json_object_object_add(log_json, "msg",          json_object_new_string(msg));
+
+    rc = vslapd_log_security(json_object_to_json_string(log_json));
+
+    /* Done with JSON object, this will free it */
+    json_object_put(log_json);
+
+    return rc;
+}
+
 /******************************************************************************
 * log__needrotation
 *
@@ -3054,6 +4092,15 @@ log__needrotation(LOGFD fp, int logtype)
         timeunit = loginfo.log_access_rotationunit;
         rotationtime_secs = loginfo.log_access_rotationtime_secs;
         log_createtime = loginfo.log_access_ctime;
+        break;
+    case SLAPD_SECURITY_LOG:
+        nlogs = loginfo.log_security_maxnumlogs;
+        maxlogsize = loginfo.log_security_maxlogsize;
+        sync_enabled = loginfo.log_security_rotationsync_enabled;
+        syncclock = loginfo.log_security_rotationsyncclock;
+        timeunit = loginfo.log_security_rotationunit;
+        rotationtime_secs = loginfo.log_security_rotationtime_secs;
+        log_createtime = loginfo.log_security_ctime;
         break;
     case SLAPD_ERROR_LOG:
         nlogs = loginfo.log_error_maxnumlogs;
@@ -3940,6 +4987,12 @@ log_get_loglist(int logtype)
         logp = loginfo.log_access_logchain;
         file = loginfo.log_access_file;
         break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_LOCK_READ();
+        num = loginfo.log_numof_security_logs;
+        logp = loginfo.log_security_logchain;
+        file = loginfo.log_security_file;
+        break;
     case SLAPD_ERROR_LOG:
         LOG_ERROR_LOCK_READ();
         num = loginfo.log_numof_error_logs;
@@ -3973,6 +5026,9 @@ log_get_loglist(int logtype)
     switch (logtype) {
     case SLAPD_ACCESS_LOG:
         LOG_ACCESS_UNLOCK_READ();
+        break;
+    case SLAPD_SECURITY_LOG:
+        LOG_SECURITY_UNLOCK_READ();
         break;
     case SLAPD_ERROR_LOG:
         LOG_ERROR_UNLOCK_READ();
@@ -5357,33 +6413,22 @@ log_create_buffer(size_t sz)
 }
 
 /*
- Some notes about this function. It is written the
- way it is for performance reasons.
- Tests showed that on 4 processor systems, there is
- significant contention for the
- lbi->lock. This is because the lock was held for
- the duration of the copy of the
- log message into the buffer. Therefore the routine
- was re-written to avoid holding
- the lock for that time. Instead we gain the lock,
- take a copy of the buffer pointer
- where we need to copy our message, increase the
- size, move the current pointer beyond
- our portion of the buffer, then increment a reference
- count.
- Then we release the lock and do the actual copy
- in to the reserved buffer area.
- We then atomically decrement the reference count.
- The reference count is used to ensure that when
- the buffer is flushed to the
- filesystem, there are no threads left copying
- data into the buffer.
- The wait on zero reference count is implemented
- in the flush routine because
- it is also called from log_access_flush().
- Tests show this speeds up searches by 10% on 4-way systems.
+ * Some notes about this function. It is written the way it is for performance
+ * reasons. Tests showed that on 4 processor systems, there is significant
+ * contention for the lbi->lock. This is because the lock was held for the
+ * duration of the copy of the log message into the buffer. Therefore the
+ * routine was re-written to avoid holding the lock for that time. Instead we
+ * gain the lock, take a copy of the buffer pointer where we need to copy our
+ * message, increase the size, move the current pointer beyond our portion of
+ * the buffer, then increment a reference count.  Then we release the lock and
+ * do the actual copy in to the reserved buffer area. We then atomically
+ * decrement the reference count. The reference count is used to ensure that
+ * when the buffer is flushed to the filesystem, there are no threads left
+ * copying data into the buffer. The wait on zero reference count is
+ * implemented in the flush routine because it is also called from
+ * logs_flush(). Tests show this speeds up searches by 10% on 4-way
+ * systems.
  */
-
 static void
 log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2)
 {
@@ -5423,6 +6468,7 @@ log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, cha
     }
 }
 
+
 /* this function assumes the lock is already acquired */
 /* if sync_now is non-zero, data is flushed to physical storage */
 static void
@@ -5431,7 +6477,6 @@ log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now)
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if (type == SLAPD_ACCESS_LOG) {
-
         /* It is only safe to flush once any other threads which are copying are finished */
         while (slapi_atomic_load_64(&(lbi->refcount), __ATOMIC_ACQUIRE) > 0) {
             /* It's ok to sleep for a while because we only flush every second or so */
@@ -5465,18 +6510,57 @@ log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now)
             LOG_WRITE_NOW_NO_ERR(loginfo.log_access_fdes, lbi->top,
                                  lbi->current - lbi->top, 0);
         }
+        lbi->current = lbi->top;
+    } else if (type == SLAPD_SECURITY_LOG) {
+        /* It is only safe to flush once any other threads which are copying are finished */
+        while (slapi_atomic_load_64(&(lbi->refcount), __ATOMIC_ACQUIRE) > 0) {
+            /* It's ok to sleep for a while because we only flush every second or so */
+            DS_Sleep(PR_MillisecondsToInterval(1));
+        }
 
+        if ((lbi->current - lbi->top) == 0) {
+            return;
+        }
+
+        if (log__needrotation(loginfo.log_security_fdes, SLAPD_SECURITY_LOG) == LOG_ROTATE) {
+            if (log__open_securitylogfile(LOGFILE_NEW, 1) != LOG_SUCCESS) {
+                slapi_log_err(SLAPI_LOG_ERR,
+                              "log_flush_buffer", "Unable to open security audit file:%s\n",
+                              loginfo.log_security_file);
+                lbi->current = lbi->top; /* reset counter to prevent overwriting rest of lbi struct */
+                return;
+            }
+            while (loginfo.log_security_rotationsyncclock <= loginfo.log_security_ctime) {
+                loginfo.log_security_rotationsyncclock += PR_ABS(loginfo.log_security_rotationtime_secs);
+            }
+        }
+
+        if (loginfo.log_security_state & LOGGING_NEED_TITLE) {
+            log_write_title(loginfo.log_security_fdes);
+            loginfo.log_security_state &= ~LOGGING_NEED_TITLE;
+        }
+
+        if (!sync_now && slapdFrontendConfig->securitylogbuffering) {
+            LOG_WRITE(loginfo.log_security_fdes, lbi->top, lbi->current - lbi->top, 0);
+        } else {
+            LOG_WRITE_NOW_NO_ERR(loginfo.log_security_fdes, lbi->top,
+                                 lbi->current - lbi->top, 0);
+        }
         lbi->current = lbi->top;
     }
 }
 
 void
-log_access_flush()
+logs_flush()
 {
     LOG_ACCESS_LOCK_WRITE();
     log_flush_buffer(loginfo.log_access_buffer, SLAPD_ACCESS_LOG,
                      1 /* sync to disk now */);
     LOG_ACCESS_UNLOCK_WRITE();
+    LOG_SECURITY_LOCK_WRITE();
+    log_flush_buffer(loginfo.log_security_buffer, SLAPD_SECURITY_LOG,
+                     1 /* sync to disk now */);
+    LOG_SECURITY_UNLOCK_WRITE();
 }
 
 /*
@@ -5550,6 +6634,10 @@ check_log_max_size(char *maxdiskspace_str,
         current_mlogsize = slapdFrontendConfig->accesslog_maxlogsize;
         current_maxdiskspace = slapdFrontendConfig->accesslog_maxdiskspace;
         break;
+    case SLAPD_SECURITY_LOG:
+        current_mlogsize = slapdFrontendConfig->securitylog_maxlogsize;
+        current_maxdiskspace = slapdFrontendConfig->securitylog_maxdiskspace;
+        break;
     case SLAPD_ERROR_LOG:
         current_mlogsize = slapdFrontendConfig->errorlog_maxlogsize;
         current_maxdiskspace = slapdFrontendConfig->errorlog_maxdiskspace;
@@ -5596,6 +6684,10 @@ check_log_max_size(char *maxdiskspace_str,
     case SLAPD_ACCESS_LOG:
         loginfo.log_access_maxlogsize = mlogsizeB;
         loginfo.log_access_maxdiskspace = maxdiskspaceB;
+        break;
+    case SLAPD_SECURITY_LOG:
+        loginfo.log_security_maxlogsize = mlogsizeB;
+        loginfo.log_security_maxdiskspace = maxdiskspaceB;
         break;
     case SLAPD_ERROR_LOG:
         loginfo.log_error_maxlogsize = mlogsizeB;

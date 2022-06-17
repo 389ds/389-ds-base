@@ -43,6 +43,7 @@ class Config(DSLdapObject):
             'nsslapd-auditfaillog',
             'nsslapd-ldifdir',
             'nsslapd-errorlog',
+            'nsslapd-securitylog',
             'nsslapd-instancedir',
             'nsslapd-lockdir',
             'nsslapd-bakdir',

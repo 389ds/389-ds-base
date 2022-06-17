@@ -85,6 +85,7 @@ BuildRequires:    icu
 BuildRequires:    libicu-devel
 BuildRequires:    pcre-devel
 BuildRequires:    cracklib-devel
+BuildRequires:    json-c-devel
 %if %{use_clang}
 BuildRequires:    libatomic
 BuildRequires:    clang
@@ -190,6 +191,7 @@ Requires:         perl-sigtrap
 %endif
 # Needed for password dictionary checks
 Requires:         cracklib-dicts
+Requires:         json-c
 # Log compression
 Requires:         zlib-devel
 # Picks up our systemd deps.

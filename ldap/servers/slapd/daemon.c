@@ -1242,11 +1242,12 @@ slapd_daemon(daemon_ports_t *ports)
         mapping_tree_free();
     }
 
-    /* In theory, threads could be working "up to" this point
-     * so we only flush access logs when we can guarantee that the buffered
-     * content is "complete".
+    /*
+     * In theory, threads could be working "up to" this point so we only flush
+     * access & security logs when we can guarantee that the buffered content
+     * is "complete".
      */
-    log_access_flush();
+    logs_flush();
 
     be_cleanupall();
     plugin_dependency_freeall();
