@@ -132,9 +132,9 @@ connection_table_new(int table_size)
     ct->size = table_size;
     ct->list_num = SLAPD_DEFAULT_NUM_LISTENERS;
 
-    ct->list_size = table_size/ct->list_num + 1; /* +1 to avoid rounding issue */
+    ct->list_size = (table_size+ct->list_num-1)/ct->list_num; /* to avoid rounding issue */
     ct->num_active = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
-    ct->c = (Connection **)slapi_ch_calloc(1, table_size * sizeof(Connection));
+    ct->c = (Connection **)slapi_ch_calloc(1, table_size * sizeof(Connection *));
     ct->fd = (struct POLL_STRUCT **)slapi_ch_calloc(1, table_size * sizeof(struct POLL_STRUCT));
     ct->table_mutex = PR_NewLock();
     /* Allocate the freelist */
@@ -181,13 +181,13 @@ connection_table_new(int table_size)
             ct->c[ct_list][i].c_fdi = SLAPD_INVALID_SOCKET_INDEX;
 
             if (pthread_mutex_init(&(ct->c[ct_list][i].c_mutex), &monitor_attr) != 0) {
-                slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "pthread_mutex_init failed\n");
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "pthread_mutex_init failed\n");
                 exit(1);
             }
 
             ct->c[ct_list][i].c_pdumutex = PR_NewLock();
             if (ct->c[ct_list][i].c_pdumutex == NULL) {
-                slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "PR_NewLock failed\n");
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "PR_NewLock failed\n");
                 exit(1);
             }
 
