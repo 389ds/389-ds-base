@@ -51,6 +51,7 @@ class olOverlayType(Enum):
     MEMBEROF = 1
     REFINT = 2
     UNIQUE = 3
+    PPOLICY = 4
 
 def olOverlayType_from_str(instr):
     instr = instr.upper().strip()
@@ -60,6 +61,8 @@ def olOverlayType_from_str(instr):
         return olOverlayType.REFINT
     elif instr == "UNIQUE":
         return olOverlayType.UNIQUE
+    elif instr == "PPOLICY":
+        return olOverlayType.PPOLICY
     else:
         return olOverlayType.UNKNOWN
 
@@ -94,6 +97,8 @@ class olOverlay(object):
                 attr.split('?')[1]
                 for attr in ensure_list_str(self.config[1]['olcUniqueURI'])
             ])
+        elif 'olcPPolicyConfig' in self.classes:
+            self.otype = olOverlayType.PPOLICY
         else:
             self.otype = olOverlayType.UNKNOWN
             # Should we stash extra details?

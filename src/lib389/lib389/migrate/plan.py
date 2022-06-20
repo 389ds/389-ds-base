@@ -98,8 +98,10 @@ class DatabaseReindex(MigrationAction):
         log.info(f" * Database Reindex -> {self.suffix}")
 
 class ImportTransformer(LDIFParser):
-    def __init__(self, f_import, f_outport, exclude_attributes_set):
+    def __init__(self, f_import, f_outport, exclude_attributes_set, exclude_objectclass_set):
         self.exclude_attributes_set = exclude_attributes_set
+        # Already all lowered by the db ldif import
+        self.exclude_objectclass_set = exclude_objectclass_set
         self.f_outport = f_outport
         self.writer = LDIFWriter(self.f_outport)
         super().__init__(f_import)
@@ -123,6 +125,11 @@ class ImportTransformer(LDIFParser):
             # Not found
             pass
 
+        # We remove the objectclass set and reinsert minus anything excluded.
+        e_oc_set = entry[oc_a]
+        e_oc_set = [ oc for oc in e_oc_set if oc.lower() not in self.exclude_objectclass_set ]
+        entry[oc_a] = e_oc_set
+
         # Strip anything in the exclude set.
         for attr in self.exclude_attributes_set:
             try:
@@ -136,10 +143,11 @@ class ImportTransformer(LDIFParser):
         self.writer.unparse(dn, entry)
 
 class DatabaseLdifImport(MigrationAction):
-    def __init__(self, suffix, ldif_path, exclude_attributes_set):
+    def __init__(self, suffix, ldif_path, exclude_attributes_set, exclude_objectclass_set):
         self.suffix = suffix
         self.ldif_path = ldif_path
         self.exclude_attributes_set = exclude_attributes_set
+        self.exclude_objectclass_set = [ x.lower() for x in exclude_objectclass_set ]
 
     def apply(self, inst):
         # Create a unique op id.
@@ -148,7 +156,7 @@ class DatabaseLdifImport(MigrationAction):
 
         with open(self.ldif_path, 'r') as f_import:
             with open(op_path, 'w') as f_outport:
-                p = ImportTransformer(f_import, f_outport, self.exclude_attributes_set)
+                p = ImportTransformer(f_import, f_outport, self.exclude_attributes_set, self.exclude_objectclass_set)
                 p.parse()
 
         be = Backends(inst).get(self.suffix)
@@ -159,10 +167,10 @@ class DatabaseLdifImport(MigrationAction):
         task.wait()
 
     def __unicode__(self):
-        return f"DatabaseLdifImport -> {self.suffix} {self.ldif_path}"
+        return f"DatabaseLdifImport -> {self.suffix} {self.ldif_path}, {self.exclude_attributes_set}, {self.exclude_objectclass_set}"
 
     def display_plan(self, log):
-        log.info(f" * Database Import Ldif -> {self.suffix} from {self.ldif_path} - excluding entry attributes = [{self.exclude_attributes_set}]")
+        log.info(f" * Database Import Ldif -> {self.suffix} from {self.ldif_path} - excluding entry attributes = [{self.exclude_attributes_set}], excluding entry objectclasses = [{self.exclude_objectclass_set}]")
 
     def display_post(self, log):
         log.info(f" * [ ] - Review Database Imported Content is Correct -> {self.suffix}")
@@ -433,6 +441,20 @@ class PluginUniqueConfigure(MigrationAction):
     def display_plan(self, log):
         log.info(f" * Plugin:Unique Add Attribute and Suffix -> {self.attr} {self.suffix}")
 
+
+class PluginPwdPolicyAudit(MigrationAction):
+    def __init__(self, suffix, inst_name):
+        self.suffix = suffix
+        self.inst_name = inst_name
+
+    def __unicode__(self):
+        return f"PluginPwdPolicyAudit -> {self.suffix}"
+
+    def display_post(self, log):
+        log.info(f" * [ ] - Review Imported Password Policies for accounts under {self.suffix}.")
+        log.info(f" * [ ] - Enable Password Policy for new accounts in {self.suffix}. See `dsconf {self.inst_name} localpwp --help` ")
+
+
 class PluginUnknownManual(MigrationAction):
     def __init__(self, overlay):
         self.overlay = overlay
@@ -504,6 +526,20 @@ class Migration(object):
             '1.3.6.1.1.1.2.17', # automount
             # This schema is buggy, we always skip it as we know the 389 version is correct.
             '0.9.2342.19200300.100.4.14',
+            # ppolicy overlay - these names conflict to 389-ds values, but have the same function.
+            '1.3.6.1.4.1.42.2.27.8.1.2', # pwdMinAge
+            '1.3.6.1.4.1.42.2.27.8.1.3', # pwdMaxAge
+            '1.3.6.1.4.1.42.2.27.8.1.4', # pwdInHistory
+            '1.3.6.1.4.1.42.2.27.8.1.6', # pwdMinLength
+            '1.3.6.1.4.1.42.2.27.8.1.7', # pwdExpireWarning
+            '1.3.6.1.4.1.42.2.27.8.1.8', # pwdGraceAuthNLimit
+            '1.3.6.1.4.1.42.2.27.8.1.9', # pwdLockout
+            '1.3.6.1.4.1.42.2.27.8.1.10', # pwdLockoutDuration
+            '1.3.6.1.4.1.42.2.27.8.1.11', # pwdMaxFailure
+            '1.3.6.1.4.1.42.2.27.8.1.12', # pwdFailureCountInt
+            '1.3.6.1.4.1.42.2.27.8.1.13', # pwdMustChange
+            '1.3.6.1.4.1.42.2.27.8.1.14', # pwdAllowUserChange
+            '1.3.6.1.4.1.42.2.27.8.2.1', # pwdPolicy objectClass
         ] + skip_schema_oids)
         self._schema_oid_unsupported = set([
             # RFC4517 othermailbox syntax is not supported on 389.
@@ -519,12 +555,32 @@ class Migration(object):
             # Pilot DSA needs dsaquality
             '0.9.2342.19200300.100.4.21',
             '0.9.2342.19200300.100.4.22',
-
+            # These ppolicy module are unsupported so they are skipped.
+            '1.3.6.1.4.1.42.2.27.8.1.1', # pwdAttribute
+            '1.3.6.1.4.1.42.2.27.8.1.5', # pwdCheckQuality
+            '1.3.6.1.4.1.42.2.27.8.1.15', # pwdSafeModify
+            '1.3.6.1.4.1.4754.1.99.1', # pwdCheckModule
+            '1.3.6.1.4.1.42.2.27.8.1.30', # pwdMaxRecordedFailure
         ])
+
         self._skip_entry_attributes = set(
-            ['entrycsn', 'structuralobjectclass'] +
+            [
+                # Core openldap attrs that we can't use, and don't matter.
+                'entrycsn',
+                'structuralobjectclass',
+                # pwd attributes from ppolicy which are not supported.
+                'pwdattribute',
+                'pwdcheckquality',
+                'pwdsafemodify',
+                'pwdcheckmodule',
+                'pwdmaxrecordedfailure',
+            ] +
             [x.lower() for x in skip_entry_attributes]
         )
+        self._skip_entry_objectclasses = set(
+            'pwdpolicy',
+        )
+
         self._gen_migration_plan()
 
     def __unicode__(self):
@@ -641,6 +697,8 @@ class Migration(object):
             elif overlay.otype == olOverlayType.UNIQUE:
                 for attr in overlay.attrs:
                     self.plan.append(PluginUniqueConfigure(oldb.suffix, attr, oldb.uuid))
+            elif overlay.otype == olOverlayType.PPOLICY:
+                self.plan.append(PluginPwdPolicyAudit(oldb.suffix, self.inst.serverid))
             else:
                 raise Exception("Unknown overlay type, this is a bug!")
 
@@ -670,7 +728,7 @@ class Migration(object):
         if self.ldifs is None:
             return
         for (suffix, ldif_path) in self.ldifs.items():
-            self.plan.append(DatabaseLdifImport(suffix, ldif_path, self._skip_entry_attributes))
+            self.plan.append(DatabaseLdifImport(suffix, ldif_path, self._skip_entry_attributes, self._skip_entry_objectclasses))
 
     def _gen_migration_plan(self):
         """Order of this module is VERY important!!!
@@ -698,7 +756,12 @@ class Migration(object):
             count += 1
 
         # Before we do post actions, restart the instance.
-        self.inst.restart()
+        if not self.inst._containerised:
+            self.inst.restart()
+        else:
+            log.info("Restart your instance now!")
+            _ = input("Press enter when complete")
+            self.inst.open()
 
         # Then do post actions
         count = 1
