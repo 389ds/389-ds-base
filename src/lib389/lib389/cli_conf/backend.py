@@ -88,45 +88,38 @@ def _args_to_attrs(args):
 
 
 def _search_backend_dn(inst, be_name):
-    found = False
     be_insts = MANY(inst).list()
+    be_name = be_name.lower()
     for be in be_insts:
-        cn = ensure_str(be.get_attr_val('cn')).lower()
-        suffix = ensure_str(be.get_attr_val('nsslapd-suffix')).lower()
-        del_be_name = be_name.lower()
-        if cn == del_be_name or str2dn(suffix) == str2dn(del_be_name):
-            dn = be.dn
-            found = True
-            break
-    if found:
-        return dn
+        cn = be.get_attr_val_utf8_l('cn')
+        suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
+        if (is_a_dn(be_name) and str2dn(suffix) == str2dn(be_name)) or (not is_a_dn(be_name) and cn == be_name):
+            return be.dn
 
 
-def _get_backend(inst, name):
+def _get_backend(inst, be_name):
     be_insts = Backends(inst).list()
+    be_name = be_name.lower()
     for be in be_insts:
-        be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix')).lower()
-        cn = ensure_str(be.get_attr_val_utf8_l('cn')).lower()
-        try:
-            if str2dn(be_suffix) == str2dn(name.lower()):
-                return be
-        except ldap.DECODING_ERROR:
-            pass
-        if cn == name.lower():
+        be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
+        cn = be.get_attr_val_utf8_l('cn')
+        if (is_a_dn(be_name) and str2dn(be_suffix) == str2dn(be_name)) or (not is_a_dn(be_name) and cn == be_name):
             return be
 
     raise ValueError('Could not find backend suffix: {}'.format(name))
 
 
-def _get_index(inst, bename, attr):
+def _get_index(inst, be_name, attr):
     be_insts = Backends(inst).list()
+    be_name = be_name.lower()
+    attr = attr.lower()
     for be in be_insts:
-        be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix'))
-        cn = ensure_str(be.get_attr_val_utf8_l('cn')).lower()
-        if str2dn(be_suffix) == str2dn(bename.lower()) or cn == bename.lower():
+        be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
+        cn = be.get_attr_val_utf8_l('cn')
+        if (is_a_dn(be_name) and str2dn(be_suffix) == str2dn(be_name)) or (not is_a_dn(be_name) and cn == be_name):
             for index in be.get_indexes().list():
-                idx_name = index.get_attr_val_utf8_l('cn').lower()
-                if idx_name == attr.lower():
+                idx_name = index.get_attr_val_utf8_l('cn')
+                if idx_name == attr:
                     return index
     raise ValueError('Could not find index: {}'.format(attr))
 
@@ -135,8 +128,8 @@ def backend_list(inst, basedn, log, args):
     be_list = []
     be_insts = MANY(inst).list()
     for be in be_insts:
-        suffix = be.get_attr_val_utf8_l('nsslapd-suffix').lower()
-        be_name = be.get_attr_val_utf8_l('cn').lower()
+        suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
+        be_name = be.get_attr_val_utf8_l('cn')
         if args.skip_subsuffixes:
             # Skip subsuffixes
             mt = be._mts.get(suffix)
@@ -325,7 +318,7 @@ def backend_get_subsuffixes(inst, basedn, log, args):
     subsuffixes = []
     be_insts = MANY(inst).list()
     for be in be_insts:
-        be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix')).lower()
+        be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
         if be_suffix == args.be_name.lower():
             # We have our parent, now find the children
             mts = be._mts.list()
