@@ -93,11 +93,12 @@ jobs:
         sudo docker exec $CID sh -c "mkdir -p /workspace/assets/cores && chmod 777 /workspace{,/assets{,/cores}}"
         sudo docker exec $CID sh -c "echo '/workspace/assets/cores/core.%e.%P' > /proc/sys/kernel/core_pattern"
         sudo docker exec -e WEBUI=1 -e DEBUG=pw:api -e PASSWD="${PASSWD}" $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html --browser=firefox --browser=chromium -v dirsrvtests/tests/suites/${{ matrix.suite }}
+        sudo docker exec -e NSSLAPD_DB_LIB=mdb -e WEBUI=1 -e DEBUG=pw:api -e PASSWD="${PASSWD}" $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest_lmdb.xml --html=pytest_lmdb.html --browser=firefox --browser=chromium -v dirsrvtests/tests/suites/${{ matrix.suite }}
 
     - name: Make the results file readable by all
       if: always()
       run: |
-        sudo chmod -f -v -R a+r pytest.*ml assets
+        sudo chmod -f -v -R a+r pytest.*ml pytest_lmdb.*ml assets
         sudo chmod -f -v a+x assets
     - name: Sanitize filename
       if: always()
@@ -110,6 +111,8 @@ jobs:
         name: pytest-${{ env.PYTEST_SUITE }}
         path: |
           pytest.xml
+          pytest_lmdb.xml
           pytest.html
+          pytest_lmdb.html
           assets
 

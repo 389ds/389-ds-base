@@ -38,6 +38,7 @@ log = logging.getLogger(__name__)
 
 @pytest.mark.ds2790
 @pytest.mark.bz1780842
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_check_db_home_dir_in_config(topo):
     """Test to check nsslapd-db-home-directory is set to /dev/shm/slapd-instance in cn=config
 
@@ -62,6 +63,7 @@ def test_check_db_home_dir_in_config(topo):
 
 @pytest.mark.ds2790
 @pytest.mark.bz1780842
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_check_db_home_dir_contents(topo):
     """Test to check contents of /dev/shm/slapd-instance
 
@@ -101,6 +103,7 @@ def test_check_db_home_dir_contents(topo):
 
 @pytest.mark.ds2790
 @pytest.mark.bz1780842
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_check_db_home_dir_in_dse(topo):
     """Test to check nsslapd-db-home-directory is set to /dev/shm/slapd-instance in dse.ldif
 
@@ -127,6 +130,7 @@ def test_check_db_home_dir_in_dse(topo):
 
 @pytest.mark.ds2790
 @pytest.mark.bz1780842
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_check_db_home_dir_in_defaults(topo):
     """Test to check nsslapd-db-home-directory is set to /dev/shm/slapd-instance in defaults.inf file
 
@@ -154,6 +158,7 @@ def test_check_db_home_dir_in_defaults(topo):
 
 @pytest.mark.ds2790
 @pytest.mark.bz1780842
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_delete_db_home_dir(topo):
     """Test to check behaviour when deleting contents of /dev/shm/slapd-instance/ and restarting the instance
 

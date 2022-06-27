@@ -37,12 +37,13 @@ else:
 log = logging.getLogger(__name__)
 
 bdb_values = {
-  'wait30' : 30
+  'wait30': 30
 }
 
-# Note: I still sometime get failure with a 60s timeout so lets use 90s
+# Note: I increased the timeout from 90 to 240 as I still got failures on slower machines
+# this is the smallest value that passed
 mdb_values = {
-  'wait30' : 90
+  'wait30': 240
 }
 
 if get_default_db_lib() is 'bdb':
