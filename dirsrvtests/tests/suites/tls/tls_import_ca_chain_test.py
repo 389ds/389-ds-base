@@ -41,14 +41,27 @@ def test_tls_import_chain(topology_st):
         tls.add_cert(nickname='CA_CHAIN_1', input_file=CA_CHAIN_FILE)
 
     with pytest.raises(ValueError):
-        tls.add_server_key_and_cert(KEY_FILE, CRT_CHAIN_FILE)
-    with pytest.raises(ValueError):
-        tls.add_server_key_and_cert(KEY_CHAIN_FILE, CRT_CHAIN_FILE)
-    with pytest.raises(ValueError):
-        tls.add_server_key_and_cert(KEY_FILE, KEY_CHAIN_FILE)
-
-    with pytest.raises(ValueError):
         tls.import_rsa_crt(crt=CRT_CHAIN_FILE)
     with pytest.raises(ValueError):
         tls.import_rsa_crt(ca=CA_CHAIN_FILE)
 
+def test_tls_import_chain_pk12util(topology_st):
+    """Test that importing certificate chain files via pk12util does not report
+    any errors
+
+    :id: c38b2cf9-93f0-4168-ab23-c74ac21ad59f
+
+    :steps:
+        1. Attempt to import a ca chain
+
+    :expectedresults:
+        1. Chain is successfully imported, no errors raised
+    """
+
+    topology_st.standalone.stop()
+    tls = NssSsl(dirsrv=topology_st.standalone)
+    tls.reinit()
+
+    tls.add_server_key_and_cert(KEY_FILE, CRT_CHAIN_FILE)
+    tls.add_server_key_and_cert(KEY_CHAIN_FILE, CRT_CHAIN_FILE)
+    tls.add_server_key_and_cert(KEY_FILE, KEY_CHAIN_FILE)

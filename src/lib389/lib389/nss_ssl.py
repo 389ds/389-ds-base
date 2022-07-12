@@ -1039,9 +1039,6 @@ only.
         if not os.path.exists(input_cert):
             raise ValueError("The cert file ({}) does not exist".format(input_cert))
 
-        self._assert_not_chain(input_key)
-        self._assert_not_chain(input_cert)
-
         self.log.debug(f"Importing key and cert -> {input_key}, {input_cert}")
 
         p12_bundle = "%s/temp_server_key_cert.p12" % self._certdb
