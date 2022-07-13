@@ -2691,7 +2691,7 @@ bail:
  * @param subject subject out
  */
 static SECStatus
-extractRSAKeysAndSubject(
+extractKeysAndSubject(
     const char *nickname,
     PK11SlotInfo *slot,
     secuPWData *pwdata,
@@ -2701,9 +2701,10 @@ extractRSAKeysAndSubject(
 {
     PRErrorCode rv = SECFailure;
     CERTCertificate *cert = PK11_FindCertFromNickname((char *)nickname, NULL);
+    int keytype = -1;
     if (!cert) {
         rv = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
+        slapi_log_err(SLAPI_LOG_ERR, "extractKeysAndSubject",
                       "Failed extract cert with %s, (%d-%s, %d).\n",
                       nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
         goto bail;
@@ -2712,7 +2713,7 @@ extractRSAKeysAndSubject(
     *pubkey = CERT_ExtractPublicKey(cert);
     if (!*pubkey) {
         rv = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
+        slapi_log_err(SLAPI_LOG_ERR, "extractKeysAndSubject",
                       "Could not get public key from cert for %s, (%d-%s, %d)\n",
                       nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
         goto bail;
@@ -2721,24 +2722,30 @@ extractRSAKeysAndSubject(
     *privkey = PK11_FindKeyByDERCert(slot, cert, pwdata);
     if (!*privkey) {
         rv = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
+        slapi_log_err(SLAPI_LOG_ERR, "extractKeysAndSubject",
                       "Unable to find the key with PK11_FindKeyByDERCert for %s, (%d-%s, %d)\n",
                       nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
         *privkey = PK11_FindKeyByAnyCert(cert, &pwdata);
         if (!*privkey) {
             rv = PR_GetError();
-            slapi_log_err(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
+            slapi_log_err(SLAPI_LOG_ERR, "extractKeysAndSubject",
                           "Unable to find the key with PK11_FindKeyByAnyCert for %s, (%d-%s, %d)\n",
                           nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
             goto bail;
         }
     }
 
-    PR_ASSERT(((*privkey)->keyType) == rsaKey);
+    keytype = (*privkey)->keyType;
+    if  (keytype != rsaKey && keytype != ecKey) {
+        slapi_log_err(SLAPI_LOG_ERR, "extractKeysAndSubject",
+                      "Unexpected key algorythm in certificate: %s. Only rsa and ec keys are supported.\n", nickname);
+        goto bail;
+    }
+
     *subject = CERT_AsciiToName(cert->subjectName);
 
     if (!*subject) {
-        slapi_log_err(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
+        slapi_log_err(SLAPI_LOG_ERR, "extractKeysAndSubject",
                       "Improperly formatted name: \"%s\"\n",
                       cert->subjectName);
         goto bail;
@@ -2924,7 +2931,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token __attribute__((unused)), PK11S
                       keyfile, PR_GetError(), PR_GetOSError());
         goto bail;
     }
-    rv = extractRSAKeysAndSubject(personality, slot, &pwdata, &privkey, &pubkey, &subject);
+    rv = extractKeysAndSubject(personality, slot, &pwdata, &privkey, &pubkey, &subject);
     if (rv != SECSuccess) {
 #if defined(ENCRYPTEDKEY)
         slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
