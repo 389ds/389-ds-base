@@ -1,12 +1,12 @@
 # BEGIN COPYRIGHT BLOCK
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
-AC_CHECKING(for Systemd)
+AC_MSG_CHECKING(for Systemd)
 
 # check for --with-systemd
 AC_MSG_CHECKING(for --with-systemd)

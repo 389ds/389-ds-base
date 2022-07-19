@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 
 const copy = require("copy-webpack-plugin");
@@ -6,8 +7,7 @@ const TerserJSPlugin = require('terser-webpack-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const CompressionPlugin = require("compression-webpack-plugin");
 const ESLintPlugin = require('eslint-webpack-plugin');
-// const CockpitPoPlugin = require("./src/lib/cockpit-po-plugin");
-const fs = require("fs");
+
 const webpack = require("webpack");
 const nodedir = path.resolve(process.env.SRCDIR || __dirname, "node_modules");
 
@@ -27,7 +27,7 @@ const copy_files = [
 const plugins = [
     new copy({ patterns: copy_files }),
     new extract({filename: "[name].css"}),
-    new ESLintPlugin({ extensions: ["js", "jsx"] }),
+    new ESLintPlugin({ extensions: ["js", "jsx"], failOnWarning: true, }),
     // new CockpitPoPlugin(),
 ];
 

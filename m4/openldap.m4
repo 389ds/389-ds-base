@@ -1,12 +1,12 @@
 # BEGIN COPYRIGHT BLOCK
-# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
-AC_CHECKING(for OpenLDAP)
+AC_MSG_CHECKING(for OpenLDAP)
 
 if test -z "$with_openldap"; then
     with_openldap=yes # Set default to yes

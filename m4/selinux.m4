@@ -1,12 +1,12 @@
 # BEGIN COPYRIGHT BLOCK
-# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
-AC_CHECKING(for SELinux)
+AC_MSG_CHECKING(for SELinux)
 
 # check for --with-selinux
 AC_MSG_CHECKING(for --with-selinux)
