@@ -1,6 +1,6 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-AC_PREREQ(2.59)
+AC_PREREQ([2.69])
 AC_INIT([dirsrv],[1.0],[http://bugzilla.redhat.com/])
 # AC_CONFIG_HEADER must be called right after AC_INIT.
 AC_CONFIG_HEADERS([config.h])
@@ -24,23 +24,19 @@ AC_PROG_CXX
 AC_PROG_CC
 AM_PROG_CC_C_O
 AM_PROG_AS
-AC_PROG_CC_STDC
 PKG_PROG_PKG_CONFIG
 
 # disable static libs by default - we only use a couple
 AC_DISABLE_STATIC
-AC_PROG_LIBTOOL
+LT_INIT
 
 # Checks for header files.
 AC_HEADER_DIRENT
-AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/file.h sys/socket.h sys/time.h syslog.h unistd.h mntent.h sys/sysinfo.h sys/endian.h endian.h])
-
 # These are *required* headers without option.
 AC_CHECK_HEADERS([inttypes.h], [], AC_MSG_ERROR([unable to locate required header inttypes.h]))
 AC_CHECK_HEADERS([crack.h], [], AC_MSG_ERROR([unable to locate required header crack.h]))
-
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STAT
@@ -49,7 +45,6 @@ AC_HEADER_STDBOOL
 AC_TYPE_UID_T
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
-AC_HEADER_TIME
 AC_STRUCT_TM
 
 # Checks for library functions.
@@ -62,7 +57,18 @@ AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
 AC_FUNC_MALLOC
 AC_FUNC_MEMCMP
 AC_FUNC_MMAP
-AC_TYPE_SIGNAL
+AC_DIAGNOSE([obsolete],[your code may safely assume C89 semantics that RETSIGTYPE is void.
+Remove this warning and the `AC_CACHE_CHECK' when you adjust the code.])dnl
+AC_CACHE_CHECK([return type of signal handlers],[ac_cv_type_signal],[AC_COMPILE_IFELSE(
+[AC_LANG_PROGRAM([#include <sys/types.h>
+#include <signal.h>
+],
+		 [return *(signal (0, 0)) (0) == 1;])],
+		   [ac_cv_type_signal=int],
+		   [ac_cv_type_signal=void])])
+AC_DEFINE_UNQUOTED([RETSIGTYPE],[$ac_cv_type_signal],[Define as the return type of signal handlers
+		    (`int' or `void').])
+
 AC_FUNC_STAT
 AC_FUNC_STRERROR_R
 AC_FUNC_STRFTIME
@@ -570,7 +576,7 @@ AC_ARG_WITH(instconfigdir,
                        [Base directory for instance specific writable configuration directories (default $sysconfdir/$PACKAGE_NAME)]),
 [
   if test $withval = yes ; then
-     AC_ERROR([Please specify a full path with --with-instconfigdir])
+     AC_MSG_ERROR(Please specify a full path with --with-instconfigdir)
   fi
   instconfigdir="$withval"
   AC_MSG_RESULT($withval)
