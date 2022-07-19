@@ -438,7 +438,6 @@ dbmdb_import_producer(void *param)
     ImportJob *job = info->job;
     ImportCtx_t *ctx = job->writer_ctx;
     ID id = job->first_ID, id_filestart = id;
-    ldbm_instance *inst = job->inst;
     PRIntervalTime sleeptime;
     int detected_eof = 0;
     int fd, curr_file, curr_lineno = 0;
@@ -448,7 +447,7 @@ dbmdb_import_producer(void *param)
     WorkerQueueData_t wqelmt = {0};
 
     PR_ASSERT(info != NULL);
-    PR_ASSERT(inst != NULL);
+    PR_ASSERT(job->inst != NULL);
 
 
     ctx->wgc.str2entry_flags = SLAPI_STR2ENTRY_TOMBSTONE_CHECK |
@@ -482,19 +481,18 @@ dbmdb_import_producer(void *param)
         if (detected_eof) {
             /* check if the file can still be read, whine if so... */
             if (read(fd, (void *)&idx, 1) > 0) {
-                import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_producer", "Unexpected end of file found "
-                                                                             "at line %d of file \"%s\"",
-                                  curr_lineno,
-                                  curr_filename);
+                import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_producer",
+                                  "Unexpected end of file found at line %d of file \"%s\"",
+                                  curr_lineno, curr_filename);
             }
 
             if (fd == STDIN_FILENO) {
-                import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_producer", "Finished scanning file stdin (%lu "
-                                                                          "entries)",
+                import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_producer",
+                                  "Finished scanning file stdin (%lu entries)",
                                   (u_long)(id - id_filestart));
             } else {
-                import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_producer", "Finished scanning file \"%s\" (%lu "
-                                                                          "entries)",
+                import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_producer",
+                                 "Finished scanning file \"%s\" (%lu entries)",
                                   curr_filename, (u_long)(id - id_filestart));
             }
             close(fd);
@@ -736,8 +734,7 @@ dbmdb_import_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
     /* Check attribute syntax */
     if (syntax_err != 0) {
         import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_prepare_worker_entry",
-                          "Skipping entry \"%s\" which violates attribute syntax, ending line %d of "
-                          "file \"%s\"",
+                          "Skipping entry \"%s\" which violates attribute syntax, ending line %d of file \"%s\"",
                           slapi_entry_get_dn(e), curr_lineno, curr_filename);
         slapi_entry_free(e);
 
@@ -931,8 +928,8 @@ dbmdb_index_producer(void *param)
         TXN_ABORT(txn);
     }
     if (rc) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer", "%s: Failed to read database: "
-                                                       "failed to %s, errno=%d (%s)\n",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
+                      "%s: Failed to read database: failed to %s, errno=%d (%s)\n",
                       inst->inst_name, errinfo, rc, dblayer_strerror(rc));
         if (job->task) {
             slapi_task_log_notice(job->task,
@@ -1967,7 +1964,8 @@ static int
 err(const char *func, WorkerQueueData_t *wqelmnt, const Slapi_DN *sdn, char *msg)
 {
     if (wqelmnt->filename) {
-        slapi_log_err(SLAPI_LOG_WARNING, func, "Entry ignored because %s while importing entry at line %d from ldif file %s with DN: %s\n",
+        slapi_log_err(SLAPI_LOG_WARNING, func,
+                "Entry ignored because %s while importing entry at line %d from ldif file %s with DN: %s\n",
                 msg, wqelmnt->lineno, wqelmnt->filename, slapi_sdn_get_dn(sdn));
     }
     return -1;
@@ -2017,8 +2015,7 @@ rename_duplicate_entry(const char *funcname, ImportJob *job, backentry *ep)
         uuidstr = slapi_value_get_string(uival);
     } else {
         import_log_notice(job, SLAPI_LOG_ERR, (char*)funcname,
-                          "Failed to get nsUniqueId of the duplicated entry %s; "
-                          "Entry ID: %d",
+                          "Failed to get nsUniqueId of the duplicated entry %s; Entry ID: %d",
                           orig_dn, ep->ep_id);
         slapi_ch_free_string(&orig_dn);
         return PEA_SKIP;
@@ -2064,12 +2061,12 @@ dbmdb_import_handle_duplicate_dn(const char *funcname, WorkerQueueData_t *wqelmn
         return rename_duplicate_entry(funcname, job, ep);
     }
 
-    msg = slapi_ch_smprintf("Duplicated DN detected: \"%s\": Entry ID: (%d) and (%d)", slapi_sdn_get_udn(sdn), altID, ep->ep_id);
+    msg = slapi_ch_smprintf("Duplicated DN detected: \"%s\": Entry ID: (%d) and (%d)",
+                            slapi_sdn_get_udn(sdn), altID, ep->ep_id);
     err(funcname, wqelmnt, sdn, msg);
     slapi_ch_free_string(&msg);
     return PEA_DUPDN;
 }
-
 
 /*
  * dbmdb_add_op_attrs - add the parentid, entryid, dncomp,
@@ -2332,7 +2329,9 @@ process_entryrdn(backentry *ep, WorkerQueueData_t *wqelmnt)
         rdncache_elem_release(&child);
         child = rdncache_rdn_lookup(ctx->rdncache, wqelmnt, pid, srdn.all_nrdns[idx]);
         if (!child) {
-            slapi_log_err(SLAPI_LOG_ERR, "process_entryrdn", "Skipping entry \"%s\" which has no parent.\n", slapi_sdn_get_udn(sdn));
+            slapi_log_err(SLAPI_LOG_ERR, "process_entryrdn",
+                          "Skipping entry \"%s\" which has no parent.\n",
+                          slapi_sdn_get_udn(sdn));
             err(__FUNCTION__, wqelmnt, sdn, "No parent entry ");
             slapi_ch_free((void**)&ancestors);
             slapi_rdn_done(&srdn);
@@ -2619,13 +2618,12 @@ dbmdb_import_worker(void *param)
     ImportWorkerInfo *info = &wqelmnt->winfo;
     ImportJob *job = info->job;
     ImportCtx_t *ctx = job->writer_ctx;
-    ldbm_instance *inst = job->inst;
     backentry *ep = NULL;
     PRIntervalTime sleeptime;
     ID id = info->first_ID;
 
     PR_ASSERT(NULL != info);
-    PR_ASSERT(NULL != inst);
+    PR_ASSERT(NULL != job->inst);
 
 
     sleeptime = PR_MillisecondsToInterval(import_sleep_time);
@@ -2786,12 +2784,14 @@ dbmdb_add_import_index(ImportCtx_t *ctx, const char *name, IndexInfo *ii)
     if (ctx->role == IM_INDEX) {
         /* Required by CI test */
         if (a->flags & MII_NOATTR) {
-            slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index", "%s: Indexing %s\n", job->inst->inst_name, mii->name);
+            slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index",
+                          "%s: Indexing %s\n", job->inst->inst_name, mii->name);
         } else {
             if (job->task) {
                 slapi_task_log_notice(job->task, "%s: Indexing attribute: %s", job->inst->inst_name, mii->name);
             }
-            slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index", "%s: Indexing attribute: %s\n", job->inst->inst_name, mii->name);
+            slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index",
+                          "%s: Indexing attribute: %s\n", job->inst->inst_name, mii->name);
         }
     }
 
@@ -3463,5 +3463,3 @@ dbmdb_free_import_ctx(ImportJob *job)
     slapi_ch_free((void**)&job->writer_ctx);
 
 }
-
-

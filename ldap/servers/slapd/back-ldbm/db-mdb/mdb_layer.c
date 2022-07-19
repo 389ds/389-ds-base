@@ -387,12 +387,10 @@ dbmdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, d
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     int open_flags = 0;
     dbmdb_cursor_t cur = {0};
-    dblayer_private *priv = NULL;
     int return_value = 0;
 
     PR_ASSERT(NULL != li);
-    priv = li->li_dblayer_private;
-    PR_ASSERT(NULL != priv);
+    PR_ASSERT(NULL != li->li_dblayer_private);
     *ppDB = NULL;
 
     if (NULL == inst->inst_name) {
@@ -539,9 +537,10 @@ dbmdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBoo
 {
     int return_value = -1;
     dbmdb_ctx_t *conf = NULL;
-    dblayer_private *priv = NULL;
     back_txn new_txn = {NULL};
+
     PR_ASSERT(NULL != li);
+    PR_ASSERT(NULL != li->li_dblayer_private);
     /*
      * When server is shutting down, some components need to
      * flush some data (e.g. replication to write ruv).
@@ -552,9 +551,6 @@ dbmdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBoo
     }
 
     conf = (dbmdb_ctx_t *)li->li_dblayer_config;
-    priv = li->li_dblayer_private;
-    PR_ASSERT(NULL != priv);
-
     if (txn) {
         txn->back_txn_txn = NULL;
     }
@@ -657,16 +653,14 @@ int
 dbmdb_txn_abort(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
 {
     int return_value = -1;
-    dblayer_private *priv = NULL;
     dbi_txn_t *db_txn = NULL;
     back_txn *cur_txn = NULL;
     dbmdb_ctx_t *conf = NULL;
 
     PR_ASSERT(NULL != li);
+    PR_ASSERT(NULL != li->li_dblayer_private);
 
     conf = (dbmdb_ctx_t *)li->li_dblayer_config;
-    priv = li->li_dblayer_private;
-    PR_ASSERT(NULL != priv);
 
     /* use the transaction we are given - if none, see if there
        is a transaction in progress */
@@ -880,7 +874,6 @@ int
 dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
 {
     int return_value = LDAP_UNWILLING_TO_PERFORM;
-    dblayer_private *priv = NULL;
     PRDirEntry *direntry = NULL;
     PRDir *dirhandle = NULL;
     dbmdb_ctx_t *conf;
@@ -889,11 +882,10 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     const char **pt;
     char *home;
 
-
     PR_ASSERT(NULL != li);
+    PR_ASSERT(NULL != li->li_dblayer_private);
+
     conf = (dbmdb_ctx_t *)li->li_dblayer_config;
-    priv = li->li_dblayer_private;
-    PR_ASSERT(NULL != priv);
     PR_ASSERT(NULL != conf);
     home = conf->home;
 
@@ -1023,7 +1015,6 @@ dbmdb_restore_file(struct ldbminfo *li, Slapi_Task *task, const char *src_dir, c
 int
 dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
 {
-    dblayer_private *priv = NULL;
     int return_value = 0;
     int tmp_rval;
     int dbmode = DBLAYER_RESTORE_NO_RECOVERY_MODE;
@@ -1032,8 +1023,7 @@ dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
     char *pathname;
 
     PR_ASSERT(NULL != li);
-    priv = li->li_dblayer_private;
-    PR_ASSERT(NULL != priv);
+    PR_ASSERT(NULL != li->li_dblayer_private);
 
     /* We find out if slapd is startcfg */
     /* If it is, we fail */

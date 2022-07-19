@@ -44,8 +44,8 @@ download-cargo-dependencies:
 	cargo fetch --manifest-path=./src/Cargo.toml
 	tar -czf vendor.tar.gz vendor
 
-bundle-rust-on-fedora:
-	python3 rpm/bundle-rust-downstream.py ./src/Cargo.lock $(FEDORA_SPECFILE) ./vendor
+bundle-rust:
+	python3 rpm/bundle-rust-downstream.py ./src/Cargo.lock $(DS_SPECFILE) ./vendor
 
 install-node-modules:
 ifeq ($(COCKPIT_ON), 1)

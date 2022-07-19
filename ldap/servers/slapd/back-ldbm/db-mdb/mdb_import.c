@@ -536,7 +536,8 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
     int i = 0;
 
     for (current_worker = job->worker_list; current_worker != NULL;
-         current_worker = current_worker->next) {
+         current_worker = current_worker->next)
+    {
         current_worker->command = RUN;
         if (current_worker->work_type == PRODUCER)
             producer = current_worker;
@@ -545,11 +546,14 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
     }
 
 
-    if (job->flags & FLAG_USE_FILES)
-        PR_ASSERT(producer != NULL);
-
+    if ((job->flags & FLAG_USE_FILES) && producer == NULL) {
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_monitor_threads","No producer ==> Aborting %s.\n",
+                          dbmdb_import_role(job));
+        return ERR_IMPORT_ABORTED;
+    }
     if (!writer) {
-        import_log_notice(job,SLAPI_LOG_ERR,"dbmdb_import_monitor_threads","No writer ==> Aborting %s.\n", dbmdb_import_role(job));
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_monitor_threads","No writer ==> Aborting %s.\n",
+                          dbmdb_import_role(job));
         return ERR_IMPORT_ABORTED;
     }
 
@@ -624,7 +628,8 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_monitor_threads",
                       "Workers finished; cleaning up...");
 
-    import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_monitor_threads", "Workers cleaned up.");
+    import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_monitor_threads",
+                      "Workers cleaned up.");
 
     *status = IMPORT_COMPLETE_PASS;
     return (job->flags & FLAG_ABORT) ? ERR_IMPORT_ABORTED : 0;
