@@ -76,8 +76,8 @@ def _ldap_op_s(inst, f, fname, *args, **kwargs):
         new_desc = f"{fname}({args},{kwargs}) on instance {inst.serverid}";
         if len(e.args) >= 1:
             e.args[0]['ldap_request'] = new_desc
-            logging.getLogger().error(f"args={e.args}")
-        raise
+            logging.getLogger().debug(f"args={e.args}")
+        raise e
 
 def _add_ext_s(inst, *args, **kwargs):
     return _ldap_op_s(inst, inst.add_ext_s, 'add_ext_s', *args, **kwargs)
@@ -1182,14 +1182,18 @@ class DSLdapObjects(DSLogging, DSLints):
 
         results = []
         if dn is not None:
+            criteria = dn
+            search_filter = self._get_objectclass_filter()
             results = self._get_dn(dn)
         else:
+            criteria = selector
+            search_filter = self._get_selector_filter(selector)
             results = self._get_selector(selector)
 
         if len(results) == 0:
-            raise ldap.NO_SUCH_OBJECT("No object exists given the filter criteria %s" % selector)
+            raise ldap.NO_SUCH_OBJECT(f"No object exists given the filter criteria: {criteria} {search_filter}")
         if len(results) > 1:
-            raise ldap.UNWILLING_TO_PERFORM("Too many objects matched selection criteria %s" % selector)
+            raise ldap.UNWILLING_TO_PERFORM(f"Too many objects matched selection criteria: {criteria} {search_filter}")
         if json:
             return self._entry_to_instance(results[0].dn, results[0]).get_all_attrs_json()
         else:
