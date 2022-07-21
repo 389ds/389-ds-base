@@ -19,6 +19,10 @@ from lib389.plugins import MEPTemplates, MEPConfigs, ManagedEntriesPlugin, MEPTe
 from lib389.idm.nscontainer import nsContainers
 from lib389.idm.domain import Domain
 import ldap
+import logging
+
+logging.getLogger(__name__).setLevel(logging.DEBUG)
+log = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.tier1
 USER_PASSWORD = 'password'
@@ -36,12 +40,72 @@ def _create_inital(topo):
                         '|')})
     conf_mep = MEPConfigs(topo.standalone)
     conf_mep.create(properties={'cn': 'UPG Definition1', 'originScope': f'cn=Users,{DEFAULT_SUFFIX}',
-                                             'originFilter': 'objectclass=posixaccount',
-                                             'managedBase': f'cn=Groups,{DEFAULT_SUFFIX}',
-                                             'managedTemplate': mep_template1.dn})
+                                'originFilter': 'objectclass=posixaccount', 'managedBase': f'cn=Groups,{DEFAULT_SUFFIX}',
+                                'managedTemplate': mep_template1.dn})
     container = nsContainers(topo.standalone, DEFAULT_SUFFIX)
     for cn in ['Users', 'Groups']:
         container.create(properties={'cn': cn})
+
+
+def test_managed_entry_betxn(topo):
+    """Test if failure to create a managed entry rolls back the transaction.
+
+    :id: 7aa74994-f89b-11ec-9821-98fa9ba19b65
+    :setup: Standalone Instance
+    :customerscenario: True
+    :steps:
+        1. Check that plugin active if not activate it
+        2. Create a Template entry
+        3. Create a definition entry
+        4. Attempt to create a user
+        5. Verify that transaction is aborted and user not created
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+
+    log.info("Make sure the plugin is active")
+    me_plugn = ManagedEntriesPlugin(topo.standalone)
+    log.info("Stopping and starting the Managed Entry plugin.")
+    me_plugn.disable()
+    me_plugn.enable()
+    assert me_plugn.status()
+    log.info("Plugin Restarted.")
+    log.info("Adding organization units")
+    ous1 = OrganizationalUnits(topo.standalone, DEFAULT_SUFFIX)
+    ou1_people = ous1.create(properties={'ou': 'tst_people'})
+    ou1_groups = ous1.create(properties={'ou': 'tst_groups'})
+
+    log.info("Create the template entry")
+    mep_templates1 = MEPTemplates(topo.standalone, DEFAULT_SUFFIX)
+    mep_temp1 = mep_templates1.create(properties={
+        'cn': 'MEP template1',
+        'mepRDNAttr': 'cn',
+        'mepStaticAttr': 'objectclass: groupOfNames|objectclass: extensibleObject'.split('|'),
+        'mepMappedAttr': 'cn: $cn|uid: $cn|gidNumber: $uidNumber'.split('|')
+    })
+    conf_mep = MEPConfigs(topo.standalone)
+    log.info("Create definition entry.")
+    conf_mep.create(properties={
+        'cn': 'cn=config',
+        'originScope': ou1_people.dn,
+        'originFilter': 'objectclass=posixAccount',
+        'managedBase': ou1_groups.dn,
+        'managedTemplate': mep_temp1.dn})
+    topo.standalone.restart()
+    log.info("Attempt to add a user that doenst fit the template.")
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX, rdn='ou={}'.format(ou1_people.rdn))
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        mgd_entry = users.create(properties={
+            'uid': 'test_uid',
+            'cn': 'test_uid',
+            'sn': 'test_sn',
+        })
+        mgd_entry.delete()
+    log.info("Cleaning up")
 
 
 def test_binddn_tracking(topo, _create_inital):
