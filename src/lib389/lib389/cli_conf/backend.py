@@ -706,7 +706,6 @@ def backend_list_vlv(inst, basedn, log, args):
                     log.info(' - dn: ' + idx.dn)
                     for k, v in list(entry.items()):
                         log.info(' - {}: {}'.format(ensure_str(k), ensure_str(v[0])))
-                    log.info()
 
     if args.json:
         log.info(json.dumps({"type": "list", "items": results}, indent=4))
