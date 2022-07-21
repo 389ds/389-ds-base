@@ -19,6 +19,7 @@ from lib389.nss_ssl import NssSsl
 from lib389._constants import *
 from lib389.cli_base import LogCapture
 
+TLS_HOSTNAME_CHECK = os.getenv('TLS_HOSTNAME_CHECK', default=True)
 DEBUGGING = os.getenv('DEBUGGING', default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -107,6 +108,10 @@ def _create_instances(topo_dict, suffix):
             # configured in a FIPS compliant way
             if is_fips():
                 instance.enable_tls()
+
+            # Disable strict hostname checking for TLS
+            if not TLS_HOSTNAME_CHECK:
+                instance.config.set('nsslapd-ssl-check-hostname', 'off')
             if DEBUGGING:
                 instance.config.set('nsslapd-errorlog-level','8192')
                 instance.config.set('nsslapd-accesslog-level','260')
