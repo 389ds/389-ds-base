@@ -564,6 +564,9 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
         ber_sockbuf_ctrl(conn->c_sb, LBER_SB_OPT_SET_MAX_INCOMING, &maxbersize);
     }
 
+    /* Set the start time */
+    slapi_operation_set_time_started(op);
+
     /* If the minimum SSF requirements are not met, only allow
      * bind and extended operations through.  The bind and extop
      * code will ensure that only SASL binds and startTLS are
