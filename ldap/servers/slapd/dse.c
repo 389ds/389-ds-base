@@ -1621,9 +1621,9 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
 {
     Slapi_Filter *filter;
     Slapi_DN *basesdn = NULL;
-    Slapi_DN *old_repl_sdn = NULL;
     struct dse *pdse;
     char **attrs;
+    const char *ndn = NULL;
     char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = "";
     int attrsonly;
     int estimate = 0; /* estimated search result set size */
@@ -1652,14 +1652,14 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     isrootdse = slapi_sdn_isempty(basesdn);
 
     /* Hopefully this plugin DN mapping can be removed in 3.x */
-    old_repl_sdn = slapi_sdn_new_dn_byval("cn=Multimaster Replication Plugin,cn=plugins,cn=config");
-    if(slapi_sdn_compare(basesdn, old_repl_sdn) == 0) {
-        /* Map the old name to the new one */
+    ndn = slapi_sdn_get_ndn(basesdn);
+    if (strstr(ndn, "aster replication plugin,cn=plugins,cn=config")) {
+        /* Map the old "problematic" name to the new one */
         slapi_sdn_free(&basesdn);
         basesdn = slapi_sdn_new_dn_byval("cn=Multisupplier Replication Plugin,cn=plugins,cn=config");
         slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, basesdn);
     }
-    slapi_sdn_free(&old_repl_sdn);
+
     /*
      * Now optimise the filter for use: note that unlike ldbm_search,
      * because we don't change the outer filter container, we don't need
