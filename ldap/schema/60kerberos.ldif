@@ -111,7 +111,7 @@ attributetypes: ( 2.16.840.1.113719.1.301.4.36.1 NAME 'krbPwdPolicyReference' EQ
 ##### The time at which the principal's password expires
 attributetypes: ( 2.16.840.1.113719.1.301.4.37.1 NAME 'krbPasswordExpiration' EQUALITY generalizedTimeMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 SINGLE-VALUE)
 ##### This attribute holds the principal's key (krbPrincipalKey) that is encrypted with
-##### the master key (krbMKey). 
+##### the master key (krbMKey).
 ##### The attribute is ASN.1 encoded.
 #####
 ##### The format of the value for this attribute is explained below,

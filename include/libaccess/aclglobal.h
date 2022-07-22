@@ -20,7 +20,7 @@
 
 struct ACLGlobal_s
 {
-    ACLListHandle_t *masterlist;
+    ACLListHandle_t *primarylist;
     pool_handle_t *pool; /* Deallocate at the start of cache flush */
     pool_handle_t *databasepool;
     pool_handle_t *methodpool;
