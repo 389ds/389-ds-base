@@ -27,7 +27,7 @@ ldclt \- load test program for LDAP
 [\fI\-I <err number>\fR] [\fI\-T <total>\fR]
 [\fI\-r <low> \-R <high>\fR]
 [\fI\-f <filter>\fR] [\fI\-s <scope>\fR]
-[\fI\-S <slave>\fR] [\fI\-P<master port>\fR]
+[\fI\-S <consumer>\fR] [\fI\-P<supplier port>\fR]
 [\fI\-W <waitsec>\fR] [\fI\-Z <certfile>\fR]
 .PP
 .SH DESCRIPTION
@@ -77,7 +77,7 @@ SASL Option.
 Server port. Default 389.
 .TP
 .B \fB\-P\fR
-Master port (to check replication). Default 16000.
+Supplier port (to check replication). Default 16000.
 .TP
 .B \fB\-q\fR
 Quiet mode. See option \fB\-I\fR.
@@ -95,7 +95,7 @@ Range's high value.
 Scope. May be base, subtree or one. Default subtree.
 .TP
 .B \fB\-S\fR
-Slave to check.
+Consumer to check.
 .TP
 .B \fB\-t\fR
 LDAP operations timeout. Default 30 seconds.

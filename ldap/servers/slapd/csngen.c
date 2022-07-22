@@ -843,9 +843,9 @@ int32_t _csngen_tester_gettime(struct timespec *tp)
 /* Mimic a fully meshed multi supplier topology */
 void csngen_multi_suppliers_test(void)
 {
-#define NB_TEST_MASTERS	6
+#define NB_TEST_SUPPLIERS	6
 #define NB_TEST_STATES	500
-    CSNGen *gen[NB_TEST_MASTERS];
+    CSNGen *gen[NB_TEST_SUPPLIERS];
     struct timespec now = {0};
     CSN *last_csn = NULL;
     CSN *csn = NULL;
@@ -853,7 +853,7 @@ void csngen_multi_suppliers_test(void)
 
     _csngen_tester_gettime(&now);
 
-    for (i=0; i< NB_TEST_MASTERS; i++) {
+    for (i=0; i< NB_TEST_SUPPLIERS; i++) {
         gen[i] = csngen_new(i+1, NULL);
         if (gen[i]) {
             gen[i]->gettime = _csngen_tester_gettime;
@@ -862,7 +862,7 @@ void csngen_multi_suppliers_test(void)
     }
 
     for (_csngen_tester_state=0; _csngen_tester_state < NB_TEST_STATES; _csngen_tester_state++) {
-        for (i=0; i< NB_TEST_MASTERS; i++) {
+        for (i=0; i< NB_TEST_SUPPLIERS; i++) {
             _csngen_tester_state_rid = i+1;
             csn = NULL;
             rc = csngen_new_csn(gen[i], &csn, PR_FALSE);
@@ -882,7 +882,7 @@ void csngen_multi_suppliers_test(void)
             csn_free(&last_csn);
             last_csn = csn;
 
-            for (j=0; j< NB_TEST_MASTERS; j++) {
+            for (j=0; j< NB_TEST_SUPPLIERS; j++) {
                 if (i==j) {
                     continue;
                 }
