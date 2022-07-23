@@ -1674,6 +1674,7 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/repl_globals.c \
 	ldap/servers/plugins/replication/repl_opext.c \
 	ldap/servers/plugins/replication/repl_session_plugin.c \
+	ldap/servers/plugins/replication/repl_cleanallruv.c \
 	ldap/servers/plugins/replication/repl5_agmt.c \
 	ldap/servers/plugins/replication/repl5_agmtlist.c \
 	ldap/servers/plugins/replication/repl5_backoff.c \

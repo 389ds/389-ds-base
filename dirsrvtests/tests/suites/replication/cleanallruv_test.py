@@ -70,14 +70,25 @@ def remove_supplier4_agmts(msg, topology_m4):
 
     log.info('%s: remove all the agreements to supplier 4...' % msg)
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    # This will delete m4 frm the topo *and* remove all incoming agreements
+    # This will delete m4 from the topo *and* remove all incoming agreements
     # to m4.
     repl.remove_supplier(topology_m4.ms["supplier4"],
         [topology_m4.ms["supplier1"], topology_m4.ms["supplier2"], topology_m4.ms["supplier3"]])
 
+def remove_some_supplier4_agmts(msg, topology_m4):
+    """Remove all the repl agmts to supplier4 except from supplier3.  Used by
+    the force tests."""
+
+    log.info('%s: remove the agreements to supplier 4...' % msg)
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    # This will delete m4 from the topo *and* remove all incoming agreements
+    # to m4.
+    repl.remove_supplier(topology_m4.ms["supplier4"],
+        [topology_m4.ms["supplier1"], topology_m4.ms["supplier2"]])
+
 
 def check_ruvs(msg, topology_m4, m4rid):
-    """Check suppliers 1- 3 for supplier 4's rid."""
+    """Check suppliers 1-3 for supplier 4's rid."""
     for inst in (topology_m4.ms["supplier1"], topology_m4.ms["supplier2"], topology_m4.ms["supplier3"]):
         clean = False
         replicas = Replicas(inst)
@@ -172,7 +183,7 @@ def m4rid(request, topology_m4):
                 })
             cruv_task.wait()
         except ldap.UNWILLING_TO_PERFORM:
-            # In some casse we already cleaned rid4, so if we fail, it's okay
+            # In some cases we already cleaned rid4, so if we fail, it's okay
             pass
         restore_supplier4(topology_m4)
         # Make sure everything works.
@@ -296,7 +307,6 @@ def test_clean_restart(topology_m4, m4rid):
     log.info('test_clean_restart PASSED, restoring supplier 4...')
 
 
-@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_clean_force(topology_m4, m4rid):
     """Check that multiple tasks with a 'force' option work properly
 
@@ -326,15 +336,19 @@ def test_clean_force(topology_m4, m4rid):
     topology_m4.ms["supplier3"].stop()
 
     # Add a bunch of updates to supplier 4
-    m4_add_users = AddUsers(topology_m4.ms["supplier4"], 1500)
+    m4_add_users = AddUsers(topology_m4.ms["supplier4"], 10)
     m4_add_users.start()
     m4_add_users.join()
+
+    # Remove the agreements from the other suppliers that point to supplier 4
+    remove_some_supplier4_agmts("test_clean_force", topology_m4)
 
     # Start supplier 3, it should be out of sync with the other replicas...
     topology_m4.ms["supplier3"].start()
 
-    # Remove the agreements from the other suppliers that point to supplier 4
-    remove_supplier4_agmts("test_clean_force", topology_m4)
+    # Remove the agreement to replica 4
+    replica = Replicas(topology_m4.ms["supplier3"]).get(DEFAULT_SUFFIX)
+    replica.get_agreements().get("004").delete()
 
     # Run the task, use "force" because supplier 3 is not in sync with the other replicas
     # in regards to the replica 4 RUV
@@ -648,7 +662,6 @@ def test_stress_clean(topology_m4, m4rid):
     ldbm_config.set('nsslapd-readonly', 'off')
 
 
-@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_multiple_tasks_with_force(topology_m4, m4rid):
     """Check that multiple tasks with a 'force' option work properly
 
@@ -680,16 +693,20 @@ def test_multiple_tasks_with_force(topology_m4, m4rid):
     topology_m4.ms["supplier3"].stop()
 
     # Add a bunch of updates to supplier 4
-    m4_add_users = AddUsers(topology_m4.ms["supplier4"], 1500)
+    m4_add_users = AddUsers(topology_m4.ms["supplier4"], 10)
     m4_add_users.start()
     m4_add_users.join()
+
+    # Disable supplier 4
+    # Remove the agreements from the other suppliers that point to supplier 4
+    remove_some_supplier4_agmts("test_multiple_tasks_with_force", topology_m4)
 
     # Start supplier 3, it should be out of sync with the other replicas...
     topology_m4.ms["supplier3"].start()
 
-    # Disable supplier 4
-    # Remove the agreements from the other suppliers that point to supplier 4
-    remove_supplier4_agmts("test_multiple_tasks_with_force", topology_m4)
+    # Remove the agreement to replica 4
+    replica = Replicas(topology_m4.ms["supplier3"]).get(DEFAULT_SUFFIX)
+    replica.get_agreements().get("004").delete()
 
     # Run the task, use "force" because supplier 3 is not in sync with the other replicas
     # in regards to the replica 4 RUV
