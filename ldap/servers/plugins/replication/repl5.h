@@ -76,6 +76,10 @@
 #define ABORT_SESSION    1
 #define SESSION_ABORTED  2
 
+#define CLEANRUV "CLEANRUV"
+#define CLEANRUVLEN 8
+#define CLEANALLRUV "CLEANALLRUV"
+#define CLEANALLRUVLEN 11
 #define CLEANRUV_ACCEPTED  "accepted"
 #define CLEANRUV_REJECTED  "rejected"
 #define CLEANRUV_FINISHED  "finished"
@@ -833,28 +837,6 @@ typedef struct _csngen_test_data
 int replica_config_init(void);
 void replica_config_destroy(void);
 int get_replica_type(Replica *r);
-int replica_execute_cleanruv_task_ext(Replica *r, ReplicaId rid);
-void add_cleaned_rid(cleanruv_data *clean_data);
-int is_cleaned_rid(ReplicaId rid);
-int32_t check_and_set_cleanruv_task_count(ReplicaId rid);
-int32_t check_and_set_abort_cleanruv_task_count(void);
-int replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
-void replica_cleanallruv_thread_ext(void *arg);
-void stop_ruv_cleaning(void);
-int task_aborted(void);
-void replica_abort_task_thread(void *arg);
-void remove_cleaned_rid(ReplicaId rid);
-int process_repl_agmts(Replica *replica, int *agmt_info, char *oid, Slapi_Task *task, struct berval *payload, int op);
-int decode_cleanruv_payload(struct berval *extop_value, char **payload);
-struct berval *create_cleanruv_payload(char *value);
-void ruv_get_cleaned_rids(RUV *ruv, ReplicaId *rids);
-void add_aborted_rid(ReplicaId rid, Replica *r, char *repl_root, char *certify_all, PRBool original_task);
-int is_task_aborted(ReplicaId rid);
-void delete_aborted_rid(Replica *replica, ReplicaId rid, char *repl_root, char *certify_all, PRBool original_task, int skip);
-int is_pre_cleaned_rid(ReplicaId rid);
-void set_cleaned_rid(ReplicaId rid);
-void cleanruv_log(Slapi_Task *task, int rid, char *task_type, int sev_level, char *fmt, ...);
-char *replica_cleanallruv_get_local_maxcsn(ReplicaId rid, char *base_dn);
 
 /* replutil.c */
 LDAPControl *create_managedsait_control(void);
@@ -912,5 +894,32 @@ int repl_session_plugin_call_post_acquire_cb(const Repl_Agmt *ra, int is_total, 
 int repl_session_plugin_call_recv_acquire_cb(const char *repl_area, int is_total, const char *data_guid, const struct berval *data);
 int repl_session_plugin_call_reply_acquire_cb(const char *repl_area, int is_total, char **data_guid, struct berval **data);
 void repl_session_plugin_call_destroy_agmt_cb(const Repl_Agmt *ra);
+
+/* repl_cleanallruv.c */
+int32_t cleanallruv_init(void);
+int replica_execute_cleanruv_task_ext(Replica *r, ReplicaId rid);
+void add_cleaned_rid(cleanruv_data *clean_data);
+int is_cleaned_rid(ReplicaId rid);
+int32_t check_and_set_cleanruv_task_count(ReplicaId rid);
+int32_t check_and_set_abort_cleanruv_task_count(void);
+int replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
+void replica_cleanallruv_thread_ext(void *arg);
+void stop_ruv_cleaning(void);
+int task_aborted(void);
+void replica_abort_task_thread(void *arg);
+void remove_cleaned_rid(ReplicaId rid);
+int process_repl_agmts(Replica *replica, int *agmt_info, char *oid, Slapi_Task *task, struct berval *payload, int op);
+int decode_cleanruv_payload(struct berval *extop_value, char **payload);
+struct berval *create_cleanruv_payload(char *value);
+void ruv_get_cleaned_rids(RUV *ruv, ReplicaId *rids);
+void add_aborted_rid(ReplicaId rid, Replica *r, char *repl_root, char *certify_all, PRBool original_task);
+int is_task_aborted(ReplicaId rid);
+void delete_aborted_rid(Replica *replica, ReplicaId rid, char *repl_root, char *certify_all, PRBool original_task, int skip);
+int is_pre_cleaned_rid(ReplicaId rid);
+void set_cleaned_rid(ReplicaId rid);
+void cleanruv_log(Slapi_Task *task, int rid, char *task_type, int sev_level, char *fmt, ...);
+char *replica_cleanallruv_get_local_maxcsn(ReplicaId rid, char *base_dn);
+int replica_execute_cleanruv_task(Replica *r, ReplicaId rid, char *returntext);
+int replica_execute_cleanall_ruv_task(Replica *r, ReplicaId rid, Slapi_Task *task, const char *force_cleaning, PRBool original_task, char *returntext);
 
 #endif /* _REPL5_H_ */
