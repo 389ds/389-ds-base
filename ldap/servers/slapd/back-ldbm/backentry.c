@@ -29,7 +29,7 @@ backentry_free(struct backentry **bep)
         slapi_entry_free(ep->ep_entry);
     }
     if (ep->ep_mutexp != NULL) {
-        PR_DestroyMonitor(ep->ep_mutexp);
+        slapi_pthread_mutex_free(&ep->ep_mutexp);
     }
     slapi_ch_free((void **)&ep);
     *bep = NULL;

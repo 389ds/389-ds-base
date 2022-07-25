@@ -1652,7 +1652,7 @@ cache_lock_entry(struct cache *cache, struct backentry *e)
         /* make sure only one thread does this */
         PR_Lock(cache->c_emutexalloc_mutex);
         if (!e->ep_mutexp) {
-            e->ep_mutexp = PR_NewMonitor();
+            e->ep_mutexp = slapi_pthread_mutex_alloc(PTHREAD_MUTEX_RECURSIVE);
             if (!e->ep_mutexp) {
                 PR_Unlock(cache->c_emutexalloc_mutex);
                 LOG("<= cache_lock_entry (DELETED)\n");
@@ -1667,13 +1667,13 @@ cache_lock_entry(struct cache *cache, struct backentry *e)
     }
 
     /* wait on entry lock (done w/o holding the cache lock) */
-    PR_EnterMonitor(e->ep_mutexp);
+    pthread_mutex_lock(e->ep_mutexp);
 
     /* make sure entry hasn't been deleted now */
     cache_lock(cache);
     if (e->ep_state & (ENTRY_STATE_DELETED | ENTRY_STATE_NOTINCACHE | ENTRY_STATE_INVALID)) {
         cache_unlock(cache);
-        PR_ExitMonitor(e->ep_mutexp);
+        pthread_mutex_unlock(e->ep_mutexp);
         LOG("<= cache_lock_entry (DELETED)\n");
         return RETRY_CACHE_LOCK;
     }
@@ -1688,8 +1688,8 @@ void
 cache_unlock_entry(struct cache *cache __attribute__((unused)), struct backentry *e)
 {
     LOG("=> cache_unlock_entry\n");
-    if (PR_ExitMonitor(e->ep_mutexp)) {
-        LOG("=> cache_unlock_entry - monitor was not entered!!!\n");
+    if (pthread_mutex_unlock(e->ep_mutexp)) {
+        LOG("=> cache_unlock_entry - pthread mutex was not unlocked!!!\n");
     }
 }
 

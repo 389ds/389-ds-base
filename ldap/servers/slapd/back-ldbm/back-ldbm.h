@@ -337,7 +337,7 @@ struct backentry
     void *ep_dn_link;               /* linkage for the 3 hash */
     void *ep_id_link;               /*     tables used for */
     void *ep_uuid_link;             /*     looking up entries */
-    PRMonitor *ep_mutexp;           /* protection for mods; make it reentrant */
+    pthread_mutex_t *ep_mutexp __attribute__((__aligned__(64))); /* protection for mods; make it reentrant */
 };
 
 /* From ep_type through ep_create_time MUST be identical to backcommon */
