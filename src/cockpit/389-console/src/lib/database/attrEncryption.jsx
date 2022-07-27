@@ -64,21 +64,10 @@ export class AttrEncryption extends React.Component {
     }
 
     onSelect = (event, selection) => {
-        if (this.state.addAttr.includes(selection)) {
-            this.setState(
-                (prevState) => ({
-                    addAttr: prevState.addAttr.filter((item) => item !== selection),
-                    isSelectOpen: false
-                }),
-            );
-        } else {
-            this.setState(
-                prevState => ({
-                    addAttr: [...prevState.addAttr, selection],
-                    isSelectOpen: false
-                }),
-            );
-        }
+        this.setState({
+            addAttr: selection,
+            isSelectOpen: false
+        });
     }
 
     onSelectToggle = isSelectOpen => {

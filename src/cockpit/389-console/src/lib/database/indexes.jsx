@@ -23,8 +23,8 @@ import {
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
-const edit_attrs = ['mrs', 'editIndexTypeEq', 'editIndexTypeSub',
-    'editIndexTypePres', 'editIndexTypeApprox',
+const edit_attrs = ['mrs', 'indexTypeEq', 'indexTypeSub',
+    'indexTypePres', 'indexTypeApprox',
 ];
 
 export class SuffixIndexes extends React.Component {
@@ -37,7 +37,6 @@ export class SuffixIndexes extends React.Component {
             activeTabKey: 0,
             modalChecked: false,
             modalSpinning: false,
-            editIndexName: "",
             types: "",
             attributes: [],
             matchingRules: [],
@@ -50,11 +49,11 @@ export class SuffixIndexes extends React.Component {
             saving: false,
             saveBtnDisabled: true,
             // Add indexes
-            addIndexName: [],
-            addIndexTypeEq: false,
-            addIndexTypePres: false,
-            addIndexTypeSub: false,
-            addIndexTypeApprox: false,
+            indexName: [],
+            indexTypeEq: false,
+            indexTypePres: false,
+            indexTypeSub: false,
+            indexTypeApprox: false,
             reindexOnAdd: false,
 
             // Edit indexes
@@ -63,8 +62,7 @@ export class SuffixIndexes extends React.Component {
 
             // Select Typeahead
             isAttributeOpen: false,
-            isMatchingruleAddOpen: false,
-            isMatchingruleEditOpen: false
+            isMatchingruleOpen: false,
         };
 
         // Toggle currently active tab
@@ -76,19 +74,19 @@ export class SuffixIndexes extends React.Component {
 
         // Select Attribute
         this.onAttributeSelect = (event, selection) => {
-            if (this.state.addIndexName.includes(selection)) {
+            if (this.state.indexName.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        addIndexName: prevState.addIndexName.filter((item) => item !== selection),
+                        indexName: prevState.indexName.filter((item) => item !== selection),
                         isAttributeOpen: false
-                    }),
+                    }), () => { this.validateSaveBtn() }
                 );
             } else {
                 this.setState(
                     (prevState) => ({
-                        addIndexName: [...prevState.addIndexName, selection],
+                        indexName: [...prevState.indexName, selection],
                         isAttributeOpen: false
-                    }),
+                    }), () => { this.validateSaveBtn() }
                 );
             }
         };
@@ -99,86 +97,32 @@ export class SuffixIndexes extends React.Component {
         };
         this.onAttributeClear = () => {
             this.setState({
-                addIndexName: [],
+                indexName: [],
                 isAttributeOpen: false
             });
         };
 
-        // Add Matching Rule
-        this.onMatchingruleAddSelect = (event, selection) => {
-            let saveBtnDisabled = true;
-            const new_mrs = this.state.mrs;
-            if (new_mrs.includes(selection)) {
-                const index = new_mrs.indexOf(selection);
-                new_mrs.splice(index, 1);
-                if (JSON.stringify(this.state._mrs) != JSON.stringify(new_mrs)) {
-                    saveBtnDisabled = false;
-                }
-                // We must have at least one index type set
-                if ((!this.state.addIndexTypeEq && !this.state.addIndexTypeSub &&
-                     !this.state.addIndexTypePres && !this.state.addIndexTypeApprox) ||
-                    this.state.addIndexName == "") {
-                    // Must always have one index type
-                    saveBtnDisabled = true;
-                }
-                this.setState({
-                    mrs: new_mrs,
-                    isMatchingruleAddOpen: false,
-                    saveBtnDisabled: saveBtnDisabled
-                });
-            } else {
-                new_mrs.push(selection);
-                if (JSON.stringify(this.state._mrs) != JSON.stringify(new_mrs)) {
-                    saveBtnDisabled = false;
-                }
-                this.setState(
-                    (prevState) => ({
-                        mrs: new_mrs,
-                        isMatchingruleAddOpen: false,
-                        saveBtnDisabled: saveBtnDisabled
-                    }),
-                );
-            }
-        };
-        this.onMatchingruleAddToggle = isMatchingruleAddOpen => {
+        this.onMatchingruleAddToggle = isMatchingruleOpen => {
             this.setState({
-                isMatchingruleAddOpen
+                isMatchingruleOpen
             });
         };
         this.onMatchingruleAddClear = () => {
             this.setState({
                 mrs: [],
-                isMatchingruleAddOpen: false
+                isMatchingruleOpen: false
             });
         };
 
-        // Edit Matching Rules
-        this.onMatchingruleEditSelect = (event, selection) => {
-            if (this.state.mrs.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        mrs: prevState.mrs.filter((item) => item !== selection),
-                        isMatchingruleEditOpen: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        mrs: [...prevState.mrs, selection],
-                        isMatchingruleEditOpen: false
-                    })
-                );
-            }
-        };
-        this.onMatchingruleEditToggle = isMatchingruleEditOpen => {
+        this.onMatchingruleEditToggle = isMatchingruleOpen => {
             this.setState({
-                isMatchingruleEditOpen
+                isMatchingruleOpen
             });
         };
         this.onMatchingruleEditClear = () => {
             this.setState({
                 mrs: [],
-                isMatchingruleEditOpen: false
+                isMatchingruleOpen: false
             });
         };
 
@@ -186,9 +130,6 @@ export class SuffixIndexes extends React.Component {
         this.showIndexModal = this.showIndexModal.bind(this);
         this.closeIndexModal = this.closeIndexModal.bind(this);
         this.handleChange = this.handleChange.bind(this);
-        this.handleAddChange = this.handleAddChange.bind(this);
-        this.handleEditChange = this.handleEditChange.bind(this);
-        this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
         this.onSelectToggle = this.onSelectToggle.bind(this);
         this.onSelectClear = this.onSelectClear.bind(this);
         this.saveIndex = this.saveIndex.bind(this);
@@ -201,6 +142,8 @@ export class SuffixIndexes extends React.Component {
         this.closeConfirmReindex = this.closeConfirmReindex.bind(this);
         this.showConfirmDeleteIndex = this.showConfirmDeleteIndex.bind(this);
         this.closeConfirmDeleteIndex = this.closeConfirmDeleteIndex.bind(this);
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
+        this.onMatchingruleSelect = this.onMatchingruleSelect.bind(this);
     }
 
     componentDidMount () {
@@ -290,11 +233,11 @@ export class SuffixIndexes extends React.Component {
             showIndexModal: true,
             errObj: {},
             mrs: [],
-            addIndexName: [],
-            addIndexTypeEq: false,
-            addIndexTypeSub: false,
-            addIndexTypePres: false,
-            addIndexTypeApprox: false,
+            indexName: [],
+            indexTypeEq: false,
+            indexTypeSub: false,
+            indexTypePres: false,
+            indexTypeApprox: false,
             reindexOnAdd: false,
             modalChecked: false,
             modalSpinning: false,
@@ -306,11 +249,45 @@ export class SuffixIndexes extends React.Component {
         this.setState({
             showIndexModal: false
         });
-        if (this.state.isMatchingruleAddOpen) {
+        if (this.state.isMatchingruleOpen) {
             this.setState({
-                isMatchingruleAddOpen: false
+                isMatchingruleOpen: false
             });
         }
+    }
+
+    validateSaveBtn() {
+        let saveBtnDisabled = true;
+        const check_attrs = [
+            "indexTypeEq",
+            "indexTypeSub",
+            "indexTypePres",
+            "indexTypeApprox",
+        ];
+
+        // Check if a setting was changed, if so enable the save button
+        for (const config_attr of check_attrs) {
+            if (this.state[config_attr] != this.state['_' + config_attr]) {
+                saveBtnDisabled = false;
+                break;
+            }
+        }
+
+        if (JSON.stringify(this.state._mrs) != JSON.stringify(this.state.mrs)) {
+            saveBtnDisabled = false;
+        }
+
+        // We must have at least one index type set
+        if (!this.state.indexTypeEq && !this.state.indexTypeSub &&
+            !this.state.indexTypePres && !this.state.indexTypeApprox ||
+            (this.state.indexName.length === 0 || this.state.indexName[0] === "")) {
+            // Must always have one index type
+            saveBtnDisabled = true;
+        }
+
+        this.setState({
+            saveBtnDisabled: saveBtnDisabled,
+        });
     }
 
     handleChange(e) {
@@ -318,118 +295,45 @@ export class SuffixIndexes extends React.Component {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value,
-        });
+        }, () => { this.validateSaveBtn() });
     }
 
-    handleAddChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        let saveBtnDisabled = true;
-        const attr = e.target.id;
-
-        // We must have at least one index type set
-        const index_types = ['addIndexTypeEq', 'addIndexTypeSub',
-            'addIndexTypePres', 'addIndexTypeApprox'];
-        for (const index_type of index_types) {
-            if (attr != index_type && this.state[index_type]) {
-                saveBtnDisabled = false;
-            }
-        }
-        if (index_types.includes(attr) && value) {
-            saveBtnDisabled = false;
-        }
-        // Finally we must have an attribute choosen or else we deny access to Save
-        if (attr != 'addIndexName') {
-            if (this.state.addIndexName == "") {
-                saveBtnDisabled = true;
-            }
+    // Edit Matching Rules
+    onMatchingruleSelect(event, selection) {
+        const new_mrs = [...this.state.mrs];
+        if (new_mrs.includes(selection)) {
+            const index = new_mrs.indexOf(selection);
+            new_mrs.splice(index, 1);
+            this.setState({
+                mrs: new_mrs,
+                isMatchingruleOpen: false,
+            }, () => { this.validateSaveBtn() });
         } else {
-            if (value == "") {
-                saveBtnDisabled = true;
-            }
+            new_mrs.push(selection);
+            this.setState({
+                mrs: new_mrs,
+                isMatchingruleOpen: false,
+            }, () => { this.validateSaveBtn() });
         }
-
-        this.setState({
-            [attr]: value,
-            saveBtnDisabled: saveBtnDisabled
-        });
-    }
-
-    handleEditChange(e) {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        const attr = e.target.id;
-        let saveBtnDisabled = true;
-
-        // Check if a setting was changed, if so enable the save button
-        for (const edit_attr of edit_attrs) {
-            if (attr == edit_attr && this.state['_' + edit_attr] != value) {
-                saveBtnDisabled = false;
-                break;
-            }
-        }
-        // Now check for differences in values that we did not touch
-        for (const edit_attr of edit_attrs) {
-            if (attr != edit_attr && this.state['_' + edit_attr] != this.state[edit_attr]) {
-                saveBtnDisabled = false;
-                break;
-            }
-        }
-
-        if (JSON.stringify(this.state.mrs) != JSON.stringify(this.state._mrs)) {
-            saveBtnDisabled = false;
-        }
-
-        // We must have at least one index type set
-        const index_types = ['editIndexTypeEq', 'editIndexTypeSub',
-            'editIndexTypePres', 'editIndexTypeApprox'];
-        if (index_types.includes(attr)) {
-            const index = index_types.indexOf(attr);
-            index_types.splice(index, 1);
-            let type_set = false;
-            // Check the old values
-            for (const index_type of index_types) {
-                if (this.state[index_type]) {
-                    type_set = true;
-                    break;
-                }
-            }
-            // Check the new current value
-            if (attr) {
-                type_set = true;
-            }
-            if (!type_set) {
-                saveBtnDisabled = true;
-            }
-        } else {
-            if (!this.state.editIndexTypeEq && !this.state.editIndexTypeSub &&
-                !this.state.editIndexTypePres && !this.state.editIndexTypeApprox) {
-                // Must always have one index type
-                saveBtnDisabled = true;
-            }
-        }
-
-        this.setState({
-            [attr]: value,
-            saveBtnDisabled: saveBtnDisabled,
-        });
-    }
+    };
 
     saveIndex() {
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "index", "add", "--attr=" + this.state.addIndexName[0],
+            "backend", "index", "add", "--attr=" + this.state.indexName[0],
             this.props.suffix,
         ];
 
-        if (this.state.addIndexTypeEq) {
+        if (this.state.indexTypeEq) {
             cmd.push('--index-type=eq');
         }
-        if (this.state.addIndexTypePres) {
+        if (this.state.indexTypePres) {
             cmd.push('--index-type=pres');
         }
-        if (this.state.addIndexTypeSub) {
+        if (this.state.indexTypeSub) {
             cmd.push('--index-type=sub');
         }
-        if (this.state.addIndexTypeApprox) {
+        if (this.state.indexTypeApprox) {
             cmd.push('--index-type=approx');
         }
         for (let i = 0; i < this.state.mrs.length; i++) {
@@ -451,7 +355,7 @@ export class SuffixIndexes extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.closeIndexModal();
                     if (this.state.reindexOnAdd) {
-                        this.reindexAttr(this.state.addIndexName[0]);
+                        this.reindexAttr(this.state.indexName[0]);
                     }
                     this.props.addNotification(
                         "success",
@@ -490,21 +394,21 @@ export class SuffixIndexes extends React.Component {
         }
 
         this.setState({
-            editIndexName: item[0],
+            indexName: [item[0]],
             types: item[1],
             mrs: currentMRS,
             _mrs: currentMRS,
             showEditIndexModal: true,
             errObj: {},
             reindexOnAdd: false,
-            editIndexTypeEq: item[1].includes("eq"),
-            editIndexTypeSub: item[1].includes("sub"),
-            editIndexTypePres: item[1].includes("pres"),
-            editIndexTypeApprox: item[1].includes("approx"),
-            _editIndexTypeEq: item[1].includes("eq"),
-            _editIndexTypeSub: item[1].includes("sub"),
-            _editIndexTypePres: item[1].includes("pres"),
-            _editIndexTypeApprox: item[1].includes("approx"),
+            indexTypeEq: item[1].includes("eq"),
+            indexTypeSub: item[1].includes("sub"),
+            indexTypePres: item[1].includes("pres"),
+            indexTypeApprox: item[1].includes("approx"),
+            _indexTypeEq: item[1].includes("eq"),
+            _indexTypeSub: item[1].includes("sub"),
+            _indexTypePres: item[1].includes("pres"),
+            _indexTypeApprox: item[1].includes("approx"),
             modalChecked: false,
             modalSpinning: false,
             saveBtnDisabled: true,
@@ -515,28 +419,10 @@ export class SuffixIndexes extends React.Component {
         this.setState({
             showEditIndexModal: false
         });
-        if (this.state.isMatchingruleEditOpen) {
+        if (this.state.isMatchingruleOpen) {
             this.setState({
-                isMatchingruleEditOpen: false
+                isMatchingruleOpen: false
             });
-        }
-    }
-
-    handleTypeaheadChange = item => (event, values) => {
-        switch (item) {
-        case "addIndexAttributes":
-            this.setState({
-                addIndexName: [...this.state.addIndexName, values]
-            });
-            break;
-        case "addMatchingRules":
-        case "matchingRulesEdit":
-            this.setState({
-                mrs: [...this.state.mrs, values]
-            });
-            break;
-        default:
-            break;
         }
     }
 
@@ -582,7 +468,7 @@ export class SuffixIndexes extends React.Component {
         const newMRS = this.state.mrs;
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "index", "set", "--attr=" + this.state.editIndexName,
+            "backend", "index", "set", "--attr=" + this.state.indexName,
             this.props.suffix,
         ];
 
@@ -604,7 +490,6 @@ export class SuffixIndexes extends React.Component {
             let found = false;
             for (const newMR of newMRS) {
                 if (newMR == origMR) {
-                    console.log("Found mr no need to delete");
                     found = true;
                     break;
                 }
@@ -615,24 +500,24 @@ export class SuffixIndexes extends React.Component {
         }
 
         // Check if we have to add/delete index types
-        if (this.state.editIndexTypeEq && !this.state._editIndexTypeEq) {
+        if (this.state.indexTypeEq && !this.state._indexTypeEq) {
             cmd.push('--add-type=eq');
-        } else if (!this.state.editIndexTypeEq && this.state._editIndexTypeEq) {
+        } else if (!this.state.indexTypeEq && this.state._indexTypeEq) {
             cmd.push('--del-type=eq');
         }
-        if (this.state.editIndexTypeSub && !this.state._editIndexTypeSub) {
+        if (this.state.indexTypeSub && !this.state._indexTypeSub) {
             cmd.push('--add-type=sub');
-        } else if (!this.state.editIndexTypeSub && this.state._editIndexTypeSub) {
+        } else if (!this.state.indexTypeSub && this.state._indexTypeSub) {
             cmd.push('--del-type=sub');
         }
-        if (this.state.editIndexTypePres && !this.state._editIndexTypePres) {
+        if (this.state.indexTypePres && !this.state._indexTypePres) {
             cmd.push('--add-type=pres');
-        } else if (!this.state.editIndexTypePres && this.state._editIndexTypePres) {
+        } else if (!this.state.indexTypePres && this.state._indexTypePres) {
             cmd.push('--del-type=pres');
         }
-        if (this.state.editIndexTypeApprox && !this.state._editIndexTypeApprox) {
+        if (this.state.indexTypeApprox && !this.state._indexTypeApprox) {
             cmd.push('--add-type=approx');
-        } else if (!this.state.editIndexTypeApprox && this.state._editIndexTypeApprox) {
+        } else if (!this.state.indexTypeApprox && this.state._indexTypeApprox) {
             cmd.push('--del-type=approx');
         }
 
@@ -652,7 +537,7 @@ export class SuffixIndexes extends React.Component {
                             `Successfully edited index`
                         );
                         if (this.state.reindexOnAdd) {
-                            this.reindexAttr(this.state.editIndexName);
+                            this.reindexAttr(this.state.indexName);
                         } else {
                             this.setState({
                                 saving: false,
@@ -754,7 +639,7 @@ export class SuffixIndexes extends React.Component {
         switch (item) {
         case "addIndexAttributes":
             this.setState({
-                addIndexName: [],
+                indexName: [],
                 isAddIndexSelectOpen: false
             });
             break;
@@ -810,47 +695,46 @@ export class SuffixIndexes extends React.Component {
                 <AddIndexModal
                     showModal={this.state.showIndexModal}
                     closeHandler={this.closeIndexModal}
-                    handleChange={this.handleAddChange}
+                    handleChange={this.handleChange}
                     saveHandler={this.saveIndex}
                     matchingRules={this.state.matchingRules}
                     attributes={this.state.attributes}
                     mrs={this.state.mrs}
-                    attributeName={this.state.addIndexName}
-                    addIndexTypeEq={this.state.addIndexTypeEq}
-                    addIndexTypePres={this.state.addIndexTypePres}
-                    addIndexTypeSub={this.state.addIndexTypeSub}
-                    addIndexTypeApprox={this.state.addIndexTypeApprox}
+                    attributeName={this.state.indexName}
+                    indexTypeEq={this.state.indexTypeEq}
+                    indexTypePres={this.state.indexTypePres}
+                    indexTypeSub={this.state.indexTypeSub}
+                    indexTypeApprox={this.state.indexTypeApprox}
                     reindexOnAdd={this.state.reindexOnAdd}
                     onAttributeSelect={this.onAttributeSelect}
                     onAttributeToggle={this.onAttributeToggle}
                     onAttributeClear={this.onAttributeClear}
                     isAttributeOpen={this.state.isAttributeOpen}
-                    onMatchingruleAddSelect={this.onMatchingruleAddSelect}
+                    onMatchingruleSelect={this.onMatchingruleSelect}
                     onMatchingruleAddToggle={this.onMatchingruleAddToggle}
                     onMatchingruleAddClear={this.onMatchingruleAddClear}
-                    isMatchingruleAddOpen={this.state.isMatchingruleAddOpen}
+                    isMatchingruleOpen={this.state.isMatchingruleOpen}
                     saving={this.state.saving}
                     saveBtnDisabled={this.state.saveBtnDisabled}
                 />
                 <EditIndexModal
                     showModal={this.state.showEditIndexModal}
                     closeHandler={this.closeEditIndexModal}
-                    handleChange={this.handleEditChange}
+                    handleChange={this.handleChange}
                     saveHandler={this.saveEditIndex}
                     types={this.state.types}
                     mrs={this.state.mrs}
                     matchingRules={this.state.matchingRules}
-                    indexName={this.state.editIndexName}
-                    handleTypeaheadChange={this.handleTypeaheadChange}
-                    editIndexTypeEq={this.state.editIndexTypeEq}
-                    editIndexTypePres={this.state.editIndexTypePres}
-                    editIndexTypeSub={this.state.editIndexTypeSub}
-                    editIndexTypeApprox={this.state.editIndexTypeApprox}
+                    indexName={this.state.indexName}
+                    indexTypeEq={this.state.indexTypeEq}
+                    indexTypePres={this.state.indexTypePres}
+                    indexTypeSub={this.state.indexTypeSub}
+                    indexTypeApprox={this.state.indexTypeApprox}
                     reindexOnAdd={this.state.reindexOnAdd}
-                    onMatchingruleEditSelect={this.onMatchingruleEditSelect}
+                    onMatchingruleSelect={this.onMatchingruleSelect}
                     onMatchingruleEditToggle={this.onMatchingruleEditToggle}
                     onMatchingruleEditClear={this.onMatchingruleEditClear}
-                    isMatchingruleEditOpen={this.state.isMatchingruleEditOpen}
+                    isMatchingruleOpen={this.state.isMatchingruleOpen}
                     saving={this.state.saving}
                     saveBtnDisabled={this.state.saveBtnDisabled}
                 />
@@ -902,8 +786,8 @@ class AddIndexModal extends React.Component {
             isAttributeOpen,
             onMatchingruleAddToggle,
             onMatchingruleAddClear,
-            onMatchingruleAddSelect,
-            isMatchingruleAddOpen,
+            onMatchingruleSelect,
+            isMatchingruleOpen,
             saving,
             saveBtnDisabled
         } = this.props;
@@ -964,7 +848,7 @@ class AddIndexModal extends React.Component {
                         aria-labelledby="typeAhead-attr-add"
                         placeholderText="Type a attribute name to index.."
                         noResultsFoundText="There are no matching entries"
-                        validated={attributeName == "" ? "error" : "default"}
+                        validated={attributeName.length === 0 || attributeName[0] === "" ? "error" : "default"}
                     >
                         {availAttrs.map((attr, index) => (
                             <SelectOption
@@ -982,8 +866,8 @@ class AddIndexModal extends React.Component {
                         <Grid>
                             <GridItem>
                                 <Checkbox
-                                    id="addIndexTypeEq"
-                                    isChecked={this.props.addIndexTypeEq}
+                                    id="indexTypeEq"
+                                    isChecked={this.props.indexTypeEq}
                                     onChange={(checked, e) => {
                                         handleChange(e);
                                     }}
@@ -994,8 +878,8 @@ class AddIndexModal extends React.Component {
                         <Grid className="ds-margin-top">
                             <GridItem>
                                 <Checkbox
-                                    id="addIndexTypePres"
-                                    isChecked={this.props.addIndexTypePres}
+                                    id="indexTypePres"
+                                    isChecked={this.props.indexTypePres}
                                     onChange={(checked, e) => {
                                         handleChange(e);
                                     }}
@@ -1006,8 +890,8 @@ class AddIndexModal extends React.Component {
                         <Grid className="ds-margin-top">
                             <GridItem>
                                 <Checkbox
-                                    id="addIndexTypeSub"
-                                    isChecked={this.props.addIndexTypeSub}
+                                    id="indexTypeSub"
+                                    isChecked={this.props.indexTypeSub}
                                     onChange={(checked, e) => {
                                         handleChange(e);
                                     }}
@@ -1018,8 +902,8 @@ class AddIndexModal extends React.Component {
                         <Grid className="ds-margin-top">
                             <GridItem>
                                 <Checkbox
-                                    id="addIndexTypeApprox"
-                                    isChecked={this.props.addIndexTypeApprox}
+                                    id="indexTypeApprox"
+                                    isChecked={this.props.indexTypeApprox}
                                     onChange={(checked, e) => {
                                         handleChange(e);
                                     }}
@@ -1041,10 +925,10 @@ class AddIndexModal extends React.Component {
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a matching rule name"
                                     onToggle={onMatchingruleAddToggle}
-                                    onSelect={onMatchingruleAddSelect}
+                                    onSelect={onMatchingruleSelect}
                                     onClear={onMatchingruleAddClear}
                                     selections={mrs}
-                                    isOpen={isMatchingruleAddOpen}
+                                    isOpen={isMatchingruleOpen}
                                     aria-labelledby="typeAhead-mr-add"
                                     placeholderText="Type a matching rule name..."
                                     noResultsFoundText="There are no matching entries"
@@ -1098,8 +982,8 @@ class EditIndexModal extends React.Component {
             matchingRules,
             onMatchingruleEditToggle,
             onMatchingruleEditClear,
-            onMatchingruleEditSelect,
-            isMatchingruleEditOpen,
+            onMatchingruleSelect,
+            isMatchingruleOpen,
             saving,
             saveBtnDisabled
         } = this.props;
@@ -1122,8 +1006,8 @@ class EditIndexModal extends React.Component {
         // Default settings
         let eq = <div>
             <Checkbox
-                id="editIndexTypeEq"
-                isChecked={this.props.editIndexTypeEq}
+                id="indexTypeEq"
+                isChecked={this.props.indexTypeEq}
                 onChange={(checked, e) => {
                     handleChange(e);
                 }}
@@ -1132,8 +1016,8 @@ class EditIndexModal extends React.Component {
         </div>;
         let pres = <div>
             <Checkbox
-                id="editIndexTypePres"
-                isChecked={this.props.editIndexTypePres}
+                id="indexTypePres"
+                isChecked={this.props.indexTypePres}
                 onChange={(checked, e) => {
                     handleChange(e);
                 }}
@@ -1142,8 +1026,8 @@ class EditIndexModal extends React.Component {
         </div>;
         let sub = <div>
             <Checkbox
-                id="editIndexTypeSub"
-                isChecked={this.props.editIndexTypeSub}
+                id="indexTypeSub"
+                isChecked={this.props.indexTypeSub}
                 onChange={(checked, e) => {
                     handleChange(e);
                 }}
@@ -1152,8 +1036,8 @@ class EditIndexModal extends React.Component {
         </div>;
         let approx = <div>
             <Checkbox
-                id="editIndexTypeApprox"
-                isChecked={this.props.editIndexTypeApprox}
+                id="indexTypeApprox"
+                isChecked={this.props.indexTypeApprox}
                 onChange={(checked, e) => {
                     handleChange(e);
                 }}
@@ -1164,8 +1048,8 @@ class EditIndexModal extends React.Component {
         if (attrTypes.includes('eq')) {
             eq = <div>
                 <Checkbox
-                    id="editIndexTypeEq"
-                    isChecked={this.props.editIndexTypeEq}
+                    id="indexTypeEq"
+                    isChecked={this.props.indexTypeEq}
                     onChange={(checked, e) => {
                         handleChange(e);
                     }}
@@ -1176,8 +1060,8 @@ class EditIndexModal extends React.Component {
         if (attrTypes.includes('pres')) {
             pres = <div>
                 <Checkbox
-                    id="editIndexTypePres"
-                    isChecked={this.props.editIndexTypePres}
+                    id="indexTypePres"
+                    isChecked={this.props.indexTypePres}
                     onChange={(checked, e) => {
                         handleChange(e);
                     }}
@@ -1188,8 +1072,8 @@ class EditIndexModal extends React.Component {
         if (attrTypes.includes('sub')) {
             sub = <div>
                 <Checkbox
-                    id="editIndexTypeSub"
-                    isChecked={this.props.editIndexTypeSub}
+                    id="indexTypeSub"
+                    isChecked={this.props.indexTypeSub}
                     onChange={(checked, e) => {
                         handleChange(e);
                     }}
@@ -1200,8 +1084,8 @@ class EditIndexModal extends React.Component {
         if (attrTypes.includes('approx')) {
             approx = <div>
                 <Checkbox
-                    id="editIndexTypeApprox"
-                    isChecked={this.props.editIndexTypeApprox}
+                    id="indexTypeApprox"
+                    isChecked={this.props.indexTypeApprox}
                     onChange={(checked, e) => {
                         handleChange(e);
                     }}
@@ -1210,7 +1094,7 @@ class EditIndexModal extends React.Component {
             </div>;
         }
 
-        const title = <div>Edit Database Index (<b>{indexName}</b>)</div>;
+        const title = <div>Edit Database Index (<b>{indexName[0]}</b>)</div>;
 
         return (
             <Modal
@@ -1276,10 +1160,10 @@ class EditIndexModal extends React.Component {
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a matching rule name"
                                     onToggle={onMatchingruleEditToggle}
-                                    onSelect={onMatchingruleEditSelect}
+                                    onSelect={onMatchingruleSelect}
                                     onClear={onMatchingruleEditClear}
                                     selections={currentMrs}
-                                    isOpen={isMatchingruleEditOpen}
+                                    isOpen={isMatchingruleOpen}
                                     aria-labelledby="typeAhead-mr-edit"
                                     placeholderText="Type a matching rule name..."
                                     noResultsFoundText="There are no matching entries"
@@ -1340,10 +1224,10 @@ AddIndexModal.propTypes = {
     attributes: PropTypes.array,
     mrs: PropTypes.array,
     attributeName: PropTypes.array,
-    addIndexTypeEq:  PropTypes.bool,
-    addIndexTypePres:  PropTypes.bool,
-    addIndexTypeSub:  PropTypes.bool,
-    addIndexTypeApprox:  PropTypes.bool,
+    indexTypeEq:  PropTypes.bool,
+    indexTypePres:  PropTypes.bool,
+    indexTypeSub:  PropTypes.bool,
+    indexTypeApprox:  PropTypes.bool,
     reindexOnAdd:  PropTypes.bool,
 };
 
@@ -1353,10 +1237,10 @@ AddIndexModal.defaultProps = {
     attributes: [],
     mrs: [],
     attributeName: [],
-    addIndexTypeEq:  false,
-    addIndexTypePres:  false,
-    addIndexTypeSub:  false,
-    addIndexTypeApprox:  false,
+    indexTypeEq:  false,
+    indexTypePres:  false,
+    indexTypeSub:  false,
+    indexTypeApprox:  false,
     reindexOnAdd:  false,
 };
 
@@ -1368,11 +1252,11 @@ EditIndexModal.propTypes = {
     matchingRules: PropTypes.array,
     types: PropTypes.string,
     mrs: PropTypes.array,
-    indexName: PropTypes.string,
-    editIndexTypeEq:  PropTypes.bool,
-    editIndexTypePres:  PropTypes.bool,
-    editIndexTypeSub:  PropTypes.bool,
-    editIndexTypeApprox:  PropTypes.bool,
+    indexName: PropTypes.array,
+    indexTypeEq:  PropTypes.bool,
+    indexTypePres:  PropTypes.bool,
+    indexTypeSub:  PropTypes.bool,
+    indexTypeApprox:  PropTypes.bool,
     reindexOnAdd:  PropTypes.bool,
 };
 
@@ -1381,10 +1265,10 @@ EditIndexModal.defaultProps = {
     matchingRules: [],
     types: "",
     mrs: [],
-    indexName: "",
-    editIndexTypeEq:  false,
-    editIndexTypePres:  false,
-    editIndexTypeSub:  false,
-    editIndexTypeApprox:  false,
+    indexName: [],
+    indexTypeEq:  false,
+    indexTypePres:  false,
+    indexTypeSub:  false,
+    indexTypeApprox:  false,
     reindexOnAdd:  false,
 };

@@ -1203,7 +1203,7 @@ export class Database extends React.Component {
                         db_element =
                             <div className="ds-margin-top-xlg ds-loading-spinner ds-center">
                                 <TextContent>
-                                    <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+                                    <Text className="ds-margin-top-xlg" component={TextVariants.h3}>
                                         Loading suffix configuration for <b>{this.state.node_text} ...</b>
                                     </Text>
                                 </TextContent>
@@ -1287,7 +1287,7 @@ export class Database extends React.Component {
             body =
                 <div className="ds-center">
                     <TextContent>
-                        <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+                        <Text className="ds-margin-top-xlg" component={TextVariants.h3}>
                             Loading Database Configuration ...
                         </Text>
                     </TextContent>

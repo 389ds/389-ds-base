@@ -286,9 +286,6 @@ export class DSInstance extends React.Component {
                                     {
                                         serverId: serverId,
                                         wasActiveList: []
-                                    },
-                                    () => {
-                                        this.loadBackups();
                                     }
                                 );
                             }
@@ -483,7 +480,11 @@ export class DSInstance extends React.Component {
                     } else if (!status_json.running && action === "stop") {
                         this.addNotification("success", `Instance is already stopped`);
                         this.setState({
-                            loadingOperate: false
+                            loadingOperate: false,
+                            pageLoadingState: {
+                                state: "notRunning",
+                                jsx: staticStates.notRunning
+                            }
                         });
                     } else {
                         const cmd = ["dsctl", "-j", this.state.serverId, action];
@@ -708,7 +709,7 @@ export class DSInstance extends React.Component {
         if (serverId !== "" && (pageLoadingState.state === "success" || pageLoadingState.state === "loading")) {
             mainPage =
                 <div className="ds-margin-top">
-                    <div hidden={pageLoadingState.state === "loading"}>
+                    <div hidden={pageLoadingState.state === "loading" || pageLoadingState.state === "notRunning"}>
                         <Tabs isFilled activeKey={activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={1} title={<TabTitleText><b>Server</b></TabTitleText>}>
                                 <Server

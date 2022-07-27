@@ -124,13 +124,13 @@ export class ServerMonitor extends React.Component {
         let cpu_tick_values = this.state.cpu_tick_values;
         let conn_tick_values = this.state.conn_tick_values;
 
-        log_cmd("refreshCharts", "Get server pid", [cmd]);
+        // log_cmd("refreshCharts", "Get server pid", [cmd]);
         cockpit
                 .script(cmd, [], { superuser: true, err: "message" })
                 .done(output => {
                     pid = output.split(/\s+/)[1];
                     const cpu_cmd = "top -n 1 -b -p " + pid + " | tail -1";
-                    log_cmd("refreshCharts", "Get cpu and memory stats", [cpu_cmd]);
+                    // log_cmd("refreshCharts", "Get cpu and memory stats", [cpu_cmd]);
                     cockpit
                             .script(cpu_cmd, [], { superuser: true, err: "message" })
                             .done(top_output => {
@@ -139,14 +139,14 @@ export class ServerMonitor extends React.Component {
                                 res_mem = top_parts[5];
                                 cpu = parseInt(top_parts[8]);
                                 const mem_cmd = "awk '/MemTotal/{print $2}' /proc/meminfo";
-                                log_cmd("refreshCharts", "Get total memory", [mem_cmd]);
+                                // log_cmd("refreshCharts", "Get total memory", [mem_cmd]);
                                 cockpit
                                         .script(mem_cmd, [], { superuser: true, err: "message" })
                                         .done(mem_output => {
                                             max_mem = parseInt(mem_output);
                                             const conn_cmd = "netstat -anp | grep ':" + this.state.port + "\\|:" + this.state.secure_port +
                                                 "' | grep ESTABLISHED | grep ns-slapd | wc -l";
-                                            log_cmd("refreshCharts", "Get current count", [conn_cmd]);
+                                            // log_cmd("refreshCharts", "Get current count", [conn_cmd]);
                                             cockpit
                                                     .script(conn_cmd, [], { superuser: true, err: "message" })
                                                     .done(conn_output => {

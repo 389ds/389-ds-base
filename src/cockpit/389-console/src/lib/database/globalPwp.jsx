@@ -620,7 +620,7 @@ export class GlobalPwPolicy extends React.Component {
                     let pwUnlock = false;
                     let pwCheckSyntax = false;
                     let pwPalindrome = false;
-                    const pwDictCheck = false;
+                    let pwDictCheck = false;
                     let pwAllowHashed = false;
                     let pwInheritGlobal = false;
                     let pwUserAttrs = [];
@@ -662,7 +662,7 @@ export class GlobalPwPolicy extends React.Component {
                         pwPalindrome = true;
                     }
                     if (attrs.passworddictcheck[0] == "on") {
-                        pwExpire = true;
+                        pwDictCheck = true;
                     }
                     if (attrs['nsslapd-allow-hashed-passwords'][0] == "on") {
                         pwAllowHashed = true;
