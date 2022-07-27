@@ -175,7 +175,6 @@ class EditorTreeView extends React.Component {
     showTreeLoadingState = (isTreeLoading) => {
         this.setState({
             isTreeLoading,
-            searching: isTreeLoading ? true : false
         });
     }
 
@@ -439,8 +438,7 @@ class EditorTreeView extends React.Component {
                     // Update the refresh time.
                     this.setState({
                         latestEntryRefreshTime: Date.now(),
-                    });
-                    this.showEntryLoading(false);
+                    }, () => { this.showEntryLoading(false) });
                 });
             });
     };
@@ -672,7 +670,7 @@ class EditorTreeView extends React.Component {
                                     refreshButtonTriggerTime={refreshButtonTriggerTime}
                                     handleEntryRefresh={this.refreshEntry}
                                     addNotification={this.props.addNotification}
-                                    isDisabled={isTreeLoading}
+                                    isDisabled={isTreeLoading || searching}
                                 />
                             }
                         </GridItem>

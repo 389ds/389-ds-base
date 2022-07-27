@@ -156,7 +156,7 @@ class EditLdapEntry extends React.Component {
             let allOCs = [];
             const val = value.toLowerCase();
 
-            // Get fresh list of Objectclasses andwhat is selected
+            // Get fresh list of Objectclasses and what is selected
             this.props.allObjectclasses.map(oc => {
                 let selected = false;
                 let selectionDisabled = false;
@@ -202,6 +202,34 @@ class EditLdapEntry extends React.Component {
                 pagedRowsOc: ocRows.slice(0, this.state.perPageOc),
             })
         }
+
+        this.onAttrSearchChange = (value, event) => {
+            let attrRows = [];
+            let allAttrs = [];
+            const val = value.toLowerCase();
+
+            allAttrs = this.getAllAttrs();
+
+            // Process search filter on the entire list
+            if (val !== "") {
+                for (const row of allAttrs) {
+                    const name = row.attributeName.toLowerCase();
+                    const oc = row.cells[1].toLowerCase();
+                    if (name.includes(val) || oc.includes(val)) {
+                        attrRows.push(row);
+                    }
+                }
+            } else {
+                // Restore entire rowsAttr list
+                attrRows = allAttrs;
+            }
+
+            this.setState({
+                rowsAttr: attrRows,
+                pagedRowsAttr: attrRows.slice(0, this.state.perPageAttr),
+            })
+        }
+
         // End constructor().
     }
 
@@ -469,13 +497,23 @@ class EditLdapEntry extends React.Component {
         // Find the entry in the full array and set 'isAttributeSelected' accordingly
         // The property 'isAttributeSelected' is used to build the LDAP entry to add.
         // The row ID cannot be used since it changes with the pagination.
-        const attrName = this.state.pagedRowsAttr[rowId].cells[0];
+        const attrName = this.state.pagedRowsAttr[rowId].attributeName;
         const allItems = [...this.state.rowsAttr];
-        const index = allItems.findIndex(item => item.cells[0] === attrName);
+        const allAttrs = this.getAllAttrs();
+        const index = allItems.findIndex(item => item.attributeName === attrName);
         allItems[index].isAttributeSelected = isSelected;
-        const selectedAttributes = allItems
+        let selectedAttributes = allAttrs
             .filter(item => item.isAttributeSelected)
             .map(attrObj => [attrObj.attributeName, attrObj.cells[1]]);
+
+
+        if (isSelected) {
+            // Add to selected attr
+            selectedAttributes.push([allItems[index].attributeName, allItems[index].cells[1]]);
+        } else {
+            // Remove attr from selected list
+            selectedAttributes = selectedAttributes.filter(row => (row[0] !== allItems[index].attributeName));
+        }
 
         // Update the table rows as needed
         const rowAttr = rows[rowId].attributeName.toLowerCase();
@@ -511,7 +549,7 @@ class EditLdapEntry extends React.Component {
         });
     };
 
-    updateAttributeTableRows = () => {
+    getAllAttrs = () => {
         const ocToProcess = [...this.state.selectedObjectClasses];
         const rowsAttr = [];
         const attrList = [];
@@ -617,6 +655,14 @@ class EditLdapEntry extends React.Component {
                 }
             }
         });
+
+        return rowsAttr;
+    }
+
+    updateAttributeTableRows = () => {
+        let rowsAttr = [];
+
+        rowsAttr = this.getAllAttrs();
 
         // Update the rows where user can select the attributes.
         rowsAttr.sort((a, b) => (a.attributeName > b.attributeName) ? 1 : -1)
@@ -918,9 +964,11 @@ class EditLdapEntry extends React.Component {
 
     buildOCDropdown= () => {
         const { isOCDropDownOpen, selectedObjectClasses } = this.state;
-        const numSelected = this.state.rowsOc.filter(item => item.selected).length;
-        const items = this.state.selectedObjectClasses.map((oc) =>
-            <DropdownItem key={oc.cells[0]}>{oc.cells[0]}</DropdownItem>
+        const numSelected = selectedObjectClasses.length;
+        let ocs = selectedObjectClasses.map((oc) => oc.cells[0]);
+        ocs.sort();
+        const items = ocs.map((oc) =>
+            <DropdownItem key={oc}>{oc}</DropdownItem>
         );
 
         return (
@@ -953,9 +1001,11 @@ class EditLdapEntry extends React.Component {
 
     buildAttrDropdown = () => {
         const { isAttrDropDownOpen, selectedAttributes } = this.state;
-        const numSelected = selectedAttributes.length;
-        const items = selectedAttributes.map((attr) =>
-            <DropdownItem key={attr[0]}>{attr[0]}</DropdownItem>
+        const numSelected = this.state.selectedAttributes.length;
+        let attrs = selectedAttributes.map((attr) => attr[0]);
+        attrs.sort();
+        const items = attrs.map((attr) =>
+            <DropdownItem key={attr}>{attr}</DropdownItem>
         );
 
         return (
@@ -1073,6 +1123,29 @@ class EditLdapEntry extends React.Component {
                     </TextContent>
                     {this.buildAttrDropdown()}
                 </div>
+                <Grid className="ds-margin-top-lg">
+                    <GridItem span={5}>
+                        <SearchInput
+                            className="ds-font-size-md"
+                            placeholder='Search Attributes'
+                            value={this.state.searchValue}
+                            onChange={this.onAttrSearchChange}
+                            onClear={(evt) => this.onAttrSearchChange('', evt)}
+                        />
+                    </GridItem>
+                    <GridItem span={7}>
+                        <Pagination
+                            itemCount={itemCountAttr}
+                            page={pageAttr}
+                            perPage={perPageAttr}
+                            onSetPage={this.onSetPageAttr}
+                            widgetId="pagination-step-attributes"
+                            onPerPageSelect={this.onPerPageSelectAttr}
+                            variant="top"
+                            isCompact
+                        />
+                    </GridItem>
+                </Grid>
                 <Table
                     className="ds-margin-top"
                     cells={columnsAttr}
@@ -1085,16 +1158,7 @@ class EditLdapEntry extends React.Component {
                     <TableHeader />
                     <TableBody />
                 </Table>
-                <Pagination
-                    itemCount={itemCountAttr}
-                    page={pageAttr}
-                    perPage={perPageAttr}
-                    onSetPage={this.onSetPageAttr}
-                    widgetId="pagination-step-attributes"
-                    onPerPageSelect={this.onPerPageSelectAttr}
-                    dropDirection="up"
-                    isCompact
-                />
+
             </>
         );
 
