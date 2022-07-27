@@ -120,6 +120,14 @@ td {
     padding-top: 8px;
 }
 
+.ds-label-checkbox {
+    /* mimics PF4 FormGroup Label */
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 18.2px;
+    /* padding-top: 8px; */
+}
+
 .ds-dblink-dropdown {
     width: 140px !important;
     text-align: left;
@@ -534,7 +542,7 @@ pre {
 }
 
 .ds-info-color {
-    color: rgb(0, 102, 204); /* rgb(57, 165, 220); */
+    color: rgb(0, 102, 204) !important; /* rgb(57, 165, 220); */
 }
 
 .ds-icon-sm {

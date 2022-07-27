@@ -42,7 +42,7 @@ class RenameEntry extends React.Component {
             currRdnAttr: "",
             currRdnVal: "",
             currRdnSuffix: "",
-            deleteOldRdn: true,
+            deleteOldRdn: false,
             newRdnAttr: "",
             newRdnVal: "",
             newRdnSuffix: "",

@@ -72,6 +72,23 @@ const exp_attrs = [
 export class ServerErrorLog extends React.Component {
     constructor(props) {
         super(props);
+
+        this.traceLevel = <>Trace Function Calls <font size="1" className="ds-info-color">(level 1)</font></>;
+        this.packetLevel = <>Packet Handling <font size="1" className="ds-info-color">(level 2)</font></>;
+        this.heavyLevel = <>Heavy Trace Output <font size="1" className="ds-info-color">(level 4)</font></>;
+        this.connLevel = <>Connection Management <font size="1" className="ds-info-color">(level 8)</font></>;
+        this.packetSentLevel = <>Packets Sent & Received <font size="1" className="ds-info-color">(level 16)</font></>;
+        this.filterLevel = <>Search Filter Processing <font size="1" className="ds-info-color">(level 32)</font></>;
+        this.configLevel = <>Config File Processing <font size="1" className="ds-info-color">(level 64)</font></>;
+        this.aclLevel = <>Access Control List Processing <font size="1" className="ds-info-color">(level 128)</font></>;
+        this.entryLevel = <>Log Entry Parsing <font size="1" className="ds-info-color">(level 2048)</font></>;
+        this.houseLevel = <>Housekeeping <font size="1" className="ds-info-color">(level 4096)</font></>;
+        this.replLevel = <>Replication <font size="1" className="ds-info-color">(level 8192)</font></>;
+        this.cacheLevel = <>Entry Cache <font size="1" className="ds-info-color">(level 32768)</font></>;
+        this.pluginLevel = <>Plugin <font size="1" className="ds-info-color">(level 65536)</font></>;
+        this.aclSummaryevel = <>Access Control Summary <font size="1" className="ds-info-color">(level 262144)</font></>;
+        this.dbLevel = <>Backend Database <font size="1" className="ds-info-color">(level 524288)</font></>;
+
         this.state = {
             loading: true,
             loaded: false,
@@ -83,20 +100,21 @@ export class ServerErrorLog extends React.Component {
             canSelectAll: false,
             isExpanded: false,
             rows: [
-                { cells: ['Trace Function Calls'], level: 1, selected: false },
-                { cells: ['Packet Handling'], level: 2, selected: false },
-                { cells: ['Heavy Trace Output'], level: 4, selected: false },
-                { cells: ['Connection Management'], level: 8, selected: false },
-                { cells: ['Packets Sent & Received'], level: 16, selected: false },
-                { cells: ['Search Filter Processing'], level: 32, selected: false },
-                { cells: ['Config File Processing'], level: 64, selected: false },
-                { cells: ['Access Control List Processing'], level: 128, selected: false },
-                { cells: ['Log Entry Parsing'], level: 2048, selected: false },
-                { cells: ['Housekeeping'], level: 4096, selected: false },
-                { cells: ['Replication'], level: 8192, selected: false },
-                { cells: ['Entry Cache'], level: 32768, selected: false },
-                { cells: ['Plugin'], level: 65536, selected: false },
-                { cells: ['Access Control Summary'], level: 262144, selected: false },
+                { cells: [{ title: this.traceLevel }], level: 1, selected: false },
+                { cells: [{ title: this.packetLevel }], level: 2, selected: false },
+                { cells: [{ title: this.heavyLevel }], level: 4, selected: false },
+                { cells: [{ title: this.connLevel }], level: 8, selected: false },
+                { cells: [{ title: this.packetSentLevel }], level: 16, selected: false },
+                { cells: [{ title: this.filterLevel }], level: 32, selected: false },
+                { cells: [{ title: this.configLevel }], level: 64, selected: false },
+                { cells: [{ title: this.aclLevel }], level: 128, selected: false },
+                { cells: [{ title: this.entryLevel }], level: 2048, selected: false },
+                { cells: [{ title: this.houseLevel }], level: 4096, selected: false },
+                { cells: [{ title: this.replLevel }], level: 8291, selected: false },
+                { cells: [{ title: this.cacheLevel }], level: 32768, selected: false },
+                { cells: [{ title: this.pluginLevel }], level: 65536, selected: false },
+                { cells: [{ title: this.aclSummaryevel }], level: 262144, selected: false },
+                { cells: [{ title: this.dbLevel }], level: 524288, selected: false },
             ],
             columns: [
                 { title: 'Logging Level' },
@@ -166,7 +184,7 @@ export class ServerErrorLog extends React.Component {
             // Handle the table contents check now
             for (const row of this.state.rows) {
                 for (const orig_row of this.state._rows) {
-                    if (orig_row.cells[0] == row.cells[0]) {
+                    if (orig_row.level == row.level) {
                         if (orig_row.selected != row.selected) {
                             disableSaveBtn = false;
                             break;
@@ -480,7 +498,7 @@ export class ServerErrorLog extends React.Component {
 
     onSelect(event, isSelected, rowId) {
         let disableSaveBtn = true;
-        const rows = JSON.parse(JSON.stringify(this.state.rows));
+        const rows = [...this.state.rows];
 
         // Update the row
         rows[rowId].selected = isSelected;
@@ -496,7 +514,7 @@ export class ServerErrorLog extends React.Component {
         // Handle the table contents
         for (const row of rows) {
             for (const orig_row of this.state._rows) {
-                if (orig_row.cells[0] == row.cells[0]) {
+                if (orig_row.level == row.level) {
                     if (orig_row.selected != row.selected) {
                         disableSaveBtn = false;
                         break;
