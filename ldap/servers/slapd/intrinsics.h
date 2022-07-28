@@ -22,7 +22,7 @@
 #define INLINE_DIRECTIVE
 #endif
 
-INLINE_DIRECTIVE static int
+__attribute__((nonnull (1, 2))) INLINE_DIRECTIVE static int
 strcmpi_fast(const char *dst, const char *src)
 {
     int f, l;
@@ -67,7 +67,7 @@ toupper_fast(int c)
 #endif
 #define toupper(x) toupper_fast(x)
 
-INLINE_DIRECTIVE static int
+__attribute__((nonnull (1, 2))) INLINE_DIRECTIVE static int
 strncasecmp_fast(const char *dst, const char *src, int n)
 {
     int f, l, x = 0;

@@ -364,6 +364,7 @@ mr_wrap_mr_index_sv_fn(Slapi_PBlock *pb)
     Slapi_Value **out_vals = NULL;
     struct slapdplugin *pi = NULL;
 
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, out_vals); /* make sure output is cleared */
     slapi_pblock_get(pb, SLAPI_PLUGIN, &pi);
     if (!pi) {
@@ -412,6 +413,7 @@ mr_wrap_mr_index_fn(Slapi_PBlock *pb)
     /* clean up in_vals_sv */
     valuearray_free(&in_vals_sv);
     /* restore old in_vals */
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, in_vals);
     /* get result sv keys */
     slapi_pblock_get(pb, SLAPI_PLUGIN_MR_KEYS, &out_vals_sv);
@@ -716,6 +718,7 @@ default_mr_indexer_destroy(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrpriv);
     mr_private_free(&mrpriv);
     mrpriv = NULL;
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_PLUGIN_OBJECT, mrpriv);
     /* keys destroyed in mr_private_free */
     slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, NULL);

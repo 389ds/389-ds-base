@@ -198,23 +198,24 @@ filter_compute_hash(struct slapi_filter *f)
         if (f->f_mr_oid)
             h = addhash_str(h, f->f_mr_oid);
         STIR(h);
-        if (f->f_mr_type)
+        if (f->f_mr_type) {
             h = addhash_str(h, f->f_mr_type);
-        inval[0] = &f->f_mr_value;
-        inval[1] = NULL;
-        /* get the normalized value (according to the matching rule) */
-        pb = get_mr_normval(f->f_mr_oid, f->f_mr_type, inval, &outval);
-        if (!pb) {
-            slapi_log_err(SLAPI_LOG_ERR, "filter_compute_hash", "Out of memory!\n");
-            return;
+            inval[0] = &f->f_mr_value;
+            inval[1] = NULL;
+            /* get the normalized value (according to the matching rule) */
+            pb = get_mr_normval(f->f_mr_oid, f->f_mr_type, inval, &outval);
+            if (!pb) {
+                slapi_log_err(SLAPI_LOG_ERR, "filter_compute_hash", "Out of memory!\n");
+                return;
+            }
+            if (outval && outval[0]) {
+                STIR(h);
+                h = addhash_bv(h, *(outval[0]));
+            }
+            done_mr_normval(pb);
+            if (f->f_mr_dnAttrs)
+                STIR(h);
         }
-        if (outval && outval[0]) {
-            STIR(h);
-            h = addhash_bv(h, *(outval[0]));
-        }
-        done_mr_normval(pb);
-        if (f->f_mr_dnAttrs)
-            STIR(h);
         break;
     default:
         slapi_log_err(SLAPI_LOG_ERR, "filter_compute_hash", "Can't handle filter type %lX !\n",

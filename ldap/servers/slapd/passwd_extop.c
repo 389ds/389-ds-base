@@ -465,7 +465,8 @@ passwd_modify_extop(Slapi_PBlock *pb)
     /* Before going any further, we'll make sure that the right extended operation plugin
      * has been called: i.e., the OID shipped whithin the extended operation request must
      * match this very plugin's OID: EXTOP_PASSWD_OID. */
-    if (slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &oid) != 0) {
+    slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &oid);
+    if (oid == NULL) {
         errMesg = "Could not get OID value from request.\n";
         rc = LDAP_OPERATIONS_ERROR;
         slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
@@ -874,6 +875,9 @@ free_and_return:
 
     /* We can free the generated password bval now */
     ber_bvfree(gen_passwd);
+    if (pwpolicy) {
+        delete_passwdPolicy(&pwpolicy);
+    }
 
     return (SLAPI_PLUGIN_EXTENDED_SENT_RESULT);
 

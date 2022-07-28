@@ -2945,7 +2945,7 @@ dbmdb_dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name,
                     slapi_ch_free_string(&tp);
             }
         }
-        if (ep + 1 != NULL && *(ep + 1) != NULL) {
+        if (ep != NULL && ep[1] != NULL) {
             prrval = PR_Write(prfd, "\n", 1);
             if (prrval != 1) {
                 slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dse_conf_backup_core",

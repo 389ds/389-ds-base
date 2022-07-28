@@ -1547,7 +1547,7 @@ _entryrdn_get_elem(dbi_cursor_t *cursor,
         slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_get_elem",
                       "Param error: Empty %s\n",
                       NULL == cursor ? "cursor" : NULL == key ? "key" : NULL == data ? "data" : NULL == elem ? "elem container" : NULL == comp_key ? "key to compare" : "unknown");
-        goto bail;
+        return DBI_RC_INVALID;
     }
     /* Position cursor at the matching key */
     *elem = NULL;
@@ -1584,7 +1584,12 @@ retry_get:
         goto bail;
     }
 bail:
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_elem", "<-- _entryrdn_get_elem (*elem rdn=%s)\n", RDN_ADDR(*elem));
+    if (*elem) {
+        slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_elem", "<-- _entryrdn_get_elem (*elem rdn=%s)\n",
+                      RDN_ADDR(*elem));
+    } else {
+        slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_elem", "<-- _entryrdn_get_elem (*elem NULL)\n");
+    }
     return rc;
 }
 
@@ -2834,15 +2839,15 @@ _entryrdn_index_read(backend *be,
     Slapi_RDN *tmpsrdn = NULL;
     rdn_elem *tmpelem = NULL;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_index_read",
-                  "--> _entryrdn_index_read (rdn=%s)\n", srdn->rdn);
     if (NULL == be || NULL == cursor ||
         NULL == srdn || NULL == elem) {
         slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_index_read",
                       "Param error: Empty %s\n",
                       NULL == be ? "backend" : NULL == cursor ? "cursor" : NULL == srdn ? "RDN" : NULL == elem ? "elem container" : "unknown");
-        goto bail;
+        return DBI_RC_INVALID;
     }
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_index_read",
+                  "--> _entryrdn_index_read (rdn=%s)\n", srdn->rdn);
 
     *elem = NULL;
     if (parentelem) {

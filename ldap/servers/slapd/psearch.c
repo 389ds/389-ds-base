@@ -21,6 +21,7 @@
  *    conditions under which this can prevent a server shutdown?
  */
 
+#include <assert.h>
 #include "slap.h"
 #include "fe.h"
 
@@ -160,6 +161,9 @@ ps_add(Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls)
     if (PS_IS_INITIALIZED() && NULL != pb) {
         /* Create the new node */
         ps = psearch_alloc();
+        if (!ps) {
+            return; /* Error is logged by psearch_alloc */
+        }
         ps->ps_pblock = slapi_pblock_clone(pb);
         ps->ps_changetypes = changetypes;
         ps->ps_send_entchg_controls = send_entchg_controls;
@@ -517,6 +521,8 @@ ps_service_persistent_searches(Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chg
         return;
     }
 
+    assert(psearch_list);
+    assert(psearch_list->pl_rwlock);
     PSL_LOCK_READ();
     edn = slapi_entry_get_dn_const(e);
 

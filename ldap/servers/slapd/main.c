@@ -1181,7 +1181,7 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
     int i;
     char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
     char *opts;
-    static struct opt_ext *long_opts;
+    struct opt_ext *long_opts;
     int longopt_index = 0;
 
     /*

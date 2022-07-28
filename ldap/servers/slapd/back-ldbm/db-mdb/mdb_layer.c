@@ -2190,8 +2190,15 @@ int dbmdb_recno_cache_lookup(dbi_cursor_t *cursor, MDB_val *cache_key, dbmdb_rec
 
 int dbmdb_cmp_vals(MDB_val *v1, MDB_val *v2)
 {
-    int l = v1->mv_size;
+    int l;
     int rc;
+    if (!v1 && !v2) 
+        return 0;
+    if (v1 && !v2) 
+        return 1;
+    if (!v1 && v2) 
+        return -1;
+    l = v1->mv_size;
     if (l > v2->mv_size) {
         l = v2->mv_size;
     }
@@ -2277,6 +2284,10 @@ int dbmdb_cursor_set_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
     MDB_val cache_key = {0};
     dbi_recno_t recno;
     int rc;
+    if (!dbmdb_data->mv_data) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_cursor_set_recno", "invalid dbmdb_data parameter (should be a dbi_recno_t)\n");
+        return DBI_RC_INVALID;
+    }
 
     memcpy(&recno, dbmdb_data->mv_data, sizeof (dbi_recno_t));
     dbmdb_generate_recno_cache_key_by_recno(&cache_key, recno);
@@ -2750,10 +2761,8 @@ out:
     if (newdb_fd>=0) {
         close(newdb_fd);
     }
-    if (newdb_name) {
-        unlink(newdb_name);
-        slapi_ch_free_string(&newdb_name);
-    }
+    unlink(newdb_name);
+    slapi_ch_free_string(&newdb_name);
     slapi_ch_free_string(&db_name);
     slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_public_dblayer_compact",
                   "Compacting databases finished.\n");

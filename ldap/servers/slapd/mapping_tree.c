@@ -973,7 +973,7 @@ mapping_tree_node_build_tree(void)
                           "Could not add mapping tree node %s\n",
                           slapi_entry_get_dn(entries[m1->index]));
             result = -1;
-            goto build_tree_done;
+            break;
         }
         /* attach the node to it's parent. */
         PR_ASSERT(child->mtn_parent == parent);

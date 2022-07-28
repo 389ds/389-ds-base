@@ -124,7 +124,9 @@ int
 detach(int slapd_exemode, int importexport_encrypt, int s_port, daemon_ports_t *ports_info)
 {
     int i, sd;
+#ifdef DEBUG
     char buf[50];
+#endif
 
     if (should_detach) {
         for (i = 0; i < 5; i++) {
