@@ -52,6 +52,12 @@ export class CertificateManagement extends React.Component {
             });
         };
 
+        this.sortFlags = (str) => {
+            let flags = str.split('');
+            let sorted_flags = flags.sort();
+            return sorted_flags.join('');
+        };
+
         this.addCACert = this.addCACert.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.addCert = this.addCert.bind(this);
@@ -397,6 +403,7 @@ export class CertificateManagement extends React.Component {
                     } else {
                         SSLFlags = SSLFlags.replace(trustFlag, '');
                     }
+                    SSLFlags = this.sortFlags(SSLFlags);
                 }
             }
         } else if (id.endsWith('Email')) {
@@ -407,6 +414,7 @@ export class CertificateManagement extends React.Component {
                     } else {
                         EmailFlags = EmailFlags.replace(trustFlag, '');
                     }
+                    EmailFlags = this.sortFlags(EmailFlags);
                 }
             }
         } else {
@@ -418,10 +426,13 @@ export class CertificateManagement extends React.Component {
                     } else {
                         OSFlags = OSFlags.replace(trustFlag, '');
                     }
+                    OSFlags = this.sortFlags(OSFlags);
                 }
             }
         }
+
         newFlags = SSLFlags + "," + EmailFlags + "," + OSFlags;
+        console.log("MARK flags: ", newFlags, this.state._flags);
         if (newFlags != this.state._flags) {
             disableSaveBtn = false;
         }

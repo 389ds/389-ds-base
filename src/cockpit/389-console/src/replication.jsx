@@ -2,7 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "./lib/tools.jsx";
 import { ReplSuffix } from "./lib/replication/replSuffix.jsx";
-import { Changelog } from "./lib/replication/replChangelog.jsx";
 import PropTypes from "prop-types";
 import {
     Spinner,
@@ -18,7 +17,6 @@ import {
     faLeaf,
 } from '@fortawesome/free-solid-svg-icons';
 import {
-    CatalogIcon,
     TopologyIcon
 } from '@patternfly/react-icons';
 
@@ -49,7 +47,6 @@ export class Replication extends React.Component {
             disabled: false,
             clLoading: false,
             clMaxEntries: "",
-            clCompactInt: "",
             clMaxAge: "",
             clTrimInt: "",
             clEncrypt: false,
@@ -84,7 +81,6 @@ export class Replication extends React.Component {
                 this.loadSuffixTree(true);
                 if (!this.state.loaded) {
                     this.loadAttrs();
-                    this.reloadChangelog();
                 }
             } else {
                 if (this.props.serverId !== prevProps.serverId) {
@@ -110,7 +106,6 @@ export class Replication extends React.Component {
                     let clMaxAge = "";
                     let clTrimInt = "";
                     let clEncrypt = false;
-                    let clCompactInt = "";
                     for (const attr in config.attrs) {
                         const val = config.attrs[attr][0];
                         if (attr === "nsslapd-changelogdir") {
@@ -125,9 +120,6 @@ export class Replication extends React.Component {
                         if (attr === "nsslapd-changelogtrim-interval") {
                             clTrimInt = val;
                         }
-                        if (attr === "nsslapd-changelogcompactdb-interval") {
-                            clCompactInt = val;
-                        }
                         if (attr === "nsslapd-encryptionalgorithm") {
                             clEncrypt = true;
                         }
@@ -138,7 +130,6 @@ export class Replication extends React.Component {
                         clMaxAge: clMaxAge,
                         clTrimInt: clTrimInt,
                         clEncrypt: clEncrypt,
-                        clCompactInt: clCompactInt,
                         clLoading: false
                     });
                 })
@@ -148,7 +139,6 @@ export class Replication extends React.Component {
                         clMaxEntries: "",
                         clMaxAge: "",
                         clTrimInt: "",
-                        clCompactInt: "",
                         clEncrypt: false,
                         clLoading: false
                     });
@@ -210,13 +200,6 @@ export class Replication extends React.Component {
                     }
                     const basicData = [
                         {
-                            name: "Replication Changelog",
-                            icon: <CatalogIcon />,
-                            id: "changelog",
-                            replicated: false,
-                            type: "changelog",
-                        },
-                        {
                             name: "Suffixes",
                             icon: <TopologyIcon />,
                             id: "repl-suffixes",
@@ -238,7 +221,7 @@ export class Replication extends React.Component {
                                     current_node = treeData[i].id;
                                     current_type = treeData[i].type;
                                     this.setState({
-                                        activeItems: [treeData[i]]
+                                        activeItems: [treeData[i], basicData[0]]
                                     });
                                     this.loadReplSuffix(treeData[i].id);
                                     found = true;
@@ -255,7 +238,7 @@ export class Replication extends React.Component {
                             current_node = treeData[0].id;
                             current_type = treeData[0].type;
                             this.setState({
-                                activeItems: [treeData[0], basicData[1]]
+                                activeItems: [treeData[0], basicData[0]]
                             });
                             this.loadReplSuffix(treeData[0].id);
                         }
@@ -273,7 +256,7 @@ export class Replication extends React.Component {
                         this.loadReplSuffix(current_node);
                     }
 
-                    basicData[1].children = treeData;
+                    basicData[0].children = treeData;
                     this.setState({
                         nodes: basicData,
                         node_name: current_node,
@@ -302,7 +285,7 @@ export class Replication extends React.Component {
                 disableTree: false,
                 suffixKey: new Date(),
             });
-        } else if (treeViewItem.id !== "changelog") {
+        } else {
             // Suffix/subsuffix
             this.loadReplSuffix(treeViewItem.id);
             this.setState(prevState => {
@@ -324,7 +307,7 @@ export class Replication extends React.Component {
             if (element) {
                 const elements = element.getElementsByClassName(className);
                 for (const el of elements) {
-                    if (el.id === "repl-suffixes" || el.id === "changelog") {
+                    if (el.id === "repl-suffixes") {
                         continue;
                     }
                     el.setAttribute('title', el.innerText);
@@ -695,88 +678,65 @@ export class Replication extends React.Component {
                             nsds5replicaprotocoltimeout: 'nsds5replicaprotocoltimeout' in config.attrs ? config.attrs.nsds5replicaprotocoltimeout[0] : "",
                             nsds5replicabackoffmin: 'nsds5replicabackoffmin' in config.attrs ? config.attrs.nsds5replicabackoffmin[0] : "",
                             nsds5replicabackoffmax: 'nsds5replicabackoffmax' in config.attrs ? config.attrs.nsds5replicabackoffmax[0] : "",
+                            clMaxEntries: "",
+                            clMaxAge: "",
+                            clTrimInt: "",
+                            clEncrypt: false,
                         }
                     }, this.loadLDIFs);
 
-                    // Now load agmts, then the winsync agreement, and finally the RUV
-                    cmd = [
-                        "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-                        "repl-agmt", "list", "--suffix", suffix
-                    ];
-                    log_cmd("loadReplSuffix", "get repl agreements", cmd);
+                    cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+                        'replication', 'get-changelog', '--suffix', suffix];
+                    log_cmd("loadReplSuffix", "Load the replication info", cmd);
                     cockpit
                             .spawn(cmd, { superuser: true, err: "message" })
                             .done(content => {
-                                const obj = JSON.parse(content);
-                                const rows = [];
-                                for (const idx in obj.items) {
-                                    const agmt_attrs = obj.items[idx].attrs;
-                                    let state = "Enabled";
-                                    let update_status = "";
-                                    let agmt_init_status = "";
-
-                                    // Compute state (enabled by default)
-                                    if ('nsds5replicaenabled' in agmt_attrs) {
-                                        if (agmt_attrs.nsds5replicaenabled[0].toLowerCase() === 'off') {
-                                            state = "Disabled";
-                                        }
+                                const config = JSON.parse(content);
+                                let clMaxEntries = "";
+                                let clMaxAge = "";
+                                let clTrimInt = "";
+                                let clEncrypt = false;
+                                for (const attr in config.attrs) {
+                                    const val = config.attrs[attr][0];
+                                    if (attr === "nsslapd-changelogmaxentries") {
+                                        clMaxEntries = val;
                                     }
-
-                                    // Check for status msgs
-                                    if ('nsds5replicalastupdatestatus' in agmt_attrs) {
-                                        update_status = agmt_attrs.nsds5replicalastupdatestatus[0];
+                                    if (attr === "nsslapd-changelogmaxage") {
+                                        clMaxAge = val;
                                     }
-                                    if ('nsds5replicalastinitstatus' in agmt_attrs &&
-                                        agmt_attrs.nsds5replicalastinitstatus[0] !== "") {
-                                        agmt_init_status = agmt_attrs.nsds5replicalastinitstatus[0];
-                                        if (agmt_init_status === "Error (0) Total update in progress" ||
-                                            agmt_init_status === "Error (0)") {
-                                            agmt_init_status = "Initializing";
-                                        } else if (agmt_init_status === "Error (0) Total update succeeded") {
-                                            agmt_init_status = "Initialized";
-                                        }
-                                    } else if ('nsds5replicalastinitstart' in agmt_attrs && agmt_attrs.nsds5replicalastinitstart[0] === "19700101000000Z") {
-                                        agmt_init_status = "Not Initialized";
-                                    } else if ('nsds5beginreplicarefresh' in agmt_attrs) {
-                                        agmt_init_status = "Initializing";
+                                    if (attr === "nsslapd-changelogtrim-interval") {
+                                        clTrimInt = val;
                                     }
-
-                                    // Update table
-                                    rows.push([
-                                        agmt_attrs.cn[0],
-                                        agmt_attrs.nsds5replicahost[0],
-                                        agmt_attrs.nsds5replicaport[0],
-                                        state,
-                                        update_status,
-                                        agmt_init_status
-                                    ]);
+                                    if (attr === "nsslapd-encryptionalgorithm") {
+                                        clEncrypt = true;
+                                    }
                                 }
-
-                                // Set agmt
                                 this.setState({
                                     [suffix]: {
                                         ...this.state[suffix],
-                                        agmtRows: rows,
+                                        clMaxEntries: clMaxEntries,
+                                        clMaxAge: clMaxAge,
+                                        clTrimInt: clTrimInt,
+                                        clEncrypt: clEncrypt,
                                     }
                                 });
 
-                                // Load winsync agreements
+                                // Now load agmts, then the winsync agreement, and finally the RUV
                                 cmd = [
                                     "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-                                    "repl-winsync-agmt", "list", "--suffix", suffix
+                                    "repl-agmt", "list", "--suffix", suffix
                                 ];
-                                log_cmd("loadReplSuffix", "Get Winsync Agreements", cmd);
+                                log_cmd("loadReplSuffix", "get repl agreements", cmd);
                                 cockpit
                                         .spawn(cmd, { superuser: true, err: "message" })
                                         .done(content => {
                                             const obj = JSON.parse(content);
-                                            const ws_rows = [];
-                                            for (var idx in obj.items) {
+                                            const rows = [];
+                                            for (const idx in obj.items) {
+                                                const agmt_attrs = obj.items[idx].attrs;
                                                 let state = "Enabled";
                                                 let update_status = "";
-                                                let ws_agmt_init_status = "Initialized";
-                                                const agmt_attrs = obj.items[idx].attrs;
-                                                // let agmt_name = agmt_attrs['cn'][0];
+                                                let agmt_init_status = "";
 
                                                 // Compute state (enabled by default)
                                                 if ('nsds5replicaenabled' in agmt_attrs) {
@@ -785,82 +745,157 @@ export class Replication extends React.Component {
                                                     }
                                                 }
 
+                                                // Check for status msgs
                                                 if ('nsds5replicalastupdatestatus' in agmt_attrs) {
                                                     update_status = agmt_attrs.nsds5replicalastupdatestatus[0];
                                                 }
-
                                                 if ('nsds5replicalastinitstatus' in agmt_attrs &&
                                                     agmt_attrs.nsds5replicalastinitstatus[0] !== "") {
-                                                    ws_agmt_init_status = agmt_attrs.nsds5replicalastinitstatus[0];
-                                                    if (ws_agmt_init_status === "Error (0) Total update in progress" ||
-                                                        ws_agmt_init_status === "Error (0)") {
-                                                        ws_agmt_init_status = "Initializing";
-                                                    } else if (ws_agmt_init_status === "Error (0) Total update succeeded") {
-                                                        ws_agmt_init_status = "Initialized";
+                                                    agmt_init_status = agmt_attrs.nsds5replicalastinitstatus[0];
+                                                    if (agmt_init_status === "Error (0) Total update in progress" ||
+                                                        agmt_init_status === "Error (0)") {
+                                                        agmt_init_status = "Initializing";
+                                                    } else if (agmt_init_status === "Error (0) Total update succeeded") {
+                                                        agmt_init_status = "Initialized";
                                                     }
                                                 } else if ('nsds5replicalastinitstart' in agmt_attrs && agmt_attrs.nsds5replicalastinitstart[0] === "19700101000000Z") {
-                                                    ws_agmt_init_status = "Not Initialized";
+                                                    agmt_init_status = "Not Initialized";
                                                 } else if ('nsds5beginreplicarefresh' in agmt_attrs) {
-                                                    ws_agmt_init_status = "Initializing";
+                                                    agmt_init_status = "Initializing";
                                                 }
 
                                                 // Update table
-                                                ws_rows.push([
+                                                rows.push([
                                                     agmt_attrs.cn[0],
                                                     agmt_attrs.nsds5replicahost[0],
                                                     agmt_attrs.nsds5replicaport[0],
                                                     state,
                                                     update_status,
-                                                    ws_agmt_init_status
+                                                    agmt_init_status
                                                 ]);
                                             }
-                                            // Set winsync agmts
+
+                                            // Set agmt
                                             this.setState({
                                                 [suffix]: {
                                                     ...this.state[suffix],
-                                                    winsyncRows: ws_rows,
+                                                    agmtRows: rows,
                                                 }
                                             });
 
-                                            // Load suffix RUV
-                                            cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
-                                                'replication', 'get-ruv', '--suffix=' + suffix];
-                                            log_cmd('loadReplSuffix', 'Get the suffix RUV', cmd);
+                                            // Load winsync agreements
+                                            cmd = [
+                                                "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                                                "repl-winsync-agmt", "list", "--suffix", suffix
+                                            ];
+                                            log_cmd("loadReplSuffix", "Get Winsync Agreements", cmd);
                                             cockpit
                                                     .spawn(cmd, { superuser: true, err: "message" })
                                                     .done(content => {
-                                                        const ruvs = JSON.parse(content);
-                                                        const ruv_rows = [];
-                                                        for (const idx in ruvs.items) {
-                                                            const ruv = ruvs.items[idx];
-                                                            // Update table
-                                                            ruv_rows.push({
-                                                                rid: ruv.rid,
-                                                                url: ruv.url,
-                                                                csn: ruv.csn,
-                                                                raw_csn: ruv.raw_csn,
-                                                                maxcsn: ruv.maxcsn,
-                                                                raw_maxcsn: ruv.raw_maxcsn,
-                                                            });
-                                                        }
+                                                        const obj = JSON.parse(content);
+                                                        const ws_rows = [];
+                                                        for (var idx in obj.items) {
+                                                            let state = "Enabled";
+                                                            let update_status = "";
+                                                            let ws_agmt_init_status = "Initialized";
+                                                            const agmt_attrs = obj.items[idx].attrs;
+                                                            // let agmt_name = agmt_attrs['cn'][0];
 
+                                                            // Compute state (enabled by default)
+                                                            if ('nsds5replicaenabled' in agmt_attrs) {
+                                                                if (agmt_attrs.nsds5replicaenabled[0].toLowerCase() === 'off') {
+                                                                    state = "Disabled";
+                                                                }
+                                                            }
+
+                                                            if ('nsds5replicalastupdatestatus' in agmt_attrs) {
+                                                                update_status = agmt_attrs.nsds5replicalastupdatestatus[0];
+                                                            }
+
+                                                            if ('nsds5replicalastinitstatus' in agmt_attrs &&
+                                                                agmt_attrs.nsds5replicalastinitstatus[0] !== "") {
+                                                                ws_agmt_init_status = agmt_attrs.nsds5replicalastinitstatus[0];
+                                                                if (ws_agmt_init_status === "Error (0) Total update in progress" ||
+                                                                    ws_agmt_init_status === "Error (0)") {
+                                                                    ws_agmt_init_status = "Initializing";
+                                                                } else if (ws_agmt_init_status === "Error (0) Total update succeeded") {
+                                                                    ws_agmt_init_status = "Initialized";
+                                                                }
+                                                            } else if ('nsds5replicalastinitstart' in agmt_attrs && agmt_attrs.nsds5replicalastinitstart[0] === "19700101000000Z") {
+                                                                ws_agmt_init_status = "Not Initialized";
+                                                            } else if ('nsds5beginreplicarefresh' in agmt_attrs) {
+                                                                ws_agmt_init_status = "Initializing";
+                                                            }
+
+                                                            // Update table
+                                                            ws_rows.push([
+                                                                agmt_attrs.cn[0],
+                                                                agmt_attrs.nsds5replicahost[0],
+                                                                agmt_attrs.nsds5replicaport[0],
+                                                                state,
+                                                                update_status,
+                                                                ws_agmt_init_status
+                                                            ]);
+                                                        }
+                                                        // Set winsync agmts
                                                         this.setState({
                                                             [suffix]: {
                                                                 ...this.state[suffix],
-                                                                ruvRows: ruv_rows,
-                                                            },
-                                                            suffixLoading: false,
-                                                            disableTree: false
+                                                                winsyncRows: ws_rows,
+                                                            }
                                                         });
+
+                                                        // Load suffix RUV
+                                                        cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+                                                            'replication', 'get-ruv', '--suffix=' + suffix];
+                                                        log_cmd('loadReplSuffix', 'Get the suffix RUV', cmd);
+                                                        cockpit
+                                                                .spawn(cmd, { superuser: true, err: "message" })
+                                                                .done(content => {
+                                                                    const ruvs = JSON.parse(content);
+                                                                    const ruv_rows = [];
+                                                                    for (const idx in ruvs.items) {
+                                                                        const ruv = ruvs.items[idx];
+                                                                        // Update table
+                                                                        ruv_rows.push({
+                                                                            rid: ruv.rid,
+                                                                            url: ruv.url,
+                                                                            csn: ruv.csn,
+                                                                            raw_csn: ruv.raw_csn,
+                                                                            maxcsn: ruv.maxcsn,
+                                                                            raw_maxcsn: ruv.raw_maxcsn,
+                                                                        });
+                                                                    }
+
+                                                                    this.setState({
+                                                                        [suffix]: {
+                                                                            ...this.state[suffix],
+                                                                            ruvRows: ruv_rows,
+                                                                        },
+                                                                        suffixLoading: false,
+                                                                        disableTree: false
+                                                                    });
+                                                                })
+                                                                .fail(err => {
+                                                                    const errMsg = JSON.parse(err);
+                                                                    if (errMsg.desc !== "No such object") {
+                                                                        this.props.addNotification(
+                                                                            "error",
+                                                                            `Error loading suffix RUV - ${errMsg.desc}`
+                                                                        );
+                                                                    }
+                                                                    this.setState({
+                                                                        suffixLoading: false,
+                                                                        disableTree: false
+                                                                    });
+                                                                });
                                                     })
                                                     .fail(err => {
                                                         const errMsg = JSON.parse(err);
-                                                        if (errMsg.desc !== "No such object") {
-                                                            this.props.addNotification(
-                                                                "error",
-                                                                `Error loading suffix RUV - ${errMsg.desc}`
-                                                            );
-                                                        }
+                                                        this.props.addNotification(
+                                                            "error",
+                                                            `Error loading winsync agreements - ${errMsg.desc}`
+                                                        );
                                                         this.setState({
                                                             suffixLoading: false,
                                                             disableTree: false
@@ -871,7 +906,7 @@ export class Replication extends React.Component {
                                             const errMsg = JSON.parse(err);
                                             this.props.addNotification(
                                                 "error",
-                                                `Error loading winsync agreements - ${errMsg.desc}`
+                                                `Error loading replication agreements configuration - ${errMsg.desc}`
                                             );
                                             this.setState({
                                                 suffixLoading: false,
@@ -880,10 +915,11 @@ export class Replication extends React.Component {
                                         });
                             })
                             .fail(err => {
+                                // changelog failure
                                 const errMsg = JSON.parse(err);
                                 this.props.addNotification(
                                     "error",
-                                    `Error loading replication agreements configuration - ${errMsg.desc}`
+                                    `Error loading replication changelog configuration - ${errMsg.desc}`
                                 );
                                 this.setState({
                                     suffixLoading: false,
@@ -987,22 +1023,6 @@ export class Replication extends React.Component {
                                 spinning={this.state.suffixSpinning}
                             />
                         </div>;
-                } else if (this.state.node_name === "changelog") {
-                    repl_element =
-                        <Changelog
-                            serverId={this.props.serverId}
-                            clDir={this.state.clDir}
-                            clMaxEntries={this.state.clMaxEntries}
-                            clMaxAge={this.state.clMaxAge}
-                            clCompactInt={this.state.clCompactInt}
-                            clTrimInt={this.state.clTrimInt}
-                            clEncrypt={this.state.clEncrypt}
-                            addNotification={this.props.addNotification}
-                            enableTree={this.enableTree}
-                            reload={this.reloadChangelog}
-                            loading={this.state.clLoading}
-                            key={this.state.clDir}
-                        />;
                 } else {
                     // Suffix is not replicated
                     repl_element =

@@ -65,6 +65,7 @@ class EditorTableView extends React.Component {
                            perPage={this.props.perPage}
                            onSetPage={(_evt, value) => this.props.onSetPage(value)}
                            onPerPageSelect={(_evt, value) => this.props.onPerPageSelect(value)}
+                           dropDirection="up"
                        />
                    }
                </div>;

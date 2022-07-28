@@ -1,5 +1,6 @@
 import React from "react";
 import cockpit from "cockpit";
+import { Changelog } from "./replChangelog.jsx";
 import { ReplConfig } from "./replConfig.jsx";
 import { WinsyncAgmts } from "./winsyncAgmts.jsx";
 import { ReplAgmts } from "./replAgmts.jsx";
@@ -342,7 +343,19 @@ export class ReplSuffix extends React.Component {
                             key={this.props.winsyncRows}
                         />
                     </Tab>
-                    <Tab eventKey={3} title={<TabTitleText>RUV's & Tasks</TabTitleText>}>
+                    <Tab eventKey={3} title={<TabTitleText>Change Log</TabTitleText>}>
+                        <Changelog
+                            suffix={this.props.suffix}
+                            serverId={this.props.serverId}
+                            addNotification={this.props.addNotification}
+                            clMaxEntries={this.props.data.clMaxEntries}
+                            clMaxAge={this.props.data.clMaxAge}
+                            clTrimInt={this.props.data.clTrimInt}
+                            clEncrypt={this.props.data.clEncrypt}
+                            key={this.props.data}
+                        />
+                    </Tab>
+                    <Tab eventKey={4} title={<TabTitleText>RUV's & Tasks</TabTitleText>}>
                         <ReplRUV
                             suffix={this.props.suffix}
                             serverId={this.props.serverId}

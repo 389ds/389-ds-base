@@ -381,11 +381,13 @@ export class EditCertModal extends React.Component {
             }
         }
 
+        const title = "Edit Certificate Trust Flags (" + this.props.flags + ")";
+
         return (
             <Modal
                 variant={ModalVariant.medium}
                 aria-labelledby="ds-modal"
-                title="Edit Certificate Trust Flags"
+                title={title}
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
@@ -581,21 +583,21 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="uflagSSL"
                             isChecked={uSSLChecked}
-                            disabled
+                            isDisabled
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="uflagEmail"
                             isChecked={uEmailChecked}
-                            disabled
+                            isDisabled
                         />
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
                             id="uflagOS"
                             isChecked={uOSChecked}
-                            disabled
+                            isDisabled
                         />
                     </GridItem>
                 </Grid>

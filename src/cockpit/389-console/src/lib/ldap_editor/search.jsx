@@ -59,10 +59,11 @@ export class SearchDatabase extends React.Component {
             searchBase: "",
             searchFilter: "",
             searchScope: "sub",
-            sizeLimit: 1000,
+            sizeLimit: 2000,
             timeLimit: 30,
             isExpanded: false,
             searchSuffix: "",
+            baseDN: "",
             searchType: 'Search Text',
             searchText: "",
             getOperationalAttrs: false,
@@ -277,9 +278,17 @@ export class SearchDatabase extends React.Component {
     componentDidMount() {
         const suffixList =  this.props.suffixList;
         const searchBase = this.props.searchBase;
+        let baseDN = searchBase;  // Drop down list of selected suffix
+        for (const suffix of suffixList) {
+            if (baseDN.includes(suffix)) {
+                baseDN = suffix;
+                break;
+            }
+        }
         this.setState({
             searchBase: searchBase ? searchBase : suffixList.length > 0 ? suffixList[0] : "",
             searchSuffix: this.props.suffixList.length > 0 ? this.props.suffixList[0] : "",
+            baseDN: baseDN
         });
     }
 
@@ -495,6 +504,7 @@ export class SearchDatabase extends React.Component {
         this.setState({
             searchSuffix: value,
             searchBase: value,
+            baseDN: value,
         });
     }
 
@@ -518,8 +528,7 @@ export class SearchDatabase extends React.Component {
             const start = 2 * (page - 1) * perPage;
             const end = 2 * page * perPage;
             const pagedRows = this.state.rows.slice(start, end);
-            let i = 0;
-            for (i; i < pagedRows.length - 1; i++) {
+            for (let i = 0; i < pagedRows.length - 1; i++) {
                 if (i % 2 === 0) {
                     pagedRows[i + 1].parent = i;
                 }
@@ -760,7 +769,7 @@ export class SearchDatabase extends React.Component {
                                 <GridItem span={4}>
                                     <FormSelect
                                         id="searchSuffix"
-                                        value={this.state.searchSuffix}
+                                        value={this.state.baseDN}
                                         onChange={(value, event) => {
                                             this.handleSuffixChange(event);
                                         }}
@@ -1080,7 +1089,7 @@ export class SearchDatabase extends React.Component {
                     </ExpandableSection>
                 </Form>
                 <div className="ds-indent">
-                    <div className={this.state.searching ? "ds-margin-top-xlg ds-center" : "ds-hidden"}>
+                    <div className={this.state.searching ? "ds-margin-top-lg ds-center" : "ds-hidden"}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 Searching <i>{this.state.searchBase}</i> ...
@@ -1089,6 +1098,9 @@ export class SearchDatabase extends React.Component {
                         <Spinner className="ds-margin-top-lg" size="xl" />
                     </div>
                     <div className={searching ? "ds-hidden" : ""}>
+                        <center>
+                            <p><b>Results:</b> {total}</p>
+                        </center>
                         <EditorTableView
                             key={searching}
                             loading={searching}

@@ -50,9 +50,9 @@ export class CreateInstanceModal extends React.Component {
             }, () => { this.validate() });
         };
         this.onConfigChange = (event, id, min) => {
-            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            const newValue = isNaN(event.target.value) ? min : Number(event.target.value);
             this.setState({
-                [id]: newValue > this.maxValue ? this.maxValue : newValue < 0 ? 0 : newValue
+                [id]: newValue > this.maxValue ? this.maxValue : newValue < min ? min : newValue
             }, () => { this.validate() });
         };
         this.onPlusConfig = (id) => {
@@ -456,7 +456,7 @@ export class CreateInstanceModal extends React.Component {
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="The server port number should be in the range of 1 to 65534.">
+                        <Grid title="The server port number should be in the range of 0 to 65534.">
                             <GridItem className="ds-label" span={4}>
                                 Port
                             </GridItem>
@@ -466,7 +466,7 @@ export class CreateInstanceModal extends React.Component {
                                     min={1}
                                     max={65534}
                                     onMinus={() => { this.onMinusConfig("createPort") }}
-                                    onChange={(e) => { this.onConfigChange(e, "createPort", 1) }}
+                                    onChange={(e) => { this.onConfigChange(e, "createPort", 0) }}
                                     onPlus={() => { this.onPlusConfig("createPort") }}
                                     inputName="input"
                                     inputAriaLabel="number input"
@@ -474,9 +474,12 @@ export class CreateInstanceModal extends React.Component {
                                     plusBtnAriaLabel="plus"
                                     widthChars={8}
                                 />
+                                <FormHelperText className="ds-info-color" isHidden={createPort !== 0}>
+                                    Port 0 will disable non-TLS connections
+                                </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top" title="The secure port number for TLS connections. It should be in the range of 1 to 65534.">
+                        <Grid title="The secure port number for TLS connections. It should be in the range of 1 to 65534.">
                             <GridItem className="ds-label" span={4}>
                                 Secure Port
                             </GridItem>
@@ -496,8 +499,8 @@ export class CreateInstanceModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top" title="Create a self-signed certificate database in /etc/dirsrc/ssca directory.">
-                            <GridItem className="ds-label" span={4}>
+                        <Grid title="Create a self-signed certificate database in /etc/dirsrc/ssca directory.">
+                            <GridItem className="ds-label-checkbox" span={4}>
                                 Create Self-Signed TLS Certificate
                             </GridItem>
                             <GridItem span={8}>
@@ -510,7 +513,7 @@ export class CreateInstanceModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top" title="The DN for the unrestricted user">
+                        <Grid title="The DN for the unrestricted user">
                             <GridItem className="ds-label" span={4}>
                                 Directory Manager DN
                             </GridItem>
@@ -573,8 +576,7 @@ export class CreateInstanceModal extends React.Component {
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <hr />
-                        <Grid title="Create a database during the installation.">
+                        <Grid className="ds-margin-top" title="Create a database during the installation.">
                             <Checkbox
                                 id="createDBCheckbox"
                                 label="Create Database"
@@ -584,72 +586,75 @@ export class CreateInstanceModal extends React.Component {
                                 }}
                             />
                         </Grid>
-                        <Grid title="Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP Distiguished Name (DN)">
-                            <GridItem className="ds-label" offset={1} span={3}>
-                                Database Suffix
-                            </GridItem>
-                            <GridItem span={8}>
-                                <TextInput
-                                    value={createDBSuffix}
-                                    placeholder="e.g. dc=company,dc=com"
-                                    type="text"
-                                    id="createDBSuffix"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="createDBSuffix"
-                                    isDisabled={!createDBCheckbox}
-                                    onChange={(str, e) => {
-                                        this.handleFieldChange(e);
-                                    }}
-                                    validated={errObj.createDBSuffix ? ValidatedOptions.error : ValidatedOptions.default}
-                                />
-                                <FormHelperText isError isHidden={!errObj.createDBSuffix}>
-                                    Value must be a valid DN
-                                </FormHelperText>
-                            </GridItem>
-                        </Grid>
-                        <Grid title="The name for the backend database, like 'userroot'. The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">
-                            <GridItem className="ds-label" offset={1} span={3}>
-                                Database Name
-                            </GridItem>
-                            <GridItem span={8}>
-                                <TextInput
-                                    value={createDBName}
-                                    placeholder="e.g. userRoot"
-                                    type="text"
-                                    id="createDBName"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="createDBName"
-                                    isDisabled={!createDBCheckbox}
-                                    onChange={(str, e) => {
-                                        this.handleFieldChange(e);
-                                    }}
-                                    validated={errObj.createDBName ? ValidatedOptions.error : ValidatedOptions.default}
-                                />
-                                <FormHelperText isError isHidden={!errObj.createDBName}>
-                                    Name is required
-                                </FormHelperText>
-                            </GridItem>
-                        </Grid>
-                        <Grid>
-                            <GridItem className="ds-label" offset={1} span={3}>
-                                Database Initialization
-                            </GridItem>
-                            <GridItem span={8}>
-                                <FormSelect
-                                    id="createInitDB"
-                                    value={createInitDB}
-                                    onChange={(value, event) => {
-                                        this.handleFieldChange(event);
-                                    }}
-                                    aria-label="FormSelect Input"
-                                    isDisabled={!createDBCheckbox}
-                                >
-                                    <FormSelectOption key="1" value="noInit" label="Do Not Initialize Database" />
-                                    <FormSelectOption key="2" value="createSuffix" label="Create Suffix Entry" />
-                                    <FormSelectOption key="3" value="createSample" label="Create Sample Entries" />
-                                </FormSelect>
-                            </GridItem>
-                        </Grid>
+                        <div className={createDBCheckbox ? "" : "ds-hidden"}>
+                            <Grid title="Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP Distiguished Name (DN)">
+                                <GridItem className="ds-label" offset={1} span={3}>
+                                    Database Suffix
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <TextInput
+                                        value={createDBSuffix}
+                                        placeholder="e.g. dc=company,dc=com"
+                                        type="text"
+                                        id="createDBSuffix"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="createDBSuffix"
+                                        isDisabled={!createDBCheckbox}
+                                        onChange={(str, e) => {
+                                            this.handleFieldChange(e);
+                                        }}
+                                        validated={errObj.createDBSuffix ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                    <FormHelperText isError isHidden={!errObj.createDBSuffix}>
+                                        Value must be a valid DN
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                            <Grid title="The name for the backend database, like 'userroot'. The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">
+                                <GridItem className="ds-label" offset={1} span={3}>
+                                    Database Name
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <TextInput
+                                        value={createDBName}
+                                        placeholder="e.g. userRoot"
+                                        type="text"
+                                        id="createDBName"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="createDBName"
+                                        isDisabled={!createDBCheckbox}
+                                        onChange={(str, e) => {
+                                            this.handleFieldChange(e);
+                                        }}
+                                        validated={errObj.createDBName ? ValidatedOptions.error : ValidatedOptions.default}
+                                    />
+                                    <FormHelperText isError isHidden={!errObj.createDBName}>
+                                        Name is required
+                                    </FormHelperText>
+                                </GridItem>
+                            </Grid>
+                            <Grid>
+                                <GridItem className="ds-label" offset={1} span={3}>
+                                    Database Initialization
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <FormSelect
+                                        id="createInitDB"
+                                        value={createInitDB}
+                                        onChange={(value, event) => {
+                                            this.handleFieldChange(event);
+                                        }}
+                                        aria-label="FormSelect Input"
+                                        isDisabled={!createDBCheckbox}
+                                    >
+                                        <FormSelectOption key="1" value="noInit" label="Do Not Initialize Database" />
+                                        <FormSelectOption key="2" value="createSuffix" label="Create Suffix Entry" />
+                                        <FormSelectOption key="3" value="createSample" label="Create Sample Entries" />
+                                    </FormSelect>
+                                </GridItem>
+                            </Grid>
+                        </div>
+                        <div className={createDBCheckbox ? "ds-margin-bottom" : "ds-margin-bottom-md"} />
                     </Form>
                 </div>
             </Modal>

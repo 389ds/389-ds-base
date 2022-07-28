@@ -70,6 +70,11 @@ const exp_attrs = [
 export class ServerAccessLog extends React.Component {
     constructor(props) {
         super(props);
+
+        this.defaultLevel = <>Default Logging <font size="1" className="ds-info-color">(level 256)</font></>;
+        this.internalOpLevel = <>Internal Operations <font size="1" className="ds-info-color">(level 4)</font></>;
+        this.refLevel = <>Entry Access and Referrals <font size="1" className="ds-info-color">(level 512)</font></>;
+
         this.state = {
             loading: true,
             loaded: false,
@@ -81,9 +86,9 @@ export class ServerAccessLog extends React.Component {
             canSelectAll: false,
             isExpanded: false,
             rows: [
-                { cells: ['Default Logging'], level: 256, selected: true },
-                { cells: ['Internal Operations'], level: 4, selected: false },
-                { cells: ['Entry Access and Referrals'], level: 512, selected: false }
+                { cells: [{ title: this.defaultLevel}], level: 256, selected: true },
+                { cells: [{ title: this.internalOpLevel}], level: 4, selected: false },
+                { cells: [{ title: this.refLevel}], level: 512, selected: false }
             ],
             columns: [
                 { title: 'Logging Level' },
@@ -152,7 +157,7 @@ export class ServerAccessLog extends React.Component {
             // Handle the table contents check now
             for (const row of this.state.rows) {
                 for (const orig_row of this.state._rows) {
-                    if (orig_row.cells[0] == row.cells[0]) {
+                    if (orig_row.level == row.level) {
                         if (orig_row.selected != row.selected) {
                             disableSaveBtn = false;
                             break;
@@ -454,7 +459,7 @@ export class ServerAccessLog extends React.Component {
 
     onSelect(event, isSelected, rowId) {
         let disableSaveBtn = true;
-        const rows = JSON.parse(JSON.stringify(this.state.rows));
+        let rows = [...this.state.rows];
 
         // Update the row
         rows[rowId].selected = isSelected;
@@ -470,7 +475,7 @@ export class ServerAccessLog extends React.Component {
         // Handle the table contents
         for (const row of rows) {
             for (const orig_row of this.state._rows) {
-                if (orig_row.cells[0] == row.cells[0]) {
+                if (orig_row.level == row.level) {
                     if (orig_row.selected != row.selected) {
                         disableSaveBtn = false;
                         break;

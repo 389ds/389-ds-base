@@ -2,7 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
-import { DoubleConfirmModal } from "../notifications.jsx";
 import {
     Button,
     Checkbox,
@@ -15,42 +14,31 @@ import {
     Spinner,
     Text,
     TextContent,
-    TextInput,
     TextVariants,
     Tooltip,
-    ValidatedOptions
 } from '@patternfly/react-core';
 import OutlinedQuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
 
 export class Changelog extends React.Component {
     constructor (props) {
         super(props);
         this.state = {
-            showDeleteChangelogModal: false,
+            loading: false,
+            errObj: {},
+            showConfirmDelete: false,
             saveBtnDisabled: true,
-            modalSpinning: false,
-            modalChecked: false,
             // Changelog settings
-            clDir: this.props.clDir,
-            clMaxEntries: Number(this.props.clMaxEntries) == 0 ? 0 : Number(this.props.clMaxEntries),
-            clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) == 0 ? 0 : Number(this.props.clMaxAge.slice(0, -1)),
+            clMaxEntries: Number(this.props.clMaxEntries) == 0 ? -1 : Number(this.props.clMaxEntries),
+            clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) == 0 ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
             clMaxAgeUnit: this.props.clMaxAge != "" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
-            clTrimInt: Number(this.props.clTrimInt) == 0 ? 300 : Number(this.props.clTrimInt),
-            clCompactInt: Number(this.props.clCompactInt) == 0 ? 2592000 : Number(this.props.clCompactInt),
+            clTrimInt: Number(this.props.clTrimInt) == 0 ? -1 : Number(this.props.clTrimInt),
             clEncrypt: this.props.clEncrypt,
             // Preserve original settings
-            _clMaxEntries: Number(this.props.clMaxEntries) == 0 ? 0 : Number(this.props.clMaxEntries),
-            _clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) == 0 ? 0 : Number(this.props.clMaxAge.slice(0, -1)),
+            _clMaxEntries: Number(this.props.clMaxEntries) == 0 ? -1 : Number(this.props.clMaxEntries),
+            _clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) == 0 ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
             _clMaxAgeUnit: this.props.clMaxAge != "" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
-            _clTrimInt: Number(this.props.clTrimInt) == 0 ? 300 : Number(this.props.clTrimInt),
-            _clCompactInt: Number(this.props.clCompactInt) == 0 ? 2592000 : Number(this.props.clCompactInt),
+            _clTrimInt: Number(this.props.clTrimInt) == 0 ? -1 : Number(this.props.clTrimInt),
             _clEncrypt: this.props.clEncrypt,
-            _clDir: this.props.clDir,
         };
 
         this.minValue = -1;
@@ -77,20 +65,12 @@ export class Changelog extends React.Component {
 
         this.handleChange = this.handleChange.bind(this);
         this.saveSettings = this.saveSettings.bind(this);
-        this.showDeleteChangelogModal = this.showDeleteChangelogModal.bind(this);
-        this.closeDeleteChangelogModal = this.closeDeleteChangelogModal.bind(this);
-        this.createChangelog = this.createChangelog.bind(this);
-        this.deleteChangelog = this.deleteChangelog.bind(this);
-    }
-
-    componentDidMount() {
-        this.props.enableTree();
     }
 
     saveSettings () {
         const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
-            'replication', 'set-changelog',
+            'replication', 'set-changelog', '--suffix', this.props.suffix
         ];
         let requires_restart = false;
         let msg = "Successfully updated changelog configuration.";
@@ -104,9 +84,6 @@ export class Changelog extends React.Component {
         if (this.state.clTrimInt != this.state._clTrimInt) {
             cmd.push("--trim-interval=" + this.state.clTrimInt);
         }
-        if (this.state.clCompactInt != this.state._clCompactInt) {
-            cmd.push("--compact-interval=" + this.state.clCompactInt);
-        }
         if (this.state.clEncrypt != this.state._clEncrypt) {
             if (this.state.clEncrypt) {
                 cmd.push("--encrypt");
@@ -116,7 +93,7 @@ export class Changelog extends React.Component {
                 cmd.push("--disable-encrypt");
             }
         }
-        if (cmd.length > 5) {
+        if (cmd.length > 6) {
             this.setState({
                 // Start the spinner
                 saving: true
@@ -125,7 +102,7 @@ export class Changelog extends React.Component {
             cockpit
                     .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
-                        this.props.reload();
+                        this.reloadChangelog();
                         this.props.addNotification(
                             requires_restart ? "warning" : "success",
                             msg
@@ -137,7 +114,7 @@ export class Changelog extends React.Component {
                     })
                     .fail(err => {
                         const errMsg = JSON.parse(err);
-                        this.props.reload();
+                        this.reloadChangelog();
                         this.setState({
                             saving: false
                         });
@@ -160,14 +137,8 @@ export class Changelog extends React.Component {
             this.state.clMaxAge != this.state._clMaxAge ||
             this.state.clMaxAgeUnit != this.state._clMaxAgeUnit ||
             this.state.clTrimInt != this.state._clTrimInt ||
-            this.state.clCompactInt != this.state._clCompactInt ||
-            this.state.clDir != this.state._clDir ||
             this.state.clEncrypt != this.state._clEncrypt) {
             saveBtnDisabled = false;
-        }
-
-        if (this.state.clDir === "") {
-            saveBtnDisabled = true;
         }
 
         this.setState({
@@ -175,7 +146,7 @@ export class Changelog extends React.Component {
         });
     }
 
-    handleChange(e) {
+    handleChange(str, e) {
         // Update the state, then validate the values/save btn
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
@@ -185,135 +156,73 @@ export class Changelog extends React.Component {
         }, () => { this.validateSaveBtn() });
     }
 
-    showDeleteChangelogModal () {
+    reloadChangelog () {
         this.setState({
-            showDeleteChangelogModal: true,
-            modalSpinning: false,
-            modalChecked: false,
+            loading: true,
         });
-    }
-
-    closeDeleteChangelogModal () {
-        this.setState({
-            showDeleteChangelogModal: false
-        });
-    }
-
-    deleteChangelog () {
-        this.setState({
-            saving: true,
-            modalSpinning: true,
-        });
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
-            'replication', 'delete-changelog'
-        ];
-        log_cmd("deleteChangelog", "Delete changelog", cmd);
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+            'replication', 'get-changelog', '--suffix', this.props.suffix];
+        log_cmd("reloadChangelog", "Load the replication changelog info", cmd);
         cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.closeDeleteChangelogModal();
-                    this.props.reload();
-                    this.props.addNotification(
-                        "success",
-                        "Successfully deleted replication changelog"
-                    );
+                    const config = JSON.parse(content);
+                    let clMaxEntries = "";
+                    let clMaxAge = "";
+                    let clMaxAgeUnit = "s";
+                    let clTrimInt = "";
+                    let clEncrypt = false;
+                    for (const attr in config.attrs) {
+                        const val = config.attrs[attr][0];
+                        if (attr == "nsslapd-changelogmaxentries") {
+                            clMaxEntries = val;
+                        } else if (attr == "nsslapd-changelogmaxage") {
+                            clMaxAge = val.slice(0, -1);
+                            clMaxAgeUnit = val.slice(-1).toLowerCase();
+                        } else if (attr == "nsslapd-changelogtrim-interval") {
+                            clTrimInt = val;
+                        } else if (attr == "nsslapd-encryptionalgorithm") {
+                            clEncrypt = true;
+                        }
+                    }
                     this.setState({
-                        saving: false
+                        clMaxEntries: Number(clMaxEntries) == 0 ? -1 : Number(clMaxEntries),
+                        clMaxAge: Number(clMaxAge) == 0 ? -1 : Number(clMaxAge),
+                        clMaxAgeUnit: clMaxAgeUnit,
+                        clTrimInt: Number(clTrimInt) == 0 ? -1 : Number(clTrimInt),
+                        clEncrypt: clEncrypt,
+                        // Preserve original settings
+                        _clMaxEntries: Number(clMaxEntries) == 0 ? -1 : Number(clMaxEntries),
+                        _clMaxAge: Number(clMaxAge) == 0 ? -1 : Number(clMaxAge),
+                        _clMaxAgeUnit: clMaxAgeUnit,
+                        _clTrimInt: Number(clTrimInt) == 0 ? -1 : Number(clTrimInt),
+                        _clEncrypt: clEncrypt,
+                        saveBtnDisabled: true,
+                        loading: false,
                     });
                 })
                 .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.closeDeleteChangelogModal();
-                    this.props.reload();
-                    this.setState({
-                        saving: false
-                    });
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
+                    const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error deleting changelog - ${msg}`
-                    );
-                });
-    }
-
-    createChangelog () {
-        this.setState({
-            saving: true
-        });
-        let cmd = [
-            'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
-            'replication', 'create-changelog'
-        ];
-        log_cmd("createChangelog", "Create changelog", cmd);
-        cockpit
-                .spawn(cmd, {superuser: true, "err": "message"})
-                .done(content => {
-                    this.props.reload();
-                    this.props.addNotification(
-                        "success",
-                        "Successfully created replication changelog"
+                        `Failed to reload changelog for "${this.props.suffix}" - ${errMsg.desc}`
                     );
                     this.setState({
-                        saving: false
+                        loading: false,
+                        saveBtnDisabled: true,
                     });
-                })
-                .fail(err => {
-                    let errMsg = JSON.parse(err);
-                    this.props.reload();
-                    this.setState({
-                        saving: false
-                    });
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
-                    this.props.addNotification(
-                        "error",
-                        `Error creating changelog - ${msg}`
-                    );
                 });
     }
-
 
     render() {
         let clPage;
         let saveBtnName = "Save Settings";
         const extraPrimaryProps = {};
 
-        if (this.state._clDir == "") {
-            // No changelog, only show clDir and Create button
-            clPage =
-                <div>
-                    <TextContent>
-                        <Text component={TextVariants.h3}>
-                            Replication Changelog <FontAwesomeIcon
-                                size="lg"
-                                className="ds-left-margin ds-refresh"
-                                icon={faSyncAlt}
-                                title="Refresh changelog settings"
-                                onClick={this.props.reload}
-                            />
-                        </Text>
-                    </TextContent>
-                    <div className="ds-margin-top-xlg ds-center">
-                        <p>There is no Replication Changelog</p>
-                        <Button
-                            className="ds-margin-top-lg"
-                            title="Create the replication changelog"
-                            variant="primary"
-                            onClick={this.createChangelog}
-                        >
-                            Create Changelog
-                        </Button>
-                    </div>
-                </div>;
-        } else if (this.state.saving) {
+        if (this.state.saving) {
             saveBtnName = "Saving settings ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
-        } else if (this.props.loading) {
+        } else if (this.loading) {
             clPage =
                 <div className="ds-margin-top-xlg ds-center">
                     <TextContent>
@@ -326,49 +235,7 @@ export class Changelog extends React.Component {
         } else {
             clPage =
                 <div className="ds-margin-top-lg">
-                    <Grid className="ds-margin-top">
-                        <GridItem span={5} className="ds-word-wrap">
-                            <TextContent>
-                                <Text component={TextVariants.h3}>
-                                    Replication Changelog <FontAwesomeIcon
-                                        size="lg"
-                                        className="ds-left-margin ds-refresh"
-                                        icon={faSyncAlt}
-                                        title="Refresh changelog settings"
-                                        onClick={this.props.reload}
-                                    />
-                                </Text>
-                            </TextContent>
-                        </GridItem>
-                        <GridItem span={7}>
-                            <Button
-                                className="ds-float-right"
-                                variant="danger"
-                                onClick={this.showDeleteChangelogModal}
-                            >
-                                Delete Changelog
-                            </Button>
-                        </GridItem>
-                    </Grid>
                     <Form isHorizontal>
-                        <Grid className="ds-margin-top-xlg" title="Changelog location (nsslapd-changelogdir)">
-                            <GridItem className="ds-label" span={3}>
-                                Changelog Directory
-                            </GridItem>
-                            <GridItem span={9}>
-                                <TextInput
-                                    value={this.state.clDir}
-                                    type="text"
-                                    id="clDir"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="clDir"
-                                    onChange={(str, e) => {
-                                        this.handleChange(e);
-                                    }}
-                                    validated={this.state.clDir === "" ? ValidatedOptions.error : ValidatedOptions.default}
-                                />
-                            </GridItem>
-                        </Grid>
                         <Grid
                             title="Changelog trimming parameter.  Set the maximum number of changelog entries allowed in the database (nsslapd-changelogmaxentries)."
                         >
@@ -417,9 +284,7 @@ export class Changelog extends React.Component {
                                     className="ds-margin-left"
                                     id="clMaxAgeUnit"
                                     value={this.state.clMaxAgeUnit}
-                                    onChange={(str, e) => {
-                                        this.handleChange(e);
-                                    }}
+                                    onChange={this.handleChange}
                                     aria-label="FormSelect Input"
                                     isDisabled={this.state.clMaxAge < 1}
                                 >
@@ -445,28 +310,6 @@ export class Changelog extends React.Component {
                                     onMinus={() => { this.onMinus("clTrimInt") }}
                                     onChange={(e) => { this.onChange(e, "clTrimInt") }}
                                     onPlus={() => { this.onPlus("clTrimInt") }}
-                                    inputName="input"
-                                    inputAriaLabel="number input"
-                                    minusBtnAriaLabel="minus"
-                                    plusBtnAriaLabel="plus"
-                                    widthChars={8}
-                                />
-                            </GridItem>
-                        </Grid>
-                        <Grid
-                            title="The changelog compaction interval.  Set how often the changelog will compact itself, meaning remove empty/trimmed database slots.  The default is 30 days. (nsslapd-changelogcompactdb-interval)."
-                        >
-                            <GridItem className="ds-label" span={3}>
-                                Changelog Compaction Interval
-                            </GridItem>
-                            <GridItem span={2}>
-                                <NumberInput
-                                    value={this.state.clCompactInt}
-                                    min={this.minValue}
-                                    max={this.maxValue}
-                                    onMinus={() => { this.onMinus("clCompactInt") }}
-                                    onChange={(e) => { this.onChange(e, "clCompactInt") }}
-                                    onPlus={() => { this.onPlus("clCompactInt") }}
                                     inputName="input"
                                     inputAriaLabel="number input"
                                     minusBtnAriaLabel="minus"
@@ -504,9 +347,7 @@ export class Changelog extends React.Component {
                                 <Checkbox
                                     id="clEncrypt"
                                     isChecked={this.state.clEncrypt}
-                                    onChange={(checked, e) => {
-                                        this.handleChange(e);
-                                    }}
+                                    onChange={this.handleChange}
                                 />
                             </GridItem>
                         </Grid>
@@ -528,18 +369,6 @@ export class Changelog extends React.Component {
         return (
             <div className={this.state.saving ? "ds-disabled" : ""}>
                 {clPage}
-                <DoubleConfirmModal
-                    showModal={this.state.showDeleteChangelogModal}
-                    closeHandler={this.closeDeleteChangelogModal}
-                    handleChange={this.handleChange}
-                    actionHandler={this.deleteChangelog}
-                    spinning={this.state.modalSpinning}
-                    checked={this.state.modalChecked}
-                    mTitle="Delete Replication Changelog"
-                    mMsg="Are you sure you want to delete the replication changelog?"
-                    mSpinningMsg="Deleting Changelog ..."
-                    mBtnName="Delete Changelog"
-                />
             </div>
         );
     }
