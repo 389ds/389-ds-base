@@ -2726,6 +2726,7 @@ dbmdb_public_dblayer_compact(Slapi_Backend *be, PRBool just_changelog)
         goto out;
     }
     rc = close(newdb_fd);
+    newdb_fd = -1;
     if (!rc) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_dblayer_compact",
                       "Failed to close the database copy. Error is %d, File is %s\n",

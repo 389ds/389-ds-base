@@ -288,7 +288,7 @@ class AddNewAci extends React.Component {
                             aciText += " or ";
                         }
                     }
-                    if (many > 1) {
+                    if (many) {
                         // Need to group rules under single ()
                         aciText += ")";
                     }

@@ -1915,16 +1915,8 @@ process_foreman(backentry *ep, WorkerQueueData_t *wqelmnt)
     PseudoTxn_t txn = init_pseudo_txn(job->writer_ctx);
     int ret = 0;
 
-
     PR_ASSERT(info != NULL);
     PR_ASSERT(inst != NULL);
-
-    if (ret != 0) {
-        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_foreman",
-                          "Could not add op attrs to entry starting at line %d of file \"%s\"",
-                          wqelmnt->lineno, wqelmnt->filename);
-        return -1;
-    }
 
     if (!(job->flags & FLAG_REINDEXING)) /* reindex reads data from id2entry */
     {
@@ -2201,13 +2193,13 @@ slapi_log_error(SLAPI_LOG_ERR, "process_entryrdn_by_rdn", "rdn=%s nrdn=%s pid=%d
         wqd.data.mv_data = entryrdn_encode_data(job->inst->inst_be, &wqd.data.mv_size, ep->ep_id, nrdn, rdn);
         dbmdb_import_writeq_push(ctx, &wqd);
         slapi_ch_free(&wqd.data.mv_data);
-        slapi_rdn_done(&srdn);
         dbmdb_add_op_attrs(job, ep, pid);
         ctx->idsuffix = ep->ep_id;
         if (ctx->idruv) {
             /* It is time to store the RUV in entryrdn.db */
             dbmdb_store_ruv_in_entryrdn(wqelmnt, ctx->idruv, ep->ep_id, nrdn, rdn);
         }
+        slapi_rdn_done(&srdn);
         return PEA_OK;
     } else {
         /* Standard case: ep is not the suffix entry */

@@ -1400,9 +1400,6 @@ log_set_rotationsynchour(const char *attrname, char *rhour_str, int logtype, cha
         return LDAP_UNWILLING_TO_PERFORM;
     }
 
-    if (rhour > 23)
-        rhour = rhour % 24;
-
     switch (logtype) {
     case SLAPD_ACCESS_LOG:
         LOG_ACCESS_LOCK_WRITE();
@@ -1555,10 +1552,6 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
                 "Invalid value \"%s\" for attribute (%s), value must be \"-1\" or greater than \"0\"",
                 rtime_str, attrname);
         return LDAP_UNWILLING_TO_PERFORM;
-    }
-
-    if (0 == rtime) {
-        rtime = -1; /* Value Range: -1 | 1 to PR_INT32_MAX */
     }
 
     switch (logtype) {
@@ -2043,10 +2036,8 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
 
     if (value > 0 && value < rsec) {
         value = rsec;
-    } else if (exptime > 0 && value < -1) {
-        /* value is overflown */
-        value = PR_INT32_MAX;
     }
+
 
     switch (logtype) {
     case SLAPD_ACCESS_LOG:

@@ -385,7 +385,6 @@ export class SuffixIndexes extends React.Component {
         // Set the state types and matching Rules
         const currentMRS = [];
         if (item[2] !== undefined &&
-            item[2].length > 0 &&
             item[2].length > 0) {
             const parts = item[2].split(",").map(item => item.trim());
             for (const part of parts) {
