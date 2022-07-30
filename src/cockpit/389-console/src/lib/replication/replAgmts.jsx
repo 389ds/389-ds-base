@@ -1428,7 +1428,7 @@ export class ReplAgmts extends React.Component {
             cmd.push('--frac-list=' + this.state.agmtFracAttrs.join(' '));
         }
         if (this.state.agmtFracInitAttrs.length > 0) {
-            cmd.push('--frac-list-total=' + this.state.agmtFracAttrs.join(' '));
+            cmd.push('--frac-list-total=' + this.state.agmtFracInitAttrs.join(' '));
         }
         if (this.state.agmtStripAttrs.length > 0) {
             cmd.push('--strip-list=' + this.state.agmtStripAttrs.join(' '));

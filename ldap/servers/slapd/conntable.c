@@ -560,7 +560,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
     nconns = 0;
     nreadwaiters = 0;
     for (ct_list = 0; ct_list < (ct != NULL ? ct->list_num : 0); ct_list++) {
-        for (i = 0; i < (ct != NULL ? ct->list_size : 0); i++) {
+        for (i = 0; i < ct->list_size; i++) {
             PR_Lock(ct->table_mutex);
             if (ct->c[ct_list][i].c_state == CONN_STATE_FREE) {
                 PR_Unlock(ct->table_mutex);

@@ -1904,10 +1904,6 @@ connection_threadmain(void *arg)
                         signal_listner(conn->c_ct_list);
                         need_wakeup = 0;
                     }
-                } else if (1 == is_timedout) {
-                    /* covscan reports this code is unreachable  (2019/6/4) */
-                    connection_make_readable_nolock(conn);
-                    signal_listner(conn->c_ct_list);
                 }
             }
             pthread_mutex_unlock(&(conn->c_mutex));

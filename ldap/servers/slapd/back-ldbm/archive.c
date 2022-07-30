@@ -154,7 +154,6 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
     int32_t return_value = -1;
     int32_t task_flags = 0;
     int32_t run_from_cmdline = 0;
-    int32_t is_old_to_new = 0;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_SEQ_VAL, &rawdirectory);
@@ -168,28 +167,6 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
     }
 
     directory = rel2abspath(rawdirectory);
-    /* skip check for version and idl upgrade
-    return_value = dbversion_read(li, directory, &dbversion, &dataversion);
-    if (return_value) {
-        if (ENOENT == return_value) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_archive2ldbm", "No back up \"%s\" exists.\n",
-                          directory);
-            return -1;
-        }
-        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_archive2ldbm",
-                      "Unable to read dbversion file in %s\n", directory);
-    }
-*/
-    /* check the current idl format vs backup DB version
-    if (idl_get_idl_new()) {
-        value = lookup_dbversion(dbversion, DBVERSION_TYPE);
-        if (value & DBVERSION_OLD_IDL) {
-            is_old_to_new = 1;
-        }
-    }
-    slapi_ch_free_string(&dbversion);
-    slapi_ch_free_string(&dataversion);
-*/
 
     /* No ldbm be's exist until we process the config information. */
     if (run_from_cmdline) {
@@ -208,20 +185,6 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
         }
     }
     if (!run_from_cmdline) {
-        /* task does not support restore old idl onto new idl server */
-        if (is_old_to_new) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "ldbm_back_archive2ldbm", "Backup has old idl format; "
-                                                    "to restore old formated backup onto the new server, "
-                                                    "please use command line utility \"bak2db\" .\n");
-            if (task) {
-                slapi_task_log_notice(task,
-                                      "Backup has old idl format; "
-                                      "to restore old formated backup onto the new server, "
-                                      "please use command line utility \"bak2db\" .");
-            }
-            goto out;
-        }
         return_value = ldbm_temporary_close_all_instances(pb);
         if (0 != return_value) {
             goto out;
@@ -244,39 +207,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
         }
     }
 
-    if (run_from_cmdline) {
-        if (is_old_to_new) {
-            /* does not exist */
-            char *p;
-            char c;
-            char *bakup_dir = NULL;
-            int32_t skipinit = SLAPI_UPGRADEDB_SKIPINIT;
-
-            p = strrchr(directory, '/');
-            if (NULL == p) {
-                p = strrchr(directory, '\\');
-            }
-
-            if (NULL == p) /* never happen, I guess */
-            {
-                slapi_ch_free_string(&directory);
-                directory = slapi_ch_smprintf(".");
-                c = '/';
-            } else {
-                c = *p;
-                *p = '\0';
-            }
-            bakup_dir = slapi_ch_smprintf("%s%ctmp_%010ld", directory, c, time(0));
-            slapi_log_err(SLAPI_LOG_INFO,
-                          "ldbm_back_archive2ldbm", "Backup dir: %s\n", bakup_dir);
-            if (p)
-                *p = c;
-
-            slapi_pblock_set(pb, SLAPI_SEQ_VAL, bakup_dir);
-            slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &skipinit);
-            return_value = ldbm_back_upgradedb(pb);
-        }
-    } else {
+    if (!run_from_cmdline) {
         Object *inst_obj;
         int32_t ret;
 
