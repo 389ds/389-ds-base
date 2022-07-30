@@ -1387,10 +1387,10 @@ slapi_filter_to_string_internal(const struct slapi_filter *f, char *buf, size_t 
             *bufsize -= 2;
 
             for (p = f->f_list; p != NULL; p = p->f_next) {
-                buf += buf ? strlen(buf) : 0;
+                buf += strlen(buf);
                 slapi_filter_to_string_internal(p, buf, bufsize);
             }
-            buf += buf ? strlen(buf) : 0;
+            buf += strlen(buf);
 
             if (1 < *bufsize) {
                 sprintf(buf, ")");
@@ -1406,7 +1406,7 @@ slapi_filter_to_string_internal(const struct slapi_filter *f, char *buf, size_t 
         if (size < *bufsize) {
             sprintf(buf, "(%s%s%s%s%s%.*s)", f->f_mr_type, f->f_mr_dnAttrs ? ":dn" : "",
                     f->f_mr_oid ? ":" : "", f->f_mr_oid ? f->f_mr_oid : "",
-                                            operator,(int) f->f_mr_value.bv_len, f->f_mr_value.bv_val);
+                    operator,(int) f->f_mr_value.bv_len, f->f_mr_value.bv_val);
             *bufsize -= size;
         }
         break;

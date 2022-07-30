@@ -3471,9 +3471,9 @@ bdb_ldbm_back_wire_import(Slapi_PBlock *pb)
         if (!bdb_import_entry_belongs_here(pb_import_entry, job->inst->inst_be)) {
             /* silently skip */
             /* We need to consume pb->pb_import_entry on success, so we free it here. */
-            slapi_entry_free(pb_import_entry);
             slapi_log_err(SLAPI_LOG_REPL, "bdb_ldbm_back_wire_import", "Skipping entry %s\n",
                           slapi_sdn_get_dn(slapi_entry_get_sdn(pb_import_entry)));
+            slapi_entry_free(pb_import_entry);
             return 0;
         }
 

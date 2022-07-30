@@ -305,10 +305,6 @@ replica_config_modify(Slapi_PBlock *pb,
         */
         char *new_repl_id = NULL;
         char *new_repl_type = NULL;
-        /* we also need to handle the change of repl_flags and enable or disable 
-         * the changelog
-         */
-        char *new_repl_flag = NULL;
 
         if (*returncode != LDAP_SUCCESS)
             break;
@@ -552,10 +548,6 @@ replica_config_modify(Slapi_PBlock *pb,
             slapi_ch_free_string(&new_repl_id);
             slapi_ch_free_string(&new_repl_type);
             agmtlist_notify_all(pb);
-        }
-        if (new_repl_flag) {
-            *returncode = replica_config_change_flags(r, new_repl_flag, errortext, apply_mods);
-            slapi_ch_free_string(&new_repl_flag);
         }
     }
 

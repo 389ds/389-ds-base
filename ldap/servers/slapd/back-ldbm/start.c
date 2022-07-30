@@ -35,7 +35,6 @@ int
 ldbm_back_start(Slapi_PBlock *pb)
 {
     struct ldbminfo *li;
-    int action = 0;
     int retval = 0;
     dblayer_private *priv = NULL;
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_start", "ldbm backend starting\n");
@@ -113,21 +112,8 @@ ldbm_back_start(Slapi_PBlock *pb)
         return SLAPI_FAIL_GENERAL;
     }
 
-    /* TBD do we want to go on with auto upgrades of old db versions and config
-     * or take the opportunity to stop this ??
-    retval = check_db_version(li, &action);
-    if (0 != retval) {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "db version is not supported\n");
-        return SLAPI_FAIL_GENERAL;
-    }
-     */
+    retval = dblayer_start(li, DBLAYER_NORMAL_MODE);
 
-    if (action &
-        (DBVERSION_UPGRADE_3_4 | DBVERSION_UPGRADE_4_4 | DBVERSION_UPGRADE_4_5)) {
-        retval = dblayer_start(li, DBLAYER_CLEAN_RECOVER_MODE);
-    } else {
-        retval = dblayer_start(li, DBLAYER_NORMAL_MODE);
-    }
     if (0 != retval) {
         const char *msg;
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to init database, err=%d %s\n",

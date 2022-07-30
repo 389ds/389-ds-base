@@ -254,7 +254,7 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
             PR_ASSERT(curr_op->flags == OPERATION_PL_PENDING);
             if (rc == LDAP_SUCCESS) {
                 curr_op->flags = OPERATION_PL_SUCCEEDED;
-                curr_op->entry = e ? slapi_entry_dup(e) : NULL;
+                curr_op->entry = slapi_entry_dup(e);
                 curr_op->eprev = eprev ? slapi_entry_dup(eprev) : NULL;
                 curr_op->chgtype = op_tag;
             } else {

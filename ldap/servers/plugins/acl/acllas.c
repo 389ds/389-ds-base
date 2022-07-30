@@ -3357,7 +3357,6 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *att
     int matched = ACL_FALSE;
     char *p;
     lasInfo lasinfo;
-    int got_undefined = 0;
 
     if (0 != (rc = __acllas_setup(errp, attr_name, comparator, 0, /* Don't allow range comparators */
                                   attr_pattern, cachable, LAS_cookie,
@@ -3463,7 +3462,7 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *att
      * and got_undefined says whether a logical term evaluated to ACL_DONT_KNOW.
      *
      */
-    if (matched == ACL_TRUE || !got_undefined) {
+    if (matched == ACL_TRUE) {
         if (comparator == CMP_OP_EQ) {
             rc = (matched == ACL_TRUE ? LAS_EVAL_TRUE : LAS_EVAL_FALSE);
         } else {

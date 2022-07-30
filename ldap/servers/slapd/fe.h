@@ -119,7 +119,6 @@ int slapd_listenhost2addr(const char *listenhost, PRNetAddr ***addr);
 int daemon_register_reslimits(void);
 PRFileDesc *get_ssl_listener_fd(void);
 int configure_pr_socket(PRFileDesc **pr_socket, int secure, int local);
-void configure_ns_socket(int *ns);
 
 /*
  * sasl_io.c

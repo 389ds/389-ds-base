@@ -5434,7 +5434,6 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
     char *home_dir = NULL;
     char *real_src_dir = NULL;
     struct stat sbuf;
-    char *changelogdir = NULL;
     char *restore_dir = NULL;
     char *prefix = NULL;
     int cnt = 1;
@@ -5547,17 +5546,8 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         PR_CloseDir(dirhandle);
     }
 
-    /* We delete the existing database */
-    /* changelogdir is taken care only when it's not NULL. */
-    return_value = bdb_delete_database_ex(li, changelogdir);
-    if (return_value) {
-        goto error_out;
-    }
-
-    {
-        /* Otherwise use the src_dir from the caller */
-        real_src_dir = src_dir;
-    }
+    /* Otherwise use the src_dir from the caller */
+    real_src_dir = src_dir;
 
     /* We copy the files over from the staging area */
     /* We want to treat the logfiles specially: if there's
@@ -5592,56 +5582,6 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
              * restore directory is supposed to be where the backend
              * directory is located.
              */
-            if (0 == strcmp(CHANGELOG_BACKUPDIR, direntry->name)) {
-                if (changelogdir) {
-                    char *cldirname = PL_strrchr(changelogdir, '/');
-                    char *p = filename1 + strlen(filename1);
-                    if (NULL == cldirname) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "bdb_restore", "Broken changelog dir path %s\n",
-                                      changelogdir);
-                        if (task) {
-                            slapi_task_log_notice(task,
-                                                  "Restore: broken changelog dir path %s",
-                                                  changelogdir);
-                        }
-                        goto error_out;
-                    }
-                    PR_snprintf(p, sizeof(filename1) - (p - filename1),
-                                "/%s", cldirname + 1);
-                    /* Get the parent dir of changelogdir */
-                    *cldirname = '\0';
-                    return_value = bdb_copy_directory(li, task, filename1,
-                                                          changelogdir, 1 /* restore */,
-                                                          &cnt, 0, 1);
-                    *cldirname = '/';
-                    if (return_value) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "bdb_restore", "Failed to copy directory %s\n",
-                                      filename1);
-                        if (task) {
-                            slapi_task_log_notice(task,
-                                                  "Restore: failed to copy directory %s",
-                                                  filename1);
-                        }
-                        goto error_out;
-                    }
-                    /* Copy DBVERSION */
-                    p = filename1 + strlen(filename1);
-                    PR_snprintf(p, sizeof(filename1) - (p - filename1),
-                                "/%s", DBVERSION_FILENAME);
-                    PR_snprintf(filename2, sizeof(filename2), "%s/%s",
-                                changelogdir, DBVERSION_FILENAME);
-                    return_value = bdb_copyfile(filename1, filename2,
-                                                    0, priv->dblayer_file_mode);
-                    if (0 > return_value) {
-                        slapi_log_err(SLAPI_LOG_ERR, "bdb_restore", "Failed to copy file %s\n", filename1);
-                        goto error_out;
-                    }
-                }
-                continue;
-            }
-
             inst = ldbm_instance_find_by_name(li, (char *)direntry->name);
             if (inst == NULL)
                 continue;
@@ -5795,7 +5735,7 @@ error_out:
         /* If this was an FRI restore and the staging area exists, go ahead and remove it */
         slapi_ch_free_string(&real_src_dir);
     }
-    slapi_ch_free_string(&changelogdir);
+
     return return_value;
 }
 

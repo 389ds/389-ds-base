@@ -510,6 +510,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
     attrlist_delete(&e->e_attrs, "connection");
     nconns = 0;
     nreadwaiters = 0;
+
     for (i = 0; i < (ct != NULL ? ct->size : 0); i++) {
         PR_Lock(ct->table_mutex);
         if (ct->c[i].c_state == CONN_STATE_FREE) {

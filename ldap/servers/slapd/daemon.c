@@ -805,7 +805,6 @@ accept_thread(void *vports)
     int last_accept_new_connections = -1;
     PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_accept_wakeup_timer);
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-
     PRFileDesc **n_tcps = NULL;
     PRFileDesc **s_tcps = NULL;
     PRFileDesc **i_unix = NULL;
@@ -820,7 +819,6 @@ accept_thread(void *vports)
     while (!g_get_shutdown()) {
         /* Do we need to accept new connections? */
         int accept_new_connections = ((ct->size - g_get_current_conn_count()) > slapdFrontendConfig->reservedescriptors);
-        last_accept_new_connections = accept_new_connections;
         if (!accept_new_connections) {
             if (last_accept_new_connections) {
                 slapi_log_err(SLAPI_LOG_ERR, "accept_thread",
@@ -850,6 +848,7 @@ accept_thread(void *vports)
             handle_listeners(fds);
             break;
         }
+        last_accept_new_connections = accept_new_connections;
     }
 
     /* free the listener indexes */
@@ -2582,32 +2581,6 @@ configure_pr_socket(PRFileDesc **pr_socket, int secure, int local)
     }
 
     return ns;
-}
-
-void
-configure_ns_socket(int *ns)
-{
-
-    int enable_nagle = config_get_nagle();
-    int on, rc;
-
-#if defined(LINUX)
-    /* On Linux we use TCP_CORK so we must enable nagle */
-    enable_nagle = 1;
-#endif
-
-    /* set the nagle */
-    if (!enable_nagle) {
-        on = 1;
-    } else {
-        on = 0;
-    }
-    /* check for errors */
-    if ((rc = setsockopt(*ns, IPPROTO_TCP, TCP_NODELAY, (char *)&on, sizeof(on)) != 0)) {
-        slapi_log_err(SLAPI_LOG_ERR, "configure_ns_socket", "Failed to configure socket (%d).\n", rc);
-    }
-
-    return;
 }
 
 

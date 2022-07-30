@@ -465,7 +465,7 @@ handle_handshake_done(PRFileDesc *prfd, void *clientData)
                              conn->c_connid,
                              sslversion, keySize,
                              cipher ? cipher : "NULL",
-                             subject ? escape_string(subject, sbuf) : "NULL",
+                             escape_string(subject, sbuf),
                              issuer ? escape_string(issuer, ibuf) : "NULL");
             if (issuer)
                 free(issuer);
