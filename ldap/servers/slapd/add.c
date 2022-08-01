@@ -1060,7 +1060,7 @@ check_oc_subentry(Slapi_Entry *e, struct berval **vals, char *normtype)
     PRBool subentry = PR_TRUE;
     for (n = 0; vals != NULL && vals[n] != NULL; n++) {
         if ((strcasecmp(normtype, "objectclass") == 0) && (strncasecmp((const char *)vals[n]->bv_val, "ldapsubentry", vals[n]->bv_len) == 0)) {
-            e->e_flags |= SLAPI_ENTRY_LDAPSUBENTRY;
+            e->e_flags |= SLAPI_ENTRY_FLAG_LDAPSUBENTRY;
             subentry = PR_FALSE;
             break;
         }
