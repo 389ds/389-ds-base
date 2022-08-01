@@ -61,9 +61,6 @@ typedef enum _slapi_filter_flags_t {
     SLAPI_FILTER_INVALID_ATTR_WARN = 64,
 } slapi_filter_flags;
 
-#define SLAPI_ENTRY_LDAPSUBENTRY 2
-
-
 /*
     Optimized filter path. For example the following code was lifted from int.c (syntaxes plugin):
 

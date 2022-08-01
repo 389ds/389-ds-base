@@ -426,7 +426,7 @@ str2entry_fast(const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, int
 
         if (value_state == VALUE_PRESENT && type.bv_len >= SLAPI_ATTR_OBJECTCLASS_LENGTH && PL_strncasecmp(type.bv_val, SLAPI_ATTR_OBJECTCLASS, type.bv_len) == 0) {
             if (value.bv_len >= SLAPI_ATTR_VALUE_SUBENTRY_LENGTH && PL_strncasecmp(value.bv_val, SLAPI_ATTR_VALUE_SUBENTRY, value.bv_len) == 0)
-                e->e_flags |= SLAPI_ENTRY_LDAPSUBENTRY;
+                e->e_flags |= SLAPI_ENTRY_FLAG_LDAPSUBENTRY;
             if (value.bv_len >= SLAPI_ATTR_VALUE_TOMBSTONE_LENGTH && PL_strncasecmp(value.bv_val, SLAPI_ATTR_VALUE_TOMBSTONE, value.bv_len) == 0)
                 e->e_flags |= SLAPI_ENTRY_FLAG_TOMBSTONE;
         }
@@ -946,7 +946,7 @@ str2entry_dupcheck(const char *rawdn, char *s, int flags, int read_stateinfo)
 
         if (strcasecmp(type, "objectclass") == 0) {
             if (strcasecmp(valuecharptr, "ldapsubentry") == 0)
-                e->e_flags |= SLAPI_ENTRY_LDAPSUBENTRY;
+                e->e_flags |= SLAPI_ENTRY_FLAG_LDAPSUBENTRY;
             if (strcasecmp(valuecharptr, SLAPI_ATTR_VALUE_TOMBSTONE) == 0)
                 e->e_flags |= SLAPI_ENTRY_FLAG_TOMBSTONE;
         }
@@ -3600,7 +3600,7 @@ entry_apply_mod(Slapi_Entry *e, const LDAPMod *mod)
     case LDAP_MOD_ADD:
         slapi_log_err(SLAPI_LOG_ARGS, "entry_apply_mod", "add: %s\n", mod->mod_type);
         if (sawsubentry)
-            e->e_flags |= SLAPI_ENTRY_LDAPSUBENTRY;
+            e->e_flags |= SLAPI_ENTRY_FLAG_LDAPSUBENTRY;
         err = slapi_entry_add_values(e, mod->mod_type, mod->mod_bvalues);
         break;
 
@@ -4051,7 +4051,6 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries, int te
     char *my_logging_prestr = "";
     Slapi_Entry **oep, **cep;
     int rval = 0;
-#define SLAPI_ENTRY_FLAG_DIFF_IN_BOTH 0x80
 
     if (NULL != logging_prestr && '\0' != *logging_prestr) {
         my_logging_prestr = slapi_ch_smprintf("%s ", logging_prestr);

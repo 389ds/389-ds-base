@@ -1114,6 +1114,7 @@ entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry
 #endif
     size_t entry_size = 0;
     struct backentry *alte = NULL;
+    Slapi_Attr *attr = NULL;
 
     LOG("=> entrycache_replace (%s) -> (%s)\n", backentry_get_ndn(olde),
         backentry_get_ndn(newe));
@@ -1129,6 +1130,14 @@ entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry
 #endif
     newndn = slapi_sdn_get_ndn(backentry_get_sdn(newe));
     entry_size = cache_entry_size(newe);
+
+    /* Might have added/removed a referral */
+    if (slapi_entry_attr_find(newe->ep_entry, "ref", &attr) && attr) {
+        slapi_entry_set_flag(newe->ep_entry, SLAPI_ENTRY_FLAG_REFERRAL);
+    } else {
+        slapi_entry_clear_flag(newe->ep_entry, SLAPI_ENTRY_FLAG_REFERRAL);
+    }
+
     cache_lock(cache);
 
     /*
@@ -1419,6 +1428,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
     struct backentry *my_alt;
     size_t entry_size = 0;
     int already_in = 0;
+    Slapi_Attr *attr = NULL;
 
     LOG("=> entrycache_add_int( \"%s\", %ld )\n", backentry_get_ndn(e),
         (long int)e->ep_id);
@@ -1431,6 +1441,13 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
         entry_size = cache_entry_size(e);
     } else {
         entry_size = e->ep_size;
+    }
+    /* Check for referrals now so we don't have to do it for every base
+     * search in the future */
+    if (slapi_entry_attr_find(e->ep_entry, "ref", &attr) && attr) {
+        slapi_entry_set_flag(e->ep_entry, SLAPI_ENTRY_FLAG_REFERRAL);
+    } else {
+        slapi_entry_clear_flag(e->ep_entry, SLAPI_ENTRY_FLAG_REFERRAL);
     }
 
     cache_lock(cache);

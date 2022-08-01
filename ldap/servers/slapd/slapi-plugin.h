@@ -2262,7 +2262,10 @@ int slapi_entry_rename(Slapi_Entry *e, const char *newrdn, int deleteoldrdn, Sla
  * \see slapi_entry_set_flag()
  * \see slapi_entry_clear_flag()
  */
-#define SLAPI_ENTRY_FLAG_TOMBSTONE 1
+#define SLAPI_ENTRY_FLAG_TOMBSTONE    0x1
+#define SLAPI_ENTRY_FLAG_LDAPSUBENTRY 0x2
+#define SLAPI_ENTRY_FLAG_DIFF_IN_BOTH 0x4
+#define SLAPI_ENTRY_FLAG_REFERRAL     0x8
 
 /**
  * Determines if certain flags are set for a specified entry.

@@ -1369,7 +1369,7 @@ urp_add_new_entry_to_conflict (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *a
                 slapi_value_init_berval(new_v, &bv);
                 slapi_attr_add_value(attr, new_v);
                 slapi_value_free(&new_v);
-                slapi_entry_set_flag(addentry, SLAPI_ENTRY_LDAPSUBENTRY);
+                slapi_entry_set_flag(addentry, SLAPI_ENTRY_FLAG_LDAPSUBENTRY);
             }
         }
         /* add or replace the conflict csn */
