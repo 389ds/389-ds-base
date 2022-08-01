@@ -705,7 +705,7 @@ decode_total_update_extop(Slapi_PBlock *pb, Slapi_Entry **ep)
         bv.bv_val = "ldapsubentry";
         bv.bv_len = strlen(bv.bv_val);
         if (slapi_attr_value_find(attr, &bv) == 0) {
-            slapi_entry_set_flag(e, SLAPI_ENTRY_LDAPSUBENTRY);
+            slapi_entry_set_flag(e, SLAPI_ENTRY_FLAG_LDAPSUBENTRY);
         }
         bv.bv_val = SLAPI_ATTR_VALUE_TOMBSTONE;
         bv.bv_len = strlen(bv.bv_val);

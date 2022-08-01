@@ -32,8 +32,13 @@ check_entry_for_referral(Slapi_PBlock *pb, Slapi_Entry *entry, char *matched, co
     struct berval **url = NULL;
 
     /* if the entry is a referral send the referral */
+    if (!slapi_entry_flag_is_set(entry, SLAPI_ENTRY_FLAG_REFERRAL)) {
+        return 0;
+    }
+
     if (slapi_entry_attr_find(entry, "ref", &attr)) {
-        // ref attribute not found
+        // ref attribute not found (should not happen)
+        PR_ASSERT(0);
         goto out;
     }
 

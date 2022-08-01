@@ -395,10 +395,10 @@ modify_apply_check_expand(
                     switch ( mods[i]->mod_op & ~LDAP_MOD_BVALUES ) {
                     case LDAP_MOD_ADD:
                     case LDAP_MOD_REPLACE:
-                        ec->ep_entry->e_flags |= SLAPI_ENTRY_LDAPSUBENTRY;
+                        ec->ep_entry->e_flags |= SLAPI_ENTRY_FLAG_LDAPSUBENTRY;
                         break;
                     case LDAP_MOD_DELETE:
-                        ec->ep_entry->e_flags &= ~SLAPI_ENTRY_LDAPSUBENTRY;
+                        ec->ep_entry->e_flags &= ~SLAPI_ENTRY_FLAG_LDAPSUBENTRY;
                         break;
                     }
                     break;

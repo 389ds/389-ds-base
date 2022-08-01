@@ -1694,7 +1694,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
                  * because whereas the former should be read as 'no entry must be returned', the latter
                  * might still lead to return an empty entry. */
 
-                if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_LDAPSUBENTRY)) {
+                if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_LDAPSUBENTRY)) {
                     /* If the entry is an LDAP subentry and RFC 3672 Subentries control is present
                      * and its value is set to false OR filter don't filter subentries
                      */
