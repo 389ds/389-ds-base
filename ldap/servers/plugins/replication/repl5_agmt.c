@@ -401,6 +401,10 @@ agmt_new_from_entry(Slapi_Entry *e)
             replica_incr_agmt_count(replica);
         }
     }
+    if (!replica) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_new_from_entry - Failed to get replica.\n");
+        goto loser;
+    }
 
     /* If this agmt has its own timeout, grab it, otherwise use the replica's protocol timeout */
     if ((val = slapi_entry_attr_get_ref(e, type_replicaProtocolTimeout))){
@@ -1974,7 +1978,7 @@ agmt_set_transportinfo_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBool bo
     } else {
         return_value = agmt_set_transportinfo_no_lock(ra, e);
     }
-    return_value = agmt_set_transportinfo_no_lock(ra, e);
+    return_value |= agmt_set_transportinfo_no_lock(ra, e);
     PR_Unlock(ra->lock);
     prot_notify_agmt_changed(ra->protocol, ra->long_name);
 
@@ -3361,10 +3365,10 @@ agmt_maxcsn_get_rid(char *maxcsn)
     char *iter = NULL;
     char *value = slapi_ch_strdup(maxcsn);
 
-    token = ldap_utf8strtok_r(value, ";", &iter); /* repl area */
-    token = ldap_utf8strtok_r(iter, ";", &iter);  /* agmt rdn */
-    token = ldap_utf8strtok_r(iter, ";", &iter);  /* host */
-    token = ldap_utf8strtok_r(iter, ";", &iter);  /* port */
+    (void) ldap_utf8strtok_r(value, ";", &iter);  /* repl area */
+    (void) ldap_utf8strtok_r(iter, ";", &iter);   /* agmt rdn */
+    (void) ldap_utf8strtok_r(iter, ";", &iter);   /* host */
+    (void) ldap_utf8strtok_r(iter, ";", &iter);   /* port */
     token = ldap_utf8strtok_r(iter, ";", &iter);  /* rid */
 
     if (token && strcmp(token, "Unavailable")) {

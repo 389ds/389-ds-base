@@ -682,10 +682,10 @@ retrocl_plugin_init(Slapi_PBlock *pb)
     }
 
     if (!legacy_initialised) {
-        rc = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01);
-        rc = slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&retrocldesc);
-        rc = slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *)retrocl_start);
-        rc = slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)retrocl_stop);
+        (void) slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01);
+        (void) slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&retrocldesc);
+        (void) slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *)retrocl_start);
+        (void) slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *)retrocl_stop);
 
         if (is_betxn) {
             plugintype = "betxnpostoperation";

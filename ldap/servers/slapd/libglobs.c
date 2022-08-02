@@ -123,6 +123,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <pwd.h> /* pwdnam */
+#include <assert.h>
 #ifdef USE_SYSCONF
 #include <unistd.h>
 #endif /* USE_SYSCONF */
@@ -8768,7 +8769,7 @@ config_set_value(
         break;
 
     case CONFIG_STRING_GENERATED:
-        PR_ASSERT(value);
+        assert(value);
         slapi_entry_attr_set_charptr(e, cgas->attr_name, *((char **)value));
         break;
 
@@ -8795,12 +8796,12 @@ config_set_value(
         break;
 
     case CONFIG_CONSTANT_STRING:
-        PR_ASSERT(value); /* should be a constant value */
+        assert(value); /* should be a constant value */
         slapi_entry_attr_set_charptr(e, cgas->attr_name, (char *)value);
         break;
 
     case CONFIG_CONSTANT_INT:
-        PR_ASSERT(value); /* should be a constant value */
+        assert(value); /* should be a constant value */
         pval = (uintptr_t)value;
         ival = (int)pval;
         slapi_entry_attr_set_int(e, cgas->attr_name, ival);
@@ -8987,6 +8988,7 @@ config_set_entry(Slapi_Entry *e)
             continue;
         }
 
+        /* coverity[var_deref_model] */
         config_set_value(e, cgas, value);
     }
     CFG_UNLOCK_READ(slapdFrontendConfig);

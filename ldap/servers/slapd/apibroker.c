@@ -224,26 +224,24 @@ slapi_apib_addref(void **api)
 int
 slapi_apib_release(void **api)
 {
-    APIB_FEATURES *features;
+    APIB_FEATURES *features = (APIB_FEATURES *)api[0];
+    PRBool must_free = PR_FALSE;
     int ret;
 
-    slapi_lock_mutex(((APIB_FEATURES *)(api[0]))->lock);
+    slapi_lock_mutex(features->lock);
 
-    ret = --(((APIB_FEATURES *)(api[0]))->refcount);
+    ret = --features->refcount;
 
-    if (((APIB_FEATURES *)(api[0]))->refcount == 0 && ((APIB_FEATURES *)(api[0]))->callback_on_zero) {
-        /* save our stuff for when it gets zapped */
-        features = (APIB_FEATURES *)api[0];
-
-        if (0 == ((APIB_FEATURES *)(api[0]))->callback_on_zero(api)) /* this should deregister the interface */
-        {
-            slapi_unlock_mutex(features->lock);
-            slapi_destroy_mutex(features->lock);
-            slapi_ch_free((void **)&features);
-        } else
-            slapi_unlock_mutex(features->lock);
-    } else
-        slapi_unlock_mutex(((APIB_FEATURES *)(api[0]))->lock);
+    if (features->refcount == 0 && features->callback_on_zero &&
+        features->callback_on_zero(api)) /* this should deregister the interface */
+    {
+        must_free = PR_TRUE;
+    }
+    slapi_unlock_mutex(features->lock);
+    if (must_free) {
+        slapi_destroy_mutex(features->lock);
+        slapi_ch_free((void **)&features);
+    }
 
     return ret;
 }

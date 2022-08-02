@@ -14,6 +14,7 @@
 
 /* modify.c - ldbm backend modify routine */
 
+#include <assert.h>
 #include "back-ldbm.h"
 
 extern char *numsubordinates;
@@ -548,6 +549,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
         txn.back_txn_txn = parent_txn;
     } else {
         parent_txn = txn.back_txn_txn;
+        /* coverity[var_deref_model] */
         slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
     }
 
@@ -696,6 +698,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
                     goto error_return; /* error result sent by find_entry2modify() */
                 }
             }
+            assert(e);
 
             if (!is_fixup_operation && !fixup_tombstone) {
                 if (!repl_op && slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) {

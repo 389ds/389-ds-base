@@ -34,34 +34,21 @@ extern "C" {
 #include "prprf.h"
 #include "nspr.h"
 #include <syslog.h>
+
+#ifdef __GNUC__
+    #define __ATTRIBUTE__(x) __attribute__(x)
+#else
+    #define __ATTRIBUTE__(x)
+#endif
+
 NSPR_API(PRUint32)
-PR_snprintf(char *out, PRUint32 outlen, const char *fmt, ...)
-#ifdef __GNUC__
-    __attribute__((format(printf, 3, 4)));
-#else
-    ;
-#endif
+PR_snprintf(char *out, PRUint32 outlen, const char *fmt, ...) __ATTRIBUTE__((format(printf, 3, 4)));
 NSPR_API(char *)
-PR_smprintf(const char *fmt, ...)
-#ifdef __GNUC__
-    __attribute__((format(printf, 1, 2)));
-#else
-    ;
-#endif
+PR_smprintf(const char *fmt, ...) __ATTRIBUTE__((format(printf, 1, 2)));
 NSPR_API(char *)
-PR_sprintf_append(char *last, const char *fmt, ...)
-#ifdef __GNUC__
-    __attribute__((format(printf, 2, 3)));
-#else
-    ;
-#endif
+PR_sprintf_append(char *last, const char *fmt, ...) __ATTRIBUTE__((format(printf, 2, 3)));
 NSPR_API(PRUint32)
-PR_fprintf(struct PRFileDesc *fd, const char *fmt, ...)
-#ifdef __GNUC__
-    __attribute__((format(printf, 2, 3)));
-#else
-    ;
-#endif
+PR_fprintf(struct PRFileDesc *fd, const char *fmt, ...) __ATTRIBUTE__((format(printf, 2, 3)));
 
 /* OpenLDAP uses unsigned long for ber_tag_t and ber_len_t */
 /* use this macro for printf statements for ber_tag_t and ber_len_t */
@@ -658,7 +645,7 @@ typedef void (*TaskCallbackFn)(Slapi_Task *task);
  *          <tt>free()</tt>) is not supported and may lead to crashes or memory leaks.
  * \see slapi_pblock_destroy()
  */
-Slapi_PBlock *slapi_pblock_new(void); /* allocate and initialize */
+Slapi_PBlock *slapi_pblock_new(void) __ATTRIBUTE__((returns_nonnull)); /* allocate and initialize */
 
 /**
  * Initializes an existing parameter block for re-use.
@@ -741,7 +728,7 @@ void slapi_pblock_init(Slapi_PBlock *pb); /* clear out for re-use */
  * \see slapi_pblock_destroy()
  * \see slapi_pblock_set()
  */
-int slapi_pblock_get(Slapi_PBlock *pb, int arg, void *value);
+__ATTRIBUTE__((access (write_only, 3))) int slapi_pblock_get(Slapi_PBlock *pb, int arg, void *value);
 
 /**
  * Sets the value of a name-value pair in a parameter block.
@@ -793,7 +780,7 @@ int slapi_pblock_get(Slapi_PBlock *pb, int arg, void *value);
  *
  * \see slapi_pblock_get()
  */
-int slapi_pblock_set(Slapi_PBlock *pb, int arg, void *value);
+__ATTRIBUTE__((access (read_only, 3))) int slapi_pblock_set(Slapi_PBlock *pb, int arg, void *value);
 
 /**
  * Frees the specified parameter block from memory.
@@ -5787,7 +5774,7 @@ int slapi_is_shutting_down(void);
 /*
  * checking routines for allocating and freeing memory
  */
-char *slapi_ch_malloc(unsigned long size);
+char *slapi_ch_malloc(unsigned long size) __ATTRIBUTE__((returns_nonnull));
 /*
  * memalign returns an alligned block of memory as a multiple of alignment.
  * alignment must be a power of 2. This is not normally needed, but is required
@@ -5798,21 +5785,16 @@ char *slapi_ch_malloc(unsigned long size);
  * \param alignment The alignment. MUST be a power of 2!
  * \return Pointer to the allocated memory aligned by alignment.
  */
-char *slapi_ch_memalign(uint32_t size, uint32_t alignment);
-char *slapi_ch_realloc(char *block, unsigned long size);
-char *slapi_ch_calloc(unsigned long nelem, unsigned long size);
-char *slapi_ch_strdup(const char *s);
+char *slapi_ch_memalign(uint32_t size, uint32_t alignment) __ATTRIBUTE__((returns_nonnull));
+char *slapi_ch_realloc(char *block, unsigned long size) __ATTRIBUTE__((returns_nonnull));
+char *slapi_ch_calloc(unsigned long nelem, unsigned long size) __ATTRIBUTE__((returns_nonnull));
+char *slapi_ch_strdup(const char *s) __ATTRIBUTE__((returns_nonnull));
 void slapi_ch_free(void **ptr);
 void slapi_ch_free_string(char **s);
 struct berval *slapi_ch_bvdup(const struct berval *);
 struct berval **slapi_ch_bvecdup(struct berval **);
 void slapi_ch_bvfree(struct berval **v);
-char *slapi_ch_smprintf(const char *fmt, ...)
-#ifdef __GNUC__
-    __attribute__((format(printf, 1, 2)));
-#else
-    ;
-#endif
+char *slapi_ch_smprintf(const char *fmt, ...) __ATTRIBUTE__((format(printf, 1, 2)));
 /**
  * slapi_ct_memcmp is a constant time memory comparison function. This is for
  * use with password hashes and other locations which could lead to a timing
@@ -6034,24 +6016,14 @@ int slapi_register_plugin_ext(const char *plugintype, int enabled, const char *i
  * Use modern definition that avoid complaint about removing const from string literal
  * ( Note: this is binary compatible with old API definition so no problem here )
  */
-int slapi_log_error(int loglevel, const char *subsystem, const char *fmt, ...)
-#ifdef __GNUC__
-    __attribute__((format(printf, 3, 4)));
-#else
-    ;
-#endif
+int slapi_log_error(int loglevel, const char *subsystem, const char *fmt, ...) __ATTRIBUTE__((format(printf, 3, 4)));
 
 int slapi_log_error_ext(int loglevel, const char *subsystem, const char *fmt, va_list varg1, va_list varg2);
 #else
 /* Use the old legacy definition because some external tester redefine these functions
  * and changing the prototype would break their compilation
  */
-int slapi_log_error(int loglevel, char *subsystem, char *fmt, ...)
-#ifdef __GNUC__
-    __attribute__((format(printf, 3, 4)));
-#else
-    ;
-#endif
+int slapi_log_error(int loglevel, char *subsystem, char *fmt, ...) __ATTRIBUTE__((format(printf, 3, 4)));
 
 int slapi_log_error_ext(int loglevel, char *subsystem, char *fmt, va_list varg1, va_list varg2);
 #endif
@@ -6689,19 +6661,9 @@ void slapi_task_set_cancel_fn(Slapi_Task *task, TaskCallbackFn func);
 void slapi_task_status_changed(Slapi_Task *task);
 void slapi_task_set_warning(Slapi_Task *task, task_warning warn);
 int slapi_task_get_warning(Slapi_Task *task);
-void slapi_task_log_status(Slapi_Task *task, char *format, ...)
-#ifdef __GNUC__
-    __attribute__((format(printf, 2, 3)));
-#else
-    ;
-#endif
+void slapi_task_log_status(Slapi_Task *task, char *format, ...) __ATTRIBUTE__((format(printf, 2, 3)));
 
-void slapi_task_log_notice(Slapi_Task *task, const char *format, ...)
-#ifdef __GNUC__
-    __attribute__((format(printf, 2, 3)));
-#else
-    ;
-#endif
+void slapi_task_log_notice(Slapi_Task *task, const char *format, ...) __ATTRIBUTE__((format(printf, 2, 3)));
 void slapi_task_log_status_ext(Slapi_Task *task, char *format, va_list varg);
 void slapi_task_log_notice_ext(Slapi_Task *task, char *format, va_list varg);
 

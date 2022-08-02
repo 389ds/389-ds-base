@@ -445,6 +445,7 @@ default_mr_filter_destroy(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrpriv);
     mr_private_free(&mrpriv);
     mrpriv = NULL;
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_PLUGIN_OBJECT, mrpriv);
 
     return 0;

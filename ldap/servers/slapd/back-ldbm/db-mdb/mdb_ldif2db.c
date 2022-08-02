@@ -434,6 +434,7 @@ dbmdb_export_one_entry(struct ldbminfo *li,
 {
     backend *be = inst->inst_be;
     int rc = 0;
+    int wrc;
     Slapi_Attr *this_attr = NULL, *next_attr = NULL;
     char *type = NULL;
     MDB_val data = {0};
@@ -508,13 +509,19 @@ dbmdb_export_one_entry(struct ldbminfo *li,
         char idstr[32];
 
         sprintf(idstr, "# entry-id: %lu\n", (u_long)expargs->ep->ep_id);
-        rc = write(expargs->fd, idstr, strlen(idstr));
-        PR_ASSERT(rc > 0);
+        wrc = write(expargs->fd, idstr, strlen(idstr));
+        if (wrc) {
+            goto bail;
+        }
     }
-    rc = write(expargs->fd, data.mv_data, len);
-    PR_ASSERT(rc > 0);
-    rc = write(expargs->fd, "\n", 1);
-    PR_ASSERT(rc > 0);
+    wrc = write(expargs->fd, data.mv_data, len);
+    if (wrc) {
+        goto bail;
+    }
+    wrc = write(expargs->fd, "\n", 1);
+    if (wrc) {
+        goto bail;
+    }
     slapi_ch_free(&data.mv_data);
     data.mv_size = 0;
     rc = 0;
@@ -539,6 +546,10 @@ dbmdb_export_one_entry(struct ldbminfo *li,
         *expargs->lastcnt = *expargs->cnt;
     }
 bail:
+    if (wrc) {
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_export_one_entry", "export %s: Failed to write in export file.\n", inst->inst_name);
+        rc = wrc;
+    }
     return rc;
 }
 
@@ -595,6 +606,7 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
     int32_t skip_ruv = 0;
     dbmdb_cursor_t cur = {0};
     uint size = 0;
+    int wrc = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_db2ldif", "=>\n");
 
@@ -830,12 +842,10 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
                 slapi_log_err(SLAPI_LOG_ERR,
                               "dbmdb_db2ldif", "Attempting direct unindexed export instead.\n");
             }
-            ok_index = 0;
             idl = NULL;
         } else if (ALLIDS(idl)) {
             /* allids list is no help at all -- revert to trawling
              * the whole list. */
-            ok_index = 0;
             idl_free(&idl);
         }
         idindex = 0;
@@ -853,9 +863,10 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
                  */
 
         sprintf(vstr, "version: %d\n\n", myversion);
-        rc = write(fd, vstr, strlen(vstr));
-        PR_ASSERT(rc > 0);
-        rc = 0;
+        wrc = write(fd, vstr, strlen(vstr));
+        if (wrc) {
+            goto bye;
+        }
     }
 
     eargs.decrypt = decrypt;
@@ -918,8 +929,11 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
                     eargs.idindex = idindex;
                     eargs.cnt = &cnt;
                     eargs.lastcnt = &lastcnt;
-                    rc = dbmdb_export_one_entry(li, inst, &eargs);
+                    wrc = dbmdb_export_one_entry(li, inst, &eargs);
                     backentry_free(&pending_ruv);
+                    if (wrc) {
+                        break;
+                    }
                 }
                 break;
             }
@@ -975,17 +989,14 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
                      */
                     if (suffix_written) {
                         /* this must be the RUV, just continue and write it */
-                        rc = 0;
                     } else if (0 == strcasecmp(rdn, RUVRDN)) {
                         /* this is the RUV and the suffix is not yet written
                          * make it pending and continue with next entry
                          */
                         skip_ruv = 1;
-                        rc = 0;
                     } else {
                         /* this has to be the suffix */
                         suffix_written = 1;
-                        rc = 0;
                     }
                 } else {
                     pid = (ID)strtol(pid_str, (char **)NULL, 10);
@@ -1114,6 +1125,9 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
         eargs.lastcnt = &lastcnt;
         rc = dbmdb_export_one_entry(li, inst, &eargs);
         backentry_free(&ep);
+        if (rc && !return_value) {
+            return_value = rc; 
+        }
     }
     /* MDB_NOTFOUND -> successful end */
     if (return_value == MDB_NOTFOUND)
@@ -1150,6 +1164,11 @@ bye:
     if (fd > STDERR_FILENO) {
         close(fd);
     }
+    if (wrc) {
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_export_one_entry", "export %s: Failed to write in export file.\n", inst->inst_name);
+        return_value = wrc;
+    }
+        
 
     slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_db2ldif", "<=\n");
 
@@ -1167,6 +1186,8 @@ bye:
     dbmdb_back_free_incl_excl(include_suffix, exclude_suffix);
     idl_free(&(eargs.pre_exported_idl));
 
+    /* coverity logs a warning because fd is not closed if fd <= STDERR_FILENO, but that is expected. */
+    /* coverity[leaked_handle] */
     return (return_value);
 }
 

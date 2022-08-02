@@ -49,7 +49,7 @@ changelog5_upgrade(void)
 
     rc = _cl5_upgrade_removedir(config.dir);
 
-    rc = _cl5_upgrade_removeconfig();
+    rc |= _cl5_upgrade_removeconfig();
 
     changelog5_config_done(&config);
 

@@ -13,6 +13,7 @@
 
 /* ldbm_config.c - Handles configuration information that is global to all ldbm instances. */
 
+#include <assert.h>
 #include "back-ldbm.h"
 #include "dblayer.h"
 
@@ -1623,6 +1624,7 @@ ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Sl
     slapi_mods_init(&smods_moved, 0);
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+    assert(operation);
     internal_op = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 
     returntext[0] = '\0';

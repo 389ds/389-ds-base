@@ -617,7 +617,7 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
 
             p += sprintf(p, "-- average rate %.1f/sec, ",
                          job->average_progress_rate);
-            p += sprintf(p, "recent rate %.1f/sec, ",
+            sprintf(p, "recent rate %.1f/sec, ",
                          job->recent_progress_rate);
             import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_monitor_threads", "%s", buffer);
         }

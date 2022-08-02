@@ -21,6 +21,7 @@
  */
 
 #include <stddef.h>
+#include <assert.h>
 #include "mdb_import.h"
 #include "../vlv_srch.h"
 
@@ -567,7 +568,7 @@ dbmdb_import_producer(void *param)
     }
 
     /* capture skipped entry warnings for this task */
-    if((job) && (job->skipped)) {
+    if (job->skipped) {
         slapi_task_set_warning(job->task, WARN_SKIPPED_IMPORT_ENTRY);
     }
 
@@ -2575,7 +2576,7 @@ static int
 import_txn_callback(backend *be, back_txn_action flags, dbi_db_t *db, dbi_val_t *key, dbi_val_t *data, back_txn *txn)
 {
     PseudoTxn_t *t = (PseudoTxn_t*)txn;
-    WriterQueueData_t wqd;
+    WriterQueueData_t wqd = {0};
 
     wqd.dbi = (dbmdb_dbi_t *)db;
     set_data(&wqd.key, key);
@@ -2762,7 +2763,7 @@ dbmdb_add_import_index(ImportCtx_t *ctx, const char *name, IndexInfo *ii)
     if (name) {
         for (ii=job->index_list; ii && strcasecmp(ii->ai->ai_type, name); ii=ii->next);
     }
-    PR_ASSERT(ii);  /* System indexes should always be in the list */
+    assert(ii);  /* System indexes should always be in the list */
 
     mii = CALLOC(MdbIndexInfo_t);
     mii->name = (char*) slapi_utf8StrToLower((unsigned char*)(ii->ai->ai_type));
@@ -3255,29 +3256,31 @@ dbmdb_import_writer(void*param)
             continue;
         }
 
-        TXN_BEGIN(ctx->ctx->env, NULL, 0, &txn);
-        /*
-         * Note: there may be a way to increase the db write performance by:
-         *  using an array of bucket (containing max(dbi)-min(dbi) for the indexed dbis (including id2entry)
-         *  walk the list and put the elements in the bucket associated with the element dbi
-         *  for each bucket having elements :
-         *    open a cursor toward the dbi
-         *    use mdb_cursor_put of each element within the bucket (and free the element)
-         *    close the cursor
-         * (This will avoid opening/closing a cursor for each write element as mdb_put is doing)
-         * (another is to play with env file to limt the fsyncs during the import)
-         */
-        for (; slot; slot = nextslot) {
-            if (!rc) {
-                rc = MDB_PUT(txn, slot->dbi->dbi, &slot->key, &slot->data, 0);
+        rc = TXN_BEGIN(ctx->ctx->env, NULL, 0, &txn);
+        if (!rc) {
+            /*
+             * Note: there may be a way to increase the db write performance by:
+             *  using an array of bucket (containing max(dbi)-min(dbi) for the indexed dbis (including id2entry)
+             *  walk the list and put the elements in the bucket associated with the element dbi
+             *  for each bucket having elements :
+             *    open a cursor toward the dbi
+             *    use mdb_cursor_put of each element within the bucket (and free the element)
+             *    close the cursor
+             * (This will avoid opening/closing a cursor for each write element as mdb_put is doing)
+             * (another is to play with env file to limt the fsyncs during the import)
+             */
+            for (; slot; slot = nextslot) {
+                if (!rc) {
+                    rc = MDB_PUT(txn, slot->dbi->dbi, &slot->key, &slot->data, 0);
+                }
+                nextslot = slot->next;
+                slapi_ch_free((void**)&slot);
             }
-            nextslot = slot->next;
-            slapi_ch_free((void**)&slot);
-        }
-        if (rc) {
-            TXN_ABORT(txn);
-        } else {
-            rc = TXN_COMMIT(txn);
+            if (rc) {
+                TXN_ABORT(txn);
+            } else {
+                rc = TXN_COMMIT(txn);
+            }
         }
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
@@ -3386,6 +3389,7 @@ dbmdb_import_init_writer(ImportJob *job, ImportRole_t role)
     ctx->ctx = MDB_CONFIG(li);
     ctx->role = role;
 
+    assert (nbcpus>0);
     dbmdb_import_workerq_init(job, &ctx->workerq, (sizeof (WorkerQueueData_t)), nbcpus);
     pthread_mutex_init(&ctx->writerq.mutex, NULL);
     pthread_cond_init(&ctx->writerq.cv, NULL);

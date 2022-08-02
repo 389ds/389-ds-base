@@ -643,6 +643,7 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
         rc = dbmdb_global_upgrade(ctx, infofileinfo.dataversion);
     }
     if (rc == 0) {
+        /* coverity[tainted_data] */
         rc =  dbmdb_open_all_files(ctx, NULL);
     }
 
@@ -782,9 +783,9 @@ int dbmdb_show_stat(const char *dbhome, FILE *fout, FILE *ferr)
     struct stat fst = {0};
 
     PR_snprintf(pathmap, MAXPATHLEN, "%s/%s", dbhome, DBMAPFILE);
-    stat(pathmap, &fst);
+    (void) stat(pathmap, &fst);
 
-    strncpy(ctx.home, dbhome, MAXPATHLEN);
+    PL_strncpyz(ctx.home, dbhome, MAXPATHLEN);
     if (dbmdb_make_env(&ctx, 1, 0644)) {
         fprintf(ferr, "ERROR: dbmdb_show_stat failed to open db environment %s\n", pathmap);
         return -1;
@@ -845,9 +846,9 @@ dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
     struct stat fst = {0};
 
     PR_snprintf(pathmap, MAXPATHLEN, "%s/%s", dbhome, DBMAPFILE);
-    stat(pathmap, &fst);
+    (void) stat(pathmap, &fst);
 
-    strncpy(ctx.home, dbhome, MAXPATHLEN);
+    PL_strncpyz(ctx.home, dbhome, MAXPATHLEN);
     if (dbmdb_make_env(&ctx, 1, 0644)) {
         return NULL;
     }
@@ -1067,7 +1068,7 @@ int dbmdb_clear_dirty_flags(struct backend *be)
         return dbmdb_map_error(__FUNCTION__, rc);
     }
     pthread_mutex_lock(&ctx->dbis_lock);
-    oldflaglist = (int*)slapi_ch_calloc(ctx->startcfg.max_dbs+1, sizeof (int *));
+    oldflaglist = (int*)slapi_ch_calloc(ctx->startcfg.max_dbs+1, sizeof (int));
     dbilist = dbi_list(&octx);
 
     for (i = 0; !rc && dbilist[i]; i++) {
@@ -1313,7 +1314,6 @@ dbdmd_gather_stats(dbmdb_ctx_t *ctx, backend *be)
     dbmdb_dbis_stat_t *dbistats = NULL;
     dbmdb_dbi_t **dbilist = NULL;
     dbi_open_ctx_t octx = {0};
-    const char *pt;
 
 
     octx.func = __FUNCTION__;
@@ -1332,12 +1332,7 @@ dbdmd_gather_stats(dbmdb_ctx_t *ctx, backend *be)
         dbi = dbilist[idx];
         dbistats = &stats->dbis[idx];
         /* Filter if instance_name is provided */
-        pt = dbi->dbname;
         /* Skip ~recno-cache/ part */
-        if (*pt == '~') {
-            pt = strchr(pt, '/');
-            pt = pt ? pt+1 : dbi->dbname;
-        }
         /* dbname may vanish after freeing the dbis_lock ==> duplicate it */
         dbistats->dbname = slapi_ch_strdup(dbi->dbname);
         if (dbi->state.state & DBIST_DIRTY) {

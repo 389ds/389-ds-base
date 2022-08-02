@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include "mdb_layer.h"
 #include <prthread.h>
+#include <assert.h>
 #include <prclist.h>
 #include <sys/types.h>
 #include <sys/statvfs.h>
@@ -383,14 +384,11 @@ int dbmdb_get_open_flags(const char *dbname)
 int
 dbmdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, dbi_db_t **ppDB)
 {
-    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     int open_flags = 0;
     dbmdb_cursor_t cur = {0};
     int return_value = 0;
 
-    PR_ASSERT(NULL != li);
-    PR_ASSERT(NULL != li->li_dblayer_private);
     *ppDB = NULL;
 
     if (NULL == inst->inst_name) {
@@ -597,15 +595,12 @@ dbmdb_txn_commit(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
 {
     int return_value = -1;
     dbmdb_ctx_t *conf = NULL;
-    dblayer_private *priv = NULL;
     dbi_txn_t *db_txn = NULL;
     back_txn *cur_txn = NULL;
 
     PR_ASSERT(NULL != li);
 
     conf = (dbmdb_ctx_t *)li->li_dblayer_config;
-    priv = li->li_dblayer_private;
-    PR_ASSERT(NULL != priv);
 
     /* use the transaction we are given - if none, see if there
        is a transaction in progress */
@@ -757,7 +752,7 @@ dbmdb_database_size(struct ldbminfo *li)
     PR_ASSERT(NULL != priv);
     PR_ASSERT(NULL != priv->home);
     PR_snprintf(path, MAXPATHLEN, "%s/%s", priv->home, DBMAPFILE);
-    PR_GetFileInfo64(path, &info);    /* Ignores errors */
+    (void) PR_GetFileInfo64(path, &info);    /* Ignores errors */
     return info.size;
 }
 
@@ -909,7 +904,7 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
         goto bail;
     }
 
-    return_value = mkdir_p(dest_dir, 0700);
+    (void) mkdir_p(dest_dir, 0700);
     dirhandle = PR_OpenDir(dest_dir);
     if (NULL != dirhandle) {
         while ((direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)) && direntry->name) {
@@ -1799,7 +1794,7 @@ int dbmdb_fill_bulkop_records(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key
 int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata)
 {
     dbmdb_bulkdata_t *dbmdb_data = bulkdata->v.data;
-    MDB_cursor *dbmdb_cur = (MDB_cursor*)cursor->cur;
+    MDB_cursor *dbmdb_cur;
     MDB_val *mval;
     int rc = 0;
 
@@ -1809,6 +1804,7 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
         return dbmdb_fill_bulkop_records(cursor, op, key, bulkdata);
     }
 
+    dbmdb_cur = (MDB_cursor*)cursor->cur;
     bulkdata->v.size = sizeof *dbmdb_data;
     dbmdb_data->cursor = (MDB_cursor*)cursor->cur;
     dbmdb_dbival2dbt(key, &dbmdb_data->key, PR_FALSE);
@@ -2116,13 +2112,24 @@ void *dbmdb_recno_cache_build(void *arg)
         dbmdb_generate_recno_cache_key_by_recno(&rckey, recno);
         rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi->dbi, &rckey, &rcdata, 0);
         slapi_ch_free(&rckey.mv_data);
-        if (rc == 0) {
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build", 
+                          "Failed to write record in db %s, key=%s error: %s\n", 
+                            rcctx->rcdbi->dbname, (char*)(key.mv_data), mdb_strerror(rc));
+        } else {
             dbmdb_generate_recno_cache_key_by_data(&rckey, &key, &data);
             rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi->dbi, &rckey, &rcdata, 0);
             slapi_ch_free(&rckey.mv_data);
             txn_ctx.flags |= DBMDB_TXNCTX_NEED_COMMIT;
+            if (rc) {
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build", 
+                              "Failed to write record in db %s, key=%s error: %s\n", 
+                                rcctx->rcdbi->dbname, (char*)(key.mv_data), mdb_strerror(rc));
+            }
         }
         slapi_ch_free(&rcdata.mv_data);
+        if (rc) { 
+        }
         rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_NEXT);
         recno++;
     }
@@ -2192,12 +2199,15 @@ int dbmdb_cmp_vals(MDB_val *v1, MDB_val *v2)
 {
     int l;
     int rc;
-    if (!v1 && !v2) 
-        return 0;
-    if (v1 && !v2) 
-        return 1;
-    if (!v1 && v2) 
+    if (v1 == NULL || v1->mv_data == NULL) {
+        if (v2 == NULL || v2->mv_data == NULL) {
+            return 0;
+        }
         return -1;
+    }
+    if (v2 == NULL || v2->mv_data == NULL) {
+        return 1;
+    }
     l = v1->mv_size;
     if (l > v2->mv_size) {
         l = v2->mv_size;
@@ -2284,7 +2294,7 @@ int dbmdb_cursor_set_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
     MDB_val cache_key = {0};
     dbi_recno_t recno;
     int rc;
-    if (!dbmdb_data->mv_data) {
+    if (!dbmdb_data || !dbmdb_data->mv_data) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_cursor_set_recno", "invalid dbmdb_data parameter (should be a dbi_recno_t)\n");
         return DBI_RC_INVALID;
     }
@@ -2299,7 +2309,7 @@ int dbmdb_cursor_set_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
         rce->recno++;
         rc = MDB_CURSOR_GET(cursor->cur, &rce->key, &rce->data, MDB_NEXT);
     }
-    if (dbmdb_data->mv_size == rce->data.mv_size) {
+    if (rc == 0 && dbmdb_data->mv_size == rce->data.mv_size) {
         /* Should always be the case */
         memcpy(dbmdb_data->mv_data , rce->data.mv_data, dbmdb_data->mv_size);
     }
@@ -2623,7 +2633,7 @@ dbmdb_public_private_open(backend *be, const char *db_filename, int rw, dbi_env_
     }
     *env = ctx->env;
 
-    rc = dbmdb_open_dbi_from_filename(&dbi, be, dbname, NULL, MDB_OPEN_DIRTY_DBI | rw ?  MDB_CREATE : 0);
+    rc = dbmdb_open_dbi_from_filename(&dbi, be, dbname, NULL, MDB_OPEN_DIRTY_DBI | (rw ?  MDB_CREATE : 0));
     if (rc) {
         return dbmdb_map_error(__FUNCTION__, rc);
     }
@@ -2707,6 +2717,7 @@ dbmdb_public_dblayer_compact(Slapi_Backend *be, PRBool just_changelog)
     if (be != be1) {
         return 0;
     }
+    assert(be);
     slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_public_dblayer_compact",
                   "Compacting databases ...\n");
 
@@ -2722,6 +2733,7 @@ dbmdb_public_dblayer_compact(Slapi_Backend *be, PRBool just_changelog)
                       "Failed to create database copy. Error is %d, File is %s\n",
                       errno, newdb_name);
         slapi_ch_free_string(&newdb_name);
+        slapi_pblock_destroy(pb);
         return -1;
     }
 
@@ -2734,14 +2746,6 @@ dbmdb_public_dblayer_compact(Slapi_Backend *be, PRBool just_changelog)
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_dblayer_compact",
                       "Failed to compact the database. Error is %d (%s), File is %s\n",
                       rc, mdb_strerror(rc), newdb_name);
-        goto out;
-    }
-    rc = close(newdb_fd);
-    newdb_fd = -1;
-    if (!rc) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_dblayer_compact",
-                      "Failed to close the database copy. Error is %d, File is %s\n",
-                      errno, newdb_name);
         goto out;
     }
     /* Close the mdb env and release the plugin resources */
@@ -2758,8 +2762,10 @@ dbmdb_public_dblayer_compact(Slapi_Backend *be, PRBool just_changelog)
 out:
     rc = ldbm_restart_temporary_closed_instances(pb);
     slapi_pblock_destroy(pb);
-    if (newdb_fd>=0) {
-        close(newdb_fd);
+    if (newdb_fd>=0 && close(newdb_fd)) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_dblayer_compact",
+                      "Failed to close the database copy. Error is %d, File is %s\n",
+                      errno, newdb_name);
     }
     unlink(newdb_name);
     slapi_ch_free_string(&newdb_name);

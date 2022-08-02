@@ -1104,7 +1104,7 @@ bdb_start(struct ldbminfo *li, int dbmode)
                 PR_snprintf(file_pattern, MAXPATHLEN, "%s/%s", region_dir, "__db.*");
                 if (glob(file_pattern, 0, NULL, &globbuf) == 0) {
                     for (size_t i = 0; i < globbuf.gl_pathc; i++) {
-                        remove(globbuf.gl_pathv[i]);
+                        (void) remove(globbuf.gl_pathv[i]);
                     }
                     globfree(&globbuf);
                 }
@@ -3303,7 +3303,7 @@ wait_for_init:
             }
 
             if (!strcmp(*idx, "id2entry")) {
-                dblayer_get_id2entry(be, (dbi_db_t**)&db);
+                (void) dblayer_get_id2entry(be, (dbi_db_t**)&db);
                 if (db == NULL) {
                     slapi_log_err(SLAPI_LOG_ERR,
                                   "bdb_txn_test_threadmain", "id2entry database not found or not ready yet, retrying\n");
@@ -6854,7 +6854,7 @@ bdb_public_private_open(backend *be, const char *db_filename, int rw, dbi_env_t 
      *  or the "home" directory where txn logs are
      */
 
-    strncpy(dbhome, db_filename, MAXPATHLEN);
+    PL_strncpyz(dbhome, db_filename, MAXPATHLEN);
     if (stat(dbhome, &st) == 0) {
         if (S_ISDIR(st.st_mode)) {
             li->li_directory = slapi_ch_strdup(dbhome);
@@ -6880,7 +6880,6 @@ bdb_public_private_open(backend *be, const char *db_filename, int rw, dbi_env_t 
     if (rw) {
         /* Setup a fully transacted environment */
         priv->dblayer_env = NULL;
-        conf->bdb_enable_transactions = 1;
         conf->bdb_enable_transactions = 0;
         conf->bdb_tx_max = 50;
         rc = bdb_start(li, DBLAYER_NORMAL_MODE);
@@ -7010,7 +7009,7 @@ dbslist_store_a_db(const char * dbname, void *cbctx)
 {
     dbi_dbslist_ctx_t *ctx = cbctx;
     if (ctx->nbdbs < ctx->maxdbs) {
-        strncpy (ctx->list[ctx->nbdbs++].filename, dbname, MAXPATHLEN);
+        PL_strncpyz (ctx->list[ctx->nbdbs++].filename, dbname, MAXPATHLEN);
     }
 }
 
@@ -7026,9 +7025,6 @@ bdb_list_dbs (const char * dbhome)
     cbctx.list = (dbi_dbslist_t *) slapi_ch_calloc (cbctx.nbdbs, sizeof (dbi_dbslist_t));
     cbctx.nbdbs = 0;
     bdb_walk_dbfiles (dbhome, NULL, dbslist_store_a_db, &cbctx);
-    if (rc) {
-        slapi_ch_free ((void **) &cbctx.list);
-    }
     return cbctx.list;
 }
 
@@ -7144,7 +7140,7 @@ bdb_public_delete_db(backend *be, dbi_db_t *db)
     /* Used in dbscan context */
     char dbName[MAXPATHLEN];
 
-    strncpy(dbName, bdb_public_get_db_filename(db), MAXPATHLEN);
+    PL_strncpyz(dbName, bdb_public_get_db_filename(db), MAXPATHLEN);
     bdb_close_file((DB**)&db);
     return unlink(dbName);
 }

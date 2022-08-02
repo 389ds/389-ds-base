@@ -754,7 +754,6 @@ windows_inc_run(Private_Repl_Protocol *prp)
                         next_state = STATE_BACKOFF_START;
                     }
                 }
-                last_start_time = 0UL;
                 break;
             }
 

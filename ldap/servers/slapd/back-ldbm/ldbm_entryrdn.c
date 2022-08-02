@@ -1541,7 +1541,6 @@ _entryrdn_get_elem(dbi_cursor_t *cursor,
 {
     int rc = 0;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_elem", "--> _entryrdn_get_elem (key=%s)\n", (char*)(key->data));
     if (NULL == cursor || NULL == key || NULL == data || NULL == elem ||
         NULL == comp_key) {
         slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_get_elem",
@@ -1549,6 +1548,7 @@ _entryrdn_get_elem(dbi_cursor_t *cursor,
                       NULL == cursor ? "cursor" : NULL == key ? "key" : NULL == data ? "data" : NULL == elem ? "elem container" : NULL == comp_key ? "key to compare" : "unknown");
         return DBI_RC_INVALID;
     }
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_elem", "--> _entryrdn_get_elem (key=%s)\n", (char*)(key->data));
     /* Position cursor at the matching key */
     *elem = NULL;
 retry_get:
@@ -1605,17 +1605,18 @@ _entryrdn_get_tombstone_elem(dbi_cursor_t *cursor,
     dbi_bulk_t data = {0};
     rdn_elem *childelem = NULL;
     char buffer[RDN_BULK_FETCH_BUFFER_SIZE];
-    backend *be = cursor->be;
+    backend *be;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_tombstone_elem",
-                  "--> _entryrdn_get_tombstone_elem\n");
     if (NULL == cursor || NULL == srdn || NULL == key || NULL == elem ||
         NULL == comp_key) {
         slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_get_tombstone_elem",
                       "Param error: Empty %s\n",
                       NULL == cursor ? "cursor" : NULL == key ? "key" : NULL == srdn ? "srdn" : NULL == elem ? "elem container" : NULL == comp_key ? "key to compare" : "unknown");
-        goto bail;
+        return DBI_RC_INVALID;
     }
+    be = cursor->be;
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_tombstone_elem",
+                  "--> _entryrdn_get_tombstone_elem\n");
     *elem = NULL;
 
     /* get the child elems */
@@ -2162,7 +2163,7 @@ entryrdn_insert_key(backend *be,
         /* Ignore the cursor while handling import/index tasks (anyway foreman thread is associated with read/only txn)
          * we have better to have a entryrdn cursor in the import writer thread and use it
          */
-        dblayer_value_set_buffer(be, &key, srdn, sizeof srdn);
+        dblayer_value_set_buffer(be, &key, srdn, sizeof (Slapi_RDN));
         dblayer_value_set_buffer(be, &data, &id, sizeof id);
         return txn->back_special_handling_fn(be, BTXNACT_ENTRYRDN_ADD, NULL, &key, &data, txn);
     }
@@ -2537,7 +2538,7 @@ entryrdn_delete_key(backend *be,
         /* Ignore the cursor while handling import/index tasks (anyway foreman thread is associated with read/only txn)
          * we have better to have a entryrdn cursor in the import writer thread and use it
          */
-        dblayer_value_set_buffer(be, &key, srdn, sizeof srdn);
+        dblayer_value_set_buffer(be, &key, srdn, sizeof (Slapi_RDN));
         dblayer_value_set_buffer(be, &data, &id, sizeof id);
         return txn->back_special_handling_fn(be, BTXNACT_ENTRYRDN_DEL, NULL, &key, &data, txn);
     }

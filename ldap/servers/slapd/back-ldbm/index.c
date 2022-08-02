@@ -14,6 +14,7 @@
 
 /* index.c - routines for dealing with attribute indexes */
 
+#include <assert.h>
 #include "back-ldbm.h"
 
 static const char *errmsg = "database index operation failed";
@@ -1738,6 +1739,7 @@ index_range_read_ext(
                     break;
                 }
             }
+            assert(upperkey.data); /* coverity seems confused and considers that upperkey.data may be NULL */
             if (KEY_EQ(&cur_key, &upperkey)) { /* this is the last key */
                 break;
                 /* Another c_get would return the same key, with no error. */
@@ -1914,6 +1916,7 @@ addordel_values_sv(
             realbuf = tmpbuf;
         }
 
+        assert(realbuf); /* For coverity */
         memcpy(realbuf, prefix, plen);
         memcpy(realbuf + plen, bvp->bv_val, vlen);
         realbuf[len] = '\0';
@@ -1930,8 +1933,7 @@ addordel_values_sv(
          * the key is and it should never return a different value
          * than the one we pass in.
          */
-        dblayer_value_set_buffer(be, &key, realbuf, sizeof realbuf);
-        key.size = plen + vlen + 1;
+        dblayer_value_set_buffer(be, &key, realbuf, plen + vlen + 1);
         key.ulen = tmpbuflen;
 
         if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {

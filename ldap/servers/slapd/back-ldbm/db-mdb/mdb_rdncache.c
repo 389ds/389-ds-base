@@ -26,7 +26,6 @@ rdncache_new_head(RDNcache_t *cache)
     head->cache = cache;
     head->mem = (RDNcacheMemPool_t *)pt;
     head->mem->next = NULL;
-    pt += sizeof (RDNcacheMemPool_t);
     head->nbitems = 0;
     head->maxitems = DEFAULT_RDNCACHEQUEUE_LEN;
     /* Note: using separate calloc for the queues that may be realloced */
@@ -351,7 +350,6 @@ rdncache_new_elem(RDNcacheHead_t *head, ID entryid, ID parentid, int nrdnlen,
     }
     head->head_per_id[idx_by_id] = elem;
     head->head_per_rdn[idx_by_rdn] = elem;
-    idx_by_id = rdncache_lookup_by_id(head, parentid);
     elem->head = head;
     elem->eid = entryid;
     elem->pid = parentid;

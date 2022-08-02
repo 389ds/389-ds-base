@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <assert.h>
 #if defined(OS_solaris) || defined(hpux)
 #include <sys/types.h>
 #include <sys/statvfs.h>
@@ -608,6 +609,7 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica *replica)
             buflen = 0;
             goto next;
         }
+        assert(replGen); /* For coverity */
         slapi_ch_free_string(&buff);
         buflen = 0;
         /* check if the operation should be written to changelog */
@@ -640,18 +642,16 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica *replica)
     }
 
     /* Set RUVs and entry count */
-    if (cldb) {
-        if (purgeidx > 0) {
-            ruv_destroy(&cldb->purgeRUV);
-            rc = ruv_init_from_bervals(purgevals, &cldb->purgeRUV);
-        }
-        if (maxidx > 0) {
-            ruv_destroy(&cldb->maxRUV);
-            rc = ruv_init_from_bervals(maxvals, &cldb->maxRUV);
-        }
-
-        cldb->entryCount = entryCount;
+    if (purgeidx > 0) {
+        ruv_destroy(&cldb->purgeRUV);
+        rc = ruv_init_from_bervals(purgevals, &cldb->purgeRUV);
     }
+    if (maxidx > 0) {
+        ruv_destroy(&cldb->maxRUV);
+        rc = ruv_init_from_bervals(maxvals, &cldb->maxRUV);
+    }
+
+    cldb->entryCount = entryCount;
 
 done:
     for (purgeidx = 0; purgevals && purgevals[purgeidx]; purgeidx++) {
@@ -1210,7 +1210,7 @@ cldb_UnSetReplicaDB(Replica *replica, void *arg)
     pthread_cond_destroy(&(cldb->clCvar));
 
     /* Clear the cl encryption data (if configured) */
-    rc = clcrypt_destroy(cldb->clcrypt_handle, be);
+    (void) clcrypt_destroy(cldb->clcrypt_handle, be);
 
     if (cldb->deleteFile) {
         _cldb_DeleteDB(replica);
@@ -1263,6 +1263,8 @@ cldb_SetReplicaDB(Replica *replica, void *arg)
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                           "cldb_SetReplicaDB - Failed to check be environment\n");
             return CL5_SYSTEM_ERROR;
+            /* Coverity false positive: cldb is not leaking has it is now linked in the backend context */
+            /* coverity[leaked_storage] */
         }
         _cl5ReadRUV(cldb, PR_TRUE);
         _cl5ReadRUV(cldb, PR_FALSE);
@@ -1270,6 +1272,7 @@ cldb_SetReplicaDB(Replica *replica, void *arg)
     }
     object_release(ruv_obj);
 
+    assert(cldb); /* Always true but covscan logs false positive otherwise */
     if (arg) {
         cldb->dbOpenMode = openMode;
     } else {
@@ -1647,6 +1650,7 @@ cl5DBData2Entry(const char *data, PRUint32 len __attribute__((unused)), CL5Entry
 
     /* read csn */
     _cl5ReadString(&strCSN, &pos);
+    assert(strCSN);
     if (op->csn == NULL || strcmp(strCSN, csn_as_string(op->csn, PR_FALSE, s)) != 0) {
         op->csn = csn_new_by_string(strCSN);
     }
@@ -2588,7 +2592,6 @@ _cl5PurgeRID(cldb_Handle *cldb, ReplicaId cleaned_rid)
             } else {
                 /* Not done yet */
                 totalTrimmed += trimmed;
-                trimmed = 0;
             }
         } else {
             rc = TXN_ABORT(cldb, txnid);
@@ -2658,7 +2661,6 @@ _cl5TrimReplica(Replica *r)
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                           "_cl5TrimReplica - Failed to begin transaction; db error - %d %s\n",
                           rc, dblayer_strerror(rc));
-            finished = PR_TRUE;
             break;
         }
 
@@ -2885,7 +2887,7 @@ _cl5WriteRUV (cldb_Handle *cldb, PRBool purge)
          * regular string-to-RUV parsing routines. */
         ruv_insert_dummy_min_csn(cldb->purgeRUV);
         key.data = _cl5GetHelperEntryKey(PURGE_RUV_TIME, csnStr);
-        rc = ruv_to_bervals(cldb->purgeRUV, &vals);
+        ruv_to_bervals(cldb->purgeRUV, &vals);
     } else {
         key.data = _cl5GetHelperEntryKey(MAX_RUV_TIME, csnStr);
         rc = ruv_to_bervals(cldb->maxRUV, &vals);
@@ -3606,7 +3608,7 @@ _cl5WriteOperationTxn(cldb_Handle *cldb, const slapi_operation_parameters *op, v
      * and skip to the end.
      */
     if (cldb->dbOpenMode == CL5_OPEN_LDIF2CL) {
-        dblayer_db_op(cldb->be, cldb->db, NULL, DBI_OP_PUT, &key, &data);
+        rc = dblayer_db_op(cldb->be, cldb->db, NULL, DBI_OP_PUT, &key, &data);
         if (rc != 0) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                           "_cl5WriteOperationTxn - Failed to write entry; db error - %d %s\n",
@@ -3670,6 +3672,13 @@ _cl5WriteOperationTxn(cldb_Handle *cldb, const slapi_operation_parameters *op, v
     if (rc == 0) /* we successfully added entry */
     {
         rc = TXN_COMMIT(cldb, txnid);
+        if (rc != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                          "_cl5WriteOperationTxn - Failed to commit transaction; db error - %d %s\n",
+                          rc, dblayer_strerror(rc));
+        }
+        rc = CL5_DB_ERROR;
+        goto done;
     } else {
         char s[CSN_STRSIZE];
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
@@ -4379,7 +4388,7 @@ _cl5WriteReplicaRUV(Replica *r, void *arg)
 
     _cl5WriteEntryCount(cldb);
     rc = _cl5WriteRUV(cldb, PR_TRUE);
-    rc = _cl5WriteRUV(cldb, PR_FALSE);
+    rc |= _cl5WriteRUV(cldb, PR_FALSE);
     ruv_destroy(&cldb->maxRUV);
     ruv_destroy(&cldb->purgeRUV);
 

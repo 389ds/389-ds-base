@@ -319,7 +319,7 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn, LDA
             repl5_stop_debug_timeout(eqctx, &setlevel);
             if (0 == rc) {
                 /* Timeout */
-                rc = slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
+                slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
                 conn->last_ldap_error = LDAP_TIMEOUT;
                 return_value = CONN_TIMEOUT;
             } else if (-1 == rc) {
@@ -536,7 +536,7 @@ windows_LDAPMessage2Entry(Slapi_Entry *e, Repl_Connection *conn, LDAPMessage *ms
                         /* get the last count (high + 1) */
                         /* range=low-high */
                         pp = strchr(p, '-');
-                        if (*++pp == '*') {
+                        if (pp==NULL || *++pp == '*') {
                             high = 0; /* high is *; done! */
                         } else {
                             high = strtol(pp, &p, 10);

@@ -1324,6 +1324,7 @@ bye:
     bdb_back_free_incl_excl(include_suffix, exclude_suffix);
     idl_free(&(eargs.pre_exported_idl));
 
+    /* coverity[leaked_handle] */
     return (return_value);
 }
 

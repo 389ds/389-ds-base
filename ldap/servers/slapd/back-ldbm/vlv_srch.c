@@ -161,6 +161,7 @@ vlvSearch_init(struct vlvSearch *p, Slapi_PBlock *pb, const Slapi_Entry *e, ldbm
             }
 
             /* switch context back to the DSE backend */
+            /* coverity[var_deref_model] */
             slapi_pblock_set(pb, SLAPI_BACKEND, oldbe);
             if (oldbe) {
                 slapi_pblock_set(pb, SLAPI_PLUGIN, oldbe->be_database);
@@ -770,7 +771,7 @@ vlvIndex_checkforindex(struct vlvIndex *p, backend *be)
     if (!p->vlv_online) {
         /* In lmdb case, always open the dbi */
         if (li->li_flags & LI_LMDB_IMPL) {
-            dblayer_get_index_file(be, p->vlv_attrinfo, &db, 0) ;
+            (void) dblayer_get_index_file(be, p->vlv_attrinfo, &db, 0) ;
         }
         return;
     }
