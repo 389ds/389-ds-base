@@ -255,7 +255,7 @@ def _get_selinux_port_policies(port):
                 p = [int(p)]
             ports_list.extend(p)
         if data[1] == 'tcp' and port in ports_list and \
-           data[0] not in ['unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t']:
+           data[0] not in ['hi_reserved_port_t', 'unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t']:
             policies.append({'protocol': data[1], 'type': data[0], 'ports': ports_list})
     return policies
 
