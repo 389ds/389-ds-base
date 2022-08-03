@@ -37,6 +37,8 @@ AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h malloc.h netdb.h netinet/in.h stdl
 # These are *required* headers without option.
 AC_CHECK_HEADERS([inttypes.h], [], AC_MSG_ERROR([unable to locate required header inttypes.h]))
 AC_CHECK_HEADERS([crack.h], [], AC_MSG_ERROR([unable to locate required header crack.h]))
+AC_CHECK_HEADERS([lmdb.h], [], AC_MSG_ERROR([unable to locate required header lmdb.h]))
+AC_CHECK_HEADERS([json-c/json.h], [], AC_MSG_ERROR([unable to locate required header json-c/json.h]))
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STAT
