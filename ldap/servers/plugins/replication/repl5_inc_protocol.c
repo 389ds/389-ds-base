@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1677,13 +1677,9 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
     } else {
         ConnResult replay_crc;
         Replica *replica = prp->replica;
-        PRBool subentry_update_needed = PR_FALSE;
         PRUint64 release_timeout = replica_get_release_timeout(replica);
         char csn_str[CSN_STRSIZE];
-        int skipped_updates = 0;
-        int fractional_repl;
         int finished = 0;
-#define FRACTIONAL_SKIPPED_THRESHOLD 100
 
         /* Start the results reading thread */
         rd = repl5_inc_rd_new(prp);
@@ -1700,7 +1696,6 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 
         memset((void *)&op, 0, sizeof(op));
         entry.op = &op;
-        fractional_repl = agmt_is_fractional(prp->agmt);
         do {
             cl5_operation_parameters_done(entry.op);
             memset((void *)entry.op, 0, sizeof(op));
@@ -1781,14 +1776,6 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                     replica_id = csn_get_replicaid(entry.op->csn);
                     uniqueid = entry.op->target_address.uniqueid;
 
-                    if (fractional_repl && message_id) {
-                        /* This update was sent no need to update the subentry
-                         * and restart counting the skipped updates
-                         */
-                        subentry_update_needed = PR_FALSE;
-                        skipped_updates = 0;
-                    }
-
                     if (prp->repl50consumer && message_id) {
                         int operation, error = 0;
 
@@ -1816,15 +1803,6 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                                       agmt_get_long_name(prp->agmt),
                                       entry.op->target_address.uniqueid, csn_str);
                         agmt_inc_last_update_changecount(prp->agmt, csn_get_replicaid(entry.op->csn), 1 /*skipped*/);
-                        if (fractional_repl) {
-                            skipped_updates++;
-                            if (skipped_updates > FRACTIONAL_SKIPPED_THRESHOLD) {
-                                slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                                              "send_updates - %s: skipped updates is too high (%d) if no other update is sent we will update the subentry\n",
-                                              agmt_get_long_name(prp->agmt), skipped_updates);
-                                subentry_update_needed = PR_TRUE;
-                            }
-                        }
                     }
                 }
                 break;
@@ -1906,26 +1884,6 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
             PR_Unlock(rd->lock);
         } while (!finished);
 
-        if (fractional_repl && subentry_update_needed) {
-            ReplicaId rid = -1; /* Used to create the replica keep alive subentry */
-            Slapi_DN *replarea_sdn = NULL;
-
-            if (replica) {
-                rid = replica_get_rid(replica);
-            }
-            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "send_updates - %s: skipped updates was definitely too high (%d) update the subentry now\n",
-                          agmt_get_long_name(prp->agmt), skipped_updates);
-            replarea_sdn = agmt_get_replarea(prp->agmt);
-            if (!replarea_sdn) {
-                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-                              "send_updates - Unknown replication area due to agreement not found.");
-                agmt_set_last_update_status(prp->agmt, 0, -1, "Agreement is corrupted: missing suffix");
-                return_value = UPDATE_FATAL_ERROR;
-            } else {
-                replica_subentry_update(replarea_sdn, rid);
-            }
-        }
         /* Terminate the results reading thread */
         if (!prp->repl50consumer) {
             /* We need to ensure that we wait until all the responses have been received from our operations */

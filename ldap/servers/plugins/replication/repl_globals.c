@@ -89,6 +89,7 @@ const char *type_replicaReleaseTimeout = "nsds5ReplicaReleaseTimeout";
 const char *type_replicaBackoffMin = "nsds5ReplicaBackoffMin";
 const char *type_replicaBackoffMax = "nsds5ReplicaBackoffMax";
 const char *type_replicaPrecisePurge = "nsds5ReplicaPreciseTombstonePurging";
+const char *type_replicaKeepAliveUpdateInterval = "nsds5ReplicaKeepAliveUpdateInterval";
 
 /* Attribute names for replication agreement attributes */
 const char *type_nsds5ReplicaHost = "nsds5ReplicaHost";

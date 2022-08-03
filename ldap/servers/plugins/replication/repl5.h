@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -120,6 +120,8 @@
 #define PROTOCOL_STATUS_TOTAL_SENDING_DATA             711
 
 #define DEFAULT_PROTOCOL_TIMEOUT 120
+#define DEFAULT_REPLICA_KEEPALIVE_UPDATE_INTERVAL 3600
+#define REPLICA_KEEPALIVE_UPDATE_INTERVAL_MIN 60
 
 /* To Allow Consumer Initialization when adding an agreement - */
 #define STATE_PERFORMING_TOTAL_UPDATE       501
@@ -162,6 +164,7 @@ extern const char *type_nsds5ReplicaBootstrapBindDN;
 extern const char *type_nsds5ReplicaBootstrapCredentials;
 extern const char *type_nsds5ReplicaBootstrapBindMethod;
 extern const char *type_nsds5ReplicaBootstrapTransportInfo;
+extern const char *type_replicaKeepAliveUpdateInterval;
 
 /* Attribute names for windows replication agreements */
 extern const char *type_nsds7WindowsReplicaArea;
@@ -677,8 +680,8 @@ Replica *windows_replica_new(const Slapi_DN *root);
    during addition of the replica over LDAP */
 int replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation, Replica **r);
 void replica_destroy(void **arg);
-int replica_subentry_update(Slapi_DN *repl_root, ReplicaId rid);
-int replica_subentry_check(Slapi_DN *repl_root, ReplicaId rid);
+void replica_subentry_update(time_t when, void *arg);
+int replica_subentry_check(const char *repl_root, ReplicaId rid);
 PRBool replica_get_exclusive_access(Replica *r, PRBool *isInc, uint64_t connid, int opid, const char *locking_purl, char **current_purl);
 void replica_relinquish_exclusive_access(Replica *r, uint64_t connid, int opid);
 PRBool replica_get_tombstone_reap_active(const Replica *r);
@@ -739,6 +742,8 @@ void consumer5_set_mapping_tree_state_for_replica(const Replica *r, RUV *supplie
 Replica *replica_get_for_backend(const char *be_name);
 void replica_set_purge_delay(Replica *r, uint32_t purge_delay);
 void replica_set_tombstone_reap_interval(Replica *r, long interval);
+void replica_set_keepalive_update_interval(Replica *r, int64_t interval);
+int64_t replica_get_keepalive_update_interval(Replica *r);
 void replica_update_ruv_consumer(Replica *r, RUV *supplier_ruv);
 Slapi_Entry *get_in_memory_ruv(Slapi_DN *suffix_sdn);
 int replica_write_ruv(Replica *r);
