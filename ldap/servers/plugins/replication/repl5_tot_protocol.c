@@ -510,7 +510,7 @@ retry:
         if (prp->replica) {
             rid = replica_get_rid(prp->replica);
         }
-        replica_subentry_check(area_sdn, rid);
+        replica_subentry_check(slapi_sdn_get_dn(area_sdn), rid);
 
         /* Send the subtree of the suffix in the order of parentid index plus ldapsubentry and nstombstone. */
         check_suffix_entryID(be, suffix);
@@ -531,7 +531,7 @@ retry:
         if (prp->replica) {
             rid = replica_get_rid(prp->replica);
         }
-        replica_subentry_check(area_sdn, rid);
+        replica_subentry_check(slapi_sdn_get_dn(area_sdn), rid);
 
         slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(area_sdn),
                                      LDAP_SCOPE_SUBTREE, "(|(objectclass=ldapsubentry)(objectclass=nstombstone)(nsuniqueid=*))", NULL, 0, ctrls, NULL,

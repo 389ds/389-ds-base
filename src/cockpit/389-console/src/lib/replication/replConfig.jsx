@@ -48,6 +48,7 @@ export class ReplConfig extends React.Component {
             nsds5replicaprotocoltimeout: Number(this.props.data.nsds5replicaprotocoltimeout) == 0 ? 120 : Number(this.props.data.nsds5replicaprotocoltimeout),
             nsds5replicabackoffmin: Number(this.props.data.nsds5replicabackoffmin) == 0 ? 3 : Number(this.props.data.nsds5replicabackoffmin),
             nsds5replicabackoffmax: Number(this.props.data.nsds5replicabackoffmax) == 0 ? 300 : Number(this.props.data.nsds5replicabackoffmax),
+            nsds5replicakeepaliveupdateinterval: Number(this.props.data.nsds5replicakeepaliveupdateinterval) == 0 ? 3600 : Number(this.props.data.nsds5replicakeepaliveupdateinterval),
             // Original settings
             _nsds5replicabinddn: this.props.data.nsds5replicabinddn,
             _nsds5replicabinddngroup: this.props.data.nsds5replicabinddngroup,
@@ -59,6 +60,7 @@ export class ReplConfig extends React.Component {
             _nsds5replicaprotocoltimeout: Number(this.props.data.nsds5replicaprotocoltimeout) == 0 ? 120 : Number(this.props.data.nsds5replicaprotocoltimeout),
             _nsds5replicabackoffmin: Number(this.props.data.nsds5replicabackoffmin) == 0 ? 3 : Number(this.props.data.nsds5replicabackoffmin),
             _nsds5replicabackoffmax: Number(this.props.data.nsds5replicabackoffmax) == 0 ? 300 : Number(this.props.data.nsds5replicabackoffmax),
+            _nsds5replicakeepaliveupdateinterval: Number(this.props.data.nsds5replicakeepaliveupdateinterval) == 0 ? 3600 : Number(this.props.data.nsds5replicakeepaliveupdateinterval),
         };
 
         this.onToggle = (isExpanded) => {
@@ -275,7 +277,7 @@ export class ReplConfig extends React.Component {
             'nsds5replicapurgedelay', 'nsds5replicatombstonepurgeinterval',
             'nsds5replicareleasetimeout', 'nsds5replicaprotocoltimeout',
             'nsds5replicabackoffmin', 'nsds5replicabackoffmax',
-            'nsds5replicaprecisetombstonepurging'
+            'nsds5replicaprecisetombstonepurging', 'nsds5replicakeepaliveupdateinterval',
         ];
         // Check if a setting was changed, if so enable the save button
         for (const config_attr of config_attrs) {
@@ -301,7 +303,7 @@ export class ReplConfig extends React.Component {
             'nsds5replicapurgedelay', 'nsds5replicatombstonepurgeinterval',
             'nsds5replicareleasetimeout', 'nsds5replicaprotocoltimeout',
             'nsds5replicabackoffmin', 'nsds5replicabackoffmax',
-            'nsds5replicaprecisetombstonepurging'
+            'nsds5replicaprecisetombstonepurging', 'nsds5replicakeepaliveupdateinterval',
         ];
         // Check if a setting was changed, if so enable the save button
         for (const config_attr of config_attrs) {
@@ -450,6 +452,9 @@ export class ReplConfig extends React.Component {
         }
         if (this.state.nsds5replicabinddngroupcheckinterval != this.state._nsds5replicabinddngroupcheckinterval) {
             cmd.push("--repl-bind-group-interval=" + this.state.nsds5replicabinddngroupcheckinterval);
+        }
+        if (this.state.nsds5replicakeepaliveupdateinterval != this.state._nsds5replicakeepaliveupdateinterval) {
+            cmd.push("--repl-keepalive-update-interval=" + this.state.nsds5replicakeepaliveupdateinterval);
         }
         if (this.state.nsds5replicareleasetimeout != this.state._nsds5replicareleasetimeout) {
             cmd.push("--repl-release-timeout=" + this.state.nsds5replicareleasetimeout);
@@ -778,6 +783,29 @@ export class ReplConfig extends React.Component {
                                             onMinus={() => { this.onMinusConfig("nsds5replicabackoffmax") }}
                                             onChange={(e) => { this.onConfigChange(e, "nsds5replicabackoffmax", 1) }}
                                             onPlus={() => { this.onPlusConfig("nsds5replicabackoffmax") }}
+                                            inputName="input"
+                                            inputAriaLabel="number input"
+                                            minusBtnAriaLabel="minus"
+                                            plusBtnAriaLabel="plus"
+                                            widthChars={8}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="The interval in seconds that the server will apply an internal update to get the RUV from getting stale. (nsds5replicakeepaliveupdateinterval)."
+                                    className="ds-margin-top"
+                                >
+                                    <GridItem className="ds-label" span={3}>
+                                        Refresh RUV Interval
+                                    </GridItem>
+                                    <GridItem span={9}>
+                                        <NumberInput
+                                            value={this.state.nsds5replicakeepaliveupdateinterval}
+                                            min={60}
+                                            max={this.maxValue}
+                                            onMinus={() => { this.onMinusConfig("nsds5replicakeepaliveupdateinterval") }}
+                                            onChange={(e) => { this.onConfigChange(e, "nsds5replicakeepaliveupdateinterval", 60) }}
+                                            onPlus={() => { this.onPlusConfig("nsds5replicakeepaliveupdateinterval") }}
                                             inputName="input"
                                             inputAriaLabel="number input"
                                             minusBtnAriaLabel="minus"

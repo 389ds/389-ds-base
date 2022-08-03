@@ -32,6 +32,7 @@ arg_to_attr = {
         'repl_backoff_min': 'nsds5replicabackoffmin',
         'repl_backoff_max': 'nsds5replicabackoffmax',
         'repl_release_timeout': 'nsds5replicareleasetimeout',
+        'repl_keepalive_update_interval': 'nsds5replicakeepaliveupdateinterval',
         # Changelog
         'cl_dir': 'nsslapd-changelogdir',
         'max_entries': 'nsslapd-changelogmaxentries',
@@ -1364,6 +1365,9 @@ def create_parser(subparsers):
                                                             "while waiting to acquire the consumer. Default is 3 seconds")
     repl_set_parser.add_argument('--repl-release-timeout', help="A timeout in seconds a replication supplier should send "
                                                                 "updates before it yields its replication session")
+    repl_set_parser.add_argument('--repl-keepalive-update-interval', help="Interval in seconds for how often the server will apply "
+                                                                          "an internal update to keep the RUV from getting stale. "
+                                                                          "The default is 1 hour (3600 seconds)")
 
     repl_monitor_parser = repl_subcommands.add_parser('monitor', help='Display the full replication topology report')
     repl_monitor_parser.set_defaults(func=get_repl_monitor_info)
@@ -1375,7 +1379,7 @@ def create_parser(subparsers):
     repl_monitor_parser.add_argument('-a', '--aliases', nargs="*",
                                      help="Enables displaying an alias instead of host:port, if an alias is "
                                           "assigned to a host:port combination. The format: alias=host:port")
-#
+
     ############################################
     # Replication Agmts
     ############################################

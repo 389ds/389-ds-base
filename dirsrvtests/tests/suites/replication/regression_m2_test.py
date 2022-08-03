@@ -14,6 +14,7 @@ import ldif
 import ldap
 import pytest
 import subprocess
+import time
 from lib389.idm.user import TEST_USER_PROPERTIES, UserAccounts
 from lib389.pwpolicy import PwPolicyManager
 from lib389.utils import *
@@ -305,12 +306,12 @@ def rename_entry(server, idx, ou_name, new_parent):
 def add_ldapsubentry(server, parent):
     pwp = PwPolicyManager(server)
     policy_props = {'passwordStorageScheme': 'ssha',
-                                'passwordCheckSyntax': 'on',
-                                'passwordInHistory': '6',
-                                'passwordChange': 'on',
-                                'passwordMinAge': '0',
-                                'passwordExp': 'off',
-                                'passwordMustChange': 'off',}
+                    'passwordCheckSyntax': 'on',
+                    'passwordInHistory': '6',
+                    'passwordChange': 'on',
+                    'passwordMinAge': '0',
+                    'passwordExp': 'off',
+                    'passwordMustChange': 'off',}
     log.info('Create password policy for subtree {}'.format(parent))
     pwp.create_subtree_policy(parent, policy_props)
 
@@ -843,7 +844,7 @@ def get_keepalive_entries(instance, replica):
     try:
         entries = instance.search_s(replica.get_suffix(), ldap.SCOPE_ONELEVEL,
                                     "(&(objectclass=ldapsubentry)(cn=repl keep alive*))",
-                                    ['cn', 'nsUniqueId', 'modifierTimestamp'])
+                                    ['cn', 'keepalivetimestamp', 'nsUniqueId', 'modifierTimestamp'])
     except ldap.LDAPError as e:
         log.fatal('Failed to retrieve keepalive entry (%s) on instance %s: error %s' % (dn, instance, str(e)))
         assert False
@@ -862,6 +863,7 @@ def verify_keepalive_entries(topo, expected):
     # (for example after: db2ldif / demote a supplier / ldif2db / init other suppliers)
     # ==> if the function is somehow pushed in lib389, a check better than simply counting the entries
     # should be done.
+    entries = []
     for supplierId in topo.ms:
         supplier = topo.ms[supplierId]
         for replica in Replicas(supplier).list():
@@ -872,6 +874,7 @@ def verify_keepalive_entries(topo, expected):
             keepaliveEntries = get_keepalive_entries(supplier, replica);
             expectedCount = len(topo.ms) if expected else 0
             foundCount = len(keepaliveEntries)
+            entries += keepaliveEntries
             if (foundCount == expectedCount):
                 log.debug(f'Found {foundCount} keepalive entries as expected on {replica_info}.')
             else:
@@ -879,70 +882,45 @@ def verify_keepalive_entries(topo, expected):
                           f'while {expectedCount} were expected on {replica_info}.')
                 assert False
 
+    return entries
 
-def test_online_init_should_create_keepalive_entries(topo_m2):
-    """Check that keep alive entries are created when initializinf a supplier from another one
+
+def test_keepalive_entries(topo_m2):
+    """Check that keep alive entries are created
 
     :id: d5940e71-d18a-4b71-aaf7-b9185361fffe
     :setup: Two suppliers replication setup
     :steps:
-        1. Generate ldif without replication data
-        2  Init both suppliers from that ldif
-        3  Check that keep alive entries does not exists
-        4  Perform on line init of supplier2 from supplier1
-        5  Check that keep alive entries exists
+        1. Keep alives entries are present
+        2. Keep alive entries are updated every 60 seconds
     :expectedresults:
-        1. No error while generating ldif
-        2. No error while importing the ldif file
-        3. No keepalive entrie should exists on any suppliers
-        4. No error while initializing supplier2
-        5. All keepalive entries should exist on every suppliers
+        1. Success
+        2. Success
 
     """
 
-    repl = ReplicationManager(DEFAULT_SUFFIX)
-    m1 = topo_m2.ms["supplier1"]
-    m2 = topo_m2.ms["supplier2"]
-    # Step 1: Generate ldif without replication data
-    m1.stop()
-    m2.stop()
-    ldif_file = '%s/norepl.ldif' % m1.get_ldif_dir()
-    m1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX],
-               excludeSuffixes=None, repl_data=False,
-               outputfile=ldif_file, encrypt=False)
-    # Remove replication metadata that are still in the ldif
-    _remove_replication_data(ldif_file)
+    # default interval is 1 hour, too long for test, set it to the minimum of
+    # 60 seconds
+    for supplierId in topo_m2.ms:
+        supplier = topo_m2.ms[supplierId]
+        replica = Replicas(supplier).get(DEFAULT_SUFFIX)
+        replica.replace('nsds5ReplicaKeepAliveUpdateInterval', '60')
+        supplier.restart()
 
-    # Step 2: Init both suppliers from that ldif
-    m1.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
-    m2.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
-    m1.start()
-    m2.start()
+    # verify entries exist
+    entries = verify_keepalive_entries(topo_m2, True);
 
-    """ Replica state is now as if CLI setup has been done using:
-        dsconf supplier1 replication enable --suffix "${SUFFIX}" --role supplier
-        dsconf supplier2 replication enable --suffix "${SUFFIX}" --role supplier
-        dsconf supplier1 replication create-manager --name "${REPLICATION_MANAGER_NAME}" --passwd "${REPLICATION_MANAGER_PASSWORD}"
-        dsconf supplier2 replication create-manager --name "${REPLICATION_MANAGER_NAME}" --passwd "${REPLICATION_MANAGER_PASSWORD}"
-        dsconf supplier1 repl-agmt create --suffix "${SUFFIX}"
-        dsconf supplier2 repl-agmt create --suffix "${SUFFIX}"
-    """
+    # Get current time from keep alive entry
+    keep_alive_s1 = str(entries[0].data['keepalivetimestamp'])
+    keep_alive_s2 = str(entries[1].data['keepalivetimestamp'])
 
-    # Step 3: No keepalive entrie should exists on any suppliers
-    verify_keepalive_entries(topo_m2, False)
+    # Wait for event interval (60 secs) to pass
+    time.sleep(61)
 
-    # Step 4: Perform on line init of supplier2 from supplier1
-    agmt = Agreements(m1).list()[0]
-    agmt.begin_reinit()
-    (done, error) = agmt.wait_reinit()
-    assert done is True
-    assert error is False
-
-    # Step 5: All keepalive entries should exists on every suppliers
-    #  Verify the keep alive entry once replication is in sync
-    # (that is the step that fails when bug is not fixed)
-    repl.wait_for_ruv(m2,m1)
-    verify_keepalive_entries(topo_m2, True);
+    # Check keep alives entries have been updated
+    entries = verify_keepalive_entries(topo_m2, True);
+    assert keep_alive_s1 != str(entries[0].data['keepalivetimestamp'])
+    assert keep_alive_s2 != str(entries[1].data['keepalivetimestamp'])
 
 
 # Parameters for test_change_repl_passwd
@@ -953,8 +931,6 @@ def test_online_init_should_create_keepalive_entries(topo_m2):
         pytest.param( "replMgr", id="using-bind-dn"),
     ],
 )
-
-
 @pytest.mark.bz1956987
 def test_change_repl_passwd(topo_m2, request, bind_cn):
     """Replication may break after changing password.
