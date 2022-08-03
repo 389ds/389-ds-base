@@ -3669,9 +3669,9 @@ _cl5WriteOperationTxn(cldb_Handle *cldb, const slapi_operation_parameters *op, v
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                           "_cl5WriteOperationTxn - Failed to commit transaction; db error - %d %s\n",
                           rc, dblayer_strerror(rc));
+            rc = CL5_DB_ERROR;
+            goto done;
         }
-        rc = CL5_DB_ERROR;
-        goto done;
     } else {
         char s[CSN_STRSIZE];
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
