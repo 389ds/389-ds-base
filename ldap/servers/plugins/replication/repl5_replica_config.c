@@ -363,6 +363,9 @@ replica_config_modify(Slapi_PBlock *pb,
                 } else if (strcasecmp(config_attr, type_replicaBackoffMax) == 0) {
                     if (apply_mods)
                         replica_set_backoff_max(r, PROTOCOL_BACKOFF_MAXIMUM);
+                } else if (strcasecmp(config_attr, type_replicaKeepAliveUpdateInterval) == 0) {
+                    if (apply_mods)
+                        replica_set_keepalive_update_interval(r, DEFAULT_REPLICA_KEEPALIVE_UPDATE_INTERVAL);
                 } else if (strcasecmp(config_attr, type_replicaPrecisePurge) == 0) {
                     if (apply_mods)
                         replica_set_precise_purging(r, 0);
@@ -394,6 +397,15 @@ replica_config_modify(Slapi_PBlock *pb,
                     int64_t interval = 0;
                     if (repl_config_valid_num(config_attr, config_attr_value, -1, INT_MAX, returncode, errortext, &interval) == 0) {
                         replica_set_groupdn_checkinterval(r, interval);
+                    } else {
+                        break;
+                    }
+                } else if (strcasecmp(config_attr, type_replicaKeepAliveUpdateInterval) == 0) {
+                    int64_t interval = DEFAULT_REPLICA_KEEPALIVE_UPDATE_INTERVAL;
+                    if (repl_config_valid_num(config_attr, config_attr_value, REPLICA_KEEPALIVE_UPDATE_INTERVAL_MIN,
+                                              INT_MAX, returncode, errortext, &interval) == 0)
+                    {
+                        replica_set_keepalive_update_interval(r, interval);
                     } else {
                         break;
                     }

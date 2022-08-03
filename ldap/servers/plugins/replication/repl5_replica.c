@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -22,7 +22,6 @@
 #include "slap.h"
 
 #define RUV_SAVE_INTERVAL (30 * 1000) /* 30 seconds */
-
 #define REPLICA_RDN "cn=replica"
 
 /*
@@ -48,6 +47,7 @@ struct replica
     PRMonitor *repl_lock;              /* protects entire structure */
     Slapi_Eq_Context repl_eqcxt_rs;    /* context to cancel event that saves ruv */
     Slapi_Eq_Context repl_eqcxt_tr;    /* context to cancel event that reaps tombstones */
+    Slapi_Eq_Context repl_eqcxt_ka_update; /* keep-alive entry update event */
     Object *repl_csngen;               /* CSN generator for this replica */
     PRBool repl_csn_assigned;          /* Flag set when new csn is assigned. */
     int64_t repl_purge_delay;          /* When purgeable, CSNs are held on to for this many extra seconds */
@@ -67,6 +67,7 @@ struct replica
     Slapi_Counter *release_timeout;    /* The amount of time to wait before releasing active replica */
     uint64_t abort_session;            /* Abort the current replica session */
     cldb_Handle *cldb;                 /* database info for the changelog */
+    int64_t keepalive_update_interval; /* interval to do dummy update to keep RUV fresh */
 };
 
 
@@ -135,8 +136,8 @@ replica_new(const Slapi_DN *root)
                                &r);
 
         if (NULL == r) {
-            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_new - "
-                                                           "Unable to configure replica %s: %s\n",
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                          "replica_new - Unable to configure replica %s: %s\n",
                           slapi_sdn_get_dn(root), errorbuf);
         }
         slapi_entry_free(e);
@@ -245,7 +246,15 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
        In that case the updated would fail but nothing bad would happen. The next
        scheduled update would save the state */
     r->repl_eqcxt_rs = slapi_eq_repeat_rel(replica_update_state, r->repl_name,
-                                           slapi_current_rel_time_t() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
+                                           slapi_current_rel_time_t() + START_UPDATE_DELAY,
+                                           RUV_SAVE_INTERVAL);
+
+    /* create supplier update event */
+    if (r->repl_eqcxt_ka_update == NULL && replica_get_type(r) == REPLICA_TYPE_UPDATABLE) {
+        r->repl_eqcxt_ka_update = slapi_eq_repeat_rel(replica_subentry_update, r,
+                                                   slapi_current_rel_time_t() + START_UPDATE_DELAY,
+                                                   replica_get_keepalive_update_interval(r));
+    }
 
     if (r->tombstone_reap_interval > 0) {
         /*
@@ -314,6 +323,11 @@ replica_destroy(void **arg)
      * this destruction and the events such as tombstone reap
      * and ruv updates.
      */
+
+    if (r->repl_eqcxt_ka_update) {
+        slapi_eq_cancel_rel(r->repl_eqcxt_ka_update);
+        r->repl_eqcxt_ka_update = NULL;
+    }
 
     if (r->repl_eqcxt_rs) {
         slapi_eq_cancel_rel(r->repl_eqcxt_rs);
@@ -406,7 +420,7 @@ replica_destroy(void **arg)
 
 
 static int
-replica_subentry_create(Slapi_DN *repl_root, ReplicaId rid)
+replica_subentry_create(const char *repl_root, ReplicaId rid)
 {
     char *entry_string = NULL;
     Slapi_Entry *e = NULL;
@@ -415,7 +429,7 @@ replica_subentry_create(Slapi_DN *repl_root, ReplicaId rid)
     int rc = 0;
 
     entry_string = slapi_ch_smprintf("dn: cn=%s %d,%s\nobjectclass: top\nobjectclass: ldapsubentry\nobjectclass: extensibleObject\ncn: %s %d",
-                                     KEEP_ALIVE_ENTRY, rid, slapi_sdn_get_dn(repl_root), KEEP_ALIVE_ENTRY, rid);
+                                     KEEP_ALIVE_ENTRY, rid, repl_root, KEEP_ALIVE_ENTRY, rid);
     if (entry_string == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                       "replica_subentry_create - Failed in slapi_ch_smprintf\n");
@@ -454,7 +468,7 @@ done:
 }
 
 int
-replica_subentry_check(Slapi_DN *repl_root, ReplicaId rid)
+replica_subentry_check(const char *repl_root, ReplicaId rid)
 {
     Slapi_PBlock *pb;
     char *filter = NULL;
@@ -464,7 +478,7 @@ replica_subentry_check(Slapi_DN *repl_root, ReplicaId rid)
 
     pb = slapi_pblock_new();
     filter = slapi_ch_smprintf("(&(objectclass=ldapsubentry)(cn=%s %d))", KEEP_ALIVE_ENTRY, rid);
-    slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(repl_root), LDAP_SCOPE_ONELEVEL,
+    slapi_search_internal_set_pb(pb, repl_root, LDAP_SCOPE_ONELEVEL,
                                  filter, NULL, 0, NULL, NULL,
                                  repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_search_internal_pb(pb);
@@ -473,17 +487,19 @@ replica_subentry_check(Slapi_DN *repl_root, ReplicaId rid)
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
         if (entries && (entries[0] == NULL)) {
             slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name,
-                          "replica_subentry_check - Need to create replication keep alive entry <cn=%s %d,%s>\n", KEEP_ALIVE_ENTRY, rid, slapi_sdn_get_dn(repl_root));
+                          "replica_subentry_check - Need to create replication keep alive entry <cn=%s %d,%s>\n",
+                          KEEP_ALIVE_ENTRY, rid, repl_root);
             rc = replica_subentry_create(repl_root, rid);
         } else {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "replica_subentry_check - replication keep alive entry <cn=%s %d,%s> already exists\n", KEEP_ALIVE_ENTRY, rid, slapi_sdn_get_dn(repl_root));
+                          "replica_subentry_check - replication keep alive entry <cn=%s %d,%s> already exists\n",
+                          KEEP_ALIVE_ENTRY, rid, repl_root);
             rc = 0;
         }
     } else {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                       "replica_subentry_check - Error accessing replication keep alive entry <cn=%s %d,%s> res=%d\n",
-                      KEEP_ALIVE_ENTRY, rid, slapi_sdn_get_dn(repl_root), res);
+                      KEEP_ALIVE_ENTRY, rid, repl_root, res);
         /* The status of the entry is not clear, do not attempt to create it */
         rc = 1;
     }
@@ -494,60 +510,59 @@ replica_subentry_check(Slapi_DN *repl_root, ReplicaId rid)
     return rc;
 }
 
-int
-replica_subentry_update(Slapi_DN *repl_root, ReplicaId rid)
+void
+replica_subentry_update(time_t when __attribute__((unused)), void *arg)
 {
-    int ldrc;
-    int rc = LDAP_SUCCESS; /* Optimistic default */
+    Slapi_PBlock *modpb = NULL;
+    Replica *replica = (Replica *)arg;
+    ReplicaId rid;
     LDAPMod *mods[2];
     LDAPMod mod;
     struct berval *vals[2];
-    char buf[SLAPI_TIMESTAMP_BUFSIZE];
     struct berval val;
-    Slapi_PBlock *modpb = NULL;
-    char *dn;
+    const char *repl_root = NULL;
+    char buf[SLAPI_TIMESTAMP_BUFSIZE];
+    char *dn = NULL;
+    int ldrc = 0;
 
+    rid = replica_get_rid(replica);
+    repl_root = slapi_ch_strdup(slapi_sdn_get_dn(replica_get_root(replica)));
     replica_subentry_check(repl_root, rid);
 
     slapi_timestamp_utc_hr(buf, SLAPI_TIMESTAMP_BUFSIZE);
-
-    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "subentry_update called at %s\n", buf);
-
-
+    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "replica_subentry_update called at %s\n", buf);
     val.bv_val = buf;
     val.bv_len = strlen(val.bv_val);
-
     vals[0] = &val;
     vals[1] = NULL;
 
     mod.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
     mod.mod_type = KEEP_ALIVE_ATTR;
     mod.mod_bvalues = vals;
-
     mods[0] = &mod;
     mods[1] = NULL;
 
     modpb = slapi_pblock_new();
-    dn = slapi_ch_smprintf(KEEP_ALIVE_DN_FORMAT, KEEP_ALIVE_ENTRY, rid, slapi_sdn_get_dn(repl_root));
-
+    dn = slapi_ch_smprintf(KEEP_ALIVE_DN_FORMAT, KEEP_ALIVE_ENTRY, rid, repl_root);
     slapi_modify_internal_set_pb(modpb, dn, mods, NULL, NULL,
                                  repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_modify_internal_pb(modpb);
-
     slapi_pblock_get(modpb, SLAPI_PLUGIN_INTOP_RESULT, &ldrc);
-
     if (ldrc != LDAP_SUCCESS) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "Failure (%d) to update replication keep alive entry \"%s: %s\"\n", ldrc, KEEP_ALIVE_ATTR, buf);
-        rc = ldrc;
+                      "replica_subentry_update - "
+                      "Failure (%d) to update replication keep alive entry \"%s: %s\"\n",
+                      ldrc, KEEP_ALIVE_ATTR, buf);
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name,
-                      "Successful update of replication keep alive entry \"%s: %s\"\n", KEEP_ALIVE_ATTR, buf);
+                      "replica_subentry_update - "
+                      "Successful update of replication keep alive entry \"%s: %s\"\n",
+                      KEEP_ALIVE_ATTR, buf);
     }
 
     slapi_pblock_destroy(modpb);
+    slapi_ch_free_string((char **)&repl_root);
     slapi_ch_free_string(&dn);
-    return rc;
 }
 /*
  * Attempt to obtain exclusive access to replica (advisory only)
@@ -1529,7 +1544,15 @@ replica_set_enabled(Replica *r, PRBool enable)
         if (r->repl_eqcxt_rs == NULL) /* event is not already registered */
         {
             r->repl_eqcxt_rs = slapi_eq_repeat_rel(replica_update_state, r->repl_name,
-                                                   slapi_current_rel_time_t() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
+                                                   slapi_current_rel_time_t() + START_UPDATE_DELAY,
+                                                   RUV_SAVE_INTERVAL);
+
+        }
+        /* create supplier update event */
+        if (r->repl_eqcxt_ka_update == NULL && replica_get_type(r) == REPLICA_TYPE_UPDATABLE) {
+            r->repl_eqcxt_ka_update = slapi_eq_repeat_rel(replica_subentry_update, r,
+                                                       slapi_current_rel_time_t() + START_UPDATE_DELAY,
+                                                       replica_get_keepalive_update_interval(r));
         }
     } else /* disable */
     {
@@ -1537,6 +1560,11 @@ replica_set_enabled(Replica *r, PRBool enable)
         {
             slapi_eq_cancel_rel(r->repl_eqcxt_rs);
             r->repl_eqcxt_rs = NULL;
+        }
+        /* Remove supplier update event */
+        if (replica_get_type(r) == REPLICA_TYPE_PRIMARY) {
+            slapi_eq_cancel_rel(r->repl_eqcxt_ka_update);
+            r->repl_eqcxt_ka_update = NULL;
         }
     }
 
@@ -2139,6 +2167,17 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
         r->tombstone_reap_interval = interval;
     } else {
         r->tombstone_reap_interval = 3600 * 24; /* One week, in seconds */
+    }
+
+    if ((val = (char*)slapi_entry_attr_get_ref(e, type_replicaKeepAliveUpdateInterval))) {
+        if (repl_config_valid_num(type_replicaKeepAliveUpdateInterval, val, REPLICA_KEEPALIVE_UPDATE_INTERVAL_MIN,
+                                  INT_MAX, &rc, errormsg, &interval) != 0)
+        {
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+        r->keepalive_update_interval = interval;
+    } else {
+        r->keepalive_update_interval = DEFAULT_REPLICA_KEEPALIVE_UPDATE_INTERVAL;
     }
 
     r->tombstone_reap_stop = r->tombstone_reap_active = PR_FALSE;
@@ -3672,6 +3711,26 @@ replica_set_tombstone_reap_interval(Replica *r, long interval)
                       r->tombstone_reap_interval, (r->repl_eqcxt_tr ? "scheduled" : "not scheduled successfully"));
     }
     replica_unlock(r->repl_lock);
+}
+
+void
+replica_set_keepalive_update_interval(Replica *r, int64_t interval)
+{
+    replica_lock(r->repl_lock);
+    r->keepalive_update_interval = interval;
+    replica_unlock(r->repl_lock);
+}
+
+int64_t
+replica_get_keepalive_update_interval(Replica *r)
+{
+    int64_t interval = DEFAULT_REPLICA_KEEPALIVE_UPDATE_INTERVAL;
+
+    replica_lock(r->repl_lock);
+    interval = r->keepalive_update_interval;
+    replica_unlock(r->repl_lock);
+
+    return interval;
 }
 
 static void
