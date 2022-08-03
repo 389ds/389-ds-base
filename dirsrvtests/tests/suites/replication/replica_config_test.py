@@ -50,7 +50,8 @@ repl_add_attrs = [('nsDS5ReplicaType', '-1', '4', overflow, notnum, '1'),
                   ('nsds5ReplicaProtocolTimeout', '-1', too_big, overflow, notnum, '1'),
                   ('nsds5ReplicaReleaseTimeout', '-1', too_big, overflow, notnum, '1'),
                   ('nsds5ReplicaBackoffMin', '0', too_big, overflow, notnum, '3'),
-                  ('nsds5ReplicaBackoffMax', '0', too_big, overflow, notnum, '6')]
+                  ('nsds5ReplicaBackoffMax', '0', too_big, overflow, notnum, '6'),
+                  ('nsds5ReplicaKeepAliveUpdateInterval', '59', too_big, overflow, notnum, '60'),]
 
 repl_mod_attrs = [('nsDS5Flags', '-1', '2', overflow, notnum, '1'),
                   ('nsds5ReplicaPurgeDelay', '-2', too_big, overflow, notnum, '1'),
@@ -59,7 +60,8 @@ repl_mod_attrs = [('nsDS5Flags', '-1', '2', overflow, notnum, '1'),
                   ('nsds5ReplicaProtocolTimeout', '-1', too_big, overflow, notnum, '1'),
                   ('nsds5ReplicaReleaseTimeout', '-1', too_big, overflow, notnum, '1'),
                   ('nsds5ReplicaBackoffMin', '0', too_big, overflow, notnum, '3'),
-                  ('nsds5ReplicaBackoffMax', '0', too_big, overflow, notnum, '6')]
+                  ('nsds5ReplicaBackoffMax', '0', too_big, overflow, notnum, '6'),
+                  ('nsds5ReplicaKeepAliveUpdateInterval', '59', too_big, overflow, notnum, '60'),]
 
 agmt_attrs = [
               ('nsds5ReplicaPort', '0', '65535', overflow, notnum, '389'),
