@@ -165,6 +165,7 @@ upgrade_enable_security_logging(void)
             plugin_get_default_component_id(), 0);
     slapi_search_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+    /* coverity[dereference] */
     if (entries &&
         strcasecmp(slapi_entry_attr_get_ref(entries[0], "nsslapd-securitylog"), "") == 0)
     {

@@ -1157,14 +1157,7 @@ cl5GetOperationCount(Replica *replica)
     } else /* return count for particular db */
     {
         slapi_counter_increment(cldb->clThreads);
-        if (cldb) {
-            count = cldb->entryCount;
-        } else {
-            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                          "cl5GetOperationCount - Could not get DB object for replica\n");
-            /* replica is not enabled */
-            count = -1;
-        }
+        count = cldb->entryCount;
         slapi_counter_decrement(cldb->clThreads);
     }
 

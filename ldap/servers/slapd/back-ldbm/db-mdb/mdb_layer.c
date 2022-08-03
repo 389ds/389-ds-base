@@ -2115,7 +2115,7 @@ void *dbmdb_recno_cache_build(void *arg)
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build", 
                           "Failed to write record in db %s, key=%s error: %s\n", 
-                            rcctx->rcdbi->dbname, (char*)(key.mv_data), mdb_strerror(rc));
+                          rcctx->rcdbi->dbname, (char*)(key.mv_data), mdb_strerror(rc));
         } else {
             dbmdb_generate_recno_cache_key_by_data(&rckey, &key, &data);
             rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi->dbi, &rckey, &rcdata, 0);
@@ -2124,12 +2124,10 @@ void *dbmdb_recno_cache_build(void *arg)
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build", 
                               "Failed to write record in db %s, key=%s error: %s\n", 
-                                rcctx->rcdbi->dbname, (char*)(key.mv_data), mdb_strerror(rc));
+                              rcctx->rcdbi->dbname, (char*)(key.mv_data), mdb_strerror(rc));
             }
         }
         slapi_ch_free(&rcdata.mv_data);
-        if (rc) { 
-        }
         rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_NEXT);
         recno++;
     }
@@ -2138,8 +2136,18 @@ void *dbmdb_recno_cache_build(void *arg)
         rckey.mv_data = "OK";
         rckey.mv_size = 2;
         rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi->dbi, &rckey, &rckey, 0);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build", 
+                          "Failed to write record in db %s, key=%s error: %s\n", 
+                          rcctx->rcdbi->dbname, (char*)(rckey.mv_data), mdb_strerror(rc));
+            }
         txn_ctx.flags |= DBMDB_TXNCTX_NEED_COMMIT;
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build", 
+                      "Failed to walk record in db %s, error: %s\n", 
+                      rcctx->rcdbi->dbname, mdb_strerror(rc));
     }
+
 cache_built:
     rc = dbmdb_end_recno_cache_txn(&txn_ctx, rc);
     if (rc == 0) {

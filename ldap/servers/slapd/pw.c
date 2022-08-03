@@ -226,7 +226,8 @@ slapi_encode_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg)
             slapi_log_err(SLAPI_LOG_ERR, "slapi_encode_ext",
                           "no encoding password storage scheme found for %s\n",
                           pwpolicy->pw_storagescheme->pws_name);
-            delete_passwdPolicy(&pwpolicy);
+            /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+            /* coverity[leaked_storage] */
             return NULL;
         }
     } else {
@@ -252,8 +253,9 @@ slapi_encode_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg)
     }
 
     hashedval = (*pws_enc)(value);
-    delete_passwdPolicy(&pwpolicy);
 
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
     return hashedval;
 }
 
@@ -1769,7 +1771,8 @@ add_password_attrs(Slapi_PBlock *pb, Operation *op __attribute__((unused)), Slap
         slapi_entry_attr_merge(e, "passwordallowchangetime", bvals);
         slapi_ch_free_string(&bv.bv_val);
     }
-    delete_passwdPolicy(&pwpolicy);
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
 }
 
 static int
@@ -2876,10 +2879,12 @@ slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int p
 
 notlocked:
     /* account is not locked. */
-    delete_passwdPolicy(&pwpolicy);
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
     return (0);
 locked:
-    delete_passwdPolicy(&pwpolicy);
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
     return (1);
 }
 

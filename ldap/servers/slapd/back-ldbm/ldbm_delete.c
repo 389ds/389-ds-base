@@ -1517,7 +1517,7 @@ diskfull_return:
     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
                   "conn=%" PRIu64 " op=%d modify_term: old_entry=0x%p, new_entry=0x%p, in_cache=%d\n",
                   conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry,
-                  cache_is_in_cache(&inst->inst_cache, parent_modify_c.new_entry));
+                  inst ? cache_is_in_cache(&inst->inst_cache, parent_modify_c.new_entry):-1);
     myrc = modify_term(&parent_modify_c, be);
     if (free_delete_existing_entry) {
         done_with_pblock_entry(pb, SLAPI_DELETE_EXISTING_ENTRY);

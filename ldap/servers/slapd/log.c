@@ -32,6 +32,7 @@
 #include "zlib.h"
 #define _PSEP '/'
 #include <json-c/json.h>
+#include <assert.h>
 
 #ifdef SYSTEMTAP
 #include <sys/sdt.h>
@@ -3859,6 +3860,7 @@ slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg)
     slapi_pblock_get(pb, SLAPI_BIND_METHOD, &method);
     slapi_pblock_get(pb, SLAPI_BIND_SASLMECHANISM, &saslmech);
 
+    assert(pb_conn);
     conn_id = pb_conn->c_connid,
     op_id = operation->o_opid,
     client_ip = pb_conn->c_ipaddr;

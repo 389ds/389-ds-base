@@ -875,10 +875,9 @@ free_and_return:
 
     /* We can free the generated password bval now */
     ber_bvfree(gen_passwd);
-    if (pwpolicy) {
-        delete_passwdPolicy(&pwpolicy);
-    }
 
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
     return (SLAPI_PLUGIN_EXTENDED_SENT_RESULT);
 
 } /* passwd_modify_extop */

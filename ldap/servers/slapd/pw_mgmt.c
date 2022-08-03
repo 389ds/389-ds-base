@@ -116,7 +116,8 @@ need_new_pw(Slapi_PBlock *pb, Slapi_Entry *e, int pwresponse_req)
             pw_apply_mods(sdn, &smods);
         }
         slapi_mods_done(&smods);
-        delete_passwdPolicy(&pwpolicy);
+        /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+        /* coverity[leaked_storage] */
         return (0);
     }
 
@@ -167,7 +168,8 @@ skip:
         }
         pw_apply_mods(sdn, &smods);
         slapi_mods_done(&smods);
-        delete_passwdPolicy(&pwpolicy);
+        /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+        /* coverity[leaked_storage] */
         return (0);
     }
 
@@ -200,7 +202,8 @@ skip:
                 }
             }
             slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
-            delete_passwdPolicy(&pwpolicy);
+            /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+            /* coverity[leaked_storage] */
             return (0);
         }
 
@@ -234,7 +237,8 @@ skip:
         /* Apply current modifications */
         pw_apply_mods(sdn, &smods);
         slapi_mods_done(&smods);
-        delete_passwdPolicy(&pwpolicy);
+        /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+        /* coverity[leaked_storage] */
         return (-1);
     }
     slapi_ch_free((void **)&cur_time_str);
@@ -285,7 +289,8 @@ skip:
         } else {
             slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRING, t);
         }
-        delete_passwdPolicy(&pwpolicy);
+        /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+        /* coverity[leaked_storage] */
         return (0);
     } else {
         if (pwresponse_req && pwpolicy->pw_send_expiring) {
@@ -300,8 +305,9 @@ skip:
     if (needpw == 1) {
         slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
     }
-    delete_passwdPolicy(&pwpolicy);
     /* passes checking, return 0 */
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
     return (0);
 }
 

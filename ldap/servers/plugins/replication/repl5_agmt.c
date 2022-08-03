@@ -402,7 +402,9 @@ agmt_new_from_entry(Slapi_Entry *e)
         }
     }
     if (!replica) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_new_from_entry - Failed to get replica.\n");
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                      "agmt_new_from_entry - Failed to get replica for agreement %s on replicated suffix %s).\n",
+                      slapi_entry_get_dn(e), tmpstr ? tmpstr : "<NULL>");
         goto loser;
     }
 

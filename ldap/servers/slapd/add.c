@@ -818,7 +818,8 @@ done:
     slapi_ch_free((void **)&pwdtype);
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);
-    delete_passwdPolicy(&pwpolicy);
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
 }
 
 static int
