@@ -176,7 +176,7 @@ ava_candidates(
     char *type, *indextype = NULL;
     Slapi_Value sv;
     struct berval *bval;
-    Slapi_Value **ivals;
+    Slapi_Value **ivals = NULL;
     IDList *idl = NULL;
     int unindexed = 0;
     Slapi_Attr sattr;
@@ -470,6 +470,7 @@ extensible_candidates(
             /* set the pb->pb_op to glob_pb->pb_op to catch the abandon req.
              * in case the operation is interrupted. */
             slapi_pblock_get(glob_pb, SLAPI_OPERATION, &op);
+            /* coverity[var_deref_model] */
             slapi_pblock_set(pb, SLAPI_OPERATION, op);
 
             slapi_pblock_get(pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrINDEX);
@@ -478,7 +479,7 @@ extensible_candidates(
             slapi_pblock_get(pb, SLAPI_PLUGIN_MR_OID, &mrOID);
             slapi_pblock_get(pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE);
 
-            if (mrVALUES && *mrVALUES && mrTYPE) {
+            if (mrINDEX && mrVALUES && *mrVALUES && mrTYPE) {
                 /*
                  * Compute keys for each of the values, individually.
                  * Search the index, for the computed keys.
@@ -494,6 +495,7 @@ extensible_candidates(
                     bvec[0] = *val;
                     bvec[1] = NULL;
 
+                    /* coverity[var_deref_model] */
                     if (slapi_pblock_set(pb, SLAPI_PLUGIN_OBJECT, mrOBJECT) ||
                         slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, bvec) ||
                         mrINDEX(pb) ||
@@ -509,6 +511,7 @@ extensible_candidates(
                         slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
                     }
                     if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
+                        idl_free(&idl);
                         idl = idl_alloc(0);
                     } else if (keys == NULL || keys[0] == NULL) {
                         /* no keys */
@@ -572,6 +575,7 @@ extensible_candidates(
     }
 return_idl:
     op = NULL;
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_OPERATION, op);
     slapi_pblock_destroy(pb);
     slapi_log_err(SLAPI_LOG_TRACE, "extensible_candidates", "<= %lu\n",
@@ -808,7 +812,6 @@ list_candidates(
 
     idl = NULL;
     nextf = NULL;
-    isnot = 0;
     for (f_head = f = slapi_filter_list_first(flist); f != NULL;
          f = slapi_filter_list_next(flist, f)) {
 

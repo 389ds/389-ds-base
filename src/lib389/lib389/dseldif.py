@@ -378,7 +378,7 @@ class DSEldif(DSLint):
                 else:
                     found_replica = False
             else:
-                if line.lower().startswith("nsstate:: ") and dn.startswith("cn=replica"):
+                if line.lower().startswith("nsstate:: ") and found_replica:
                     b64val = line[10:].strip()
                     nsstate = base64.decodebytes(b64val.encode())
                 elif line.lower().startswith("nsds5replicaroot"):

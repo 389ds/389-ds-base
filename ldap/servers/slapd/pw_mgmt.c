@@ -116,6 +116,8 @@ need_new_pw(Slapi_PBlock *pb, Slapi_Entry *e, int pwresponse_req)
             pw_apply_mods(sdn, &smods);
         }
         slapi_mods_done(&smods);
+        /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+        /* coverity[leaked_storage] */
         return (0);
     }
 
@@ -138,7 +140,6 @@ need_new_pw(Slapi_PBlock *pb, Slapi_Entry *e, int pwresponse_req)
             } else {
                 needpw = 1;
             }
-            t = 0;
             /* We need to include "changeafterreset" error in
              * passwordpolicy response control. So, we will not be
              * done here. We remember this scenario by (c_needpw=1)
@@ -167,6 +168,8 @@ skip:
         }
         pw_apply_mods(sdn, &smods);
         slapi_mods_done(&smods);
+        /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+        /* coverity[leaked_storage] */
         return (0);
     }
 
@@ -199,6 +202,8 @@ skip:
                 }
             }
             slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
+            /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+            /* coverity[leaked_storage] */
             return (0);
         }
 
@@ -232,6 +237,8 @@ skip:
         /* Apply current modifications */
         pw_apply_mods(sdn, &smods);
         slapi_mods_done(&smods);
+        /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+        /* coverity[leaked_storage] */
         return (-1);
     }
     slapi_ch_free((void **)&cur_time_str);
@@ -282,6 +289,8 @@ skip:
         } else {
             slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRING, t);
         }
+        /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+        /* coverity[leaked_storage] */
         return (0);
     } else {
         if (pwresponse_req && pwpolicy->pw_send_expiring) {
@@ -297,6 +306,8 @@ skip:
         slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
     }
     /* passes checking, return 0 */
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
     return (0);
 }
 

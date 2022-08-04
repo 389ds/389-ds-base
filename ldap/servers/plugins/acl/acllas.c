@@ -1268,12 +1268,6 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *a
         numOflevels = 1;
     }
 
-    /* No attribute name specified--it's a syntax error and so undefined */
-    if (attrName == NULL) {
-        slapi_ch_free((void **)&s_attrName);
-        return LAS_EVAL_FAIL;
-    }
-
     slapi_log_err(SLAPI_LOG_ACL, plugin_name, "Attr:%s\n", attrName);
     matched = ACL_FALSE;
     for (i = 0; i < numOflevels; i++) {
@@ -1474,6 +1468,12 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp __attribute__((unused)), char *attr_name __a
     ** determine the result.
     **
     */
+
+    /* No attribute name specified--it's a syntax error and so undefined */
+    if (attr_pattern == NULL) {
+        return LAS_EVAL_FAIL;
+    }
+
     s_attrName = attrName = slapi_ch_strdup(attr_pattern);
 
     /* ignore leading/trailing whitespace */
@@ -1531,12 +1531,6 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp __attribute__((unused)), char *attr_name __a
     } else {
         levels[0] = 0;
         numOflevels = 1;
-    }
-
-    /* No attribute name specified--it's a syntax error and so undefined */
-    if (attrName == NULL) {
-        slapi_ch_free((void **)&s_attrName);
-        return LAS_EVAL_FAIL;
     }
 
     slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASLdapUrlAttrEval - Attr:%s\n", attrName);
@@ -3464,9 +3458,9 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *att
      */
     if (matched == ACL_TRUE) {
         if (comparator == CMP_OP_EQ) {
-            rc = (matched == ACL_TRUE ? LAS_EVAL_TRUE : LAS_EVAL_FALSE);
+            rc = LAS_EVAL_TRUE;
         } else {
-            rc = (matched == ACL_TRUE ? LAS_EVAL_FALSE : LAS_EVAL_TRUE);
+            rc = LAS_EVAL_FALSE;
         }
     } else {
         rc = LAS_EVAL_FAIL;

@@ -264,7 +264,7 @@ dbmdb_dbmonitor_search(Slapi_PBlock *pb __attribute__((unused)),
     ctx = MDB_CONFIG(li);
 
     PR_snprintf(buf, sizeof(buf), "%s/%s", li->li_directory, DBMAPFILE);
-    stat(buf, &mapstat);
+    (void) stat(buf, &mapstat);
 
     stats = dbdmd_gather_stats(MDB_CONFIG(li), NULL);
     /*  Note: envstat has no interest (looks like the empty default database)

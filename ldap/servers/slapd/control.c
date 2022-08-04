@@ -206,6 +206,7 @@ get_ldapmessage_controls_ext(
     }
 
     ctrls = NULL;
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_REQCONTROLS, ctrls);
     if (controlsp != NULL) {
         *controlsp = NULL;

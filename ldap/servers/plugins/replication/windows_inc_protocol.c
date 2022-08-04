@@ -143,12 +143,8 @@ windows_inc_delete(Private_Repl_Protocol **prpp)
         (*prpp)->stopped = 1;
         (*prpp)->stop(*prpp);
     }
-    if (&((*prpp)->lock)) {
-        pthread_mutex_destroy(&((*prpp)->lock));
-    }
-    if (&((*prpp)->cvar)) {
-        pthread_cond_destroy(&(*prpp)->cvar);
-    }
+    pthread_mutex_destroy(&((*prpp)->lock));
+    pthread_cond_destroy(&(*prpp)->cvar);
     slapi_ch_free((void **)&(*prpp)->private);
     slapi_ch_free((void **)prpp);
 
@@ -758,7 +754,6 @@ windows_inc_run(Private_Repl_Protocol *prp)
                         next_state = STATE_BACKOFF_START;
                     }
                 }
-                last_start_time = 0UL;
                 break;
             }
 

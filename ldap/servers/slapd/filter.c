@@ -17,6 +17,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <assert.h>
 #include "slap.h"
 #include "slapi-plugin.h"
 
@@ -1393,6 +1394,7 @@ slapi_filter_to_string_internal(const struct slapi_filter *f, char *buf, size_t 
             buf += strlen(buf);
 
             if (1 < *bufsize) {
+                assert(buf);  /* For gcc analyzer */
                 sprintf(buf, ")");
                 (*bufsize)--;
             }

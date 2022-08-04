@@ -253,7 +253,7 @@ bdb_instance_cleanup(struct ldbm_instance *inst)
     bdb_db_env *inst_env = (bdb_db_env *)inst->inst_db;
     DB_ENV *env = 0;
     return_value |= ((bdb_db_env *)inst->inst_db)->bdb_DB_ENV->close(((bdb_db_env *)inst->inst_db)->bdb_DB_ENV, 0);
-    return_value = db_env_create(&env, 0);
+    return_value |= db_env_create(&env, 0);
     if (return_value == 0) {
         char inst_dir[MAXPATHLEN];
         char *inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,

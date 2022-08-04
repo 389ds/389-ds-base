@@ -22,9 +22,12 @@
  * or altered.
  */
 
+#ifdef RUST_ENABLE
 static char *modifier_name = "cn=upgrade internal,cn=config";
+#endif
 static char *old_repl_plugin_name = NULL;
 
+#ifdef RUST_ENABLE
 static upgrade_status
 upgrade_entry_exists_or_create(char *upgrade_id, char *filter, char *dn, char *entry)
 {
@@ -43,6 +46,7 @@ upgrade_entry_exists_or_create(char *upgrade_id, char *filter, char *dn, char *e
     slapi_sdn_free(&base_sdn);
     return uresult;
 }
+#endif
 
 /*
  * Add the new replication bootstrap bind DN password attribute to the AES
@@ -161,6 +165,7 @@ upgrade_enable_security_logging(void)
             plugin_get_default_component_id(), 0);
     slapi_search_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+    /* coverity[dereference] */
     if (entries &&
         strcasecmp(slapi_entry_attr_get_ref(entries[0], "nsslapd-securitylog"), "") == 0)
     {

@@ -109,7 +109,7 @@ ldbm_restart_temporary_closed_instances(Slapi_PBlock *pb)
          * just to go back to the previous state if possible (preserve
          * original error for now)
          */
-        if ((ret = dblayer_start(li, DBLAYER_NORMAL_MODE))) {
+        if ((dblayer_start(li, DBLAYER_NORMAL_MODE))) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "ldbm_restart_temporary_closed_instances", "Unable to to start database in [%s]\n",
                           li->li_directory);
@@ -174,6 +174,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
 
         if (dblayer_setup(li)) {
             slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_archive2ldbm", "dblayer_setup failed\n");
+            slapi_ch_free_string(&directory);
             return -1;
         }
         priv = (dblayer_private *)li->li_dblayer_private;
@@ -181,6 +182,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
         /* initialize a restore file to be able to detect a startup after restore */
         if (priv->dblayer_restore_file_init_fn(li)) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_archive2ldbm", "Failed to write restore file.\n");
+            slapi_ch_free_string(&directory);
             return -1;
         }
     }
@@ -217,7 +219,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
              * just to go back to the previous state if possible (preserve
              * original error for now)
              */
-            if ((ret = dblayer_start(li, DBLAYER_NORMAL_MODE))) {
+            if (dblayer_start(li, DBLAYER_NORMAL_MODE)) {
                 slapi_log_err(SLAPI_LOG_ERR,
                               "ldbm_back_archive2ldbm", "Unable to to start database in [%s]\n",
                               li->li_directory);

@@ -2110,12 +2110,12 @@ replica_cleanallruv_thread(void *arg)
     int aborted = 0;
     int rc = 0;
 
+    if (!data || slapi_is_shutting_down()) {
+        return;
+    }
+
     /* Increase active thread count to prevent a race condition at server shutdown */
     g_incr_active_threadcnt();
-
-    if (!data || slapi_is_shutting_down()) {
-        goto done;
-    }
 
     if (data->task) {
         slapi_task_inc_refcount(data->task);
@@ -2165,7 +2165,7 @@ replica_cleanallruv_thread(void *arg)
      *  We have already preset this rid, but if we are forcing a clean independent of state
      *  of other servers for this RID we can set_cleaned_rid()
      */
-    if (data->force) {
+    if (strcasecmp(data->force, "yes") == 0) {
         set_cleaned_rid(data->rid);
     }
 

@@ -11,6 +11,7 @@
 #include <config.h>
 #endif
 
+#include <assert.h>
 #include "acl.h"
 
 /****************************************************************************/
@@ -843,6 +844,7 @@ __aclp__normalize_acltxt(aci_t *aci_item, char *str)
     s = aclstr;
     while (s && ldap_utf8isspace(s))
         LDAP_UTF8INC(s);
+    assert(s);
     *(s + 2) = 'l';
 
     aclName = s + 3;

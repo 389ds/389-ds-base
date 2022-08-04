@@ -525,7 +525,7 @@ dbmdb_ctx_t_setup_default(struct ldbminfo *li)
     char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
 
     for (config = dbmdb_ctx_t_param; config->config_name != NULL; config++) {
-        dbmdb_ctx_t_set((void *)li, config->config_name, dbmdb_ctx_t_param, NULL /* use default */, err_buf, CONFIG_PHASE_INITIALIZATION, 1 /* apply */, LDAP_MOD_REPLACE);
+        (void) dbmdb_ctx_t_set((void *)li, config->config_name, dbmdb_ctx_t_param, NULL /* use default */, err_buf, CONFIG_PHASE_INITIALIZATION, 1 /* apply */, LDAP_MOD_REPLACE);
     }
 }
 

@@ -226,6 +226,8 @@ slapi_encode_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg)
             slapi_log_err(SLAPI_LOG_ERR, "slapi_encode_ext",
                           "no encoding password storage scheme found for %s\n",
                           pwpolicy->pw_storagescheme->pws_name);
+            /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+            /* coverity[leaked_storage] */
             return NULL;
         }
     } else {
@@ -252,6 +254,8 @@ slapi_encode_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg)
 
     hashedval = (*pws_enc)(value);
 
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
     return hashedval;
 }
 
@@ -469,7 +473,7 @@ checkPrefix(char *cipher, char *schemaName, char **encrypt, char **algid)
                     /* extract the algid (length is never greater than 216 */
                     memcpy(algid_buf, delim + 1, (end - delim));
                     algid_buf[end - delim - 1] = '\0';
-                    *algid = strdup(algid_buf);
+                    *algid = slapi_ch_strdup(algid_buf);
 
                     /* extract the encrypted password */
                     *encrypt = cipher + strlen(*algid) + strlen(schemaName) + 3;
@@ -1767,6 +1771,8 @@ add_password_attrs(Slapi_PBlock *pb, Operation *op __attribute__((unused)), Slap
         slapi_entry_attr_merge(e, "passwordallowchangetime", bvals);
         slapi_ch_free_string(&bv.bv_val);
     }
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
 }
 
 static int
@@ -2118,7 +2124,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
             Slapi_Value *v = NULL;
             const struct berval *bvp = NULL;
 
-            if (((rc = slapi_valueset_first_value(values, &v)) != -1) &&
+            if ((slapi_valueset_first_value(values, &v) != -1) &&
                 (bvp = slapi_value_get_berval(v)) != NULL) {
                 if (bvp != NULL) {
                     /* we got the pwdpolicysubentry value */
@@ -2873,8 +2879,12 @@ slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int p
 
 notlocked:
     /* account is not locked. */
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
     return (0);
 locked:
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
     return (1);
 }
 
@@ -2906,7 +2916,6 @@ slapi_pwpolicy_is_expired(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e, time_t *expi
         if (pwpolicy->pw_exp == 1) {
             char *expiration_val = NULL;
             time_t _expire_time;
-            double diff_t = 0;
             char *cur_time_str = NULL;
             time_t cur_time;
 
@@ -2918,7 +2927,7 @@ slapi_pwpolicy_is_expired(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e, time_t *expi
                 cur_time_str = format_genTime(cur_time);
 
                 if ((_expire_time != NO_TIME) && (_expire_time != NOT_FIRST_TIME) &&
-                    ((diff_t = difftime(_expire_time, parse_genTime(cur_time_str))) <= 0)) {
+                    (difftime(_expire_time, parse_genTime(cur_time_str) <= 0))) {
                     is_expired = 1;
                 }
 
@@ -3524,17 +3533,19 @@ int32_t update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn,
      * If the scheme is the same as current, do nothing!
      */
     curpwsp = pw_val2scheme((char *)slapi_value_get_string(password_values[0]), NULL, 1);
-    if (curpwsp != NULL && strcmp(curpwsp->pws_name, pwpolicy->pw_storagescheme->pws_name) == 0) {
-        res = 0; // Nothing to do
-        goto free_and_return;
-    }
-    /*
-     * If the scheme is clear or crypt, we also do nothing to prevent breaking some application
-     * integrations. See pwdstorage.h
-     */
-    if (strcmp(curpwsp->pws_name, "CLEAR") == 0 || strcmp(curpwsp->pws_name, "CRYPT") == 0) {
-        res = 0; // Nothing to do
-        goto free_and_return;
+    if (curpwsp != NULL) {
+        if (strcmp(curpwsp->pws_name, pwpolicy->pw_storagescheme->pws_name) == 0) {
+            res = 0; // Nothing to do
+            goto free_and_return;
+        }
+        /*
+         * If the scheme is clear or crypt, we also do nothing to prevent breaking some application
+         * integrations. See pwdstorage.h
+         */
+        if (strcmp(curpwsp->pws_name, "CLEAR") == 0 || strcmp(curpwsp->pws_name, "CRYPT") == 0) {
+            res = 0; // Nothing to do
+            goto free_and_return;
+        }
     }
 
     /*

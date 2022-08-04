@@ -71,7 +71,7 @@ typedef enum {
 static void entrycache_clear_int(struct cache *cache);
 static void entrycache_set_max_size(struct cache *cache, uint64_t bytes);
 static int entrycache_remove_int(struct cache *cache, struct backentry *e);
-static void entrycache_return(struct cache *cache, struct backentry **bep);
+static void entrycache_return(struct cache *cache, struct backentry **bep, PRBool locked);
 static int entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry *newe);
 static int entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct backentry **alt);
 static struct backentry *entrycache_flush(struct cache *cache);
@@ -87,10 +87,10 @@ static void dncache_return(struct cache *cache, struct backdn **bdn);
 static int dncache_replace(struct cache *cache, struct backdn *olddn, struct backdn *newdn);
 static int dncache_add_int(struct cache *cache, struct backdn *bdn, int state, struct backdn **alt);
 static struct backdn *dncache_flush(struct cache *cache);
+static int cache_is_in_cache_nolock(void *ptr);
 #ifdef LDAP_CACHE_DEBUG_LRU
 static void dn_lru_verify(struct cache *cache, struct backdn *dn, int in);
 #endif
-
 
 /***** tiny hashtable implementation *****/
 
@@ -556,7 +556,7 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
                     lru_delete(cache, laste);
                     if (type == ENTRY_CACHE) {
                         entrycache_remove_int(cache, laste);
-                        entrycache_return(cache, (struct backentry **)&laste);
+                        entrycache_return(cache, (struct backentry **)&laste, PR_TRUE);
                     } else {
                         dncache_remove_int(cache, laste);
                         dncache_return(cache, (struct backdn **)&laste);
@@ -596,7 +596,7 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
                         entry->ep_refcnt++;
                         lru_delete(cache, laste);
                         entrycache_remove_int(cache, laste);
-                        entrycache_return(cache, (struct backentry **)&laste);
+                        entrycache_return(cache, (struct backentry **)&laste, PR_TRUE);
                     } else {
                         /* Entry flagged for removal */
                         slapi_log_err(SLAPI_LOG_CACHE, "flush_hash",
@@ -627,6 +627,7 @@ cache_init(struct cache *cache, uint64_t maxsize, int64_t maxentries, int type)
 {
     slapi_log_err(SLAPI_LOG_TRACE, "cache_init", "-->\n");
     cache->c_maxsize = maxsize;
+    /* coverity[missing_lock] */
     cache->c_maxentries = maxentries;
     cache->c_curentries = 0;
     if (config_get_slapi_counters()) {
@@ -1149,7 +1150,7 @@ entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry
     }
     /* If fails, we have to make sure the both entires are removed from the cache,
      * otherwise, we have no idea what's left in the cache or not... */
-    if (cache_is_in_cache(cache, newe)) {
+    if (cache_is_in_cache_nolock(newe)) {
         /* if we're doing a modrdn or turning an entry to a tombstone,
          * the new entry can be in the dn table already, so we need to remove that too.
          */
@@ -1244,14 +1245,14 @@ cache_return(struct cache *cache, void **ptr)
     }
     bep = *(struct backcommon **)ptr;
     if (CACHE_TYPE_ENTRY == bep->ep_type) {
-        entrycache_return(cache, (struct backentry **)ptr);
+        entrycache_return(cache, (struct backentry **)ptr, PR_FALSE);
     } else if (CACHE_TYPE_DN == bep->ep_type) {
         dncache_return(cache, (struct backdn **)ptr);
     }
 }
 
 static void
-entrycache_return(struct cache *cache, struct backentry **bep)
+entrycache_return(struct cache *cache, struct backentry **bep, PRBool locked)
 {
     struct backentry *eflush = NULL;
     struct backentry *eflushtemp = NULL;
@@ -1265,7 +1266,9 @@ entrycache_return(struct cache *cache, struct backentry **bep)
     LOG("entrycache_return - (%s) entry count: %d, entry in cache:%ld\n",
         backentry_get_ndn(e), e->ep_refcnt, cache->c_curentries);
 
-    cache_lock(cache);
+    if (locked == PR_FALSE) {
+        cache_lock(cache);
+    }
     if (e->ep_state & ENTRY_STATE_NOTINCACHE) {
         backentry_free(bep);
     } else {
@@ -1299,7 +1302,9 @@ entrycache_return(struct cache *cache, struct backentry **bep)
             }
         }
     }
-    cache_unlock(cache);
+    if (locked == PR_FALSE) {
+        cache_unlock(cache);
+    }
     while (eflush) {
         eflushtemp = BACK_LRU_NEXT(eflush, struct backentry *);
         backentry_free(&eflush);
@@ -2210,8 +2215,8 @@ cache_has_otherref(struct cache *cache, void *ptr)
     return (hasref > 1) ? 1 : 0;
 }
 
-int
-cache_is_in_cache(struct cache *cache, void *ptr)
+static int
+cache_is_in_cache_nolock(void *ptr)
 {
     struct backcommon *bep;
     int in_cache = 0;
@@ -2220,8 +2225,16 @@ cache_is_in_cache(struct cache *cache, void *ptr)
         return in_cache;
     }
     bep = (struct backcommon *)ptr;
-    cache_lock(cache);
     in_cache = (bep->ep_state & (ENTRY_STATE_DELETED | ENTRY_STATE_NOTINCACHE)) ? 0 : 1;
-    cache_unlock(cache);
     return in_cache;
+}
+
+int
+cache_is_in_cache(struct cache *cache, void *ptr)
+{
+    int ret;
+    cache_lock(cache);
+    ret = cache_is_in_cache_nolock(ptr);
+    cache_unlock(cache);
+    return ret;
 }
