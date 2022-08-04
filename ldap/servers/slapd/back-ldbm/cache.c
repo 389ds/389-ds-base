@@ -87,7 +87,7 @@ static void dncache_return(struct cache *cache, struct backdn **bdn);
 static int dncache_replace(struct cache *cache, struct backdn *olddn, struct backdn *newdn);
 static int dncache_add_int(struct cache *cache, struct backdn *bdn, int state, struct backdn **alt);
 static struct backdn *dncache_flush(struct cache *cache);
-static int cache_is_in_cache_nolock(struct cache *cache, void *ptr);
+static int cache_is_in_cache_nolock(void *ptr);
 #ifdef LDAP_CACHE_DEBUG_LRU
 static void dn_lru_verify(struct cache *cache, struct backdn *dn, int in);
 #endif
@@ -1150,7 +1150,7 @@ entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry
     }
     /* If fails, we have to make sure the both entires are removed from the cache,
      * otherwise, we have no idea what's left in the cache or not... */
-    if (cache_is_in_cache_nolock(cache, newe)) {
+    if (cache_is_in_cache_nolock(newe)) {
         /* if we're doing a modrdn or turning an entry to a tombstone,
          * the new entry can be in the dn table already, so we need to remove that too.
          */
@@ -2216,7 +2216,7 @@ cache_has_otherref(struct cache *cache, void *ptr)
 }
 
 static int
-cache_is_in_cache_nolock(struct cache *cache, void *ptr)
+cache_is_in_cache_nolock(void *ptr)
 {
     struct backcommon *bep;
     int in_cache = 0;
@@ -2234,7 +2234,7 @@ cache_is_in_cache(struct cache *cache, void *ptr)
 {
     int ret;
     cache_lock(cache);
-    ret = cache_is_in_cache_nolock(cache, ptr);
+    ret = cache_is_in_cache_nolock(ptr);
     cache_unlock(cache);
     return ret;
 }

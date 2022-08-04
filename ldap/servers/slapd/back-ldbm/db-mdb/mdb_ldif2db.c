@@ -434,7 +434,7 @@ dbmdb_export_one_entry(struct ldbminfo *li,
 {
     backend *be = inst->inst_be;
     int rc = 0;
-    int wrc;
+    int wrc = 0;
     Slapi_Attr *this_attr = NULL, *next_attr = NULL;
     char *type = NULL;
     MDB_val data = {0};
@@ -510,16 +510,16 @@ dbmdb_export_one_entry(struct ldbminfo *li,
 
         sprintf(idstr, "# entry-id: %lu\n", (u_long)expargs->ep->ep_id);
         wrc = write(expargs->fd, idstr, strlen(idstr));
-        if (wrc) {
+        if (wrc < 0) {
             goto bail;
         }
     }
     wrc = write(expargs->fd, data.mv_data, len);
-    if (wrc) {
+    if (wrc < 0) {
         goto bail;
     }
     wrc = write(expargs->fd, "\n", 1);
-    if (wrc) {
+    if (wrc < 0) {
         goto bail;
     }
     slapi_ch_free(&data.mv_data);
@@ -546,8 +546,8 @@ dbmdb_export_one_entry(struct ldbminfo *li,
         *expargs->lastcnt = *expargs->cnt;
     }
 bail:
-    if (wrc) {
-        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_export_one_entry", "export %s: Failed to write in export file.\n", inst->inst_name);
+    if (wrc < 0) {
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_export_one_entry", "export %s: Failed to write in export file. errno=%d\n", inst->inst_name, errno);
         rc = wrc;
     }
     return rc;
@@ -864,8 +864,10 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
 
         sprintf(vstr, "version: %d\n\n", myversion);
         wrc = write(fd, vstr, strlen(vstr));
-        if (wrc) {
+        if (wrc < 0) {
             goto bye;
+        } else {
+            wrc = 0;
         }
     }
 
@@ -1165,7 +1167,7 @@ bye:
         close(fd);
     }
     if (wrc) {
-        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_export_one_entry", "export %s: Failed to write in export file.\n", inst->inst_name);
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_export_one_entry", "export %s: Failed to write in export file. errno=%d\n", inst->inst_name, errno);
         return_value = wrc;
     }
         
