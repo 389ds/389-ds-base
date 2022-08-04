@@ -529,7 +529,7 @@ op_shared_add(Slapi_PBlock *pb)
         if (!internal_op) {
             slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ADD dn=\"%s\"%s\n",
                              pb_conn ? pb_conn->c_connid : -1,
-                             operation ? operation->o_opid: -1,
+                             operation->o_opid,
                              slapi_entry_get_dn_const(e),
                              proxystr ? proxystr : "");
         } else {
@@ -818,6 +818,8 @@ done:
     slapi_ch_free((void **)&pwdtype);
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);
+    /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+    /* coverity[leaked_storage] */
 }
 
 static int
@@ -870,17 +872,21 @@ add_created_attrs(Slapi_PBlock *pb, Slapi_Entry *e)
 
         if (binddn == NULL) {
             /* anonymous bind */
+            /* coverity[assigned_pointer] */
             bv.bv_val = "";
             bv.bv_len = 0;
         } else {
+            /* coverity[assigned_pointer] */
             bv.bv_val = binddn;
             bv.bv_len = strlen(bv.bv_val);
         }
     } else {
         if (slapi_sdn_isempty(&op->o_sdn)) {
+            /* coverity[assigned_pointer] */
             bv.bv_val = "";
             bv.bv_len = 0;
         } else {
+            /* coverity[assigned_pointer] */
             bv.bv_val = (char *)slapi_sdn_get_dn(&op->o_sdn);
             bv.bv_len = strlen(bv.bv_val);
         }

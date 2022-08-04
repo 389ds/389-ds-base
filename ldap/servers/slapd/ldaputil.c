@@ -147,7 +147,6 @@ convert_to_openldap_uri(const char *hostname_or_uri, int port, const char *proto
         if (!PL_strncmp(start, "://", 3)) {
             *start = '\0';
             proto = my_copy;
-            start += 3;
         } else {
             slapi_log_err(SLAPI_LOG_ERR, "convert_to_openldap_uri",
                           "The given LDAP URI [%s] is not valid\n", hostname_or_uri);
@@ -157,9 +156,8 @@ convert_to_openldap_uri(const char *hostname_or_uri, int port, const char *proto
         slapi_log_err(SLAPI_LOG_ERR, "convert_to_openldap_uri",
                       "The given LDAP URI [%s] is not valid\n", hostname_or_uri);
         goto end;
-    } else {
-        start = my_copy; /* just assume it's not a uri */
     }
+    /* else just assume it's not a uri */
 
     for (s = ldap_utf8strtok_r(my_copy, brkstr, &iter); s != NULL; s = ldap_utf8strtok_r(NULL, brkstr, &iter)) {
         /* strtok will grab the '/' at the end of the uri, if any,  so terminate parsing there */
@@ -528,7 +526,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
         ssl_strength = LDAP_OPT_X_TLS_NEVER;
     }
 
-    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength))) {
+    if (ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength)) {
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
                       "failed: unable to set REQUIRE_CERT option to %d\n", ssl_strength);
     }
@@ -561,14 +559,14 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
         }
     }
     /* tell it where our cert db/file is */
-    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir))) {
+    if (ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir)) {
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
                       "failed: unable to set CACERTDIR option to %s\n", certdir);
     }
     slapi_ch_free_string(&certdir);
 #if defined(LDAP_OPT_X_TLS_PROTOCOL_MIN)
     getSSLVersionRangeOL(&optval, NULL);
-    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_PROTOCOL_MIN, &optval))) {
+    if (ldap_set_option(ld, LDAP_OPT_X_TLS_PROTOCOL_MIN, &optval)) {
         char *minstr = NULL;
         (void)getSSLVersionRange(&minstr, NULL);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
@@ -686,7 +684,6 @@ slapi_ldap_init_ext(
         if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
             slapi_log_err(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                           "Could not perform internal ol_init init\n");
-            rc = -1;
             goto done;
         }
 
@@ -712,7 +709,6 @@ slapi_ldap_init_ext(
             slapi_log_err(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                           "Could not perform internal ol_init init\n");
             slapi_ch_free_string(&makeurl);
-            rc = -1;
             goto done;
         }
 
@@ -1590,6 +1586,7 @@ mozldap_ldap_explode(const char *dn, const int notypes, const int nametype)
         plen = 1;
         switch (*p) {
         case '\\':
+            /* coverity[overrun-local] */
             if (*++p == '\0')
                 p--;
             else

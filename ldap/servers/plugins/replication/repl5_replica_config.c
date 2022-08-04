@@ -1121,6 +1121,11 @@ replica_execute_cl2ldif_task(Replica *replica, char *returntext)
     char fName[MAXPATHLEN];
     char *clDir = NULL;
 
+    if (NULL == replica) {
+        rc = LDAP_OPERATIONS_ERROR;
+        goto bail;
+    }
+
     if (!cldb_is_open(replica)) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Changelog is not open");
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
@@ -1134,11 +1139,6 @@ replica_execute_cl2ldif_task(Replica *replica, char *returntext)
     Slapi_Backend *be = slapi_be_select(replica_get_root(replica));
     clDir = cl5GetLdifDir(be);
     if (NULL == clDir) {
-        rc = LDAP_OPERATIONS_ERROR;
-        goto bail;
-    }
-
-    if (NULL == replica) {
         rc = LDAP_OPERATIONS_ERROR;
         goto bail;
     }
@@ -1175,6 +1175,11 @@ replica_execute_ldif2cl_task(Replica *replica, char *returntext)
     char fName[MAXPATHLEN];
     char *clDir = NULL;
 
+    if (NULL == replica) {
+        rc = LDAP_OPERATIONS_ERROR;
+        goto bail;
+    }
+
     if (!cldb_is_open(replica)) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "changelog is not open");
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
@@ -1188,11 +1193,6 @@ replica_execute_ldif2cl_task(Replica *replica, char *returntext)
     Slapi_Backend *be = slapi_be_select(replica_get_root(replica));
     clDir = cl5GetLdifDir(be);
     if (NULL == clDir) {
-        rc = LDAP_OPERATIONS_ERROR;
-        goto bail;
-    }
-
-    if (NULL == replica) {
         rc = LDAP_OPERATIONS_ERROR;
         goto bail;
     }

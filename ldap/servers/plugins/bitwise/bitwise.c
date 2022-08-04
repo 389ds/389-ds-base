@@ -63,6 +63,7 @@ bitwise_filter_destroy(Slapi_PBlock *pb)
         struct bitwise_match_cb *bmc = (struct bitwise_match_cb *)obj;
         delete_bitwise_match_cb(bmc);
         obj = NULL;
+        /* coverity[var_deref_model] */
         slapi_pblock_set(pb, SLAPI_PLUGIN_OBJECT, obj);
     }
 }

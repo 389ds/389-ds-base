@@ -350,7 +350,7 @@ urp_modrdn_operation(Slapi_PBlock *pb)
              * We'll just borrow an obsolete pblock type here. ???
              */
             /* no. slapi_pblock_set (pb, SLAPI_URP_TOMBSTONE_UNIQUEID, slapi_ch_strdup(op_uniqueid)); */
-            rc = slapi_setbit_int(rc, SLAPI_RTN_BIT_FETCH_TARGET_ENTRY);
+            (void) slapi_setbit_int(rc, SLAPI_RTN_BIT_FETCH_TARGET_ENTRY);
             rc = 0;
         } else {
             slapi_log_err(slapi_log_urp, sessionid,

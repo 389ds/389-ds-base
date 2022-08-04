@@ -264,6 +264,7 @@ done_with_pblock_entry(Slapi_PBlock *pb, int plock_parameter) /* JCM - Move some
     if (entry != NULL) {
         slapi_entry_free(entry);
         entry = NULL;
+        /* coverity[var_deref_model] */
         slapi_pblock_set(pb, plock_parameter, entry);
     }
 }

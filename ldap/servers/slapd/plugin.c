@@ -2051,12 +2051,14 @@ slapi_berval_cmp(const struct berval *L, const struct berval *R) /* JCM - This d
 {
     int result = 0;
 
-    if (L == NULL && R != NULL) {
-        return 1;
-    } else if (L != NULL && R == NULL) {
+    if (!L || !L->bv_val) {
+        if (!R || !R->bv_val) {
+            return 0;
+        }
         return -1;
-    } else if (L == NULL && R == NULL) {
-        return 0;
+    }
+    if (!R || !R->bv_val) {
+        return 1;
     }
     if (L->bv_len < R->bv_len) {
         result = memcmp(L->bv_val, R->bv_val, L->bv_len);

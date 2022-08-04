@@ -1893,7 +1893,7 @@ bdb_import_monitor_threads(ImportJob *job, int *status)
                          job->average_progress_rate);
             p += sprintf(p, "recent rate %.1f/sec, ",
                          job->recent_progress_rate);
-            p += sprintf(p, "hit ratio %.0f%%", job->cache_hit_ratio * 100.0);
+            sprintf(p, "hit ratio %.0f%%", job->cache_hit_ratio * 100.0);
             import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_monitor_threads", "%s", buffer);
         }
 

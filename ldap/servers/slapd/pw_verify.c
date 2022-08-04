@@ -110,6 +110,9 @@ pw_verify_token_dn(Slapi_PBlock *pb) {
     }
 
     slapi_pblock_get(pb, SLAPI_BIND_CREDENTIALS, &cred);
+    if (!cred) {
+        return SLAPI_BIND_FAIL;
+    }
     slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);
     char *dn = (char *)slapi_sdn_get_dn(sdn);
     char *key = config_get_ldapssotoken_secret();

@@ -254,8 +254,10 @@ class Paths(object):
             # If the server doesn't have it, fall back to our configuration.
             if attr is not None:
                 v = ensure_str(ent.getValue(attr))
+            else:
+                v = None
             # Do we need to post-process the value?
-            if name == 'version':
+            if name == 'version' and v is not None:
                 # We need to post process this - it's 389-Directory/1.4.2.2.20191031git8166d8345 B2019.304.19
                 # but we need a string like: 1.4.2.2.20191031git8166d8345
                 v = v.split('/')[1].split()[0]

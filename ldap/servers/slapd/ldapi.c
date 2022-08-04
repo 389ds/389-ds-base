@@ -83,8 +83,10 @@ initialize_ldapi_auth_dn_mappings(slapi_ldapi_state reload)
                 }
             } else {
                 /* Get the uid/gid from the system */
-                struct passwd *pws;
-                pws = getpwnam(username);
+                struct passwd *pws = NULL;
+                if (username) {
+                    pws = getpwnam(username);
+                }
                 if (pws) {
                     struct ldapi_mapping *new_mapping = (struct ldapi_mapping *)slapi_ch_calloc(1, sizeof(struct ldapi_mapping));
                     new_mapping->uid = pws->pw_uid;

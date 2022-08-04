@@ -187,6 +187,7 @@ def modify_dsrc(inst, log, args):
         if args.starttls:
              config[inst.serverid]['starttls'] = 'true'
         if args.cancel_starttls:
+            # coverity[copy_paste_error]
             config[inst.serverid]['starttls'] = 'false'
         if args.pwdfile is not None:
             if not path.exists(args.pwdfile):

@@ -34,6 +34,8 @@
 agt_mmap_context_t mmap_tbl[2] = {{AGT_MAP_UNINIT, -1, (caddr_t)-1},
                                   {AGT_MAP_UNINIT, -1, (caddr_t)-1}};
 
+#define CHECK_MAP_FAILURE(addr) ((addr)==NULL || (addr) == (caddr_t) -1)
+
 /****************************************************************************
  *
  *  agt_mopen_stats () - open and Memory Map the stats file.  agt_mclose_stats()
@@ -217,7 +219,7 @@ agt_mclose_stats(int hdl)
     if (mmap_tbl[hdl].maptype == AGT_MAP_UNINIT)
         return (0);
 
-    if (mmap_tbl[hdl].fp > (caddr_t)0) {
+    if (!CHECK_MAP_FAILURE(mmap_tbl[hdl].fp)) {
         munmap(mmap_tbl[hdl].fp, sizeof(struct agt_stats_t));
         mmap_tbl[hdl].fp = (caddr_t)-1;
         close(mmap_tbl[hdl].fd);
@@ -243,7 +245,7 @@ agt_mread_stats(int hdl, struct hdr_stats_t *pHdrInfo, struct ops_stats_t *pDsOp
         return (EINVAL); /* Inavlid handle */
     }
 
-    if (mmap_tbl[hdl].fp <= 0) {
+    if (CHECK_MAP_FAILURE(mmap_tbl[hdl].fp)) {
         return (EFAULT); /* Something got corrupted */
     }
 

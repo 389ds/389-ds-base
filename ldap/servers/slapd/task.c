@@ -1060,6 +1060,7 @@ task_import_add(Slapi_PBlock *pb __attribute__((unused)),
     slapi_pblock_set(mypb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &uniqueid_kind);
 
     char *namespaceid = (char *)slapi_entry_attr_get_ref(e, "nsUniqueIdGeneratorNamespace");
+    /* coverity[dereference] */
     slapi_pblock_set(mypb, SLAPI_LDIF2DB_NAMESPACEID, namespaceid);
 
     slapi_pblock_set(mypb, SLAPI_BACKEND_INSTANCE_NAME, (void *)instance_name);
@@ -1116,6 +1117,12 @@ task_export_thread(void *arg)
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_names);
     slapi_pblock_get(pb, SLAPI_DB2LDIF_FILE, &ldif_file);
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
+
+    if (!ldif_file) {
+        slapi_task_log_notice(task, "export failed (NULL ldif_file).");
+        slapi_log_err(SLAPI_LOG_ERR, "task_export_thread", "Export failed (NULL ldif_file).");
+        return;
+    }
 
     g_incr_active_threadcnt();
     for (count = 0, inp = instance_names; inp && *inp; inp++, count++)
@@ -1201,7 +1208,9 @@ task_export_thread(void *arg)
     char **exclude;
     slapi_pblock_get(pb, SLAPI_LDIF2DB_INCLUDE, &include);
     slapi_pblock_get(pb, SLAPI_LDIF2DB_EXCLUDE, &exclude);
+    /* coverity[callee_ptr_arith] */
     charray_free(include);
+    /* coverity[callee_ptr_arith] */
     charray_free(exclude);
     slapi_pblock_destroy(pb);
 

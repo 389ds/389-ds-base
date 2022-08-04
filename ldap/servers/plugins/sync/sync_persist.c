@@ -9,6 +9,7 @@
 #include <config.h>
 #endif
 
+#include <assert.h>
 #include "sync.h"
 
 /* Main list of established persistent synchronizaton searches */
@@ -230,7 +231,7 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
 
     prim_op = get_thread_primary_op();
     ident = sync_persist_get_operation_extension(pb);
-    PR_ASSERT(prim_op);
+    assert(prim_op);
 
     if ((ident == NULL) && operation_is_flag_set(pb_op, OP_FLAG_NOOP)) {
         /* This happens for URP (add cenotaph, fixup rename, tombstone resurrect)
@@ -240,6 +241,7 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
                        (ulong) pb_op);
         return;
     }
+    assert(ident);
     /* First mark the operation as completed/failed
      * the param to be used once the operation will be pushed
      * on the listeners queue
@@ -613,6 +615,8 @@ sync_persist_add(Slapi_PBlock *pb)
     if (SYNC_IS_INITIALIZED() && NULL != pb) {
         /* Create the new node */
         req = sync_request_alloc();
+        assert(req); /* avoid gcc_analyzer warning */
+        assert(pb); /* avoid gcc_analyzer warning */
         slapi_pblock_get(pb, SLAPI_OPERATION, &req->req_orig_op); /* neede to access original op */
         req->req_pblock = sync_pblock_copy(pb);
         slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &base);

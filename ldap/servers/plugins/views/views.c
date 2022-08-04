@@ -1678,6 +1678,7 @@ view_search_rewrite_callback(Slapi_PBlock *pb)
 #endif
 
     /* make it happen */
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, outFilter);
 
     ret = -2;

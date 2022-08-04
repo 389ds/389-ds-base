@@ -98,6 +98,19 @@ ldbm_back_delete(Slapi_PBlock *pb)
     slapi_sdn_init(&nscpEntrySDN);
     slapi_sdn_init(&parentsdn);
 
+    inst = (ldbm_instance *)be->be_instance_info;
+    if (inst && inst->inst_ref_count) {
+        slapi_counter_increment(inst->inst_ref_count);
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "ldbm_back_delete", "Instance \"%s\" does not exist.\n",
+                      inst ? inst->inst_name : "null instance");
+        ldap_result_code = LDAP_UNWILLING_TO_PERFORM;
+        ldap_result_message = "Backend instance is not available.";
+        /* error_return code dereferences "inst" but diskfull_return one does not. */
+        goto diskfull_return;
+    }
+
     /* dblayer_txn_init needs to be called before "goto error_return" */
     dblayer_txn_init(li, &txn);
     /* the calls to perform searches require the parent txn if any
@@ -140,16 +153,6 @@ ldbm_back_delete(Slapi_PBlock *pb)
     is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
     is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
     delete_tombstone_entry = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_ENTRY);
-
-    inst = (ldbm_instance *)be->be_instance_info;
-    if (inst && inst->inst_ref_count) {
-        slapi_counter_increment(inst->inst_ref_count);
-    } else {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_back_delete", "Instance \"%s\" does not exist.\n",
-                      inst ? inst->inst_name : "null instance");
-        goto error_return;
-    }
 
     /* The dblock serializes writes to the database,
      * which reduces deadlocking in the db code,
@@ -1493,7 +1496,7 @@ common_return:
          */
         e = NULL;
     }
-    if (inst && inst->inst_ref_count) {
+    if (inst->inst_ref_count) {
         slapi_counter_decrement(inst->inst_ref_count);
     }
     if (ruv_c_init) {
@@ -1514,7 +1517,7 @@ diskfull_return:
     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
                   "conn=%" PRIu64 " op=%d modify_term: old_entry=0x%p, new_entry=0x%p, in_cache=%d\n",
                   conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry,
-                  cache_is_in_cache(&inst->inst_cache, parent_modify_c.new_entry));
+                  inst ? cache_is_in_cache(&inst->inst_cache, parent_modify_c.new_entry):-1);
     myrc = modify_term(&parent_modify_c, be);
     if (free_delete_existing_entry) {
         done_with_pblock_entry(pb, SLAPI_DELETE_EXISTING_ENTRY);

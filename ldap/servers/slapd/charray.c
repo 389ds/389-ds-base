@@ -117,8 +117,10 @@ charray_merge_nodup(
     }
 
     dupa = (char **)slapi_ch_calloc(1, (n + nn + 1) * sizeof(char *));
-    memcpy(dupa, *a, sizeof(char *) * n);
-    slapi_ch_free((void **)a);
+    if (*a) {
+        memcpy(dupa, *a, sizeof(char *) * n);
+        slapi_ch_free((void **)a);
+    }
 
     for (i = 0, j = 0; i < nn; i++) {
         if (!charray_inlist(dupa, s[i])) { /* skip if s[i] is already in *a */

@@ -1049,6 +1049,10 @@ free_and_return_nolock:
         slapi_sdn_free(&sdn);
     }
     slapi_sdn_free(&basesdn);
+    /* coverity false positive:
+     *  var_deref_model: Passing null pointer "orig_sdn" to "slapi_pblock_set", which dereferences it.
+     */
+    /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, orig_sdn);
 
     slapi_ch_free_string(&proxydn);

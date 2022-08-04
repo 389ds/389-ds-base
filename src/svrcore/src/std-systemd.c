@@ -39,7 +39,13 @@ struct SVRCOREStdSystemdPinObj
 
     SVRCOREPinObj *top;
 };
-static const SVRCOREPinMethods vtable;
+
+static void destroyObject(SVRCOREPinObj *obj);
+static char *getPin(SVRCOREPinObj *pinObj, const char *tokenName, PRBool retry);
+
+static const SVRCOREPinMethods vtable =
+{ 0, 0, destroyObject, getPin };
+
 
 /* ------------------------------------------------------------ */
 SVRCOREError
@@ -225,10 +231,4 @@ getPin(SVRCOREPinObj *pinObj, const char *tokenName, PRBool retry)
     /* Just forward call to the top level handler */
     return SVRCORE_GetPin(obj->top, tokenName, retry);
 }
-
-/*
- * VTable
- */
-static const SVRCOREPinMethods vtable =
-{ 0, 0, destroyObject, getPin };
 

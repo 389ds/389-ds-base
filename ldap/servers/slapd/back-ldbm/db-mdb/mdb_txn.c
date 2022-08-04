@@ -62,7 +62,7 @@ static dbmdb_txn_t **get_mdbtxnanchor(void)
 {
     dbmdb_txn_t **anchor = (dbmdb_txn_t **) PR_GetThreadPrivate(thread_private_mdb_txn_stack);
     if (!anchor) {
-        anchor = (dbmdb_txn_t **)slapi_ch_calloc(1, sizeof anchor);
+        anchor = (dbmdb_txn_t **)slapi_ch_calloc(1, sizeof (dbmdb_txn_t *));
         PR_SetThreadPrivate(thread_private_mdb_txn_stack, anchor);
     }
     return anchor;

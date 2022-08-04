@@ -290,7 +290,6 @@ void dblayer_value_concat(Slapi_Backend *be, dbi_val_t *data,
     if (len3 > 0) {
         memcpy(pt, str3, len3);
         pt += len3;
-        len -= len3;
     }
     if (lastc) {
         *pt = 0;

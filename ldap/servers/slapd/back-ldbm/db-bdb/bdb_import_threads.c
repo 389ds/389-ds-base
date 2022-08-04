@@ -2533,7 +2533,7 @@ bdb_import_foreman(void *param)
         if (job->flags & FLAG_UPGRADEDNFORMAT_V1) {
             if (entryrdn_get_switch()) { /* subtree-rename: on */
                 /* insert into the entryrdn index */
-                ret = bdb_foreman_do_entryrdn(job, fi);
+                (void) bdb_foreman_do_entryrdn(job, fi);
             } else {
                 /* insert into the entrydn index */
                 ret = bdb_foreman_do_entrydn(job, fi);
@@ -2770,7 +2770,7 @@ bdb_import_foreman(void *param)
         }
 
         /* capture skipped entry warnings for this task */
-        if((job) && (job->skipped)) {
+        if(job->skipped) {
             slapi_task_set_warning(job->task, WARN_SKIPPED_IMPORT_ENTRY);
         }
     }
@@ -3621,7 +3621,7 @@ bdb_dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, c
                     slapi_ch_free_string(&tp);
             }
         }
-        if (ep + 1 != NULL && *(ep + 1) != NULL) {
+        if (ep != NULL && ep[1] != NULL) {
             prrval = PR_Write(prfd, "\n", 1);
             if (prrval != 1) {
                 slapi_log_err(SLAPI_LOG_ERR, "bdb_dse_conf_backup_core",

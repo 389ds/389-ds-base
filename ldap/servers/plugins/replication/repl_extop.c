@@ -117,7 +117,6 @@ create_ReplicationExtopPayload(const char *protocol_oid,
     if ((tmp_bere = der_alloc()) == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
                 "encoding failed: der_alloc failed\n");
-        rc = LDAP_ENCODING_ERROR;
         goto loser;
     }
     if (!send_end) {
@@ -125,7 +124,6 @@ create_ReplicationExtopPayload(const char *protocol_oid,
             slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
                     "encoding failed: ber_printf failed - protocol_oid (%s) repl_root (%s)\n",
                     protocol_oid, repl_root);
-            rc = LDAP_ENCODING_ERROR;
             goto loser;
         }
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
@@ -137,7 +135,6 @@ create_ReplicationExtopPayload(const char *protocol_oid,
             slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
                     "encoding failed: ber_printf failed - repl_root (%s)\n",
                     repl_root);
-            rc = LDAP_ENCODING_ERROR;
             goto loser;
         }
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
@@ -152,7 +149,6 @@ create_ReplicationExtopPayload(const char *protocol_oid,
         slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
                 "encoding failed: failed to get replica from dn (%s)\n",
                 slapi_sdn_get_dn(sdn));
-        rc = LDAP_OPERATIONS_ERROR;
         goto loser;
     }
 
@@ -161,7 +157,6 @@ create_ReplicationExtopPayload(const char *protocol_oid,
         slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
                 "encoding failed: failed to get ruv from replica suffix (%s)\n",
                 slapi_sdn_get_dn(sdn));
-        rc = LDAP_OPERATIONS_ERROR;
         goto loser;
     }
     ruv = object_get_data(ruv_obj);
@@ -204,7 +199,6 @@ create_ReplicationExtopPayload(const char *protocol_oid,
             if (ber_printf(tmp_bere, "[v]", referrals_to_send) == -1) {
                 slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
                         "encoding failed: ber_printf (referrals_to_send)\n");
-                rc = LDAP_ENCODING_ERROR;
                 goto loser;
             }
             if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
@@ -220,7 +214,6 @@ create_ReplicationExtopPayload(const char *protocol_oid,
         if (ber_printf(tmp_bere, "s", csn_as_string(csn, PR_FALSE, s)) == -1) {
             slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
                     "encoding failed: ber_printf (csnstr)\n");
-            rc = LDAP_ENCODING_ERROR;
             goto loser;
         }
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
@@ -234,7 +227,6 @@ create_ReplicationExtopPayload(const char *protocol_oid,
         if (ber_printf(tmp_bere, "sO", data_guid, data) == -1) {
             slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
                     "encoding failed: ber_printf (data_guid, data)\n");
-            rc = LDAP_ENCODING_ERROR;
             goto loser;
         }
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
@@ -247,15 +239,13 @@ create_ReplicationExtopPayload(const char *protocol_oid,
 
     if (ber_printf(tmp_bere, "}") == -1) {
         slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
-                "encoding failed: ber_printf\n");
-        rc = LDAP_ENCODING_ERROR;
+                "encoding failed: ber_printf (set's end)\n");
         goto loser;
     }
 
     if (ber_flatten(tmp_bere, &req_data) == -1) {
         slapi_log_err(SLAPI_LOG_ERR, "create_ReplicationExtopPayload",
                 "encoding failed: ber_flatten failed\n");
-        rc = LDAP_LOCAL_ERROR;
         goto loser;
     }
     if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
