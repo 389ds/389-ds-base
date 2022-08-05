@@ -60,6 +60,7 @@ export class LDAPEditor extends React.Component {
 
         this.state = {
             activeTabKey: 0,
+            firstLoad: true,
             keyIndex: 0,
             suffixList: [],
             changeLayout: false,
@@ -250,6 +251,12 @@ export class LDAPEditor extends React.Component {
             addNotification: this.props.addNotification,
         };
 
+        if (this.state.firstLoad) {
+            this.setState({
+                firstLoad: false
+            });
+        }
+
         this.setState({
             searching: true,
             loading: refresh
@@ -361,6 +368,18 @@ export class LDAPEditor extends React.Component {
                 allObjectclasses: ocs,
             }, () => { this.getAttributes(this.showSuffixes) });
         });
+    }
+
+    componentDidUpdate(prevProps) {
+        if (this.props.wasActiveList.includes(7)) {
+            if (this.state.firstLoad) {
+                this.handleReload(true);
+            } else {
+                if (this.props.serverId !== prevProps.serverId) {
+                    this.handleReload(true);
+                }
+            }
+        }
     }
 
     getPageData (page, perPage) {
