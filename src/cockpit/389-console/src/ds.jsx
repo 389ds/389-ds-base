@@ -765,6 +765,7 @@ export class DSInstance extends React.Component {
                                     key="ldap-editor"
                                     addNotification={this.addNotification}
                                     serverId={this.state.serverId}
+                                    wasActiveList={this.state.wasActiveList}
                                     setPageSectionVariant={this.setPageSectionVariant}
                                 />
                             </Tab>
