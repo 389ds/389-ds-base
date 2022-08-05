@@ -395,6 +395,7 @@ slapi_exists_or_add_internal(
     if (search_result == LDAP_SUCCESS) {
         slapi_pblock_get(search_pb, SLAPI_NENTRIES, &search_nentries);
     }
+    slapi_free_search_results_internal(search_pb);
     slapi_pblock_destroy(search_pb);
 
     slapi_log_error(SLAPI_LOG_DEBUG, "slapi_exists_or_add_internal", "search_internal result -> %d, %d\n", search_result, search_nentries);
