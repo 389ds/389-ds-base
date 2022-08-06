@@ -239,7 +239,7 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
     /* create supplier update event */
     if (r->repl_eqcxt_ka_update == NULL && replica_get_type(r) == REPLICA_TYPE_UPDATABLE) {
         r->repl_eqcxt_ka_update = slapi_eq_repeat_rel(replica_subentry_update, r,
-                                                   slapi_current_rel_time_t() + START_UPDATE_DELAY,
+                                                   slapi_current_rel_time_t() + 30,
                                                    replica_get_keepalive_update_interval(r));
     }
 
@@ -415,8 +415,9 @@ replica_subentry_create(const char *repl_root, ReplicaId rid)
     int return_value;
     int rc = 0;
 
-    entry_string = slapi_ch_smprintf("dn: cn=%s %d,%s\nobjectclass: top\nobjectclass: ldapsubentry\nobjectclass: extensibleObject\ncn: %s %d",
-                                     KEEP_ALIVE_ENTRY, rid, repl_root, KEEP_ALIVE_ENTRY, rid);
+    entry_string = slapi_ch_smprintf("dn: cn=%s %d,%s\nobjectclass: top\nobjectclass: ldapsubentry\n"
+                                     "objectclass: extensibleObject\n%s: 0\ncn: %s %d",
+                                     KEEP_ALIVE_ENTRY, rid, repl_root, KEEP_ALIVE_ATTR, KEEP_ALIVE_ENTRY, rid);
     if (entry_string == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                       "replica_subentry_create - Failed in slapi_ch_smprintf\n");
