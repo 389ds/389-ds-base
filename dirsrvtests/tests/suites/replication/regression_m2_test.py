@@ -922,6 +922,11 @@ def test_keepalive_entries(topo_m2):
     assert keep_alive_s1 != str(entries[0].data['keepalivetimestamp'])
     assert keep_alive_s2 != str(entries[1].data['keepalivetimestamp'])
 
+    # Test replication
+    supplier = topo_m2.ms['supplier1']
+    replica = Replicas(supplier).get(DEFAULT_SUFFIX)
+    assert replica.test_replication([topo_m2.ms['supplier2']])
+
 
 # Parameters for test_change_repl_passwd
 @pytest.mark.parametrize(
