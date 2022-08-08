@@ -66,7 +66,7 @@ struct replica
     uint64_t agmt_count;               /* Number of agmts */
     Slapi_Counter *release_timeout;    /* The amount of time to wait before releasing active replica */
     uint64_t abort_session;            /* Abort the current replica session */
-    int64_t keepalive_update_interval; /* interval to do dummy update to keep RUV fresh */)
+    int64_t keepalive_update_interval; /* interval to do dummy update to keep RUV fresh */
 };
 
 
