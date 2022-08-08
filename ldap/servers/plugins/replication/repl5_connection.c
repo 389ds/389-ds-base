@@ -249,7 +249,6 @@ conn_delete_internal(Repl_Connection *conn)
     slapi_ch_free_string(&conn->last_ldap_errmsg);
     slapi_ch_free((void **)&conn->hostname);
     slapi_ch_free((void **)&conn->binddn);
-    slapi_ch_free((void **)&conn->creds);
     slapi_ch_free((void **)&conn->plain);
 }
 
