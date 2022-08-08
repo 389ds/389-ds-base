@@ -1930,7 +1930,6 @@ delete_search_result_set(Slapi_PBlock *pb, back_search_result_set **sr)
                       rc, filt_errs);
     }
     slapi_filter_free((*sr)->sr_norm_filter, 1);
-    slapi_filter_free((*sr)->sr_norm_filter_intent, 1);
     memset(*sr, 0, sizeof(back_search_result_set));
     slapi_ch_free((void **)sr);
     return;
