@@ -214,6 +214,9 @@ connection_table_free(Connection_Table *ct)
             Connection *c = &(ct->c[ct_list][i]);
             connection_done(c);
         }
+
+        slapi_ch_free((void **)&ct->c[ct_list]);
+        slapi_ch_free((void **)&ct->fd[ct_list]);
     }
     slapi_ch_free((void **)&ct->c);
     slapi_ch_free((void **)&ct->fd);
