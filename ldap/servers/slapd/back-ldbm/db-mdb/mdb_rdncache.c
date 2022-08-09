@@ -6,6 +6,7 @@
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
+#include <assert.h>
 #include "mdb_import.h"
 
 static RDNcacheElem_t *rdncache_new_elem(RDNcacheHead_t *head, ID entryid, ID parentid, int nrdnlen, const char *nrdn, int rdnlen, const char *rdn, WorkerQueueData_t *slot);
@@ -13,6 +14,10 @@ static RDNcacheElem_t *rdncache_rdn_lookup_no_lock(RDNcache_t *cache,  WorkerQue
 int rdncache_has_older_slots(ImportCtx_t *ctx, WorkerQueueData_t *slot);
 
 /* Should maybe use ./ldap/libraries/libavl/avl.c instead of array */
+
+
+#define RDNCACHE_MUTEX_LOCK(l)    assert(pthread_mutex_lock(l) == 0)
+#define RDNCACHE_MUTEX_UNLOCK(l)  assert(pthread_mutex_unlock(l) == 0)
 
 
 static RDNcacheHead_t *
@@ -277,6 +282,25 @@ rdncache_index_lookup_by_rdn(RDNcache_t *cache,  ID parentid, int _nrdnlen, cons
 }
 
 /*
+ * Wait until all rdn of entries with entryid < current entryid are in the cache.
+ *  Note: Caller must hold cache->mutex
+ *  Beware: cache->cur may change while being in this function (because the mutex is released)
+ */
+static void
+rdncache_wait4older_slots(RDNcache_t *cache, WorkerQueueData_t *slot)
+{
+    int has_working_worker;
+    if (slot) {
+        /* Must process dn in order to check for duplicate dn */
+        while ((has_working_worker = rdncache_has_older_slots(cache->ctx, slot))) {
+            /* So let wait until previous working slot have stored the entry rdn */
+            safe_cond_wait(&cache->condvar, &cache->mutex);
+        }
+    }
+}
+
+
+/*
  * Add a new item in the entryrdn cur cache
  *  parentid == 0 means that we are adding the suffix DN
  *  if slot is not null then it check that the rdn is not a duplicate
@@ -295,13 +319,6 @@ rdncache_new_elem(RDNcacheHead_t *head, ID entryid, ID parentid, int nrdnlen,
     int len;
 
     if (slot) {
-        /* Must process dn in order to check for duplicate dn */
-        int has_working_worker = rdncache_has_older_slots(cache->ctx, slot);
-        while (has_working_worker) {
-            /* So let wait until previous working slot have stored the entry rdn */
-            safe_cond_wait(&cache->condvar, &cache->mutex);
-            has_working_worker = rdncache_has_older_slots(cache->ctx, slot);
-        }
         elem = rdncache_rdn_lookup_no_lock(cache, slot, parentid, nrdn, 0);
         if (elem) {
             return elem;
@@ -367,10 +384,11 @@ RDNcacheElem_t *
 rdncache_add_elem(RDNcache_t *cache, WorkerQueueData_t *slot, ID entryid, ID parentid, int nrdnlen, const char *nrdn, int rdnlen, const char *rdn)
 {
     RDNcacheElem_t *elem;
-    pthread_mutex_lock(&cache->mutex);
+    RDNCACHE_MUTEX_LOCK(&cache->mutex);
+    rdncache_wait4older_slots(cache, slot);
     elem = rdncache_new_elem(cache->cur, entryid, parentid, nrdnlen, nrdn, rdnlen, rdn, slot);
     elem = rdncache_elem_get(elem);
-	pthread_mutex_unlock(&cache->mutex);
+	RDNCACHE_MUTEX_UNLOCK(&cache->mutex);
     return elem;
 }
 
@@ -379,11 +397,11 @@ void rdncache_rotate(RDNcache_t *cache)
 {
     RDNcacheHead_t *oldhead;
     RDNcacheHead_t *newhead = rdncache_new_head(cache);
-	pthread_mutex_lock(&cache->mutex);
+    RDNCACHE_MUTEX_LOCK(&cache->mutex);
     oldhead = cache->prev;
     cache->prev = cache->cur;
     cache->cur = newhead;
-	pthread_mutex_unlock(&cache->mutex);
+    RDNCACHE_MUTEX_UNLOCK(&cache->mutex);
     rdncache_head_release(&oldhead);
 }
 
@@ -409,12 +427,9 @@ rdncache_has_older_slots(ImportCtx_t *ctx, WorkerQueueData_t *slot)
 RDNcacheElem_t *rdncache_id_lookup(RDNcache_t *cache,  WorkerQueueData_t *slot, ID entryid)
 {
     RDNcacheElem_t *elem = NULL;
-    int has_working_worker;
     int idx;
 
-	pthread_mutex_lock(&cache->mutex);
-    has_working_worker = rdncache_has_older_slots(cache->ctx, slot);
-
+	RDNCACHE_MUTEX_LOCK(&cache->mutex);
     idx = rdncache_lookup_by_id(cache->cur, entryid);
     if (idx >= 0) {
         elem = cache->cur->head_per_id[idx];
@@ -433,19 +448,16 @@ RDNcacheElem_t *rdncache_id_lookup(RDNcache_t *cache,  WorkerQueueData_t *slot, 
     }
 
     /* If still not found, last chance is that another worker is being processing it. */
-    while (!elem && has_working_worker) {
-        /* So let wait until previous working slot have stored the entry rdn */
-        safe_cond_wait(&cache->condvar, &cache->mutex);
-        has_working_worker = rdncache_has_older_slots(cache->ctx, slot);
-    }
-    /* Now either it is in the current cache or it is missing */
     if (!elem) {
+        /* So let wait until previous working slot have stored the entry rdn */
+        rdncache_wait4older_slots(cache, slot);
+        /* Now either it is in the current cache or it is missing */
         idx = rdncache_lookup_by_id(cache->cur, entryid);
         elem = (idx >= 0) ? cache->cur->head_per_id[idx] : NULL;
     }
     /* increase refcount while still holding the lock */
     elem = rdncache_elem_get(elem);
-	pthread_mutex_unlock(&cache->mutex);
+	RDNCACHE_MUTEX_UNLOCK(&cache->mutex);
     return elem;
 }
 
@@ -483,24 +495,19 @@ rdncache_rdn_lookup_no_lock(RDNcache_t *cache,  WorkerQueueData_t *slot, ID pare
 RDNcacheElem_t *rdncache_rdn_lookup(RDNcache_t *cache,  WorkerQueueData_t *slot, ID parentid, const char *nrdn)
 {
     RDNcacheElem_t *elem = NULL;
-    int has_working_worker;
 
-    pthread_mutex_lock(&cache->mutex);
-    has_working_worker = rdncache_has_older_slots(cache->ctx, slot);
+    RDNCACHE_MUTEX_LOCK(&cache->mutex);
     elem = rdncache_rdn_lookup_no_lock(cache,  slot, parentid, nrdn, 0);
     /* If not found, last chance is that another worker is being processing it. */
-    while (!elem && has_working_worker) {
-        /* So let wait until previous working slot have stored the entry rdn */
-        safe_cond_wait(&cache->condvar, &cache->mutex);
-        has_working_worker = rdncache_has_older_slots(cache->ctx, slot);
-    }
-    /* Now either it is in the current cache or it is missing */
     if (!elem) {
+        /* So let wait until previous working slot have stored the entry rdn */
+        rdncache_wait4older_slots(cache, slot);
+        /* Now either it is in the current cache or it is missing */
         elem = rdncache_rdn_lookup_no_lock(cache,  slot, parentid, nrdn, 1);
     }
     /* increase refcount while still holding the lock */
     elem = rdncache_elem_get(elem);
-	pthread_mutex_unlock(&cache->mutex);
+	RDNCACHE_MUTEX_UNLOCK(&cache->mutex);
     return elem;
 }
 
