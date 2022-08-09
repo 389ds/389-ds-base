@@ -94,11 +94,11 @@ rdncache_elem_release(RDNcacheElem_t **elem)
 RDNcache_t *
 rdncache_init(ImportCtx_t *ctx)
 {
-	RDNcache_t *cache = CALLOC(RDNcache_t);
+    RDNcache_t *cache = CALLOC(RDNcache_t);
     cache->ctx = ctx;
     pthread_mutex_init(&cache->mutex, NULL);
     pthread_cond_init(&cache->condvar, NULL);
-	cache->cur = rdncache_new_head(cache);
+    cache->cur = rdncache_new_head(cache);
     cache->prev = rdncache_new_head(cache);
     return cache;
 }
@@ -180,8 +180,8 @@ rdncache_index_lookup_by_id(RDNcache_t *cache,  ID entryid)
     RDNcacheElem_t *elem = NULL;
     ImportCtx_t *ctx = cache->ctx;
     backend *be = ctx->job->inst->inst_be;
-	MDB_val key = {0};
-	MDB_val data = {0};
+    MDB_val key = {0};
+    MDB_val data = {0};
     dbmdb_cursor_t cur = {0};
     char key_str[10];
     int nrdnlen = 0;
@@ -225,8 +225,8 @@ rdncache_index_lookup_by_rdn(RDNcache_t *cache,  ID parentid, int _nrdnlen, cons
     backend *be = ctx->job->inst->inst_be;
     char *elem2search = NULL;
     dbmdb_cursor_t cur = {0};
-	MDB_val data = {0};
-	MDB_val key = {0};
+    MDB_val data = {0};
+    MDB_val key = {0};
     char *nrdn = NULL;
     char *rdn = NULL;
     char key_str[10];
@@ -388,7 +388,7 @@ rdncache_add_elem(RDNcache_t *cache, WorkerQueueData_t *slot, ID entryid, ID par
     rdncache_wait4older_slots(cache, slot);
     elem = rdncache_new_elem(cache->cur, entryid, parentid, nrdnlen, nrdn, rdnlen, rdn, slot);
     elem = rdncache_elem_get(elem);
-	RDNCACHE_MUTEX_UNLOCK(&cache->mutex);
+    RDNCACHE_MUTEX_UNLOCK(&cache->mutex);
     return elem;
 }
 
@@ -429,7 +429,7 @@ RDNcacheElem_t *rdncache_id_lookup(RDNcache_t *cache,  WorkerQueueData_t *slot, 
     RDNcacheElem_t *elem = NULL;
     int idx;
 
-	RDNCACHE_MUTEX_LOCK(&cache->mutex);
+    RDNCACHE_MUTEX_LOCK(&cache->mutex);
     idx = rdncache_lookup_by_id(cache->cur, entryid);
     if (idx >= 0) {
         elem = cache->cur->head_per_id[idx];
@@ -457,7 +457,7 @@ RDNcacheElem_t *rdncache_id_lookup(RDNcache_t *cache,  WorkerQueueData_t *slot, 
     }
     /* increase refcount while still holding the lock */
     elem = rdncache_elem_get(elem);
-	RDNCACHE_MUTEX_UNLOCK(&cache->mutex);
+    RDNCACHE_MUTEX_UNLOCK(&cache->mutex);
     return elem;
 }
 
@@ -507,7 +507,7 @@ RDNcacheElem_t *rdncache_rdn_lookup(RDNcache_t *cache,  WorkerQueueData_t *slot,
     }
     /* increase refcount while still holding the lock */
     elem = rdncache_elem_get(elem);
-	RDNCACHE_MUTEX_UNLOCK(&cache->mutex);
+    RDNCACHE_MUTEX_UNLOCK(&cache->mutex);
     return elem;
 }
 
