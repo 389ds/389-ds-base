@@ -2395,8 +2395,8 @@ done:
         }
     }
     if (data->task) {
-        slapi_task_finish(data->task, rc);
         slapi_task_dec_refcount(data->task);
+        slapi_task_finish(data->task, rc);
         slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name,
                       "replica_cleanallruv_thread <-- refcount decremented.\n");
     }

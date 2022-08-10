@@ -483,7 +483,7 @@ free_and_return:
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                 "decode_startrepl_extop - decoded csn: %s\n", *csnstr);
         ruv_dump_to_log(*supplier_ruv, "decode_startrepl_extop");
-        for (size_t i = 0; *extra_referrals && *extra_referrals[i]; i++) {
+        for (size_t i = 0; *extra_referrals && extra_referrals[i]; i++) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "decode_startrepl_extop - "
                 "decoded referral: %s\n", *extra_referrals[i]);
         }
@@ -1653,7 +1653,7 @@ multisupplier_extop_cleanruv(Slapi_PBlock *pb)
          *  Launch the cleanruv monitoring thread.  Once all the replicas are cleaned it will release the rid
          */
 
-        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "Launching cleanAllRUV thread...");
+        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Launching cleanAllRUV thread...");
         data = (cleanruv_data *)slapi_ch_calloc(1, sizeof(cleanruv_data));
         if (data == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_extop_cleanruv - CleanAllRUV Task - Failed to allocate "
