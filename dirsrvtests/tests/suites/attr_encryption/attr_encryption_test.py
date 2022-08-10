@@ -47,7 +47,7 @@ def enable_user_attr_encryption(topo, request):
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
     test_user = users.create(properties=TEST_USER_PROPERTIES)
     test_user.replace('employeeNumber', '1000')
-    test_user.replace('telephonenumber', '1234567890')
+    test_user.replace('telephoneNumber', '1234567890')
 
     def fin():
         log.info("Remove attribute encryption for various attributes")
@@ -137,8 +137,8 @@ def test_export_import_ciphertext(topo, enable_user_attr_encryption):
     log.info("Check that the encrypted value of attribute is not present in the exported file")
     with open(export_ldif, 'r') as ldif_file:
         ldif = ldif_file.read()
-        assert 'telephonenumber' in ldif
-        assert 'telephonenumber: 1234567890' not in ldif
+        assert 'telephoneNumber' in ldif
+        assert 'telephoneNumber: 1234567890' not in ldif
 
     log.info("Delete the test user entry with encrypted data")
     enable_user_attr_encryption.delete()
