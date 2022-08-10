@@ -147,6 +147,9 @@ def test_pwd_algo_test(topology_st, algo):
     if algo == 'DEFAULT':
         if ds_is_older('1.4.0'):
             pytest.skip("Not implemented")
+    if algo == 'GOST_YESCRYPT':
+        if ds_is_older('2.0.1'):
+            pytest.skip("Not Supported")
     _test_algo(topology_st.standalone, algo)
     log.info('Test %s PASSED' % algo)
 
