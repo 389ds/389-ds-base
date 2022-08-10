@@ -22,6 +22,8 @@ from lib389.idm.directorymanager import DirectoryManager
 from lib389.config import LDBMConfig
 from lib389.dseldif import DSEldif
 from lib389.rootdse import RootDSE
+from lib389.backend import Backends
+from lib389.idm.domain import Domain
 
 
 pytestmark = pytest.mark.tier0
@@ -1410,8 +1412,35 @@ def test_ldbm_modification_audit_log(topology_st):
         assert conn.searchAuditLog('%s: %s' % (attr, VALUE))
 
 
-@pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.0.0'),
-                    reason="This test is only required if perl is enabled, and requires root.")
+def test_suffix_case(topology_st):
+    """Test that the suffix case is preserved when creating a new backend
+
+    :id: 4eff15be-6cde-4312-b492-c88941876bda
+    :setup: Standalone Instance
+    :steps:
+        1. Create backend with uppercase characters
+        2. Create root node entry
+        3. Search should return suffix with upper case characters
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+
+    # Start with a clean slate
+    topology_st.standalone.restart()
+
+    TEST_SUFFIX = 'dc=UPPER_CASE'
+
+    backends = Backends(topology_st.standalone)
+    backends.create(properties={'nsslapd-suffix': TEST_SUFFIX,
+                                'name': 'upperCaseRoot',
+                                'sample_entries': '001004002'})
+                           
+    domain = Domain(topology_st.standalone, TEST_SUFFIX)
+    assert domain.dn == TEST_SUFFIX
+
+    
 def test_dscreate(request):
     """Test that dscreate works, we need this for now until setup-ds.pl is
     fully discontinued.

@@ -608,8 +608,7 @@ class Backend(DSLdapObject):
             dn = ",".join(dn_comps)
 
         if properties is not None:
-            suffix_dn = properties['nsslapd-suffix'].lower()
-            dn_comps = ldap.dn.explode_dn(suffix_dn)
+            dn_comps = ldap.dn.explode_dn(properties['nsslapd-suffix'])
             ndn = ",".join(dn_comps)
             properties['nsslapd-suffix'] = ndn
             sample_entries = properties.pop(BACKEND_SAMPLE_ENTRIES, False)
