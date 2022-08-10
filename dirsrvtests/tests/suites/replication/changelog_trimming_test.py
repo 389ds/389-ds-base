@@ -8,6 +8,7 @@ from lib389.properties import *
 from lib389.topologies import topology_m1 as topo
 from lib389.replica import Changelog5
 from lib389.idm.domain import Domain
+from lib389.utils import ds_supports_new_changelog
 
 pytestmark = pytest.mark.tier1
 
