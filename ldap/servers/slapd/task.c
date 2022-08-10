@@ -732,7 +732,7 @@ get_internal_entry(Slapi_PBlock *pb, char *dn)
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
     if (ret != LDAP_SUCCESS) {
         slapi_log_err(SLAPI_LOG_WARNING, "get_internal_entry",
-                      "Can't find task entry '%s'\n", dn);
+                      "Failed to search for task entry '%s' error: %d\n", dn, ret);
         return NULL;
     }
 
@@ -776,9 +776,9 @@ modify_internal_entry(char *dn, LDAPMod **mods)
              * entry -- try at least 3 times before giving up.
              */
             tries++;
-            if (tries == 3) {
-                slapi_log_err(SLAPI_LOG_WARNING, "modify_internal_entry", "Can't modify task "
-                                                                          "entry '%s'; %s (%d)\n",
+            if (tries == 5) {
+                slapi_log_err(SLAPI_LOG_WARNING, "modify_internal_entry",
+                              "Can't modify task entry '%s'; %s (%d)\n",
                               dn, ldap_err2string(ret), ret);
                 slapi_pblock_destroy(pb);
                 return;
