@@ -8,6 +8,7 @@
 #
 import pytest
 import logging
+import time
 from lib389.replica import Replicas
 from lib389.tasks import *
 from lib389.utils import *
@@ -124,12 +125,16 @@ def test_modify_entry(topo_m4, create_entry):
         8. Some time should pass
         9. The change should be present on all suppliers
     """
+    if DEBUGGING:
+        sleep_time = 8
+    else:
+        sleep_time = 2
 
     log.info('Modifying entry {} - add operation'.format(TEST_ENTRY_DN))
 
     test_user = UserAccount(topo_m4.ms["supplier1"], TEST_ENTRY_DN)
     test_user.add('mail', '{}@redhat.com'.format(TEST_ENTRY_NAME))
-    time.sleep(1)
+    time.sleep(sleep_time)
 
     all_user = topo_m4.all_get_dsldapobject(TEST_ENTRY_DN, UserAccount)
     for u in all_user:
@@ -137,7 +142,7 @@ def test_modify_entry(topo_m4, create_entry):
 
     log.info('Modifying entry {} - replace operation'.format(TEST_ENTRY_DN))
     test_user.replace('mail', '{}@greenhat.com'.format(TEST_ENTRY_NAME))
-    time.sleep(1)
+    time.sleep(sleep_time)
 
     all_user = topo_m4.all_get_dsldapobject(TEST_ENTRY_DN, UserAccount)
     for u in all_user:
@@ -145,7 +150,7 @@ def test_modify_entry(topo_m4, create_entry):
 
     log.info('Modifying entry {} - delete operation'.format(TEST_ENTRY_DN))
     test_user.remove('mail', '{}@greenhat.com'.format(TEST_ENTRY_NAME))
-    time.sleep(1)
+    time.sleep(sleep_time)
 
     all_user = topo_m4.all_get_dsldapobject(TEST_ENTRY_DN, UserAccount)
     for u in all_user:
@@ -167,7 +172,10 @@ def test_delete_entry(topo_m4, create_entry):
 
     log.info('Deleting entry {} during the test'.format(TEST_ENTRY_DN))
     topo_m4.ms["supplier1"].delete_s(TEST_ENTRY_DN)
-
+    if DEBUGGING:
+        time.sleep(8)
+    else:
+        time.sleep(1)
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["uid"])
     assert not entries, "Entry deletion {} wasn't replicated successfully".format(TEST_ENTRY_DN)
 
@@ -231,6 +239,11 @@ def test_modrdn_after_pause(topo_m4):
         5. The change should be present on all suppliers
     """
 
+    if DEBUGGING:
+        sleep_time = 8
+    else:
+        sleep_time = 3
+
     newrdn_name = 'newrdn'
     newrdn_dn = 'uid={},{}'.format(newrdn_name, DEFAULT_SUFFIX)
 
@@ -264,7 +277,7 @@ def test_modrdn_after_pause(topo_m4):
     topo_m4.resume_all_replicas()
 
     log.info('Wait for replication to happen')
-    time.sleep(3)
+    time.sleep(sleep_time)
 
     try:
         entries_new = get_repl_entries(topo_m4, newrdn_name, ["uid"])
@@ -354,6 +367,11 @@ def test_many_attrs(topo_m4, create_entry):
     for add_name in add_list:
         test_user.add('description', add_name)
 
+    if DEBUGGING:
+        time.sleep(10)
+    else:
+        time.sleep(1)
+
     log.info('Check that everything was properly replicated after an add operation')
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["description"])
     for entry in entries:
@@ -362,6 +380,11 @@ def test_many_attrs(topo_m4, create_entry):
     log.info('Modifying entry {} - 4 delete operations for {}'.format(TEST_ENTRY_DN, str(delete_list)))
     for delete_name in delete_list:
         test_user.remove('description', delete_name)
+
+    if DEBUGGING:
+        time.sleep(10)
+    else:
+        time.sleep(1)
 
     log.info('Check that everything was properly replicated after a delete operation')
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["description"])
@@ -386,12 +409,22 @@ def test_double_delete(topo_m4, create_entry):
     log.info('Deleting entry {} from supplier1'.format(TEST_ENTRY_DN))
     topo_m4.ms["supplier1"].delete_s(TEST_ENTRY_DN)
 
+    if DEBUGGING:
+        time.sleep(5)
+    else:
+        time.sleep(1)
+
     log.info('Deleting entry {} from supplier2'.format(TEST_ENTRY_DN))
     try:
         topo_m4.ms["supplier2"].delete_s(TEST_ENTRY_DN)
     except ldap.NO_SUCH_OBJECT:
         log.info("Entry {} wasn't found supplier2. It is expected.".format(TEST_ENTRY_DN))
 
+    if DEBUGGING:
+        time.sleep(5)
+    else:
+        time.sleep(1)
+        
     log.info('Make searches to check if server is alive')
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["uid"])
     assert not entries, "Entry deletion {} wasn't replicated successfully".format(TEST_ENTRY_DN)
@@ -435,6 +468,11 @@ def test_password_repl_error(topo_m4, create_entry):
     m2_conn = test_user_m2.bind(TEST_ENTRY_NEW_PASS)
     m3_conn = test_user_m3.bind(TEST_ENTRY_NEW_PASS)
     m4_conn = test_user_m4.bind(TEST_ENTRY_NEW_PASS)
+
+    if DEBUGGING:
+        time.sleep(5)
+    else:
+        time.sleep(1)
 
     log.info('Check the error log for the error with {}'.format(TEST_ENTRY_DN))
     assert not m2.ds_error_log.match('.*can.t add a change for uid={}.*'.format(TEST_ENTRY_NAME))
@@ -552,7 +590,7 @@ def test_csnpurge_large_valueset(topo_m2):
     replica = replicas.list()[0]
     log.info('nsds5ReplicaPurgeDelay to 5')
     replica.set('nsds5ReplicaPurgeDelay', '5')
-    time.sleep(6)
+    time.sleep(10)
 
     # add some new values to the valueset containing entries that should be purged
     for i in range(21,25):
@@ -612,7 +650,7 @@ def test_urp_trigger_substring_search(topo_m2):
             break
         else:
             log.info('Entry not yet replicated on M2, wait a bit')
-            time.sleep(2)
+            time.sleep(3)
 
     # check that M2 access logs does not "(&(objectclass=nstombstone)(nscpentrydn=uid=asterisk_*_in_value,dc=example,dc=com))"
     log.info('Check that on M2, URP as not triggered such internal search')
