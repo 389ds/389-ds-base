@@ -90,6 +90,12 @@ def remove_ds_instance(dirsrv, force=False):
     # Remove parent (/var/lib/dirsrv/slapd-INST)
     shutil.rmtree(remove_paths['db_dir'].replace('db', ''), ignore_errors=True)
 
+    # Remove /run/slapd-isntance
+    try:
+        os.remove(f'/run/slapd-{dirsrv.serverid}.socket')
+    except OSError as e:
+        _log.debug("Failed to remove socket file: " + str(e))
+
     # We can not assume we have systemd ...
     if dirsrv.ds_paths.with_systemd:
         # Remove the systemd symlink

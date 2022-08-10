@@ -252,8 +252,8 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
     /* create supplier update event */
     if (r->repl_eqcxt_ka_update == NULL && replica_get_type(r) == REPLICA_TYPE_UPDATABLE) {
         r->repl_eqcxt_ka_update = slapi_eq_repeat_rel(replica_subentry_update, r,
-                                                   slapi_current_rel_time_t() + 30,
-                                                   replica_get_keepalive_update_interval(r));
+                                                      slapi_current_rel_time_t() + 30,
+                                                      1000 * replica_get_keepalive_update_interval(r));
     }
 
     if (r->tombstone_reap_interval > 0) {
@@ -543,7 +543,7 @@ replica_subentry_update(time_t when __attribute__((unused)), void *arg)
     replica_subentry_check(repl_root, rid);
 
     slapi_timestamp_utc_hr(buf, SLAPI_TIMESTAMP_BUFSIZE);
-    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "replica_subentry_update called at %s\n", buf);
+    slapi_log_err(SLAPI_LOG_REPL, "NSMMReplicationPlugin", "replica_subentry_update called at %s\n", buf);
     val.bv_val = buf;
     val.bv_len = strlen(val.bv_val);
     vals[0] = &val;
@@ -567,7 +567,7 @@ replica_subentry_update(time_t when __attribute__((unused)), void *arg)
                       "Failure (%d) to update replication keep alive entry \"%s: %s\"\n",
                       ldrc, KEEP_ALIVE_ATTR, buf);
     } else {
-        slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name,
+        slapi_log_err(SLAPI_LOG_REPL, "NSMMReplicationPlugin",
                       "replica_subentry_update - "
                       "Successful update of replication keep alive entry \"%s: %s\"\n",
                       KEEP_ALIVE_ATTR, buf);
@@ -1565,7 +1565,7 @@ replica_set_enabled(Replica *r, PRBool enable)
         if (r->repl_eqcxt_ka_update == NULL && replica_get_type(r) == REPLICA_TYPE_UPDATABLE) {
             r->repl_eqcxt_ka_update = slapi_eq_repeat_rel(replica_subentry_update, r,
                                                        slapi_current_rel_time_t() + START_UPDATE_DELAY,
-                                                       replica_get_keepalive_update_interval(r));
+                                                       1000 * replica_get_keepalive_update_interval(r));
         }
     } else /* disable */
     {
@@ -1575,7 +1575,7 @@ replica_set_enabled(Replica *r, PRBool enable)
             r->repl_eqcxt_rs = NULL;
         }
         /* Remove supplier update event */
-        if (replica_get_type(r) == REPLICA_TYPE_PRIMARY) {
+        if (replica_get_type(r) == REPLICA_TYPE_UPDATABLE) {
             slapi_eq_cancel_rel(r->repl_eqcxt_ka_update);
             r->repl_eqcxt_ka_update = NULL;
         }

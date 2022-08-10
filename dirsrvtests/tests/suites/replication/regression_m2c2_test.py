@@ -289,6 +289,7 @@ def test_csngen_state_not_updated_if_different_uuid(topo_m2c2):
         log.error(f"c1 csngen state has unexpectedly been synchronized with m2: time skew {c1_timeSkew}")
         assert False
     c1.start()
+    time.sleep(5)
 
     # Step 8: Check that c2 has time skew
     # Stop server to insure that dse.ldif is uptodate
