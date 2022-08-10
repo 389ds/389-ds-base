@@ -10,6 +10,7 @@ from lib389.idm.directorymanager import DirectoryManager
 from lib389.idm.domain import Domain
 from lib389.backend import Backend
 from lib389.replica import Replicas, ReplicationManager
+from lib389.config import LDBMConfig
 
 log = logging.getLogger(__name__)
 
@@ -141,16 +142,18 @@ def test_multiple_changelogs_export_import(topo):
     doMods1.join()
     replica.task_finished()
 
-    # allow some time to pass, and test replication
-    time.sleep(1)
+    supplier.restart()
     assert replica.test_replication([consumer])
 
-    # While idle, go an export and import, and make sure replication still works
+    # While idle, do an export and import, and make sure replication still works
     log.info("Testing idle server with CL export and import...")
+    ldbm_config = LDBMConfig(supplier)
+    ldbm_config.set('nsslapd-readonly', 'on')  # prevent keep alive updates
     replica.begin_task_cl2ldif()
     replica.task_finished()
     replica.begin_task_ldif2cl()
     replica.task_finished()
+    ldbm_config.set('nsslapd-readonly', 'off')
     assert replica.test_replication([consumer])
 
     # stability test, put the replica under load, import the changelog, and make
