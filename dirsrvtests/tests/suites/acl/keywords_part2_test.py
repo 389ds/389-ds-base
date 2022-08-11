@@ -20,6 +20,7 @@ from lib389._constants import DEFAULT_SUFFIX, PW_DM
 from lib389.idm.domain import Domain
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.idm.user import UserAccount
+from lib389.utils import *
 
 pytestmark = pytest.mark.tier1
 
@@ -39,7 +40,7 @@ NIGHTWORKER_KEY = "uid=NIGHTWORKER_KEY,{}".format(TIMEOFDAY_OU_KEY)
 NOWORKER_KEY = "uid=NOWORKER_KEY,{}".format(TIMEOFDAY_OU_KEY)
 
 
-def test_access_from_certain_network_only_ip(topo, add_user, aci_of_user):
+def test_access_from_certain_network_only_ip(topo, add_user, aci_of_user, request):
     """
     User can access the data when connecting from certain network only as per the ACI.
 
@@ -95,8 +96,14 @@ def test_access_from_certain_network_only_ip(topo, add_user, aci_of_user):
     with pytest.raises(ldap.INSUFFICIENT_ACCESS):
         org.replace("seeAlso", "cn=1")
 
+    def fin():
+        log.info('Setting the hostname back to orginal')
+        socket.sethostname(old_hostname)
 
-def test_connection_from_an_unauthorized_network(topo, add_user, aci_of_user):
+    request.addfinalizer(fin)
+
+
+def test_connection_from_an_unauthorized_network(topo, add_user, aci_of_user, request):
     """
     User cannot access the data when connectin from an unauthorized network as per the ACI.
 
@@ -144,6 +151,12 @@ def test_connection_from_an_unauthorized_network(topo, add_user, aci_of_user):
 
     # now user can access data
     org.replace("seeAlso", "cn=1")
+
+    def fin():
+        log.info('Setting the hostname back to orginal')
+        socket.sethostname(old_hostname)
+
+    request.addfinalizer(fin)
 
 
 def test_ip_keyword_test_noip_cannot(topo, add_user, aci_of_user):
