@@ -76,6 +76,7 @@ def create_user(topology_st, request):
     def fin():
         log.info('Deleting user simplepaged_test')
         user.delete()
+        socket.sethostname(OLD_HOSTNAME)
 
     request.addfinalizer(fin)
 
