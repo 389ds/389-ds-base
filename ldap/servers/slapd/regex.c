@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -10,20 +10,18 @@
 #include <config.h>
 #endif
 
-/* number of elements in the output vector */
-#define OVECCOUNT 30 /* should be a multiple of 3; store up to \9 */
-
 #include "slap.h"
 #include "slapi-plugin.h"
+#include <pcre2.h>
 
-/* Perl Compatible Regular Expression */
-#include <pcre.h>
+#define OVEC_MATCH_LIMIT 30 /* should be a multiple of 3; store up to \9 */
+#define CPRE_ERR_MSG_SIZE 120
 
 struct slapi_regex_handle
 {
-    pcre *re_pcre;    /* contains the compiled pattern */
-    int *re_ovector;  /* output vector */
-    int re_oveccount; /* count of the elements in output vector */
+    pcre2_code *re_pcre;
+    pcre2_match_data *match_data; /* Contains the output vector */
+    pcre2_match_context *mcontext; /* Stores the max element limit */
 };
 
 /**
@@ -36,20 +34,23 @@ struct slapi_regex_handle
  * \warning The regex handler should be released by slapi_re_free().
  */
 Slapi_Regex *
-slapi_re_comp(const char *pat, const char **error)
+slapi_re_comp(const char *pat, char **error)
 {
     Slapi_Regex *re_handle = NULL;
-    pcre *re = NULL;
-    const char *myerror = NULL;
-    int erroffset;
+    pcre2_code *re = NULL;
+    int32_t myerror;
+    PCRE2_SIZE erroffset;
+    PCRE2_UCHAR errormsg[CPRE_ERR_MSG_SIZE];
 
-    re = pcre_compile(pat, 0, &myerror, &erroffset, NULL);
-    if (error) {
-        *error = myerror;
-    }
-    if (re) {
+    re = pcre2_compile((PCRE2_SPTR)pat, strlen(pat), 0,
+                       &myerror, &erroffset, NULL);
+    if (re == NULL) {
+        pcre2_get_error_message(myerror, errormsg, CPRE_ERR_MSG_SIZE);
+        *error = slapi_ch_strdup((char *)errormsg);
+    } else {
         re_handle = (Slapi_Regex *)slapi_ch_calloc(sizeof(Slapi_Regex), 1);
         re_handle->re_pcre = re;
+        *error = NULL;
     }
 
     return re_handle;
@@ -71,7 +72,7 @@ slapi_re_comp(const char *pat, const char **error)
 int
 slapi_re_exec(Slapi_Regex *re_handle, const char *subject, time_t time_up)
 {
-    int rc;
+    int32_t rc;
     time_t curtime = slapi_current_rel_time_t();
 
     if (NULL == re_handle || NULL == re_handle->re_pcre || NULL == subject) {
@@ -82,27 +83,30 @@ slapi_re_exec(Slapi_Regex *re_handle, const char *subject, time_t time_up)
         return LDAP_TIMELIMIT_EXCEEDED;
     }
 
-    if (NULL == re_handle->re_ovector) {
-        re_handle->re_oveccount = OVECCOUNT;
-        re_handle->re_ovector = (int *)slapi_ch_malloc(sizeof(int) * OVECCOUNT);
+    if (re_handle->match_data) {
+        pcre2_match_data_free(re_handle->match_data);
+    }
+    re_handle->match_data = pcre2_match_data_create_from_pattern(re_handle->re_pcre, NULL);
+
+    if (re_handle->mcontext == NULL) {
+        re_handle->mcontext = pcre2_match_context_create(NULL);
+        pcre2_set_match_limit(re_handle->mcontext, OVEC_MATCH_LIMIT);
     }
 
-    rc = pcre_exec(re_handle->re_pcre,       /* the compiled pattern */
-                   NULL,                     /* no extra data */
-                   subject,                  /* the subject string */
-                   strlen(subject),          /* the length of the subject */
-                   0,                        /* start at offset 0 in the subject */
-                   0,                        /* default options */
-                   re_handle->re_ovector,    /* output vector for substring info */
-                   re_handle->re_oveccount); /* number of elems in the ovector */
+
+    rc = pcre2_match(re_handle->re_pcre,    /* the compiled pattern */
+                     (PCRE2_SPTR)subject,   /* the subject string */
+                     strlen(subject),       /* the length of the subject */
+                     0,                     /* start at offset 0 in the subject */
+                     0,                     /* default options */
+                     re_handle->match_data, /* contains the resulting output vector */
+                     re_handle->mcontext);  /* stores the max element limit */
 
     if (rc >= 0) {
         return 1; /* matched */
     } else {
         return 0; /* did not match */
     }
-
-    return rc;
 }
 
 /**
@@ -123,33 +127,34 @@ slapi_re_exec(Slapi_Regex *re_handle, const char *subject, time_t time_up)
 int32_t
 slapi_re_exec_nt(Slapi_Regex *re_handle, const char *subject)
 {
-    int32_t rc;
+    int32_t rc = 0;
 
     if (NULL == re_handle || NULL == re_handle->re_pcre || NULL == subject) {
         return LDAP_PARAM_ERROR;
     }
 
-    if (NULL == re_handle->re_ovector) {
-        re_handle->re_oveccount = OVECCOUNT;
-        re_handle->re_ovector = (int *)slapi_ch_malloc(sizeof(int) * OVECCOUNT);
+    if (re_handle->match_data) {
+        pcre2_match_data_free(re_handle->match_data);
     }
+    re_handle->match_data = pcre2_match_data_create_from_pattern(re_handle->re_pcre, NULL);
 
-    rc = pcre_exec(re_handle->re_pcre,       /* the compiled pattern */
-                   NULL,                     /* no extra data */
-                   subject,                  /* the subject string */
-                   strlen(subject),          /* the length of the subject */
-                   0,                        /* start at offset 0 in the subject */
-                   0,                        /* default options */
-                   re_handle->re_ovector,    /* output vector for substring info */
-                   re_handle->re_oveccount); /* number of elems in the ovector */
+    if (re_handle->mcontext == NULL) {
+        re_handle->mcontext = pcre2_match_context_create(NULL);
+        pcre2_set_match_limit(re_handle->mcontext, OVEC_MATCH_LIMIT);
+    }
+    rc = pcre2_match(re_handle->re_pcre,    /* the compiled pattern */
+                     (PCRE2_SPTR)subject,   /* the subject string */
+                     strlen(subject),       /* the length of the subject */
+                     0,                     /* start at offset 0 in the subject */
+                     0,                     /* default options */
+                     re_handle->match_data, /* contains the resulting output vector */
+                     re_handle->mcontext);  /* stores the max element limit */
 
     if (rc >= 0) {
         return 1; /* matched */
     } else {
         return 0; /* did not match */
     }
-
-    return rc;
 }
 
 /**
@@ -173,24 +178,23 @@ slapi_re_subs(Slapi_Regex *re_handle, const char *subject, const char *src, char
 int
 slapi_re_subs_ext(Slapi_Regex *re_handle, const char *subject, const char *src, char **dst, unsigned long dstlen, int filter)
 {
-    int thislen = 0;
-    /* was int, should match the type we compare to in the end! */
-    unsigned long len = 0;
-    int pin;
-    int *ovector;
+    PCRE2_SIZE thislen = 0;
+    PCRE2_SIZE len = 0;
+    int32_t pin;
+    PCRE2_SIZE *ovector;
     char *mydst;
     const char *prev;
     const char *substring_start;
     const char *p;
 
-    if (NULL == src || NULL == re_handle || NULL == re_handle->re_ovector) {
+    if (NULL == src || NULL == re_handle || NULL == re_handle->match_data) {
         memset(*dst, '\0', dstlen);
         return -1;
     } else if (NULL == dst || NULL == *dst || 0 == dstlen) {
         return -1;
     }
 
-    ovector = re_handle->re_ovector;
+    ovector = pcre2_get_ovector_pointer(re_handle->match_data);
     mydst = *dst;
     prev = src;
 
@@ -198,10 +202,6 @@ slapi_re_subs_ext(Slapi_Regex *re_handle, const char *subject, const char *src, 
         if ('&' == *p) {
             /* Don't replace '&' if it's a filter AND: "(&(cn=a)(sn=b))"  */
             if (!filter || !(*prev == '(' && *(p + 1) == '(')) {
-                if (re_handle->re_oveccount <= 1) {
-                    memset(*dst, '\0', dstlen);
-                    return -1;
-                }
                 substring_start = subject + ovector[0];
                 thislen = ovector[1] - ovector[0];
                 len += thislen;
@@ -213,7 +213,7 @@ slapi_re_subs_ext(Slapi_Regex *re_handle, const char *subject, const char *src, 
             }
         } else if (('\\' == *p) && ('0' <= *(p + 1) && *(p + 1) <= '9')) {
             pin = *(++p) - '0';
-            if (re_handle->re_oveccount <= 2 * pin + 1) {
+            if (OVEC_MATCH_LIMIT <= 2 * pin + 1) {
                 memset(*dst, '\0', dstlen);
                 return -1;
             }
@@ -226,7 +226,7 @@ slapi_re_subs_ext(Slapi_Regex *re_handle, const char *subject, const char *src, 
             len++;
         }
         if (len >= dstlen) {
-            int offset = mydst - *dst;
+            int32_t offset = mydst - *dst;
             dstlen = len * 2;
             *dst = (char *)slapi_ch_realloc(*dst, dstlen);
             mydst = *dst + offset;
@@ -236,6 +236,7 @@ slapi_re_subs_ext(Slapi_Regex *re_handle, const char *subject, const char *src, 
         prev = p;
     }
     *mydst = '\0';
+
     return 0;
 }
 
@@ -250,9 +251,14 @@ slapi_re_free(Slapi_Regex *re_handle)
 {
     if (re_handle) {
         if (re_handle->re_pcre) {
-            pcre_free(re_handle->re_pcre);
+            pcre2_code_free(re_handle->re_pcre);
         }
-        slapi_ch_free((void **)&re_handle->re_ovector);
+        if (re_handle->match_data) {
+            pcre2_match_data_free(re_handle->match_data);
+        }
+        if (re_handle->mcontext) {
+            pcre2_match_context_free(re_handle->mcontext);
+        }
         slapi_ch_free((void **)&re_handle);
     }
 }

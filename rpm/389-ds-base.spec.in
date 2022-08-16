@@ -83,7 +83,7 @@ BuildRequires:    lmdb-devel
 BuildRequires:    cyrus-sasl-devel
 BuildRequires:    icu
 BuildRequires:    libicu-devel
-BuildRequires:    pcre-devel
+BuildRequires:    pcre2-devel
 BuildRequires:    cracklib-devel
 BuildRequires:    json-c-devel
 %if %{use_clang}
@@ -120,6 +120,7 @@ BuildRequires: rust
 BuildRequires:    pkgconfig
 BuildRequires:    pkgconfig(systemd)
 BuildRequires:    pkgconfig(krb5)
+BuildRequires:    pkgconfig(libpcre2-8)
 # Needed to support regeneration of the autotool artifacts.
 BuildRequires:    autoconf
 BuildRequires:    automake

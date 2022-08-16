@@ -197,7 +197,7 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
     struct timespec expire_time = {0};
     Operation *op = NULL;
     Slapi_Regex *re = NULL;
-    const char *re_result = NULL;
+    char *re_result = NULL;
     char *alt = NULL;
     int filter_normalized = 0;
     int free_re = 1;
@@ -313,6 +313,7 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
             slapi_log_err(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
                           "string_filter_sub - re_comp (%s) failed (%s): %s\n",
                           pat, p, re_result ? re_result : "unknown");
+            slapi_ch_free_string(&re_result);
             rc = LDAP_OPERATIONS_ERROR;
             goto bailout;
         } else if (slapi_is_loglevel_set(SLAPI_LOG_TRACE)) {

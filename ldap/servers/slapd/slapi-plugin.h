@@ -7527,7 +7527,7 @@ typedef struct slapi_regex_handle Slapi_Regex;
  * the compiled pattern. NULL if the compile fails.
  * \warning The regex handler should be released by slapi_re_free().
  */
-Slapi_Regex *slapi_re_comp(const char *pat, const char **error);
+Slapi_Regex *slapi_re_comp(const char *pat, char **error);
 /**
  * Matches a compiled regular expression pattern against a given string.
  * A thin wrapper of pcre_exec.

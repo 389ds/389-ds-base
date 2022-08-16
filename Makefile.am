@@ -1993,7 +1993,6 @@ fixupcmd = sed \
 	-e 's,@db_libdir\@,$(db_libdir),g' \
 	-e 's,@db_bindir\@,$(db_bindir),g' \
 	-e 's,@netsnmp_libdir\@,$(netsnmp_libdir),g' \
-	-e 's,@pcre_libdir\@,$(pcre_libdir),g' \
 	-e 's,@propertydir\@,$(propertydir),g' \
 	-e 's,@datadir\@,$(datadir),g' \
 	-e 's,@schemadir\@,$(schemadir),g' \

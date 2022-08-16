@@ -914,6 +914,8 @@ def test_automemtask_re_build_task(topo, _create_all_entries, _startuptask, _fix
         'basedn': auto_mem_scope,
         'filter': "objectClass=posixAccount"
     })
+    time.sleep(10)
+
     # Search for any error logs
     assert not supplier.searchErrorsLog(error_string)
     for grp in (managers_grp, contract_grp):
@@ -1042,6 +1044,7 @@ def test_automemtask_re_build(topo, _create_all_entries, _startuptask, _fixture_
         'basedn': auto_mem_scope,
         'filter': "objectClass=inetOrgPerson"
     })
+    time.sleep(10)
     with pytest.raises(AssertionError):
         bulk_check_groups(supplier, managers_grp, "member", 10)
 
@@ -1121,7 +1124,7 @@ def test_automemtask_run_re_build(topo, _create_all_entries, _startuptask, _fixt
     AutomemberRebuildMembershipTask(supplier).create(properties={
         'basedn': auto_mem_scope,
         'filter': "objectClass=inetOrgPerson"})
-    time.sleep(2)
+    time.sleep(10)
     bulk_check_groups(supplier, managers_grp, "member", 10)
     AutoMembershipDefinition(supplier,
                              f'cn=userGroups,{PLUGIN_AUTO}').replace('autoMemberFilter',
