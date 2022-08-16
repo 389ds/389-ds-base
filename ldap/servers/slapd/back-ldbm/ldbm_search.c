@@ -208,7 +208,7 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg __attribute__((unused)))
         char *p, *end, *bigpat = NULL;
         size_t size = 0;
         Slapi_Regex *re = NULL;
-        const char *re_result = NULL;
+        char *re_result = NULL;
         int i = 0;
 
         PR_ASSERT(NULL == f->f_un.f_un_sub.sf_private);
@@ -262,6 +262,7 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg __attribute__((unused)))
         if (NULL == re) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_search_compile_filter", "re_comp (%s) failed (%s): %s\n",
                           pat, p, re_result ? re_result : "unknown");
+            slapi_ch_free_string(&re_result);
             rc = SLAPI_FILTER_SCAN_ERROR;
         } else {
             char ebuf[BUFSIZ];

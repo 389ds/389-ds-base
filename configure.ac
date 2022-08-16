@@ -847,14 +847,17 @@ if test "$krb5_vendor" = "MIT"; then
     LIBS="$save_LIBS"
 fi
 
-if $PKG_CONFIG --exists pcre; then
-    PKG_CHECK_MODULES([PCRE], [pcre])
-    pcre_libdir=`$PKG_CONFIG --libs-only-L pcre | sed -e s/-L// | sed -e s/\ .*$//`
-else
-    PKG_CHECK_MODULES([PCRE], [libpcre])
-    pcre_libdir=`$PKG_CONFIG --libs-only-L libpcre | sed -e s/-L// | sed -e s/\ .*$//`
-fi
-AC_SUBST(pcre_libdir)
+PKG_CHECK_MODULES(
+    [PCRE],
+    [libpcre2-8],
+    [
+        AC_DEFINE(
+            [PCRE2_CODE_UNIT_WIDTH],
+            8,
+            [Define libpcre2 unit size]
+        )
+    ]
+)
 
 m4_include(m4/selinux.m4)
 m4_include(m4/systemd.m4)

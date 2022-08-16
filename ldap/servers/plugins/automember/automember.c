@@ -1168,7 +1168,7 @@ automember_parse_regex_rule(char *rule_string)
     struct automemberRegexRule *rule = NULL;
     char *attr = NULL;
     Slapi_Regex *regex = NULL;
-    const char *recomp_result = NULL;
+    char *recomp_result = NULL;
     char *p = NULL;
     char *p2 = NULL;
 
@@ -1223,6 +1223,7 @@ automember_parse_regex_rule(char *rule_string)
                       "automember_parse_regex_rule - Unable to parse "
                       "regex rule (invalid regex).  Error \"%s\".\n",
                       recomp_result ? recomp_result : "unknown");
+        slapi_ch_free_string(&recomp_result);
         goto bail;
     }
 

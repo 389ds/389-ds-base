@@ -122,7 +122,7 @@ matches(const char *filename, const char *pattern)
 {
     Slapi_Regex *re = NULL;
     int match = 0;
-    const char *error = NULL;
+    char *error = NULL;
 
     if (!pattern)
         return 1; /* null pattern matches everything */
@@ -133,6 +133,8 @@ matches(const char *filename, const char *pattern)
         /* Matches the compiled pattern against the filename */
         match = slapi_re_exec_nt(re, filename);
         slapi_re_free(re);
+    } else {
+        slapi_ch_free_string(&error);
     }
 
     return match;
