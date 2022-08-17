@@ -56,9 +56,6 @@ SYSTEMTAP_DEFINES = @systemtap_defs@
 NSPR_INCLUDES = $(NSPR_CFLAGS)
 
 # Rust inclusions.
-if RUST_ENABLE
-# Rust enabled
-RUST_ON = 1
 CARGO_FLAGS = @cargo_defs@
 
 if CLANG_ENABLE
@@ -76,14 +73,6 @@ if RUST_ENABLE_OFFLINE
 RUST_OFFLINE = --locked --offline
 else
 RUST_OFFLINE =
-endif
-else
-# Rust disabled
-RUST_ON = 0
-CARGO_FLAGS =
-RUSTC_FLAGS =
-RUST_LDFLAGS =
-RUST_DEFINES =
 endif
 
 if CLANG_ENABLE
@@ -250,12 +239,8 @@ SLAPD_LDFLAGS = -version-info 1:0:1
 #------------------------
 # Generated Sources
 #------------------------
-BUILT_SOURCES = dberrstrs.h \
+BUILT_SOURCES = dberrstrs.h rust-slapi-private.h rust-nsslapd-private.h \
 	$(POLICY_FC)
-
-if RUST_ENABLE
-BUILT_SOURCES += rust-slapi-private.h rust-nsslapd-private.h
-endif
 
 if enable_posix_winsync
 LIBPOSIX_WINSYNC_PLUGIN = libposix-winsync-plugin.la
@@ -270,20 +255,14 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/ldif/template-ldapi.ldif ldap/ldif/template-locality.ldif ldap/ldif/template-org.ldif \
 	ldap/ldif/template-orgunit.ldif ldap/ldif/template-pampta.ldif ldap/ldif/template-sasl.ldif \
 	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif \
-	doxyfile.stamp \
+	doxyfile.stamp rust-slapi-private.h\
 	$(NULL)
-
-if RUST_ENABLE
-CLEANFILES += rust-slapi-private.h
-endif
 
 clean-local:
 	-rm -rf dist
 	-rm -rf $(abs_top_builddir)/html
 	-rm -rf $(abs_top_builddir)/man/man3
-if RUST_ENABLE
 	-rm -rf $(abs_top_builddir)/rs
-endif
 
 dberrstrs.h: Makefile $(srcdir)/ldap/servers/slapd/mkDBErrStrs.py  $(srcdir)/ldap/servers/slapd/back-ldbm/dbimpl.h
 	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.py -i $(srcdir)/ldap/servers/slapd/back-ldbm -o .
@@ -382,13 +361,8 @@ serverplugin_LTLIBRARIES = libacl-plugin.la \
 	libacctusability-plugin.la librootdn-access-plugin.la \
 	libwhoami-plugin.la $(LIBACCTPOLICY_PLUGIN) \
 	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) \
-	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN) $(LIBPOSIX_WINSYNC_PLUGIN)
-
-if RUST_ENABLE
-serverplugin_LTLIBRARIES += libentryuuid-plugin.la libentryuuid-syntax-plugin.la \
-	libpwdchan-plugin.la
-endif
-
+	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN) $(LIBPOSIX_WINSYNC_PLUGIN) \
+	libentryuuid-plugin.la libentryuuid-syntax-plugin.la libpwdchan-plugin.la
 
 noinst_LIBRARIES = libavl.a
 
@@ -683,11 +657,8 @@ systemschema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/60sudo.ldif \
 	$(srcdir)/ldap/schema/60trust.ldif \
 	$(srcdir)/ldap/schema/60nss-ldap.ldif \
+	$(srcdir)/ldap/schema/03entryuuid.ldif \
 	$(LIBACCTPOLICY_SCHEMA)
-
-if RUST_ENABLE
-systemschema_DATA += $(srcdir)/ldap/schema/03entryuuid.ldif
-endif
 
 schema_DATA = $(srcdir)/ldap/schema/99user.ldif
 
@@ -845,8 +816,6 @@ libsvrcore_la_SOURCES = \
 libsvrcore_la_LDFLAGS = $(AM_LDFLAGS)
 libsvrcore_la_CPPFLAGS = $(AM_CPPFLAGS) $(SVRCORE_INCLUDES) $(DSPLUGIN_CPPFLAGS)
 libsvrcore_la_LIBADD = $(NSS_LINK) $(NSPR_LINK)
-
-if RUST_ENABLE
 
 noinst_LTLIBRARIES = librslapd.la librnsslapd.la libentryuuid.la libentryuuid_syntax.la \
 	libpwdchan.la
@@ -1034,9 +1003,6 @@ check-local:
 endif
 endif
 
-# End if RUST_ENABLE
-endif
-
 #------------------------
 # libns-dshttpd
 #------------------------
@@ -1200,7 +1166,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	$(libavl_a_SOURCES)
 
 libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(DB_INC) $(KERBEROS_CFLAGS) $(PCRE_CFLAGS) $(SVRCORE_INCLUDES)
-libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LIBS) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LIBS) libsvrcore.la
+libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LIBS) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LIBS) libsvrcore.la $(RSLAPD_LIB)
 # If asan is enabled, it creates special libcrypt interceptors. However, they are
 # detected by the first load of libasan at runtime, and what is in the linked lib
 # so we need libcrypt to be present as soon as libasan is loaded for the interceptors
@@ -1209,14 +1175,7 @@ libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KER
 if enable_asan
 libslapd_la_LIBADD += $(LIBCRYPT)
 endif
-libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
-
-if RUST_ENABLE
-libslapd_la_LIBADD += $(RSLAPD_LIB)
-libslapd_la_LDFLAGS += -lssl -lcrypto
-endif
-
-
+libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS) -lssl -lcrypto
 
 #////////////////////////////////////////////////////////////////
 #
@@ -1481,7 +1440,6 @@ libderef_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libderef_plugin_la_DEPENDENCIES = libslapd.la
 libderef_plugin_la_LDFLAGS = -avoid-version
 
-if RUST_ENABLE
 #------------------------
 # libentryuuid-syntax-plugin
 #-----------------------
@@ -1505,7 +1463,6 @@ libpwdchan_plugin_la_SOURCES = src/slapi_r_plugin/src/init.c
 libpwdchan_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) -lpwdchan
 libpwdchan_plugin_la_DEPENDENCIES = libslapd.la $(PWDCHAN_LIB)
 libpwdchan_plugin_la_LDFLAGS = -avoid-version
-endif
 
 #------------------------
 # libpbe-plugin
@@ -1910,23 +1867,13 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(SVRCORE_INCLUDES) $(CFI_CFLAGS)
 # We need our libraries to come first, then our externals libraries second.
-ns_slapd_LDADD = libslapd.la libldaputil.la libsvrcore.la
-if RUST_ENABLE
-ns_slapd_LDADD += $(RNSSLAPD_LIB)
-endif
-ns_slapd_LDADD += $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
+ns_slapd_LDADD = libslapd.la libldaputil.la libsvrcore.la $(RNSSLAPD_LIB)
+
+ns_slapd_LDADD += $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) -lssl -lcrypto \
        $(NSPR_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LIBS) $(EVENT_LINK)
-if RUST_ENABLE
-ns_slapd_LDADD += -lssl -lcrypto
-endif
+
 ns_slapd_DEPENDENCIES = libslapd.la libldaputil.la
-# We need to link ns-slapd with the C++ compiler on HP-UX since we load
-# some C++ shared libraries (such as icu).
-if HPUX
-ns_slapd_LINK = $(CXXLINK)
-else
 ns_slapd_LINK = $(LINK)
-endif
 
 
 #------------------------
@@ -2023,7 +1970,6 @@ fixupcmd = sed \
 	-e 's,@enable_tsan\@,$(TSAN_ON),g' \
 	-e 's,@enable_ubsan\@,$(UBSAN_ON),g' \
 	-e 's,@SANITIZER\@,$(SANITIZER),g' \
-	-e 's,@enable_rust\@,@enable_rust@,g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \

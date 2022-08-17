@@ -25,8 +25,6 @@ TSAN_ON = 0
 # Undefined Behaviour Sanitizer
 UBSAN_ON = 0
 
-RUST_ON = 1
-
 COCKPIT_ON = 1
 
 clean:
@@ -101,7 +99,6 @@ rpmroot:
 	mkdir -p $(RPMBUILD)/SRPMS
 	sed -e s/__VERSION__/$(RPM_VERSION)/ -e s/__RELEASE__/$(RPM_RELEASE)/ \
 	-e s/__VERSION_PREREL__/$(VERSION_PREREL)/ \
-	-e s/__RUST_ON__/$(RUST_ON)/ \
 	-e s/__ASAN_ON__/$(ASAN_ON)/ \
 	-e s/__MSAN_ON__/$(MSAN_ON)/ \
 	-e s/__TSAN_ON__/$(TSAN_ON)/ \

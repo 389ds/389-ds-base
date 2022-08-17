@@ -95,12 +95,7 @@ AS_IF([test "$enable_rust_offline" = yes],
     [rust_vendor_sources="replace-with = \"vendored-sources\""],
     [rust_vendor_sources=""])
 AC_SUBST([rust_vendor_sources])
-
-AC_MSG_CHECKING(for --enable-rust)
-AC_ARG_ENABLE(rust, AS_HELP_STRING([--enable-rust], [Enable rust language features (default: no)]),
-              [], [ enable_rust=no ])
-AC_MSG_RESULT($enable_rust)
-if test "$enable_rust" = yes -o "$enable_rust_offline" = yes; then
+if test "$enable_rust_offline" = yes; then
     AC_CHECK_PROG(CARGO, [cargo], [yes], [no])
     AC_CHECK_PROG(RUSTC, [rustc], [yes], [no])
     # Since fernet uses the openssl lib.
@@ -110,8 +105,6 @@ if test "$enable_rust" = yes -o "$enable_rust_offline" = yes; then
       AC_MSG_FAILURE("Rust based plugins cannot be built cargo=$CARGO rustc=$RUSTC")
     ])
 fi
-AC_SUBST([enable_rust])
-AM_CONDITIONAL([RUST_ENABLE],[test "$enable_rust" = yes -o "$enable_rust_offline" = yes])
 
 # Optional cockpit support (enabled by default)
 AC_MSG_CHECKING(for --enable-cockpit)

@@ -274,18 +274,9 @@ pw_name2scheme(char *name)
     typedef char *(*ENCFP)(char *);
 
     if (name == NULL || strcmp(DEFAULT_PASSWORD_SCHEME_NAME, name) == 0) {
-        /*
-         * If the name is DEFAULT, we need to get a scheme based on env and others.
-         */
-        if (slapd_pk11_isFIPS()) {
-            /* Are we in fips mode? This limits algos we have */
-            char *ssha = "SSHA512";
-            p = plugin_get_pwd_storage_scheme(ssha, strlen(ssha), PLUGIN_LIST_PWD_STORAGE_SCHEME);
-        } else {
-            /* if not, let's setup pbkdf2 */
-            char *pbkdf = "PBKDF2_SHA256";
-            p = plugin_get_pwd_storage_scheme(pbkdf, strlen(pbkdf), PLUGIN_LIST_PWD_STORAGE_SCHEME);
-        }
+         /* default scheme */
+         char *pbkdf = "PBKDF2-SHA512";
+         p = plugin_get_pwd_storage_scheme(pbkdf, strlen(pbkdf), PLUGIN_LIST_PWD_STORAGE_SCHEME);
     } else {
         /*
          * Else, get the scheme "as named".

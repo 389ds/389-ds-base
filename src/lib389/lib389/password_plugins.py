@@ -31,7 +31,7 @@ class PasswordPlugin(Plugin):
         self._protected = True
 
 class PBKDF2Plugin(PasswordPlugin):
-    def __init__(self, instance, dn="cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config"):
+    def __init__(self, instance, dn="cn=PBKDF2-SHA256,cn=Password Storage Schemes,cn=plugins,cn=config"):
         super(PBKDF2Plugin, self).__init__(instance, dn)
 
 

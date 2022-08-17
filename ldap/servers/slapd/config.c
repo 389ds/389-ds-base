@@ -40,16 +40,15 @@ char *rel2abspath(char *);
  * see fedse.c instead!
  */
 static char *bootstrap_plugins[] = {
-    "dn: cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+    "dn: cn=PBKDF2-SHA512,cn=Password Storage Schemes,cn=plugins,cn=config\n"
     "objectclass: top\n"
     "objectclass: nsSlapdPlugin\n"
-    "cn: PBKDF2_SHA256\n"
-    "nsslapd-pluginpath: libpwdstorage-plugin\n"
-    "nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init\n"
+    "cn: PBKDF2-SHA512\n"
+    "nsslapd-pluginpath: libpwdchan-plugin\n"
+    "nsslapd-plugininitfunc: pwdchan_pbkdf2_sha512_plugin_init\n"
     "nsslapd-plugintype: pwdstoragescheme\n"
-    "nsslapd-pluginenabled: on",
+    "nsslapd-pluginenabled: on\n",
 
-#ifdef RUST_ENABLE
     "dn: cn=entryuuid_syntax,cn=plugins,cn=config\n"
     "objectclass: top\n"
     "objectclass: nsSlapdPlugin\n"
@@ -62,7 +61,6 @@ static char *bootstrap_plugins[] = {
     "nsslapd-pluginVersion: none\n"
     "nsslapd-pluginVendor: 389 Project\n"
     "nsslapd-pluginDescription: entryuuid_syntax\n",
-#endif
 
     NULL
 };
