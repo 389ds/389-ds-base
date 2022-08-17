@@ -15,11 +15,8 @@
 
 #include <stdio.h>
 #include "slap.h"
-
-/* If available, expose rust types. */
-#ifdef RUST_ENABLE
 #include <rust-nsslapd-private.h>
-#endif
+
 
 static const char *extended_op_oid2string(const char *oid);
 
@@ -206,8 +203,6 @@ extop_handle_import_done(Slapi_PBlock *pb, char *extoid __attribute__((unused)),
     return;
 }
 
-
-#ifdef RUST_ENABLE
 static void
 extop_handle_ldapssotoken_request(Slapi_PBlock *pb, char *extoid __attribute__((unused)), struct berval *extval) {
     BerElement *ber = NULL;
@@ -258,8 +253,6 @@ extop_handle_ldapssotoken_request(Slapi_PBlock *pb, char *extoid __attribute__((
     ber_bvfree(bvp);
     return;
 }
-#endif
-
 
 void
 do_extended(Slapi_PBlock *pb)
@@ -411,7 +404,6 @@ do_extended(Slapi_PBlock *pb)
      * Auth tokens are generated outside of transactions, and are just part of the
      * main server, so we do it now before consulting plugins - WB
      */
-#ifdef RUST_ENABLE
     if (strcmp(extoid, EXTOP_LDAPSSOTOKEN_REQUEST_OID) == 0 && config_get_enable_ldapssotoken()) {
         /*
          * We want to generate an auth token for this user.
@@ -433,7 +425,6 @@ do_extended(Slapi_PBlock *pb)
             goto free_and_return;
         }
     }
-#endif
 
     rc = plugin_determine_exop_plugins(extoid, &p);
     slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "Plugin_determine_exop_plugins rc %d\n", rc);

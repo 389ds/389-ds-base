@@ -25,10 +25,8 @@
 #endif
 #include "slap.h"
 #include "fe.h"
-
-#ifdef RUST_ENABLE
 #include <rust-nsslapd-private.h>
-#endif
+
 
 int
 pw_verify_root_dn(const char *dn, const Slapi_Value *cred)
@@ -100,7 +98,6 @@ pw_verify_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
 int32_t
 pw_verify_token_dn(Slapi_PBlock *pb) {
     int rc = SLAPI_BIND_FAIL;
-#ifdef RUST_ENABLE
     struct berval *cred = NULL;
     Slapi_DN *sdn = NULL;
 
@@ -122,7 +119,7 @@ pw_verify_token_dn(Slapi_PBlock *pb) {
         rc = SLAPI_BIND_SUCCESS;
     }
     slapi_ch_free_string(&key);
-#endif
+
     return rc;
 }
 

@@ -25,9 +25,6 @@
 %global use_tsan __TSAN_ON__
 %global use_ubsan __UBSAN_ON__
 
-# This enables rust in the build.
-%global use_rust __RUST_ON__
-
 %if %{use_asan} || %{use_msan} || %{use_tsan} || %{use_ubsan}
 %global variant base-xsan
 %endif
@@ -112,11 +109,8 @@ BuildRequires:    openssl-devel
 BuildRequires:    pam-devel
 BuildRequires:    systemd-units
 BuildRequires:    systemd-devel
-# If rust is enabled
-%if %{use_rust}
-BuildRequires: cargo
-BuildRequires: rust
-%endif
+BuildRequires:    cargo
+BuildRequires:    rust
 BuildRequires:    pkgconfig
 BuildRequires:    pkgconfig(systemd)
 BuildRequires:    pkgconfig(krb5)
@@ -352,9 +346,7 @@ TSAN_FLAGS="--enable-tsan --enable-debug"
 UBSAN_FLAGS="--enable-ubsan --enable-debug"
 %endif
 
-%if %{use_rust}
 RUST_FLAGS="--enable-rust --enable-rust-offline"
-%endif
 
 %if !%{use_cockpit}
 COCKPIT_FLAGS="--disable-cockpit"

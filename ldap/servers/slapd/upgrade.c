@@ -22,12 +22,9 @@
  * or altered.
  */
 
-#ifdef RUST_ENABLE
 static char *modifier_name = "cn=upgrade internal,cn=config";
-#endif
 static char *old_repl_plugin_name = NULL;
 
-#ifdef RUST_ENABLE
 static upgrade_status
 upgrade_entry_exists_or_create(char *upgrade_id, char *filter, char *dn, char *entry)
 {
@@ -46,7 +43,6 @@ upgrade_entry_exists_or_create(char *upgrade_id, char *filter, char *dn, char *e
     slapi_sdn_free(&base_sdn);
     return uresult;
 }
-#endif
 
 /*
  * Add the new replication bootstrap bind DN password attribute to the AES
@@ -102,7 +98,6 @@ upgrade_AES_reverpwd_plugin(void)
     return uresult;
 }
 
-#ifdef RUST_ENABLE
 static upgrade_status
 upgrade_143_entryuuid_exists(void)
 {
@@ -126,7 +121,6 @@ upgrade_143_entryuuid_exists(void)
         entry
     );
 }
-#endif
 
 static upgrade_status
 upgrade_144_remove_http_client_presence(void)
@@ -288,11 +282,9 @@ upgrade_205_fixup_repl_dep(void)
 upgrade_status
 upgrade_server(void)
 {
-#ifdef RUST_ENABLE
     if (upgrade_143_entryuuid_exists() != UPGRADE_SUCCESS) {
         return UPGRADE_FAILURE;
     }
-#endif
 
     if (upgrade_AES_reverpwd_plugin() != UPGRADE_SUCCESS) {
         return UPGRADE_FAILURE;

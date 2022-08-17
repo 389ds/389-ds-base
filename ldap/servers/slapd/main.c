@@ -2952,7 +2952,7 @@ slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt, int s_por
         slapi_log_err(SLAPI_LOG_WARNING, "slapd_do_all_nss_ssl_init",
                       "ERROR: TLS is not enabled, and the machine is in FIPS mode. "
                       "Some functionality won't work correctly (for example, "
-                      "users with PBKDF2_SHA256 password scheme won't be able to log in). "
+                      "users with PBKDF2-SHA256 password scheme won't be able to log in). "
                       "It's highly advisable to enable TLS on this instance.\n");
     }
 

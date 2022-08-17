@@ -16,6 +16,7 @@ Usage example
         'SSHA256',
         'SSHA512',
         'PBKDF2_SHA256',
+        'PBKDF2-SHA256',
     ]
      
     # Generate password

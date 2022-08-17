@@ -133,10 +133,7 @@
 #include <malloc.h>
 #endif
 #include <sys/resource.h>
-
-#ifdef RUST_ENABLE
 #include <rust-slapi-private.h>
-#endif
 
 
 #define REMOVE_CHANGELOG_CMD "remove"
@@ -1386,7 +1383,6 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.enable_ldapssotoken,
      CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_ldapssotoken, &init_enable_ldapssotoken, NULL},
-#ifdef RUST_ENABLE
     {CONFIG_LDAPSSOTOKEN_SECRET, config_set_ldapssotoken_secret,
      NULL, 0,
      NULL,
@@ -1397,7 +1393,6 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.ldapssotoken_ttl,
      CONFIG_INT, NULL, SLAPD_DEFAULT_LDAPSSOTOKEN_TTL_STR, NULL},
-#endif
     {CONFIG_TCP_FIN_TIMEOUT, config_set_tcp_fin_timeout,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.tcp_fin_timeout, CONFIG_INT,
@@ -1697,10 +1692,9 @@ FrontendConfig_init(void)
     struct rlimit rlp;
     int64_t maxdescriptors = SLAPD_DEFAULT_MAXDESCRIPTORS;
 
-#ifdef RUST_ENABLE
     /* prove rust is working */
     PR_ASSERT(do_nothing_rust() == 0);
-#endif
+
 
 #if SLAPI_CFG_USE_RWLOCK == 1
     /* initialize the read/write configuration lock */
@@ -1976,13 +1970,10 @@ FrontendConfig_init(void)
      * Default to enabled ldapssotoken, but if no secret is given we generate one
      * randomly each startup.
      */
-#ifdef RUST_ENABLE
     init_enable_ldapssotoken = cfg->enable_ldapssotoken = LDAP_ON;
     cfg->ldapssotoken_secret = fernet_generate_new_key();
     cfg->ldapssotoken_ttl = SLAPD_DEFAULT_LDAPSSOTOKEN_TTL;
-#else
-    init_enable_ldapssotoken = cfg->enable_ldapssotoken = LDAP_OFF;
-#endif
+
     cfg->tcp_fin_timeout = SLAPD_DEFAULT_TCP_FIN_TIMEOUT;
     cfg->tcp_keepalive_time = SLAPD_DEFAULT_TCP_KEEPALIVE_TIME;
 
@@ -8463,15 +8454,12 @@ int32_t
 config_get_enable_ldapssotoken()
 {
     int32_t retVal;
-#ifdef RUST_ENABLE
+
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     CFG_LOCK_READ(slapdFrontendConfig);
     retVal = slapdFrontendConfig->enable_ldapssotoken;
     CFG_UNLOCK_READ(slapdFrontendConfig);
-#else
-    /* Always disabled if rust is not compiled in */
-    retVal = 0;
-#endif
+
     return retVal;
 }
 
@@ -8503,7 +8491,6 @@ config_get_ldapssotoken_secret()
 int32_t
 config_set_ldapssotoken_secret(const char *attrname, char *value, char *errorbuf, int apply)
 {
-#ifdef RUST_ENABLE
     if (config_get_enable_ldapssotoken() == 0) {
         return LDAP_OPERATIONS_ERROR;
     }
@@ -8530,9 +8517,6 @@ config_set_ldapssotoken_secret(const char *attrname, char *value, char *errorbuf
 
     CFG_UNLOCK_WRITE(slapdFrontendConfig);
     return retVal;
-#else
-    return LDAP_OPERATIONS_ERROR;
-#endif
 }
 
 int32_t
