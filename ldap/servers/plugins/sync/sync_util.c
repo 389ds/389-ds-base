@@ -775,6 +775,8 @@ sync_cookie_parse(char *cookie, PRBool *cookie_refresh, PRBool *allow_openldap_c
             } else {
                 goto error_return;
             }
+        } else {
+            goto error_return;
         }
     }
     return (sc);
