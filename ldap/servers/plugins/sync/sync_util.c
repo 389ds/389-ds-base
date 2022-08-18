@@ -546,6 +546,8 @@ sync_cookie_parse(char *cookie)
         } else {
             goto error_return;
         }
+    } else {
+            goto error_return;
     }
     return (sc);
 error_return:
