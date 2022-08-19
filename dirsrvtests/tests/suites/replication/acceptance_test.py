@@ -132,9 +132,17 @@ def test_modify_entry(topo_m4, create_entry):
 
     log.info('Modifying entry {} - add operation'.format(TEST_ENTRY_DN))
 
+    m1 = topo_m4.ms["supplier1"]
+    m2 = topo_m4.ms["supplier2"]
+    m3 = topo_m4.ms["supplier3"]
+    m4 = topo_m4.ms["supplier4"]
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
     test_user = UserAccount(topo_m4.ms["supplier1"], TEST_ENTRY_DN)
     test_user.add('mail', '{}@redhat.com'.format(TEST_ENTRY_NAME))
-    time.sleep(sleep_time)
+    repl.wait_for_replication(m1, m2)
+    repl.wait_for_replication(m1, m3)
+    repl.wait_for_replication(m1, m4)
 
     all_user = topo_m4.all_get_dsldapobject(TEST_ENTRY_DN, UserAccount)
     for u in all_user:
@@ -142,7 +150,9 @@ def test_modify_entry(topo_m4, create_entry):
 
     log.info('Modifying entry {} - replace operation'.format(TEST_ENTRY_DN))
     test_user.replace('mail', '{}@greenhat.com'.format(TEST_ENTRY_NAME))
-    time.sleep(sleep_time)
+    repl.wait_for_replication(m1, m2)
+    repl.wait_for_replication(m1, m3)
+    repl.wait_for_replication(m1, m4)
 
     all_user = topo_m4.all_get_dsldapobject(TEST_ENTRY_DN, UserAccount)
     for u in all_user:
@@ -150,7 +160,9 @@ def test_modify_entry(topo_m4, create_entry):
 
     log.info('Modifying entry {} - delete operation'.format(TEST_ENTRY_DN))
     test_user.remove('mail', '{}@greenhat.com'.format(TEST_ENTRY_NAME))
-    time.sleep(sleep_time)
+    repl.wait_for_replication(m1, m2)
+    repl.wait_for_replication(m1, m3)
+    repl.wait_for_replication(m1, m4)
 
     all_user = topo_m4.all_get_dsldapobject(TEST_ENTRY_DN, UserAccount)
     for u in all_user:
