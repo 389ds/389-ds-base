@@ -341,8 +341,12 @@ def test_double_delete(topo_m2, create_entry):
     log.info('Deleting entry {} from supplier1'.format(create_entry.dn))
     topo_m2.ms["supplier1"].delete_s(create_entry.dn)
 
-    log.info('Deleting entry {} from supplier2'.format(create_entry.dn))
-    topo_m2.ms["supplier2"].delete_s(create_entry.dn)
+    try:
+        log.info('Deleting entry {} from supplier2'.format(create_entry.dn))
+        topo_m2.ms["supplier2"].delete_s(create_entry.dn)
+    except ldap.NO_SUCH_OBJECT:
+        # replication was too fast (DEBUGGING is probably set)
+        pass
 
     repl.enable_to_supplier(m2, [m1])
     repl.enable_to_supplier(m1, [m2])
@@ -914,8 +918,9 @@ def test_keepalive_entries(topo_m2):
     keep_alive_s1 = str(entries[0].data['keepalivetimestamp'])
     keep_alive_s2 = str(entries[1].data['keepalivetimestamp'])
 
-    # Wait for event interval (60 secs) to pass
-    time.sleep(61)
+    # Wait for event interval (60 secs) to pass, but first update doesn't
+    # start until 30 seconds after startup
+    time.sleep(91)
 
     # Check keep alives entries have been updated
     entries = verify_keepalive_entries(topo_m2, True);
