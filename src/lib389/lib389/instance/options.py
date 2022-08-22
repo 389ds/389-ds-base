@@ -136,7 +136,7 @@ class General2Base(Options2):
 
         self._options['start'] = True
         self._type['start'] = bool
-        self._helptext['start'] = "Starts the instance after the install completes. If false, the instance is created but started."
+        self._helptext['start'] = "Starts the instance after the install completes. If false, the instance is created but not started."
 
         self._options['defaults'] = INSTALL_LATEST_CONFIG
         self._type['defaults'] = str
