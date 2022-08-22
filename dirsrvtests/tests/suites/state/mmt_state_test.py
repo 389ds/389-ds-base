@@ -36,12 +36,17 @@ def _check_user_oper_attrs(topo, tuser, attr_name, attr_value, oper_type, exp_va
     log.info('Checking if operational attrs vucsn, adcsn and vdcsn present for: {}'.format(tuser))
     entry = topo.ms["supplier1"].search_s(tuser.dn, ldap.SCOPE_BASE, 'objectclass=*',['nscpentrywsi'])
     if oper_attr:
+        match = False
         for line in str(entry).split('\n'):
-            if attr_name + ';' in line:
+            if attr_name.lower() + ';' in line.lower():
+                match = True
                 if not 'DELETE' in oper_type:
                     assert any(attr in line for attr in exp_values) and oper_attr in line
                 else:
-                    assert 'deleted' in line and oper_attr in line and attr_value in line
+                    assert 'deleted' in line and oper_attr in line
+
+        # If we didn't look at a single attribute then something went wrong
+        assert match
 
 
 @pytest.mark.parametrize("attr_name, attr_value, oper_type, exp_values, oper_attr",

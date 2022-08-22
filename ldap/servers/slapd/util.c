@@ -1735,4 +1735,5 @@ void dup_ldif_line(struct berval *copy, const char *line, const char *endline)
         pt += 2;        /* Skip \n and continuation line space */
     }
     buf[pos] = 0;
+    copy->bv_len = copylen;
 }
