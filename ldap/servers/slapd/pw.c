@@ -279,7 +279,11 @@ pw_name2scheme(char *name)
             p = plugin_get_pwd_storage_scheme(ssha, strlen(ssha), PLUGIN_LIST_PWD_STORAGE_SCHEME);
         } else {
             /* if not, let's setup pbkdf2 */
+#ifdef RUST_ENABLE
+            char *pbkdf = "PBKDF2-SHA512";
+#else
             char *pbkdf = "PBKDF2_SHA256";
+#endif
             p = plugin_get_pwd_storage_scheme(pbkdf, strlen(pbkdf), PLUGIN_LIST_PWD_STORAGE_SCHEME);
         }
     } else {
