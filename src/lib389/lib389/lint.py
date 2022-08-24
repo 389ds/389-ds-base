@@ -94,7 +94,7 @@ designed to be *fast* to validate. This is the opposite of what we desire for pa
 storage. In the unlikely event of a disclosure, you want hashes to be *difficult* to
 verify, as this adds a cost of work to an attacker.
 
-In Directory Server, we offer one hash suitable for this (PBKDF2_SHA256) and one hash
+In Directory Server, we offer one hash suitable for this (PBKDF2-SHA512) and one hash
 for "legacy" support (SSHA512).
 
 Your configuration does not use these for password storage or the root password storage
@@ -110,7 +110,7 @@ is started, they will use the server provided defaults that are secure.
 
 You can also use 'dsconf' to replace these values.  Here is an example:
 
-    # dsconf slapd-YOUR_INSTANCE config replace passwordStorageScheme=PBKDF2_SHA256 nsslapd-rootpwstoragescheme=PBKDF2_SHA256"""
+    # dsconf slapd-YOUR_INSTANCE config replace passwordStorageScheme=PBKDF2-SHA512 nsslapd-rootpwstoragescheme=PBKDF2-SHA512"""
 }
 
 # Security checks
