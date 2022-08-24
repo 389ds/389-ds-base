@@ -85,7 +85,7 @@ def test_healthcheck_insecure_pwd_hash_configured(topology_st):
         2. Configure an insecure passwordStorageScheme (as SHA) for the instance
         3. Use HealthCheck without --json option
         4. Use HealthCheck with --json option
-        5. Set passwordStorageScheme and nsslapd-rootpwstoragescheme to PBKDF2_SHA256
+        5. Set passwordStorageScheme and nsslapd-rootpwstoragescheme to PBKDF2-SHA512
         6. Use HealthCheck without --json option
         7. Use HealthCheck with --json option
     :expectedresults:
@@ -113,9 +113,9 @@ def test_healthcheck_insecure_pwd_hash_configured(topology_st):
         standalone.config.set('passwordStorageScheme', 'SSHA512')
         standalone.config.set('nsslapd-rootpwstoragescheme', 'SSHA512')
     else:
-        log.info('Set passwordStorageScheme and nsslapd-rootpwstoragescheme to PBKDF2_SHA256')
-        standalone.config.set('passwordStorageScheme', 'PBKDF2_SHA256')
-        standalone.config.set('nsslapd-rootpwstoragescheme', 'PBKDF2_SHA256')
+        log.info('Set passwordStorageScheme and nsslapd-rootpwstoragescheme to PBKDF2-SHA512')
+        standalone.config.set('passwordStorageScheme', 'PBKDF2-SHA512')
+        standalone.config.set('nsslapd-rootpwstoragescheme', 'PBKDF2-SHA512')
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
