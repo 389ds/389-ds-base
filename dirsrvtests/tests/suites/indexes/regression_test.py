@@ -154,9 +154,9 @@ def test_reindex_task_creates_abandoned_index_file(topo):
 
     backend.reindex()
     time.sleep(3)
-    assert os.path.exists(f"{inst.ds_paths.db_home_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
+    assert os.path.exists(f"{inst.ds_paths.db_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
     index.delete()
-    assert not os.path.exists(f"{inst.ds_paths.db_home_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
+    assert not os.path.exists(f"{inst.ds_paths.db_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
 
     index = indexes.create(properties={
         'cn': attr_name,
@@ -166,8 +166,8 @@ def test_reindex_task_creates_abandoned_index_file(topo):
 
     backend.reindex()
     time.sleep(3)
-    assert not os.path.exists(f"{inst.ds_paths.db_home_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
-    assert os.path.exists(f"{inst.ds_paths.db_home_dir}/{DEFAULT_BENAME}/{attr_name}.db")
+    assert not os.path.exists(f"{inst.ds_paths.db_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
+    assert os.path.exists(f"{inst.ds_paths.db_dir}/{DEFAULT_BENAME}/{attr_name}.db")
 
     entries = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, f"{attr_name}={attr_value}")
     assert len(entries) > 0
@@ -177,8 +177,8 @@ def test_reindex_task_creates_abandoned_index_file(topo):
 
     backend.reindex()
     time.sleep(3)
-    assert not os.path.exists(f"{inst.ds_paths.db_home_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
-    assert os.path.exists(f"{inst.ds_paths.db_home_dir}/{DEFAULT_BENAME}/{attr_name}.db")
+    assert not os.path.exists(f"{inst.ds_paths.db_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
+    assert os.path.exists(f"{inst.ds_paths.db_dir}/{DEFAULT_BENAME}/{attr_name}.db")
 
 
 if __name__ == "__main__":
