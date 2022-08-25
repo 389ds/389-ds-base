@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 William Brown <william@blackhats.net.au>
+# Copyright (C) 2022 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,6 +8,7 @@
 #
 
 import pytest
+import time
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.topologies import topology_m2
 
@@ -154,6 +155,7 @@ def test_rename_large_subtree(topology_m2):
         # Move ou=s1 to ou=account as parent. We have to provide the rdn,
         # even though it's not changing.
         ou_s1.rename('ou=s1', newsuperior=ou_account.dn)
+        time.sleep(2)
 
         members = group.get_attr_vals_utf8('member')
         assert len(members) == UCOUNT
@@ -163,6 +165,7 @@ def test_rename_large_subtree(topology_m2):
 
         # Now move it back
         ou_s1.rename('ou=s1', newsuperior=ou_int.dn)
+        time.sleep(2)
         members = group.get_attr_vals_utf8('member')
         assert len(members) == UCOUNT
         for member in members:

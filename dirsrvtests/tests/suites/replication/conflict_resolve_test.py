@@ -802,7 +802,7 @@ class TestTwoSuppliers:
         user_1 = test_users_m1.create_test_user(uid=1000)
         test_users_m2 = UserAccount(M2, user_1.dn)
         # Waiting fo the user to be replicated
-        for i in range(0,4):
+        for i in range(0,10):
             time.sleep(1)
             if test_users_m2.exists():
                 break
@@ -890,7 +890,7 @@ class TestTwoSuppliers:
         test_users_m2 = UserAccount(M2, user_1.dn)
 
         # Waiting fo the user to be replicated
-        for i in range(0,4):
+        for i in range(0,10):
             time.sleep(1)
             if test_users_m2.exists():
                 break
