@@ -688,7 +688,7 @@ export class Replication extends React.Component {
                     }, this.loadLDIFs);
 
                     cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
-                        'replication', 'get-changelog', '--suffix', suffix];
+                        'replication', 'get-changelog'];
                     log_cmd("loadReplSuffix", "Load the replication info", cmd);
                     cockpit
                             .spawn(cmd, { superuser: true, err: "message" })
