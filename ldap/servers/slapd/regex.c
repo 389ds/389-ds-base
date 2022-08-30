@@ -21,7 +21,6 @@ struct slapi_regex_handle
 {
     pcre2_code *re_pcre;
     pcre2_match_data *match_data; /* Contains the output vector */
-    pcre2_match_context *mcontext; /* Stores the max element limit */
 };
 
 /**
@@ -88,19 +87,13 @@ slapi_re_exec(Slapi_Regex *re_handle, const char *subject, time_t time_up)
     }
     re_handle->match_data = pcre2_match_data_create_from_pattern(re_handle->re_pcre, NULL);
 
-    if (re_handle->mcontext == NULL) {
-        re_handle->mcontext = pcre2_match_context_create(NULL);
-        pcre2_set_match_limit(re_handle->mcontext, OVEC_MATCH_LIMIT);
-    }
-
-
     rc = pcre2_match(re_handle->re_pcre,    /* the compiled pattern */
                      (PCRE2_SPTR)subject,   /* the subject string */
                      strlen(subject),       /* the length of the subject */
                      0,                     /* start at offset 0 in the subject */
                      0,                     /* default options */
                      re_handle->match_data, /* contains the resulting output vector */
-                     re_handle->mcontext);  /* stores the max element limit */
+                     NULL);                 /* stores the match context */
 
     if (rc >= 0) {
         return 1; /* matched */
@@ -138,17 +131,13 @@ slapi_re_exec_nt(Slapi_Regex *re_handle, const char *subject)
     }
     re_handle->match_data = pcre2_match_data_create_from_pattern(re_handle->re_pcre, NULL);
 
-    if (re_handle->mcontext == NULL) {
-        re_handle->mcontext = pcre2_match_context_create(NULL);
-        pcre2_set_match_limit(re_handle->mcontext, OVEC_MATCH_LIMIT);
-    }
     rc = pcre2_match(re_handle->re_pcre,    /* the compiled pattern */
                      (PCRE2_SPTR)subject,   /* the subject string */
                      strlen(subject),       /* the length of the subject */
                      0,                     /* start at offset 0 in the subject */
                      0,                     /* default options */
                      re_handle->match_data, /* contains the resulting output vector */
-                     re_handle->mcontext);  /* stores the max element limit */
+                     NULL);                 /* stores the match context */
 
     if (rc >= 0) {
         return 1; /* matched */
@@ -255,9 +244,6 @@ slapi_re_free(Slapi_Regex *re_handle)
         }
         if (re_handle->match_data) {
             pcre2_match_data_free(re_handle->match_data);
-        }
-        if (re_handle->mcontext) {
-            pcre2_match_context_free(re_handle->mcontext);
         }
         slapi_ch_free((void **)&re_handle);
     }
