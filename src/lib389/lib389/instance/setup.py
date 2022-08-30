@@ -44,6 +44,7 @@ from lib389.utils import (
     get_default_db_lib,
     normalizeDN,
     socket_check_open,
+    selinux_label_file,
     selinux_label_port,
     selinux_restorecon,
     selinux_present)
@@ -946,11 +947,25 @@ class SetupDs(object):
         # Do selinux fixups
         if general['selinux']:
             self.log.info("Perform SELinux labeling ...")
-            selinux_paths = ('backup_dir', 'cert_dir', 'config_dir', 'db_dir',
-                             'ldif_dir', 'lock_dir', 'log_dir', 'db_home_dir',
-                             'run_dir', 'schema_dir', 'tmp_dir')
-            for path in selinux_paths:
-                selinux_restorecon(slapd[path])
+            # Since there may be some custom path, we must explicitly set the labels
+            selinux_labels = {
+                                'backup_dir': 'dirsrv_var_lib_t',
+                                'cert_dir': 'dirsrv_config_t',
+                                'config_dir': 'dirsrv_config_t',
+                                'db_dir': 'dirsrv_var_lib_t',
+                                'ldif_dir': 'dirsrv_var_lib_t',
+                                'lock_dir': 'dirsrv_var_lock_t',
+                                'log_dir': 'dirsrv_var_log_t',
+                                'db_home_dir': 'dirsrv_tmpfs_t',
+                                'run_dir': 'dirsrv_var_run_t',
+                                'schema_dir': 'dirsrv_config_t',
+                                'tmp_dir': 'tmp_t',
+            }
+            # Lets sort the paths to avoid overriding the labels if path are nested.
+            selinux_sorted_labels = sorted( ( (slapd[key], label) for key, label in selinux_labels.items() ) )
+            for path, label in selinux_sorted_labels:
+                selinux_label_file(path, label)
+                selinux_restorecon(path)
 
             selinux_label_port(slapd['port'])
 

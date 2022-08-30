@@ -9,6 +9,7 @@ import sys
 import pytest
 import subprocess
 import logging
+import grp
 import pwd
 import re
 from tempfile import TemporaryDirectory
@@ -168,6 +169,81 @@ def test_setup_ds_minimal(topology):
     # Okay, actually remove the instance
     remove_ds_instance(topology.standalone)
 
+
+@pytest.mark.skipif(os.getuid()!=0, reason="pytest non run by root user")
+def test_setup_ds_custom_db_dir(topology):
+    """Test DS setup using custom uid,gid and db_dir path
+
+    :id: 5a596887-cabb-4862-a91c-5eedafe222cd
+    :setup: standalone instance
+    :steps:
+        1. Create the user that will run ns-slapd
+        2. Create the setupDS
+        3. Give it the right types
+        4. Get the dicts from Type2Base, as though they were from _validate_ds_2_config
+        5. Override instance name, root password, port, secure port, user, group and dir_path
+        7. Assert we did change the system
+        8. Make sure we can connect
+        9. Make sure we can start stop.
+        10. Remove the instance
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+    """
+  # Add linux user NON_ROOT_USER if it does not already exist
+    CUSTOM_USER='ldapsrv1'
+    try:
+        pwd_cu = pwd.getpwnam(CUSTOM_USER)
+    except KeyError:
+        subprocess.run(('/usr/sbin/useradd', CUSTOM_USER), check=True)
+        pwd_cu = pwd.getpwnam(CUSTOM_USER)
+    grp_cu = grp.getgrgid(pwd_cu.pw_gid)
+    log.info(f'Custom user: {pwd_cu} {grp_cu}')
+
+    # Create the setupDs
+    lc = LogCapture()
+    # Give it the right types.
+    sds = SetupDs(verbose=DEBUGGING, dryrun=False, log=lc.log)
+
+    # Get the dicts from Type2Base, as though they were from _validate_ds_2_config
+    # IE get the defaults back just from Slapd2Base.collect
+    # Override instance name, root password, port and secure port.
+
+    general_options = General2Base(lc.log)
+    general_options.verify()
+    general = general_options.collect()
+
+    slapd_options = Slapd2Base(lc.log)
+    slapd_options.set('instance_name', INSTANCE_SERVERID)
+    slapd_options.set('port', INSTANCE_PORT)
+    slapd_options.set('secure_port', INSTANCE_SECURE_PORT)
+    slapd_options.set('root_password', PW_DM)
+    slapd_options.set('user', pwd_cu.pw_name)
+    slapd_options.set('group', grp_cu.gr_name)
+    slapd_options.set('db_dir', f'{os.getenv("PREFIX", "")}/mydirsrv/db')
+    slapd_options.verify()
+    slapd = slapd_options.collect()
+
+    sds.create_from_args(general, slapd, {}, None)
+    insts = topology.standalone.list(serverid=INSTANCE_SERVERID)
+    # Assert we did change the system.
+    assert(len(insts) == 1)
+    # Make sure we can connect
+    topology.standalone.open()
+    # Make sure we can start stop.
+    topology.standalone.stop()
+    topology.standalone.start()
+    # Okay, actually remove the instance
+    remove_ds_instance(topology.standalone)
+
 def write_file(fname, pwd, is_runnable, lines):
     log.debug(f'Creating file {fname} with:')
     with open(fname, 'wt') as f:
@@ -220,7 +296,7 @@ def test_setup_ds_as_non_root():
     try:
         pwd_nru = pwd.getpwnam(NON_ROOT_USER)
     except KeyError:
-        subprocess.run(('/usr/sbin/useradd', NON_ROOT_USER))
+        subprocess.run(('/usr/sbin/useradd', NON_ROOT_USER), check=True)
         pwd_nru = pwd.getpwnam(NON_ROOT_USER)
 
     # Create a temporary directory
