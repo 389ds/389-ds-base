@@ -1941,9 +1941,19 @@ delete_search_result_set(Slapi_PBlock *pb, back_search_result_set **sr)
                             NULL, &filt_errs);
     if (rc != SLAPI_FILTER_SCAN_NOMORE) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "delete_search_result_set", "Could not free the pre-compiled regexes in the search filter - error %d %d\n",
+                      "delete_search_result_set",
+                      "Could not free the pre-compiled regexes in the search filter - error %d %d\n",
                       rc, filt_errs);
     }
+
+    rc = slapi_filter_apply((*sr)->sr_norm_filter_intent, ldbm_search_free_compiled_filter,
+                            NULL, &filt_errs);
+    if (rc != SLAPI_FILTER_SCAN_NOMORE) {
+        slapi_log_err(SLAPI_LOG_ERR, "delete_search_result_set",
+                      "Could not free the pre-compiled regexes in the intent search filter - error %d %d\n",
+                      rc, filt_errs);
+    }
+
     slapi_filter_free((*sr)->sr_norm_filter, 1);
     slapi_filter_free((*sr)->sr_norm_filter_intent, 1);
     memset(*sr, 0, sizeof(back_search_result_set));
