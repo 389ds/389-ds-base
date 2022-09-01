@@ -19,7 +19,8 @@ from lib389.instance.setup import SetupDs
 from lib389.instance.remove import remove_ds_instance
 from lib389.instance.options import General2Base, Slapd2Base
 from lib389._constants import *
-from lib389.utils import ds_is_older
+from lib389.utils import ds_is_older, selinux_label_file
+from shutil import rmtree
 
 pytestmark = [pytest.mark.tier0,
               pytest.mark.skipif(ds_is_older('1.4.1.2'), reason="Needs a compatible systemd unit, see PR#50213")]
@@ -38,6 +39,9 @@ INSTANCE_SERVERID = 'standalone'
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
+CUSTOM_DIR = f'{os.getenv("PREFIX", "")}/var/lib/dirsrv_pytest_test_setup_ds_custom_db_dir'
+CUSTOM_DB_DIR = f'{CUSTOM_DIR}/db'
+
 class TopologyInstance(object):
     def __init__(self, standalone):
         # For these tests, we don't want to open the instance.
@@ -54,10 +58,16 @@ def topology(request):
     instance.allocate(args)
     if instance.exists():
         instance.delete()
+    # Cleanup custom dir
+    selinux_label_file(CUSTOM_DB_DIR, None)
+    rmtree(CUSTOM_DIR, ignore_errors=True)
 
     def fin():
-        if instance.exists() and not DEBUGGING:
-            instance.delete()
+        if not DEBUGGING:
+            if instance.exists():
+                instance.delete()
+            selinux_label_file(CUSTOM_DB_DIR, None)
+            rmtree(CUSTOM_DIR, ignore_errors=True)
     request.addfinalizer(fin)
 
     return TopologyInstance(instance)
@@ -170,6 +180,7 @@ def test_setup_ds_minimal(topology):
     remove_ds_instance(topology.standalone)
 
 
+@pytest.mark.skipif(not os.path.exists('/usr/sbin/semanage'), reason="semanage is not installed. Please run dnf install policycoreutils-python-utils -y")
 @pytest.mark.skipif(os.getuid()!=0, reason="pytest non run by root user")
 def test_setup_ds_custom_db_dir(topology):
     """Test DS setup using custom uid,gid and db_dir path
@@ -182,10 +193,10 @@ def test_setup_ds_custom_db_dir(topology):
         3. Give it the right types
         4. Get the dicts from Type2Base, as though they were from _validate_ds_2_config
         5. Override instance name, root password, port, secure port, user, group and dir_path
-        7. Assert we did change the system
-        8. Make sure we can connect
-        9. Make sure we can start stop.
-        10. Remove the instance
+        6. Assert we did change the system
+        7. Make sure we can connect
+        8. Make sure we can start stop.
+        9. Remove the instance
     :expectedresults:
         1. Success
         2. Success
@@ -196,7 +207,6 @@ def test_setup_ds_custom_db_dir(topology):
         7. Success
         8. Success
         9. Success
-        10. Success
     """
   # Add linux user NON_ROOT_USER if it does not already exist
     CUSTOM_USER='ldapsrv1'
@@ -215,7 +225,7 @@ def test_setup_ds_custom_db_dir(topology):
 
     # Get the dicts from Type2Base, as though they were from _validate_ds_2_config
     # IE get the defaults back just from Slapd2Base.collect
-    # Override instance name, root password, port and secure port.
+    # Override instance name, root password, port, secure port, user,  group and db_dir.
 
     general_options = General2Base(lc.log)
     general_options.verify()
@@ -228,7 +238,7 @@ def test_setup_ds_custom_db_dir(topology):
     slapd_options.set('root_password', PW_DM)
     slapd_options.set('user', pwd_cu.pw_name)
     slapd_options.set('group', grp_cu.gr_name)
-    slapd_options.set('db_dir', f'{os.getenv("PREFIX", "")}/mydirsrv/db')
+    slapd_options.set('db_dir', CUSTOM_DB_DIR)
     slapd_options.verify()
     slapd = slapd_options.collect()
 

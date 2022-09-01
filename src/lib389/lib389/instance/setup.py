@@ -46,6 +46,7 @@ from lib389.utils import (
     socket_check_open,
     selinux_label_file,
     selinux_label_port,
+    resolve_selinux_path,
     selinux_restorecon,
     selinux_present)
 
@@ -945,7 +946,7 @@ class SetupDs(object):
                 selinux_label_port(slapd['secure_port'])
 
         # Do selinux fixups
-        if general['selinux']:
+        if general['selinux'] and selinux_present():
             self.log.info("Perform SELinux labeling ...")
             # Since there may be some custom path, we must explicitly set the labels
             selinux_labels = {
@@ -961,11 +962,8 @@ class SetupDs(object):
                                 'schema_dir': 'dirsrv_config_t',
                                 'tmp_dir': 'tmp_t',
             }
-            # Lets sort the paths to avoid overriding the labels if path are nested.
-            selinux_sorted_labels = sorted( ( (slapd[key], label) for key, label in selinux_labels.items() ) )
-            for path, label in selinux_sorted_labels:
-                selinux_label_file(path, label)
-                selinux_restorecon(path)
+            for k, label in selinux_labels.items():
+                selinux_label_file(resolve_selinux_path(slapd[k]), label)
 
             selinux_label_port(slapd['port'])
 

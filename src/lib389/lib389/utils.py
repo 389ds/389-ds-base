@@ -52,6 +52,7 @@ from ldapurl import LDAPUrl
 from contextlib import closing
 
 import lib389
+from pathlib import Path
 from lib389.paths import ( Paths, DEFAULTS_PATH )
 from lib389.dseldif import DSEldif
 from lib389._constants import (
@@ -63,28 +64,14 @@ from lib389.properties import (
         SER_ROOT_DN, SER_ROOT_PW, SER_SERVERID_PROP, SER_CREATION_SUFFIX,
         SER_INST_SCRIPTS_ENABLED, SER_SECURE_PORT, REPLICA_ID
     )
-# Import selinux libraries.
-# They should be present of a system implementing seLinux
-# because they are used within semanage command
-selinux_import_error = []
-try:
-    import selinux
-except ImportError:
-    selinux_import_error.append('selinux')
-try:
-    import semanage
-except ImportError:
-    selinux_import_error.append('semanage')
-try:
-    import seobject
-except ImportError:
-    selinux_import_error.append('seobject')
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
 DEBUGGING = os.getenv('DEBUGGING', default=False)
 
 log = logging.getLogger(__name__)
+
+selinux_fcontext_info = None
 
 #
 # Various searches to be used in getEntry
@@ -216,6 +203,8 @@ def selinux_present():
             # (just checking the uid for now - we may rather check if semanage command success)
             if os.geteuid() != 0:
                 log.info('Non privileged user cannot use semanage, will not relabel ports or files.' )
+            elif not os.path.exists('/usr/sbin/semanage'):
+                log.info('semanage command is not installed, will not relabel ports or files. Please install policycoreutils-python-utils.' )
             else:
                 status = True
         else:
@@ -252,6 +241,89 @@ def selinux_restorecon(path):
         log.debug("Failed to run restorecon on: " + path)
 
 
+def _parse_semanage_fcontexts(cmd, regex=r"^(/[^ ]*)[^:=]+:[^:]*:([^:]*):.*$", reject={}):
+    '''Parse semanage fcontext -L output'''
+    info = {}
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    args = ' '.join(ensure_list_str(result.args))
+    stdout = ensure_str(result.stdout)
+    stderr = ensure_str(result.stderr)
+    if result.returncode:
+        log.debug("CMD: {args} returned {result.returncode} STDOUT: {stdout} STDERR: {stderr}")
+        return info;
+    for m in re.finditer(regex, stdout, flags=re.MULTILINE):
+         if not m.group(1) in reject:
+             info[m.group(1)] = m.group(2)
+    return info;
+
+
+def _get_selinux_fcontext_info():
+    global selinux_fcontext_info
+    if not selinux_fcontext_info:
+        local = _parse_semanage_fcontexts(["semanage", "fcontext", "-l", "-C"])
+        selinux_fcontext_info = {
+            "local"  : local,
+            "policy" : _parse_semanage_fcontexts(["semanage", "fcontext", "-l"], reject=local),
+            "equiv"  : _parse_semanage_fcontexts(["semanage", "fcontext", "-l"], regex=r"^(/[^ ]*) += +(.*)$"),
+        }
+    return selinux_fcontext_info
+
+def resolve_selinux_path(path):
+    '''Return the path as expected by semanage fcontext'''
+    path = str(Path(path).resolve())
+    if selinux_present():
+        _get_selinux_fcontext_info()
+        equiv = selinux_fcontext_info['equiv']
+        for r in equiv:
+            if path.startswith(r):
+                path = path.replace(r, equiv[r])
+    return path
+
+def selinux_label_file(path, label):
+    """
+    Set set an SELinux label to a file (or a directory)
+
+    :param path: The file path
+    :type path: str
+    :param label: The label to set (None to unset a label)
+    :type path: str
+    :raises: ValueError: Error message
+    """
+    if not selinux_present():
+        return
+    _get_selinux_fcontext_info()
+    if os.path.exists(path):
+        path = resolve_selinux_path(path)
+    local = selinux_fcontext_info['local']
+    policy = selinux_fcontext_info['policy']
+    if path in local:
+        if local[path] == label:
+            return
+        log.info(f"Removing seLinux file context {path} with label {local[path]}.")
+        subprocess.run(["semanage", "fcontext", "-d", path])
+    if path in policy:
+        if policy[path] == label:
+            return
+        raise ValueError(f'Cannot change file context for {path} because it is defined in seLinux policy. Please choose another path.')
+    if label:
+        try:
+            log.info(f"Setting label {label} in seLinux file context {path}.")
+            result = subprocess.run(["semanage", "fcontext", "-a", "-t", label, path],
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
+            args = ' '.join(ensure_list_str(result.args))
+            stdout = ensure_str(result.stdout)
+            stderr = ensure_str(result.stderr)
+            if result.returncode != 0:
+                log.error(f"ERROR CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}")
+                result.check_returncode()
+        except (OSError, subprocess.CalledProcessError) as e:
+            raise ValueError(f"Failed to set SElinux label {label} on {path}: {str(e)}")
+    if os.path.exists(path):
+        #pytest fails if I use selinux_restorecon(path)
+        subprocess.run(["restorecon", "-R", path])
+
+
 def _get_selinux_port_policies(port):
     """Get a list of selinux port policies for the specified port, 'tcp' protocol and
     excluding 'unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t' labels"""
@@ -276,110 +348,6 @@ def _get_selinux_port_policies(port):
     return policies
 
 
-def _extract_info(funcname, ctxinfo, rc, fcontext, isLocal):
-    # Utility function for _get_selinux_fcontext_info file function
-    if 'isLocal' in ctxinfo:
-        return
-    ctxinfo['rc'] = rc
-    if rc < 0:
-        ctxinfo['funcName'] = funcName
-    elif fcontext:
-        ctxinfo['isLocal'] = isLocal
-        con = semanage.semanage_fcontext_get_con(fcontext)
-        ctxinfo['user'] = semanage.semanage_context_get_user(con)
-        ctxinfo['role'] = semanage.semanage_context_get_role(con)
-        ctxinfo['type'] = semanage.semanage_context_get_type(con)
-        ctxinfo['mls'] = semanage.semanage_context_get_mls(con)
-
-
-def _get_selinux_fcontext_info(target):
-    # Utility for selinux_label_file function
-    ctxinfo = { 'target': target }
-
-    args = {
-        'subcommand': 'fcontext',
-        'locallist': False,
-        'noheading': True,
-        'noreload': False,
-        'store': '',
-    }
-    obj = seobject.fcontextRecords(args)
-    ctxinfo['obj'] = obj
-    sh = obj.sh  # libsemanage handle
-    # Apply equivalence rules on path
-    path = target
-    for fdict in (obj.equiv, obj.equiv_dist):
-        for i in fdict:
-            log.debug(f'selinux_label_file: Cheching rule {i} {fdict[i]} versus path {path}')
-            if path.startswith(i + "/"):
-                path = path.replace(i, fdict[i])
-    ctxinfo['path'] = path
-    fcontext = None
-    (rc, k) = semanage.semanage_fcontext_key_create(sh, target, semanage.SEMANAGE_FCONTEXT_ALL)
-    _extract_info("semanage_fcontext_key_create", ctxinfo, rc, fcontext, None)
-    if rc >= 0:
-        try:
-            (rc, fcontext) = semanage.semanage_fcontext_query_local(sh, k)
-            _extract_info("semanage_fcontext_query_local", ctxinfo, rc, fcontext, True)
-        except OSError as e:
-            pass
-    if rc >= 0:
-        try:
-            (rc, fcontext) = semanage.semanage_fcontext_query(sh, k)
-            _extract_info("semanage_fcontext_query", ctxinfo, rc, fcontext, False)
-        except OSError as e:
-            pass
-    semanage.semanage_fcontext_key_free(k)
-    if fcontext:
-        semanage.semanage_fcontext_free(fcontext)
-    return ctxinfo
-
-
-def selinux_label_file(path, label):
-    """
-    Set set an SELinux label to a file (or a directory)
-
-    :param path: The file path
-    :type path: str
-    :param label: The label to set
-    :type path: str
-    :raises: ValueError: Error message
-    """
-
-    if selinux_import_error:
-        log.debug(f'{selinux_import_error} python module(s) not found, skipping file labeling.')
-        return
-    if not selinux_present():
-        log.debug('selinux is disabled, skipping file labeling')
-        return
-    #
-    # Would have prefered calling:
-    #      semanage fcontext -d path
-    #      semanage fcontext -a -t label path
-    # because it had a better interface stability
-    # But infortunately I got failures related to:
-    #    -  selinux some equivalence rule.
-    #    -  context explicitly set by the selinux policy rule
-    # So we rely on semanage internals (cf https://github.com/SELinuxProject/selinux)
-    # to determine the right path and if the selinux context needs to be changed.
-    #
-    info = _get_selinux_fcontext_info(path)
-    path = info['path'] # Get path after applying the equivalence rules
-    obj = info['obj']   # Get semanage fcontextRecords object
-    if 'type' in info:
-        # context exists
-        if info['type'] == label:
-            # label is already set ==> We are done.
-            return
-    # Now we can try to delete then add the context
-    log.info(f'setting selinux type {label} in file context {path}')
-    try:
-        obj.delete(path, '')
-    except ValueError:
-        pass
-    obj.add(path, label, '', '', '')
-
-
 def selinux_label_port(port, remove_label=False):
     """
     Either set or remove an SELinux label(ldap_port_t) for a TCP port
@@ -392,8 +360,10 @@ def selinux_label_port(port, remove_label=False):
     """
     if port is None:
         return
-    if selinux_import_error:
-        log.debug(f'{selinux_import_error} python module(s) not found, skipping port labeling.')
+    try:
+        import selinux
+    except ImportError:
+        log.debug('selinux python module not found, skipping port labeling.')
         return
 
     if not selinux_present():
@@ -506,10 +476,10 @@ def normalizeDN(dn, usespace=False):
 
 
 def escapeDNValue(dn):
-    r'''convert special characters in a DN into LDAPv3 escapes.
+    '''convert special characters in a DN into LDAPv3 escapes.
 
      e.g.
-    "dc=example,dc=com" -> "dc\=example\,\ dc\=com"'''
+    "dc=example,dc=com" -> \"dc\=example\,\ dc\=com\"'''
     for cc in (' ', '"', '+', ',', ';', '<', '>', '='):
         dn = dn.replace(cc, '\\' + cc)
     return dn
@@ -748,7 +718,7 @@ def valgrind_get_results_file(dirsrv_inst):
     We need to extract the "--log-file" value
     """
     cmd = ("ps -ef | grep valgrind | grep 'slapd-" + dirsrv_inst.serverid +
-           " ' | awk '{ print $14 }' | sed -e 's/--log-file=//'")
+           " ' | awk '{ print $14 }' | sed -e 's/\-\-log\-file=//'")
 
     # Run the command and grab the output
     p = os.popen(cmd)
@@ -1584,7 +1554,7 @@ def is_valid_hostname(hostname):
         return False
     if hostname[-1] == ".":
         hostname = hostname[:-1] # strip exactly one dot from the right, if present
-    allowed = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
+    allowed = re.compile("(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split("."))
 
 def get_default_db_lib():
