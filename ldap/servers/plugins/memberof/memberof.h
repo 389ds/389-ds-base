@@ -66,6 +66,7 @@ typedef struct memberofconfig
     char *auto_add_oc;
     PLHashTable *ancestors_cache;
     PLHashTable *fixup_cache;
+    Slapi_Task *task;
 } MemberOfConfig;
 
 /* The key to access the hash table is the normalized DN
