@@ -52,7 +52,12 @@ static Slapi_DN* _pluginDN = NULL;
 MemberOfConfig *qsortConfig = 0;
 static int usetxn = 0;
 static int premodfn = 0;
-
+static PRBool fixup_running = PR_FALSE;
+static PRLock *fixup_lock = NULL;
+static int32_t fixup_progress_count = 0;
+static int64_t fixup_progress_elapsed = 0;
+static int64_t fixup_start_time = 0;
+#define FIXUP_PROGRESS_LIMIT 1000
 
 typedef struct _memberofstringll
 {
@@ -329,6 +334,15 @@ memberof_postop_start(Slapi_PBlock *pb)
         }
     }
 
+    if (fixup_lock == NULL) {
+        if ((fixup_lock = PR_NewLock()) == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
+                    "memberof_postop_start - Failed to create fixup lock.\n");
+            rc = -1;
+            goto bail;
+        }
+    }
+
     /* Set the alternate config area if one is defined. */
     slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_AREA, &config_area);
     if (config_area) {
@@ -421,6 +435,8 @@ memberof_postop_close(Slapi_PBlock *pb __attribute__((unused)))
     slapi_sdn_free(&_pluginDN);
     slapi_destroy_rwlock(config_rwlock);
     config_rwlock = NULL;
+    PR_DestroyLock(fixup_lock);
+    fixup_lock = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "<-- memberof_postop_close\n");
@@ -2820,9 +2836,16 @@ memberof_fixup_task_thread(void *arg)
     if (!task) {
         return; /* no task */
     }
+
+    PR_Lock(fixup_lock);
+    fixup_running = PR_TRUE;
+    fixup_progress_count = 0;
+    fixup_progress_elapsed = slapi_current_rel_time_t();
+    fixup_start_time = slapi_current_rel_time_t();
+    PR_Unlock(fixup_lock);
+
     slapi_task_inc_refcount(task);
-    slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
-                  "memberof_fixup_task_thread - refcount incremented.\n");
+
     /* Fetch our task data from the task */
     td = (task_data *)slapi_task_get_data(task);
 
@@ -2846,6 +2869,7 @@ memberof_fixup_task_thread(void *arg)
 
     /* Mark this as a task operation */
     configCopy.fixup_task = 1;
+    configCopy.task = task;
 
     if (usetxn) {
         Slapi_DN *sdn = slapi_sdn_new_dn_byref(td->dn);
@@ -2885,15 +2909,23 @@ done:
     }
     memberof_free_config(&configCopy);
 
-    slapi_task_log_notice(task, "Memberof task finished.\n");
-    slapi_task_log_status(task, "Memberof task finished.\n");
+    slapi_task_log_notice(task, "Memberof task finished (processed %d entries in %ld seconds)",
+                          fixup_progress_count, slapi_current_rel_time_t() - fixup_start_time);
+    slapi_task_log_status(task, "Memberof task finished (processed %d entries in %ld seconds)",
+                          fixup_progress_count, slapi_current_rel_time_t() - fixup_start_time);
     slapi_task_inc_progress(task);
 
     /* this will queue the destruction of the task */
     slapi_task_finish(task, rc);
     slapi_task_dec_refcount(task);
-    slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
-                  "memberof_fixup_task_thread - refcount decremented.\n");
+
+    PR_Lock(fixup_lock);
+    fixup_running = PR_FALSE;
+    PR_Unlock(fixup_lock);
+
+    slapi_log_err(SLAPI_LOG_INFO, MEMBEROF_PLUGIN_SUBSYSTEM,
+                  "memberof_fixup_task_thread - Memberof task finished (processed %d entries in %ld seconds)\n",
+                  fixup_progress_count, slapi_current_rel_time_t() - fixup_start_time);
 }
 
 int
@@ -2913,6 +2945,17 @@ memberof_task_add(Slapi_PBlock *pb,
     const char *dn = 0;
 
     *returncode = LDAP_SUCCESS;
+
+    PR_Lock(fixup_lock);
+    if (fixup_running) {
+        PR_Unlock(fixup_lock);
+        *returncode = LDAP_UNWILLING_TO_PERFORM;
+        slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
+                "memberof_task_add - there is already a fixup task running\n");
+        rv = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
+    PR_Unlock(fixup_lock);
 
     /* get arg(s) */
     if ((dn = slapi_entry_attr_get_ref(e, "basedn")) == NULL) {
@@ -3145,7 +3188,8 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
     /* Check if the entry has not already been fixed */
     ndn = slapi_sdn_get_ndn(sdn);
     if (ndn && config->fixup_cache && PL_HashTableLookupConst(config->fixup_cache, (void *)ndn)) {
-        slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: Entry %s already fixed up\n", ndn);
+        slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback - "
+                "Entry %s already fixed up\n", ndn);
         goto bail;
     }
 
@@ -3161,22 +3205,26 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
              * so free this memory
              */
 #if MEMBEROF_CACHE_DEBUG
-            slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: This is NOT a group %s\n", ndn);
+            slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+                    "memberof_fix_memberof_callback: This is NOT a group %s\n", ndn);
 #endif
             ht_grp = ancestors_cache_lookup(config, (const void *)ndn);
             if (ht_grp) {
                 if (ancestors_cache_remove(config, (const void *)ndn)) {
-                    slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: free cached values for %s\n", ndn);
+                    slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+                            "memberof_fix_memberof_callback - free cached values for %s\n", ndn);
                     ancestor_hashtable_entry_free(ht_grp);
                     slapi_ch_free((void **)&ht_grp);
                 } else {
-                    slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: Fail to remove that leaf node %s\n", ndn);
+                    slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+                            "memberof_fix_memberof_callback - Fail to remove that leaf node %s\n", ndn);
                 }
             } else {
                 /* This is quite unexpected, after a call to memberof_get_groups
                  * ndn ancestors should be in the cache
                  */
-                slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: Weird, %s is not in the cache\n", ndn);
+                slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+                        "memberof_fix_memberof_callback - Weird, %s is not in the cache\n", ndn);
             }
         }
     }
@@ -3220,11 +3268,29 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
     if (config->fixup_cache) {
         dn_copy = slapi_ch_strdup(ndn);
         if (PL_HashTableAdd(config->fixup_cache, dn_copy, dn_copy) == NULL) {
-            slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: "
+            slapi_log_err(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback - "
                           "failed to add dn (%s) in the fixup hashtable; NSPR error - %d\n",
                           dn_copy, PR_GetError());
             slapi_ch_free((void **)&dn_copy);
             /* let consider this as not a fatal error, it just skip an optimization */
+        }
+    }
+
+    if (config->task) {
+        fixup_progress_count++;
+        if (fixup_progress_count % FIXUP_PROGRESS_LIMIT == 0 ) {
+            slapi_task_log_notice(config->task,
+                    "Processed %d entries in %ld seconds (+%ld seconds)",
+                    fixup_progress_count,
+                    slapi_current_rel_time_t() - fixup_start_time,
+                    slapi_current_rel_time_t() - fixup_progress_elapsed);
+            slapi_task_log_status(config->task,
+                    "Processed %d entries in %ld seconds (+%ld seconds)",
+                    fixup_progress_count,
+                    slapi_current_rel_time_t() - fixup_start_time,
+                    slapi_current_rel_time_t() - fixup_progress_elapsed);
+            slapi_task_inc_progress(config->task);
+            fixup_progress_elapsed = slapi_current_rel_time_t();
         }
     }
 
