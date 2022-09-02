@@ -1672,15 +1672,7 @@ def get_task_status(inst, log, taskObj, dn=None, show_log=False, watch=False, us
                 all_finished = False
                 task_ended = ""
                 exitcode = "Not finished ..."
-
-                # Calc elapsed time for running task
-                curr_time = int(time.time())  # Use the current time
-                time_tuple = (int(task_created[:4]), int(task_created[4:6]), int(task_created[6:8]),
-                              int(task_created[8:10]), int(task_created[10:12]), int(task_created[12:14]),
-                              0, 0, 0)
-                start_time = int(time.mktime(time_tuple))
-                elapsed_secs = curr_time - start_time
-                elapsed_time_str = str(timedelta(seconds=elapsed_secs))
+                elapsed_time_str = ""
             else:
                 # Task is finished, use start and end times to calc elapsed time
                 elapsed_time_str = elapsed_time(task_created, task_ended)
