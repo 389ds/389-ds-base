@@ -301,6 +301,7 @@ def selinux_label_file(path, label):
             return
         log.info(f"Removing seLinux file context {path} with label {local[path]}.")
         subprocess.run(["semanage", "fcontext", "-d", path])
+        del local[path]
     if path in policy:
         if policy[path] == label:
             return
@@ -317,11 +318,36 @@ def selinux_label_file(path, label):
             if result.returncode != 0:
                 log.error(f"ERROR CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}")
                 result.check_returncode()
+            local[path] = label
         except (OSError, subprocess.CalledProcessError) as e:
             raise ValueError(f"Failed to set SElinux label {label} on {path}: {str(e)}")
     if os.path.exists(path):
         #pytest fails if I use selinux_restorecon(path)
         subprocess.run(["restorecon", "-R", path])
+
+
+def selinux_clean_files_label(all=False):
+    """Remove dirsrv_*_t labels from either removed files or all files."""
+    if not selinux_present():
+        return
+    _get_selinux_fcontext_info()
+    local = { **selinux_fcontext_info['local'] }
+    for path, label in local.items():
+        if label in ( 'dirsrv_config_t', 'dirsrv_tmpfs_t', 'dirsrv_var_lib_t', 'dirsrv_var_lock_t', 'dirsrv_var_log_t', 'dirsrv_var_run_t', ):
+            if all or not os.path.exists(path):
+                selinux_label_file(path, None)
+                
+
+def selinux_clean_ports_label():
+    """Remove labels from all port having ldap_port_t labels."""
+    if not selinux_present():
+        return
+    cmd=[ 'semanage', 'port', '--list', '-C' ]
+    res = _parse_semanage_fcontexts(cmd, regex=r"^(ldap_port_t) *tcp *(.*)$")
+    if 'ldap_port_t' in res:
+        for port in res['ldap_port_t'].split(","):
+            # Cannot use selinux_label_port here because port may be a range.
+            subprocess.run(["semanage", "port", "-d", "-p", "tcp", port.strip()])
 
 
 def _get_selinux_port_policies(port):

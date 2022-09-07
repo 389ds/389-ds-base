@@ -19,7 +19,7 @@ from lib389.instance.setup import SetupDs
 from lib389.instance.remove import remove_ds_instance
 from lib389.instance.options import General2Base, Slapd2Base
 from lib389._constants import *
-from lib389.utils import ds_is_older, selinux_label_file
+from lib389.utils import ds_is_older, selinux_label_file, ensure_list_str, ensure_str
 from shutil import rmtree
 
 pytestmark = [pytest.mark.tier0,
@@ -71,6 +71,16 @@ def topology(request):
     request.addfinalizer(fin)
 
     return TopologyInstance(instance)
+
+
+def run_cmd(cmd):
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    args = ' '.join(ensure_list_str(result.args))
+    stdout = ensure_str(result.stdout)
+    stderr = ensure_str(result.stderr)
+    log.info(f"CMD: {args} returned {result.returncode} STDOUT: {stdout} STDERR: {stderr}")
+    return stdout
+
 
 def test_setup_ds_minimal_dry(topology):
     """Test minimal DS setup - dry run
@@ -197,6 +207,8 @@ def test_setup_ds_custom_db_dir(topology):
         7. Make sure we can connect
         8. Make sure we can start stop.
         9. Remove the instance
+        10. Check that there is not any dirsrv_* labels in in file local selinux customizations
+        11. Check that there is not any wldap_port_t labels in port local selinux customizations
     :expectedresults:
         1. Success
         2. Success
@@ -207,6 +219,8 @@ def test_setup_ds_custom_db_dir(topology):
         7. Success
         8. Success
         9. Success
+        10. Success
+        11. Success
     """
   # Add linux user NON_ROOT_USER if it does not already exist
     CUSTOM_USER='ldapsrv1'
@@ -252,7 +266,14 @@ def test_setup_ds_custom_db_dir(topology):
     topology.standalone.stop()
     topology.standalone.start()
     # Okay, actually remove the instance
+    insts = topology.standalone.list(all=True)
     remove_ds_instance(topology.standalone)
+    if (len(insts) == 1):
+        res = run_cmd(["semanage", "fcontext", "--list", "-C"])
+        assert not "dirsrv_" in res
+        res = run_cmd(["semanage", "port", "--list", "-C"])
+        assert not "ldap_port_t" in res
+
 
 def write_file(fname, pwd, is_runnable, lines):
     log.debug(f'Creating file {fname} with:')
