@@ -744,7 +744,7 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
     } else {
         escaped_filter_val = (char *)slapi_sdn_get_dn(sdn);
     }
-
+#if 0
     if (num_types > 1) {
         int bytes_out = 0;
         int filter_str_len = types_name_len + (num_types * (3 + dn_len)) + 4;
@@ -773,7 +773,11 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
     if (filter_str == NULL) {
         return rc;
     }
-
+#endif
+    
+    for (i = 0; types[i]; i++) {
+filter_str = slapi_ch_smprintf("(%s=%s)", types[i], escaped_filter_val);
+    /*slapi_log_err(SLAPI_LOG_INFO, MEMBEROF_PLUGIN_SUBSYSTEM, " memberof_call_foreach_dn search \"%s\"\n", filter_str);*/
     search_pb = slapi_pblock_new();
     be = slapi_get_first_backend(&cookie);
     while (be) {
@@ -836,6 +840,8 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
         /* Reset pb for next loop */
         slapi_pblock_init(search_pb);
         be = slapi_get_next_backend(cookie);
+    }
+    slapi_ch_free_string(&filter_str);
     }
 
     slapi_pblock_destroy(search_pb);
