@@ -1347,7 +1347,7 @@ class CreateSuffixModal extends React.Component {
                         key="confirm"
                         variant="primary"
                         onClick={saveHandler}
-                        isDisabled={createNotOK}
+                        isDisabled={createNotOK || modalSpinning}
                         isLoading={modalSpinning}
                         spinnerAriaValueText={modalSpinning ? "Creating Suffix" : undefined}
                         {...extraPrimaryProps}

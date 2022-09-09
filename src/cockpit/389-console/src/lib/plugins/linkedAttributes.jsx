@@ -449,7 +449,7 @@ class LinkedAttributes extends React.Component {
                             key="confirm"
                             variant="primary"
                             onClick={newEntry ? this.addConfig : this.editConfig}
-                            isDisabled={saveBtnDisabled}
+                            isDisabled={saveBtnDisabled || saving}
                             isLoading={saving}
                             spinnerAriaValueText={saving ? "Saving" : undefined}
                             {...extraPrimaryProps}

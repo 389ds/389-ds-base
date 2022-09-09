@@ -95,7 +95,7 @@ class RetroChangelog extends React.Component {
                 trimInterval: Number(this.state.trimInterval) + 1
             }, () => { this.validate() });
         };
-        
+
         this.onExcludeAttrSelect = (event, selection) => {
             if (this.state.excludeAttrs.includes(selection)) {
                 this.setState(
@@ -310,7 +310,7 @@ class RetroChangelog extends React.Component {
             } else {
                 cmd = [...cmd, "delete"];
             }
-        } 
+        }
         this.setState({
             saving: true
         });
@@ -504,7 +504,7 @@ class RetroChangelog extends React.Component {
                         className="ds-margin-top-xlg"
                         variant="primary"
                         onClick={this.savePlugin}
-                        isDisabled={this.state.saveBtnDisabled}
+                        isDisabled={this.state.saveBtnDisabled || this.state.saving}
                         isLoading={this.state.saving}
                         spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                         {...extraPrimaryProps}

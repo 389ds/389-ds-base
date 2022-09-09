@@ -52,7 +52,7 @@ class CreateLinkModal extends React.Component {
                         isLoading={saving}
                         spinnerAriaValueText={saving ? "Creating Link" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.props.saveBtnDisabled}
+                        isDisabled={this.props.saveBtnDisabled || saving}
                     >
                         {saveBtnName}
                     </Button>,
@@ -270,7 +270,7 @@ class CreateSubSuffixModal extends React.Component {
                         isLoading={saving}
                         spinnerAriaValueText={saving ? "Creating Suffix" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.props.saveBtnDisabled}
+                        isDisabled={this.props.saveBtnDisabled || saving}
                     >
                         {saveBtnName}
                     </Button>,
@@ -380,7 +380,7 @@ class ExportModal extends React.Component {
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Creating Suffix" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.props.saveBtnDisabled}
+                        isDisabled={this.props.saveBtnDisabled || spinning}
                     >
                         {saveBtnName}
                     </Button>,

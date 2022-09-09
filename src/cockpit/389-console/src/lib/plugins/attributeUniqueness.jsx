@@ -623,7 +623,7 @@ class AttributeUniqueness extends React.Component {
                             key="confirm"
                             variant="primary"
                             onClick={newEntry ? this.addConfig : this.editConfig}
-                            isDisabled={this.state.saveBtnDisabled}
+                            isDisabled={this.state.saveBtnDisabled || this.state.saving}
                             isLoading={this.state.saving}
                             spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                             {...extraPrimaryProps}
