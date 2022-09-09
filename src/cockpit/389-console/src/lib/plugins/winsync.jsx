@@ -313,7 +313,7 @@ class WinSync extends React.Component {
                             key="task"
                             variant="primary"
                             onClick={this.runFixup}
-                            isDisabled={saveBtnDisabledModal}
+                            isDisabled={saveBtnDisabledModal || savingModal}
                             isLoading={savingModal}
                             spinnerAriaValueText={savingModal ? "Saving" : undefined}
                             {...extraPrimaryProps}
@@ -446,7 +446,7 @@ class WinSync extends React.Component {
                     className="ds-margin-top-lg"
                     variant="primary"
                     onClick={this.savePlugin}
-                    isDisabled={saveBtnDisabled}
+                    isDisabled={saveBtnDisabled || saving}
                     isLoading={saving}
                     spinnerAriaValueText={saving ? "Saving" : undefined}
                     {...extraPrimaryProps}

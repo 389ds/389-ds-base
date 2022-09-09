@@ -480,7 +480,7 @@ export class Ciphers extends React.Component {
                         onClick={() => {
                             this.saveCipherPref();
                         }}
-                        isDisabled={this.state.disableSaveBtn}
+                        isDisabled={this.state.disableSaveBtn || this.state.saving}
                         isLoading={this.state.saving}
                         spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                         {...extraPrimaryProps}

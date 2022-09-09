@@ -854,7 +854,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                 className="ds-margin-top-xlg"
                                 variant="primary"
                                 onClick={this.save_chaining_config}
-                                isDisabled={this.state.saveBtnDisabled}
+                                isDisabled={this.state.saveBtnDisabled || this.state.saving}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                                 {...extraPrimaryProps}
@@ -1793,7 +1793,7 @@ export class ChainingConfig extends React.Component {
                     isLoading={this.state.saving}
                     spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                     {...extraPrimaryProps}
-                    isDisabled={this.state.saveBtnDisabled}
+                    isDisabled={this.state.saveBtnDisabled || this.state.saving}
                 >
                     {saveBtnName}
                 </Button>
@@ -1853,6 +1853,7 @@ export class ChainControlsModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={spinning}
+                        isDisabled={spinning}
                         spinnerAriaValueText={spinning ? "Loading" : undefined}
                         {...extraPrimaryProps}
                     >
@@ -1912,6 +1913,7 @@ export class ChainCompsModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={spinning}
+                        isDisabled={spinning}
                         spinnerAriaValueText={spinning ? "Loading" : undefined}
                         {...extraPrimaryProps}
                     >

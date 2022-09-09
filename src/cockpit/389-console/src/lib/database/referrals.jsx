@@ -333,7 +333,7 @@ class AddReferralModal extends React.Component {
                         key="confirm"
                         variant="primary"
                         onClick={saveHandler}
-                        isDisabled={saveBtnDisabled}
+                        isDisabled={saveBtnDisabled || saving}
                         isLoading={saving}
                         spinnerAriaValueText={saving ? "Saving" : undefined}
                         {...extraPrimaryProps}

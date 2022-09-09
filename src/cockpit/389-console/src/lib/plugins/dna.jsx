@@ -1046,7 +1046,7 @@ class DNAPlugin extends React.Component {
                     actions={[
                         <Button
                             key="saveshared"
-                            isDisabled={saveBtnDisabled}
+                            isDisabled={saveBtnDisabled || saving}
                             variant="primary"
                             onClick={newEntry ? this.addConfig : this.editConfig}
                             isLoading={saving}
@@ -1338,7 +1338,7 @@ class DNAPlugin extends React.Component {
                     actions={[
                         <Button
                             key="confirm"
-                            isDisabled={sharedResult.saveSharedNotOK}
+                            isDisabled={sharedResult.saveSharedNotOK || savingShared}
                             variant="primary"
                             onClick={this.editSharedConfig}
                             isLoading={savingShared}

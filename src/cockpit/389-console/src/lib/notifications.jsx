@@ -56,7 +56,7 @@ export class DoubleConfirmModal extends React.Component {
                         spinnerAriaValueText={spinning ? "Loading" : undefined}
                         variant="primary"
                         onClick={actionHandler}
-                        isDisabled={saveDisabled}
+                        isDisabled={saveDisabled || spinning}
                         {...extraPrimaryProps}
                     >
                         {btnName}
