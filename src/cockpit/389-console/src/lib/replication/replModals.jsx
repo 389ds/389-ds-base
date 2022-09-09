@@ -338,7 +338,7 @@ export class WinsyncAgmtModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        isDisabled={saveDisabled}
+                        isDisabled={saveDisabled || spinning}
                         onClick={saveHandler}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
@@ -1114,7 +1114,7 @@ export class ReplAgmtModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        isDisabled={saveDisabled}
+                        isDisabled={saveDisabled || spinning}
                         onClick={saveHandler}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
@@ -1611,7 +1611,7 @@ export class AddManagerModal extends React.Component {
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={error.manager || error.manager_passwd || error.manager_passwd_confirm}
+                        isDisabled={error.manager || error.manager_passwd || error.manager_passwd_confirm || spinning}
                     >
                         {saveBtnName}
                     </Button>,
@@ -1750,7 +1750,7 @@ export class EnableReplModal extends React.Component {
                         key="enable"
                         variant="primary"
                         onClick={saveHandler}
-                        isDisabled={this.props.disabled}
+                        isDisabled={this.props.disabled || spinning}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
                         {...extraPrimaryProps}
@@ -1994,7 +1994,7 @@ export class ExportCLModal extends React.Component {
                         key="export"
                         variant="primary"
                         onClick={saveHandler}
-                        isDisabled={!saveOK}
+                        isDisabled={!saveOK || spinning}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
                         {...extraPrimaryProps}

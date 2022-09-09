@@ -1040,7 +1040,7 @@ class PassthroughAuthentication extends React.Component {
                             key="confirm"
                             variant="primary"
                             onClick={newPAMConfigEntry ? this.addPAMConfig : this.editPAMConfig}
-                            isDisabled={this.state.saveBtnDisabledPAM}
+                            isDisabled={this.state.saveBtnDisabledPAM || this.state.savingPAM}
                             isLoading={this.state.savingPAM}
                             spinnerAriaValueText={this.state.savingPAM ? "Saving" : undefined}
                             {...extraPrimaryProps}
@@ -1265,7 +1265,7 @@ class PassthroughAuthentication extends React.Component {
                             key="confirm"
                             variant="primary"
                             onClick={newURLEntry ? this.addURL : this.editURL}
-                            isDisabled={this.state.saveBtnDisabledPassthru}
+                            isDisabled={this.state.saveBtnDisabledPassthru || this.state.savingPassthru}
                             isLoading={this.state.savingPassthru}
                             spinnerAriaValueText={this.state.savingPassthru ? "Saving" : undefined}
                             {...extraPrimaryProps}

@@ -71,10 +71,10 @@ export class SuffixConfig extends React.Component {
             cacheInputs =
                 <Form isHorizontal autoComplete="off">
                     <Grid title="The size for the available memory space in bytes for the entry cache (nsslapd-cachememsize).">
-                        <GridItem className="ds-label" span={4}>
+                        <GridItem className="ds-label" span={3}>
                             Entry Cache Size
                         </GridItem>
-                        <GridItem span={8}>
+                        <GridItem span={9}>
                             <TextInput
                                 value={this.props.cachememsize}
                                 type="number"
@@ -88,10 +88,10 @@ export class SuffixConfig extends React.Component {
                         </GridItem>
                     </Grid>
                     <Grid title="The number of entries to keep in the entry cache, use'-1' for unlimited (nsslapd-cachesize).">
-                        <GridItem className="ds-label" span={4}>
+                        <GridItem className="ds-label" span={3}>
                             Entry Cache Max Entries
                         </GridItem>
-                        <GridItem span={8}>
+                        <GridItem span={9}>
                             <TextInput
                                 value={this.props.cachesize}
                                 type="number"
@@ -105,10 +105,10 @@ export class SuffixConfig extends React.Component {
                         </GridItem>
                     </Grid>
                     <Grid title="the available memory space in bytes for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).">
-                        <GridItem className="ds-label" span={4}>
+                        <GridItem className="ds-label" span={3}>
                             DN Cache Size
                         </GridItem>
-                        <GridItem span={8}>
+                        <GridItem span={9}>
                             <TextInput
                                 value={this.props.dncachememsize}
                                 type="number"
@@ -192,7 +192,7 @@ export class SuffixConfig extends React.Component {
                         isLoading={this.props.saving}
                         spinnerAriaValueText={this.props.saving ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.props.saveBtnDisabled}
+                        isDisabled={this.props.saveBtnDisabled || this.props.saving}
                     >
                         {saveBtnName}
                     </Button>

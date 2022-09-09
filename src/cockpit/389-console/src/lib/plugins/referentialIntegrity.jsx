@@ -811,7 +811,7 @@ class ReferentialIntegrity extends React.Component {
                     key="save"
                     variant="primary"
                     onClick={this.editConfig}
-                    isDisabled={saveBtnDisabledModal}
+                    isDisabled={saveBtnDisabledModal || savingModal}
                     isLoading={savingModal}
                     spinnerAriaValueText={savingModal ? "Saving" : undefined}
                     {...extraPrimaryProps}
@@ -828,7 +828,7 @@ class ReferentialIntegrity extends React.Component {
                     key="add"
                     variant="primary"
                     onClick={this.addConfig}
-                    isDisabled={saveBtnDisabledModal}
+                    isDisabled={saveBtnDisabledModal || addSpinning}
                     isLoading={addSpinning}
                     spinnerAriaValueText={addSpinning ? "Saving" : undefined}
                     {...extraPrimaryProps}
@@ -1189,7 +1189,7 @@ class ReferentialIntegrity extends React.Component {
                         variant="primary"
                         onClick={this.saveConfig}
                         {...extraPrimaryProps}
-                        isDisabled={saveBtnDisabled}
+                        isDisabled={saveBtnDisabled || saving}
                     >
                         {saveBtnText}
                     </Button>
