@@ -695,7 +695,7 @@ export class ServerSASL extends React.Component {
                         </Grid>
                     </Form>
                     <Button
-                        isDisabled={this.state.saveDisabled}
+                        isDisabled={this.state.saveDisabled || this.state.configLoading}
                         variant="primary"
                         className="ds-margin-top-xlg"
                         onClick={this.saveConfig}

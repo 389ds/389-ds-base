@@ -36,7 +36,7 @@ export class SASLMappingModal extends React.Component {
                 actions={[
                     <Button
                         key="confirm"
-                        isDisabled={this.props.saveDisabled}
+                        isDisabled={this.props.saveDisabled || this.props.spinning}
                         variant="primary"
                         isLoading={this.props.spinning}
                         spinnerAriaValueText={this.props.spinning ? "Loading" : undefined}

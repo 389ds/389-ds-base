@@ -279,7 +279,7 @@ export class Changelog extends React.Component {
                                     widthChars={8}
                                 />
                             </GridItem>
-                            <GridItem span={3}>
+                            <GridItem className="ds-margin-left" span={3}>
                                 <FormSelect
                                     className="ds-margin-left"
                                     id="clMaxAgeUnit"
@@ -318,9 +318,7 @@ export class Changelog extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid
-                            title="The changelog trimming interval.  Set how often the changelog checks if there are entries that can be purged from the changelog based on the trimming parameters (nsslapd-changelogtrim-interval)."
-                        >
+                        <Grid>
                             <GridItem className="ds-label" span={3}>
                                 Changelog Encryption
                                 <Tooltip
@@ -356,7 +354,7 @@ export class Changelog extends React.Component {
                         className="ds-margin-top-xlg"
                         variant="primary"
                         onClick={this.saveSettings}
-                        isDisabled={this.state.saveBtnDisabled}
+                        isDisabled={this.state.saveBtnDisabled || this.state.saving}
                         isLoading={this.state.saving}
                         spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                         {...extraPrimaryProps}

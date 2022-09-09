@@ -581,7 +581,7 @@ export class ServerAccessLog extends React.Component {
 
                         <Button
                             key="save settings"
-                            isDisabled={this.state.saveSettingsDisabled}
+                            isDisabled={this.state.saveSettingsDisabled || this.state.loading}
                             variant="primary"
                             className="ds-margin-top-xlg"
                             onClick={() => {
@@ -693,7 +693,7 @@ export class ServerAccessLog extends React.Component {
                         </Form>
                         <Button
                             key="save rot settings"
-                            isDisabled={this.state.saveRotationDisabled}
+                            isDisabled={this.state.saveRotationDisabled || this.state.loading}
                             variant="primary"
                             className="ds-margin-top-xlg"
                             onClick={() => {
@@ -795,7 +795,7 @@ export class ServerAccessLog extends React.Component {
                         </Form>
                         <Button
                             key="save del settings"
-                            isDisabled={this.state.saveExpDisabled}
+                            isDisabled={this.state.saveExpDisabled || this.state.loading}
                             variant="primary"
                             className="ds-margin-top-xlg"
                             onClick={() => {

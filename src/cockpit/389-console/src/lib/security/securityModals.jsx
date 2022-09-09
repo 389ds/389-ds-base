@@ -49,7 +49,7 @@ export class SecurityAddCACertModal extends React.Component {
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={error.certFile || error.certName}
+                        isDisabled={error.certFile || error.certName || spinning}
                     >
                         {saveBtnName}
                     </Button>,
@@ -141,7 +141,7 @@ export class SecurityAddCertModal extends React.Component {
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={error.certFile || error.certName}
+                        isDisabled={error.certFile || error.certName || spinning}
                     >
                         {saveBtnName}
                     </Button>,
@@ -240,6 +240,7 @@ export class SecurityEnableModal extends React.Component {
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
                         {...extraPrimaryProps}
+                        isDisabled={spinning}
                     >
                         {saveBtnName}
                     </Button>,
@@ -398,7 +399,7 @@ export class EditCertModal extends React.Component {
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.props.disableSaveBtn}
+                        isDisabled={this.props.disableSaveBtn || spinning}
                     >
                         {saveBtnName}
                     </Button>,

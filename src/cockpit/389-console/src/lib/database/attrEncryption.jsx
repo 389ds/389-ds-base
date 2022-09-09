@@ -212,7 +212,7 @@ export class AttrEncryption extends React.Component {
                             variant="primary"
                             onClick={this.addEncryptedAttr}
                             isLoading={saving}
-                            isDisabled={addAttr == ""}
+                            isDisabled={addAttr == "" || saving}
                             spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                             {...extraPrimaryProps}
                         >

@@ -864,7 +864,7 @@ export class GlobalDatabaseConfig extends React.Component {
                         isLoading={this.state.saving}
                         spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.state.saveBtnDisabled}
+                        isDisabled={this.state.saveBtnDisabled || this.state.saving}
                     >
                         {saveBtnName}
                     </Button>
