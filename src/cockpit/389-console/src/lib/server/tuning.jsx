@@ -626,7 +626,7 @@ export class ServerTuning extends React.Component {
                         </div>
                     </ExpandableSection>
                     <Button
-                        isDisabled={this.state.saveDisabled}
+                        isDisabled={this.state.saveDisabled || this.state.loading}
                         variant="primary"
                         className="ds-margin-top-xlg"
                         onClick={this.saveConfig}

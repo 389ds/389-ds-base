@@ -110,7 +110,7 @@ export class ServerErrorLog extends React.Component {
                 { cells: [{ title: this.aclLevel }], level: 128, selected: false },
                 { cells: [{ title: this.entryLevel }], level: 2048, selected: false },
                 { cells: [{ title: this.houseLevel }], level: 4096, selected: false },
-                { cells: [{ title: this.replLevel }], level: 8291, selected: false },
+                { cells: [{ title: this.replLevel }], level: 8192, selected: false },
                 { cells: [{ title: this.cacheLevel }], level: 32768, selected: false },
                 { cells: [{ title: this.pluginLevel }], level: 65536, selected: false },
                 { cells: [{ title: this.aclSummaryevel }], level: 262144, selected: false },
@@ -609,7 +609,7 @@ export class ServerErrorLog extends React.Component {
 
                         <Button
                             key="save settings"
-                            isDisabled={this.state.saveSettingsDisabled}
+                            isDisabled={this.state.saveSettingsDisabled || this.state.loading}
                             variant="primary"
                             className="ds-margin-top-xlg"
                             onClick={() => {
@@ -733,7 +733,7 @@ export class ServerErrorLog extends React.Component {
                         </Form>
                         <Button
                             key="save rot settings"
-                            isDisabled={this.state.saveRotationDisabled}
+                            isDisabled={this.state.saveRotationDisabled || this.state.loading}
                             variant="primary"
                             className="ds-margin-top-xlg"
                             onClick={() => {
@@ -835,7 +835,7 @@ export class ServerErrorLog extends React.Component {
                         </Form>
                         <Button
                             key="save del settings"
-                            isDisabled={this.state.saveExpDisabled}
+                            isDisabled={this.state.saveExpDisabled || this.state.loading}
                             variant="primary"
                             className="ds-margin-top-xlg"
                             onClick={() => {

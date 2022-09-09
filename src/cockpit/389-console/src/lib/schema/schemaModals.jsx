@@ -82,7 +82,7 @@ class ObjectClassModal extends React.Component {
                     variant="primary"
                     onClick={newOcEntry ? addHandler : editHandler}
                     {...extraPrimaryProps}
-                    isDisabled={saveBtnDisabled}
+                    isDisabled={saveBtnDisabled || loading}
                 >
                     {btnText}
                 </Button>
@@ -372,7 +372,7 @@ class AttributeTypeModal extends React.Component {
                     variant="primary"
                     onClick={newAtEntry ? addHandler : editHandler}
                     {...extraPrimaryProps}
-                    isDisabled={saveBtnDisabled}
+                    isDisabled={saveBtnDisabled || loading}
                 >
                     {btnText}
                 </Button>

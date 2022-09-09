@@ -502,7 +502,7 @@ class AciWizard extends React.Component {
                             isLoading={modalSpinning}
                             spinnerAriaValueText={modalSpinning ? "Loading" : undefined}
                             {...extraPrimaryProps}
-                            isDisabled={this.state.aciText === this.state.aciTextNew}
+                            isDisabled={this.state.aciText === this.state.aciTextNew || modalSpinning}
                         >
                             {btnName}
                         </Button>,
@@ -544,7 +544,7 @@ class AciWizard extends React.Component {
                             isLoading={modalSpinning}
                             spinnerAriaValueText={modalSpinning ? "Loading" : undefined}
                             {...extraPrimaryProps}
-                            isDisabled={this.state.aciTextNew === ""}
+                            isDisabled={this.state.aciTextNew === "" || modalSpinning}
                         >
                             {btnName}
                         </Button>,

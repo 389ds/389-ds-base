@@ -1083,7 +1083,7 @@ class AutoMembership extends React.Component {
                             key="confirm"
                             variant="primary"
                             onClick={newDefinitionEntry ? this.addDefinition : this.editDefinition}
-                            isDisabled={saveBtnDisabled}
+                            isDisabled={saveBtnDisabled || saving}
                             isLoading={saving}
                             spinnerAriaValueText={saving ? "Saving" : undefined}
                             {...extraPrimaryProps}

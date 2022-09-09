@@ -747,7 +747,7 @@ class RootDNAccessControl extends React.Component {
                         className="ds-margin-top-lg"
                         variant="primary"
                         onClick={this.savePlugin}
-                        isDisabled={saveBtnDisabled}
+                        isDisabled={saveBtnDisabled || saving}
                         isLoading={saving}
                         spinnerAriaValueText={saving ? "Saving" : undefined}
                         {...extraPrimaryProps}

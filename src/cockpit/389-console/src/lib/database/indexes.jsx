@@ -821,7 +821,7 @@ class AddIndexModal extends React.Component {
                         isLoading={saving}
                         spinnerAriaValueText={saving ? "Creating" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={saveBtnDisabled}
+                        isDisabled={saveBtnDisabled || saving}
                     >
                         {saveBtnName}
                     </Button>,
@@ -1110,7 +1110,7 @@ class EditIndexModal extends React.Component {
                         isLoading={saving}
                         spinnerAriaValueText={saving ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={saveBtnDisabled}
+                        isDisabled={saveBtnDisabled || saving}
                     >
                         {saveBtnName}
                     </Button>,

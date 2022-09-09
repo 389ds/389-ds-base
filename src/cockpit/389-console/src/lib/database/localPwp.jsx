@@ -1342,7 +1342,7 @@ export class LocalPwPolicy extends React.Component {
                 cmd.push(this.state.attrMap[attr] + "=" + new_val);
             }
         }
-      
+
         log_cmd("createPolicy", "Create a local password policy", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -2860,7 +2860,7 @@ export class LocalPwPolicy extends React.Component {
                                 </Grid>
                             </Form>
                             <Button
-                                isDisabled={this.state.saveGeneralDisabled}
+                                isDisabled={this.state.saveGeneralDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left-sm"
                                 onClick={this.saveGeneral}
@@ -2888,7 +2888,7 @@ export class LocalPwPolicy extends React.Component {
                                 {pwExpirationRows}
                             </Form>
                             <Button
-                                isDisabled={this.state.saveExpDisabled}
+                                isDisabled={this.state.saveExpDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left"
                                 onClick={this.saveExp}
@@ -2916,7 +2916,7 @@ export class LocalPwPolicy extends React.Component {
                                 {pwLockoutRows}
                             </Form>
                             <Button
-                                isDisabled={this.state.saveLockoutDisabled}
+                                isDisabled={this.state.saveLockoutDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left"
                                 onClick={this.saveLockout}
@@ -2944,7 +2944,7 @@ export class LocalPwPolicy extends React.Component {
                                 {pwSyntaxRows}
                             </Form>
                             <Button
-                                isDisabled={this.state.saveSyntaxDisabled}
+                                isDisabled={this.state.saveSyntaxDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left"
                                 onClick={this.saveSyntax}
@@ -3035,7 +3035,7 @@ export class LocalPwPolicy extends React.Component {
                                 {pwSyntaxRows}
                             </Form>
                             <Button
-                                isDisabled={this.state.saveTPRDisabled}
+                                isDisabled={this.state.saveTPRDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left"
                                 onClick={this.saveTPR}
