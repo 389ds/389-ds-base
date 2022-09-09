@@ -421,7 +421,7 @@ export class CreateInstanceModal extends React.Component {
                         key="confirm"
                         variant="primary"
                         onClick={this.handleCreateInstance}
-                        isDisabled={!createOK}
+                        isDisabled={!createOK || loadingCreate}
                         isLoading={loadingCreate}
                         spinnerAriaValueText={loadingCreate ? "Saving" : undefined}
                         {...extraPrimaryProps}

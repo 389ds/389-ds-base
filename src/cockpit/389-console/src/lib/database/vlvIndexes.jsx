@@ -573,7 +573,7 @@ class AddVLVIndexModal extends React.Component {
                         isLoading={saving}
                         spinnerAriaValueText={saving ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.state.sortValue.length == 0}
+                        isDisabled={this.state.sortValue.length == 0 || saving}
                     >
                         {saveBtnName}
                     </Button>,
@@ -658,7 +658,7 @@ class AddVLVModal extends React.Component {
                         isLoading={saving}
                         spinnerAriaValueText={saving ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.props.saveBtnDisabled}
+                        isDisabled={this.props.saveBtnDisabled || saving}
                     >
                         {saveBtnName}
                     </Button>,

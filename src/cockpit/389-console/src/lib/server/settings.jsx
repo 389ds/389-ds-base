@@ -1127,7 +1127,7 @@ export class ServerSettings extends React.Component {
                                     </Grid>
                                 </Form>
                                 <Button
-                                    isDisabled={this.state.configSaveDisabled}
+                                    isDisabled={this.state.configSaveDisabled || this.state.configReloading}
                                     variant="primary"
                                     className="ds-margin-top-xlg"
                                     onClick={this.saveConfig}
@@ -1223,7 +1223,7 @@ export class ServerSettings extends React.Component {
                                 <Button
                                     variant="primary"
                                     className="ds-margin-top-xlg"
-                                    isDisabled={this.state.rootDNSaveDisabled}
+                                    isDisabled={this.state.rootDNSaveDisabled || this.state.rootDNReloading}
                                     onClick={this.saveRootDN}
                                     isLoading={this.state.rootDNReloading}
                                     spinnerAriaValueText={this.state.rootDNReloading ? "Saving" : undefined}
@@ -1245,7 +1245,7 @@ export class ServerSettings extends React.Component {
                                 </Form>
                                 {diskMonitor}
                                 <Button
-                                    isDisabled={this.state.diskMonSaveDisabled}
+                                    isDisabled={this.state.diskMonSaveDisabled || this.state.diskMonReloading}
                                     variant="primary"
                                     className="ds-margin-top-xlg"
                                     onClick={this.saveDiskMonitoring}
@@ -1428,7 +1428,7 @@ export class ServerSettings extends React.Component {
                                     </Grid>
                                 </Form>
                                 <Button
-                                    isDisabled={this.state.advSaveDisabled}
+                                    isDisabled={this.state.advSaveDisabled || this.state.advReloading}
                                     variant="primary"
                                     className="ds-margin-top-xlg"
                                     onClick={this.saveAdvanced}

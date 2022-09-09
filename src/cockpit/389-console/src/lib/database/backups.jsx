@@ -807,6 +807,7 @@ class ExportModal extends React.Component {
                         onClick={saveHandler}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Creating ..." : undefined}
+                        isDisabled={spinning}
                         {...extraPrimaryProps}
                     >
                         {createBtnName}
@@ -904,6 +905,7 @@ export class BackupModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={spinning}
+                        isDisabled={spinning}
                         spinnerAriaValueText={spinning ? "Creating ..." : undefined}
                         {...extraPrimaryProps}
                     >

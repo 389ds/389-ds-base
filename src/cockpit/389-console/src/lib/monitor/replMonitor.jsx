@@ -1376,6 +1376,7 @@ export class ReplMonitor extends React.Component {
                             onClick={this.doFullReport}
                             title="Use the specified credentials and display full topology report"
                             isLoading={this.state.reportLoading}
+                            isDisabled={this.state.reportLoading}
                             spinnerAriaValueText={this.state.reportLoading ? "Generating" : undefined}
                             {...extraPrimaryProps}
                         >
