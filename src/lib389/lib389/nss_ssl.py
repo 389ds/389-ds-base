@@ -478,7 +478,7 @@ only.
             raise ValueError(e.output.decode('utf-8').rstrip())
         lines = result.split('\n')[1:-1]
         for line in lines:
-            m = re.match('\<(?P<id>.*)\> (?P<type>\w+)\s+(?P<hash>\w+).*:(?P<name>.+)', line)
+            m = re.match(r'\<(?P<id>.*)\> (?P<type>\w+)\s+(?P<hash>\w+).*:(?P<name>.+)', line)
             if name == m.group('name'):
                 return True
         return False

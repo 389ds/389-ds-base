@@ -863,58 +863,6 @@ class DirSrv(SimpleLDAPObject, object):
         # Now the instance is created but DirSrv is not yet connected to it
         self.state = DIRSRV_STATE_OFFLINE
 
-    def _deleteDirsrv(self):
-        '''
-            Deletes the instance with the parameters sets in dirsrv
-            The state changes  -> DIRSRV_STATE_ALLOCATED
-
-            @param self
-
-            @return None
-
-            @raise None
-        '''
-
-        # Grab all the instances now, before we potentially remove the last one
-        insts = self.list(all=True)
-
-        if self.state == DIRSRV_STATE_ONLINE:
-            self.close()
-
-        if not self.exists():
-            raise ValueError("Error can not find instance %s[%s:%d]" %
-                             (self.serverid, self.host, self.port))
-
-        # Now time to remove the instance
-        prog = os.path.join(self.ds_paths.sbin_dir, 'dsctl')
-        if (not self.ds_paths.prefix or self.ds_paths.prefix == '/') and os.geteuid() != 0:
-            raise ValueError("Error: without prefix deployment it is required to be root user")
-        cmd = "%s slapd-%s remove --do-it" % (prog, self.serverid)
-        self.log.debug("running: %s ", cmd)
-        try:
-            os.system(cmd)
-        except:
-            self.log.exception("error executing %r", cmd)
-
-        # If this was the last instance being deleted, remove the DEFAULT_USER
-        # if lib389 created the default user
-        if os.getuid() == 0:
-            # Only the root user could of added the entry
-            if len(insts) == 1:
-                # No more instances (this was the last one)
-                if pwd.getpwnam(DEFAULT_USER).pw_gecos == DEFAULT_USER_COMMENT:
-                    # We created this user, so we will delete it
-                    cmd = ['/usr/sbin/userdel', DEFAULT_USER]
-                    try:
-                        subprocess.call(cmd)
-                    except subprocess.CalledProcessError as e:
-                        self.log.exception(
-                                'Failed to delete default user ',
-                                      '(%s): error %s' % (DEFAULT_USER,
-                                                          e.output))
-
-        self.state = DIRSRV_STATE_ALLOCATED
-
     def get_db_lib(self):
         with suppress(AttributeError):
             return self._db_lib
