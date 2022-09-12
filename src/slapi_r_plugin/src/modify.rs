@@ -1,4 +1,3 @@
-use crate::constants::OpFlags;
 use crate::dn::SdnRef;
 use crate::error::{LDAPError, PluginError};
 use crate::pblock::Pblock;
@@ -95,7 +94,7 @@ impl Modify {
                 std::ptr::null(),
                 std::ptr::null(),
                 plugin_id.raw_pid,
-                OpFlags::ByassReferrals as i32,
+                0 as i32,
             )
         };
 
