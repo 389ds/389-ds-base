@@ -10,7 +10,15 @@ import os
 import shutil
 import subprocess
 from lib389.nss_ssl import NssSsl
-from lib389.utils import selinux_label_port, assert_c, ensure_str, ensure_list_str
+from lib389.utils import (
+    assert_c,
+    ensure_list_str,
+    ensure_str,
+    selinux_clean_files_label,
+    selinux_clean_ports_label,
+    selinux_label_file,
+    selinux_label_port,
+)
 
 
 ######################## WARNING #############################
@@ -125,10 +133,15 @@ def remove_ds_instance(dirsrv, force=False):
             selinux_label_port(dirsrv.sslport, remove_label=True)
 
     # If this was the last instance, remove the ssca instance
+    # and all ds related selinux customizations
     insts = dirsrv.list(all=True)
     if len(insts) == 0:
         ssca = NssSsl(dbpath=dirsrv.get_ssca_dir())
         ssca.remove_db()
+        selinux_clean_ports_label()
+        selinux_clean_files_label(all=True)
+    else:
+        selinux_clean_files_label()
 
     ### ANY NEW REMOVAL ACTIONS MUST BE ABOVE THIS LINE!!!
 
@@ -144,6 +157,7 @@ def remove_ds_instance(dirsrv, force=False):
         shutil.rmtree(config_dir_rm)
 
     assert_c(not os.path.exists(config_dir_rm))
+    selinux_label_file(config_dir_rm, None)
 
     # That's it, everything before this MUST have suceeded, so now we can move the
     # config dir (containing dse.ldif, the marker) out of the way.
