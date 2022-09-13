@@ -587,7 +587,7 @@ export class Backups extends React.Component {
         return (
             <div>
                 <TextContent>
-                    <Text className="ds-config-header" component={TextVariants.h3}>
+                    <Text className="ds-config-header" component={TextVariants.h2}>
                         Database Backups & LDIFs
                     </Text>
                 </TextContent>

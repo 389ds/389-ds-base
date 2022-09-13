@@ -524,6 +524,7 @@ class LdapNavigator extends React.Component {
                 }
                 <div className={this.props.isDisabled ? "ds-disabled ds-editor-tree" : "ds-editor-tree"}>
                     <TreeView
+                        hasSelectableNodes
                         data={allItems}
                         onSelect={this.treeOnClick}
                         activeItems={activeItems}
