@@ -199,7 +199,7 @@ export function numToCommas(num) {
 
 export function displayBytes(bytes) {
     // Convert bytes into a more human readable value/unit
-    if (bytes === 0) {
+    if (bytes === 0 || isNaN(bytes)) {
         return '0 Bytes';
     }
     const k = 1024;
@@ -211,7 +211,7 @@ export function displayBytes(bytes) {
 
 export function displayKBytes(kbytes) {
     // Convert kilobytes into a more human readable value/unit
-    if (kbytes === 0) {
+    if (kbytes === 0 || isNaN(kbytes)) {
         return '0 KB';
     }
     const k = 1024;
