@@ -78,7 +78,9 @@ export class Database extends React.Component {
             createInitOption: "noInit",
 
             // DB config
-            globalDBConfig: {},
+            globalDBConfig: {
+                activeTab: 0,
+            },
             configUpdated: 0,
             // Chaining Config
             chainingConfig: {},
@@ -168,7 +170,42 @@ export class Database extends React.Component {
                 });
     }
 
-    loadGlobalConfig () {
+    loadNDN() {
+        this.setState({
+            loaded: false,
+        });
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get", "nsslapd-ndn-cache-max-size"
+        ];
+        log_cmd("loadNDN", "Load NDN cache size", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
+                    this.setState(prevState => ({
+                        globalDBConfig: {
+                            ...prevState.globalDBConfig,
+                            ndncachemaxsize: attrs['nsslapd-ndn-cache-max-size'][0],
+                        },
+                        configUpdated: 0,
+                        loaded: true,
+                    }));
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        `Error loading server configuration for database- ${errMsg.desc}`
+                    );
+                    this.setState({
+                        loaded: true,
+                    });
+                });
+    }
+
+    loadGlobalConfig (activeTab) {
         if (this.state.firstLoad) {
             this.setState({ firstLoad: false });
         }
@@ -205,6 +242,7 @@ export class Database extends React.Component {
                             globalDBConfig:
                                 {
                                     loading: false,
+                                    activeTab: activeTab,
                                     db_cache_auto: db_cache_auto,
                                     import_cache_auto: import_cache_auto,
                                     looklimit: attrs['nsslapd-lookthroughlimit'][0],
@@ -228,7 +266,7 @@ export class Database extends React.Component {
                                     importcachesize: attrs['nsslapd-import-cachesize'][0],
                                 },
                             configUpdated: 1
-                        }), this.setState({ configUpdated: 0 }));
+                        }), () => { this.loadNDN() });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -529,7 +567,7 @@ export class Database extends React.Component {
     handleTreeClick(evt, treeViewItem, parentItem) {
         if (this.state.activeItems.length === 0 || treeViewItem === this.state.activeItems[0]) {
             this.setState({
-                activeItems: [treeViewItem, parentItem]
+                activeItems: [treeViewItem]
             });
             return;
         }
@@ -1265,6 +1303,7 @@ export class Database extends React.Component {
                         <div className="ds-tree">
                             <div className={disabled} id="db-tree">
                                 <TreeView
+                                    hasSelectableNodes
                                     data={this.state.nodes}
                                     activeItems={this.state.activeItems}
                                     onSelect={this.handleTreeClick}

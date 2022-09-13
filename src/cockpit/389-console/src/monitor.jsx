@@ -956,6 +956,7 @@ export class Monitor extends React.Component {
                             <div className="ds-tree">
                                 <div className={disabled} id="monitor-tree">
                                     <TreeView
+                                        hasSelectableNodes
                                         data={nodes}
                                         activeItems={this.state.activeItems}
                                         onSelect={this.handleTreeClick}
