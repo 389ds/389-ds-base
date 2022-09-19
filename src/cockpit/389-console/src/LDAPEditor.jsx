@@ -1131,6 +1131,7 @@ export class LDAPEditor extends React.Component {
                         treeViewRootSuffixes={this.state.treeViewRootSuffixes}
                         setWizardOperationInfo={this.setWizardOperationInfo}
                         onReload={this.handleReloadNoop}
+                        // coverity[copy_paste_error]
                         onModrdnReload={this.handleReload}
                         allObjectclasses={this.state.allObjectclasses}
                         addNotification={this.props.addNotification}

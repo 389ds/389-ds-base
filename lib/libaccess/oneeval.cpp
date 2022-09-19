@@ -507,6 +507,9 @@ ACLEvalBuildContext(
     /* This must be done last to avoid a race in initialization */
     acleval->acllist->cache = (void *)cache;
 
+
+    /* covscan false positive acelast is linked in the cache */
+    /* coverity[leaked_storage] */
     return 0;
 
 error:
@@ -519,6 +522,8 @@ error:
     }
     acleval->acllist->cache = NULL;
 
+    /* covscan false positive acelast is linked in the cache */
+    /* coverity[leaked_storage] */
     return ACL_RES_ERROR;
 }
 
