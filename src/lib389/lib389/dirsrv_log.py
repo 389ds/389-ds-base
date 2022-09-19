@@ -138,10 +138,7 @@ class DirsrvLog(DSLint):
         @param ts - The timestamp string from a log
         @return - a "datetime" object
         """
-        if self.jsonFormat:
-            timedata = self.prog_timestamp.match(ts).groupdict()
-        else:
-            timedata = self.prog_timestamp.match(ts).groupdict()
+        timedata = self.prog_timestamp.match(ts).groupdict()
 
         # Now, have to convert month to an int.
         dt_str = '{YEAR}-{MONTH}-{DAY} {HOUR}-{MINUTE}-{SECOND} {TZ}'.format(

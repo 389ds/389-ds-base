@@ -1255,9 +1255,9 @@ cldb_SetReplicaDB(Replica *replica, void *arg)
         if (_cldb_CheckAndSetEnv(be, cldb) != CL5_SUCCESS) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                           "cldb_SetReplicaDB - Failed to check be environment\n");
-            return CL5_SYSTEM_ERROR;
             /* Coverity false positive: cldb is not leaking has it is now linked in the backend context */
             /* coverity[leaked_storage] */
+            return CL5_SYSTEM_ERROR;
         }
         _cl5ReadRUV(cldb, PR_TRUE);
         _cl5ReadRUV(cldb, PR_FALSE);

@@ -3993,8 +3993,8 @@ bail:
         /* mods may have been updated and must be put back into place. */
         mods = slapi_mods_get_ldapmods_passout(smods);
         slapi_pblock_set(pb, SLAPI_MODIFY_MODS, mods);
-        slapi_mods_free(&smods);
     }
+    slapi_mods_free(&smods);
 
     if (ret) {
         slapi_log_err(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
