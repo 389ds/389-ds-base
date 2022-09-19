@@ -480,6 +480,8 @@ substr_dn_normalize_orig(char *dn, char *end)
         sort_rdn_avs(rdn_avs, rdn_av_count, 0);
     }
     if (rdn_av_count > 0) {
+        /* Code is ok because rdn_avs is freed only if it has grown */
+        /* coverity[incorrect_free] */
         reset_rdn_avs(&rdn_avs, &rdn_av_count);
     }
     /* Trim trailing spaces */
@@ -1142,6 +1144,8 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
         sort_rdn_avs(rdn_avs, rdn_av_count, 0);
     }
     if (rdn_av_count > 0) {
+        /* Code is ok because rdn_avs is freed only if it has grown */
+        /* coverity[incorrect_free] */
         reset_rdn_avs(&rdn_avs, &rdn_av_count);
     }
     /* Trim trailing spaces */

@@ -139,7 +139,7 @@ snmp_collator_init(void)
         /* Initialize the global interaction table */
         for (i = 0; i < NUM_SNMP_INT_TBL_ROWS; i++) {
             snmp_vars->int_tbl[i].dsIntIndex = i + 1;
-            strncpy(snmp_vars->int_tbl[i].dsName, "Not Available",
+            PL_strncpyz(snmp_vars->int_tbl[i].dsName, "Not Available",
                     sizeof (snmp_vars->int_tbl[i].dsName));
             snmp_vars->int_tbl[i].dsTimeOfCreation = 0;
             snmp_vars->int_tbl[i].dsTimeOfLastAttempt = 0;
@@ -147,7 +147,7 @@ snmp_collator_init(void)
             snmp_vars->int_tbl[i].dsFailuresSinceLastSuccess = 0;
             snmp_vars->int_tbl[i].dsFailures = 0;
             snmp_vars->int_tbl[i].dsSuccesses = 0;
-            strncpy(snmp_vars->int_tbl[i].dsURL, "Not Available",
+            PL_strncpyz(snmp_vars->int_tbl[i].dsURL, "Not Available",
                     sizeof (snmp_vars->int_tbl[i].dsURL));
         }
     }
@@ -159,7 +159,7 @@ snmp_collator_init(void)
     memset((void *)stats, 0, sizeof(*stats));
 
     /* Load header stats table */
-    strncpy(stats->hdr_stats.dsVersion, SLAPD_VERSION_STR,
+    PL_strncpyz(stats->hdr_stats.dsVersion, SLAPD_VERSION_STR,
             (sizeof(stats->hdr_stats.dsVersion) / sizeof(char)) - 1);
     stats->hdr_stats.restarted = 0;
     stats->hdr_stats.startTime = time(0); /* This is a bit off, hope it's ok */
@@ -220,7 +220,7 @@ set_snmp_interaction_row(char *host, int port, int error)
     if (isnew) {
         /* fillin the new row from scratch*/
         snmp_vars->int_tbl[index].dsIntIndex = index;
-        strncpy(snmp_vars->int_tbl[index].dsName, dsName,
+        PL_strncpyz(snmp_vars->int_tbl[index].dsName, dsName,
                 sizeof(snmp_vars->int_tbl[index].dsName));
         snmp_vars->int_tbl[index].dsTimeOfCreation = time(0);
         snmp_vars->int_tbl[index].dsTimeOfLastAttempt = time(0);
@@ -235,7 +235,7 @@ set_snmp_interaction_row(char *host, int port, int error)
             snmp_vars->int_tbl[index].dsFailures = 1;
             snmp_vars->int_tbl[index].dsSuccesses = 0;
         }
-        strncpy(snmp_vars->int_tbl[index].dsURL, dsURL,
+        PL_strncpyz(snmp_vars->int_tbl[index].dsURL, dsURL,
                 sizeof(snmp_vars->int_tbl[index].dsURL));
     } else {
         /* just update the appropriate fields */
@@ -796,7 +796,7 @@ snmp_update_interactions_table(void)
 
     for (i = 0; i < NUM_SNMP_INT_TBL_ROWS; i++) {
         stats->int_stats[i].dsIntIndex = i;
-        strncpy(stats->int_stats[i].dsName, snmp_vars->int_tbl[i].dsName,
+        PL_strncpyz(stats->int_stats[i].dsName, snmp_vars->int_tbl[i].dsName,
                 sizeof(stats->int_stats[i].dsName));
         stats->int_stats[i].dsTimeOfCreation = snmp_vars->int_tbl[i].dsTimeOfCreation;
         stats->int_stats[i].dsTimeOfLastAttempt = snmp_vars->int_tbl[i].dsTimeOfLastAttempt;
@@ -804,7 +804,7 @@ snmp_update_interactions_table(void)
         stats->int_stats[i].dsFailuresSinceLastSuccess = snmp_vars->int_tbl[i].dsFailuresSinceLastSuccess;
         stats->int_stats[i].dsFailures = snmp_vars->int_tbl[i].dsFailures;
         stats->int_stats[i].dsSuccesses = snmp_vars->int_tbl[i].dsSuccesses;
-        strncpy(stats->int_stats[i].dsURL, snmp_vars->int_tbl[i].dsURL,
+        PL_strncpyz(stats->int_stats[i].dsURL, snmp_vars->int_tbl[i].dsURL,
                 sizeof(stats->int_stats[i].dsURL));
     }
 }

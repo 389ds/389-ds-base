@@ -541,6 +541,9 @@ class Migration(object):
             if obj.oid in self._schema_oid_unsupported:
                 self.plan.append(SchemaClassUnsupported(obj))
                 continue
+            if obj.oid.lower().startswith('x-'):
+                self.plan.append(SchemaClassInvalid(obj, "descr-oid format is ambiguous with x- prefix. You MUST use a numeric oid."))
+                continue
             # For the attr, find if anything has a name overlap in any capacity.
             overlaps = [ ds_obj for ds_obj in schema_objects if ds_obj.oid == obj.oid]
             if len(overlaps) == 0:
