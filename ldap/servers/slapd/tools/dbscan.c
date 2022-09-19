@@ -1108,11 +1108,13 @@ importdb(const char *dbimpl_name, const char *filename, const char *dump_name)
 
     if (!dump) {
         printf("Failed to open dump file %s. Error %d: %s\n", dump_name, errno, strerror(errno));
+        fclose(dump);
         return 1;
     }
 
     if (dblayer_private_open(dbimpl_name, filename, 1, &be, &env, &db)) {
         printf("Can't initialize db plugin: %s\n", dbimpl_name);
+        fclose(dump);
         return 1;
     }
 
@@ -1158,6 +1160,7 @@ exportdb(const char *dbimpl_name, const char *filename, const char *dump_name)
 
     if (dblayer_private_open(dbimpl_name, filename, 0, &be, &env, &db)) {
         printf("Can't initialize db plugin: %s\n", dbimpl_name);
+        fclose(dump);
         return 1;
     }
 
@@ -1166,6 +1169,7 @@ exportdb(const char *dbimpl_name, const char *filename, const char *dump_name)
     ret = dblayer_new_cursor(be, db, NULL, &cursor);
     if (ret != 0) {
         printf("Can't create db cursor: %s\n", dblayer_strerror(ret));
+        fclose(dump);
         return 1;
     }
 
