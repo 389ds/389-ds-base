@@ -5363,6 +5363,7 @@ schema_oc_compare_strict(struct objclass *oc_1, struct objclass *oc_2, const cha
                 moved_must_to_may = PR_FALSE;
                 if (oc_2->oc_orig_allowed) {
                     for (j = 0; oc_2->oc_orig_allowed[j] != NULL; j++) {
+                        /* coverity[copy_paste_error] */
                         if (strcasecmp(oc_2->oc_orig_allowed[j], oc_1->oc_orig_required[i]) == 0) {
                             moved_must_to_may = PR_TRUE;
                             break;

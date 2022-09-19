@@ -189,6 +189,8 @@ set_tpr_usecount_mods(Slapi_PBlock *pb, Slapi_Mods *smods, int count)
             rc = LDAP_CONSTRAINT_VIOLATION;
         }
     }
+    /* covscan false positive: new_passwdPolicy anchor the policy in the pblock */
+    /* coverity[leaked_storage] */
     return rc;
 }
 
