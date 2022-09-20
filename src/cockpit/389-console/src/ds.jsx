@@ -48,14 +48,14 @@ const staticStates = {
     ),
     noInsts: (
         <TextContent>
-            <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+            <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
                 There are no Directory Server instances to manage
             </Text>
         </TextContent>
     ),
     notRunning: (
         <TextContent>
-            <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+            <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
                 This server instance is not running, either start it from the <b>Actions</b> dropdown
                 menu, or choose a different instance
             </Text>
@@ -63,9 +63,17 @@ const staticStates = {
     ),
     notConnecting: (
         <TextContent>
-            <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
+            <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
                 This server instance is running, but we can not connect to it. Check LDAPI is properly
                 configured on this instance.
+            </Text>
+        </TextContent>
+    ),
+    ldapiIssue: (
+        <TextContent>
+            <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
+                Problem accessing required server configuration. Check LDAPI is properly
+                configured for the current Root DN (nsslapd-rootdn & nsslapd-ldapimaprootdn).
             </Text>
         </TextContent>
     )
@@ -212,43 +220,92 @@ export class DSInstance extends React.Component {
                     const status_json = JSON.parse(status_data);
                     if (status_json.running) {
                         this.updateProgress(25);
-                        const cmd = [
-                            "dsconf",
-                            "-j",
-                            "ldapi://%2fvar%2frun%2fslapd-" + serverId + ".socket",
-                            "backend",
-                            "suffix",
-                            "list",
-                            "--suffix"
+
+                        const cfg_cmd = [
+                            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + serverId + ".socket",
+                            "config", "get"
                         ];
-                        log_cmd("setServerId", "Test if instance is alive ", cmd);
+                        log_cmd("setServerId", "Load server configuration", cfg_cmd);
                         cockpit
-                                .spawn(cmd, { superuser: true, err: "message" })
-                                .done(_ => {
-                                    this.updateProgress(25);
-                                    this.setState(
-                                        {
-                                            serverId: serverId,
-                                            wasActiveList: [this.state.activeTabKey]
-                                        },
-                                        () => {
-                                            this.loadBackups();
-                                        }
-                                    );
-                                    if (action === "restart") {
-                                        this.setState(
-                                            {
-                                                serverId: "",
-                                                wasActiveList: []
+                                .spawn(cfg_cmd, { superuser: true, err: "message" })
+                                .done(content => {
+                                    const config = JSON.parse(content);
+                                    const attrs = config.attrs;
+                                    if (Object.keys(attrs).length === 0) {
+                                        // Could not load config, access control issue (LDAPI misconfigured)
+                                        this.setState({
+                                            pageLoadingState: {
+                                                state: "ldapiIssue",
+                                                jsx: staticStates.ldapiIssue,
+                                                loading: "ldapiError"
                                             },
-                                            () => {
-                                                this.setState({
-                                                    serverId: serverId,
-                                                    wasActiveList: [this.state.activeTabKey]
-                                                });
-                                            }
-                                        );
+                                            serverId: serverId,
+                                            wasActiveList: []
+                                        });
+                                        return;
                                     }
+
+                                    const cmd = [
+                                        "dsconf",
+                                        "-j",
+                                        "ldapi://%2fvar%2frun%2fslapd-" + serverId + ".socket",
+                                        "backend",
+                                        "suffix",
+                                        "list",
+                                        "--suffix"
+                                    ];
+                                    log_cmd("setServerId", "Test if instance is alive ", cmd);
+                                    cockpit
+                                            .spawn(cmd, { superuser: true, err: "message" })
+                                            .done(_ => {
+                                                this.updateProgress(25);
+                                                this.setState(
+                                                    {
+                                                        serverId: serverId,
+                                                        wasActiveList: [this.state.activeTabKey]
+                                                    },
+                                                    () => {
+                                                        this.loadBackups();
+                                                    }
+                                                );
+                                                if (action === "restart") {
+                                                    this.setState(
+                                                        {
+                                                            serverId: "",
+                                                            wasActiveList: []
+                                                        },
+                                                        () => {
+                                                            this.setState({
+                                                                serverId: serverId,
+                                                                wasActiveList: [this.state.activeTabKey]
+                                                            });
+                                                        }
+                                                    );
+                                                }
+                                            })
+                                            .fail(err => {
+                                                const errMsg = JSON.parse(err);
+                                                console.log("setServerId failed: ", errMsg.desc);
+                                                this.setState(
+                                                    {
+                                                        pageLoadingState: {
+                                                            state: "notConnecting",
+                                                            jsx: staticStates.notConnecting
+                                                        }
+                                                    },
+                                                    () => {
+                                                        this.setState(
+                                                            {
+                                                                serverId: serverId,
+                                                                wasActiveList: []
+                                                            },
+                                                            () => {
+                                                                this.loadBackups();
+                                                            }
+                                                        );
+                                                    }
+                                                );
+                                            });
                                 })
                                 .fail(err => {
                                     const errMsg = JSON.parse(err);
