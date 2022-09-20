@@ -196,8 +196,11 @@ class DSLdapObject(DSLogging, DSLint):
         """
         e = _search_ext_s(self._instance,self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=attrlist,
                                         serverctrls=self._server_controls, clientctrls=self._client_controls,
-                                        escapehatch='i am sure')[0]
-        return e.__repr__()
+                                        escapehatch='i am sure')
+        if len(e) > 0:
+            return e[0].__repr__()
+        else:
+            return ""
 
     def display_attr(self, attr):
         """Get all values of given attribute - 'attr: value'
@@ -623,12 +626,15 @@ class DSLdapObject(DSLogging, DSLint):
             # retrieving real(*) and operational attributes(+)
             attrs_entry = _search_ext_s(self._instance,self._dn, ldap.SCOPE_BASE, self._object_filter,
                                                       attrlist=["*", "+"], serverctrls=self._server_controls,
-                                                      clientctrls=self._client_controls, escapehatch='i am sure')[0]
-            # getting dict from 'entry' object
-            attrs_dict = attrs_entry.data
-            # Should we normalise the attr names here to lower()?
-            # This could have unforseen consequences ...
-            return attrs_dict
+                                                      clientctrls=self._client_controls, escapehatch='i am sure')
+            if len(attrs_entry) > 0:
+                # getting dict from 'entry' object
+                attrs_dict = attrs_entry[0].data
+                # Should we normalise the attr names here to lower()?
+                # This could have unforseen consequences ...
+                return attrs_dict
+            else:
+                return {}
 
     def get_all_attrs_utf8(self, use_json=False):
         """Get a dictionary having all the attributes of the entry
@@ -643,12 +649,15 @@ class DSLdapObject(DSLogging, DSLint):
             # retrieving real(*) and operational attributes(+)
             attrs_entry = _search_ext_s(self._instance,self._dn, ldap.SCOPE_BASE, self._object_filter,
                                                       attrlist=["*", "+"], serverctrls=self._server_controls,
-                                                      clientctrls=self._client_controls, escapehatch='i am sure')[0]
-            # getting dict from 'entry' object
-            r = {}
-            for (k, vo) in attrs_entry.data.items():
-                r[k] = ensure_list_str(vo)
-            return r
+                                                      clientctrls=self._client_controls, escapehatch='i am sure')
+            if len(attrs_entry) > 0:
+                # getting dict from 'entry' object
+                r = {}
+                for (k, vo) in attrs_entry[0].data.items():
+                    r[k] = ensure_list_str(vo)
+                return r
+            else:
+                return {}
 
     def get_attrs_vals(self, keys, use_json=False):
         self._log.debug("%s get_attrs_vals(%r)" % (self._dn, keys))
@@ -657,8 +666,11 @@ class DSLdapObject(DSLogging, DSLint):
         else:
             entry = _search_ext_s(self._instance,self._dn, ldap.SCOPE_BASE, self._object_filter,
                                                 attrlist=keys, serverctrls=self._server_controls,
-                                                clientctrls=self._client_controls, escapehatch='i am sure')[0]
-            return entry.getValuesSet(keys)
+                                                clientctrls=self._client_controls, escapehatch='i am sure')
+            if len(entry) > 0:
+                return entry[0].getValuesSet(keys)
+            else:
+                return []
 
     def get_attrs_vals_utf8(self, keys, use_json=False):
         self._log.debug("%s get_attrs_vals_utf8(%r)" % (self._dn, keys))
@@ -666,12 +678,15 @@ class DSLdapObject(DSLogging, DSLint):
             raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
         entry = _search_ext_s(self._instance,self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=keys,
                                             serverctrls=self._server_controls, clientctrls=self._client_controls,
-                                            escapehatch='i am sure')[0]
-        vset = entry.getValuesSet(keys)
-        r = {}
-        for (k, vo) in vset.items():
-            r[k] = ensure_list_str(vo)
-        return r
+                                            escapehatch='i am sure')
+        if len(entry) > 0:
+            vset = entry[0].getValuesSet(keys)
+            r = {}
+            for (k, vo) in vset.items():
+                r[k] = ensure_list_str(vo)
+            return r
+        else:
+            return {}
 
     def get_attr_vals(self, key, use_json=False):
         self._log.debug("%s get_attr_vals(%r)" % (self._dn, key))
@@ -685,15 +700,21 @@ class DSLdapObject(DSLogging, DSLint):
             # We have to do this in this method, because else we ignore the scope base.
             entry = _search_ext_s(self._instance,self._dn, ldap.SCOPE_BASE, self._object_filter,
                                                 attrlist=[key], serverctrls=self._server_controls,
-                                                clientctrls=self._client_controls, escapehatch='i am sure')[0]
-            vals = entry.getValues(key)
-            if use_json:
-                result = {key: []}
-                for val in vals:
-                    result[key].append(val)
-                return result
+                                                clientctrls=self._client_controls, escapehatch='i am sure')
+            if len(entry) > 0:
+                vals = entry[0].getValues(key)
+                if use_json:
+                    result = {key: []}
+                    for val in vals:
+                        result[key].append(val)
+                    return result
+                else:
+                    return vals
             else:
-                return vals
+                if use_json:
+                    return {}
+                else:
+                    return []
 
     def get_attr_val(self, key, use_json=False):
         self._log.debug("%s getVal(%r)" % (self._dn, key))
@@ -705,8 +726,11 @@ class DSLdapObject(DSLogging, DSLint):
         else:
             entry = _search_ext_s(self._instance,self._dn, ldap.SCOPE_BASE, self._object_filter,
                                                 attrlist=[key], serverctrls=self._server_controls,
-                                                clientctrls=self._client_controls, escapehatch='i am sure')[0]
-            return entry.getValue(key)
+                                                clientctrls=self._client_controls, escapehatch='i am sure')
+            if len(entry) > 0:
+                return entry[0].getValue(key)
+            else:
+                return ""
 
     def get_attr_val_bytes(self, key, use_json=False):
         """Get a single attribute value from the entry in bytes type
