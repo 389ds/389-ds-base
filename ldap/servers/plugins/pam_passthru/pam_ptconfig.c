@@ -582,6 +582,7 @@ pam_passthru_apply_config(Slapi_Entry *e)
     char *dn = NULL;
     PRBool fallback;
     PRBool secure;
+    PRBool thread_safe;
     Pam_PassthruConfig *entry = NULL;
     PRCList *list;
     Slapi_Attr *a = NULL;
@@ -595,6 +596,7 @@ pam_passthru_apply_config(Slapi_Entry *e)
     includes = slapi_entry_attr_get_charray(e, PAMPT_INCLUDES_ATTR);
     fallback = slapi_entry_attr_get_bool(e, PAMPT_FALLBACK_ATTR);
     filter_str = slapi_entry_attr_get_charptr(e, PAMPT_FILTER_ATTR);
+    thread_safe = slapi_entry_attr_get_bool(e, PAMPT_THREAD_SAFE_ATTR);
     /* Require SSL/TLS if the secure attr is not specified.  We
      * need to check if the attribute is present to make this
      * determiniation. */
@@ -625,6 +627,7 @@ pam_passthru_apply_config(Slapi_Entry *e)
 
     entry->pamptconfig_fallback = fallback;
     entry->pamptconfig_secure = secure;
+    entry->pamptconfig_thread_safe = thread_safe;
 
     if (!entry->pamptconfig_service ||
         (new_service && PL_strcmp(entry->pamptconfig_service, new_service))) {

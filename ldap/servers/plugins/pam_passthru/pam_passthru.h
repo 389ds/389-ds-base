@@ -79,6 +79,8 @@ typedef struct pam_passthruconfig
     PRBool pamptconfig_fallback;              /* if false, failure here fails entire bind */
                                               /* if true, failure here falls through to regular bind */
     PRBool pamptconfig_secure;                /* if true, plugin only operates on secure connections */
+    PRBool pamptconfig_thread_safe;           /* if true, the underlying pam module is thread safe */
+                                              /* if false, the module is not thread safe => serialize calls */
     char *pamptconfig_pam_ident_attr;         /* name of attribute in user entry for ENTRY map method */
     int pamptconfig_map_method1;              /* how to map the BIND DN to the PAM identity */
     int pamptconfig_map_method2;              /* how to map the BIND DN to the PAM identity */
@@ -101,6 +103,7 @@ typedef struct pam_passthruconfig
 #define PAMPT_MAP_METHOD_ATTR "pamIDMapMethod"       /* single valued */
 #define PAMPT_FALLBACK_ATTR "pamFallback"            /* single */
 #define PAMPT_SECURE_ATTR "pamSecure"                /* single */
+#define PAMPT_THREAD_SAFE_ATTR "pamModuleIsThreadSafe" /* single */
 #define PAMPT_SERVICE_ATTR "pamService"              /* single */
 #define PAMPT_FILTER_ATTR "pamFilter"                /* single */
 

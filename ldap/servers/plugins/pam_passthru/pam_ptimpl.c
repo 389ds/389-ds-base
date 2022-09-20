@@ -230,7 +230,8 @@ do_one_pam_auth(
     char *pam_service,        /* name of service for pam_start() */
     char *map_ident_attr,     /* for ENTRY method, name of attribute holding pam identity */
     PRBool fallback,          /* if true, failure here should fallback to regular bind */
-    int pw_response_requested /* do we need to send pwd policy resp control */
+    int pw_response_requested, /* do we need to send pwd policy resp control */
+    PRBool module_thread_safe /* if not thread safe, make sure only one thread auth at a time */
     )
 {
     MyStrBuf pam_id;
@@ -277,7 +278,9 @@ do_one_pam_auth(
     my_data.pb = pb;
     my_data.pam_identity = pam_id.str;
     my_pam_conv.appdata_ptr = &my_data;
-    slapi_lock_mutex(PAMLock);
+    if (! module_thread_safe) {
+        slapi_lock_mutex(PAMLock);
+    }
     /* from this point on we are in the critical section */
     rc = pam_start(pam_service, pam_id.str, &my_pam_conv, &pam_handle);
     report_pam_error("during pam_start", rc, pam_handle);
@@ -358,9 +361,14 @@ do_one_pam_auth(
     }
 
     rc = pam_end(pam_handle, rc);
-    report_pam_error("during pam_end", rc, pam_handle);
-    slapi_unlock_mutex(PAMLock);
-/* not in critical section any more */
+    if (rc != PAM_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                      "do_one_pam_auth - Error during pam_end (%d)\n", rc);
+    }
+    if (! module_thread_safe) {
+        slapi_unlock_mutex(PAMLock);
+    }
+    /* not in critical section any more */
 
 done:
     delete_my_str_buf(&pam_id);
@@ -425,6 +433,7 @@ pam_passthru_do_pam_auth(Slapi_PBlock *pb, Pam_PassthruConfig *cfg)
     PRBool final_method;
     PRBool fallback = PR_FALSE;
     int pw_response_requested;
+    PRBool module_thread_safe = PR_FALSE;
     LDAPControl **reqctrls = NULL;
 
     /* get the methods and other info */
@@ -436,6 +445,8 @@ pam_passthru_do_pam_auth(Slapi_PBlock *pb, Pam_PassthruConfig *cfg)
     init_my_str_buf(&pam_service, cfg->pamptconfig_service);
 
     fallback = cfg->pamptconfig_fallback;
+    
+    module_thread_safe = cfg->pamptconfig_thread_safe;
 
     slapi_pblock_get(pb, SLAPI_REQCONTROLS, &reqctrls);
     slapi_pblock_get(pb, SLAPI_PWPOLICY, &pw_response_requested);
@@ -445,15 +456,15 @@ pam_passthru_do_pam_auth(Slapi_PBlock *pb, Pam_PassthruConfig *cfg)
 
     final_method = (method2 == PAMPT_MAP_METHOD_NONE);
     rc = do_one_pam_auth(pb, method1, final_method, pam_service.str, pam_id_attr.str, fallback,
-                         pw_response_requested);
+                         pw_response_requested, module_thread_safe);
     if ((rc != LDAP_SUCCESS) && !final_method) {
         final_method = (method3 == PAMPT_MAP_METHOD_NONE);
         rc = do_one_pam_auth(pb, method2, final_method, pam_service.str, pam_id_attr.str, fallback,
-                             pw_response_requested);
+                             pw_response_requested, module_thread_safe);
         if ((rc != LDAP_SUCCESS) && !final_method) {
             final_method = PR_TRUE;
             rc = do_one_pam_auth(pb, method3, final_method, pam_service.str, pam_id_attr.str, fallback,
-                                 pw_response_requested);
+                                 pw_response_requested, module_thread_safe);
         }
     }
 
