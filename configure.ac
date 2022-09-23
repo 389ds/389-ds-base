@@ -900,6 +900,24 @@ AC_SUBST(PACKAGE_BASE_VERSION)
 
 AM_CONDITIONAL(OPENLDAP,test "$with_openldap" = "yes")
 
+# check for --with-libldap-r
+AC_MSG_CHECKING(for --with-libldap-r)
+AC_ARG_WITH(libldap-r, AS_HELP_STRING([--with-libldap-r],[Use libldap_r.so shared library (default: if OpenLDAP version is less than 2.6, then libldap_r.so will be used, else - libldap.so)]),
+[
+  if test "$withval" = "no"; then
+    AC_MSG_RESULT(no)
+  else
+    with_libldap_r=yes
+    AC_MSG_RESULT(yes)
+    AC_SUBST(with_libldap_r)
+  fi
+],
+OPENLDAP_VERSION=`ldapsearch -VV 2> >(sed -n '/ldapsearch/ s/.*ldapsearch \([0-9]\+\.[0-9]\+\.[0-9]\+\) .*/\1/p')`
+AC_MSG_RESULT([$OPENLDAP_VERSION])
+AX_COMPARE_VERSION([$OPENLDAP_VERSION], [lt], [2.6], [ with_libldap_r=no ], [ with_libldap_r=yes ]))
+
+AM_CONDITIONAL([WITH_LIBLDAP_R],[test "$with_libldap_r" = yes])
+
 # write out paths for binary components
 AC_SUBST(ldaplib)
 AC_SUBST(ldaplib_defs)
