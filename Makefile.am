@@ -168,10 +168,13 @@ PROFILING_LINKS = @profiling_links@
 NSPR_LINK = $(NSPR_LIBS)
 NSS_LINK = $(NSS_LIBS)
 
-# with recent versions of openldap - if you link with both ldap_r and ldap, the
-# shared lib _fini for one will stomp on the other, and the program will crash
-LDAPSDK_LINK_NOTHR = @openldap_lib@ -lldap@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
+# OpenLDAP 2.6 and newer versions don't have libldap_r shared library (only libldap)
+# For the older versions we should compile with libldap_r
+if WITH_LIBLDAP_R
 LDAPSDK_LINK = @openldap_lib@ -lldap_r@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
+else
+LDAPSDK_LINK = @openldap_lib@ -lldap@ol_libver@ @ldap_lib_ldif@ -llber@ol_libver@
+endif
 ldaplib = @ldaplib@
 ldaplib_defs = @ldaplib_defs@
 
@@ -1825,7 +1828,7 @@ ldap_agent_SOURCES = ldap/servers/snmp/main.c \
 	ldap/servers/slapd/agtmmap.c
 
 ldap_agent_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) @netsnmp_inc@
-ldap_agent_LDADD = $(LDAPSDK_LINK_NOTHR) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(NETSNMP_LINK) $(THREADLIB)
+ldap_agent_LDADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(NETSNMP_LINK) $(THREADLIB)
 
 
 #------------------------
