@@ -2651,8 +2651,6 @@ slapi_check_tpr_limits(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int sen
 
     if (!slapi_entry_attr_hasvalue(bind_target_entry, "pwdTPRReset", "TRUE")) {
         /* the password was not reset by an admin while a TRP pwp was set, just returned */
-        /* covscan false positive: new_passwdPolicy anchor the policy in the pblock */
-        /* coverity[leaked_storage] */
         return 0;
     }
 

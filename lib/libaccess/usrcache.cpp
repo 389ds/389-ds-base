@@ -174,18 +174,14 @@ int acl_usr_cache_init ()
 
     /* Allocate rest of the UserCacheObj and put them in the link list */
     for(i = 0; i < num_usrobj; i++){
-        /* covscan false positive usrobj is linked in the cache */
-        /* coverity[overwrite_var] */
-        usrobj = (UserCacheObj *)pool_malloc(usrcache_pool,
-                                             sizeof(UserCacheObj));
+	usrobj = (UserCacheObj *)pool_malloc(usrcache_pool,
+					     sizeof(UserCacheObj));
 
-        if (!usrobj) return -1;
-        memset((void *)usrobj, 0, sizeof(UserCacheObj));
-        PR_INSERT_AFTER(&usrobj->list, usrobj_list);
+	if (!usrobj) return -1;
+	memset((void *)usrobj, 0, sizeof(UserCacheObj));
+	PR_INSERT_AFTER(&usrobj->list, usrobj_list);
     }
 
-    /* covscan false positive usrobj is linked in the cache */
-    /* coverity[leaked_storage] */
     return (singleDbTable || databaseUserCacheTable) ? 0 : -1;
 }
 

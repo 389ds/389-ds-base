@@ -655,9 +655,6 @@ vattr_test_filter(Slapi_PBlock *pb,
                                 rc = plugin_call_syntax_filter_ava(a,
                                                                    f->f_choice, &f->f_ava);
                             } else if (filter_type == FILTER_TYPE_SUBSTRING) {
-                                /* covscan false positive: plugin_call_syntax_filter_sub does not free pb->pb_op */
-                                /* coverity[deref_arg] */
-                                /* coverity[double_free] */
                                 rc = plugin_call_syntax_filter_sub(pb, a,
                                                                    &f->f_sub);
                             }
@@ -893,8 +890,6 @@ slapi_vattr_values_get_sp(vattr_context *c,
     } else {
         vattr_context_ungrok(&c);
     }
-    /* covscan false positive: ctx is stored in pblock */
-    /* coverity[leaked_storage] */
     return rc;
 }
 
