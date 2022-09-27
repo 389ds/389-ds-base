@@ -820,8 +820,6 @@ ACL_AttrGetterRegister(NSErr_t *errp, const char *attr, ACLAttrGetterFn_t fn,
     }
 
     ACL_CritExit();
-    /* covscan false positive getter is stored in hash table */
-    /* coverity[leaked_storage] */
     return 0;
 }
 

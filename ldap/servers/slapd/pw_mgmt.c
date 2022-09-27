@@ -52,8 +52,6 @@ check_must_change_pw(Slapi_PBlock *pb, Slapi_Entry *e)
             }
         }
     }
-/* covscan false positive: new_passwdPolicy anchor the policy in the pblock */
-/* coverity[leaked_storage] */
 }
 
 /*
