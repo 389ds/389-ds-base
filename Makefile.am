@@ -2221,7 +2221,7 @@ ldclt_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(
 ldif_SOURCES = ldap/servers/slapd/tools/ldif.c
 
 ldif_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-ldif_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
+ldif_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 
 #------------------------
 # migratecred
@@ -2238,7 +2238,7 @@ migratecred_DEPENDENCIES = libslapd.la
 mmldif_SOURCES = ldap/servers/slapd/tools/mmldif.c
 
 mmldif_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-mmldif_LDADD = libslapd.la libsvrcore.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
+mmldif_LDADD = libslapd.la libsvrcore.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 mmldif_DEPENDENCIES = libslapd.la
 
 #------------------------
