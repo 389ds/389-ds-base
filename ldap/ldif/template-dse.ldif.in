@@ -995,6 +995,13 @@ nsindextype: pres
 nsindextype: eq
 nsindextype: sub
 
+dn: cn=gidnumber,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: gidnumber
+nssystemindex: false
+nsindextype: eq
+
 dn: cn=mail,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
 objectclass: nsIndex
@@ -1029,6 +1036,13 @@ dn: cn=memberOf,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=con
 objectclass: top
 objectclass: nsIndex
 cn: memberOf
+nssystemindex: false
+nsindextype: eq
+
+dn: cn=memberuid,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: memberuid
 nssystemindex: false
 nsindextype: eq
 
@@ -1104,6 +1118,13 @@ dn: cn=uid,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
 objectclass: nsIndex
 cn: uid
+nssystemindex: false
+nsindextype: eq
+
+dn: cn=uidnumber,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: uidnumber
 nssystemindex: false
 nsindextype: eq
 
