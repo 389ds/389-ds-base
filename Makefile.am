@@ -1786,7 +1786,7 @@ libwhoami_plugin_la_LDFLAGS = -avoid-version
 dbscan_SOURCES = ldap/servers/slapd/tools/dbscan.c
 
 dbscan_CPPFLAGS = $(NSPR_INCLUDES) $(AM_CPPFLAGS)
-dbscan_LDADD = $(NSPR_LINK) $(DB_IMPL)
+dbscan_LDADD = $(NSPR_LINK) $(DB_IMPL) libslapd.la
 
 #------------------------
 # ldap-agent
