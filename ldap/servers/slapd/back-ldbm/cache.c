@@ -653,7 +653,7 @@ cache_init(struct cache *cache, uint64_t maxsize, int64_t maxentries, int type)
     cache->c_lruhead = cache->c_lrutail = NULL;
     cache_make_hashes(cache, type);
 
-    if (((cache->c_mutex = slapi_pthread_mutex_alloc(PTHREAD_MUTEX_RECURSIVE)) == NULL) ||
+    if (((cache->c_mutex = PR_NewMonitor()) == NULL) ||
         ((cache->c_emutexalloc_mutex = PR_NewLock()) == NULL)) {
         slapi_log_err(SLAPI_LOG_ERR, "cache_init", "PR_NewMonitor failed\n");
         return 0;
@@ -773,7 +773,7 @@ cache_destroy_please(struct cache *cache, int type)
     slapi_counter_destroy(&cache->c_cursize);
     slapi_counter_destroy(&cache->c_hits);
     slapi_counter_destroy(&cache->c_tries);
-    slapi_pthread_mutex_free(&cache->c_mutex);
+    PR_DestroyMonitor(cache->c_mutex);
     PR_DestroyLock(cache->c_emutexalloc_mutex);
 }
 
@@ -1650,13 +1650,13 @@ cache_add_tentative(struct cache *cache, struct backentry *e, struct backentry *
 void
 cache_lock(struct cache *cache)
 {
-    pthread_mutex_lock(cache->c_mutex);
+    PR_EnterMonitor(cache->c_mutex);
 }
 
 void
 cache_unlock(struct cache *cache)
 {
-    pthread_mutex_unlock(cache->c_mutex);
+    PR_ExitMonitor(cache->c_mutex);
 }
 
 /* locks an entry so that it can be modified (you should have gotten the
