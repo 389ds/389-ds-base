@@ -539,6 +539,7 @@ replace_entry:
                             if (cache_retry == RETRY_CACHE_LOCK &&
                                 cache_retry_count < LDBM_CACHE_RETRY_COUNT) {
                                 /* try again */
+                                CACHE_RETURN(&(inst->inst_cache), &parent);
                                 DS_Sleep(PR_MillisecondsToInterval(100));
                                 cache_retry_count++;
                                 continue;
