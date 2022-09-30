@@ -6094,8 +6094,6 @@ void slapi_destroy_condvar(Slapi_CondVar *cvar);
 int slapi_wait_condvar(Slapi_CondVar *cvar, struct timeval *timeout) __attribute__((deprecated));
 int slapi_notify_condvar(Slapi_CondVar *cvar, int notify_all);
 int slapi_wait_condvar_pt(Slapi_CondVar *cvar, Slapi_Mutex *mutex, struct timeval *timeout);
-pthread_mutex_t *slapi_pthread_mutex_alloc(int type);
-void slapi_pthread_mutex_free(pthread_mutex_t **mutex);
 
 /**
  * Creates a new read/write lock
