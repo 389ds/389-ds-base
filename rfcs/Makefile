@@ -1,5 +1,5 @@
 
-allrfcs: folders draft-wibrown-ldapssotoken-00
+allrfcs: folders draft-wibrown-ldapssotoken-00 draft-wibrown-ldap-deprecate-starttls-00
 
 folders:
 	mkdir -p txt
@@ -9,5 +9,8 @@ examplerfcs:
 
 draft-wibrown-ldapssotoken-00:
 	xml2rfc src/draft-wibrown-ldapssotoken-00.xml -o txt/draft-wibrown-ldapssotoken-00.txt --text
-	xml2rfc src/draft-wibrown-ldapssotoken-00.xml -o txt/draft-wibrown-ldapssotoken-00.raw --raw
+
+draft-wibrown-ldap-deprecate-starttls-00:
+	xml2rfc src/draft-wibrown-ldap-deprecate-starttls-00.xml -o txt/draft-wibrown-ldap-deprecate-starttls-00.txt --text
+
 

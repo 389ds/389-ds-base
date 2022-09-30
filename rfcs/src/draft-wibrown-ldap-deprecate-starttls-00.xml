@@ -1,0 +1,361 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE rfc [
+  <!ENTITY nbsp    "&#160;">
+  <!ENTITY zwsp   "&#8203;">
+  <!ENTITY nbhy   "&#8209;">
+  <!ENTITY wj     "&#8288;">
+]>
+<?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
+<?rfc strict="yes" ?>
+<?rfc toc="yes"?>
+<?rfc tocdepth="4"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes" ?>
+<?rfc compact="yes" ?>
+<?rfc subcompact="no" ?>
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude" category="std" docName="draft-wibrown-ldapssotoken-02" ipr="trust200902" obsoletes="" updates="" submissionType="IETF" xml:lang="en" tocInclude="true" tocDepth="4" symRefs="true" sortRefs="true" version="3" consensus="true">
+  <!-- xml2rfc v2v3 conversion 3.15.0 -->
+  <front>
+    <title abbrev="LDAP Deprecate StartTLS">Draft LDAP Deprecate StartTLS</title>
+    <seriesInfo name="Internet-Draft" value="draft-wibrown-ldap-deprecate-starttls-00"/>
+    <author fullname="William Brown" initials="W.B." surname="Brown">
+      <organization>SUSE SOFTWARE SOLUTIONS AUSTRALIA PTY LTD</organization>
+      <address>
+        <postal>
+          <street />
+          <city>Brisbane</city>
+          <code>4000</code>
+          <region>Queensland</region>
+          <country>AU</country>
+        </postal>
+        <phone/>
+        <email>william.brown@suse.com</email>
+        <!-- uri and facsimile elements may also be added -->
+     </address>
+    </author>
+    <date year="2022"/>
+    <area>General</area>
+    <workgroup>Internet Engineering Task Force</workgroup>
+    <!-- I am not sure of the appropriate keywords here -->
+   <keyword>draft-wibrown-ldap-deprecate-starttls</keyword>
+    <abstract>
+      <t><xref target="RFC2830" format="default">RFC 2830</xref> describes the deprecation of LDAPS (LDAP over TLS) in favour of
+           StartTLS, part of <xref target="RFC4511" format="default">RFC 4511</xref> LDAP.  However, as security research
+           has progressed a number of limitations of StartTLS in relation to
+           it's use in LDAP have been discovered.  This document describes those
+           limitations and recommends that StartTLS be deprecated as insecure
+           for daily operations, and recommends that LDAPS is the only
+           secure connection method for LDAP clients and servers.
+      </t>
+    </abstract>
+  </front>
+  <middle>
+    <section numbered="true" toc="default">
+      <name>Introduction</name>
+      <t>LDAP is a widely used protocol providing identity information to clients. Additionally
+      in many environments LDAP also provides authentication and authorisation features. As these features
+      are critical to the security of the connected clients communication between the client and server
+      must be protected. There are three major methods to achieve this today. These are LDAPS, StartTLS and GSSAPI.</t>
+        <t>LDAPS establishes a connection over TLS (<xref target="RFC8446" format="default">RFC 8446</xref>) such
+        that all communication is encrypted from the first byte of transmission.</t>
+        <t>StartTLS establishes a plaintext connection to an LDAP server and then issues an LDAP StartTLS extended operation.
+        This extended operation then triggers the connection to be upgraded to TLS from plaintext. This TLS connection
+        is established using <xref target="RFC8446" format="default">RFC 8446</xref> TLS or similar.</t>
+        <t>GSSAPI (<xref target="RFC2078" format="default">RFC 2078</xref>) establishes a plaintext connection to an LDAP server
+        and then issues a SASL bind. This SASL bind uses GSSAPI for authentication and
+        can then optionally install a security layer which provides communication encyrption.</t>
+    </section>
+
+    <section numbered="true" toc="default">
+      <name>Requirements Language</name>
+      <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+        "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+        document are to be interpreted as described in <xref target="RFC2119" format="default">RFC 2119</xref>.</t>
+    </section>
+
+    <section numbered="true" toc="default">
+      <name>StartTLS Operation</name>
+      <t>StartTLS is described in section 4.14 of <xref target="RFC4511" format="default">RFC 4511</xref>. On
+      a new LDAP connection two messages types are allowed - Bind and ExtendedOp. ExtendedOp is used to initiate
+      the StartTLS Extended Operation. This can be seen in a connection flow as below.</t>
+      <figure anchor="starttls_connection_example">
+        <artwork align="left" name="" type="" alt=""><![CDATA[
+┌───────────┐                            ┌───────────┐
+│           │─────────open tcp 389──────▶│           │
+│           │◀────────────ok─────────────│           │
+│           │                            │           │
+│           │                            │           │
+│           │────────ldap starttls──────▶│           │
+│           │◀──────────success──────────│           │
+│           │                            │           │
+│  Client   │                            │  Server   │
+│           │──────tls client hello─────▶│           │
+│           │◀─────tls server hello──────│           │
+│           │────────tls key xchg───────▶│           │
+│           │◀────────tls finish─────────│           │
+│           │                            │           │
+│           │──────TLS(ldap bind)───────▶│           │
+└───────────┘                            └───────────┘
+        ]]></artwork>
+      </figure>
+      <t>This connection flow assumes correct behaviour and conditions on the client, server and network.</t>
+    </section>
+    <section numbered="true" toc="default">
+      <name>Possible Flaws in StartTLS Connection Flow</name>
+      <section>
+        <name>Error Handling or Injection</name>
+        <t>As a StartTLS Extended Operation is a fallible request, it is possible to return or
+        inject an error in response. In these cases it is up to the client to handle this error
+        correctly. <xref target="RFC4511" format="default">RFC 4511</xref> states:</t>
+        <t>"""If the server is otherwise unwilling or unable to perform this operation, the server is
+        to return an appropriate result code indicating the nature of the problem."""</t>
+        <t>"""In cases where a non-success result code is returned, the LDAP session is left without
+        a TLS layer."""</t>
+        <t>This is a "fail open" design, which would broadly not be considered best practice in
+        modern security systems design. This is because it relies on the client to do the right thing
+        rather than a constraint being imposed to force correct and secure behaviour. In practice this
+        opens the follow connection flow.</t>
+        <figure anchor="starttls_connection_disregard">
+          <artwork align="left" name="" type="" alt=""><![CDATA[
+┌───────────┐                            ┌───────────┐
+│           │─────────open tcp 389──────▶│           │
+│           │◀────────────ok─────────────│           │
+│           │                            │           │
+│  Client   │                            │  Server   │
+│           │────────ldap starttls──────▶│           │
+│           │◀───────starttls error──────│           │
+│           │                            │           │
+│           │─────────ldap bind─────────▶│           │
+└───────────┘                            └───────────┘
+          ]]></artwork>
+        </figure>
+        <t>Note in this connection flow that despite the attempted installation of StartTLS, and it's
+        subsequent failure, that the LDAP Bind request was able to proceed. This has allowed the
+        credentials of the account to be transmitted in plaintext. Additionally, defences such as
+        Min SSF which enforce a minimum level of connection security for a Bind to be processed are
+        only enforced *after* the server recieves the Bind message. This means Min SSF is not an adequate
+        defence for this error.</t>
+        <t>It has been observed in the wild that a number of popular and widely deployed LDAP client
+        tools contain this logic error which allows this attack to proceed. There are equally many
+        clients that correctly enforce that the connection is closed on a StartTLS error.</t>
+      </section>
+      <section>
+        <name>Referral Injection</name>
+        <t>Referrals allow an LDAP server to redirect to another server which is able to service
+        the operation that was provided. A referral is a valid response to any LDAP message. This
+        allows an alternate method to intercept StartTLS connections.</t>
+        <t>There are multiple possible methods to use this to create a scenario allowing credential
+        disclosure. The first is a client that recognises the referral but does not then continue to
+        attempt to install StartTLS.</t>
+        <figure anchor="starttls_connection_referral">
+          <artwork align="left" name="" type="" alt=""><![CDATA[
+┌───────────┐                            ┌───────────┐
+│           │─────────open tcp 389──────▶│           │
+│           │◀────────────ok─────────────│           │
+│           │                            │  Server   │
+│           │────────ldap starttls──────▶│           │
+│           │◀──────────referral─────────│           │
+│           │                            └───────────┘
+│  Client   │
+│           │                            ┌───────────┐
+│           │─────────ldap bind─────────▶│           │
+│           │                            │ Malicious │
+│           │                            │  Server   │
+└───────────┘                            └───────────┘
+          ]]></artwork>
+        </figure>
+        <t>In this example we can see that the client followed the referral, but since it treated
+        the referral as a successful (or non-error) message, then the client proceeds to connect
+        to the malicious server and disclose credentials to it.</t>
+        <t>Some clients are coded such that even on a referral after a StartTLS, they continue to attempt
+        to install TLS. In these cases it is still possible to achieve credential disclosure.</t>
+        <figure anchor="starttls_connection_referral_2">
+          <artwork align="left" name="" type="" alt=""><![CDATA[
+┌───────────┐                            ┌───────────┐
+│           │─────────open tcp 389──────▶│           │
+│           │◀────────────ok─────────────│           │
+│           │                            │  Server   │
+│           │────────ldap starttls──────▶│           │
+│           │◀──────────referral─────────│           │
+│           │                            └───────────┘
+│  Client   │
+│           │                            ┌───────────┐
+│           │────────ldap starttls──────▶│           │
+│           │◀──────────success──────────│           │
+│           │                            │ Malicious │
+│           │                            │  Server   │
+│           │──────tls client hello─────▶│           │
+│           │◀─────tls server hello──────│           │
+│           │────────tls key xchg───────▶│           │
+│           │◀────────tls finish─────────│           │
+│           │                            │           │
+│           │───────TLS(ldap bind)──────▶│           │
+└───────────┘                            └───────────┘
+          ]]></artwork>
+        </figure>
+        <t>In this example, the client was redirected and then continues the StartTLS against the
+        malicious server. This is partial mitigated by TLS certificate validation, however it is
+        prevalent in LDAP deployments to disable certification validation due to complexity of managing
+        TLS with LDAP environments.</t>
+        <t>Disabling TLS certification validation however allows direct MITM of the connection, meaning
+        that this second attack pattern is less important compared to the former.</t>
+      </section>
+
+      <section>
+        <name>Incorrect Client Handling</name>
+        <t>Some clients do not immediately install StartTLS after the initial connection. Clients
+        then perform a number of operations such as search, and will only install StartTLS when they
+        are about to transmit a Bind operation.</t>
+        <t>Binds are not the only operation in LDAP that require integrity. The ability to tamper
+        with search results may allow authorisation or authentication bypass against some hosts which
+        can compromise application and platform security.</t>
+      </section>
+
+      <section>
+        <name>Configuration Error</name>
+        <t>Since StartTLS is on top of a plaintext connection, it is possible and likely for configuration error
+        to occur where StartTLS is never requested. It is hard to observe
+        a difference in these cases since connections will proceed and work correctly, this error can
+        go undetected for long periods of time.</t>
+      </section>
+
+    </section>
+
+    <section>
+      <name>GSSAPI</name>
+      <t>GSSAPI has not been examined for similar issues. However it is possible that they exist.</t>
+      <t>A contributing factor to issues in these cases is that GSSAPI generally attempts to install
+      it's own security layer and does this over plaintext LDAP ports. While plaintext communication
+      is allowed to LDAP servers, the risk of incorrect client handling or configuration error remain.</t>
+    </section>
+
+    <section numbered="true" toc="default">
+      <name>Recommendations</name>
+      <t>All LDAP communication between a client and server MUST be consider security sensitive
+      and MUST be encrypted.</t>
+      <t>StartTLS SHOULD be deprecated in favor of LDAPS. This enforces that all communication is
+      encrypted.</t>
+      <t>Clients SHOULD perform TLS certification verification to ensure they are communicating to
+      the expected LDAP server.</t>
+      <t>Plaintext LDAP ports SHOULD be disabled to prevent disclosure of sensitive data over
+      plaintext.</t>
+      <t>GSSAPI does not resolve all of these risks or issues, and SHOULD also be performed over LDAPS
+      rather than relying on it's own encryption layers.</t>
+    </section>
+
+    <section>
+      <name>Related Research</name>
+      <t><xref target="RFC8314" format="default">RFC 8314</xref> describes similar and related issues
+      with StartTLS and it's usage in IMAP and SMTP. RFC 8314 recommends the use of IMAPS/SMTPS instead
+      of IMAP/SMTP with StartTLS.</t>
+      <t><xref target="LDAP_STARTTLS_ISSUES" format="default">StartTLS in LDAP</xref> is the authors
+      original document describing these issues.</t>
+      <t>Futher issues in StartTLS may exist. This document is not an exhaustive examination of the topic.</t>
+    </section>
+
+
+  </middle>
+  <back>
+    <references>
+      <name>References</name>
+      <references>
+        <name>Normative References</name>
+        <reference anchor="RFC2119" target="https://www.rfc-editor.org/info/rfc2119" xml:base="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml">
+          <front>
+            <title>Key words for use in RFCs to Indicate Requirement Levels</title>
+            <author fullname="S. Bradner" initials="S." surname="Bradner"/>
+            <date month="March" year="1997"/>
+            <abstract>
+              <t>In many standards track documents several words are used to signify the requirements in the specification.  These words are often capitalized.  This document defines these words as they should be interpreted in IETF documents.  This document specifies an Internet Best Current Practices for the Internet Community, and requests discussion and suggestions for improvements.</t>
+            </abstract>
+          </front>
+          <seriesInfo name="BCP" value="14"/>
+          <seriesInfo name="RFC" value="2119"/>
+          <seriesInfo name="DOI" value="10.17487/RFC2119"/>
+        </reference>
+      </references>
+      <references>
+        <name>Informative References</name>
+
+        <reference anchor="RFC4511" target="https://www.rfc-editor.org/info/rfc4511" xml:base="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.4511.xml">
+          <front>
+            <title>Lightweight Directory Access Protocol (LDAP): The Protocol</title>
+            <author fullname="J. Sermersheim" initials="J." role="editor" surname="Sermersheim"/>
+            <date month="June" year="2006"/>
+            <abstract>
+              <t>This document describes the protocol elements, along with their semantics and encodings, of the Lightweight Directory Access Protocol (LDAP).  LDAP provides access to distributed directory services that act in accordance with X.500 data and service models.  These protocol elements are based on those described in the X.500 Directory Access Protocol (DAP). [STANDARDS-TRACK]</t>
+            </abstract>
+          </front>
+          <seriesInfo name="RFC" value="4511"/>
+          <seriesInfo name="DOI" value="10.17487/RFC4511"/>
+        </reference>
+
+        <reference anchor="RFC2830" target="https://www.rfc-editor.org/info/rfc2830">
+            <front>
+            <title>Lightweight Directory Access Protocol (v3): Extension for Transport Layer Security</title>
+            <author fullname="J. Hodges" initials="J." surname="Hodges"/>
+            <author fullname="R. Morgan" initials="R." surname="Morgan"/>
+            <author fullname="M. Wahl" initials="M." surname="Wahl"/>
+            <date month="May" year="2000"/>
+            <abstract>
+                <t>This document defines the "Start Transport Layer Security (TLS) Operation" for LDAP. [STANDARDS-TRACK]</t>
+            </abstract>
+            </front>
+            <seriesInfo name="RFC" value="2830"/>
+            <seriesInfo name="DOI" value="10.17487/RFC2830"/>
+        </reference>
+
+        <reference anchor="RFC8314" target="https://www.rfc-editor.org/info/rfc8314">
+            <front>
+            <title>Cleartext Considered Obsolete: Use of Transport Layer Security (TLS) for Email Submission and Access</title>
+            <author fullname="K. Moore" initials="K." surname="Moore"/>
+            <author fullname="C. Newman" initials="C." surname="Newman"/>
+            <date month="January" year="2018"/>
+            <abstract>
+                <t>This specification outlines current recommendations for the use of Transport Layer Security (TLS) to provide confidentiality of email traffic between a Mail User Agent (MUA) and a Mail Submission Server or Mail Access Server. This document updates RFCs 1939, 2595, 3501, 5068, 6186, and 6409.</t>
+            </abstract>
+            </front>
+            <seriesInfo name="RFC" value="8314"/>
+            <seriesInfo name="DOI" value="10.17487/RFC8314"/>
+        </reference>
+        <reference anchor="RFC2078" target="https://www.rfc-editor.org/info/rfc2078" xml:base="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.2078.xml">
+          <front>
+            <title>Generic Security Service Application Program Interface, Version 2</title>
+            <author fullname="J. Linn" initials="J." surname="Linn"/>
+            <date month="January" year="1997"/>
+            <abstract>
+              <t>The Generic Security Service Application Program Interface (GSS-API), as defined in RFC-1508, provides security services to callers in a generic fashion, supportable with a range of underlying mechanisms and technologies and hence allowing source-level portability of applications to different environments. [STANDARDS-TRACK]</t>
+            </abstract>
+          </front>
+          <seriesInfo name="RFC" value="2078"/>
+          <seriesInfo name="DOI" value="10.17487/RFC2078"/>
+        </reference>
+        <reference anchor="RFC8446" target="https://www.rfc-editor.org/info/rfc8446">
+        <front>
+            <title>The Transport Layer Security (TLS) Protocol Version 1.3</title>
+            <author fullname="E. Rescorla" initials="E." surname="Rescorla"/>
+            <date month="August" year="2018"/>
+            <abstract>
+                <t>This document specifies version 1.3 of the Transport Layer Security (TLS) protocol. TLS allows client/server applications to communicate over the Internet in a way that is designed to prevent eavesdropping, tampering, and message forgery.</t>
+                <t>This document updates RFCs 5705 and 6066, and obsoletes RFCs 5077, 5246, and 6961. This document also specifies new requirements for TLS 1.2 implementations.</t>
+            </abstract>
+            </front>
+            <seriesInfo name="RFC" value="8446"/>
+            <seriesInfo name="DOI" value="10.17487/RFC8446"/>
+        </reference>
+
+        <!-- Add the fernet reference  -->
+        <reference anchor="LDAP_STARTTLS_ISSUES" target="https://fy.blackhats.net.au/blog/html/2021/08/12/starttls_in_ldap.html">
+          <front>
+            <title>StartTLS in LDAP - Issues</title>
+            <author fullname="William Brown" initials="W.B." surname="Brown">
+            </author>
+            <date year="2021"/>
+          </front>
+        </reference>
+
+      </references>
+    </references>
+  </back>
+</rfc>
+
