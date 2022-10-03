@@ -131,7 +131,6 @@ connection_table_new(int table_size)
     ct = (Connection_Table *)slapi_ch_calloc(1, sizeof(Connection_Table));
     ct->size = table_size;
     ct->list_num = SLAPD_DEFAULT_NUM_LISTENERS;
-
     ct->list_size = (table_size+ct->list_num-1)/ct->list_num; /* to avoid rounding issue */
     ct->num_active = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
     ct->c = (Connection **)slapi_ch_calloc(1, table_size * sizeof(Connection *));
@@ -142,6 +141,8 @@ connection_table_new(int table_size)
     /* NEVER use slot 0, this is a list pointer */
     ct->conn_next_offset = 1;
     ct->conn_free_offset = 1;
+
+    slapi_log_err(SLAPI_LOG_INFO, "connection_table_new", "conntablesize:%d\n", ct->size);
 
     pthread_mutexattr_t monitor_attr = {0};
     pthread_mutexattr_init(&monitor_attr);

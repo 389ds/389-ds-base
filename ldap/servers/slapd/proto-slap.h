@@ -659,6 +659,10 @@ int get_ldapmessage_controls_ext(Slapi_PBlock *pb, BerElement *ber, LDAPControl 
 int write_controls(BerElement *ber, LDAPControl **ctrls);
 void add_control(LDAPControl ***ctrlsp, LDAPControl *newctrl);
 
+/*
+ * daemon.c
+ */
+int validate_num_config_reservedescriptors(void) ;
 
 /*
  * delete.c

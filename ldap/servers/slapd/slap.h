@@ -279,8 +279,7 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_MAXBERSIZE_STR "2097152"
 #define SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN (-1)
 #define SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR "-1"
-/* We'd like this number to be prime for the hash into the Connection table */
-#define SLAPD_DEFAULT_CONNTABLESIZE 4093 /* connection table size */
+#define SLAPD_DEFAULT_CONNTABLESIZE 65536 /* connection table size */
 #define SLAPD_DEFAULT_NUM_LISTENERS 1 /* connection table lists */
 #define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL 3600
 #define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL_STR "3600"
