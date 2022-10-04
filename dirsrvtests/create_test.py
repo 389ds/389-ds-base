@@ -1,13 +1,17 @@
 #!/usr/bin/python3
 #
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
+#
+# PYTHON_ARGCOMPLETE_OK
 
+import argparse, argcomplete
+import argcomplete
 import optparse
 import os
 import re
@@ -23,27 +27,27 @@ non-interesting parts of a test script:
 """
 
 
-def displayUsage():
+def display_usage():
     """Display the usage"""
 
-    print ('\nUsage:\ncreate_ticket.py -t|--ticket <ticket number> ' +
-           '-s|--suite <suite name> ' +
-           '[ i|--instances <number of standalone instances> ' +
-           '[ -m|--suppliers <number of suppliers> -h|--hubs <number of hubs> ' +
-           '-c|--consumers <number of consumers> ] -o|--outputfile ]\n')
-    print ('If only "-t" is provided then a single standalone instance is ' +
-           'created. Or you can create a test suite script using ' +
-           '"-s|--suite" instead of using "-t|--ticket". The "-i" option ' +
-           'can add multiple standalone instances (maximum 99). However, you' +
-           ' can not mix "-i" with the replication options (-m, -h , -c).  ' +
-           'There is a maximum of 99 suppliers, 99 hubs, and 99 consumers.')
+    print('\nUsage:\ncreate_ticket.py -t|--ticket <ticket number> ' +
+          '-s|--suite <suite name> ' +
+          '[ i|--instances <number of standalone instances> ' +
+          '[ -m|--suppliers <number of suppliers> -h|--hubs <number of hubs> ' +
+          '-c|--consumers <number of consumers> ] -o|--outputfile ]\n')
+    print('If only "-t" is provided then a single standalone instance is ' +
+          'created. Or you can create a test suite script using ' +
+          '"-s|--suite" instead of using "-t|--ticket". The "-i" option ' +
+          'can add multiple standalone instances (maximum 99). However, you' +
+          ' can not mix "-i" with the replication options (-m, -h , -c).  ' +
+          'There is a maximum of 99 suppliers, 99 hubs, and 99 consumers.')
     print('If "-s|--suite" option was chosen, then no topology would be added ' +
           'to the test script. You can find predefined fixtures in the lib389/topologies.py ' +
           'and use them or write a new one if you have a special case.')
     exit(1)
 
 
-def writeFinalizer():
+def write_finalizer():
     """Write the finalizer function - delete/stop each instance"""
 
     def writeInstanceOp(action):
@@ -119,7 +123,6 @@ def check_id_uniqueness(id_value):
     """
 
     tests_dir = os.path.join(os.getcwd(), 'tests')
-
     for root, dirs, files in os.walk(tests_dir):
         for name in files:
             if name.endswith('.py'):
@@ -131,74 +134,83 @@ def check_id_uniqueness(id_value):
     return True
 
 
+def display_uuid():
+    tc_uuid = '0'
+    while not check_id_uniqueness(tc_uuid): tc_uuid = uuid.uuid4()
+    print(str(tc_uuid))
+    exit(0)
+
+
 desc = 'Script to generate an initial lib389 test script.  ' + \
        'This generates the topology, test, final, and run-isolated functions.'
 
 if len(sys.argv) > 0:
-    parser = optparse.OptionParser(description=desc, add_help_option=False)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-t', '--ticket', default=None,
+                        help="The name of the ticket/issue to include in the script name: 'ticket_<TEXT INPUT>_test.py'")
+    parser.add_argument('-s', '--suite', default=None, help="Name for the test: '<TEXT INPUT>_test.py'")
+    parser.add_argument('-i', '--instances', default='0', help="Number of instances needed in the test")
+    parser.add_argument('-m', '--suppliers', default='0',
+                        help="Number of replication suppliers needed in the test")
+    parser.add_argument('-b', '--hubs', default='0', help="Number of replication hubs needed in the test")
+    parser.add_argument('-c', '--consumers', default='0',
+                        help="Number of replication consumers needed in the test")
+    parser.add_argument('-o', '--filename', default=None, help="Custom test script file name")
+    parser.add_argument('-u', '--uuid', action='store_true',
+                        help="Display a test case uuid to used for new test functions in script")
+    argcomplete.autocomplete(parser)
+    args = parser.parse_args()
 
-    # Script options
-    parser.add_option('-t', '--ticket', dest='ticket', default=None)
-    parser.add_option('-s', '--suite', dest='suite', default=None)
-    parser.add_option('-i', '--instances', dest='inst', default='0')
-    parser.add_option('-m', '--suppliers', dest='suppliers', default='0')
-    parser.add_option('-h', '--hubs', dest='hubs', default='0')
-    parser.add_option('-c', '--consumers', dest='consumers', default='0')
-    parser.add_option('-o', '--outputfile', dest='filename', default=None)
-
-    # Validate the options
-    try:
-        (args, opts) = parser.parse_args()
-    except:
-        displayUsage()
+    if args.uuid:
+        display_uuid()
 
     if args.ticket is None and args.suite is None:
         print('Missing required ticket number/suite name')
-        displayUsage()
+        display_usage()
 
     if args.ticket and args.suite:
         print('You must choose either "-t|--ticket" or "-s|--suite", ' +
               'but not both.')
-        displayUsage()
+        display_usage()
 
     if int(args.suppliers) == 0:
         if int(args.hubs) > 0 or int(args.consumers) > 0:
             print('You must use "-m|--suppliers" if you want to have hubs ' +
                   'and/or consumers')
-            displayUsage()
+            display_usage()
 
     if not args.suppliers.isdigit() or \
-           int(args.suppliers) > 99 or \
-           int(args.suppliers) < 0:
+        int(args.suppliers) > 99 or \
+            int(args.suppliers) < 0:
         print('Invalid value for "--suppliers", it must be a number and it can' +
               ' not be greater than 99')
-        displayUsage()
+        display_usage()
 
     if not args.hubs.isdigit() or int(args.hubs) > 99 or int(args.hubs) < 0:
         print('Invalid value for "--hubs", it must be a number and it can ' +
               'not be greater than 99')
-        displayUsage()
+        display_usage()
 
     if not args.consumers.isdigit() or \
-           int(args.consumers) > 99 or \
-           int(args.consumers) < 0:
+        int(args.consumers) > 99 or \
+            int(args.consumers) < 0:
         print('Invalid value for "--consumers", it must be a number and it ' +
               'can not be greater than 99')
-        displayUsage()
+        display_usage()
 
     if args.inst:
         if not args.inst.isdigit() or \
-               int(args.inst) > 99 or \
-               int(args.inst) < 0:
+            int(args.inst) > 99 or \
+            int(args.inst) < 0:
             print('Invalid value for "--instances", it must be a number ' +
                   'greater than 0 and not greater than 99')
-            displayUsage()
+            display_usage()
         if int(args.inst) > 0:
             if int(args.suppliers) > 0 or \
                             int(args.hubs) > 0 or \
                             int(args.consumers) > 0:
                 print('You can not mix "--instances" with replication.')
-                displayUsage()
+                display_usage()
 
     # Extract usable values
     ticket = args.ticket
@@ -273,7 +285,7 @@ if len(sys.argv) > 0:
         TEST.write('    # replicas = Replicas(topology.ms["supplier1"])\n')
         TEST.write('    # replicas.test(DEFAULT_SUFFIX, topology.cs["consumer1"])\n')
 
-        writeFinalizer()
+        write_finalizer()
         TEST.write('    return topology\n\n')
 
     tc_id = '0'

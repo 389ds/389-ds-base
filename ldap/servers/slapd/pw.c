@@ -226,6 +226,8 @@ slapi_encode_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg)
             slapi_log_err(SLAPI_LOG_ERR, "slapi_encode_ext",
                           "no encoding password storage scheme found for %s\n",
                           pwpolicy->pw_storagescheme->pws_name);
+            /* new_passwdPolicy registers the policy in the pblock so there is no leak */
+            /* coverity[leaked_storage] */
             return NULL;
         }
     } else {
@@ -883,12 +885,15 @@ check_pw_minage(Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals __at
 
             /* check if allow to change the password */
             cur_time_str = format_genTime(slapi_current_utc_time());
-            if (difftime(pw_allowchange_date,
-                         parse_genTime(cur_time_str)) > 0) {
+            if (difftime(pw_allowchange_date, parse_genTime(cur_time_str)) > 0) {
                 if (pwresponse_req == 1) {
                     slapi_pwpolicy_make_response_control(pb, -1, -1,
                                                          LDAP_PWPOLICY_PWDTOOYOUNG);
                 }
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "password within minimum age: Entry (%s) Policy (%s)\n",
+                              dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+
                 pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "within password minimum age", 0, NULL);
                 slapi_entry_free(e);
                 slapi_ch_free((void **)&cur_time_str);
@@ -1037,10 +1042,11 @@ pw_max_class_repeats(const char *new, int32_t max_repeats)
 }
 
 static void
-report_pw_violation(Slapi_PBlock *pb, int pwresponse_req, char *fmt, ...)
+report_pw_violation(Slapi_PBlock *pb, char *dn, int pwresponse_req, char *fmt, ...)
 {
     char errormsg[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
     va_list msg;
+    passwdPolicy *pwpolicy = slapi_pblock_get_pwdpolicy(pb);
 
     va_start(msg, fmt);
     PR_vsnprintf(errormsg, SLAPI_DSE_RETURNTEXT_SIZE - 1, fmt, msg);
@@ -1049,6 +1055,9 @@ report_pw_violation(Slapi_PBlock *pb, int pwresponse_req, char *fmt, ...)
     }
     pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL);
     va_end(msg);
+    slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                  "%s: Entry (%s) Policy (%s)\n",
+                  errormsg, dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
 }
 
 /* check_pw_syntax is called before add or modify operation on userpassword attribute*/
@@ -1119,7 +1128,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
                 ((internal_op && pb_conn && !slapi_dn_isroot(pb_conn->c_dn)) ||
                  (!internal_op && !pw_is_pwp_admin(pb, pwpolicy))))
             {
-                report_pw_violation(pb, pwresponse_req, "invalid password syntax - passwords with storage scheme are not allowed");
+                report_pw_violation(pb, dn, pwresponse_req, "invalid password syntax - passwords with storage scheme are not allowed");
                 return (1);
             } else {
                 /* We want to skip syntax checking since this is a pre-hashed password */
@@ -1148,7 +1157,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             if (pwpolicy->pw_check_dict) {
                 const char *crack_msg;
                 if ((crack_msg = FascistCheck(pwd, pwpolicy->pw_dict_path))) {
-                    report_pw_violation(pb, pwresponse_req, "Password failed dictionary check: %s", crack_msg);
+                    report_pw_violation(pb, dn, pwresponse_req, "Password failed dictionary check: %s", crack_msg);
                     return (1);
                 }
             }
@@ -1156,7 +1165,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             /* check palindrome */
             if (pwpolicy->pw_palindrome) {
                 if (palindrome(pwd)) {
-                    report_pw_violation(pb, pwresponse_req, "Password is a palindrome");
+                    report_pw_violation(pb, dn, pwresponse_req, "Password is a palindrome");
                     return (1);
                 }
             }
@@ -1166,7 +1175,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             if (bad_words_array) {
                 for (size_t b = 0; bad_words_array && bad_words_array[b]; b++) {
                     if (strcasestr(pwd, bad_words_array[b])) {
-                        report_pw_violation(pb, pwresponse_req, "Password contains a restricted word");
+                        report_pw_violation(pb, dn, pwresponse_req, "Password contains a restricted word");
                         charray_free(bad_words_array);
                         return (1);
                     }
@@ -1177,9 +1186,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             /* Check for sequences */
             if (pwpolicy->pw_max_seq) {
                 if (pw_sequence(pwd, pwpolicy->pw_max_seq)) {
-                    report_pw_violation(pb, pwresponse_req, "Password contains a monotonic sequence");
-                    PR_snprintf(errormsg, sizeof(errormsg) - 1, "Password contains a monotonic sequence");
-
+                    report_pw_violation(pb, dn, pwresponse_req, "Password contains a monotonic sequence");
                     return (1);
                 }
             }
@@ -1187,7 +1194,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             /* Check for sets of sequences */
             if (pwpolicy->pw_seq_char_sets) {
                 if (pw_sequence_sets(pwd, pwpolicy->pw_seq_char_sets, 1)){
-                    report_pw_violation(pb, pwresponse_req, "Password contains repeated identical sequences");
+                    report_pw_violation(pb, dn, pwresponse_req, "Password contains repeated identical sequences");
                     return (1);
                 }
             }
@@ -1195,7 +1202,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             /* Check for max repeated characters from the same class */
             if (pwpolicy->pw_max_class_repeats) {
                 if (pw_max_class_repeats(pwd, pwpolicy->pw_max_class_repeats)){
-                    report_pw_violation(pb, pwresponse_req,
+                    report_pw_violation(pb, dn, pwresponse_req,
                             "Password contains too many repeated characters from the same character class");
                     return (1);
                 }
@@ -1203,7 +1210,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
 
             /* check for the minimum password length */
             if (pwpolicy->pw_minlength > (int)ldap_utf8characters((char *)pwd)) {
-                report_pw_violation(pb, pwresponse_req,
+                report_pw_violation(pb, dn, pwresponse_req,
                         "invalid password syntax - password must be at least %d characters long",
                         pwpolicy->pw_minlength);
                 return (1);
@@ -1316,6 +1323,9 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
                                                          LDAP_PWPOLICY_INVALIDPWDSYNTAX);
                 }
                 pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL);
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "%s: Entry (%s) Policy (%s)\n",
+                              errormsg, dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
                 return (1);
             }
         }
@@ -1347,6 +1357,9 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
                         slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDINHISTORY);
                     }
                     pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
+                    slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                                  "password in history: Entry (%s) Policy (%s)\n",
+                                  dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
                     slapi_entry_free(e);
                     return (1);
                 }
@@ -1359,12 +1372,18 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
                 if (slapi_is_encoded((char *)slapi_value_get_string(vals[0]))) {
                     if (slapi_attr_value_find(attr, (struct berval *)slapi_value_get_berval(vals[0])) == 0) {
                         pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
+                        slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                                      "password in history: Entry (%s) Policy (%s)\n",
+                                      dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
                         slapi_entry_free(e);
                         return (1);
                     }
                 } else {
                     if (slapi_pw_find_sv(va, vals[0]) == 0) {
                         pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
+                        slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                                      "password in history: Entry (%s) Policy (%s)\n",
+                                      dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
                         slapi_entry_free(e);
                         return (1);
                     }
@@ -1393,7 +1412,8 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             check_trivial_words(pb, e, vals, "sn", pwpolicy->pw_mintokenlength, smods) == 1 ||
             check_trivial_words(pb, e, vals, "givenname", pwpolicy->pw_mintokenlength, smods) == 1 ||
             check_trivial_words(pb, e, vals, "ou", pwpolicy->pw_mintokenlength, smods) == 1 ||
-            check_trivial_words(pb, e, vals, "mail", pwpolicy->pw_mintokenlength, smods) == 1) {
+            check_trivial_words(pb, e, vals, "mail", pwpolicy->pw_mintokenlength, smods) == 1)
+        {
             if (mod_op) {
                 slapi_entry_free(e);
             }
@@ -1780,6 +1800,7 @@ check_trivial_words(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char *
     Slapi_Mod *smodp = NULL, *smod = NULL;
     Slapi_ValueSet *vs = NULL;
     Slapi_Value *valp = NULL;
+    passwdPolicy *pwpolicy = slapi_pblock_get_pwdpolicy(pb);
     struct berval *bvp = NULL;
     int i, pwresponse_req = 0;
 
@@ -1862,10 +1883,12 @@ check_trivial_words(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char *
                     slapi_pwpolicy_make_response_control(pb, -1, -1,
                                                          LDAP_PWPOLICY_INVALIDPWDSYNTAX);
                 }
-                pw_send_ldap_result(pb,
-                                    LDAP_CONSTRAINT_VIOLATION, NULL,
+                pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
                                     "invalid password syntax - password based off of user entry", 0, NULL);
-
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "password based off of user entry (attr=%s token_len=%d): Entry (%s) Policy (%s)\n",
+                              attrtype, toklen, slapi_entry_get_dn_const(e),
+                              pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
                 /* Free valueset */
                 slapi_valueset_free(vs);
                 return (1);
@@ -2141,6 +2164,9 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                               dn);
                 goto done;
             }
+
+            /* policy is local, store the DN of the policy for logging */
+            pwdpolicy->pw_local_dn = slapi_ch_strdup(slapi_entry_get_dn(pw_entry));
 
             /* Set the default values (from libglobs.c) */
             pwpolicy_init_defaults(pwdpolicy);
@@ -2440,6 +2466,7 @@ delete_passwdPolicy(passwdPolicy **pwpolicy)
             }
             slapi_ch_free((void **)&(*(*pwpolicy)).pw_admin_user);
         }
+        slapi_ch_free_string(&(*(*pwpolicy)).pw_local_dn);
         slapi_ch_free((void **)pwpolicy);
     }
 }
@@ -2668,10 +2695,11 @@ slapi_check_tpr_limits(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int sen
             use_count++;
             update_tpr_pw_usecount(pb, bind_target_entry, (int32_t) use_count);
             if (use_count > pwpolicy->pw_tpr_maxuse) {
-                slapi_log_err(SLAPI_LOG_TRACE,
-                              "slapi_check_tpr_limits",
-                              "LDAP_CONSTRAINT_VIOLATION, number of bind (%d) on entry (%s) is larger than TPR password max use (%d).\n",
-                              use_count, dn, pwpolicy->pw_tpr_maxuse);
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "slapi_check_tpr_limits - "
+                              "number of bind (%u) is larger than TPR password max use (%d): Entry (%s) Policy (%s)\n",
+                              use_count, pwpolicy->pw_tpr_maxuse,
+                              dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
                 if (send_result) {
                     send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
                                      "TPR checking. Contact system administrator", 0, NULL);
@@ -2700,10 +2728,11 @@ slapi_check_tpr_limits(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int sen
         if (value) {
             /* max Use is enforced */
             if (difftime(parse_genTime(cur_time_str), parse_genTime(value)) >= 0) {
-                slapi_log_err(SLAPI_LOG_TRACE,
-                              "slapi_check_tpr_limits",
-                              "LDAP_CONSTRAINT_VIOLATION, attempt to bind with an expired TPR password (current=%s, expiration=%s), entry %s\n",
-                              cur_time_str, value, dn);
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "slapi_check_tpr_limits - "
+                              "attempt to bind with an expired TPR password (current=%s, expiration=%s): Entry (%s) Policy (%s)\n",
+                              cur_time_str, value,
+                              dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
                 if (send_result) {
                     send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
                                      "TPR checking. Contact system administrator", 0, NULL);
@@ -2728,10 +2757,11 @@ slapi_check_tpr_limits(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int sen
         if (value) {
             /* validity after a specific time is enforced */
             if (difftime(parse_genTime(value), parse_genTime(cur_time_str)) >= 0) {
-                slapi_log_err(SLAPI_LOG_TRACE,
-                              "slapi_check_tpr_limits",
-                              "LDAP_CONSTRAINT_VIOLATION, attempt to bind with TPR password not yet valid (current=%s, validity=%s), entry %s\n",
-                              cur_time_str, value, dn);
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "slapi_check_tpr_limits - "
+                              "attempt to bind with TPR password not yet valid (current=%s, validity=%s): Entry (%s) Policy (%s)\n",
+                              cur_time_str, value,
+                              dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
                 if (send_result) {
                     send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
                                      "TPR checking. Contact system administrator", 0, NULL);
@@ -2850,10 +2880,14 @@ slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int p
                 slapi_pwpolicy_make_response_control(pb, -1, -1,
                                                      LDAP_PWPOLICY_ACCTLOCKED);
             }
-            if (send_result)
+            if (send_result) {
                 send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
                                  "Exceed password retry limit. Contact system administrator to reset.",
                                  0, NULL);
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "Account is locked and requires administrator reset.  Entry (%s) Policy (%s)\n",
+                              dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+            }
             goto locked;
         }
         cur_time = slapi_current_utc_time();
@@ -2865,10 +2899,14 @@ slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int p
                 slapi_pwpolicy_make_response_control(pb, -1, -1,
                                                      LDAP_PWPOLICY_ACCTLOCKED);
             }
-            if (send_result)
+            if (send_result) {
                 send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL,
                                  "Exceed password retry limit. Please try later.",
                                  0, NULL);
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "Account is locked: Entry (%s) Policy (%s)\n",
+                              dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
+            }
             slapi_ch_free((void **)&cur_time_str);
             goto locked;
         }

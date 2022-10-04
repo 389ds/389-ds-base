@@ -472,6 +472,9 @@ send_ldap_result_ext(
                  */
                 err = LDAP_CONSTRAINT_VIOLATION;
                 text = "Invalid credentials, you now have exceeded the password retry limit.";
+                slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                              "password retry limit exceeded.  Entry (%s) Policy (%s)\n",
+                              dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
             }
         }
     }
