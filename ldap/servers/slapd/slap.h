@@ -1874,7 +1874,10 @@ typedef struct passwordpolicyarray
     struct pw_scheme *pw_storagescheme;
     Slapi_DN *pw_admin;
     Slapi_DN **pw_admin_user;
+    char *pw_local_dn; /* DN of the subtree/user policy */
+
 } passwdPolicy;
+#define PWDPOLICY_DEBUG "PWDPOLICY_DEBUG"
 
 void pwpolicy_init_defaults (passwdPolicy *pw_policy);
 

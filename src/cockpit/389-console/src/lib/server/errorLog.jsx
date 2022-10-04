@@ -88,6 +88,7 @@ export class ServerErrorLog extends React.Component {
         this.pluginLevel = <>Plugin <font size="1" className="ds-info-color">(level 65536)</font></>;
         this.aclSummaryevel = <>Access Control Summary <font size="1" className="ds-info-color">(level 262144)</font></>;
         this.dbLevel = <>Backend Database <font size="1" className="ds-info-color">(level 524288)</font></>;
+        this.pwdpolicyLevel = <>Password Policy <font size="1" className="ds-info-color">(level 1048576)</font></>;
 
         this.state = {
             loading: true,
@@ -115,6 +116,7 @@ export class ServerErrorLog extends React.Component {
                 { cells: [{ title: this.pluginLevel }], level: 65536, selected: false },
                 { cells: [{ title: this.aclSummaryevel }], level: 262144, selected: false },
                 { cells: [{ title: this.dbLevel }], level: 524288, selected: false },
+                { cells: [{ title: this.pwdpolicyLevel }], level: 1048576, selected: false },
             ],
             columns: [
                 { title: 'Logging Level' },
