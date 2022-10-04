@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - "389-ds-base-*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Specify tag to generate a tarball
+        required: true
+      skip-audit-ci:
+        description: Skip npm audit-ci
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -11,21 +20,36 @@ jobs:
     container:
       image: quay.io/389ds/ci-images:test
     steps:
+      - name: Get the version
+        id: get_version
+        run: |
+            echo ::set-output name=version::${VERSION}
+        env:
+          VERSION: ${{ github.event.inputs.version || github.ref_name }}
+
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.get_version.outputs.version }}
 
       - name: Create tarball
-        run: TAG=${{ github.ref_name}} make -f rpm.mk dist-bz2
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          if [ "${{ github.event.inputs.skip-audit-ci }}" = "true" ]; then
+              export SKIP_AUDIT_CI=1
+          fi
+          TAG=${{ steps.get_version.outputs.version }} make -f rpm.mk dist-bz2
 
       - name: Upload tarball
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ github.ref_name}}.tar.bz2
-          path: ${{ github.ref_name}}.tar.bz2
+          name: ${{ steps.get_version.outputs.version }}.tar.bz2
+          path: ${{ steps.get_version.outputs.version }}.tar.bz2
 
       - name: Release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
+          tag_name: ${{ steps.get_version.outputs.version }}
           files: |
-            ${{ github.ref_name}}.tar.bz2
+            ${{ steps.get_version.outputs.version }}.tar.bz2
