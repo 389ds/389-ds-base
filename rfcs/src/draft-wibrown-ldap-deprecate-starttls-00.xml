@@ -13,7 +13,7 @@
 <?rfc sortrefs="yes" ?>
 <?rfc compact="yes" ?>
 <?rfc subcompact="no" ?>
-<rfc xmlns:xi="http://www.w3.org/2001/XInclude" category="std" docName="draft-wibrown-ldapssotoken-02" ipr="trust200902" obsoletes="" updates="" submissionType="IETF" xml:lang="en" tocInclude="true" tocDepth="4" symRefs="true" sortRefs="true" version="3" consensus="true">
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude" category="std" docName="draft-wibrown-ldap-deprecate-starttls-00" ipr="trust200902" obsoletes="" updates="" submissionType="IETF" xml:lang="en" tocInclude="true" tocDepth="4" symRefs="true" sortRefs="true" version="3" consensus="true">
   <!-- xml2rfc v2v3 conversion 3.15.0 -->
   <front>
     <title abbrev="LDAP Deprecate StartTLS">Draft LDAP Deprecate StartTLS</title>
@@ -233,13 +233,12 @@
       <name>Recommendations</name>
       <t>All LDAP communication between a client and server MUST be consider security sensitive
       and MUST be encrypted.</t>
-      <t>StartTLS SHOULD be deprecated in favor of LDAPS. This enforces that all communication is
+      <t>StartTLS SHOULD be deprecated in favor of LDAPS (LDAP over TLS). This enforces that all communication is
       encrypted.</t>
       <t>Clients SHOULD perform TLS certification verification to ensure they are communicating to
       the expected LDAP server.</t>
-      <t>Plaintext LDAP ports SHOULD be disabled to prevent disclosure of sensitive data over
-      plaintext.</t>
-      <t>GSSAPI does not resolve all of these risks or issues, and SHOULD also be performed over LDAPS
+      <t>Plaintext LDAP ports SHOULD be disabled to prevent disclosure of sensitive data and injection attacks.</t>
+      <t>GSSAPI MAY not resolve all of these risks or issues, and SHOULD also be performed over LDAPS
       rather than relying on it's own encryption layers.</t>
     </section>
 
@@ -344,7 +343,6 @@
             <seriesInfo name="DOI" value="10.17487/RFC8446"/>
         </reference>
 
-        <!-- Add the fernet reference  -->
         <reference anchor="LDAP_STARTTLS_ISSUES" target="https://fy.blackhats.net.au/blog/html/2021/08/12/starttls_in_ldap.html">
           <front>
             <title>StartTLS in LDAP - Issues</title>
