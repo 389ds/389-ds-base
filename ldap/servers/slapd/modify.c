@@ -1249,6 +1249,10 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
             if (pwresponse_req == 1) {
                 slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED);
             }
+            slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                          "user is not allowed to change password.  Entry (%s) Policy (%s)\n",
+                          slapi_sdn_get_dn(&sdn),
+                          pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
             send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                              "user is not allowed to change password", 0, NULL);
 

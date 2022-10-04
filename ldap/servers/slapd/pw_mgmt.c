@@ -203,13 +203,17 @@ skip:
                                                          -1);
                 }
             }
+            slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                          "password expired, but within grace limit (curr=%d limit=%d needpw=%d): Entry (%s) Policy (%s)\n",
+                          pwpolicy->pw_gracelimit, pwdGraceUserTime, needpw, dn,
+                          pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
             slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
             /* new_passwdPolicy registers the policy in the pblock so there is no leak */
             /* coverity[leaked_storage] */
             return (0);
         }
 
-        /* password expired and user exceeded limit of grace attemps.
+        /* password expired and user exceeded limit of grace attempts.
          * Send result and also the control */
         if (pwresponse_req) {
             slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDEXPIRED);
@@ -220,6 +224,9 @@ skip:
         }
         slapi_send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL,
                                "password expired!", 0, NULL);
+        slapi_log_err(SLAPI_LOG_PWDPOLICY, PWDPOLICY_DEBUG,
+                      "password expired: Entry (%s) Policy (%s)\n",
+                      dn, pwpolicy->pw_local_dn ? pwpolicy->pw_local_dn : "Global");
 
         /* abort bind */
         /* pass pb to do_unbind().  pb->pb_op->o_opid and

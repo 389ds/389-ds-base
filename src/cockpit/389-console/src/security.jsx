@@ -427,6 +427,7 @@ export class Security extends React.Component {
                     let cipherPref = "default";
                     let allowWeak = false;
                     let renegot = true;
+                    let checkHostname = false;
 
                     if ('nstlsallowclientrenegotiation' in config.items) {
                         if (config.items.nstlsallowclientrenegotiation === "off") {
@@ -458,6 +459,11 @@ export class Security extends React.Component {
                             allowWeak = true;
                         }
                     }
+                    if ('nsslapd-ssl-check-hostname' in attrs) {
+                        if (attrs['nsslapd-ssl-check-hostname'].toLowerCase() === "on") {
+                            checkHostname = true;
+                        }
+                    }
                     if ('nsssl3ciphers' in attrs) {
                         if (attrs.nsssl3ciphers !== "") {
                             cipherPref = attrs.nsssl3ciphers;
@@ -470,7 +476,7 @@ export class Security extends React.Component {
                             requireSecureBinds: secReqSecBinds,
                             secureListenhost: attrs['nsslapd-securelistenhost'],
                             clientAuth: clientAuth,
-                            checkHostname: attrs['nsslapd-ssl-check-hostname'],
+                            checkHostname: checkHostname,
                             validateCert: validateCert,
                             sslVersionMin: attrs.sslversionmin,
                             sslVersionMax: attrs.sslversionmax,
@@ -482,7 +488,7 @@ export class Security extends React.Component {
                             _requireSecureBinds: secReqSecBinds,
                             _secureListenhost: attrs['nsslapd-securelistenhost'],
                             _clientAuth: clientAuth,
-                            _checkHostname: attrs['nsslapd-ssl-check-hostname'],
+                            _checkHostname: checkHostname,
                             _validateCert: validateCert,
                             _sslVersionMin: attrs.sslversionmin,
                             _sslVersionMax: attrs.sslversionmax,

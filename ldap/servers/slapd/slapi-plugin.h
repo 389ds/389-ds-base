@@ -6050,7 +6050,7 @@ int slapi_log_error_ext(int loglevel, char *subsystem, char *fmt, va_list varg1,
 #define SLAPI_LOG_TIMING     15
 #define SLAPI_LOG_BACKLDBM   16
 #define SLAPI_LOG_ACLSUMMARY 17
-#define SLAPI_LOG_NUNCSTANS  18
+#define SLAPI_LOG_PWDPOLICY  18
 /* Severity levels */
 #define SLAPI_LOG_EMERG      19
 #define SLAPI_LOG_ALERT      20
