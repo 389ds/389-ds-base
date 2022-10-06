@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2022 William Brown
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).

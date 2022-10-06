@@ -26,7 +26,7 @@ def get_config(version):
     elif (version == INSTALL_LATEST_CONFIG):
         return c001003006
     elif (version == '002003000' and ds_is_newer('2.3.0')):
-        return c001004002
+        return c002003000
     elif (version == '001004002' and ds_is_newer('1.4.2')):
         return c001004002
     elif (version == '001004000' and ds_is_newer('1.4.0')):
