@@ -83,6 +83,10 @@ typedef struct {
     Slapi_DN sdn;        /* Entry dn (or rdn) */
     ID eid;              /* entry ID */
     int flags;           /* EIP_* */
+    char *trdn;          /* Tombstone entry rdn */
+    char *tnrdn;         /* Tombstone entry normalized rdn */
+    char *uuid;          /* Entry uuid */
+    char *puuid;         /* Parent Entry uuid */
 } EntryInfoParam_t;
 
 typedef struct wait4id_queue {
@@ -130,14 +134,6 @@ cmp_data(MDB_val *d1, MDB_val *d2)
         return d1->mv_size - d2->mv_size;
     }
     return memcmp(d1->mv_data, d2->mv_data, d1->mv_size);
-}
-
-/* Atomic compare and swap */
-static inline int __attribute__((always_inline))
-cas_pt(volatile void *addr, volatile void *old, volatile void *new)
-{
-    PR_ASSERT(sizeof (void*) == 8);
-    return __sync_bool_compare_and_swap_8((void**)addr, (int64_t)old, (int64_t)(new));
 }
 
 /* Tell whrether a job thread is asked to stop */
@@ -205,6 +201,7 @@ dbmdb_import_q_init(ImportNto1Queue_t *q, ImportWorkerInfo *info, int maxitems)
     pthread_cond_init(&q->cv, NULL);
     q->list = NULL;
     q->maxitems = maxitems;
+    /* Setting minitems to 1 because tests showed we get better performance with this value */
     q->minitems = 1;
     q->nbitems  = 0;
     q->dupitem_cb = NULL;
@@ -212,17 +209,62 @@ dbmdb_import_q_init(ImportNto1Queue_t *q, ImportWorkerInfo *info, int maxitems)
     q->shouldwait_cb = generic_shouldwait;
 }
 
+/* push an item in a queue */
+void
+dbmdb_import_q_push(ImportNto1Queue_t *q, void *item)
+{
+    /* Copy data in the new element */
+    struct { void *next; } *curitem = q->dupitem_cb(item);
+
+    /* Perform flow control (wait if queue is full and writer thread is busy)
+     * The test is a bit loosy but is enough to ensure that queue is not growing
+     * out of control.
+     */
+    pthread_mutex_lock(&q->mutex);
+    while (q->nbitems >= q->maxitems && !info_is_finished(q->info)) {
+        safe_cond_wait(&q->cv, &q->mutex);
+    }
+    curitem->next = (WriterQueueData_t*)(q->list);
+    q->list = curitem;
+    /* Check whether writer thread must be waken up */
+    q->nbitems++;
+    if (q->nbitems >= q->minitems) {
+        pthread_cond_signal(&q->cv);
+    }
+    pthread_mutex_unlock(&q->mutex);
+}
+
+/* extract all items out of a queue */
+void *
+dbmdb_import_q_getall(ImportNto1Queue_t *q)
+{
+    void *items = NULL;
+
+    /* Wait until enough items get queued */
+    pthread_mutex_lock(&q->mutex);
+    while (q->shouldwait_cb(q)) {
+        safe_cond_wait(&q->cv, &q->mutex);
+    }
+    items = (WriterQueueData_t*)(q->list);
+    q->list = NULL;
+    q->nbitems = 0;
+    /* Lets wake up threads waiting for a slot in dbmdb_import_writeq_push */
+    pthread_cond_broadcast(&q->cv);
+    pthread_mutex_unlock(&q->mutex);
+    return items;
+}
+
 /* Clear the list and free the items */
 void
 dbmdb_import_q_flush(ImportNto1Queue_t *q)
 {
     struct { void *next; } *item;
-    void *items;
-
-    do {
-        items = (void*)(q->list);
-        q->nbitems = 0;
-    } while (!cas_pt(&q->list, items, NULL));
+    void *items = NULL;
+    pthread_mutex_lock(&q->mutex);
+    items = (WriterQueueData_t*)(q->list);
+    q->list = NULL;
+    q->nbitems = 0;
+    pthread_mutex_unlock(&q->mutex);
 
     for (item = items; item; item = items) {
          items = item->next;
@@ -238,58 +280,6 @@ dbmdb_import_q_destroy(ImportNto1Queue_t *q)
     pthread_cond_destroy(&q->cv);
     pthread_mutex_destroy(&q->mutex);
     memset(q, 0, sizeof *q);
-}
-
-/* push an item in a queue */
-void
-dbmdb_import_q_push(ImportNto1Queue_t *q, void *item)
-{
-    /* Copy data in the new element */
-    struct { void *next; } *curitem = q->dupitem_cb(item);
-
-    /* Perform flow control (wait if queue is full and writer thread is busy)
-     * The test is a bit loosy but is enough to ensure that queue is not growing
-     * out of control.
-     */
-    if (q->nbitems >= q->maxitems) {
-        pthread_mutex_lock(&q->mutex);
-        while (q->nbitems >= q->maxitems && !info_is_finished(q->info)) {
-            safe_cond_wait(&q->cv, &q->mutex);
-        }
-        pthread_mutex_unlock(&q->mutex);
-    }
-
-    /* Queue the new element in the list */
-    do {
-        curitem->next = (WriterQueueData_t*)(q->list);
-    } while (!cas_pt(&q->list, curitem->next, curitem));
-
-    /* Check whether writer thread must be waken up */
-    slapi_atomic_incr_32((int*)&q->nbitems, __ATOMIC_ACQ_REL);
-    if (q->nbitems >= q->minitems) {
-        pthread_cond_signal(&q->cv);
-    }
-}
-
-/* extract all items out of a queue */
-void *
-dbmdb_import_q_getall(ImportNto1Queue_t *q)
-{
-    void *items = NULL;
-
-    /* Wait until enough items get queued */
-    pthread_mutex_lock(&q->mutex);
-    while (q->shouldwait_cb(q)) {
-        safe_cond_wait(&q->cv, &q->mutex);
-    }
-    do {
-        items = (WriterQueueData_t*)(q->list);
-        q->nbitems = 0;
-    } while (!cas_pt(&q->list, items, NULL));
-    /* Lets wake up threads waiting for a slot in dbmdb_import_writeq_push */
-    pthread_cond_broadcast(&q->cv);
-    pthread_mutex_unlock(&q->mutex);
-    return items;
 }
 
 static void
@@ -348,6 +338,20 @@ void *dbmdb_get_free_worker_slot(struct importqueue *q)
     return NULL;
 }
 
+void
+dbmdb_import_workerq_free_data(WorkerQueueData_t *data)
+{
+    ImportCtx_t *ctx = data->winfo.job->writer_ctx;
+    if (ctx->role == IM_BULKIMPORT) {
+       backentry_free((struct backentry **)&data->data);
+    } else {
+        slapi_ch_free(&data->data);
+    }
+    data->datalen = 0;
+    slapi_ch_free((void**)&data->parent_info);
+    slapi_ch_free((void**)&data->entry_info);
+}
+
 int
 dbmdb_import_workerq_push(ImportQueue_t *q, WorkerQueueData_t *data)
 {
@@ -357,12 +361,14 @@ dbmdb_import_workerq_push(ImportQueue_t *q, WorkerQueueData_t *data)
     if (q->used_slots < q->max_slots) {
         slot = &q->slots[q->used_slots++];
     } else {
-        while ((slot = dbmdb_get_free_worker_slot(q)) == 0 || (q->job->flags & FLAG_ABORT)) {
+        while ((slot = dbmdb_get_free_worker_slot(q)) == 0 && !(q->job->flags & FLAG_ABORT)) {
             safe_cond_wait(&q->cv, &q->mutex);
         }
     }
     pthread_mutex_unlock(&q->mutex);
     if (q->job->flags & FLAG_ABORT) {
+        /* in this case worker thread does not free the data so we should do it */
+        dbmdb_import_workerq_free_data(data);
         return -1;
     }
     dbmdb_dup_worker_slot(q, data, slot);
@@ -670,17 +676,6 @@ dbmdb_import_init_entrydn_dbs(ImportCtx_t *ctx)
     return dbmdb_privdb_create(ctx->ctx,  dbsize, "ndn", NULL);
 }
 
-const char *
-dnrc2str(dnrc_t dnrc)
-{
-    const char *t[] = {
-        "DNRC_OK", "DNRC_BADDN", "DNRC_BAD_SUFFIX_ID", "DNRC_DUP", "DNRC_ERROR",
-        "DNRC_NODN", "DNRC_NOPARENT_DN", "DNRC_NOPARENT_ID", "DNRC_NORDN",
-        "DNRC_RUV", "DNRC_SUFFIX", "DNRC_TOMBSTONE", "DNRC_VERSION", "DNRC_WAIT"
-    };
-    return t[dnrc];
-}
-
 dnrc_t
 get_entry_type(WorkerQueueData_t *wqelmt, Slapi_DN *sdn)
 {
@@ -728,6 +723,49 @@ get_entry_type(WorkerQueueData_t *wqelmt, Slapi_DN *sdn)
 }
 
 /*
+ * Compute trdn and tnrdn and set keys according to the nsuniqueids
+ */
+static dnrc_t
+entryinfo_param_4_tombstone(EntryInfoParam_t *param)
+{
+    dnrc_t dnrc = DNRC_TOMBSTONE;
+    /* Tombstone entry: "entryrdn rdn" is two first rdn */
+    const char *ava1 = NULL;
+    const char *ava2 = NULL;
+    const char *nava1 = NULL;
+    const char *nava2 = NULL;
+    Slapi_RDN srdn = {0};
+    int rc = slapi_rdn_init_all_sdn(&srdn, &param->sdn);
+
+    if (rc) {
+        dnrc = DNRC_BADDN;
+    } else {
+        int rdnidx = slapi_rdn_get_first_ext(&srdn, &ava1, FLAG_ALL_RDNS);
+        int nrdnidx = slapi_rdn_get_first_ext(&srdn, &nava1, FLAG_ALL_NRDNS);
+        if (rdnidx >= 0 && nrdnidx>= 0) {
+            rdnidx = slapi_rdn_get_next_ext(&srdn, rdnidx, &ava2, FLAG_ALL_RDNS);
+            nrdnidx = slapi_rdn_get_next_ext(&srdn, nrdnidx, &nava2, FLAG_ALL_NRDNS);
+        }
+        if (rdnidx >= 0 && nrdnidx>= 0) {
+            param->trdn = slapi_ch_smprintf("%s,%s", ava1, ava2);
+            param->tnrdn = slapi_ch_smprintf("%s,%s", nava1, nava2);
+        } else {
+            dnrc = DNRC_NOPARENT_DN;
+        }
+    }
+    if (!param->uuid || !param->puuid) {
+        dnrc = DNRC_BAD_TOMBSTONE;
+    } else {
+        param->ekey.mv_data = param->uuid;
+        param->ekey.mv_size = strlen(param->uuid) + 1;
+        param->pkey.mv_data = param->puuid;
+        param->pkey.mv_size = strlen(param->puuid) + 1;
+    }
+    slapi_rdn_done(&srdn);
+    return dnrc;
+}
+
+/*
  * Compute
  * key -> entryinfo for both entry and parent entry.
  * param->ekey and param->pkey should be set by call in EIP_RDN case otherwise they are computed from the sdn
@@ -767,14 +805,20 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
                 param->pkey.mv_size = 0;
             }
         }
-    } else if (dnrc == DNRC_OK) {
+    } else if (DNRC_IS_ENTRY(dnrc)) {
         if (param->flags & EIP_RDN) {
             if (!pidfromkey) {
                 dnrc = DNRC_NOPARENT_ID;
             }
             rdn = slapi_sdn_get_dn(&param->sdn);
             nrdn = slapi_sdn_get_ndn(&param->sdn);
+        } else if (dnrc == DNRC_TOMBSTONE) {
+            /* Tombstone entry: "entryrdn rdn" is two first rdn and nsuniqueid/nsparentuniqueid is used as key */
+            dnrc = entryinfo_param_4_tombstone(param);
+            rdn = param->trdn;
+            nrdn = param->tnrdn;
         } else {
+            /* regular entry or RUV: "entryrdn rdn" is first rdn and ndn/parentndn is used as key */
             slapi_sdn_get_rdn(&param->sdn, &srdn);
             rdn = slapi_rdn_get_rdn(&srdn);
             nrdn = slapi_rdn_get_nrdn(&srdn);
@@ -785,7 +829,7 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
             } else {
                 param->ekey.mv_data = (void*)slapi_sdn_get_ndn(&param->sdn);
                 param->ekey.mv_size = strlen(param->ekey.mv_data)+1;
-                param->pkey.mv_data = (void*)slapi_dn_find_parent_ext(param->ekey.mv_data, 0);
+                param->pkey.mv_data = (void*)slapi_dn_find_parent_ext(param->ekey.mv_data, dnrc != DNRC_OK);
                 param->pkey.mv_size = strlen(param->pkey.mv_data)+1;
                 if (!param->pkey.mv_data) {
                     dnrc = DNRC_NOPARENT_DN;
@@ -793,7 +837,12 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
             }
         }
     }
-    if (dnrc == DNRC_OK) {
+    if (param->eid == 1 && dnrc == DNRC_RUV) {
+        /* RUV is first entry lets return it as it */
+        slapi_rdn_done(&srdn);
+        return (param->flags & EIP_WAIT) ? DNRC_WAIT : DNRC_POSPONE_RUV;
+    }
+    if (dnrc != DNRC_SUFFIX && DNRC_IS_ENTRY(dnrc)) {
         /* Regular entry should have a parent info in the private db */
         /* lets lookup for the parent ndn */
         rc = dbmdb_privdb_get(param->db, 0, &param->pkey, &data);
@@ -812,7 +861,7 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
             pinfo = wqelmt->parent_info;
         }
     }
-    if (dnrc == DNRC_SUFFIX || dnrc == DNRC_OK) {
+    if (DNRC_IS_ENTRY(dnrc)) {
         /* Note: If someday we needs to rebuild the entry dn, we could store it in the entry info
          *  and build it from parent entry info + entry rdn. But as of today we do not need it.
          */
@@ -838,12 +887,34 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
             dnrc = DNRC_ERROR;
         }
     }
-    if (dnrc != DNRC_OK && dnrc != DNRC_SUFFIX) {
+    if ((dnrc == DNRC_OK || dnrc == DNRC_SUFFIX) && param->uuid) {
+        /* Add nsuniqueid key that is needed if a child is a tombstone entry */
+        MDB_val key = {0};
+        key.mv_data = param->uuid;
+        key.mv_size = strlen(param->uuid) + 1;
+        rc = dbmdb_privdb_put(param->db, 0, &key, &data);
+        if (rc == MDB_KEYEXIST) {
+            dnrc = DNRC_DUP;
+        } else if (rc) {
+            dnrc = DNRC_ERROR;
+        }
+    }
+    if (!DNRC_IS_ENTRY(dnrc)) {
         slapi_ch_free((void**)&wqelmt->parent_info);
         slapi_ch_free((void**)&wqelmt->entry_info);
     }
     slapi_rdn_done(&srdn);
     return dnrc;
+}
+
+void
+entryinfoparam_cleanup(EntryInfoParam_t *param)
+{
+    slapi_sdn_done(&param->sdn);
+    slapi_ch_free_string(&param->trdn);
+    slapi_ch_free_string(&param->tnrdn);
+    slapi_ch_free_string(&param->uuid);
+    slapi_ch_free_string(&param->puuid);
 }
 
 /* Extract the dn from entry, compute nrdn, rdn, parent ndn and ancestors ids
@@ -867,13 +938,17 @@ dbmdb_import_entry_info_by_ldifentry(mdb_privdb_t *db, WorkerQueueData_t *wqelmt
             return DNRC_NODN;
         }
     }
+    get_value_from_string(wqelmt->data, SLAPI_ATTR_UNIQUEID, &param.uuid);
+    if (PL_strncasecmp(dn, SLAPI_ATTR_UNIQUEID, SLAPI_ATTR_UNIQUEID_LENGTH) == 0) {
+        get_value_from_string(wqelmt->data, "nsparentuniqueid", &param.puuid);
+    }
     param.db = db;
     slapi_sdn_init_dn_byval(&param.sdn, dn);
     param.eid = wqelmt->wait_id;
     param.flags = EIP_NONE;
     wqelmt->dn = dn;
     dnrc = dbmdb_import_entry_info_by_param(&param, wqelmt);
-    slapi_sdn_done(&param.sdn);
+    entryinfoparam_cleanup(&param);
     return dnrc;
 }
 
@@ -899,6 +974,8 @@ dbmdb_import_entry_info_by_rdn(mdb_privdb_t *db, WorkerQueueData_t *wqelmt)
         if (!get_value_from_string(wqelmt->data, "parentid", &pidstr)) {
             pid = atoi(pidstr);
             slapi_ch_free_string(&pidstr);
+        } else {
+            pid = 1;
         }
     }
     if (get_value_from_string(wqelmt->data, "rdn", &rdn)) {
@@ -915,7 +992,7 @@ dbmdb_import_entry_info_by_rdn(mdb_privdb_t *db, WorkerQueueData_t *wqelmt)
 
     param.flags = EIP_RDN + EIP_WAIT;
     dnrc = dbmdb_import_entry_info_by_param(&param, wqelmt);
-    slapi_sdn_done(&param.sdn);
+    entryinfoparam_cleanup(&param);
     if (dnrc == DNRC_WAIT) {
         wqelmt->wait4id = pid;
     }
@@ -930,11 +1007,18 @@ dbmdb_import_entry_info_by_backentry(mdb_privdb_t *db, BulkQueueData_t *bqdata, 
 {
     EntryInfoParam_t param = {0};
     dnrc_t dnrc = DNRC_OK;
+    const Slapi_Entry *e = bqdata->ep->ep_entry;
 
     wqelmt->parent_info = NULL;
     wqelmt->entry_info = NULL;
     param.db = db;
-    slapi_sdn_init_dn_byref(&param.sdn, slapi_entry_get_dn_const(bqdata->ep->ep_entry));
+    if (e->e_uniqueid) {
+        param.uuid = slapi_ch_strdup(e->e_uniqueid);
+        if (e->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
+            param.puuid = slapi_entry_attr_get_charptr(e, "nsparentuniqueid");
+        }
+    }
+    slapi_sdn_init_dn_byref(&param.sdn, slapi_entry_get_dn_const(e));
     param.eid = wqelmt->wait_id;
     param.flags = EIP_WAIT;
     dnrc = dbmdb_import_entry_info_by_param(&param, wqelmt);
@@ -945,7 +1029,7 @@ dbmdb_import_entry_info_by_backentry(mdb_privdb_t *db, BulkQueueData_t *bqdata, 
         bqdata->wait4key.mv_size = 0;
     }
     dup_data(&bqdata->key, &param.ekey);
-    slapi_sdn_done(&param.sdn);
+    entryinfoparam_cleanup(&param);
     return dnrc;
 }
 
@@ -1087,11 +1171,11 @@ dbmdb_import_producer(void *param)
             case DNRC_TOMBSTONE:
                 break;
             case DNRC_RUV:
-                if (id == 1) {
-                    ruvwqelmt = wqelmt;
-                    continue;
-                }
                 break;
+            case DNRC_POSPONE_RUV:
+                /* If ldif file starts with the RUV, lets process after last entry */
+                ruvwqelmt = wqelmt;
+                continue;
             case DNRC_VERSION:
                 slapi_ch_free(&wqelmt.data);
                 continue;
@@ -1147,6 +1231,14 @@ dbmdb_import_producer(void *param)
                 slapi_ch_free(&wqelmt.data);
                 thread_abort(info);
                 continue;
+            case DNRC_BAD_TOMBSTONE:
+                import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_producer",
+                                  "Skipping tombsone entry \"%s\" which has no nsparentuniqueid or no nsuniqueid attributes. The entry ID is %d and is around line %d in file \"%s\"",
+                                  wqelmt.dn, wqelmt.wait_id, curr_lineno, curr_filename);
+                slapi_ch_free_string(&wqelmt.dn);
+                slapi_ch_free(&wqelmt.data);
+                job->skipped++;
+                continue;
         }
 
         slapi_ch_free_string(&wqelmt.dn);
@@ -1161,6 +1253,8 @@ dbmdb_import_producer(void *param)
     if (ruvwqelmt.dnrc) {
         slapi_ch_free_string(&ruvwqelmt.dn);
         ruvwqelmt.wait_id = id;
+        /* Process again the entry to fill up the entry and parent entry info */
+        (void) dbmdb_import_entry_info_by_ldifentry(dndb, &ruvwqelmt);
         dbmdb_import_workerq_push(&ctx->workerq, &ruvwqelmt);
         ruvwqelmt.dnrc = 0;
         info->last_ID_processed = id;
@@ -1569,6 +1663,7 @@ dbmdb_index_producer(void *param)
 
         tmpslot.dnrc = dbmdb_import_entry_info_by_rdn(dndb, &tmpslot);
         switch (tmpslot.dnrc) {
+            case DNRC_BAD_TOMBSTONE:
             default:
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_index_producer",
                                   "ns_slapd software error: unexpected dbmdb_import_entry_info return code: %d.",
@@ -1599,7 +1694,7 @@ dbmdb_index_producer(void *param)
                 continue;
             case DNRC_NOPARENT_ID:
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_index_producer",
-                                  "Inconsistent id2entry database. (Entry with ID %d has no parentid.", entry->id);
+                                  "Inconsistent id2entry database. (Entry with ID %d has no parentid).", entry->id);
                 thread_abort(info);
                 continue;
             case DNRC_ERROR:
@@ -3182,7 +3277,7 @@ dbmdb_add_import_index(ImportCtx_t *ctx, const char *name, IndexInfo *ii)
         }
     }
 
-    dbmdb_open_dbi_from_filename(&mii->dbi, job->inst->inst_be, mii->name, NULL, dbi_flags);
+    dbmdb_open_dbi_from_filename(&mii->dbi, job->inst->inst_be, mii->name, mii->ai, dbi_flags);
     avl_insert(&ctx->indexes, mii, cmp_mii, NULL);
 }
 
@@ -3798,25 +3893,30 @@ dbmdb_bulk_producer(void *param)
                 break;
             case DNRC_NORDN:
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
-                                  "Inconsistent id2entry database. (Entry with id %d has no rdn).", entry->id);
+                                  "Supplier's entry is inconsistent. (Entry with id %d has no rdn).", entry->id);
                 slapi_ch_free(&tmpslot.data);
                 thread_abort(info);
                 continue;
             case DNRC_DUP:
                 /* Weird: Either the id2entry db is seriously corrupted or we have queued twice the same entry */
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
-                                  "Inconsistent id2entry database. (Entry id %d is duplicated).", entry->id);
+                                  "Supplier's entry is inconsistent. (Entry id %d is duplicated).", entry->id);
                 slapi_ch_free(&tmpslot.data);
                 thread_abort(info);
                 continue;
             case DNRC_BAD_SUFFIX_ID:
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
-                                  "Inconsistent id2entry database. (Suffix ID is %d instead of 1).", entry->id);
+                                  "Supplier's entry is inconsistent. (Suffix ID is %d instead of 1).", entry->id);
                 thread_abort(info);
                 continue;
             case DNRC_NOPARENT_ID:
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
-                                  "Inconsistent id2entry database. (Entry with ID %d has no parentid.", entry->id);
+                                  "Supplier's entry is inconsistent. (Entry with ID %d has no parentid).", entry->id);
+                thread_abort(info);
+                continue;
+            case DNRC_BAD_TOMBSTONE:
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
+                                  "Supplier's entry is inconsistent. (Tombstone Entry with ID %d has no nsparentuniqueid or no nsuniqueid attributes).", entry->id);
                 thread_abort(info);
                 continue;
             case DNRC_ERROR:
