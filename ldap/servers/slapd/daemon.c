@@ -1270,15 +1270,10 @@ slapd_daemon(daemon_ports_t *ports)
 void
 ct_thread_cleanup(void)
 {
-    int i = 0;
-    int list_threads = the_connection_table->list_num;
     slapi_log_err(SLAPI_LOG_INFO, "ct_thread_cleanup",
                   "slapd shutting down - signaling connection table threads\n");
 
     PR_AtomicIncrement(&ct_shutdown);
-    for (i = 0; i < list_threads; i++) {
-        g_decr_active_threadcnt();
-    }
 }
 
 void
@@ -1286,28 +1281,29 @@ ct_list_thread(uint64_t threadnum)
 {
     uint64_t threadid = (uint64_t) threadnum;
 
-       while (!ct_shutdown) {
-            int select_return = 0;
-            PRIntn num_poll = 0;
-            PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_ct_thread_wakeup_timer);
-            PRErrorCode prerr;
-            num_poll = setup_pr_read_pds(the_connection_table, threadid);
-            select_return = POLL_FN(the_connection_table->fd[threadid], num_poll, pr_timeout);
-            switch (select_return) {
-            case 0: /* Timeout */
+    while (!ct_shutdown) {
+         int select_return = 0;
+         PRIntn num_poll = 0;
+         PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_ct_thread_wakeup_timer);
+         PRErrorCode prerr;
+         num_poll = setup_pr_read_pds(the_connection_table, threadid);
+         select_return = POLL_FN(the_connection_table->fd[threadid], num_poll, pr_timeout);
+         switch (select_return) {
+             case 0: /* Timeout */
                 break;
-            case -1: /* Error */
+             case -1: /* Error */
                 prerr = PR_GetError();
                 slapi_log_err(SLAPI_LOG_TRACE, "ct_list_thread", "PR_Poll() failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                            prerr, slapd_system_strerror(prerr));
-                break;
-            default: /* some new data ready */
+                              prerr, slapd_system_strerror(prerr));
+                 break;
+             default: /* some new data ready */
                 /* handle new data ready */
                 handle_pr_read_ready(the_connection_table, threadid, 0);
                 clear_signal(the_connection_table->fd[threadid], threadid);
                 break;
-            }
-       }
+         }
+    }
+    g_decr_active_threadcnt();
 }
 
 /* Create thread for each connection table list */
