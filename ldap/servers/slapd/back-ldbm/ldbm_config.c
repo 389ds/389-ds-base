@@ -1778,8 +1778,12 @@ ldbm_config_destroy(struct ldbminfo *li)
     slapi_ch_free((void **)&(li->li_directory));
     slapi_ch_free((void **)&(li->li_backend_implement));
     /* Destroy the mutexes and cond var */
-    PR_DestroyLock(li->li_shutdown_mutex);
-    PR_DestroyLock(li->li_config_mutex);
+    if (li->li_shutdown_mutex) {
+        PR_DestroyLock(li->li_shutdown_mutex);
+    }
+    if (li->li_config_mutex) {
+        PR_DestroyLock(li->li_config_mutex);
+    }
 
     /* Finally free the ldbminfo */
     slapi_ch_free((void **)&li);

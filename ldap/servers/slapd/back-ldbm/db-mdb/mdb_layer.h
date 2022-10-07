@@ -262,6 +262,20 @@ typedef struct {
     int flags;
 } dbmdb_txn_ctx_t;
 
+/* Private database environment */
+typedef struct {
+    dbmdb_dbi_t *dbis;
+    int         nb_dbis;
+    size_t      db_size;
+    MDB_env     *env;
+    int         env_flags;
+    char        *dir;
+    char        path[MAXPATHLEN];
+    MDB_txn     *txn;
+    MDB_cursor  *cursor;
+    int         wcount;
+} mdb_privdb_t;
+
 #include "mdb_debug.h"
 
 extern Slapi_ComponentId *dbmdb_componentid;
@@ -329,6 +343,12 @@ int dbmdb_instance_config_set(ldbm_instance *inst, char *attrname, int mod_apply
 int dbmdb_instance_create(struct ldbm_instance *inst);
 int dbmdb_instance_search_callback(Slapi_Entry *e, int *returncode, char *returntext, ldbm_instance *inst);
 dbmdb_dbi_t *dbmdb_get_dbi_from_slot(int dbi);
+/* private database environment */
+int dbmdb_import_use_private_db(void);
+mdb_privdb_t *dbmdb_privdb_create(dbmdb_ctx_t *ctx, size_t dbsize, ...);
+void dbmdb_privdb_destroy(mdb_privdb_t **db);
+int dbmdb_privdb_get(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data);
+int dbmdb_privdb_put(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data);
 
 /* function for autotuning */
 int dbmdb_start_autotune(struct ldbminfo *li);

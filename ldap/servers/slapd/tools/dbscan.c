@@ -949,6 +949,7 @@ usage(char *argv0)
     printf("    # display summary of objectclass.db4\n");
     printf("    %s -f objectclass.db4\n", p0);
     printf("\n");
+    slapi_ch_free_string(&copy);
     exit(1);
 }
 
@@ -1208,7 +1209,13 @@ removedb(const char *dbimpl_name, const char *filename)
     dbi_env_t *env = NULL;
     dbi_db_t *db = NULL;
 
-    if (dblayer_private_open(dbimpl_name, filename, 0, &be, &env, &db)) {
+    if (!filename) {
+        printf("Error: -f option is missing.\n"
+               "Usage: dbscan -D mdb -d -f <db_home_dir>/<backend_name>/<db_name>\n");
+        return 1;
+    }
+
+    if (dblayer_private_open(dbimpl_name, filename, 1, &be, &env, &db)) {
         printf("Can't initialize db plugin: %s\n", dbimpl_name);
         return 1;
     }

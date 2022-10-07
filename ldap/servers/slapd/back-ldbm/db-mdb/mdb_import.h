@@ -13,12 +13,10 @@
 #include "mdb_layer.h"
 
 #define LONGALIGN(len)         (((len)+(sizeof (long))-1) & ~((sizeof (long))-1))
-#define RDNCACHEELEMSIZE(elem) LONGALIGN((offsetof(RDNcacheElem_t, nrdn) + (elem)->nrdnlen + (elem)->rdnlen))
-#define RDNCACHESIZE(elem)     LONGALIGN(offsetof(rdncache, wait_id_slots) + (elem)->maxworkers * sizeof(int))
-#define RDNPAGE_SIZE 2000
-#define DEFAULT_RDNCACHEQUEUE_LEN    2500
 #define ELEMRDN(elem)          (&elem->nrdn[elem->nrdnlen])
-#define WRITER_SLOTS		   2000
+#define WRITER_SLOTS           2000
+#define WRITER_MAX_OPS_IN_TXN  2000
+#define NB_EXTRA_THREAD        3    /* monitoring, producer and writer */
 #define MIN_WORKER_SLOTS       4
 #define MAX_WORKER_SLOTS       64
 
@@ -29,18 +27,36 @@ typedef enum { IM_UNKNOWN, IM_IMPORT, IM_INDEX, IM_UPGRADE, IM_BULKIMPORT } Impo
 
 typedef struct importctx ImportCtx_t;
 
+typedef enum {
+    DNRC_OK,
+    DNRC_NODN,
+    DNRC_SUFFIX,
+    DNRC_BAD_SUFFIX_ID,
+    DNRC_NOPARENT_DN,
+    DNRC_NOPARENT_ID,
+    DNRC_TOMBSTONE,
+    DNRC_DUP,
+    DNRC_RUV,
+    DNRC_BADDN,
+    DNRC_ERROR,
+} dnrc_t;
 
 /******************** Queues ********************/
 
 typedef struct {
     ImportWorkerInfo winfo;
     volatile int count; /* Number of processed entries since thread is started */
-    volatile int wait_id;
-    int lineno;
-    int nblines;
-    char *filename;
-    void *data;
-    int datalen;
+    volatile int wait_id; /* current entry ID */
+    int lineno;         /* entry first line number in ldif file */
+    int nblines;        /* number of lines of the entry within ldif file */
+    char *filename;     /* ldif file name */
+    void *data;         /* entry string extracted from ldif line */
+    int datalen;        /* len of data in bytes */
+    ID *parent_info;    /* private database record of parent entry */
+    ID *entry_info;     /* private database record of current entry */
+    dnrc_t dnrc;        /* current entry status */
+    char *dn;           /* current entry dn */
+    char padding[56];   /* Lets try to align on 64 bytes cache line */
 } WorkerQueueData_t;
 
 typedef struct writerqueuedata {
@@ -53,13 +69,13 @@ typedef struct writerqueuedata {
 typedef struct {
     pthread_mutex_t mutex;
     pthread_cond_t cv;
-    volatile WriterQueueData_t *list;		/* Incoming list */
+    volatile WriterQueueData_t *list;       /* Incoming list */
     volatile int count;                     /* Approximative number of items in incomming list */
     volatile WriterQueueData_t *outlist;    /* processing list */
 } WriterQueue_t;
 
 
-#define IQ_GET_SLOT(q, idx, _struct)	((_struct *)(&(q)->slots[(idx)*(q)->slot_size]))
+#define IQ_GET_SLOT(q, idx, _struct)    ((_struct *)(&(q)->slots[(idx)*(q)->slot_size]))
 
 typedef struct importqueue {
     ImportJob *job;
@@ -70,43 +86,6 @@ typedef struct importqueue {
     int used_slots;
     WorkerQueueData_t *slots;
 } ImportQueue_t;
-
-/******************** Cache ********************/
-
-typedef struct rdncacheelem { /* Variable lenght */
-    struct rdncacheelem *next_per_id;
-    struct rdncacheelem *next_per_rdn;
-    struct rdncachehead *head;
-	ID eid;
-    ID pid;
-    uint16_t nrdnlen; /* include final \0 */
-    uint16_t rdnlen;  /* include final \0 */
-    char nrdn[1 /* nrdnlen + rdnlen */];
-} RDNcacheElem_t;
-
-typedef struct rdncachemempool { /* Used to store RDNcacheElem_t */
-    struct rdncachemempool *next;
-    int free_offset;
-    char mem[RDNPAGE_SIZE];
-} RDNcacheMemPool_t;
-
-typedef struct {
-    ImportCtx_t *ctx;
-    pthread_mutex_t mutex;
-    pthread_cond_t condvar;
-    struct rdncachehead *prev;
-    struct rdncachehead *cur;
-} RDNcache_t;
-
-typedef struct rdncachehead {
-    RDNcacheMemPool_t *mem;
-    int32_t refcnt;
-    RDNcache_t *cache;
-    int maxitems;
-    int nbitems;
-    RDNcacheElem_t **head_per_rdn;
-    RDNcacheElem_t **head_per_id;
-} RDNcacheHead_t;
 
 /******************** Global context ********************/
 
@@ -132,10 +111,10 @@ struct importctx {
     MdbIndexInfo_t *parentid;
     MdbIndexInfo_t *ancestorid;
     MdbIndexInfo_t *numsubordinates;
+    MdbIndexInfo_t *id2entry;
     ImportRole_t role;
     ImportQueue_t workerq;
     WriterQueue_t writerq;;
-    RDNcache_t *rdncache;
     Avlnode *indexes;  /* btree of MdbIndexInfo_t */
     ImportWorkerInfo producer;
     struct backentry *(*prepare_worker_entry_fn)(WorkerQueueData_t *wqelmnt);
@@ -149,15 +128,6 @@ struct importctx {
 };
 
 /******************** Functions ********************/
-
-/* mdb_rdncache.c */
-RDNcache_t *rdncache_init(ImportCtx_t *ctx);
-RDNcacheElem_t *rdncache_rdn_lookup(RDNcache_t *cache,  WorkerQueueData_t *slot, ID parentid, const char *nrdn);
-RDNcacheElem_t *rdncache_id_lookup(RDNcache_t *cache,  WorkerQueueData_t *slot, ID entryid);
-void rdncache_elem_release(RDNcacheElem_t **elem);
-RDNcacheElem_t *rdncache_add_elem(RDNcache_t *cache, WorkerQueueData_t *slot, ID entryid, ID parentid, int nrdnlen, const char *nrdn, int rdnlen, const char *rdn);
-void rdncache_rotate(RDNcache_t *cache);
-void rdncache_free(RDNcache_t **cache);
 
 /* mdb_import.c */
 int dbmdb_run_ldif2db(Slapi_PBlock *pb);
@@ -183,4 +153,3 @@ void dbmdb_free_worker_slot(struct importqueue *q, void *slot);
 int dbmdb_import_init_writer(ImportJob *job, ImportRole_t role);
 void dbmdb_free_import_ctx(ImportJob *job);
 void dbmdb_build_import_index_list(ImportCtx_t *ctx);
-
