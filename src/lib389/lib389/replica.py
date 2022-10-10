@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -18,8 +18,16 @@ import json
 import copy
 from operator import itemgetter
 from itertools import permutations
-from lib389._constants import *
-from lib389.properties import *
+from lib389._constants import CONSUMER_REPLICAID, REPLICA_RDWR_TYPE, REPLICA_FLAGS_WRITE, REPLICA_RDONLY_TYPE, \
+                              REPLICA_FLAGS_RDONLY, REPLICA_ID, REPLICA_TYPE, REPLICA_SUFFIX, REPLICA_BINDDN, \
+                              RDN_REPLICA, REPLICA_FLAGS, REPLICA_RUV_UUID, REPLICA_OC_TOMBSTONE, DN_MAPPING_TREE, \
+                              DN_CONFIG, DN_PLUGIN, REPLICATION_BIND_DN, REPLICATION_BIND_PW, ReplicaRole, \
+                              defaultProperties
+from lib389.properties import REPLICA_OBJECTCLASS_VALUE, REPLICA_OBJECTCLASS_VALUE, REPLICA_SUFFIX, \
+                              REPLICA_PROPNAME_TO_ATTRNAME, REPL_BINDDN, REPL_TYPE, REPL_ID, REPL_FLAGS, \
+                              REPL_BIND_GROUP, SER_HOST, SER_PORT, SER_SECURE_PORT, SER_ROOT_DN, SER_ROOT_PW, \
+                              REPL_ROOT, inProperties, rawProperty
+
 from lib389.utils import (normalizeDN, escapeDNValue, ensure_bytes, ensure_str,
                           ensure_list_str, ds_is_older, copy_with_permissions,
                           ds_supports_new_changelog)
@@ -1148,10 +1156,10 @@ class Replica(DSLdapObject):
             agmts = replica.get_agreements().list()
             suffix = replica.get_suffix()
             for agmt in agmts:
+                agmt_name = agmt.get_name()
                 try:
                     status = json.loads(agmt.get_agmt_status(return_json=True))
                     if "Not in Synchronization" in status['msg'] and not "Replication still in progress" in status['reason']:
-                        agmt_name = agmt.get_name()
                         if status['state'] == 'red':
                             # Serious error
                             if "Consumer can not be contacted" in status['reason']:
@@ -1519,7 +1527,7 @@ class Replica(DSLdapObject):
             for agmt in agmts:
                 host = agmt.get_attr_val_utf8("nsDS5ReplicaHost")
                 port = agmt.get_attr_val_utf8("nsDS5ReplicaPort")
-                protocol = agmt.get_attr_val_utf8("nsDS5ReplicaTransportInfo").lower()
+                protocol = agmt.get_attr_val_utf8_l("nsDS5ReplicaTransportInfo")
 
                 # The function should be defined outside and
                 # it should have all the logic for figuring out the credentials

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -20,7 +20,8 @@ from lib389.monitor import MonitorLDBM
 from lib389.replica import Replicas
 from lib389.utils import ensure_str, is_a_dn, is_dn_parent
 from lib389.tasks import DBCompactTask
-from lib389._constants import *
+from lib389._constants import INSTALL_LATEST_CONFIG
+from lib389.properties import BACKEND_SAMPLE_ENTRIES
 from lib389.cli_base import (
     _format_status,
     _generic_get,
@@ -300,7 +301,7 @@ def backend_export(inst, basedn, log, args):
 def is_db_link(inst, rdn):
     links = ChainingLinks(inst).list()
     for link in links:
-        cn = link.get_attr_val_utf8('cn').lower()
+        cn = link.get_attr_val_utf8_l('cn')
         if cn == rdn.lower():
             return True
     return False
@@ -718,7 +719,7 @@ def backend_get_vlv(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
     vlvs = be.get_vlv_searches()
     for vlv in vlvs:
-        vlv_name = vlv.get_attr_val_utf8_l('cn').lower()
+        vlv_name = vlv.get_attr_val_utf8_l('cn')
         if vlv_name == args.name.lower():
             if args.json:
                 entry = vlv.get_attrs_vals_json(VLV_SEARCH_ATTRS)
