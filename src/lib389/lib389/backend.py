@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,10 +7,13 @@
 # --- END COPYRIGHT BLOCK ---
 
 from datetime import datetime
+import os
 import copy
 import ldap
-from lib389._constants import *
-from lib389.properties import *
+from lib389._constants import DN_LDBM, DN_CHAIN, DN_PLUGIN, DEFAULT_BENAME
+from lib389.properties import BACKEND_OBJECTCLASS_VALUE, BACKEND_PROPNAME_TO_ATTRNAME, BACKEND_CHAIN_BIND_DN, \
+                              BACKEND_CHAIN_BIND_PW, BACKEND_CHAIN_URLS, BACKEND_PROPNAME_TO_ATTRNAME, BACKEND_NAME, \
+                              BACKEND_SUFFIX, BACKEND_SAMPLE_ENTRIES, TASK_WAIT
 from lib389.utils import normalizeDN, ensure_str, assert_c
 from lib389 import Entry
 
@@ -653,7 +656,7 @@ class Backend(DSLdapObject):
             mt = self._mts.get(selector=bename)
             # Assert the type is "backend"
             # Are these the right types....?
-            if mt.get_attr_val_utf8('nsslapd-state').lower() != 'backend':
+            if mt.get_attr_val_utf8_l('nsslapd-state') != 'backend':
                 raise ldap.UNWILLING_TO_PERFORM('Can not delete the mapping tree, not for a backend! You may need to delete this backend via cn=config .... ;_; ')
 
             # Delete replicas first
@@ -705,14 +708,14 @@ class Backend(DSLdapObject):
 
     def get_index(self, attr_name):
         for index in self.get_indexes().list():
-            idx_name = index.get_attr_val_utf8_l('cn').lower()
+            idx_name = index.get_attr_val_utf8_l('cn')
             if idx_name == attr_name.lower():
                 return index
         return None
 
     def del_index(self, attr_name):
         for index in self.get_indexes().list():
-            idx_name = index.get_attr_val_utf8_l('cn').lower()
+            idx_name = index.get_attr_val_utf8_l('cn')
             if idx_name == attr_name.lower():
                 index.delete()
                 return
@@ -751,7 +754,7 @@ class Backend(DSLdapObject):
         args = None
         if wait:
             args = {TASK_WAIT: True}
-        bename = ensure_str(self.get_attr_val_bytes('cn'))
+        bename = self.get_attr_val_utf8('cn')
         reindex_task = Tasks(self._instance)
         reindex_task.reindex(benamebase=bename, attrname=attrs, args=args)
 
@@ -816,7 +819,7 @@ class Backend(DSLdapObject):
 
         # return specific search
         for vlv in vlv_searches:
-            search_name = vlv.get_attr_val_utf8_l('cn').lower()
+            search_name = vlv.get_attr_val_utf8_l('cn')
             if search_name == vlv_name.lower():
                 return vlv
 
@@ -838,17 +841,17 @@ class Backend(DSLdapObject):
         returns: a List of subsuffix entries
         """
         subsuffixes = []
-        top_be_suffix = self.get_attr_val_utf8_l('nsslapd-suffix').lower()
+        top_be_suffix = self.get_attr_val_utf8_l('nsslapd-suffix')
         mts = self._mts.list()
         for mt in mts:
             parent_suffix = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
             if parent_suffix is None:
                 continue
-            if parent_suffix.lower() == top_be_suffix:
-                child_suffix = mt.get_attr_val_utf8_l('cn').lower()
+            if parent_suffix == top_be_suffix:
+                child_suffix = mt.get_attr_val_utf8_l('cn')
                 be_insts = Backends(self._instance).list()
                 for be in be_insts:
-                    be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix')).lower()
+                    be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
                     if child_suffix == be_suffix:
                         subsuffixes.append(be)
                         break

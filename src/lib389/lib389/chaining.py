@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,9 +7,8 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
-from lib389._constants import *
-from lib389.properties import *
-from lib389.utils import ensure_str
+from lib389._constants import DN_CHAIN
+from lib389.properties import BACKEND_OBJECTCLASS_VALUE
 from lib389.monitor import MonitorChaining
 from lib389.mappingTree import MappingTrees
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
@@ -180,7 +179,7 @@ class ChainingLinks(DSLdapObjects):
         rdn = props['cn'][0]
         be_insts = Backends(self._instance).list()
         for be in be_insts:
-            be_suffix = ensure_str(be.get_attr_val('nsslapd-suffix')).lower()
+            be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
             if suffix == be_suffix:
                 # Add chaining link as backend under the suffix
                 be.add('nsslapd-backend', rdn)
