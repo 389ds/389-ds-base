@@ -382,33 +382,17 @@ export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCa
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
     .done(data => {
-      // console.log(`data = ${data}`);
-      // const lines = data.split('\n');
       // TODO: Make this configurable ( option to keep X number of characters )
-      // Meanwhile just keep only the 150K first characters.
-      const isLarge = data.length > 150000;
-      if (isLarge) {
-        data = data.substring(0, 150000);
-      }
       const lines = data.split('\n');
       lines.map(currentLine => {
         if (currentLine !== '') {
-          entryArray.push(splitAttributeValue(currentLine));
+          if (currentLine.length < 5000 || currentLine.substring(0, 9).toLowerCase().startsWith("jpegphoto")) {
+            entryArray.push(splitAttributeValue(currentLine));
+          } else {
+            entryArray.push(splitAttributeValue(`${currentLine.substring(0, 5000)} ... ATTRIBUTE IS TOO LARGE - OUTPUT TRUNCATED`));
+          }
         }
       });
-
-      // Replace the last line with a message in case the entry is too large.
-      // There are high chances that the last line is incomplete ( because of the substring()).
-      // TODO: Find a suitable value. Was set to 230 K for a demo.
-      // TODO ==> Check if the truncated attribute will be decoded
-      // ( jpegPhoto for instance ). Truncation will cause issues.
-      if (isLarge) { // Entry was bigger than 150K.
-      // if (data.length === 230001) { // Entry was bigger than 230K.
-        entryArray.splice(-1, 2,
-          // The colon in the value is needed to split later the pair "attribute:value".
-          { attribute: '...', value: ':...' },
-          { attribute: 'MESSAGE', value: ':ENTRY TOO LARGE - OUTPUT TRUNCATED!' });
-      }
       entryAttributesCallback(entryArray);
     })
     .catch(err => {
@@ -819,27 +803,25 @@ export function modifyLdapEntry (params, ldifArray, modifyEntryCallback) {
     '/usr/bin/sh',
     '-c',
     `ldapmodify ${addOption} -Y EXTERNAL -H ` +
-    `ldapi://%2fvar%2frun%2fslapd-${serverId}.socket ` +
-    // Putting in 3 lines to ease readability.
-    '<< END_LDIF\n' +
-    ldifData +
-    'END_LDIF'
+    `ldapi://%2fvar%2frun%2fslapd-${serverId}.socket `
   ];
   const cmd_copy = [
     '/usr/bin/sh',
     '-c',
     `ldapmodify ${addOption} -Y EXTERNAL -H ` +
-    `ldapi://%2fvar%2frun%2fslapd-${serverId}.socket ` +
+    `ldapi://%2fvar%2frun%2fslapd-${serverId}.socket\n`,
     // Putting in 3 lines to ease readability.
-    '<< END_LDIF\n' +
-    logLdifData +  // hides userpassword value from console log
-    'END_LDIF'
+    // '<< END_LDIF\n' +
+    logLdifData  // hides userpassword value from console log
+    //'END_LDIF'
   ];
 
   let result = {};
   log_cmd("modifyLdapEntry", "", cmd_copy);
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
+    .input(ldifData, true)
+    .input()
     .done(data => {
       result = { errorCode: 0, output: data };
     })
