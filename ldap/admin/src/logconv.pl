@@ -2,7 +2,7 @@
 #
 # BEGIN COPYRIGHT BLOCK
 # Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -63,6 +63,13 @@ my $xi = 0;
 my $bindReportDN;
 my $usage = "";
 my @latency;
+$latency[0] = 0;
+$latency[1] = 0;
+$latency[2] = 0;
+$latency[3] = 0;
+$latency[4] = 0;
+$latency[5] = 0;
+$latency[6] = 0;
 # key is conn number - val is IP address
 my %openConnection;
 my @errorCode;
@@ -1701,11 +1708,11 @@ if ($usage =~ /j/i || $verb eq "yes"){
 	print "\n----- Recommendations -----\n";
 	my $recCount = "1";
 	if ($unindexedSrchCountNotesA > 0){
-		print "\n $recCount.  You have unindexed searches, this can be caused from a search on an unindexed attribute, or your returned results exceeded the allidsthreshold.  Unindexed searches are not recommended. To refuse unindexed searches, switch \'nsslapd-require-index\' to \'on\' under your database entry (e.g. cn=UserRoot,cn=ldbm database,cn=plugins,cn=config).\n";
+		print "\n $recCount.  You have unindexed searches, this can be caused from a search on an unindexed attribute, or your returned results exceeded the nsslapd-idlistscanlimit.  Unindexed searches are very resource intensive and should be prevented or corrected. To refuse unindexed searches, switch \'nsslapd-require-index\' to \'on\' under your database entry (e.g. cn=UserRoot,cn=ldbm database,cn=plugins,cn=config).\n";
 		$recCount++;
 	}
 	if ($unindexedSrchCountNotesU > 0){
-		print "\n $recCount.  You have unindexed components, this can be caused from a search on an unindexed attribute, or your returned results exceeded the allidsthreshold.  Unindexed components are not recommended. To refuse unindexed searches, switch \'nsslapd-require-index\' to \'on\' under your database entry (e.g. cn=UserRoot,cn=ldbm database,cn=plugins,cn=config).\n";
+		print "\n $recCount.  You have unindexed components, this can be caused from a search on an unindexed attribute, or your returned results exceeded the nsslapd-idlistscanlimit.  Unindexed components are not recommended. To refuse unindexed searches, switch \'nsslapd-require-index\' to \'on\' under your database entry (e.g. cn=UserRoot,cn=ldbm database,cn=plugins,cn=config).\n";
 		$recCount++;
 	}
 	if (defined($conncount->{"T1"}) and $conncount->{"T1"} > 0){
@@ -1742,8 +1749,8 @@ if ($usage =~ /j/i || $verb eq "yes"){
 		print "\n $recCount.  Your average etime is $etimeAvg, you may want to investigate this performance problem.\n";
 		$recCount++;
 	}
-	if (sprintf("%.2f", $wtimeAvg)  > 0){
-		print "\n $recCount.  Your average wtime is $wtimeAvg, you may want to investigate this performance problem.\n";
+	if (sprintf("%.1f", $wtimeAvg) > 0.5){
+		print "\n $recCount.  Your average wtime is $wtimeAvg, you may need to increase the number of worker threads (nsslapd-threadnumber).\n";
 		$recCount++;
 	}
 	if (sprintf("%.1f", $optimeAvg)  > 0){
@@ -2228,7 +2235,7 @@ sub parseLineNormal
 		if ($simConnection > $maxsimConnection) {
 			$maxsimConnection = $simConnection;
 		}
-		if ($verb eq "yes" || $usage =~ /p/ || $reportStats){
+		if ($verb eq "yes" || $usage =~ /p/ || $usage =~ /y/ || $reportStats){
 			($connID) = $_ =~ /conn=(\d*)\s/;
 			$openConnection{$connID} = $ip;
 			if ($reportStats or ($verb eq "yes") || ($usage =~ /y/)) {
@@ -2845,7 +2852,6 @@ print_stats_block
 						 $stats->{'unbind'},
 						 $stats->{'notesA'},
 						 $stats->{'notesU'},
-						 $stats->{'notesF'},
 						 $stats->{'etime'}),
 					"\n" );
 			} else {
