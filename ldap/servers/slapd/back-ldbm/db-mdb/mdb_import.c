@@ -1368,7 +1368,7 @@ dbmdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 {
     struct backentry *ep = NULL;
     ImportCtx_t *ctx = job->writer_ctx;
-    WorkerQueueData_t wqelmt = {0};
+    BulkQueueData_t bqelmt = {0};
     ID id = 0;
 
     if (!entry) {
@@ -1399,11 +1399,9 @@ dbmdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
         return -1;
     }
 
-    wqelmt.wait_id = id;
-    wqelmt.data = ep;
-    wqelmt.datalen = 0; /* Not used for backentries */
-
-    dbmdb_import_workerq_push(&ctx->workerq, &wqelmt);
+    bqelmt.id = id;
+    bqelmt.ep = ep;
+    dbmdb_import_q_push(&ctx->bulkq, &bqelmt);
 
     job->lead_ID = id;
 
@@ -1486,7 +1484,7 @@ dbmdb_ldbm_back_wire_import(Slapi_PBlock *pb)
     if (state == SLAPI_BI_STATE_DONE) {
         slapi_value_free(&(job->usn_value));
         /* finished with an import */
-        ((ImportCtx_t*)(job->writer_ctx))->producer.state = FINISHED;
+        ((ImportCtx_t*)(job->writer_ctx))->bulkq_state = FINISHED;
         /* "job" struct may vanish at any moment after we set the FINISHED
          * flag, so keep a copy of the thread id in 'thread' for safekeeping.
          */

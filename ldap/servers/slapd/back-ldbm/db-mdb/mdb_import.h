@@ -28,17 +28,20 @@ typedef enum { IM_UNKNOWN, IM_IMPORT, IM_INDEX, IM_UPGRADE, IM_BULKIMPORT } Impo
 typedef struct importctx ImportCtx_t;
 
 typedef enum {
-    DNRC_OK,
-    DNRC_NODN,
-    DNRC_SUFFIX,
-    DNRC_BAD_SUFFIX_ID,
-    DNRC_NOPARENT_DN,
-    DNRC_NOPARENT_ID,
-    DNRC_TOMBSTONE,
-    DNRC_DUP,
-    DNRC_RUV,
-    DNRC_BADDN,
-    DNRC_ERROR,
+    DNRC_OK,          /* Regular entry */
+    DNRC_BADDN,       /* Invalid DN syntax */
+    DNRC_BAD_SUFFIX_ID, /* DN is the backend suffix and the entry ID != 1 */
+    DNRC_DUP,         /* DN already exist in the private database */
+    DNRC_ERROR,       /* Some lmdb error occured */
+    DNRC_NODN,        /* No dn: in entry string */
+    DNRC_NOPARENT_DN, /* Entry DN has a single rdn */
+    DNRC_NOPARENT_ID, /* Parent info record is not found or no parenid: in entry */
+    DNRC_NORDN,       /* No rdn: in entry string */
+    DNRC_RUV,         /* RUV entry */
+    DNRC_SUFFIX,      /* Suffix entry */
+    DNRC_TOMBSTONE,   /* Tombstone entry */
+    DNRC_VERSION,     /* Not an entry but initial ldif version string */
+    DNRC_WAIT,        /* Parent id not yet in private db */
 } dnrc_t;
 
 /******************** Queues ********************/
@@ -56,27 +59,26 @@ typedef struct {
     ID *entry_info;     /* private database record of current entry */
     dnrc_t dnrc;        /* current entry status */
     char *dn;           /* current entry dn */
-    char padding[56];   /* Lets try to align on 64 bytes cache line */
+    ID wait4id;         /* parent ID which is waiting for */
+    char padding[46];   /* Lets try to align on 64 bytes cache line */
 } WorkerQueueData_t;
 
 typedef struct writerqueuedata {
+    struct writerqueuedata *next;  /* Must be first */
     dbmdb_dbi_t *dbi;
     MDB_val key;
     MDB_val data;
-    struct writerqueuedata *next;
 } WriterQueueData_t;
 
-typedef struct {
-    pthread_mutex_t mutex;
-    pthread_cond_t cv;
-    volatile WriterQueueData_t *list;       /* Incoming list */
-    volatile int count;                     /* Approximative number of items in incomming list */
-    volatile WriterQueueData_t *outlist;    /* processing list */
-} WriterQueue_t;
+typedef struct bulkqueuedata {
+    struct bulkqueuedata *next;    /* Must be first */
+    struct backentry *ep;
+    ID id;
+    MDB_val key;
+    MDB_val wait4key;
+} BulkQueueData_t;
 
-
-#define IQ_GET_SLOT(q, idx, _struct)    ((_struct *)(&(q)->slots[(idx)*(q)->slot_size]))
-
+/* A queue used by max_slots consumer threads */
 typedef struct importqueue {
     ImportJob *job;
     pthread_mutex_t mutex;
@@ -86,6 +88,21 @@ typedef struct importqueue {
     int used_slots;
     WorkerQueueData_t *slots;
 } ImportQueue_t;
+
+/* A queue used when having N provider threads but a single consumer thread */
+typedef struct importnto1queue ImportNto1Queue_t;
+struct importnto1queue {
+    ImportWorkerInfo *info; /* Info of the thread that process the queue items */
+    pthread_mutex_t mutex;
+    pthread_cond_t cv;
+    volatile void *list;    /* We do not really care about the exact struct type as far as next is the first field */
+    int maxitems;           /* Maximum queue size before waiting when pushing items in queue */
+    int minitems;           /* The minimum number of items before the reader tries to get the items */
+    volatile int nbitems;   /* Queue size */
+    void *(*dupitem_cb)(void *);
+    void (*freeitem_cb)(void **);
+    int (*shouldwait_cb)(ImportNto1Queue_t *);
+};
 
 /******************** Global context ********************/
 
@@ -114,7 +131,8 @@ struct importctx {
     MdbIndexInfo_t *id2entry;
     ImportRole_t role;
     ImportQueue_t workerq;
-    WriterQueue_t writerq;;
+    ImportNto1Queue_t writerq;
+    ImportNto1Queue_t bulkq;
     Avlnode *indexes;  /* btree of MdbIndexInfo_t */
     ImportWorkerInfo producer;
     struct backentry *(*prepare_worker_entry_fn)(WorkerQueueData_t *wqelmnt);
@@ -125,6 +143,7 @@ struct importctx {
     ID idsuffix;
     ID idruv;
     int dupdn;
+    int bulkq_state;
 };
 
 /******************** Functions ********************/
@@ -141,6 +160,7 @@ int _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value);
 int dbmdb_import_generate_uniqueid(ImportJob *job, Slapi_Entry *e);
 
 
+void dbmdb_import_q_push(ImportNto1Queue_t *q, void *item);
 int dbmdb_import_workerq_init(ImportJob *job, ImportQueue_t *q, int slotelmtsize, int maxslots);
 int dbmdb_import_workerq_push(ImportQueue_t *q, WorkerQueueData_t *data);
 

@@ -412,7 +412,7 @@ int dblayer_private_open(const char *plgname, const char *dbfilename, int rw, Sl
     li->li_plugin = (*be)->be_database;
     li->li_plugin->plg_name = "back-ldbm-dbimpl";
     li->li_plugin->plg_libpath = "libback-ldbm";
-    li->li_directory = (char*)dbfilename;
+    li->li_directory = slapi_ch_strdup(dbfilename);
 
     /* Initialize database plugin */
     rc = dbimpl_setup(li, plgname);
