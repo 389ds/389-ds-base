@@ -17,13 +17,13 @@
 typedef struct _trim_status
 {
     time_t ts_c_max_age;     /* Constraint  - max age of a changelog entry */
+    int ts_c_trim_interval;  /* Constraint  - interval to evaluate the need to trim */
     time_t ts_s_last_trim;   /* Status - last time we trimmed */
     int ts_s_initialized;    /* Status - non-zero if initialized */
     int ts_s_trimming;       /* non-zero if trimming in progress */
     PRLock *ts_s_trim_mutex; /* protects ts_s_trimming */
 } trim_status;
 static trim_status ts = {0L, 0L, 0, 0, NULL};
-static int trim_interval = DEFAULT_CHANGELOGDB_TRIM_INTERVAL; /* in second */
 
 /*
  * All standard changeLogEntry attributes (initialized in get_cleattrs)
@@ -239,12 +239,13 @@ trim_changelog(void)
     time_t now_maxage; /* used for checking if the changelog entry can be trimmed */
     changeNumber first_in_log = 0, last_in_log = 0;
     int num_deleted = 0;
-    int max_age, last_trim;
+    int max_age, last_trim, trim_interval;
 
     now_interval = slapi_current_rel_time_t(); /* monotonic time for interval */
 
     PR_Lock(ts.ts_s_trim_mutex);
     max_age = ts.ts_c_max_age;
+    trim_interval = ts.ts_c_trim_interval;
     last_trim = ts.ts_s_last_trim;
     PR_Unlock(ts.ts_s_trim_mutex);
 
@@ -366,7 +367,7 @@ retrocl_housekeeping(time_t cur_time, void *noarg __attribute__((unused)))
         int must_trim = 0;
         /* See if we need to trim */
         /* Has enough time elapsed since our last check? */
-        if (cur_time - ts.ts_s_last_trim >= (ts.ts_c_max_age)) {
+        if (cur_time - ts.ts_s_last_trim >= (ts.ts_c_trim_interval)) {
             /* Is the first entry too old? */
             time_t first_time;
             time_t now_maxage = slapi_current_utc_time(); /* real time for trimming candidates */
@@ -422,6 +423,7 @@ retrocl_init_trimming(void)
     const char *cl_maxage;
     time_t ageval = 0; /* Don't trim, by default */
     const char *cl_trim_interval;
+    int trim_interval;
 
     cl_maxage = retrocl_get_config_str(CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
     if (cl_maxage) {
@@ -441,7 +443,7 @@ retrocl_init_trimming(void)
     cl_trim_interval = retrocl_get_config_str(CONFIG_CHANGELOG_TRIM_INTERVAL);
     if (cl_trim_interval) {
         trim_interval = strtol(cl_trim_interval, (char **)NULL, 10);
-        if (0 == trim_interval) {
+        if (0 >= trim_interval) {
             slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
                           "retrocl_init_trimming: ignoring invalid %s value %s; "
                           "resetting the default %d\n",
@@ -453,6 +455,7 @@ retrocl_init_trimming(void)
     }
 
     ts.ts_c_max_age = ageval;
+    ts.ts_c_trim_interval = trim_interval;
     ts.ts_s_last_trim = (time_t)0L;
     ts.ts_s_trimming = 0;
     if ((ts.ts_s_trim_mutex = PR_NewLock()) == NULL) {
@@ -466,7 +469,7 @@ retrocl_init_trimming(void)
     retrocl_trim_ctx = slapi_eq_repeat_rel(retrocl_housekeeping,
                                            NULL, (time_t)0,
                                            /* in milliseconds */
-                                           trim_interval * 1000);
+                                           ts.ts_c_trim_interval * 1000);
 }
 
 /*
