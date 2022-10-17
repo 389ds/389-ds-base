@@ -923,12 +923,12 @@ dbi_remove(dbi_open_ctx_t *octx)
     rc = END_TXN(&txn, rc);
     if (rc == 0) {
         if (octx->deletion_flags) {
-        if (octx->dbi) {
+            if (octx->dbi) {
             /* Remove name(s) from tree and slot */
                 treekey.dbname = octx->dbi->dbname;
                 tdelete(&treekey, &ctx->dbis_treeroot, cmp_dbi_names);
                 slapi_ch_free((void**)&octx->dbi->dbname);
-            } else {
+            } else if (dbilist) { /* this test is always true but avoid a gcc warning */
                 for (i = 0; dbilist[i]; i++) {
                     /* Remove name from tree and slot */
                     treekey.dbname = dbilist[i]->dbname;

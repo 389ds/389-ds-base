@@ -410,8 +410,8 @@ int dblayer_private_open(const char *plgname, const char *dbfilename, int rw, Sl
     li = (struct ldbminfo *)slapi_ch_calloc(1, sizeof(struct ldbminfo));
     (*be)->be_database->plg_private = li;
     li->li_plugin = (*be)->be_database;
-    li->li_plugin->plg_name = "back-ldbm-dbimpl";
-    li->li_plugin->plg_libpath = "libback-ldbm";
+    li->li_plugin->plg_name = (char*) "back-ldbm-dbimpl";
+    li->li_plugin->plg_libpath = (char*) "libback-ldbm";
     li->li_directory = slapi_ch_strdup(dbfilename);
 
     /* Initialize database plugin */
@@ -461,8 +461,8 @@ int dblayer_show_statistics(const char *dbimpl_name, const char *dbhome, FILE *f
     li = (struct ldbminfo *)slapi_ch_calloc(1, sizeof(struct ldbminfo));
     be->be_database->plg_private = li;
     li->li_plugin = be->be_database;
-    li->li_plugin->plg_name = "back-ldbm-dbimpl";
-    li->li_plugin->plg_libpath = "libback-ldbm";
+    li->li_plugin->plg_name = (char*) "back-ldbm-dbimpl";
+    li->li_plugin->plg_libpath = (char*) "libback-ldbm";
     li->li_directory = (char*)dbhome;
 
     /* Initialize database plugin */
@@ -496,8 +496,8 @@ dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome)
     li = (struct ldbminfo *)slapi_ch_calloc(1, sizeof(struct ldbminfo));
     be->be_database->plg_private = li;
     li->li_plugin = be->be_database;
-    li->li_plugin->plg_name = "back-ldbm-dbimpl";
-    li->li_plugin->plg_libpath = "libback-ldbm";
+    li->li_plugin->plg_name = (char*) "back-ldbm-dbimpl";
+    li->li_plugin->plg_libpath = (char*) "libback-ldbm";
     li->li_directory = slapi_ch_strdup(dbhome);
 
     /* Initialize database plugin */
