@@ -198,14 +198,14 @@ if len(sys.argv) > 0:
               'can not be greater than 99')
         display_usage()
 
-    if args.inst:
-        if not args.inst.isdigit() or \
-            int(args.inst) > 99 or \
-            int(args.inst) < 0:
+    if args.instances:
+        if not args.instances.isdigit() or \
+            int(args.instances) > 99 or \
+            int(args.instances) < 0:
             print('Invalid value for "--instances", it must be a number ' +
                   'greater than 0 and not greater than 99')
             display_usage()
-        if int(args.inst) > 0:
+        if int(args.instances) > 0:
             if int(args.suppliers) > 0 or \
                             int(args.hubs) > 0 or \
                             int(args.consumers) > 0:
@@ -216,12 +216,12 @@ if len(sys.argv) > 0:
     ticket = args.ticket
     suite = args.suite
 
-    if args.inst == '0' and args.suppliers == '0' and args.hubs == '0' \
+    if args.instances == '0' and args.suppliers == '0' and args.hubs == '0' \
        and args.consumers == '0':
         instances = 1
         my_topology = [True, 'topology_st', "Standalone Instance"]
     else:
-        instances = int(args.inst)
+        instances = int(args.instances)
         suppliers = int(args.suppliers)
         hubs = int(args.hubs)
         consumers = int(args.consumers)

@@ -831,11 +831,11 @@ struct slapi_entry
     Slapi_Attr *e_deleted_attrs;  /* deleted list of attributes and values */
     Slapi_Vattr *e_virtual_attrs; /* cache of virtual attributes */
     uint32_t e_virtual_watermark; /* indicates cache consistency when compared
-                                    to global watermark */
+                                     to global watermark */
     Slapi_RWLock *e_virtual_lock; /* for access to cached vattrs */
     void *e_extension;            /* A list of entry object extensions */
     unsigned char e_flags;
-    Slapi_Attr *e_aux_attrs; /* Attr list used for upgrade */
+    Slapi_Attr *e_aux_attrs;      /* Attr list used for upgrade */
 };
 
 struct attrs_in_extension
@@ -2345,6 +2345,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_LISTEN_BACKLOG_SIZE "nsslapd-listen-backlog-size"
 #define CONFIG_DYNAMIC_PLUGINS "nsslapd-dynamic-plugins"
 #define CONFIG_RETURN_DEFAULT_OPATTR "nsslapd-return-default-opattr"
+#define CONFIG_RETURN_ENTRY_DN "nsslapd-return-original-entrydn"
 
 #define CONFIG_CN_USES_DN_SYNTAX_IN_DNS "nsslapd-cn-uses-dn-syntax-in-dns"
 
@@ -2697,6 +2698,7 @@ typedef struct _slapdFrontendConfig
 
     slapi_int_t tcp_fin_timeout;
     slapi_int_t tcp_keepalive_time;
+    slapi_onoff_t return_orig_dn;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
