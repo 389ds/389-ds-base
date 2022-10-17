@@ -265,6 +265,7 @@ slapi_onoff_t init_ignore_vattrs;
 slapi_onoff_t init_enable_upgrade_hash;
 slapi_special_filter_verify_t init_verify_filter_schema;
 slapi_onoff_t init_enable_ldapssotoken;
+slapi_onoff_t init_return_orig_dn;
 
 static int
 isInt(ConfigVarType type)
@@ -1401,6 +1402,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.tcp_keepalive_time, CONFIG_INT,
      (ConfigGetFunc)config_get_tcp_keepalive_time, SLAPD_DEFAULT_TCP_KEEPALIVE_TIME_STR, NULL},
+    {CONFIG_RETURN_ENTRY_DN, config_set_return_orig_dn,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.return_orig_dn,
+     CONFIG_ON_OFF, (ConfigGetFunc)config_get_return_orig_dn, &init_return_orig_dn, NULL},
     /* End config */
     };
 
@@ -1953,6 +1958,7 @@ FrontendConfig_init(void)
 #endif
 #endif
     init_extract_pem = cfg->extract_pem = LDAP_ON;
+    init_return_orig_dn = cfg->return_orig_dn = LDAP_ON;
     /*
      * Default upgrade hash to on - this is an important security step, meaning that old
      * or legacy hashes are upgraded on bind. It means we are proactive in securing accounts
@@ -8448,6 +8454,31 @@ config_get_verify_filter_schema()
     }
     /* Should be unreachable ... */
     return FILTER_POLICY_OFF;
+}
+
+int32_t
+config_get_return_orig_dn()
+{
+    int32_t retVal;
+
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->return_orig_dn;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int32_t
+config_set_return_orig_dn(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->return_orig_dn),
+                              errorbuf, apply);
+    return retVal;
 }
 
 int32_t

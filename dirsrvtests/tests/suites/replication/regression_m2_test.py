@@ -15,13 +15,12 @@ import ldap
 import pytest
 import subprocess
 import time
-from lib389.idm.user import TEST_USER_PROPERTIES, UserAccounts
+from lib389.idm.user import TEST_USER_PROPERTIES, UserAccount, UserAccounts
 from lib389.pwpolicy import PwPolicyManager
 from lib389.utils import *
 from lib389._constants import *
 from lib389.idm.domain import Domain
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389.idm.user import UserAccount
 from lib389.idm.group import Groups, Group
 from lib389.idm.domain import Domain
 from lib389.idm.directorymanager import DirectoryManager

@@ -54,16 +54,17 @@ dn2entry_ext(
     e = cache_find_dn(&inst->inst_cache, ndnv.bv_val, ndnv.bv_len);
     if (e == NULL) {
         ID id = ALLID;
+
         /* convert dn to entry id */
         if (entryrdn_get_switch()) { /* subtree-rename: on */
             *err = entryrdn_index_read_ext(be, sdn, &id,
                                            flags & TOMBSTONE_INCLUDED, txn);
+            indexname = LDBM_ENTRYRDN_STR;
             if (*err) {
                 if (DBI_RC_NOTFOUND != *err) {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "dn2entry_ext", "Failed to get id for %s "
-                                                  "from entryrdn index (%d)\n",
-                                  slapi_sdn_get_dn(sdn), *err);
+                    slapi_log_err(SLAPI_LOG_ERR, "dn2entry_ext",
+                                  "Failed to get id for %s from %s index: (%d)\n",
+                                  slapi_sdn_get_dn(sdn), indexname, *err);
                 }
                 /* There's no entry with this DN. */
                 goto bail;
@@ -78,7 +79,6 @@ dn2entry_ext(
                 /* There's no entry with this suffix. */
                 goto bail;
             }
-            indexname = LDBM_ENTRYRDN_STR;
         } else {
             IDList *idl = NULL;
             if ((idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY,
@@ -88,7 +88,6 @@ dn2entry_ext(
             }
             id = idl_firstid(idl);
             slapi_ch_free((void **)&idl);
-            indexname = LDBM_ENTRYDN_STR;
         }
         /* convert entry id to entry */
         if ((e = id2entry(be, id, txn, err)) != NULL) {

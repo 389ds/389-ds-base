@@ -319,7 +319,7 @@ def test_scheme_violation_errors_logged(topo_m2):
     assert user_memberof_attr
     log.info('memberOf attr value - {}'.format(user_memberof_attr))
 
-    pattern = ".*oc_check_allowed_sv.*{}.*memberOf.*not allowed.*".format(testuser.dn.lower())
+    pattern = ".*oc_check_allowed_sv.*{}.*memberOf.*not allowed.*".format(testuser.dn)
     log.info("pattern = %s" % pattern)
     assert inst.ds_error_log.match(pattern)
 

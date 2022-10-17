@@ -45,21 +45,22 @@ TEST_PARAMS = [(DN_ROOT, False, [
                (DN_PEOPLE, False, [
                 'aci', 'createTimestamp', 'creatorsName', 'entrydn',
                 'entryid', 'modifiersName', 'modifyTimestamp',
-                'nsUniqueId', 'numSubordinates', 'parentid'
+                'nsUniqueId', 'numSubordinates', 'parentid', 'dsEntryDN'
                ]),
                (DN_PEOPLE, True, [
                 'createTimestamp', 'creatorsName', 'entrydn',
                 'entryid', 'modifyTimestamp', 'nsUniqueId',
-                'numSubordinates', 'parentid'
+                'numSubordinates', 'parentid', 'dsEntryDN'
                ]),
                (TEST_USER_DN, False, [
                 'createTimestamp', 'creatorsName', 'entrydn',
                 'entryid', 'modifiersName', 'modifyTimestamp',
-                'nsUniqueId', 'parentid', 'entryUUID'
+                'nsUniqueId', 'parentid', 'entryUUID', 'dsEntryDN'
                ]),
                (TEST_USER_DN, True, [
                 'createTimestamp', 'creatorsName', 'entrydn',
-                'entryid', 'modifyTimestamp', 'nsUniqueId', 'parentid', 'entryUUID'
+                'entryid', 'modifyTimestamp', 'nsUniqueId', 'parentid',
+                'entryUUID', 'dsEntryDN'
                ]),
                (DN_CONFIG, False, [
                 'numSubordinates', 'passwordHistory',  'modifyTimestamp',

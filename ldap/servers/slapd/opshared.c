@@ -1130,27 +1130,27 @@ process_entry(Slapi_PBlock *pb, Slapi_Entry *e, int send_result)
 static void
 send_entry(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Operation *operation, char **attrs, int attrsonly, int *pnentries)
 {
-                /*
-             * It's a regular entry, or it's a referral and
-             * managedsait control is on.  In either case, send
-             * the entry.
-             */
-                switch (send_ldap_search_entry(pb, e, NULL, attrs, attrsonly)) {
-                case 0: /* entry sent ok */
-                    (*pnentries)++;
-                    slapi_pblock_set(pb, SLAPI_NENTRIES, pnentries);
-                    break;
-                case 1: /* entry not sent */
-                    break;
-                case -1: /* connection closed */
-                    /*
-                     * mark the operation as abandoned so the backend
-                     * next entry function gets called again and has
-                     * a chance to clean things up.
-                     */
-                    operation->o_status = SLAPI_OP_STATUS_ABANDONED;
-                    break;
-                }
+    /*
+     * It's a regular entry, or it's a referral and
+     * managedsait control is on.  In either case, send
+     * the entry.
+     */
+    switch (send_ldap_search_entry(pb, e, NULL, attrs, attrsonly)) {
+    case 0: /* entry sent ok */
+        (*pnentries)++;
+        slapi_pblock_set(pb, SLAPI_NENTRIES, pnentries);
+        break;
+    case 1: /* entry not sent */
+        break;
+    case -1: /* connection closed */
+        /*
+         * mark the operation as abandoned so the backend
+         * next entry function gets called again and has
+         * a chance to clean things up.
+         */
+        operation->o_status = SLAPI_OP_STATUS_ABANDONED;
+        break;
+    }
 }
 
 /* Loops through search entries and sends them to the client.

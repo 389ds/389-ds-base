@@ -74,7 +74,7 @@ def _check_filter(topology_st_f, filt, expect_len, expect_dns):
     # print("checking %s" % filt)
     results = topology_st_f.search_s("ou=people,%s" % DEFAULT_SUFFIX, ldap.SCOPE_ONELEVEL, filt, ['uid',])
     assert len(results) == expect_len
-    result_dns = [result.dn for result in results]
+    result_dns = [result.dn.lower() for result in results]
     assert set(expect_dns) == set(result_dns)
 
 

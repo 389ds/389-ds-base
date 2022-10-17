@@ -403,6 +403,7 @@ PR_fprintf(struct PRFileDesc *fd, const char *fmt, ...) __ATTRIBUTE__((format(pr
 #define SLAPI_ATTR_NSCP_ENTRYDN          "nscpEntryDN"
 #define SLAPI_ATTR_ENTRYUSN              "entryusn"
 #define SLAPI_ATTR_ENTRYDN               "entrydn"
+#define SLAPI_ATTR_DS_ENTRYDN            "dsEntryDN"
 #define SLAPI_ATTR_DN                    "dn"
 #define SLAPI_ATTR_RDN                   "rdn"
 #define SLAPI_ATTR_PARENTID              "parentid"

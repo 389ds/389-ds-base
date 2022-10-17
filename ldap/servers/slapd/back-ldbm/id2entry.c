@@ -67,6 +67,10 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, i
         int options = SLAPI_DUMP_STATEINFO | SLAPI_DUMP_UNIQUEID;
         Slapi_Entry *entry_to_use = encrypted_entry ? encrypted_entry->ep_entry : e->ep_entry;
         memset(&data, 0, sizeof(data));
+        entrydn = slapi_entry_get_dn(entry_to_use);
+        slapi_entry_attr_set_charptr(entry_to_use, SLAPI_ATTR_DS_ENTRYDN,
+                entrydn);
+
         if (entryrdn_get_switch()) {
             struct backdn *oldbdn = NULL;
             Slapi_DN *sdn =
@@ -141,7 +145,7 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, i
                         myparentdn = slapi_dn_parent_ext(
                             slapi_entry_get_dn_const(e->ep_entry),
                             is_tombstone);
-                        if (myparentdn && PL_strcmp(parentdn, myparentdn)) {
+                        if (myparentdn && PL_strcasecmp(parentdn, myparentdn)) {
                             Slapi_DN *sdn = slapi_entry_get_sdn(e->ep_entry);
                             char *newdn = NULL;
                             CACHE_LOCK(&inst->inst_cache);
@@ -350,21 +354,28 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
                 CACHE_RETURN(&inst->inst_dncache, &bdn);
             } else {
                 Slapi_DN *sdn = NULL;
-                rc = entryrdn_lookup_dn(be, rdn, id, &normdn, &srdn, txn);
-                if (rc) {
-                    slapi_log_err(SLAPI_LOG_TRACE, ID2ENTRY,
-                                  "id2entry: entryrdn look up failed "
-                                  "(rdn=%s, ID=%d)\n",
-                                  rdn, id);
-                    /* Try rdn as dn. Could be RUV. */
-                    normdn = slapi_ch_strdup(rdn);
-                } else if (NULL == normdn) {
-                    slapi_log_err(SLAPI_LOG_ERR, ID2ENTRY,
-                                  "id2entry( %lu ) entryrdn_lookup_dn returned NULL. "
-                                  "Index file may be deleted or corrupted.\n",
-                                  (u_long)id);
-                    goto bail;
+                if (config_get_return_orig_dn() &&
+                    !get_value_from_string((const char *)data.dptr, SLAPI_ATTR_DS_ENTRYDN, &normdn))
+                {
+                    srdn = slapi_rdn_new_all_dn(normdn);
+                } else {
+                    rc = entryrdn_lookup_dn(be, rdn, id, &normdn, &srdn, txn);
+                    if (rc) {
+                        slapi_log_err(SLAPI_LOG_TRACE, ID2ENTRY,
+                                      "id2entry: entryrdn look up failed "
+                                      "(rdn=%s, ID=%d)\n",
+                                      rdn, id);
+                        /* Try rdn as dn. Could be RUV. */
+                        normdn = slapi_ch_strdup(rdn);
+                    } else if (NULL == normdn) {
+                        slapi_log_err(SLAPI_LOG_ERR, ID2ENTRY,
+                                      "id2entry( %lu ) entryrdn_lookup_dn returned NULL. "
+                                      "Index file may be deleted or corrupted.\n",
+                                      (u_long)id);
+                        goto bail;
+                    }
                 }
+
                 sdn = slapi_sdn_new_normdn_byval((const char *)normdn);
                 bdn = backdn_init(sdn, id, 0);
                 if (CACHE_ADD(&inst->inst_dncache, bdn, NULL)) {
@@ -395,6 +406,7 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
 
         /* All entries should have uniqueids */
         PR_ASSERT(slapi_entry_get_uniqueid(ee) != NULL);
+
         /* ownership of the entry is passed into the backentry */
         e = backentry_init(ee);
         e->ep_id = id;
