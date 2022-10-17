@@ -625,6 +625,9 @@ int32_t config_set_ldapssotoken_secret(const char *attrname, char *value, char *
 int32_t config_set_ldapssotoken_ttl(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_get_ldapssotoken_ttl(void);
 
+int32_t config_get_return_orig_dn(void);
+int32_t config_set_return_orig_dn(const char *attrname, char *value, char *errorbuf, int apply);
+
 int config_set_tcp_fin_timeout(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_tcp_fin_timeout(void);
 int config_set_tcp_keepalive_time(const char *attrname, char *value, char *errorbuf, int apply);

@@ -65,7 +65,7 @@ def test_psearch(topology_st):
     # Now run the result again and see what's there.
     results = _run_psearch(topology_st.standalone, msg_id)
     # assert our group is in the changeset.
-    assert(group.dn.lower() == results[0])
+    assert(group.dn == results[0])
 
 
 if __name__ == '__main__':

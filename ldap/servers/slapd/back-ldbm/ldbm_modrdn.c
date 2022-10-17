@@ -23,6 +23,8 @@ static IDList *moddn_get_children(back_txn *ptxn, Slapi_PBlock *pb, backend *be,
 static int moddn_rename_children(back_txn *ptxn, Slapi_PBlock *pb, backend *be, IDList *children, Slapi_DN *dn_parentdn, Slapi_DN *dn_newsuperiordn, struct backentry *child_entries[]);
 static int modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *e, struct backentry **ec, Slapi_Mods *smods1, Slapi_Mods *smods2, Slapi_Mods *smods3, Slapi_Mods *smods4);
 static void mods_remove_nsuniqueid(Slapi_Mods *smods);
+static int32_t dsentrydn_modrdn_update(backend *be, const char *newdn, struct backentry *e, struct backentry **ec, back_txn *txn);
+static int dsentrydn_moddn_rename(back_txn *ptxn, backend *be, ID id, IDList *children, const Slapi_DN *dn_parentdn, const Slapi_DN *dn_newsuperiordn, struct backentry *child_entries[]);
 
 #define MOD_SET_ERROR(rc, error, count)                                            \
     {                                                                              \
@@ -388,6 +390,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                     slapi_sdn_set_dn_passin(&dn_newdn, newdn);
                     new_addr.sdn = &dn_newdn;
                     new_addr.udn = NULL;
+
                     /* check dn syntax on newdn */
                     ldap_result_code = slapi_dn_syntax_check(pb,
                                                              (char *)slapi_sdn_get_ndn(&dn_newdn), 1);
@@ -557,17 +560,6 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                 }
             }
 
-            /*
-             * Now that we have the old entry, we reset the old DN and recompute
-             * the new DN.  Why?  Because earlier when we computed the new DN, we did
-             * not have the old entry, so we used the DN that was presented as the
-             * target DN in the ModRDN operation itself, and we would prefer to
-             * preserve the case and spacing that are in the actual entry's DN
-             * instead.  Otherwise, a ModRDN operation will potentially change an
-             * entry's entire DN (at least with respect to case and spacing).
-             */
-            slapi_sdn_copy(slapi_entry_get_sdn_const(e->ep_entry), sdn);
-            slapi_pblock_set(pb, SLAPI_MODRDN_TARGET_SDN, sdn);
             if (newparententry != NULL) {
                 /* don't forget we also want to preserve case of new superior */
                 if (NULL == dn_newsuperiordn) {
@@ -1163,6 +1155,12 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
             retval = moddn_rename_children(&txn, pb, be, children, sdn,
                                            &dn_newdn, child_entries);
         }
+
+        /* Update "dsEntryDN" */
+        if (children) {
+            retval = dsentrydn_moddn_rename(&txn, be, e->ep_id, children, sdn,
+                                            &dn_newdn, child_entries);
+        }
         if (DBI_RC_RETRY == retval) {
             /* Retry txn */
             continue;
@@ -1555,6 +1553,197 @@ common_return:
         cache_clear(&inst->inst_cache, 0);
     }
     return retval;
+}
+
+
+/* dsEntryDN functions */
+
+static int
+dsentrydn_moddn_rename_child(
+    back_txn *ptxn,
+    Slapi_Backend *be,
+    struct ldbminfo *li,
+    struct backentry *e,
+    struct backentry **ec,
+    size_t parentdncomps,
+    char **newsuperiordns,
+    size_t newsuperiordncomps)
+{
+    /*
+     * Construct the new DN for the entry by taking the old DN
+     * excluding the old parent entry DN, and adding the new
+     * superior entry DN.
+     */
+    int retval = 0;
+    char *olddn;
+    char *newdn;
+    char **olddns;
+    size_t olddncomps = 0;
+    int need = 1; /* For the '\0' */
+    size_t i;
+
+    olddn = slapi_entry_attr_get_charptr((*ec)->ep_entry, SLAPI_ATTR_DS_ENTRYDN);
+    if (NULL == olddn) {
+        return retval;
+    }
+    olddns = slapi_ldap_explode_dn(olddn, 0);
+    if (NULL == olddns) {
+        goto out;
+    }
+    for (; olddns[olddncomps] != NULL; olddncomps++);
+
+    for (i = 0; i < olddncomps - parentdncomps; i++) {
+        need += strlen(olddns[i]) + 1; /* For the "," */
+    }
+    for (i = 0; i < newsuperiordncomps; i++) {
+        need += strlen(newsuperiordns[i]) + 1; /* For the " " */
+    }
+    need--; /* We don't have a comma on the end of the last component */
+    newdn = slapi_ch_malloc(need);
+    newdn[0] = '\0';
+    for (i = 0; i < olddncomps - parentdncomps; i++) {
+        strcat(newdn, olddns[i]);
+        strcat(newdn, ",");
+    }
+    slapi_ldap_value_free(olddns);
+
+    for (i = 0; i < newsuperiordncomps; i++) {
+        strcat(newdn, newsuperiordns[i]);
+        if (i < newsuperiordncomps - 1) {
+            /* We don't have a comma on the end of the last component */
+            strcat(newdn, ",");
+        }
+    }
+
+    retval = dsentrydn_modrdn_update(be, newdn, e, ec, ptxn);
+
+out:
+    slapi_ch_free_string(&olddn);
+
+    return retval;
+}
+
+static int
+dsentrydn_moddn_rename(
+    back_txn *ptxn,
+    backend *be,
+    ID id,
+    IDList *children,
+    const Slapi_DN *dn_parentdn,
+    const Slapi_DN *dn_newsuperiordn,
+    struct backentry *child_entries[])
+{
+    /* Iterate over the children list renaming every child */
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    struct backentry **child_entry_copies = NULL;
+    int retval = 0;
+    char **newsuperiordns = NULL;
+    size_t newsuperiordncomps = 0;
+    size_t parentdncomps = 0;
+    NIDS nids = children ? children->b_nids : 0;
+
+    /*
+     * Break down the parent entry dn into its components.
+     */
+    {
+        char **parentdns = slapi_ldap_explode_dn(slapi_sdn_get_dn(dn_parentdn), 0);
+        if (parentdns) {
+            for (; parentdns[parentdncomps] != NULL; parentdncomps++)
+                ;
+            slapi_ldap_value_free(parentdns);
+        } else {
+            return -1;
+        }
+    }
+
+    /*
+     * Break down the new superior entry dn into its components.
+     */
+    newsuperiordns = slapi_ldap_explode_dn(slapi_sdn_get_dn(dn_newsuperiordn), 0);
+    if (newsuperiordns) {
+        for (; newsuperiordns[newsuperiordncomps] != NULL; newsuperiordncomps++)
+            ;
+    } else {
+        return -1;
+    }
+
+    /*
+     * Iterate over the child entries renaming them.
+     */
+    child_entry_copies = (struct backentry **)slapi_ch_calloc(sizeof(struct backentry *), nids + 1);
+    for (size_t i = 0; i <= nids; i++) {
+        child_entry_copies[i] = backentry_dup(child_entries[i]);
+    }
+    for (size_t i = 0; retval == 0 && child_entries[i]; i++) {
+        retval = dsentrydn_moddn_rename_child(ptxn, be, li, child_entries[i], &child_entry_copies[i],
+                                              parentdncomps, newsuperiordns,
+                                              newsuperiordncomps);
+    }
+
+    if (0 == retval) {
+        for (size_t i = 0; child_entries[i]; i++) {
+            CACHE_REMOVE(&inst->inst_cache, child_entry_copies[i]);
+            CACHE_RETURN(&inst->inst_cache, &(child_entry_copies[i]));
+        }
+    } else {
+        /* failure */
+        for (size_t i = 0; child_entries[i]; i++) {
+            backentry_free(&(child_entry_copies[i]));
+        }
+    }
+
+    slapi_ch_free((void **)&child_entry_copies);
+    slapi_ldap_value_free(newsuperiordns);
+
+    return retval;
+}
+
+static int32_t
+dsentrydn_modrdn_update(
+    backend *be,
+    const char *newdn,
+    struct backentry *e,
+    struct backentry **ec,
+    back_txn *txn)
+{
+    int32_t ret = 0;
+    int32_t cache_rc = 0;
+    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+
+    /* We have the entry, so update id2entry */
+    slapi_entry_attr_set_charptr((*ec)->ep_entry, SLAPI_ATTR_DS_ENTRYDN, newdn);
+    slapi_entry_set_dn((*ec)->ep_entry, (char *)newdn);
+    ret = id2entry_add_ext(be, *ec, txn, 1, &cache_rc);
+    if (cache_rc) {
+        slapi_log_err(SLAPI_LOG_CACHE,
+                      "dsentrydn_modrdn_update",
+                      "Adding %s failed to add to the cache (rc: %d, cache_rc: %d)\n",
+                      slapi_entry_get_dn(e->ep_entry), ret, cache_rc);
+    }
+    if (DBI_RC_RETRY == ret) {
+        /* Retry txn */
+        slapi_log_err(SLAPI_LOG_BACKLDBM, "modrdn_rename_entry_update_indexes",
+                      "id2entry_add deadlock\n");
+        goto out;
+    }
+    if (ret != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "modrdn_rename_entry_update_indexes",
+                      "id2entry_add failed, err=%d\n",
+                      ret);
+        goto out;
+    }
+
+    if (cache_replace(&inst->inst_cache, e, *ec) != 0) {
+        /* id2entry was updated, so update the cache */
+        slapi_log_err(SLAPI_LOG_CACHE,
+                      "dsentrydn_modrdn_update", "cache_replace %s -> %s failed\n",
+                      slapi_entry_get_dn(e->ep_entry), slapi_entry_get_dn((*ec)->ep_entry));
+        ret = -1;
+    }
+
+out:
+    return ret;
 }
 
 /*
