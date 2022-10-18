@@ -343,15 +343,15 @@ class EditorTreeView extends React.Component {
                                     <React.Fragment>
                                         <img
                                             src={`data:image/png;base64,${encVal}`}
-                                            alt={attr}
+                                            alt=''
+                                            style={{ width: '256px' }} // height will adjust automatically.
                                         />
                                     </React.Fragment>;
 
                                 // Use the picture as an icon:
                                 const myPhoto = <img
                                     src={`data:image/png;base64,${encVal}`}
-                                    alt=""
-                                    // style={{ width: '24px', height: '24px' }}
+                                    alt=''
                                     style={{ width: '48px' }} // height will adjust automatically.
                                 />
                                 const newRow = [{ title: <strong>{attr}</strong> }, decodedValue];
@@ -364,6 +364,8 @@ class EditorTreeView extends React.Component {
 
                             case 'usercertificate':
                             case 'usercertificate;binary':
+                            case 'userpassword':
+                                numberDecoded++;
                             case 'cacertificate':
                             case 'cacertificate;binary':
                                 showCertificate(encVal,
