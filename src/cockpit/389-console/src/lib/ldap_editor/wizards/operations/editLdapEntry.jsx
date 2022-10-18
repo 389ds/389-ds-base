@@ -19,6 +19,9 @@ import {
     Wizard,
 } from '@patternfly/react-core';
 import {
+    InfoCircleIcon,
+} from '@patternfly/react-icons';
+import {
     Table, TableHeader, TableBody, TableVariant,
     breakWord,
     headerCol,
@@ -808,7 +811,13 @@ class EditLdapEntry extends React.Component {
                 if (myAttr.toLowerCase().startsWith("userpassword")) {
                     cleanLdifArray.push("userpassword: ********");
                 } else if (myAttr.toLowerCase().startsWith("jpegphoto") && mySeparator === '::') {
-                    cleanLdifArray.push("jpegphoto:: ... ATTRIBUTE IS TOO LARGE - OUTPUT TRUNCATED");
+                    const myTruncatedValue = (<div>
+                                                {"jpegphoto:: "}
+                                                <Label icon={<InfoCircleIcon />} color="blue" >
+                                                    Attribute is too large. Output was truncated.
+                                                </Label>
+                                            </div>);
+                    cleanLdifArray.push(myTruncatedValue);
                 } else {
                     cleanLdifArray.push(...remainingData);
                 }
@@ -870,7 +879,13 @@ class EditLdapEntry extends React.Component {
             if (myAttr.toLowerCase().startsWith("userpassword")) {
                 cleanLdifArray.push("userpassword: ********");
             } else if (myAttr.toLowerCase().startsWith("jpegphoto") && mySeparator === '::') {
-                cleanLdifArray.push("jpegphoto:: ... ATTRIBUTE IS TOO LARGE - OUTPUT TRUNCATED");
+                const myTruncatedValue = (<div>
+                                            {"jpegphoto:: "}
+                                            <Label icon={<InfoCircleIcon />} color="blue" >
+                                                Attribute is too large. Output was truncated.
+                                            </Label>
+                                        </div>);
+                cleanLdifArray.push(myTruncatedValue);
             } else {
                 cleanLdifArray.push(...remainingData);
             }
@@ -926,7 +941,13 @@ class EditLdapEntry extends React.Component {
                 if (myAttr.toLowerCase().startsWith("userpassword")) {
                     cleanLdifArray.push("userpassword: ********");
                 } else if (myAttr.toLowerCase().startsWith("jpegphoto") && mySeparator === '::') {
-                    cleanLdifArray.push("jpegphoto:: ... ATTRIBUTE IS TOO LARGE - OUTPUT TRUNCATED");
+                    const myTruncatedValue = (<div>
+                                                {"jpegphoto:: "}
+                                                <Label icon={<InfoCircleIcon />} color="blue" >
+                                                    Attribute is too large. Output was truncated.
+                                                </Label>
+                                            </div>);
+                    cleanLdifArray.push(myTruncatedValue);
                 } else {
                     cleanLdifArray.push(...remainingData);
                 }
@@ -1003,14 +1024,6 @@ class EditLdapEntry extends React.Component {
                     ]
                 });
                 numOfChanges++;
-            }
-        }
-
-        // Hide userpassword value
-        for (let idx in cleanLdifArray) {
-            if (cleanLdifArray[idx].toLowerCase().startsWith("userpassword")) {
-                cleanLdifArray[idx] = "userpassword: ********";
-                break;
             }
         }
 
@@ -1258,12 +1271,21 @@ class EditLdapEntry extends React.Component {
         );
 
         const ldifListItems = cleanLdifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
-                {line.length < 1000
-                ?
-                line
-                :
-                `${line.substring(0, 1000)} ... ATTRIBUTE IS TOO LARGE - OUTPUT TRUNCATED`}
+            <SimpleListItem key={index} isCurrent={(typeof line === 'string' || line instanceof String) && line.startsWith('dn: ')}>
+                {(typeof line === 'string' || line instanceof String)
+                 ?
+                   line.length < 1000
+                   ?
+                   line
+                   :
+                   (<div>
+                       line.substring(0, 1000)
+                       <Label icon={<InfoCircleIcon />} color="blue" >
+                           Attribute is too large. Output was truncated.
+                       </Label>
+                   </div>)
+                 :
+                 line}
             </SimpleListItem>
         );
 

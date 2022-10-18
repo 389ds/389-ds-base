@@ -1,5 +1,11 @@
 import cockpit from 'cockpit';
 import {
+    Label,
+} from '@patternfly/react-core';
+import {
+    InfoCircleIcon,
+} from '@patternfly/react-icons';
+import {
   getTimeLimit,
   getSizeLimit
 } from './options.jsx';
@@ -386,10 +392,16 @@ export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCa
       const lines = data.split('\n');
       lines.map(currentLine => {
         if (currentLine !== '') {
-          if (currentLine.length < 5000 || currentLine.substring(0, 9).toLowerCase().startsWith("jpegphoto")) {
+          if (currentLine.length < 1000 || currentLine.substring(0, 9).toLowerCase().startsWith("jpegphoto")) {
             entryArray.push(splitAttributeValue(currentLine));
           } else {
-            entryArray.push(splitAttributeValue(`${currentLine.substring(0, 5000)} ... ATTRIBUTE IS TOO LARGE - OUTPUT TRUNCATED`));
+            const myTruncatedValue = (<div>
+                                          currentLine.substring(0, 1000)
+                                          <Label icon={<InfoCircleIcon />} color="blue" >
+                                              Attribute is too large. Output was truncated.
+                                          </Label>
+                                      </div>);
+            entryArray.push(myTruncatedValue);
           }
         }
       });
@@ -810,10 +822,7 @@ export function modifyLdapEntry (params, ldifArray, modifyEntryCallback) {
     '-c',
     `ldapmodify ${addOption} -Y EXTERNAL -H ` +
     `ldapi://%2fvar%2frun%2fslapd-${serverId}.socket\n`,
-    // Putting in 3 lines to ease readability.
-    // '<< END_LDIF\n' +
     logLdifData  // hides userpassword value from console log
-    //'END_LDIF'
   ];
 
   let result = {};

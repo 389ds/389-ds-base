@@ -6,6 +6,7 @@ import {
     Dropdown, DropdownItem, DropdownPosition,
     Form,
     Grid, GridItem,
+    Label,
     Pagination,
     Select, SelectOption, SelectVariant,
     SimpleList, SimpleListItem,
@@ -13,6 +14,9 @@ import {
     Text, TextContent, TextVariants,
     Wizard,
 } from '@patternfly/react-core';
+import {
+    InfoCircleIcon,
+} from '@patternfly/react-icons';
 import {
     EditableTextCell,
     EditableSelectInputCell,
@@ -503,7 +507,13 @@ class AddUser extends React.Component {
             if (attrName.toLowerCase().startsWith("userpassword")) {
                 cleanLdifArray.push("userpassword: ********");
             } else if (attrName.toLowerCase().startsWith("jpegphoto") && mySeparator === '::') {
-                cleanLdifArray.push("jpegphoto:: ... ATTRIBUTE IS TOO LARGE - OUTPUT TRUNCATED");
+                const myTruncatedValue = (<div>
+                                              {"jpegphoto:: "}
+                                              <Label icon={<InfoCircleIcon />} color="blue" >
+                                                  Attribute is too large. Output was truncated.
+                                              </Label>
+                                          </div>);
+                cleanLdifArray.push(myTruncatedValue);
             } else {
                 cleanLdifArray.push(...remainingData);
             }
@@ -647,7 +657,7 @@ class AddUser extends React.Component {
         );
 
         const ldifListItems = cleanLdifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isCurrent={(typeof line === 'string' || line instanceof String) && line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
         );
