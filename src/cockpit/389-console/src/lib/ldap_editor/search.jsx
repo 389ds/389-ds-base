@@ -147,11 +147,24 @@ export class SearchDatabase extends React.Component {
                 isCustomAttrOpen: false
             });
         };
-        this.onCustomAttrChange = (selections) => {
-            this.setState({
-                customSearchAttrs: selections,
-                isCustomAttrOpen: false,
-            }, () => { this.buildSearchFilter(this.state.searchText) });
+
+        this.onCustomAttrChange = (event, selection) => {
+            const { customSearchAttrs } = this.state;
+            if (customSearchAttrs.includes(selection)) {
+                this.setState(
+                    prevState => ({
+                        customSearchAttrs: prevState.customSearchAttrs.filter(item => item !== selection),
+                        isCustomAttrOpen: false
+                    }), () => { this.buildSearchFilter(this.state.searchText) }
+                );
+            } else {
+                this.setState(
+                    prevState => ({
+                        customSearchAttrs: [...prevState.customSearchAttrs, selection],
+                        isCustomAttrOpen: false,
+                    }), () => { this.buildSearchFilter(this.state.searchText) }
+                );
+            }
         };
 
         this.buildSearchFilter = (value) => {
@@ -309,7 +322,17 @@ export class SearchDatabase extends React.Component {
                             {entryArray.map((line) => (
                                 <div key={line.attribute + line.value}>
                                     <strong>{line.attribute}</strong>
-                                    {line.value.toLowerCase() === ": ldapsubentry" ? <span className="ds-info-color">{line.value}</span> : line.value}
+                                    {line.value.toLowerCase() === ": ldapsubentry" ? <span className="ds-info-color">{line.value}</span> :
+                                     line.attribute.toLowerCase() === "userpassword" ? ": ********" :
+                                     line.attribute.toLowerCase() === "jpegphoto" ?
+                                     <div><img
+                                                src={`data:image/png;base64,${line.value.substr(3)}`} // strip ':: '
+                                                alt=''
+                                                style={{ width: '256px' }} // height will adjust automatically.
+                                            />
+                                     </div>
+                                    :
+                                    line.value}
                                 </div>
                             ))}
                         </>
@@ -1065,9 +1088,7 @@ export class SearchDatabase extends React.Component {
                                             variant={SelectVariant.typeaheadMulti}
                                             typeAheadAriaLabel="Type attributes to include in filter ..."
                                             onToggle={this.onCustomAttrToggle}
-                                            onSelect={(e, selection) => {
-                                                this.onCustomAttrChange(selection);
-                                            }}
+                                            onSelect={this.onCustomAttrChange}
                                             onClear={this.onCustomAttrClear}
                                             selections={this.state.customSearchAttrs}
                                             isOpen={this.state.isCustomAttrOpen}
