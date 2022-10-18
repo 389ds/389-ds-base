@@ -814,7 +814,7 @@ class EditLdapEntry extends React.Component {
                     const myTruncatedValue = (<div>
                                                 {"jpegphoto:: "}
                                                 <Label icon={<InfoCircleIcon />} color="blue" >
-                                                    Attribute is too large. Output was truncated.
+                                                    Value is too large to display
                                                 </Label>
                                             </div>);
                     cleanLdifArray.push(myTruncatedValue);
@@ -882,7 +882,7 @@ class EditLdapEntry extends React.Component {
                 const myTruncatedValue = (<div>
                                             {"jpegphoto:: "}
                                             <Label icon={<InfoCircleIcon />} color="blue" >
-                                                Attribute is too large. Output was truncated.
+                                                Value is too large to display
                                             </Label>
                                         </div>);
                 cleanLdifArray.push(myTruncatedValue);
@@ -944,7 +944,7 @@ class EditLdapEntry extends React.Component {
                     const myTruncatedValue = (<div>
                                                 {"jpegphoto:: "}
                                                 <Label icon={<InfoCircleIcon />} color="blue" >
-                                                    Attribute is too large. Output was truncated.
+                                                    Value is too large to display
                                                 </Label>
                                             </div>);
                     cleanLdifArray.push(myTruncatedValue);
@@ -1281,7 +1281,7 @@ class EditLdapEntry extends React.Component {
                    (<div>
                        line.substring(0, 1000)
                        <Label icon={<InfoCircleIcon />} color="blue" >
-                           Attribute is too large. Output was truncated.
+                           Value is too large to display
                        </Label>
                    </div>)
                  :

@@ -510,7 +510,7 @@ class AddUser extends React.Component {
                 const myTruncatedValue = (<div>
                                               {"jpegphoto:: "}
                                               <Label icon={<InfoCircleIcon />} color="blue" >
-                                                  Attribute is too large. Output was truncated.
+                                                  Value is too large to display
                                               </Label>
                                           </div>);
                 cleanLdifArray.push(myTruncatedValue);

@@ -398,7 +398,7 @@ export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCa
             const myTruncatedValue = (<div>
                                           currentLine.substring(0, 1000)
                                           <Label icon={<InfoCircleIcon />} color="blue" >
-                                              Attribute is too large. Output was truncated.
+                                              Value is too large to display
                                           </Label>
                                       </div>);
             entryArray.push(myTruncatedValue);
