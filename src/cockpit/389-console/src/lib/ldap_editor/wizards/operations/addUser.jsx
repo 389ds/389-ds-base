@@ -6,6 +6,7 @@ import {
     Dropdown, DropdownItem, DropdownPosition,
     Form,
     Grid, GridItem,
+    Label,
     Pagination,
     Select, SelectOption, SelectVariant,
     SimpleList, SimpleListItem,
@@ -13,6 +14,9 @@ import {
     Text, TextContent, TextVariants,
     Wizard,
 } from '@patternfly/react-core';
+import {
+    InfoCircleIcon,
+} from '@patternfly/react-icons';
 import {
     EditableTextCell,
     EditableSelectInputCell,
@@ -25,8 +29,12 @@ import {
 import EditableTable from '../../lib/editableTable.jsx';
 import {
     createLdapEntry,
+    foldLine,
     generateUniqueId
 } from '../../lib/utils.jsx';
+import {
+    BINARY_ATTRIBUTES
+} from '../../lib/constants.jsx';
 
 class AddUser extends React.Component {
     constructor (props) {
@@ -472,24 +480,42 @@ class AddUser extends React.Component {
     }
 
     generateLdifData = () => {
+        const ldifArray = [];
+        let isFilePath = false;
         let objectClassData = this.userObjectclasses[this.state.accountType];
-        let valueData = [];
+        let cleanLdifArray = [];
+
+        ldifArray.push(`dn: ${this.state.namingAttrVal},${this.props.wizardEntryDn}`);
+        ldifArray.push(...objectClassData);
+
         for (const item of this.state.savedRows) {
             const attrName = item.attr;
-            valueData.push(`${attrName}: ${item.val}`);
-        }
+            const attrVal = item.val;
+            isFilePath = false;
+            if ((typeof attrVal === 'string' || attrVal instanceof String) && (attrVal.toLowerCase().startsWith("file:/"))) {
+                isFilePath = true;
+            }
+            const mySeparator = BINARY_ATTRIBUTES.includes(attrName.toLowerCase())
+                ? (isFilePath ? ':<' : '::')
+                : ':';
 
-        const ldifArray = [
-            `dn: ${this.state.namingAttrVal},${this.props.wizardEntryDn}`,
-            ...objectClassData,
-            ...valueData
-        ];
-
-        let cleanLdifArray = [...ldifArray];
-        for (let idx in cleanLdifArray) {
-            if (cleanLdifArray[idx].toLowerCase().startsWith("userpassword")) {
-                cleanLdifArray[idx] = "userpassword: ********";
-                break;
+            const valueToUse = item.encodedvalue
+                ? item.encodedvalue
+                : attrVal;
+            const remainingData = foldLine(`${attrName}${mySeparator} ${valueToUse}`);
+            ldifArray.push(...remainingData);
+            if (attrName.toLowerCase().startsWith("userpassword")) {
+                cleanLdifArray.push("userpassword: ********");
+            } else if (attrName.toLowerCase().startsWith("jpegphoto") && mySeparator === '::') {
+                const myTruncatedValue = (<div>
+                                              {"jpegphoto:: "}
+                                              <Label icon={<InfoCircleIcon />} color="blue" >
+                                                  Value is too large to display
+                                              </Label>
+                                          </div>);
+                cleanLdifArray.push(myTruncatedValue);
+            } else {
+                cleanLdifArray.push(...remainingData);
             }
         }
 
@@ -616,6 +642,7 @@ class AddUser extends React.Component {
                 </Form>
                 <GridItem className="ds-left-margin" span={11}>
                     <EditableTable
+                        key={editableTableData}
                         editableTableData={editableTableData}
                         isAttributeSingleValued={this.isAttributeSingleValued}
                         isAttributeRequired={this.isAttributeRequired}
@@ -630,7 +657,7 @@ class AddUser extends React.Component {
         );
 
         const ldifListItems = cleanLdifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isCurrent={(typeof line === 'string' || line instanceof String) && line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
         );

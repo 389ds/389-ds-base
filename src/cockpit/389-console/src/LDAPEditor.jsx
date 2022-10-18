@@ -597,7 +597,17 @@ export class LDAPEditor extends React.Component {
             getBaseLevelEntryAttributes(this.props.serverId, entryDn, (entryArray) => {
                 entryArray.map(line => {
                     const attr = line.attribute;
-                    const val = line.value.toLowerCase() === ": ldapsubentry" ? <span className="ds-info-color">{line.value}</span> : line.attribute.toLowerCase() === "userpassword" ? ": ********" : line.value;
+                    const attrJpegVal = line.attribute.toLowerCase() === "jpegphoto"
+                        ?
+                            <div>
+                                <img
+                                    src={`data:image/png;base64,${line.value.substr(3)}`} // strip ':: '
+                                    alt=''
+                                    style={{ width: '256px' }} // height will adjust automatically.
+                                />
+                            </div>
+                        : line.value;
+                    const val = line.value.toLowerCase() === ": ldapsubentry" ? <span className="ds-info-color">{line.value}</span> : line.attribute.toLowerCase() === "userpassword" ? ": ********" : attrJpegVal;
 
                     // <div key={line.attribute + line.value}></div>
                     entryRows.push({ attr: attr, value: val });
