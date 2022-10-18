@@ -2,7 +2,6 @@ import React from 'react';
 import {
     Alert,
     Button,
-    Divider,
     FileUpload,
     InputGroup,
     Label,
@@ -25,7 +24,6 @@ import {
     EyeIcon,
     EyeSlashIcon,
     InfoCircleIcon,
-    PlusIcon,
 } from '@patternfly/react-icons';
 import {
     BINARY_ATTRIBUTES,
@@ -35,6 +33,7 @@ import {
     generateUniqueId,
     getRdnInfo,
 } from './utils.jsx';
+import { file_is_path } from "../../tools.jsx";
 import PropTypes from "prop-types";
 
 class EditableTable extends React.Component {
@@ -64,6 +63,7 @@ class EditableTable extends React.Component {
             fileValue: null,
             fileName: '',
             encodedValueIsEmpty: true,
+            strPathValueIsEmpty: true,
             showFileUrl: false,
             isDnModalOpen: false,
             attrIsJpegPhoto: false,
@@ -117,22 +117,59 @@ class EditableTable extends React.Component {
             }));
         };
 
-        this.handleToggleUri = () => {
+        this.applyCustomPath = (filePath) => {
+            const encodedValueIsEmpty = true;
+            const strPathValueIsEmpty = true;
+
+            this.setState({
+                encodedValueIsEmpty,
+                strPathValueIsEmpty,
+            });
+
+            let encodedValue = '';
+            let myDecodedValue = `file://${filePath}`;
+
+            const newRows = [...this.state.tableRows];
+            newRows[this.state.currentRowIndex].cells[1].props.value = myDecodedValue;
+            newRows[this.state.currentRowIndex].cells[1].props.encodedvalue = encodedValue;
+
             this.setState(({ showFileUri }) => ({
+                encodedValueIsEmpty: true,
+                strPathValueIsEmpty: false,
                 showFileUri: !showFileUri,
-            encodedValueIsEmpty: true
-        }));
+                tableRows: newRows
+            }));
+            const foundEmptyValue = newRows.find(el => el.cells[1].props.value === '');
+            if (foundEmptyValue === undefined) {
+                this.props.enableNextStep(true);
+            } else {
+                this.props.enableNextStep(false);
+            }
+            const rowDataToSave = this.buildRowDataToSave();
+            this.props.saveCurrentRows(rowDataToSave, this.state.namingRowID);
+        };
+
+        this.handleToggleUri = () => {
+            if (!this.state.strPathValueIsEmpty) {
+                this.applyCustomPath(this.state.binaryAttributeFilePath);
+            } else {
+                this.setState(({ showFileUri }) => ({
+                    showFileUri: !showFileUri,
+                }));
+            }
         };
 
         this.handleFileChange = (fileValue, fileName, event) => {
-            let encodedValue = null;
+            let encodedValue;
             const encodedValueIsEmpty = true;
+            const strPathValueIsEmpty = true;
             const isFileTooLarge = false;
 
             this.setState({
                 fileValue,
                 fileName,
                 encodedValueIsEmpty,
+                strPathValueIsEmpty,
                 isFileTooLarge
             });
             console.log(`fileValue = #${fileValue}#`);
@@ -173,7 +210,6 @@ class EditableTable extends React.Component {
 
                 // Check the file type.
                 encodedValue = this.state.attrIsJpegPhoto
-                // The attribute is a picture.
                 ? isAnImage
                     ? reader.result.replace(toDel, '')
                     : null
@@ -191,11 +227,15 @@ class EditableTable extends React.Component {
                 // Decode the binary value.
                 let myDecodedValue = null;
                 if (isAnImage) {
-                    myDecodedValue = (<img
-                        src={`data:image/png;base64,${encodedValue}`}
-                        alt=""
-                        style={{ width: '48px' }} // height will adjust automatically.
-                        />);
+                    if (this.state.attrIsJpegPhoto) {
+                        myDecodedValue = (<img
+                            src={`data:image/png;base64,${encodedValue}`}
+                            alt=""
+                            style={{ width: '48px' }} // height will adjust automatically.
+                            />);
+                    } else {
+
+                    }
                 } else {
                     // TODO ==> Decode the certificate
                     // IMPORTANT! ==> Enable the "Confirm" button once the cert decoding is completed.
@@ -207,12 +247,19 @@ class EditableTable extends React.Component {
                 const newRows = [...this.state.tableRows];
                 newRows[this.state.currentRowIndex].cells[1].props.value = myDecodedValue;
                 // Store the encoded value to use it to create the LDIF statements!
-                newRows[this.state.currentRowIndex].cells[1].props.encodedValue = encodedValue;
+                newRows[this.state.currentRowIndex].cells[1].props.encodedvalue = encodedValue;
 
                 this.setState({
                     encodedValueIsEmpty: false,
+                    strPathValueIsEmpty: true,
                     tableRows: newRows
                 });
+                const foundEmptyValue = newRows.find(el => el.cells[1].props.value === '');
+                if (foundEmptyValue === undefined) {
+                    this.props.enableNextStep(true);
+                } else {
+                    this.props.enableNextStep(false);
+                }
                 const rowDataToSave = this.buildRowDataToSave();
                 this.props.saveCurrentRows(rowDataToSave, this.state.namingRowID);
             };
@@ -225,8 +272,16 @@ class EditableTable extends React.Component {
             this.setState({ binaryAttributeRadio: event.currentTarget.value });
         };
 
-        this.handleBinaryAttributeInput = binaryAttributeFilePath => {
-            this.setState({ binaryAttributeFilePath });
+        this.handleBinaryAttributeInput = (str, e) => {
+            const invalidPath = !file_is_path(str);
+
+            this.setState({
+                binaryAttributeFilePath: str,
+                encodedValueIsEmpty: true,
+                // If we say strPathValueIsEmpty is true then the 'Confirm' button will be disabled
+                // Hense if we say strPathValueIsEmpty = invalidPath = true then the button is disabled
+                strPathValueIsEmpty: invalidPath
+            });
         };
     } // End constructor().
 
@@ -340,8 +395,8 @@ class EditableTable extends React.Component {
                 rowEditValidationRules: [...datum.rowEditValidationRules],
             }
             // Save the encoded (base64) value if it's present.
-            if (datum.cells[1].props.encodedValue) {
-                obj.encodedValue = datum.cells[1].props.encodedValue;
+            if (datum.cells[1].props.encodedvalue) {
+                obj.encodedvalue = datum.cells[1].props.encodedvalue;
             }
 
             return obj;
@@ -413,6 +468,7 @@ class EditableTable extends React.Component {
                         ),
                         props: {
                             value: myData.val,
+                            encodedvalue: myData.encodedvalue,
                             name: `${attrId}_val`
                         }
                     }
@@ -477,6 +533,7 @@ class EditableTable extends React.Component {
                         ),
                         props: {
                             value: myData.val,
+                            encodedvalue: myData.encodedvalue,
                             name: `${attrId}_val`
                         }
                     }
@@ -550,8 +607,8 @@ class EditableTable extends React.Component {
                                 this.props.saveCurrentRows(rowDataToSave, this.state.namingRowID);
                                 // Disable the next step because a duplicated row has no initial value.
                                 this.props.enableNextStep(false);
-                            });
-                        }
+                                    });
+                                }
                     }];
 
         const removalAction = this.state.tableRows.length === 1 || rowData.namingAttr ||
@@ -626,7 +683,9 @@ class EditableTable extends React.Component {
             fileName, fileValue,
             attrIsJpegPhoto,
             encodedValueIsEmpty,
-            binaryAttributeRadio, binaryAttributeFilePath,
+            strPathValueIsEmpty,
+            binaryAttributeRadio,
+            binaryAttributeFilePath,
             isFileTooLarge
         } = this.state;
 
@@ -719,7 +778,7 @@ class EditableTable extends React.Component {
                             <Button
                                 key="confirm"
                                 variant="primary"
-                                isDisabled={encodedValueIsEmpty}
+                                isDisabled={encodedValueIsEmpty && strPathValueIsEmpty}
                                 onClick={this.handleToggleUri}
                             >
                                 Confirm
@@ -752,7 +811,7 @@ class EditableTable extends React.Component {
                         <hr />
                         {/* binaryAttrMsg */}
 
-                        {((fileName !== '') && (encodedValueIsEmpty)) &&
+                        {((fileName !== '') && encodedValueIsEmpty && strPathValueIsEmpty) &&
                             <Alert variant="danger" isInline title="There was an issue with the uploaded file ( incorrect type? )." />
                         }
                         {isFileTooLarge &&
@@ -781,13 +840,12 @@ class EditableTable extends React.Component {
 
                         { !uploadSelected &&
                             <TextInput
-                                value={'WORK IN PROGRESS!'}
-                                isDisabled // WIP.
+                                value={binaryAttributeFilePath}
                                 onChange={this.handleBinaryAttributeInput}
                                 isRequired
-                                validated={binaryAttributeFilePath === ''
-                                    ? ValidatedOptions.error
-                                    : ValidatedOptions.default}
+                                validated={file_is_path(binaryAttributeFilePath)
+                                    ? ValidatedOptions.default
+                                    : ValidatedOptions.error}
                                 type="text"
                                 aria-label="File input for a binary attribute."
                             />

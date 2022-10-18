@@ -19,6 +19,9 @@ import {
     Wizard,
 } from '@patternfly/react-core';
 import {
+    InfoCircleIcon,
+} from '@patternfly/react-icons';
+import {
     Table, TableHeader, TableBody, TableVariant,
     breakWord,
     headerCol,
@@ -260,6 +263,7 @@ class EditLdapEntry extends React.Component {
                     const attrLowerCase = attr.trim().toLowerCase();
                     let namingAttribute = false;
                     let val = line.value.substring(1).trim();
+                    let encodedvalue = "";
 
                     if (attrLowerCase === "objectclass") {
                         objectclasses.push(val);
@@ -279,6 +283,7 @@ class EditLdapEntry extends React.Component {
                                         alt=""
                                         style={{ width: '48px' }} // height will adjust automatically.
                                         />);
+                                    encodedvalue = val;
                                     val = myPhoto;
                                 } else if (attrLowerCase === 'nssymmetrickey') {
                                     // TODO: Check why the decoding of 'nssymmetrickey is failing...
@@ -303,6 +308,7 @@ class EditLdapEntry extends React.Component {
                         obj.id = generateUniqueId();
                         obj.attr = attr;
                         obj.val = val;
+                        obj.encodedvalue = encodedvalue;
                         obj.namingAttr = namingAttribute;
                         obj.required = namingAttribute;
                         this.originalEntryRows.push(obj);
@@ -638,11 +644,12 @@ class EditLdapEntry extends React.Component {
     generateLdifData = () => {
         const statementRows = [];
         const ldifArray = [];
-        const ldifArrayClean = []; // Masks userpassword
         const updateArray = [];
         const addArray = [];
         const removeArray = [];
+        let cleanLdifArray = [];
         let numOfChanges = 0;
+        let isFilePath = false;
 
         // Check for row changes
         for (const originalRow of this.originalEntryRows) {
@@ -668,8 +675,8 @@ class EditLdapEntry extends React.Component {
                     new: matchingObj.val
                 };
 
-                if (matchingObj.encodedValue) {
-                    myNewObject.encodedValue = matchingObj.encodedValue;
+                if (matchingObj.encodedvalue) {
+                    myNewObject.encodedvalue = matchingObj.encodedvalue;
                 }
                 updateArray.push(myNewObject);
             }
@@ -696,12 +703,18 @@ class EditLdapEntry extends React.Component {
             const myAttr = datum.attr;
             const myVal = datum.val;
             const isUserPwd = myAttr.toLowerCase() === "userpassword";
+            isFilePath = false;
 
             if (myAttr === 'dn') { // Entry DN.
                 ldifArray.push(`dn: ${myVal}`); // DN line.
                 ldifArray.push('changetype: modify'); // To modify the entry.
+                cleanLdifArray.push(`dn: ${myVal}`); // DN line.
+                cleanLdifArray.push('changetype: modify'); // To modify the entry.
             }
             if (datum.op === undefined) { // Unchanged value.
+                if (isUserPwd) {
+                    myVal = "********";
+                }
                 statementRows.push({
                     cells: [
                         { title: (<Label>Keep</Label>) },
@@ -712,11 +725,15 @@ class EditLdapEntry extends React.Component {
             } else { // Value was updated.
                 if (ldifArray.length >= 4) { // There was already a first round of attribute replacement.
                     ldifArray.push('-');
+                    cleanLdifArray.push('-');
                 }
 
                 const sameAttrArray = this.originalEntryRows.filter(obj => obj.attr === myAttr);
-                const mySeparator = (BINARY_ATTRIBUTES.includes(myAttr.toLowerCase()))
-                    ? '::'
+                if ((typeof myVal === 'string' || myVal instanceof String) && (myVal.toLowerCase().startsWith("file:/"))) {
+                    isFilePath = true;
+                }
+                const mySeparator = BINARY_ATTRIBUTES.includes(myAttr.toLowerCase())
+                    ? (isFilePath ? ':<' : '::')
                     : ':';
 
                 if (sameAttrArray.length > 1) {
@@ -726,20 +743,38 @@ class EditLdapEntry extends React.Component {
                     ldifArray.push(`${myAttr}: ${myVal}`);
                     ldifArray.push('-');
                     ldifArray.push(`add: ${myAttr}`);
+                    cleanLdifArray.push(`delete: ${myAttr}`);
+                    cleanLdifArray.push(`${myAttr}: ${myVal}`);
+                    cleanLdifArray.push('-');
+                    cleanLdifArray.push(`add: ${myAttr}`);
                 } else {
                     // There is a single value for the attribute.
                     // A "replace" statement is enough.
                     ldifArray.push(`replace: ${myAttr}`);
+                    cleanLdifArray.push(`replace: ${myAttr}`);
                 }
 
-                const valueToUse = datum.encodedValue
-                    ? datum.encodedValue
+                const valueToUse = datum.encodedvalue
+                    ? datum.encodedvalue
                     : datum.new;
                 // foldLine() will return the line as is ( in an array though )
                 // if its length is smaller than 78.
                 // Otherwise the line is broken into smaller ones ( 78 characters max per line ).
                 const remainingData = foldLine(`${myAttr}${mySeparator} ${valueToUse}`);
                 ldifArray.push(...remainingData);
+                if (myAttr.toLowerCase().startsWith("userpassword")) {
+                    cleanLdifArray.push("userpassword: ********");
+                } else if (myAttr.toLowerCase().startsWith("jpegphoto") && mySeparator === '::') {
+                    const myTruncatedValue = (<div>
+                                                {"jpegphoto:: "}
+                                                <Label icon={<InfoCircleIcon />} color="blue" >
+                                                    Value is too large to display
+                                                </Label>
+                                            </div>);
+                    cleanLdifArray.push(myTruncatedValue);
+                } else {
+                    cleanLdifArray.push(...remainingData);
+                }
                 numOfChanges++;
                 if (isUserPwd) {
                     datum.new = "********";
@@ -772,15 +807,42 @@ class EditLdapEntry extends React.Component {
             let myVal = datum.val;
             const isUserPwd = myAttr.toLowerCase() === "userpassword";
             numOfChanges++;
+            isFilePath = false;
+
+            if ((typeof myVal === 'string' || myVal instanceof String) && (myVal.toLowerCase().startsWith("file:/"))) {
+                isFilePath = true;
+            }
+            const mySeparator = BINARY_ATTRIBUTES.includes(myAttr.toLowerCase())
+                ? (isFilePath ? ':<' : '::')
+                : ':';
 
             // Update LDIF array
             if (ldifArray.length >= 4) { // There was already a first round of attribute replacement.
                 ldifArray.push('-');
+                cleanLdifArray.push('-');
             }
             ldifArray.push('add: ' + myAttr);
+            cleanLdifArray.push('add: ' + myAttr);
 
-            const remainingData = foldLine(`${myAttr}: ${myVal}`);
+            const valueToUse = datum.encodedvalue
+                ? datum.encodedvalue
+                : datum.val;
+
+            const remainingData = foldLine(`${myAttr}${mySeparator} ${valueToUse}`);
             ldifArray.push(...remainingData);
+            if (myAttr.toLowerCase().startsWith("userpassword")) {
+                cleanLdifArray.push("userpassword: ********");
+            } else if (myAttr.toLowerCase().startsWith("jpegphoto") && mySeparator === '::') {
+                const myTruncatedValue = (<div>
+                                            {"jpegphoto:: "}
+                                            <Label icon={<InfoCircleIcon />} color="blue" >
+                                                Value is too large to display
+                                            </Label>
+                                        </div>);
+                cleanLdifArray.push(myTruncatedValue);
+            } else {
+                cleanLdifArray.push(...remainingData);
+            }
 
             if (isUserPwd) {
                 myVal = "********";
@@ -807,16 +869,42 @@ class EditLdapEntry extends React.Component {
             const myAttr = datum.attr;
             const myVal = datum.val;
             const isUserPwd = myAttr.toLowerCase() === "userpassword";
+            isFilePath = false;
             // Update LDIF array
             if (ldifArray.length >= 4) { // There was already a first round of attribute replacement.
                 ldifArray.push('-');
+                cleanLdifArray.push('-');
             }
 
+            if ((typeof myVal === 'string' || myVal instanceof String) && (myVal.toLowerCase().startsWith("file:/"))) {
+                isFilePath = true;
+            }
+            const mySeparator = BINARY_ATTRIBUTES.includes(myAttr.toLowerCase())
+                ? (isFilePath ? ':<' : '::')
+                : ':';
+
+            const valueToUse = datum.encodedvalue
+                ? datum.encodedvalue
+                : datum.val;
             ldifArray.push('delete: ' + myAttr);
+            cleanLdifArray.push('delete: ' + myAttr);
             numOfChanges++;
             if (!isUserPwd) {
-                const remainingData = foldLine(`${myAttr}: ${myVal}`);
+                const remainingData = foldLine(`${myAttr}${mySeparator} ${valueToUse}`);
                 ldifArray.push(...remainingData);
+                if (myAttr.toLowerCase().startsWith("userpassword")) {
+                    cleanLdifArray.push("userpassword: ********");
+                } else if (myAttr.toLowerCase().startsWith("jpegphoto") && mySeparator === '::') {
+                    const myTruncatedValue = (<div>
+                                                {"jpegphoto:: "}
+                                                <Label icon={<InfoCircleIcon />} color="blue" >
+                                                    Value is too large to display
+                                                </Label>
+                                            </div>);
+                    cleanLdifArray.push(myTruncatedValue);
+                } else {
+                    cleanLdifArray.push(...remainingData);
+                }
             } else {
                 myVal = "********";
             }
@@ -844,9 +932,12 @@ class EditLdapEntry extends React.Component {
             if (newOCs.indexOf(oldOC) === -1) {
                 if (ldifArray.length >= 4) {
                     ldifArray.push('-');
+                    cleanLdifArray.push('-');
                 }
                 ldifArray.push('delete: objectClass');
                 ldifArray.push('objectClass: ' + oldOC);
+                cleanLdifArray.push('delete: objectClass');
+                cleanLdifArray.push('objectClass: ' + oldOC);
                 statementRows.push({
                     cells: [
                         { title: (<Label color="red">Delete</Label>) },
@@ -867,9 +958,12 @@ class EditLdapEntry extends React.Component {
             if (origOCs.indexOf(newOC) === -1) {
                 if (ldifArray.length >= 4) {
                     ldifArray.push('-');
+                    cleanLdifArray.push('-');
                 }
                 ldifArray.push('add: objectClass');
                 ldifArray.push('objectClass: ' + newOC);
+                cleanLdifArray.push('add: objectClass');
+                cleanLdifArray.push('objectClass: ' + newOC);
                 statementRows.push({
                     cells: [
                         { title: (<Label color="orange">Add</Label>) },
@@ -884,15 +978,6 @@ class EditLdapEntry extends React.Component {
                     ]
                 });
                 numOfChanges++;
-            }
-        }
-
-        // Hide userpassword value
-        let cleanLdifArray = [...ldifArray];
-        for (let idx in cleanLdifArray) {
-            if (cleanLdifArray[idx].toLowerCase().startsWith("userpassword")) {
-                cleanLdifArray[idx] = "userpassword: ********";
-                break;
             }
         }
 
@@ -1122,8 +1207,21 @@ class EditLdapEntry extends React.Component {
         );
 
         const ldifListItems = cleanLdifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
-                {line}
+            <SimpleListItem key={index} isCurrent={(typeof line === 'string' || line instanceof String) && line.startsWith('dn: ')}>
+                {(typeof line === 'string' || line instanceof String)
+                 ?
+                   line.length < 1000
+                   ?
+                   line
+                   :
+                   (<div>
+                       line.substring(0, 1000)
+                       <Label icon={<InfoCircleIcon />} color="blue" >
+                           Value is too large to display
+                       </Label>
+                   </div>)
+                 :
+                 line}
             </SimpleListItem>
         );
 
