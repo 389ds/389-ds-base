@@ -1351,6 +1351,7 @@ class Replica(DSLdapObject):
                 'cn': 'changelog5',
                 'nsslapd-changelogdir': self._instance.get_changelog_dir()
             })
+            cl.set_max_age("7d")
         except ldap.ALREADY_EXISTS:
             pass
         except ldap.LDAPError as e:
@@ -1674,6 +1675,14 @@ class Replicas(DSLdapObjects):
         self._filterattrs = [REPL_ROOT]
         self._childobject = Replica
         self._basedn = DN_MAPPING_TREE
+
+    def create(self, rdn=None, properties=None):
+        replica = super(Replicas, self).create(rdn, properties)
+
+        cl = Changelog5(self._instance)
+        cl.set_max_age("7d")
+
+        return replica
 
     def get(self, selector=[], dn=None):
         """Get a child entry (DSLdapObject, Replica, etc.) with dn or selector

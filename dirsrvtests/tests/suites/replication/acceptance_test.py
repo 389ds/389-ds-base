@@ -16,7 +16,7 @@ from lib389.topologies import topology_m4 as topo_m4
 from lib389.topologies import topology_m2 as topo_m2
 from . import get_repl_entries
 from lib389.idm.user import UserAccount
-from lib389.replica import ReplicationManager
+from lib389.replica import ReplicationManager, Changelog5
 from lib389._constants import *
 
 pytestmark = pytest.mark.tier0
@@ -436,7 +436,7 @@ def test_double_delete(topo_m4, create_entry):
         time.sleep(5)
     else:
         time.sleep(1)
-        
+
     log.info('Make searches to check if server is alive')
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["uid"])
     assert not entries, "Entry deletion {} wasn't replicated successfully".format(TEST_ENTRY_DN)
@@ -670,6 +670,21 @@ def test_urp_trigger_substring_search(topo_m2):
     found = m2.ds_access_log.match(pattern)
     log.info("found line: %s" % found)
     assert not found
+
+
+def test_default_cl_trimming_enabled(topo_m2):
+    """Check that changelog trimming was enabled by default
+    :id: c37b9a28-f961-4867-b8a1-e81edd7f9bf3
+    :setup: Supplier Instance
+    :steps:
+        1. Check changelog has trimming set up by default
+    :expectedresults:
+        1. Success
+    """
+
+    # Set up changelog trimming by default
+    cl = Changelog5(topo_m2.ms["supplier1"])
+    assert cl.get_attr_val_utf8("nsslapd-changelogmaxage") == "7d"
 
 
 @pytest.mark.skipif(ds_is_older('1.4.4'), reason="Not implemented")
