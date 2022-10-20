@@ -149,6 +149,7 @@ Requires:         policycoreutils-python-utils
 Requires:         libsemanage-python%{python3_pkgversion}
 # the following are needed for some of our scripts
 Requires:         openldap-clients
+Requires:         acl
 # this is needed to setup SSL if you are not using the
 # administration server package
 Requires:         nss-tools

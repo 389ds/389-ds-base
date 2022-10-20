@@ -25,8 +25,7 @@ CMD_OUTPUT = 'No issues found.'
 JSON_OUTPUT = '[]'
 
 ds_paths = Paths()
-pytestmark = [pytest.mark.skipif(ds_paths.perl_enabled and (os.getenv('PYINSTALL') is None),
-                                reason="These tests need to use python installer"),  pytest.mark.tier1]
+pytestmark = pytest.mark.tier1
 
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -74,7 +73,7 @@ def set_changelog_trimming(instance):
     inst_changelog = Changelog5(instance)
 
     log.info('Set nsslapd-changelogmaxage to 30d')
-    inst_changelog.add('nsslapd-changelogmaxage', '30')
+    inst_changelog.set_max_age('30d')
 
 
 @pytest.mark.ds50873

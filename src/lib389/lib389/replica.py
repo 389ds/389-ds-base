@@ -1679,8 +1679,12 @@ class Replicas(DSLdapObjects):
     def create(self, rdn=None, properties=None):
         replica = super(Replicas, self).create(rdn, properties)
 
-        cl = Changelog5(self._instance)
-        cl.set_max_age("7d")
+        try:
+            cl = Changelog5(self._instance)
+            cl.set_max_age("7d")
+        except ldap.NO_SUCH_OBJECT:
+            # Changelog5 doesn't exist, probably we're creating a consumer replica
+            pass
 
         return replica
 

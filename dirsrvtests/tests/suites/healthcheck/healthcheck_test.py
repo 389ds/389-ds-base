@@ -24,8 +24,7 @@ CMD_OUTPUT = 'No issues found.'
 JSON_OUTPUT = '[]'
 
 ds_paths = Paths()
-pytestmark = [pytest.mark.skipif(ds_paths.perl_enabled and (os.getenv('PYINSTALL') is None),
-                                reason="These tests need to use python installer"), pytest.mark.tier1]
+pytestmark = pytest.mark.tier1
 
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -69,7 +68,7 @@ def set_changelog_trimming(instance):
     inst_changelog = Changelog5(instance)
 
     log.info('Set nsslapd-changelogmaxage to 30d')
-    inst_changelog.add('nsslapd-changelogmaxage', '30')
+    inst_changelog.set_max_age('30d')
 
 
 def test_healthcheck_disabled_suffix(topology_st):
@@ -154,7 +153,6 @@ def test_healthcheck_list_checks(topology_st):
                    'monitor-disk-space:disk_space',
                    'replication:agmts_status',
                    'replication:conflicts',
-                   'changelog:cl_trimming',
                    'dseldif:nsstate',
                    'tls:certificate_expiration',
                    'logs:notes']
@@ -243,7 +241,6 @@ def test_healthcheck_check_option(topology_st):
                    'monitor-disk-space:disk_space',
                    'replication:agmts_status',
                    'replication:conflicts',
-                   'changelog:cl_trimming',
                    'dseldif:nsstate',
                    'tls:certificate_expiration',
                    'logs:notes']
