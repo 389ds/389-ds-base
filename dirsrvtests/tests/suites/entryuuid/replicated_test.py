@@ -145,7 +145,7 @@ def test_entryuuid_fixup_with_replication(topo_m2):
 
     # 8. Wait until changes get replicated
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    repl.wait_for_replication(server_b, server_a)
+    repl.wait_for_replication(server_a, server_b)
 
     # 9. Check that the user entry on the other supplier has same entryuuid attribute
     account_b = nsUserAccounts(server_b, DEFAULT_SUFFIX).get("test_user_3000")
