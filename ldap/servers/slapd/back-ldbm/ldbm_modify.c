@@ -217,7 +217,7 @@ error:
 int32_t
 entry_get_rdn_mods(Slapi_PBlock *pb, Slapi_Entry *entry, CSN *csn, int repl_op, Slapi_Mods **smods_ret)
 {
-    int op_type = SLAPI_OPERATION_NONE;
+    unsigned long op_type = SLAPI_OPERATION_NONE;
     char *new_rdn = NULL;
     char **dns = NULL;
     char **rdns = NULL;

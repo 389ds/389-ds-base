@@ -2336,7 +2336,7 @@ agmt_notify_change(Repl_Agmt *agmt, Slapi_PBlock *pb)
                  * tossed because it doesn't affect any of the replicated
                  * attributes.
                  */
-                int optype;
+                unsigned long optype = SLAPI_OPERATION_NONE;
                 int affects_non_fractional_attribute = 0;
 
                 slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &optype);

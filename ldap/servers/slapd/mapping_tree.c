@@ -2094,7 +2094,7 @@ slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry **re
     int index;
     int ret;
     int scope = LDAP_SCOPE_BASE;
-    int op_type;
+    unsigned long op_type = SLAPI_OPERATION_NONE;
     int fixup = 0;
 
     if (slapi_atomic_load_32(&mapping_tree_freed, __ATOMIC_RELAXED)) {
@@ -2199,7 +2199,7 @@ slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list, Slapi_E
     int scope = LDAP_SCOPE_BASE;
     Slapi_DN *sdn = NULL;
     int flag_partial_result = 0;
-    int op_type;
+    unsigned long op_type = SLAPI_OPERATION_NONE;
 
     if (slapi_atomic_load_32(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         return LDAP_OPERATIONS_ERROR;
@@ -2526,7 +2526,7 @@ mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb, Slapi_Backend **be,
     Slapi_Operation *op;
     int result = LDAP_SUCCESS;
     int override_referral = 0;
-    unsigned long op_type;
+    unsigned long op_type = SLAPI_OPERATION_NONE;
     int flag_stop = 0;
     struct slapi_componentid *cid = NULL;
 
@@ -3048,7 +3048,7 @@ slapi_op_reserved(Slapi_PBlock *pb)
 {
     int scope = LDAP_SCOPE_BASE;
     int reservedOp = 0;
-    int op_type;
+    unsigned long op_type = SLAPI_OPERATION_NONE;
     Slapi_Operation *op = NULL;
     Slapi_DN *target_sdn = NULL;
 

@@ -720,7 +720,7 @@ slapi_send_ldap_result(Slapi_PBlock *pb, int err, char *matched, char *text, int
 {
     IFP fn = NULL;
     Slapi_Operation *operation;
-    long op_type;
+    unsigned long op_type = SLAPI_OPERATION_NONE;
 
     /* GB : for spanning requests over multiple backends */
     if (err == LDAP_NO_SUCH_OBJECT) {
