@@ -101,6 +101,7 @@ class ImportTransformer(LDIFParser):
     def __init__(self, f_import, f_outport, exclude_attributes_set, exclude_objectclass_set):
         self.exclude_attributes_set = exclude_attributes_set
         # Already all lowered by the db ldif import
+
         self.exclude_objectclass_set = exclude_objectclass_set
         self.f_outport = f_outport
         self.writer = LDIFWriter(self.f_outport)
@@ -540,6 +541,14 @@ class Migration(object):
             '1.3.6.1.4.1.42.2.27.8.1.13', # pwdMustChange
             '1.3.6.1.4.1.42.2.27.8.1.14', # pwdAllowUserChange
             '1.3.6.1.4.1.42.2.27.8.2.1', # pwdPolicy objectClass
+            # Openldap supplies some schema which conflicts to ours, skip them
+            'NetscapeLDAPattributeType:198', # memberUrl
+            'NetscapeLDAPobjectClass:33', # groupOfURLs
+
+            # Dynamic Directory Services can't be supported due to missing syntax oid below, so we
+            # exclude the "otherwise" supported attrs / ocs
+            'DynGroupAttr:1', # dgIdentity
+            'DynGroupOC:1', # dgIdentityAux
         ] + skip_schema_oids)
         self._schema_oid_unsupported = set([
             # RFC4517 othermailbox syntax is not supported on 389.
@@ -561,6 +570,9 @@ class Migration(object):
             '1.3.6.1.4.1.42.2.27.8.1.15', # pwdSafeModify
             '1.3.6.1.4.1.4754.1.99.1', # pwdCheckModule
             '1.3.6.1.4.1.42.2.27.8.1.30', # pwdMaxRecordedFailure
+            # OpenLDAP dynamic directory services defines an internal
+            # oid ( 1.3.6.1.4.1.4203.666.2.7 )for dynamic group authz, but has very little docs about this.
+            'DynGroupAttr:2', # dgAuthz
         ])
 
         self._skip_entry_attributes = set(
@@ -574,12 +586,17 @@ class Migration(object):
                 'pwdsafemodify',
                 'pwdcheckmodule',
                 'pwdmaxrecordedfailure',
+                # dds attributes we don't support
+                'dgidentity',
+                'dgauthz'
             ] +
             [x.lower() for x in skip_entry_attributes]
         )
-        self._skip_entry_objectclasses = set(
+        # These tend to be be from overlays we don't support
+        self._skip_entry_objectclasses = set([
             'pwdpolicy',
-        )
+            'dgidentityaux'
+        ])
 
         self._gen_migration_plan()
 
