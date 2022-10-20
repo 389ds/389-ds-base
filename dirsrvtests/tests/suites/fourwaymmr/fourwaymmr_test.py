@@ -419,6 +419,7 @@ def test_bob_acceptance_tests(topo_m4):
     assert topo_m4.ms["supplier2"].status() == True
 
 
+@pytest.mark.flaky(max_runs=3, min_passes=1)
 @pytest.mark.bz830335
 def test_replica_backup_and_restore(topo_m4):
     """

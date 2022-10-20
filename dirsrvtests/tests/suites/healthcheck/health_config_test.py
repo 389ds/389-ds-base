@@ -29,8 +29,7 @@ CMD_OUTPUT = 'No issues found.'
 JSON_OUTPUT = '[]'
 
 ds_paths = Paths()
-pytestmark = [pytest.mark.skipif(ds_paths.perl_enabled and (os.getenv('PYINSTALL') is None),
-                                reason="These tests need to use python installer"),  pytest.mark.tier1]
+pytestmark = pytest.mark.tier1
 
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -45,7 +44,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     args.verbose = instance.verbose
     args.list_errors = False
     args.list_checks = False
-    args.check = ['memberof']
+    args.check = ['config', 'refint', 'backends', 'monitor-disk-space', 'logs', 'memberof']
     args.dry_run = False
 
     if json:

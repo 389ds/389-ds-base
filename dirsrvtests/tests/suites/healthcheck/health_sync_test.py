@@ -22,8 +22,7 @@ from lib389.paths import Paths
 
 
 ds_paths = Paths()
-pytestmark = [pytest.mark.skipif(ds_paths.perl_enabled and (os.getenv('PYINSTALL') is None),
-                                reason="These tests need to use python installer"), pytest.mark.tier1]
+pytestmark = pytest.mark.tier1
 
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

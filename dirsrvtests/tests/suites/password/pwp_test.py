@@ -27,7 +27,7 @@ else:
     if is_fips():
         DEFAULT_PASSWORD_STORAGE_SCHEME = 'SSHA512'
     else:
-        DEFAULT_PASSWORD_STORAGE_SCHEME = 'PBKDF2-SHA512'
+        DEFAULT_PASSWORD_STORAGE_SCHEME = 'PBKDF2_SHA256'
 
 
 def _create_user(topo, uid, cn, uidNumber, userpassword):
