@@ -876,7 +876,6 @@ def test_optime_and_wtime_keywords(topology_st, clean_access_logs, remove_users,
          7. From the op num find the associated RESULT string in the access log
          8. Search for the wtime optime keywords in the RESULT string
          9. From the RESULT string get the wtime, optime and etime values for the operation
-         10. Check that optime + wtime is approximatively etime
     :expectedresults:
          1. access log buffering is off
          2. Previously existing access logs are deleted
@@ -887,7 +886,6 @@ def test_optime_and_wtime_keywords(topology_st, clean_access_logs, remove_users,
          7. RESULT string is catched from the access log
          8. wtime and optime keywords are collected
          9. wtime, optime and etime values are collected
-         10. (optime + wtime) =~ etime
     """
 
     log.info('add_users')
@@ -929,10 +927,6 @@ def test_optime_and_wtime_keywords(topology_st, clean_access_logs, remove_users,
 
     log.info('get the etime value from the RESULT string')
     etime_value = result_str.split()[10].split('=')[1][:-3]
-
-    log.info('Check that (wtime + optime) is approximately equal to etime i.e. their ratio is 1')
-    etime_ratio = (Decimal(wtime_value) + Decimal(optime_value)) // Decimal(etime_value)
-    assert etime_ratio == 1
 
     log.info('Perform a compare operation')
     topology_st.standalone.compare_s('uid=testuser1000,ou=people,dc=example,dc=com','uid', 'testuser1000')

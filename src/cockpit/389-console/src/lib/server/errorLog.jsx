@@ -176,21 +176,21 @@ export class ServerErrorLog extends React.Component {
         let disableSaveBtn = true;
         let disableBtnName = "";
         let config_attrs = [];
-        if (nav_tab == "settings") {
+        if (nav_tab === "settings") {
             config_attrs = settings_attrs;
             disableBtnName = "saveSettingsDisabled";
             // Handle the table contents check now
             for (const row of this.state.rows) {
                 for (const orig_row of this.state._rows) {
-                    if (orig_row.level == row.level) {
-                        if (orig_row.selected != row.selected) {
+                    if (orig_row.level === row.level) {
+                        if (orig_row.selected !== row.selected) {
                             disableSaveBtn = false;
                             break;
                         }
                     }
                 }
             }
-        } else if (nav_tab == "rotation") {
+        } else if (nav_tab === "rotation") {
             disableBtnName = "saveRotationDisabled";
             config_attrs = rotation_attrs;
         } else {
@@ -200,7 +200,7 @@ export class ServerErrorLog extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const config_attr of config_attrs) {
-            if (attr == config_attr && this.state['_' + config_attr] != value) {
+            if (attr === config_attr && this.state['_' + config_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -208,7 +208,7 @@ export class ServerErrorLog extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const config_attr of config_attrs) {
-            if (attr != config_attr && this.state['_' + config_attr] != this.state[config_attr]) {
+            if (attr !== config_attr && this.state['_' + config_attr] !== this.state[config_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -233,22 +233,22 @@ export class ServerErrorLog extends React.Component {
         const time_parts = time_str.split(":");
         let hour = time_parts[0];
         let min = time_parts[1];
-        if (hour.length == 2 && hour[0] == "0") {
+        if (hour.length === 2 && hour[0] === "0") {
             hour = hour[1];
         }
-        if (min.length == 2 && min[0] == "0") {
+        if (min.length === 2 && min[0] === "0") {
             min = min[1];
         }
 
         // Start doing the Save button checking
         for (const config_attr of rotation_attrs_no_time) {
-            if (this.state[config_attr] != this.state['_' + config_attr]) {
+            if (this.state[config_attr] !== this.state['_' + config_attr]) {
                 disableSaveBtn = false;
                 break;
             }
         }
-        if (hour != this.state['_nsslapd-errorlog-logrotationsynchour'] ||
-            min != this.state['_nsslapd-errorlog-logrotationsyncmin']) {
+        if (hour !== this.state['_nsslapd-errorlog-logrotationsynchour'] ||
+            min !== this.state['_nsslapd-errorlog-logrotationsyncmin']) {
             disableSaveBtn = false;
         }
 
@@ -266,9 +266,9 @@ export class ServerErrorLog extends React.Component {
         });
 
         let config_attrs = [];
-        if (nav_tab == "settings") {
+        if (nav_tab === "settings") {
             config_attrs = settings_attrs;
-        } else if (nav_tab == "rotation") {
+        } else if (nav_tab === "rotation") {
             config_attrs = rotation_attrs;
         } else {
             config_attrs = exp_attrs;
@@ -280,7 +280,7 @@ export class ServerErrorLog extends React.Component {
         ];
 
         for (const attr of config_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -298,14 +298,14 @@ export class ServerErrorLog extends React.Component {
                 new_level += row.level;
             }
         }
-        if (new_level.toString() != this.state['_nsslapd-errorlog-level']) {
-            if (new_level == 0) {
+        if (new_level.toString() !== this.state['_nsslapd-errorlog-level']) {
+            if (new_level === 0) {
                 new_level = 16384; // default
             }
             cmd.push("nsslapd-errorlog-level" + "=" + new_level.toString());
         }
 
-        if (cmd.length == 5) {
+        if (cmd.length === 5) {
             // Nothing to save, just return
             return;
         }
@@ -350,7 +350,7 @@ export class ServerErrorLog extends React.Component {
                     const level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
                     const rows = [...this.state.rows];
 
-                    if (attrs['nsslapd-errorlog-logging-enabled'][0] == "on") {
+                    if (attrs['nsslapd-errorlog-logging-enabled'][0] === "on") {
                         enabled = true;
                     }
                     for (const row in rows) {
@@ -421,7 +421,7 @@ export class ServerErrorLog extends React.Component {
         const level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
         const rows = [...this.state.rows];
 
-        if (attrs['nsslapd-errorlog-logging-enabled'][0] == "on") {
+        if (attrs['nsslapd-errorlog-logging-enabled'][0] === "on") {
             enabled = true;
         }
         for (const row in rows) {
@@ -481,7 +481,7 @@ export class ServerErrorLog extends React.Component {
 
         // Handle "save button" state, first check the other config settings
         for (const config_attr of settings_attrs) {
-            if (this.state['_' + config_attr] != this.state[config_attr]) {
+            if (this.state['_' + config_attr] !== this.state[config_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -490,8 +490,8 @@ export class ServerErrorLog extends React.Component {
         // Handle the table contents
         for (const row of rows) {
             for (const orig_row of this.state._rows) {
-                if (orig_row.level == row.level) {
-                    if (orig_row.selected != row.selected) {
+                if (orig_row.level === row.level) {
+                    if (orig_row.selected !== row.selected) {
                         disableSaveBtn = false;
                         break;
                     }
@@ -522,10 +522,10 @@ export class ServerErrorLog extends React.Component {
         }
 
         // Adjust time string for TimePicket
-        if (hour.length == 1) {
+        if (hour.length === 1) {
             hour = "0" + hour;
         }
-        if (min.length == 1) {
+        if (min.length === 1) {
             min = "0" + min;
         }
         rotationTime = hour + ":" + min;

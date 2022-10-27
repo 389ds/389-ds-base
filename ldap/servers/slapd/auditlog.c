@@ -33,7 +33,7 @@ static int audit_hide_unhashed_pw = 1;
 static int auditfail_hide_unhashed_pw = 1;
 
 /* Forward Declarations */
-static void write_audit_file(int logtype, int optype, const char *dn, void *change, int flag, time_t curtime, int rc, int sourcelog);
+static void write_audit_file(Slapi_Entry *entry, int logtype, int optype, const char *dn, void *change, int flag, time_t curtime, int rc, int sourcelog);
 
 static const char *modrdn_changes[4];
 
@@ -46,6 +46,7 @@ write_audit_log_entry(Slapi_PBlock *pb)
     void *change;
     int flag = 0;
     Operation *op;
+    Slapi_Entry *entry = NULL;
 
     /* if the audit log is not enabled, just skip all of
        this stuff */
@@ -58,14 +59,17 @@ write_audit_log_entry(Slapi_PBlock *pb)
     switch (operation_get_type(op)) {
     case SLAPI_OPERATION_MODIFY:
         slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &change);
+        slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &entry);
         break;
     case SLAPI_OPERATION_ADD:
         slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &change);
+        slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &entry);
         break;
     case SLAPI_OPERATION_DELETE: {
         char *deleterDN = NULL;
         slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &deleterDN);
         change = deleterDN;
+        slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &entry);
     } break;
 
     case SLAPI_OPERATION_MODDN: {
@@ -86,6 +90,7 @@ write_audit_log_entry(Slapi_PBlock *pb)
             modrdn_changes[2] = NULL;
         }
         change = (void *)modrdn_changes;
+        slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &entry);
         break;
     }
     default:
@@ -94,7 +99,7 @@ write_audit_log_entry(Slapi_PBlock *pb)
     curtime = slapi_current_utc_time();
     /* log the raw, unnormalized DN */
     dn = slapi_sdn_get_udn(sdn);
-    write_audit_file(SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, LDAP_SUCCESS, SLAPD_AUDIT_LOG);
+    write_audit_file(entry, SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, LDAP_SUCCESS, SLAPD_AUDIT_LOG);
 }
 
 void
@@ -118,7 +123,6 @@ write_auditfail_log_entry(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
-
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &pbrc);
 
     switch (operation_get_type(op)) {
@@ -156,6 +160,7 @@ write_auditfail_log_entry(Slapi_PBlock *pb)
     default:
         return; /* Unsupported operation type. */
     }
+
     curtime = slapi_current_utc_time();
     /* log the raw, unnormalized DN */
     dn = slapi_sdn_get_udn(sdn);
@@ -163,15 +168,110 @@ write_auditfail_log_entry(Slapi_PBlock *pb)
     audit_config = config_get_auditlog();
     if (auditfail_config == NULL || strlen(auditfail_config) == 0 || PL_strcasecmp(auditfail_config, audit_config) == 0) {
         /* If no auditfail log or "auditfaillog" == "auditlog", write to audit log */
-        write_audit_file(SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc, SLAPD_AUDITFAIL_LOG);
+        write_audit_file(NULL, SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc, SLAPD_AUDITFAIL_LOG);
     } else {
         /* If we have our own auditfail log path */
-        write_audit_file(SLAPD_AUDITFAIL_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc, SLAPD_AUDITFAIL_LOG);
+        write_audit_file(NULL, SLAPD_AUDITFAIL_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc, SLAPD_AUDITFAIL_LOG);
     }
     slapi_ch_free_string(&auditfail_config);
     slapi_ch_free_string(&audit_config);
 }
 
+/*
+ * Write "requested" attributes from the entry to the audit log as "comments"
+ *
+ *   Slapi_Entry *entry - the entry being updated
+ *   lenstr *l - the audit log buffer
+ *
+ *   Resulting output in the log:
+ *
+ *       #ATTR: VALUE
+ *       #ATTR: VALUE
+ */
+static void
+add_entry_attrs(Slapi_Entry *entry, lenstr *l)
+{
+    Slapi_Attr *entry_attr = NULL;
+    char *display_attrs = NULL;
+    char *req_attr = NULL;
+    char *last = NULL;
+
+    if (entry == NULL) {
+        /* auditfail log does not have an entry to read */
+        return;
+    }
+
+    display_attrs = config_get_auditlog_display_attrs();
+    if (display_attrs == NULL) {
+        return;
+    }
+
+    entry_attr = entry->e_attrs;
+    if (strcmp(display_attrs, "*")) {
+        /* Return specific attributes */
+        for (req_attr = ldap_utf8strtok_r(display_attrs, ", ", &last); req_attr;
+             req_attr = ldap_utf8strtok_r(NULL, ", ", &last))
+        {
+            char **vals = slapi_entry_attr_get_charray(entry, req_attr);
+            for(size_t i = 0; vals && vals[i]; i++) {
+                char log_val[256] = {0};
+
+                if (strlen(vals[i]) > 256) {
+                    strncpy(log_val, vals[i], 252);
+                    strcat(log_val, "...");
+                } else {
+                    strcpy(log_val, vals[i]);
+                }
+                addlenstr(l, "#");
+                addlenstr(l, req_attr);
+                addlenstr(l, ": ");
+                addlenstr(l, log_val);
+                addlenstr(l, "\n");
+            }
+        }
+    } else {
+        /* Return all attributes */
+        for (; entry_attr; entry_attr = entry_attr->a_next) {
+            Slapi_Value **vals = attr_get_present_values(entry_attr);
+            char *attr = NULL;
+            const char *val = NULL;
+
+            slapi_attr_get_type(entry_attr, &attr);
+            if (strcmp(attr, PSEUDO_ATTR_UNHASHEDUSERPASSWORD) == 0) {
+                /* Do not write the unhashed clear-text password */
+                continue;
+            }
+
+            if (strcasecmp(attr, SLAPI_USERPWD_ATTR) == 0 ||
+                strcasecmp(attr, CONFIG_ROOTPW_ATTRIBUTE) == 0)
+            {
+                /* userpassword/rootdn password - mask the value */
+                addlenstr(l, "#");
+                addlenstr(l, attr);
+                addlenstr(l, ": ****************************\n");
+                continue;
+            }
+
+            for(size_t i = 0; vals && vals[i]; i++) {
+                char log_val[256] = {0};
+
+                val = slapi_value_get_string(vals[i]);
+                if (strlen(val) > 256) {
+                    strncpy(log_val, val, 252);
+                    strcat(log_val, "...");
+                } else {
+                    strcpy(log_val, val);
+                }
+                addlenstr(l, "#");
+                addlenstr(l, attr);
+                addlenstr(l, ": ");
+                addlenstr(l, log_val);
+                addlenstr(l, "\n");
+            }
+        }
+    }
+    slapi_ch_free_string(&display_attrs);
+}
 
 /*
  * Function: write_audit_file
@@ -189,6 +289,7 @@ write_auditfail_log_entry(Slapi_PBlock *pb)
  */
 static void
 write_audit_file(
+    Slapi_Entry *entry,
     int logtype,
     int optype,
     const char *dn,
@@ -217,12 +318,15 @@ write_audit_file(
     addlenstr(l, dn);
     addlenstr(l, "\n");
 
+    /* Display requested attributes from the entry */
+    add_entry_attrs(entry, l);
+
+    /* Display the operation result */
     addlenstr(l, "result: ");
     rcstr = slapi_ch_smprintf("%d", rc);
     addlenstr(l, rcstr);
     slapi_ch_free_string(&rcstr);
     addlenstr(l, "\n");
-
 
     switch (optype) {
     case SLAPI_OPERATION_MODIFY:
