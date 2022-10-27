@@ -2299,6 +2299,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_SECURITYLOG_LIST_ATTRIBUTE "nsslapd-securitylog-list"
 #define CONFIG_ERRORLOG_LIST_ATTRIBUTE "nsslapd-errorlog-list"
 #define CONFIG_AUDITLOG_LIST_ATTRIBUTE "nsslapd-auditlog-list"
+#define CONFIG_AUDITLOG_DISPLAY_ATTRS "nsslapd-auditlog-display-attrs"
 #define CONFIG_AUDITFAILLOG_LIST_ATTRIBUTE "nsslapd-auditfaillog-list"
 #define CONFIG_REWRITE_RFC1274_ATTRIBUTE "nsslapd-rewrite-rfc1274"
 #define CONFIG_PLUGIN_BINDDN_TRACKING_ATTRIBUTE "nsslapd-plugin-binddn-tracking"
@@ -2699,6 +2700,7 @@ typedef struct _slapdFrontendConfig
     slapi_int_t tcp_fin_timeout;
     slapi_int_t tcp_keepalive_time;
     slapi_onoff_t return_orig_dn;
+    char *auditlog_display_attrs;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

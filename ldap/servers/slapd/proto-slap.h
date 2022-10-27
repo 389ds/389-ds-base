@@ -393,6 +393,7 @@ int config_set_disk_grace_period(const char *attrname, char *value, char *errorb
 int config_set_disk_logging_critical(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditfaillog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_auditlog_display_attrs(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_external_libs_debug_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf, int apply);
@@ -516,6 +517,7 @@ int config_get_accesslog_level(void);
 int config_get_securitylog_level(void);
 int config_get_auditlog_logging_enabled(void);
 int config_get_auditfaillog_logging_enabled(void);
+char *config_get_auditlog_display_attrs(void);
 char *config_get_referral_mode(void);
 int config_get_conntablesize(void);
 int config_check_referral_mode(void);
