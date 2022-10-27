@@ -784,6 +784,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.auditlog_logging_hide_unhashed_pw,
      CONFIG_ON_OFF, NULL, &init_auditlog_logging_hide_unhashed_pw, NULL},
+    {CONFIG_AUDITLOG_DISPLAY_ATTRS, config_set_auditlog_display_attrs,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.auditlog_display_attrs,
+     CONFIG_STRING, NULL, &config_get_auditlog_display_attrs, NULL},
     {CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE, config_set_accesslogbuffering,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.accesslogbuffering,
@@ -2106,6 +2110,38 @@ config_value_is_null(const char *attrname, const char *value, char *errorbuf, in
     }
 
     return 0;
+}
+
+int32_t
+config_set_auditlog_display_attrs(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int32_t retVal = LDAP_SUCCESS;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        retVal = LDAP_OPERATIONS_ERROR;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->auditlog_display_attrs);
+        slapdFrontendConfig->auditlog_display_attrs = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+char *
+config_get_auditlog_display_attrs()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapi_ch_strdup(slapdFrontendConfig->auditlog_display_attrs);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
 }
 
 int32_t

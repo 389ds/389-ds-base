@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "../tools.jsx";
+import { listsEqual, log_cmd } from "../tools.jsx";
 import {
     Button,
     Checkbox,
@@ -11,6 +11,9 @@ import {
     Grid,
     GridItem,
     NumberInput,
+    Select,
+    SelectVariant,
+    SelectOption,
     Spinner,
     Tab,
     Tabs,
@@ -30,8 +33,6 @@ import PropTypes from "prop-types";
 
 const settings_attrs = [
     'nsslapd-auditlog',
-    'nsslapd-auditlog-level',
-    'nsslapd-auditlog-logbuffering',
     'nsslapd-auditlog-logging-enabled',
 ];
 
@@ -71,6 +72,10 @@ export class ServerAuditLog extends React.Component {
             saveRotationDisabled: true,
             saveExpDisabled: true,
             attrs: this.props.attrs,
+            displayAttrs: [],
+            isDisplayAttrOpen: false,
+            attributes: [],
+            displayAllAttrs: false,
         };
 
         // Toggle currently active tab
@@ -78,6 +83,35 @@ export class ServerAuditLog extends React.Component {
             this.setState({
                 activeTabKey: tabIndex
             });
+        };
+
+        this.onDisplayAttrSelect = (event, selection) => {
+            if (this.state.displayAttrs.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        displayAttrs: prevState.displayAttrs.filter((item) => item !== selection),
+                        isDisplayAttrOpen: false
+                    }), () => { this.validateSaveBtn("settings", "none", "none") }
+                );
+            } else {
+                this.setState(
+                    (prevState) => ({
+                        displayAttrs: [...prevState.displayAttrs, selection],
+                        isDisplayAttrOpen: false
+                    }), () => { this.validateSaveBtn("settings", "none", "none") }
+                );
+            }
+        };
+        this.onDisplayAttrToggle = isDisplayAttrOpen => {
+            this.setState({
+                isDisplayAttrOpen
+            });
+        };
+        this.onDisplayAttrClear = () => {
+            this.setState({
+                displayAttrs: [],
+                isDisplayAttrOpen: false
+            }, () => { this.validateSaveBtn("settings", "none", "none") });
         };
 
         this.handleChange = this.handleChange.bind(this);
@@ -112,20 +146,44 @@ export class ServerAuditLog extends React.Component {
     componentDidMount() {
         // Loading config
         if (!this.state.loaded) {
-            this.loadConfig();
+            this.getAttributes();
         } else {
             this.props.enableTree();
         }
+    }
+
+    getAttributes() {
+        const attr_cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "schema",
+            "attributetypes",
+            "list"
+        ];
+        log_cmd("getAttributes", "Get attributes for audit log display attributes", attr_cmd);
+        cockpit
+                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const attrContent = JSON.parse(content);
+                    const attrs = [];
+                    for (const content of attrContent.items) {
+                        attrs.push(content.name[0]);
+                    }
+                    this.setState({
+                        attributes: attrs,
+                    }, () => { this.loadConfig() });
+                });
     }
 
     validateSaveBtn(nav_tab, attr, value) {
         let disableSaveBtn = true;
         let disableBtnName = "";
         let config_attrs = [];
-        if (nav_tab == "settings") {
+        if (nav_tab === "settings") {
             config_attrs = settings_attrs;
             disableBtnName = "saveSettingsDisabled";
-        } else if (nav_tab == "rotation") {
+        } else if (nav_tab === "rotation") {
             disableBtnName = "saveRotationDisabled";
             config_attrs = rotation_attrs;
         } else {
@@ -135,7 +193,7 @@ export class ServerAuditLog extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const config_attr of config_attrs) {
-            if (attr == config_attr && this.state['_' + config_attr] != value) {
+            if (attr === config_attr && this.state['_' + config_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -143,10 +201,17 @@ export class ServerAuditLog extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const config_attr of config_attrs) {
-            if (attr != config_attr && this.state['_' + config_attr] != this.state[config_attr]) {
+            if (attr !== config_attr && this.state['_' + config_attr] !== this.state[config_attr]) {
                 disableSaveBtn = false;
                 break;
             }
+        }
+
+        if (this.state.displayAllAttrs !== this.state._displayAllAttrs) {
+            disableSaveBtn = false;
+        }
+        if (!this.state.displayAllAttrs && !listsEqual(this.state.displayAttrs, this.state._displayAttrs)) {
+            disableSaveBtn = false;
         }
 
         this.setState({
@@ -168,22 +233,22 @@ l
         const time_parts = time_str.split(":");
         let hour = time_parts[0];
         let min = time_parts[1];
-        if (hour.length == 2 && hour[0] == "0") {
+        if (hour.length === 2 && hour[0] === "0") {
             hour = hour[1];
         }
-        if (min.length == 2 && min[0] == "0") {
+        if (min.length === 2 && min[0] === "0") {
             min = min[1];
         }
 
         // Start doing the Save button checking
         for (const config_attr of rotation_attrs_no_time) {
-            if (this.state[config_attr] != this.state['_' + config_attr]) {
+            if (this.state[config_attr] !== this.state['_' + config_attr]) {
                 disableSaveBtn = false;
                 break;
             }
         }
-        if (hour != this.state['_nsslapd-auditlog-logrotationsynchour'] ||
-            min != this.state['_nsslapd-auditlog-logrotationsyncmin']) {
+        if (hour !== this.state['_nsslapd-auditlog-logrotationsynchour'] ||
+            min !== this.state['_nsslapd-auditlog-logrotationsyncmin']) {
             disableSaveBtn = false;
         }
 
@@ -200,9 +265,9 @@ l
         });
 
         let config_attrs = [];
-        if (nav_tab == "settings") {
+        if (nav_tab === "settings") {
             config_attrs = settings_attrs;
-        } else if (nav_tab == "rotation") {
+        } else if (nav_tab === "rotation") {
             config_attrs = rotation_attrs;
         } else {
             config_attrs = exp_attrs;
@@ -214,7 +279,7 @@ l
         ];
 
         for (const attr of config_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -227,7 +292,23 @@ l
             }
         }
 
-        if (cmd.length == 5) {
+        if (!this.state.displayAllAttrs && !listsEqual(this.state.displayAttrs, this.state._displayAttrs)) {
+            if (this.state.displayAttrs.length > 0) {
+                let val = this.state.displayAttrs.join(' ');
+                cmd.push('nsslapd-auditlog-display-attrs=' + val);
+            } else {
+                cmd.push('nsslapd-auditlog-display-attrs=');
+            }
+        }
+        if (this.state.displayAllAttrs !== this.state._displayAllAttrs) {
+            if (this.state.displayAllAttrs) {
+                cmd.push('nsslapd-auditlog-display-attrs=*');
+            } else if (this.state.displayAttrs.length === 0) {
+                cmd.push('nsslapd-auditlog-display-attrs=');
+            }
+        }
+
+        if (cmd.length === 5) {
             // Nothing to save, just return
             return;
         }
@@ -268,9 +349,19 @@ l
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
                     let enabled = false;
+                    let display_attrs = [];
+                    let displayAllAttrs = this.state.displayAllAttrs;
 
-                    if (attrs['nsslapd-auditlog-logging-enabled'][0] == "on") {
+                    if (attrs['nsslapd-auditlog-logging-enabled'][0] === "on") {
                         enabled = true;
+                    }
+                    if ('nsslapd-auditlog-display-attrs' in attrs) {
+                        if (attrs['nsslapd-auditlog-display-attrs'][0] === "*") {
+                            displayAllAttrs = true;
+                        } else if (attrs['nsslapd-auditlog-display-attrs'][0] !== "") {
+                            displayAllAttrs = false;
+                            display_attrs = attrs['nsslapd-auditlog-display-attrs'][0].split(/[, ]+/);
+                        }
                     }
 
                     this.setState({
@@ -292,6 +383,8 @@ l
                         'nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
                         'nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
                         'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+                        displayAttrs: display_attrs,
+                        displayAllAttrs: displayAllAttrs,
                         // Record original values
                         '_nsslapd-auditlog': attrs['nsslapd-auditlog'][0],
                         '_nsslapd-auditlog-logexpirationtime': attrs['nsslapd-auditlog-logexpirationtime'][0],
@@ -306,6 +399,8 @@ l
                         '_nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
                         '_nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
                         '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+                        _displayAttrs: display_attrs,
+                        _displayAllAttrs: displayAllAttrs,
                     });
                 })
                 .fail(err => {
@@ -324,9 +419,19 @@ l
     loadConfig() {
         const attrs = this.state.attrs;
         let enabled = false;
+        let display_attrs = [];
+        let displayAllAttrs = this.state.displayAllAttrs;
 
-        if (attrs['nsslapd-auditlog-logging-enabled'][0] == "on") {
+        if (attrs['nsslapd-auditlog-logging-enabled'][0] === "on") {
             enabled = true;
+        }
+
+        if ('nsslapd-auditlog-display-attrs' in attrs) {
+            if (attrs['nsslapd-auditlog-display-attrs'][0] === "*") {
+                displayAllAttrs = true;
+            } else if (attrs['nsslapd-auditlog-display-attrs'][0] !== "") {
+                display_attrs = attrs['nsslapd-auditlog-display-attrs'][0].split(/[, ]+/);
+            }
         }
 
         this.setState({
@@ -348,6 +453,8 @@ l
             'nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
             'nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
             'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+            displayAttrs: display_attrs,
+            displayAllAttrs: displayAllAttrs,
             // Record original values,
             '_nsslapd-auditlog': attrs['nsslapd-auditlog'][0],
             '_nsslapd-auditlog-logexpirationtime': attrs['nsslapd-auditlog-logexpirationtime'][0],
@@ -362,6 +469,8 @@ l
             '_nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
             '_nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
             '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
+            _displayAttrs: display_attrs,
+            _displayAllAttrs: displayAllAttrs,
         }, this.props.enableTree);
     }
 
@@ -382,10 +491,10 @@ l
         }
 
         // Adjust time string for TimePicket
-        if (hour.length == 1) {
+        if (hour.length === 1) {
             hour = "0" + hour;
         }
-        if (min.length == 1) {
+        if (min.length === 1) {
             min = "0" + min;
         }
         rotationTime = hour + ":" + min;
@@ -419,6 +528,45 @@ l
                                     onChange={(str, e) => {
                                         this.handleChange(e, "settings");
                                     }}
+                                />
+                            </FormGroup>
+                        </Form>
+                        <Form className="ds-margin-top-lg ds-margin-left" isHorizontal autoComplete="off">
+                            <FormGroup
+                                label="Display Attributes"
+                                fieldId="nsslapd-auditlog-display-attrs"
+                                title="Display attributes from the entry in the audit log (nsslapd-auditlog-display-attrs)."
+                            >
+                                <div className={this.state.displayAllAttrs ? "ds-hidden" : "ds-margin-bottom"}>
+                                    <Select
+                                        variant={SelectVariant.typeaheadMulti}
+                                        typeAheadAriaLabel="Type an attribute"
+                                        onToggle={this.onDisplayAttrToggle}
+                                        onSelect={this.onDisplayAttrSelect}
+                                        onClear={this.onDisplayAttrClear}
+                                        selections={this.state.displayAttrs}
+                                        isOpen={this.state.isDisplayAttrOpen}
+                                        aria-labelledby="typeAhead-audit-display-attr"
+                                        placeholderText="Type an attribute..."
+                                        noResultsFoundText="There are no matching attributes"
+                                    >
+                                        {this.state.attributes.map((attr, index) => (
+                                            <SelectOption
+                                                key={index}
+                                                value={attr}
+                                            />
+                                        ))}
+                                    </Select>
+                                </div>
+                                <Checkbox
+                                    className="ds-lower-field-md"
+                                    id="displayAllAttrs"
+                                    isChecked={this.state.displayAllAttrs}
+                                    onChange={(checked, e) => {
+                                        this.handleChange(e, "settings");
+                                    }}
+                                    title="Display all attributes from the entry in the audit log (nsslapd-auditlog-display-attrs)."
+                                    label="All Attributes"
                                 />
                             </FormGroup>
                         </Form>
