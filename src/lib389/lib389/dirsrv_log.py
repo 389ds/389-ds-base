@@ -368,3 +368,32 @@ class DirsrvSecurityLog(DirsrvLog):
         @return - A dictionary of the log parts for each line
         """
         return map(self.parse_line, lines)
+
+
+class DirsrvAuditLog(DirsrvLog):
+    """Directory Server Audit log class"""
+    def __init__(self, dirsrv):
+        """Init the Audit log class
+        @param dirsrv - A DirSrv object
+        """
+        super(DirsrvAuditLog, self).__init__(dirsrv)
+
+    def _get_log_path(self):
+        """Return the current log file location"""
+        return self.dirsrv.ds_paths.audit_log
+
+    def parse_line(self, line):
+        """Parse an audit log line
+        @line - a text string from an audit log
+        @return - A dictionary of the log parts
+        """
+        line = line.strip()
+        return line.groupdict()
+
+    def parse_lines(self, lines):
+        """Parse multiple lines from an audit log
+        @param lines - a list of strings/lines from an audit log
+        @return - A dictionary of the log parts for each line
+        """
+        return map(self.parse_line, lines)
+

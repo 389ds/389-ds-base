@@ -72,7 +72,7 @@ def test_dsentrydn(topo):
     user = UserAccount(inst, NEW_USER_DN)
     assert user.get_attr_val_utf8('dsentrydn') == NEW_USER_DN
 
-    # Check DN retruend to client matches "dsEntryDN"
+    # Check DN returned to client matches "dsEntryDN"
     users = UserAccounts(inst, SUFFIX).list()
     for user in users:
         if user.dn.startswith("tUser"):
