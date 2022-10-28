@@ -220,20 +220,21 @@ class SchemaAttributeInconsistent(MigrationAction):
         log.info(f" * Schema Skip Inconsistent Attribute -> {self.attr.names[0]} ({self.attr.oid})")
 
     def display_post(self, log):
-        log.info(f" * [ ] - Review Schema Inconsistent Attribute -> {self.obj.names[0]} ({self.obj.oid})")
+        log.info(f" * [ ] - Review Schema Inconsistent Attribute -> {self.attr.names[0]} ({self.attr.oid})")
 
 class SchemaAttributeAmbiguous(MigrationAction):
-    def __init__(self, attr):
+    def __init__(self, attr, overlaps):
         self.attr = attr
+        self.overlaps = overlaps
 
     def __unicode__(self):
         return f"SchemaAttributeAmbiguous -> {self.attr.__unicode__()}"
 
     def display_plan(self, log):
-        log.info(f" * Schema Skip Abmiguous Attribute -> {self.attr.names[0]} ({self.attr.oid})")
+        log.info(f" * Schema Skip Abmiguous Attribute -> {self.attr.names[0]} ({self.attr.oid}) overlaps {self.overlaps}")
 
     def display_post(self, log):
-        log.info(f" * [ ] - Review Schema Ambiguous Attribute -> {self.obj.names[0]} ({self.obj.oid})")
+        log.info(f" * [ ] - Review Schema Ambiguous Attribute -> {self.attr.names[0]} ({self.attr.oid}) overlaps {self.overlaps}")
 
 class SchemaAttributeInvalid(MigrationAction):
     def __init__(self, attr, reason):
