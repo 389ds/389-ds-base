@@ -3060,7 +3060,10 @@ dbmdb_import_worker(void *param)
         ep = ctx->prepare_worker_entry_fn(wqelmnt);
         if (!ep) {
             /* skipped counter is increased (or not in some cases) by the callback */
+            pthread_mutex_lock(&ctx->workerq.mutex);
             wqelmnt->wait_id = 0;
+            pthread_cond_broadcast(&ctx->workerq.cv);
+            pthread_mutex_unlock(&ctx->workerq.mutex);
             continue;
         }
         if (info_is_finished(info)) {
