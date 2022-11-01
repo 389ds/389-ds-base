@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -183,6 +183,25 @@ need to reindex the database after adding the missing index type. Here is an
 example using dsconf:
 
     # dsconf slapd-YOUR_INSTANCE backend index add --attr=ATTR --reindex --index-type=eq BACKEND
+"""
+}
+
+# MemberOf plugin checks
+DSMOLE0001 = {
+    'dsle': 'DSMOLE0001',
+    'severity': 'HIGH',
+    'description': 'MemberOf operations can become very slow',
+    'items': ['cn=memberof plugin,cn=plugins,cn=config', ],
+    'detail': """The MemberOf plugin does internal searches when updating a group, or running the fixup task.
+These internal searches will be unindexed leading to poor performance and high CPU.
+
+We advise that you index the memberOf group attributes for equality searches.
+""",
+    'fix': """Check the attributes set in "memberofgroupattr" to make sure they have
+an index defined that has equality "eq" index type.  You will need to reindex the
+database after adding the missing index type. Here is an example using dsconf:
+
+    # dsconf slapd-YOUR_INSTANCE backend index add --attr=ATTR --index-type=eq --reindex BACKEND
 """
 }
 
