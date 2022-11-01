@@ -33,6 +33,7 @@ CHECK_OBJECTS = [
     Encryption,
     FSChecks,
     plugins.ReferentialIntegrityPlugin,
+    plugins.MemberOfPlugin,
     MonitorDiskSpace,
     Replica,
     DSEldif,
