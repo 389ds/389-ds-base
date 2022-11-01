@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -16,7 +16,7 @@ from lib389.cos import CosTemplates, CosPointerDefinitions
 from lib389.dbgen import dbgen_users
 from lib389.idm.account import Accounts
 from lib389.index import Index
-from lib389.plugins import ReferentialIntegrityPlugin
+from lib389.plugins import ReferentialIntegrityPlugin, MemberOfPlugin
 from lib389.utils import *
 from lib389._constants import *
 from lib389.cli_base import FakeArgs
@@ -45,7 +45,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     args.verbose = instance.verbose
     args.list_errors = False
     args.list_checks = False
-    args.check = None
+    args.check = ['memberof']
     args.dry_run = False
 
     if json:
@@ -227,6 +227,53 @@ def test_healthcheck_RI_plugin_missing_indexes(topology_st):
 
     log.info('Set the index type of the member attribute index back to eq')
     index.replace('nsIndexType', 'eq')
+
+    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+
+
+def test_healthcheck_MO_plugin_missing_indexes(topology_st):
+    """Check if HealthCheck returns DSMOLE0002 code
+
+    :id: 236b0ec2-13da-48fb-b65a-db7406d56d5d
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Configure the instance with MO Plugin with two memberOfGroupAttrs
+        3. Use HealthCheck without --json option
+        4. Use HealthCheck with --json option
+        5. Add index for new group attr
+        6. Use HealthCheck without --json option
+        7. Use HealthCheck with --json option
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Healthcheck reports DSMOLE0002 code and related details
+        4. Healthcheck reports DSMOLE0002 code and related details
+        5. Success
+        6. Healthcheck reports no issue found
+        7. Healthcheck reports no issue found
+    """
+
+    RET_CODE = 'DSMOLE0001'
+    MO_GROUP_ATTR = 'creatorsname'
+
+    standalone = topology_st.standalone
+
+    log.info('Enable MO plugin')
+    plugin = MemberOfPlugin(standalone)
+    plugin.disable()
+    plugin.enable()
+    plugin.add('memberofgroupattr', MO_GROUP_ATTR)
+    time.sleep(.5)
+
+    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+
+    log.info('Add the missing "eq" index')
+    be = Backends(standalone).get('userRoot')
+    be.add_index(MO_GROUP_ATTR, "eq", None)
+    time.sleep(.5)
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
