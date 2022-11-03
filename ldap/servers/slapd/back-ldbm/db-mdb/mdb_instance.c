@@ -36,6 +36,9 @@
 #define TST(thecmd) do { rc = (thecmd); if (rc) { errinfo.file = __FILE__; errinfo.line = __LINE__; \
                          errinfo.cmd = #thecmd; goto error; } } while(0)
 
+#define PAGE_MASK        ((size_t)(ctx->info.pagesize)-1)
+#define PAGE_ALIGN(size)   (((size)+PAGE_MASK)&~PAGE_MASK)
+
 
 /* Helper to read/write info file */
 typedef struct {
@@ -920,12 +923,12 @@ dbi_remove(dbi_open_ctx_t *octx)
     rc = END_TXN(&txn, rc);
     if (rc == 0) {
         if (octx->deletion_flags) {
-        if (octx->dbi) {
+            if (octx->dbi) {
             /* Remove name(s) from tree and slot */
                 treekey.dbname = octx->dbi->dbname;
                 tdelete(&treekey, &ctx->dbis_treeroot, cmp_dbi_names);
                 slapi_ch_free((void**)&octx->dbi->dbname);
-            } else {
+            } else if (dbilist) { /* this test is always true but avoid a gcc warning */
                 for (i = 0; dbilist[i]; i++) {
                     /* Remove name from tree and slot */
                     treekey.dbname = dbilist[i]->dbname;
@@ -1421,4 +1424,193 @@ dbmdb_dbicmp(int dbi, const MDB_val *v1, const MDB_val *v2)
     } else {
         return slapi_berval_cmp(&bv1, &bv2);
     }
+}
+
+static void
+dbmdb_privdb_discard_cursor(mdb_privdb_t *db)
+{
+    if (db->cursor) {
+        MDB_CURSOR_CLOSE(db->cursor);
+    }
+    if (db->txn) {
+        TXN_ABORT(db->txn);
+    }
+    db->cursor = NULL;
+    db->txn = NULL;
+    db->wcount = 0;
+}
+
+/* Insure we have a proper write txn and an open cursor */
+static int
+dbmdb_privdb_handle_cursor(mdb_privdb_t *db, int dbi_index)
+{
+    int rc;
+    if (db->wcount >= 1000) {
+        MDB_CURSOR_CLOSE(db->cursor);
+        rc = TXN_COMMIT(db->txn);
+        db->cursor = NULL;
+        db->txn = NULL;
+        db->wcount = 0;
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
+                          "Failed to commit dndb transaction. Error is %d: %s.", rc, mdb_strerror(rc));
+            TXN_ABORT(db->txn);
+            return -1;
+        }
+    }
+    if (!db->txn) {
+        rc = TXN_BEGIN(db->env, NULL, 0, &db->txn);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
+                          "Failed to begin dndb transaction. Error is %d: %s.", rc, mdb_strerror(rc));
+            return -1;
+        }
+        rc = MDB_CURSOR_OPEN(db->txn, db->dbis[dbi_index].dbi, &db->cursor);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
+                          "Failed to open dndb cursor. Error is %d: %s.", rc, mdb_strerror(rc));
+            dbmdb_privdb_discard_cursor(db);
+            return -1;
+        }
+    }
+    return 0;
+}
+
+
+/* Cleanup a private database */
+void
+dbmdb_privdb_destroy(mdb_privdb_t **db)
+{
+    char path[MAXPATHLEN];
+    if (*db) {
+        dbmdb_privdb_discard_cursor(*db);
+        if ((*db)->env) {
+            mdb_env_close((*db)->env);
+        }
+        if ((*db)->path[0]) {
+            PR_snprintf(path, MAXPATHLEN, "%s/%s", (*db)->path, DBMAPFILE);
+            unlink(path);
+            PR_snprintf(path, MAXPATHLEN, "%s/lock.mdb", (*db)->path);
+            unlink(path);
+            rmdir((*db)->path);
+        }
+        slapi_ch_free((void**)db);
+    }
+}
+
+int
+dbmdb_privdb_get(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data)
+{
+    int rc = dbmdb_privdb_handle_cursor(db, 0);
+    data->mv_data = NULL;
+    data->mv_size = 0;
+    if (!rc) {
+        rc = MDB_CURSOR_GET(db->cursor, key, data, MDB_SET_KEY);
+        if (rc && rc != MDB_NOTFOUND) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
+                          "Failed to get key from dndb cursor Error is %d: %s.", rc, mdb_strerror(rc));
+        }
+    }
+    return rc;
+}
+
+int
+dbmdb_privdb_put(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data)
+{
+    int rc = dbmdb_privdb_handle_cursor(db, 0);
+    if (!rc) {
+        rc = MDB_CURSOR_PUT(db->cursor, key, data, MDB_NOOVERWRITE);
+        if (rc && rc != MDB_KEYEXIST) {
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
+                          "Failed to get key from dndb cursor Error is %d: %s.", rc, mdb_strerror(rc));
+        }
+    }
+    if (!rc) {
+        db->wcount++;
+    }
+    return rc;
+}
+
+
+/* Create a private database environment */
+mdb_privdb_t *
+dbmdb_privdb_create(dbmdb_ctx_t *ctx, size_t dbsize, ...)
+{
+    va_list va;
+    int nbdbis = 0;
+    mdb_privdb_t *db;
+    int rc = 0;
+    int i;
+    MDB_txn *txn = NULL;
+
+    va_start(va, dbsize);
+    while (va_arg(va, char*)) {
+        nbdbis++;
+    }
+    va_end(va);
+
+    db = (mdb_privdb_t*)slapi_ch_calloc(1, (sizeof(mdb_privdb_t))+(nbdbis+1)*(sizeof(dbmdb_dbi_t)));
+    db->dbis = (dbmdb_dbi_t*) &db[1];
+    db->env_flags = MDB_NOMETASYNC | MDB_NOSYNC | MDB_NOTLS | MDB_NOLOCK | MDB_NORDAHEAD | MDB_NOMEMINIT ;
+    db->db_size = PAGE_ALIGN(dbsize);
+
+    rc = mdb_env_create(&db->env);
+    if (rc) {
+        slapi_log_error(SLAPI_LOG_ERR, "dbmdb_privdb_create", "Failed to create lmdb environment. Error %d :%s.\n", rc, mdb_strerror(rc));
+        goto bail;
+    }
+
+    mdb_env_set_maxdbs(db->env, nbdbis);
+    mdb_env_set_mapsize(db->env, db->db_size);
+
+    i=0;
+    do {
+        PR_snprintf(db->path, (sizeof db->path), "%s/priv@%d", ctx->home, i++);
+        errno = 0;
+    } while (i>0 && mkdir(db->path, 0700) && errno == EEXIST);
+
+    if (i<0 || errno) {
+        slapi_log_error(SLAPI_LOG_ERR, "dbmdb_privdb_create", "Failed to create lmdb environment directory %s. Error %d :%s.\n", db->path, errno, strerror(errno));
+        db->path[0] = 0;
+    }
+
+    rc = mdb_env_open(db->env, db->path, db->env_flags, 0600);
+    if (rc) {
+        slapi_log_error(SLAPI_LOG_ERR, "dbmdb_privdb_create", "Failed to open lmdb environment with path %s. Error %d :%s.\n", db->path, rc, mdb_strerror(rc));
+        goto bail;
+    }
+
+    rc = mdb_txn_begin(db->env, NULL, 0, &txn);
+    if (rc) {
+        slapi_log_error(SLAPI_LOG_ERR, "dbmdb_privdb_create", "Failed to begin a txn for lmdb environment with path %s. Error %d :%s.\n", db->path, rc, mdb_strerror(rc));
+        goto bail;
+    }
+
+    va_start(va, dbsize);
+    for (i=0; i<nbdbis; i++) {
+        db->dbis[i].env = db->env;
+        db->dbis[i].state.flags = MDB_CREATE;
+        db->dbis[i].dbname = va_arg(va, char*);
+        if (rc == 0) {
+            rc = mdb_dbi_open(txn, db->dbis[i].dbname, db->dbis[i].state.flags, &db->dbis[i].dbi);
+        }
+    }
+    va_end(va);
+    if (rc) {
+        mdb_txn_abort(txn);
+        slapi_log_error(SLAPI_LOG_ERR, "dbmdb_privdb_create", "Failed to open a database instance for lmdb environment with path %s. Error %d :%s.\n", db->path, rc, mdb_strerror(rc));
+        goto bail;
+    }
+    rc = mdb_txn_commit(txn);
+    if (rc) {
+        mdb_txn_abort(txn);
+        slapi_log_error(SLAPI_LOG_ERR, "dbmdb_privdb_create", "Failed to commit database instance creation transaction for lmdb environment with path %s. Error %d :%s.\n", db->path, rc, mdb_strerror(rc));
+        goto bail;
+    }
+
+bail:
+    if (rc) {
+        dbmdb_privdb_destroy(&db);
+    }
+    return db;
 }

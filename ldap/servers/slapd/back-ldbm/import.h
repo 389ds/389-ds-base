@@ -97,10 +97,10 @@ typedef struct _ImportJob
     int flags;                     /* (see below) */
     char **input_filenames;        /* NULL-terminated list of charz pointers */
     IndexInfo *index_list;         /* A list of indexing jobs to do */
-    ImportWorkerInfo *worker_list; /* A list of threads to work on the
-                     * indexes */
+    ImportWorkerInfo *worker_list; /* A list of threads context for
+                                    * producer,foreman,worker and writer threads */
     size_t number_indexers;        /* count of the indexer threads (not including
-                 * the primary) */
+                                    * the primary) */
     ID starting_ID;                /* Import starts work at this ID */
     ID first_ID;                   /* Import pass starts at this ID */
     ID lead_ID;                    /* Highest ID available in the cache */
@@ -111,10 +111,10 @@ typedef struct _ImportJob
     int total_pass;                /* total pass number in a multi-pass import */
     int skipped;                   /* # entries skipped because they were bad */
     int not_here_skipped;          /* # entries skipped because they belong
-                                * to another backend */
+                                    * to another backend */
     size_t merge_chunk_size;       /* Allows us to manually override the magic
-                 * voodoo logic for deciding when to begin
-                 * another pass */
+                                    * voodoo logic for deciding when to begin
+                                    * another pass */
     int uuid_gen_type;             /* kind of uuid to generate */
     char *uuid_namespace;          /* namespace for name-generated uuid */
     import_subcount_stuff *mothers;

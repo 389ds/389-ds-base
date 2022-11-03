@@ -166,8 +166,10 @@ idl_make(dbi_val_t *data)
 
     if (data->size < 2 * sizeof(uint32_t)) {
         idl = (IDL *)malloc(sizeof(IDL) + 64 * sizeof(ID));
-        if (!idl)
-            return NULL;
+        if (!idl) {
+            db_printf("Out of memory: Failed to alloc %d bytes.\n", sizeof(IDL) + 64 * sizeof(ID));
+            exit(1);
+        }
         idl->max = 64;
         idl->used = 1;
         idl->id[0] = *(ID *)(data->data);
@@ -176,8 +178,10 @@ idl_make(dbi_val_t *data)
 
     xidl = (IDL *)(data->data);
     idl = (IDL *)malloc(data->size);
-    if (!idl)
-        return NULL;
+    if (!idl) {
+        db_printf("Out of memory: Failed to alloc %d bytes.\n", data->size);
+        exit(1);
+    }
 
     memcpy(idl, xidl, data->size);
     return idl;
@@ -194,12 +198,16 @@ idl_free(IDL *idl)
 static IDL *
 idl_append(IDL *idl, ID id)
 {
+    size_t len;
     if (idl->used >= idl->max) {
         /* must grow */
         idl->max *= 2;
-        idl = realloc(idl, sizeof(IDL) + idl->max * sizeof(ID));
-        if (!idl)
-            return NULL;
+        len = sizeof(IDL) + idl->max * sizeof(ID);
+        idl = realloc(idl, len);
+        if (!idl) {
+            db_printf("Out of memory: Failed to alloc %d bytes.\n", len);
+            exit(1);
+        }
     }
     idl->id[idl->used++] = id;
     return idl;
@@ -266,6 +274,9 @@ format_raw(unsigned char *s, int len, int flags, unsigned char *buf, int buflen)
 static char *
 format(unsigned char *s, int len, unsigned char *buf, int buflen)
 {
+    if (!s) {
+        return format_raw((unsigned char*)"[NULL]", 6, 0, buf, buflen);
+    }
     return format_raw(s, len, 0, buf, buflen);
 }
 
@@ -411,6 +422,10 @@ print_ber_attr(char *attrname, char **buff)
         }
 
         val = malloc(bv_len + 1);
+        if (!val) {
+            db_printf("Out of memory: Failed to alloc %d bytes.\n", bv_len+1);
+            exit(1);
+        }
         memcpy(val, *buff, bv_len);
         val[bv_len] = 0;
         *buff += bv_len;
@@ -593,10 +608,6 @@ display_index_item(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data, unsign
     int ret = 0;
 
     idl = idl_make(data);
-    if (idl == NULL) {
-        printf("\t(illegal idl)\n");
-        return;
-    }
 
     if (file_type & VLVINDEXTYPE) {         /* vlv index file */
         if (1 > min_display) {              /* recno is always 1 */
@@ -629,11 +640,6 @@ display_index_item(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data, unsign
     if (ret != 0) {
         printf("Failure while looping dupes: %s\n", dblayer_strerror(ret));
         exit(1);
-    }
-
-    if (idl == NULL) {
-        printf("\t(illegal idl)\n");
-        return;
     }
 
     if (idl->max == 0) {
@@ -731,15 +737,12 @@ display_item(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data)
         tmpbuflen = (key->size > data->size ? key->size : data->size) + 1024;
     }
     if (buflen < tmpbuflen) {
-        unsigned char *tmp = NULL;
         buflen = tmpbuflen;
-        tmp = (unsigned char *)realloc(buf, buflen);
-        if (NULL == tmp) {
-            free(buf);
-            printf("\t(malloc failed -- %d bytes)\n", buflen);
-            return;
-        }
-        buf = tmp;
+        buf = (unsigned char *)realloc(buf, buflen);
+    }
+    if (!buf) {
+        printf("\t(malloc failed -- %d bytes)\n", buflen);
+        return;
     }
 
     if (display_mode & RAWDATA) {
@@ -787,6 +790,10 @@ _entryrdn_dump_rdn_elem(const char *key, void *elem, int indent)
     int rdnlen = 0;
     ID id = 0;
 
+    if (!indentp) {
+        db_printf("Out of memory: Failed to alloc %d bytes.\n", indent+1);
+        exit(1);
+    }
     memset(indentp, ' ', indent);
     indentp[indent] = 0;
     entryrdn_decode_data(NULL, elem, &id, &nrdnlen, &nrdn, &rdnlen, &rdn);
@@ -797,7 +804,7 @@ _entryrdn_dump_rdn_elem(const char *key, void *elem, int indent)
 }
 
 static void
-display_entryrdn_item(dbi_db_t *db, dbi_cursor_t *cursor, dbi_val_t *key)
+display_entryrdn_item(dbi_db_t *db __attribute__((unused)), dbi_cursor_t *cursor, dbi_val_t *key)
 {
     void *elem = NULL;
     int indent = 2;
@@ -949,6 +956,7 @@ usage(char *argv0)
     printf("    # display summary of objectclass.db4\n");
     printf("    %s -f objectclass.db4\n", p0);
     printf("\n");
+    free(copy);
     exit(1);
 }
 
@@ -1018,7 +1026,11 @@ _push_val(const char *v, dbi_val_t *val)
         } else {
             val->ulen *= 2;
         }
-        val->data = slapi_ch_realloc(val->data, val->ulen);
+        val->data = realloc(val->data, val->ulen);
+        if (!val->data) {
+            db_printf("Out of memory: Failed to alloc %d bytes.\n", val->ulen);
+            exit(1);
+        }
     }
     ((char*)(val->data))[val->size++] = strtol(v, NULL, 16);
 }
@@ -1208,7 +1220,13 @@ removedb(const char *dbimpl_name, const char *filename)
     dbi_env_t *env = NULL;
     dbi_db_t *db = NULL;
 
-    if (dblayer_private_open(dbimpl_name, filename, 0, &be, &env, &db)) {
+    if (!filename) {
+        printf("Error: -f option is missing.\n"
+               "Usage: dbscan -D mdb -d -f <db_home_dir>/<backend_name>/<db_name>\n");
+        return 1;
+    }
+
+    if (dblayer_private_open(dbimpl_name, filename, 1, &be, &env, &db)) {
         printf("Can't initialize db plugin: %s\n", dbimpl_name);
         return 1;
     }
@@ -1342,7 +1360,7 @@ main(int argc, char **argv)
                 ptdbs++;
             }
         }
-        slapi_ch_free((void**)&dbs);
+        free(dbs);
         ret = 0;
         goto done;
     }
