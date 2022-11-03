@@ -374,6 +374,7 @@ dbmdb_import_free_job(ImportJob *job)
     }
     pthread_mutex_destroy(&job->wire_lock);
     pthread_cond_destroy(&job->wire_cv);
+    charray_free(job->input_filenames);
     slapi_ch_free((void **)&job->task_status);
 }
 
@@ -762,6 +763,8 @@ dbmdb_public_dbmdb_import_main(void *arg)
     /* insure all dbi get open */
     dbmdb_open_all_files(NULL, job->inst->inst_be);
     dbmdb_build_import_index_list(ctx);
+    /* Disable ndn cache because it greatly decrease the import performance */
+    ndn_cache_inc_import_task();
 
     switch (ctx->role) {
         case IM_IMPORT:
@@ -940,7 +943,6 @@ error:
             }
         }
     }
-    dbmdb_free_import_ctx(job);
 
     if (job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1)) {
         if (0 == ret) {
@@ -1006,11 +1008,15 @@ error:
         dbmdb_import_all_done(job, ret);
     }
 
+    /* Re-enable the ndn cache */
+    ndn_cache_dec_import_task();
     dbmdb_clear_dirty_flags(be);
+
 
     /* This instance isn't busy anymore */
     instance_set_not_busy(job->inst);
 
+    dbmdb_free_import_ctx(job);
     dbmdb_import_free_job(job);
     if (!job->task) {
         FREE(job);
@@ -1362,7 +1368,7 @@ dbmdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 {
     struct backentry *ep = NULL;
     ImportCtx_t *ctx = job->writer_ctx;
-    WorkerQueueData_t wqelmt = {0};
+    BulkQueueData_t bqelmt = {0};
     ID id = 0;
 
     if (!entry) {
@@ -1393,11 +1399,9 @@ dbmdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
         return -1;
     }
 
-    wqelmt.wait_id = id;
-    wqelmt.data = ep;
-    wqelmt.datalen = 0; /* Not used for backentries */
-
-    dbmdb_import_workerq_push(&ctx->workerq, &wqelmt);
+    bqelmt.id = id;
+    bqelmt.ep = ep;
+    dbmdb_import_q_push(&ctx->bulkq, &bqelmt);
 
     job->lead_ID = id;
 
@@ -1480,7 +1484,7 @@ dbmdb_ldbm_back_wire_import(Slapi_PBlock *pb)
     if (state == SLAPI_BI_STATE_DONE) {
         slapi_value_free(&(job->usn_value));
         /* finished with an import */
-        ((ImportCtx_t*)(job->writer_ctx))->producer.state = FINISHED;
+        ((ImportCtx_t*)(job->writer_ctx))->bulkq_state = FINISHED;
         /* "job" struct may vanish at any moment after we set the FINISHED
          * flag, so keep a copy of the thread id in 'thread' for safekeeping.
          */
