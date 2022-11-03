@@ -2912,6 +2912,7 @@ static struct ndn_cache_stats t_cache_stats = {0};
  * not bother until we improve libglobs to be COW.
  */
 static int32_t ndn_enabled = 0;
+static int32_t ndn_import_task_count = 0;
 #ifdef RUST_ENABLE
 static ARCacheChar *cache = NULL;
 #endif
@@ -3096,6 +3097,18 @@ ndn_cache_init()
 }
 
 void
+ndn_cache_inc_import_task()
+{
+    slapi_atomic_incr_32(&ndn_import_task_count, __ATOMIC_RELEASE);
+}
+
+void
+ndn_cache_dec_import_task()
+{
+    slapi_atomic_decr_32(&ndn_import_task_count, __ATOMIC_RELEASE);
+}
+
+void
 ndn_cache_destroy()
 {
     if (ndn_enabled == 0) {
@@ -3127,7 +3140,7 @@ ndn_cache_started()
 static int32_t
 ndn_cache_lookup(char *dn, size_t dn_len, char **ndn, char **udn, int32_t *rc)
 {
-    if (ndn_enabled == 0 || NULL == udn) {
+    if (ndn_enabled == 0 || ndn_import_task_count != 0 || NULL == udn) {
         return 0;
     }
     *udn = NULL;
@@ -3164,7 +3177,7 @@ ndn_cache_lookup(char *dn, size_t dn_len, char **ndn, char **udn, int32_t *rc)
 static void
 ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
 {
-    if (ndn_enabled == 0) {
+    if (ndn_enabled == 0 || ndn_import_task_count != 0) {
         return;
     }
     if (dn_len == 0) {

@@ -1304,7 +1304,6 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_monitor.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_ldif2db.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_import.c \
-	ldap/servers/slapd/back-ldbm/db-mdb/mdb_rdncache.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_import_threads.c
 
 
