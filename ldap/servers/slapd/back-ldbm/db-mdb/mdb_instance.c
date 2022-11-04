@@ -292,7 +292,7 @@ add_index_dbi(struct attrinfo *ai, dbi_open_ctx_t *octx)
     int flags = octx->ctx->readonly ? MDB_RDONLY: MDB_CREATE;
     char *rcdbname = NULL;
 
-    slapi_log_error(SLAPI_LOG_DBGMDB, "add_index_dbi", "ai_type = %s ai_indexmask=0x%x.\n", ai->ai_type, ai->ai_indexmask);
+    dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_OTHER, "ai_type = %s ai_indexmask=0x%x.\n", ai->ai_type, ai->ai_indexmask);
     octx->ai = ai;
 
     if (ai->ai_indexmask & INDEX_VLV) {

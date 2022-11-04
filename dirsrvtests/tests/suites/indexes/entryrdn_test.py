@@ -47,6 +47,14 @@ EXPECTED_NB_NSNIQUEID = 12
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+def checkdbscancount(inst, pattern, expected_count):
+    inst.restart()
+    dbscanOut = inst.dbscan(args=['-f', f'{inst.dbdir}/{DEFAULT_BENAME}/entryrdn.db', '-A'], stopping=False)
+    count = dbscanOut.count(pattern)
+    if count != expected_count:
+        log.info(f"dbscan output is: {dbscanOut}")
+    assert count == expected_count
+
 
 def test_tombstone(topo_m2):
     """
@@ -105,9 +113,8 @@ def test_tombstone(topo_m2):
     user.replace('description', 'New Description')
     user.delete()
     ou.delete()
-    time.sleep(2)
-    dbscanOut = s1.dbscan(args=['-f', f'{s1.dbdir}/{DEFAULT_BENAME}/entryrdn.db', '-A'], stopping=False)
-    assert dbscanOut.count('nsuniqueid') == EXPECTED_NB_NSNIQUEID
+    # Need to restart the server otherwise bdb changes may not be up to date.
+    checkdbscancount(s1, 'nsuniqueid', EXPECTED_NB_NSNIQUEID)
 
     log.info("Exporting LDIF online...")
     export_ldif = ldif_dir + '/export.ldif'
@@ -118,16 +125,12 @@ def test_tombstone(topo_m2):
     import_task = ImportTask(s2)
     import_task.import_suffix_from_ldif(ldiffile=export_ldif, suffix=DEFAULT_SUFFIX)
     import_task.wait()
-    time.sleep(2)
-    dbscanOut = s2.dbscan(args=['-f', f'{s2.dbdir}/{DEFAULT_BENAME}/entryrdn.db', '-A'], stopping=False)
-    assert dbscanOut.count('nsuniqueid') == EXPECTED_NB_NSNIQUEID
+    checkdbscancount(s1, 'nsuniqueid', EXPECTED_NB_NSNIQUEID)
 
     log.info("Reindex online...")
     task = Tasks(s2)
     task.reindex(suffix=DEFAULT_SUFFIX, args={'wait': True})
-    time.sleep(2)
-    dbscanOut = s2.dbscan(args=['-f', f'{s2.dbdir}/{DEFAULT_BENAME}/entryrdn.db', '-A'], stopping=False)
-    assert dbscanOut.count('nsuniqueid') == EXPECTED_NB_NSNIQUEID
+    checkdbscancount(s1, 'nsuniqueid', EXPECTED_NB_NSNIQUEID)
 
     log.info("Bulk import...")
     agmt = Agreements(s1).list()[0]
@@ -135,10 +138,7 @@ def test_tombstone(topo_m2):
     (done, error) = agmt.wait_reinit()
     assert done is True
     assert error is False
-    time.sleep(2)
-    dbscanOut = s2.dbscan(args=['-f', f'{s2.dbdir}/{DEFAULT_BENAME}/entryrdn.db', '-A'], stopping=False)
-    assert dbscanOut.count('nsuniqueid') == EXPECTED_NB_NSNIQUEID
-
+    checkdbscancount(s1, 'nsuniqueid', EXPECTED_NB_NSNIQUEID)
 
 
 

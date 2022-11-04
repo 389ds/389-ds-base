@@ -37,8 +37,21 @@ static int entryrdn_noancestorid = 0;
 
 #ifdef LDAP_DEBUG_ENTRYRDN
 #define _ENTRYRDN_DUMP_RDN_ELEM(elem) _entryrdn_dump_rdn_elem(__LINE__, #elem, elem)
+#define _ENTRYRDN_DUMP_RDN_ELEM_ARRAY(elem) { \
+            if (elem) { \
+                char buff[50]; \
+                int i; \
+                for (i=0; elem[i]; i++) { \
+                    sprintf(buff, "%s[%d]", #elem, i); \
+                    _entryrdn_dump_rdn_elem(__LINE__, buff, elem[i]); \
+                } \
+            } else { \
+                _ENTRYRDN_DUMP_RDN_ELEM((rdn_elem*)elem); \
+            } \
+        }
 #else
 #define _ENTRYRDN_DUMP_RDN_ELEM(elem)
+#define _ENTRYRDN_DUMP_RDN_ELEM_ARRAY(elem)
 #endif
 
 #define ENTRYRDN_LOGLEVEL(rc) \
@@ -652,6 +665,9 @@ entryrdn_rename_subtree(backend *be,
         rc = _entryrdn_index_read(be, &cursor, &oldsrdn, &targetelem,
                                   &oldsupelem, NULL, 0 /*flags*/, db_txn);
     }
+    _ENTRYRDN_DUMP_RDN_ELEM(targetelem);
+    _ENTRYRDN_DUMP_RDN_ELEM(oldsupelem);
+    _ENTRYRDN_DUMP_RDN_ELEM_ARRAY(childelems);
     if (rc || NULL == targetelem) {
         slapi_log_err(SLAPI_LOG_ERR, "entryrdn_rename_subtree",
                       "Failed to read the target element \"%s\" (%d)\n",
@@ -2909,7 +2925,7 @@ _entryrdn_index_read(backend *be,
             /* Node might be a tombstone. */
             rc = _entryrdn_get_tombstone_elem(cursor, tmpsrdn,
                                               &key, nrdn, elem, db_txn);
-            _ENTRYRDN_DUMP_RDN_ELEM(elem);
+            _ENTRYRDN_DUMP_RDN_ELEM_ARRAY(elem);
             rdnidx--; /* consider nsuniqueid=..,<RDN> one RDN */
         }
         if (rc || NULL == *elem) {
@@ -3043,10 +3059,10 @@ _entryrdn_index_read(backend *be,
         if (parentelem) {
             slapi_ch_free((void **)parentelem);
             *parentelem = *elem;
+            _ENTRYRDN_DUMP_RDN_ELEM(*parentelem);
         } else {
             slapi_ch_free((void **)elem);
         }
-        _ENTRYRDN_DUMP_RDN_ELEM(parentelem);
         *elem = tmpelem;
 #ifdef LDAP_DEBUG_ENTRYRDN
         slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_index_read",
