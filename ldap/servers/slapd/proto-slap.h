@@ -292,6 +292,7 @@ int config_set_defaultreferral(const char *attrname, struct berval **value, char
 int config_set_timelimit(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_errorlog_level(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_accesslog_level(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_statlog_level(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_securitylog_level(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditlog(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditfaillog(const char *attrname, char *value, char *errorbuf, int apply);
@@ -514,6 +515,7 @@ long long config_get_pw_minage(void);
 long long config_get_pw_warning(void);
 int config_get_errorlog_level(void);
 int config_get_accesslog_level(void);
+int config_get_statlog_level();
 int config_get_securitylog_level(void);
 int config_get_auditlog_logging_enabled(void);
 int config_get_auditfaillog_logging_enabled(void);
@@ -827,11 +829,15 @@ int lock_fclose(FILE *fp, FILE *lfp);
 #define LDAP_DEBUG_INFO       0x08000000  /* 134217728 */
 #define LDAP_DEBUG_DEBUG      0x10000000  /* 268435456 */
 #define LDAP_DEBUG_ALL_LEVELS 0xFFFFFF
+
+#define LDAP_STAT_READ_INDEX  0x00000001  /*         1 */
+#define LDAP_STAT_FREE_1      0x00000002  /*         2 */
+
 extern int slapd_ldap_debug;
 
 int loglevel_is_set(int level);
 int slapd_log_error_proc(int sev_level, const char *subsystem, const char *fmt, ...);
-
+int slapi_log_stat(int loglevel, const char *fmt, ...);
 int slapi_log_access(int level, const char *fmt, ...)
 #ifdef __GNUC__
     __attribute__((format(printf, 2, 3)));
@@ -889,6 +895,7 @@ int check_log_max_size(
 
 
 void g_set_accesslog_level(int val);
+void g_set_statlog_level(int val);
 void g_set_securitylog_level(int val);
 void log__delete_rotated_logs(void);
 

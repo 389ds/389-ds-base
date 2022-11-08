@@ -1059,6 +1059,7 @@ main(int argc, char **argv)
          * changes are replicated as soon as the replication plugin is started.
          */
         pw_exp_init();
+        op_stat_init();
 
         plugin_print_lists();
         plugin_startall(argc, argv, NULL /* specific plugin list */);

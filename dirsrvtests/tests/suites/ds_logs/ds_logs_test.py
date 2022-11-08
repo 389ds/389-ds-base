@@ -20,6 +20,7 @@ from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL, PASSWORD
 from lib389.utils import ds_is_older, ds_is_newer
 from lib389.config import RSA
+from lib389.dseldif import DSEldif
 import ldap
 import glob
 import re
@@ -1143,7 +1144,7 @@ def test_enable_external_libs_debug_log(topology_st):
 @pytest.mark.skipif(ds_is_older('1.4.3'), reason="Might fail because of bug 1895460")
 @pytest.mark.bz1895460
 @pytest.mark.ds4593
-def test_cert_personality_log_help(topology_st):
+def test_cert_personality_log_help(topology_st, request):
     """Test changing the nsSSLPersonalitySSL attribute will raise help message in log
 
     :id: d6f17f64-d784-438e-89b6-8595bdf6defb
@@ -1174,7 +1175,84 @@ def test_cert_personality_log_help(topology_st):
                                          r"is correctly set to the certificate from NSS database "
                                          r"\(currently, nsSSLPersonalitySSL attribute "
                                          r"is set to '{}'\)\..*".format(WRONG_NICK))
+    def fin():
+        log.info('Restore certificate nickname')
+        dse_ldif = DSEldif(standalone)
+        dse_ldif.replace("cn=RSA,cn=encryption,cn=config", "nsSSLPersonalitySSL", "Server-Cert")
 
+    request.addfinalizer(fin)
+
+def test_stat_index(topology_st, request):
+    """Testing nsslapd-statlog-level with indexing statistics
+
+    :id: fcabab05-f000-468c-8eb4-02ce3c39c902
+    :setup: Standalone instance
+    :steps:
+         1. Check that nsslapd-statlog-level is 0 (default)
+         2. Create 20 users with 'cn' starting with 'user\_'
+         3. Check there is no statistic record in the access log with ADD
+         4. Check there is no statistic record in the access log with SRCH
+         5. Set nsslapd-statlog-level=LDAP_STAT_READ_INDEX (0x1) to get
+            statistics when reading indexes
+         6. Check there is statistic records in access log with SRCH
+    :expectedresults:
+         1. This should pass
+         2. This should pass
+         3. This should pass
+         4. This should pass
+         5. This should pass
+         6. This should pass
+    """
+    topology_st.standalone.start()
+
+    # Step 1
+    log.info("Assert nsslapd-statlog-level is by default 0")
+    assert topology_st.standalone.config.get_attr_val_int("nsslapd-statlog-level") == 0
+
+    # Step 2
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    users_set = []
+    log.info('Adding 20 users')
+    for i in range(20):
+        name = 'user_%d' % i
+        last_user = users.create(properties={
+            'uid': name,
+            'sn': name,
+            'cn': name,
+            'uidNumber': '1000',
+            'gidNumber': '1000',
+            'homeDirectory': '/home/%s' % name,
+            'mail': '%s@example.com' % name,
+            'userpassword': 'pass%s' % name,
+        })
+        users_set.append(last_user)
+
+    # Step 3
+    assert not topology_st.standalone.ds_access_log.match('.*STAT read index.*')
+
+    # Step 4
+    entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "cn=user_*")
+    assert not topology_st.standalone.ds_access_log.match('.*STAT read index.*')
+
+    # Step 5
+    log.info("Set nsslapd-statlog-level: 1 to enable indexing statistics")
+    topology_st.standalone.config.set("nsslapd-statlog-level", "1")
+
+    # Step 6
+    entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "cn=user_*")
+    topology_st.standalone.stop()
+    assert topology_st.standalone.ds_access_log.match('.*STAT read index.*')
+    assert topology_st.standalone.ds_access_log.match('.*STAT read index: attribute.*')
+    assert topology_st.standalone.ds_access_log.match('.*STAT read index: duration.*')
+    topology_st.standalone.start()
+
+    def fin():
+        log.info('Deleting users')
+        for user in users_set:
+            user.delete()
+        topology_st.standalone.config.set("nsslapd-statlog-level", "0")
+
+    request.addfinalizer(fin)
 
 if __name__ == '__main__':
     # Run isolated

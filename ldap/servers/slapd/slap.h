@@ -355,6 +355,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_FE_ERRORLOG_LEVEL_STR "16384"
 #define SLAPD_DEFAULT_ACCESSLOG_LEVEL 256
 #define SLAPD_DEFAULT_ACCESSLOG_LEVEL_STR "256"
+#define SLAPD_DEFAULT_STATLOG_LEVEL 0
+#define SLAPD_DEFAULT_STATLOG_LEVEL_STR "0"
 #define SLAPD_DEFAULT_SECURITYLOG_LEVEL 256
 #define SLAPD_DEFAULT_SECURITYLOG_LEVEL_STR "256"
 
@@ -2106,6 +2108,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_SCHEMAREPLACE_ATTRIBUTE "nsslapd-schemareplace"
 #define CONFIG_LOGLEVEL_ATTRIBUTE "nsslapd-errorlog-level"
 #define CONFIG_ACCESSLOGLEVEL_ATTRIBUTE "nsslapd-accesslog-level"
+#define CONFIG_STATLOGLEVEL_ATTRIBUTE "nsslapd-statlog-level"
 #define CONFIG_SECURITYLOGLEVEL_ATTRIBUTE "nsslapd-securitylog-level"
 #define CONFIG_ACCESSLOG_MODE_ATTRIBUTE "nsslapd-accesslog-mode"
 #define CONFIG_SECURITYLOG_MODE_ATTRIBUTE "nsslapd-securitylog-mode"
@@ -2508,6 +2511,7 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t accesslogbuffering;
     slapi_onoff_t csnlogging;
     slapi_onoff_t accesslog_compress;
+    int statloglevel;
 
     /* SECURITY LOG */
     char *securitylog;
