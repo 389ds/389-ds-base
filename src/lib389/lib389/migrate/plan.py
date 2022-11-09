@@ -541,6 +541,7 @@ class Migration(object):
             '1.3.6.1.4.1.42.2.27.8.1.12', # pwdFailureCountInt
             '1.3.6.1.4.1.42.2.27.8.1.13', # pwdMustChange
             '1.3.6.1.4.1.42.2.27.8.1.14', # pwdAllowUserChange
+            '1.3.6.1.4.1.4754.2.99.1', # pwdPolicyChecker
             '1.3.6.1.4.1.42.2.27.8.2.1', # pwdPolicy objectClass
             # Openldap supplies some schema which conflicts to ours, skip them
             'NetscapeLDAPattributeType:198', # memberUrl
@@ -595,6 +596,7 @@ class Migration(object):
         )
         # These tend to be be from overlays we don't support
         self._skip_entry_objectclasses = set([
+            'pwdpolicychecker',
             'pwdpolicy',
             'dgidentityaux'
         ])
