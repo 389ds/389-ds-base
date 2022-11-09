@@ -23,7 +23,7 @@ typedef struct _trim_status
     int ts_s_trimming;       /* non-zero if trimming in progress */
     PRLock *ts_s_trim_mutex; /* protects ts_s_trimming */
 } trim_status;
-static trim_status ts = {0L, 0L, 0, 0, NULL};
+static trim_status ts = {0};
 
 /*
  * All standard changeLogEntry attributes (initialized in get_cleattrs)
