@@ -79,7 +79,6 @@ AC_CHECK_FUNCS([endpwent ftruncate getcwd getaddrinfo inet_pton inet_ntop localt
 
 # These functions are *required* without option.
 AC_CHECK_FUNCS([clock_gettime], [], AC_MSG_ERROR([unable to locate required symbol clock_gettime]))
-AC_CHECK_FUNCS([twalk_r], [], AC_MSG_ERROR([cannot locate required symbol twalk_r: use glibc-2.30 or higher ]))
 
 # This will detect if we need to add the LIBADD_DL value for us.
 LT_LIB_DLLOAD
