@@ -89,7 +89,6 @@ def test_reset_attributes(topology_st):
         'nsslapd-certmap-basedn',
         'nsslapd-port',
         'nsslapd-secureport',
-        'nsslapd-conntablesize',
         'nsslapd-rootpw',
         'nsslapd-hash-filters',
         'nsslapd-requiresrestart',
