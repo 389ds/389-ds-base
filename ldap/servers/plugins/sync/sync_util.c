@@ -611,9 +611,11 @@ sync_cookie_parse(char *cookie)
     }
     return (sc);
 error_return:
-    slapi_ch_free_string(&(sc->cookie_client_signature));
-    slapi_ch_free_string(&(sc->cookie_server_signature));
-    slapi_ch_free((void **)&sc);
+    if (sc) {
+        slapi_ch_free_string(&(sc->cookie_client_signature));
+        slapi_ch_free_string(&(sc->cookie_server_signature));
+        slapi_ch_free((void **)&sc);
+    }
     return NULL;
 }
 
