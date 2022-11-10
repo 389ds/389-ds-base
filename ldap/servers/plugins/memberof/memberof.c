@@ -689,8 +689,6 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
     char *filter_str = NULL;
     char *cookie = NULL;
     int all_backends = config->allBackends;
-    int types_name_len = 0;
-    int num_types = 0;
     int dn_len = slapi_sdn_get_ndn_len(sdn);
     int free_it = 0;
     int rc = 0;
@@ -729,119 +727,100 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
 #if MEMBEROF_CACHE_DEBUG
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_call_foreach_dn: Ancestors of %s not cached\n", ndn);
 #endif
-    /* Count the number of types. */
-    for (num_types = 0; types && types[num_types]; num_types++) {
-        /* Add up the total length of all attribute names.
-         * We need to know this for building the filter. */
-        types_name_len += strlen(types[num_types]);
-    }
 
     /* Escape the dn, and build the search filter. */
     escaped_filter_val = slapi_escape_filter_value((char *)slapi_sdn_get_dn(sdn), dn_len);
     if (escaped_filter_val) {
-        dn_len = strlen(escaped_filter_val);
         free_it = 1;
     } else {
         escaped_filter_val = (char *)slapi_sdn_get_dn(sdn);
     }
 
-    if (num_types > 1) {
-        int bytes_out = 0;
-        int filter_str_len = types_name_len + (num_types * (3 + dn_len)) + 4;
+    for (i = 0; types[i]; i++) {
+        /* Triggers one internal search per membership attribute.
+         * Assuming the attribute is indexed (eq), the search will
+         * bypass the evaluation of the filter (nsslapd-search-bypass-filter-test)
+         * against the candidates. This is important to bypass the filter
+         * because on large valueset (static group) it is very expensive
+         */
+        filter_str = slapi_ch_smprintf("(%s=%s)", types[i], escaped_filter_val);
 
-        /* Allocate enough space for the filter */
-        filter_str = slapi_ch_malloc(filter_str_len);
+        be = slapi_get_first_backend(&cookie);
+        while (be) {
+            PRBool do_suffix_search = PR_TRUE;
 
-        /* Add beginning of filter. */
-        bytes_out = snprintf(filter_str, filter_str_len - bytes_out, "(|");
-
-        /* Add filter section for each type. */
-        for (i = 0; types[i]; i++) {
-            bytes_out += snprintf(filter_str + bytes_out, filter_str_len - bytes_out,
-                                  "(%s=%s)", types[i], escaped_filter_val);
-        }
-
-        /* Add end of filter. */
-        snprintf(filter_str + bytes_out, filter_str_len - bytes_out, ")");
-    } else if (num_types == 1) {
-        filter_str = slapi_ch_smprintf("(%s=%s)", types[0], escaped_filter_val);
-    }
-
-    if (free_it)
-        slapi_ch_free_string(&escaped_filter_val);
-
-    if (filter_str == NULL) {
-        return rc;
-    }
-
-    search_pb = slapi_pblock_new();
-    be = slapi_get_first_backend(&cookie);
-    while (be) {
-        PRBool do_suffix_search = PR_TRUE;
-        if (!all_backends) {
-            be = slapi_be_select(sdn);
-            if (be == NULL) {
-                break;
-            }
-        }
-        if ((base_sdn = (Slapi_DN *)slapi_be_getsuffix(be, 0)) == NULL) {
             if (!all_backends) {
-                break;
-            } else {
-                /* its ok, goto the next backend */
-                be = slapi_get_next_backend(cookie);
-                continue;
-            }
-        }
-
-        if (config->entryScopes || config->entryScopeExcludeSubtrees) {
-            if (memberof_entry_in_scope(config, base_sdn)) {
-                /* do nothing, entry scope is spanning
-                 * multiple suffixes, start at suffix */
-            } else if (config->entryScopes) {
-                for (size_t i = 0; config->entryScopes[i]; i++) {
-                    if (slapi_sdn_issuffix(config->entryScopes[i], base_sdn)) {
-                        /* Search each include scope */
-                        slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(config->entryScopes[i]),
-                                                     LDAP_SCOPE_SUBTREE, filter_str, 0, 0, 0, 0,
-                                                     memberof_get_plugin_id(), 0);
-                        slapi_search_internal_callback_pb(search_pb, callback_data, 0, callback, 0);
-                        /* We already did the search for this backend, don't
-                         * do it again when we fall through */
-                        do_suffix_search = PR_FALSE;
-                    }
+                be = slapi_be_select(sdn);
+                if (be == NULL) {
+                    break;
                 }
-            } else if (!all_backends) {
-                break;
-            } else {
-                /* its ok, goto the next backend */
-                be = slapi_get_next_backend(cookie);
-                continue;
             }
-        }
+            if ((base_sdn = (Slapi_DN *) slapi_be_getsuffix(be, 0)) == NULL) {
+                if (!all_backends) {
+                    break;
+                } else {
+                    /* its ok, goto the next backend */
+                    be = slapi_get_next_backend(cookie);
+                    continue;
+                }
+            }
 
-        if (do_suffix_search) {
-            slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(base_sdn),
-                                         LDAP_SCOPE_SUBTREE, filter_str, 0, 0, 0, 0, memberof_get_plugin_id(), 0);
-            slapi_search_internal_callback_pb(search_pb, callback_data, 0, callback, 0);
-            slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-            if (rc != LDAP_SUCCESS) {
+            search_pb = slapi_pblock_new();
+            if (config->entryScopes || config->entryScopeExcludeSubtrees) {
+                if (memberof_entry_in_scope(config, base_sdn)) {
+                    /* do nothing, entry scope is spanning
+                     * multiple suffixes, start at suffix */
+                } else if (config->entryScopes) {
+                    for (size_t i = 0; config->entryScopes[i]; i++) {
+                        if (slapi_sdn_issuffix(config->entryScopes[i], base_sdn)) {
+                            /* Search each include scope */
+                            slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(config->entryScopes[i]),
+                                                         LDAP_SCOPE_SUBTREE, filter_str, 0, 0, 0, 0,
+                                                         memberof_get_plugin_id(), 0);
+                            slapi_search_internal_callback_pb(search_pb, callback_data, 0, callback, 0);
+                            /* We already did the search for this backend, don't
+                             * do it again when we fall through */
+                            do_suffix_search = PR_FALSE;
+                        }
+                    }
+                } else if (!all_backends) {
+                    slapi_pblock_destroy(search_pb);
+                    break;
+                } else {
+                    /* its ok, goto the next backend */
+                    be = slapi_get_next_backend(cookie);
+                    slapi_pblock_destroy(search_pb);
+                    continue;
+                }
+            }
+
+            if (do_suffix_search) {
+                slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(base_sdn),
+                                             LDAP_SCOPE_SUBTREE, filter_str, 0, 0, 0, 0,
+                                             memberof_get_plugin_id(), 0);
+                slapi_search_internal_callback_pb(search_pb, callback_data, 0, callback, 0);
+                slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+                if (rc != LDAP_SUCCESS) {
+                    slapi_pblock_destroy(search_pb);
+                    break;
+                }
+            }
+
+            if (!all_backends) {
+                slapi_pblock_destroy(search_pb);
                 break;
             }
-        }
 
-        if (!all_backends) {
-            break;
+            be = slapi_get_next_backend(cookie);
+            slapi_pblock_destroy(search_pb);
         }
-        /* Reset pb for next loop */
-        slapi_pblock_init(search_pb);
-        be = slapi_get_next_backend(cookie);
+        slapi_ch_free((void **)&cookie);
+        slapi_ch_free_string(&filter_str);
     }
 
-    slapi_pblock_destroy(search_pb);
-    slapi_ch_free((void **)&cookie);
-    slapi_ch_free_string(&filter_str);
-
+    if (free_it) {
+        slapi_ch_free_string(&escaped_filter_val);
+    }
     return rc;
 }
 
