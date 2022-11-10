@@ -44,7 +44,8 @@
         if (!(_x)) {                                                                    \
             slapi_log_err(SLAPI_LOG_ERR, "cache", "BAD CACHE ASSERTION at %s/%d: %s\n", \
                           __FILE__, __LINE__, #_x);                                     \
-            *(char *)0L = 23;                                                           \
+            slapi_log_backtrace(SLAPI_LOG_ERR);                                         \
+            *(char *)23L = 1;                                                           \
         }                                                                               \
     } while (0)
 
@@ -514,6 +515,30 @@ flush_remove_entry(struct timespec *entry_time, struct timespec *start_time)
     }
 }
 
+static inline void
+dbgec_test_if_entry_pointer_is_valid(void *e, void *prev, int slot, int line)
+{
+    /* Check if the entry pointer is rightly aligned and crash loudly otherwise */
+    if ( ((uint64_t)e) & ((sizeof(long))-1) ) {
+        /* If this message occurs, it means that we have reproduced the elusive entry cache corruption
+         * seen first while fixing replication conflict_resolution CI test 
+         * FYI some debug attempt have been stored in https://github.com/progier389/389-ds-base.git
+         * in branches:
+         *  debug-stuff1 (older try with log of debugging trick in slapd/dbgec*) 
+         *  debug-stuff2: Log the dn associated with backentries in a mmap file and retrieve the
+         *  dn of the corrupted entry. 
+         *   Note: if we are able to reproduce using this debug stuff and if it is always the same entry
+         *   we may catch the issue by adding a watchpoint when adding that backentry 
+         *   Note: you should disable the setuid to be able to use watchpoint 
+         */ 
+        slapi_log_err(SLAPI_LOG_FATAL, "dbgec_test_if_entry_pointer_is_valid", "cache.c[%d]: Wrong entry address: %p Previous entry address is: %p hash table slot is %d\n", line, e, prev, slot);
+        slapi_log_backtrace(SLAPI_LOG_FATAL);
+        *(char*)23 = 1;   /* abort() somehow corrupt gdb stack backtrace so lets generate a SIGSEGV */
+        abort();
+    }
+}
+
+
 /*
  * Flush all the cache entries that were added after the "start time"
  * This is called when a backend transaction plugin fails, and we need
@@ -536,6 +561,7 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
 
     for (size_t i = 0; i < ht->size; i++) {
         e = ht->slot[i];
+        dbgec_test_if_entry_pointer_is_valid(e, NULL, i, __LINE__);
         while (e) {
             struct backcommon *entry = (struct backcommon *)e;
             uint64_t remove_it = 0;
@@ -547,6 +573,7 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
             }
             laste = e;
             e = HASH_NEXT(ht, e);
+            dbgec_test_if_entry_pointer_is_valid(e, laste, i, __LINE__);
 
             if (remove_it) {
                 /* since we have the cache lock we know we can trust refcnt */
@@ -577,6 +604,7 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
 
         for (size_t i = 0; i < ht->size; i++) {
             e = ht->slot[i];
+            dbgec_test_if_entry_pointer_is_valid(e, NULL, i, __LINE__);
             while (e) {
                 struct backcommon *entry = (struct backcommon *)e;
                 uint64_t remove_it = 0;
@@ -588,6 +616,7 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
                 }
                 laste = e;
                 e = HASH_NEXT(ht, e);
+                dbgec_test_if_entry_pointer_is_valid(e, laste, i, __LINE__);
 
                 if (remove_it) {
                     /* since we have the cache lock we know we can trust refcnt */
@@ -2165,7 +2194,7 @@ check_entry_cache(struct cache *cache, struct backentry *e)
     struct backentry *debug_e = cache_find_dn(cache,
                                               slapi_sdn_get_dn(sdn),
                                               slapi_sdn_get_ndn_len(sdn));
-    in_cache = cache_is_in_cache(cache, (void *)e);
+    int in_cache = cache_is_in_cache(cache, (void *)e);
     if (in_cache) {
         if (debug_e) { /* e is in cache */
             CACHE_RETURN(cache, &debug_e);
