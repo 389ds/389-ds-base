@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,7 +10,7 @@ from collections import OrderedDict, namedtuple
 import json
 import os
 from lib389.config import Config, Encryption, RSA
-from lib389.nss_ssl import NssSsl
+from lib389.nss_ssl import NssSsl, CERT_NAME, CA_NAME
 from lib389.cli_base import _warn
 
 
@@ -99,6 +99,7 @@ def _security_generic_set(inst, basedn, logs, args, attrs_map):
             dsobj.replace(props.attr, arg)
         else:
             dsobj.remove_all(props.attr)
+    log.info(f"Successfully updated security configuration ({props.attr})")
 
 
 def _security_generic_get_parser(parent, attrs_map, help):
@@ -138,6 +139,7 @@ def _security_generic_toggle_parsers(parent, cls, attr, help_pattern):
 
     return list(map(add_parser, ('Enable', 'Disable'), ('on', 'off')))
 
+
 def security_enable(inst, basedn, log, args):
     dbpath = inst.get_cert_dir()
     tlsdb = NssSsl(dbpath=dbpath)
@@ -155,6 +157,7 @@ def security_enable(inst, basedn, log, args):
 
     # it should now be safe to enable security
     Config(inst).set('nsslapd-security', 'on')
+    log.info("Successfully enabled security")
 
 
 def security_disable(inst, basedn, log, args):
@@ -216,12 +219,13 @@ def cert_add(inst, basedn, log, args):
     """Add server certificate
     """
     # Verify file and certificate name
-    os.path.isfile(args.file)
+    if not os.path.isfile(args.file):
+        raise ValueError(f'Certificate file "{args.file}" does not exist')
+
     tlsdb = NssSsl(dirsrv=inst)
     if not tlsdb._db_exists(even_partial=True):  # we want to be very careful
         log.info('Security database does not exist. Creating a new one in {}.'.format(inst.get_cert_dir()))
         tlsdb.reinit()
-
     try:
         tlsdb.get_cert_details(args.name)
         raise ValueError("Certificate already exists with the same name")
@@ -235,25 +239,22 @@ def cert_add(inst, basedn, log, args):
     # Add the cert
     tlsdb.add_cert(args.name, args.file)
 
+    log.info("Successfully added certificate")
+
 
 def cacert_add(inst, basedn, log, args):
-    """Add CA certificate
+    """Add CA certificate, or CA certificate bundle
     """
     # Verify file and certificate name
-    os.path.isfile(args.file)
-    tlsdb = NssSsl(dirsrv=inst)
-    if not tlsdb._db_exists(even_partial=True):  # we want to be very careful
+    if not os.path.isfile(args.file):
+        raise ValueError(f'Certificate file "{args.file}" does not exist')
+
+    tls = NssSsl(dirsrv=inst)
+    if not tls._db_exists(even_partial=True):  # we want to be very careful
         log.info('Security database does not exist. Creating a new one in {}.'.format(inst.get_cert_dir()))
-        tlsdb.reinit()
+        tls.reinit()
 
-    try:
-        tlsdb.get_cert_details(args.name)
-        raise ValueError("Certificate already exists with the same name")
-    except ValueError:
-        pass
-
-    # Add the cert
-    tlsdb.add_cert(args.name, args.file, ca=True)
+    tls.add_ca_cert_bundle(args.file, args.name)
 
 
 def cert_list(inst, basedn, log, args):
@@ -348,6 +349,7 @@ def cert_edit(inst, basedn, log, args):
     """
     tlsdb = NssSsl(dirsrv=inst)
     tlsdb.edit_cert_trust(args.name, args.flags)
+    log.info("Successfully edited certificate trust flags")
 
 
 def cert_del(inst, basedn, log, args):
@@ -355,6 +357,7 @@ def cert_del(inst, basedn, log, args):
     """
     tlsdb = NssSsl(dirsrv=inst)
     tlsdb.del_cert(args.name)
+    log.info(f"Successfully deleted certificate")
 
 
 def create_parser(subparsers):
@@ -421,8 +424,9 @@ def create_parser(subparsers):
         'Add a Certificate Authority to the NSS database'))
     cacert_add_parser.add_argument('--file', required=True,
         help='Sets the file name of the CA certificate')
-    cacert_add_parser.add_argument('--name', required=True,
-        help='Sets the name/nickname of the CA certificate')
+    cacert_add_parser.add_argument('--name', nargs='+', required=True,
+        help='Sets the name/nickname of the CA certificate, if adding a PEM bundle then specify multiple names one for '
+             'each certificate, otherwise a number increment will be added to the previous name.')
     cacert_add_parser.set_defaults(func=cacert_add)
 
     cacert_edit_parser = cacerts_sub.add_parser('set-trust-flags', help='Set the Trust flags',
