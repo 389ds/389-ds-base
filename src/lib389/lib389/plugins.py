@@ -1491,7 +1491,7 @@ class PAMPassThroughAuthPlugin(Plugin):
         super(PAMPassThroughAuthPlugin, self).__init__(instance, dn)
 
 
-class PAMPassThroughAuthConfig(Plugin):
+class PAMPassThroughAuthConfig(DSLdapObject):
     """A single instance of PAM Pass Through Auth config entry
 
     :param instance: An instance
@@ -1500,24 +1500,11 @@ class PAMPassThroughAuthConfig(Plugin):
     :type dn: str
     """
 
-    _plugin_properties = {
-        'cn' : 'USN',
-        'nsslapd-pluginEnabled': 'off',
-        'nsslapd-pluginPath': 'libpam-passthru-plugin',
-        'nsslapd-pluginInitfunc': 'pam_passthruauth_init',
-        'nsslapd-pluginType': 'betxnpreoperation',
-        'nsslapd-plugin-depends-on-type': 'database',
-        'nsslapd-pluginId': 'PAM',
-        'nsslapd-pluginVendor': '389 Project',
-        'nsslapd-pluginVersion': '1.3.7.0',
-        'nsslapd-pluginDescription': 'PAM Pass Through Auth plugin'
-    }
-
     def __init__(self, instance, dn=None):
         super(PAMPassThroughAuthConfig, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn']
-        self._create_objectclasses = ['top', 'extensibleObject', 'nsslapdplugin', 'pamConfig']
+        self._create_objectclasses = ['top', 'extensibleObject', 'pamConfig']
         self._protected = False
 
 
