@@ -1091,3 +1091,78 @@ only.
             # Remove the p12
             if os.path.exists(p12_bundle):
                 os.remove(p12_bundle)
+
+    def add_ca_cert_bundle(self, cert_file, nicknames):
+        """
+        Add a PEM file that could be a bundle of CA certs
+
+        :param nicknames: list of names of each CA certificate
+        :param cert_file: path to certificate PEM file
+        :raises:
+        """
+
+        # Verify input_file exists
+        if not os.path.exists(cert_file):
+            raise ValueError("The certificate file ({}) does not exist".format(cert_file))
+
+        try:
+            with open(cert_file, 'r') as f:
+                ca_count = 0
+                ca_files_to_cleanup = []
+                writing_ca = False
+                try:
+                    for line in f:
+                        if line.startswith('-----BEGIN CERTIFICATE-----'):
+                            # create tmp cert file
+                            writing_ca = True
+                            ca_file_name = cert_file + "-" + str(ca_count)
+                            ca_file = open(ca_file_name, 'w')
+                            ca_files_to_cleanup.append(ca_file_name)
+                            ca_file.write(line)
+                        elif writing_ca:
+                            ca_file.write(line)
+                            if line.startswith('-----END CERTIFICATE-----'):
+                                writing_ca = False
+                                ca_file.close()
+
+                                # Generate CA certificate nickname
+                                names_len = len(nicknames)
+                                if names_len > ca_count:
+                                    if nicknames[ca_count].lower() == CERT_NAME.lower() or nicknames[ca_count].lower() == CA_NAME.lower():
+                                        raise ValueError(f"You may not import a CA with the nickname {CERT_NAME} or {CA_NAME}")
+                                    ca_cert_name = nicknames[ca_count]
+                                else:
+                                    # A name was not provided for this cert, create one
+                                    ca_cert_name = nicknames[names_len - 1] + str(ca_count)
+
+                                # Check if certificate nickname exists
+                                name_exists = False
+                                try:
+                                    self.get_cert_details(ca_cert_name)
+                                    name_exists = True
+                                except ValueError:
+                                    pass
+
+                                if name_exists:
+                                    # Not good, cleanup and raise error
+                                    try:
+                                        for tmp_file in ca_files_to_cleanup:
+                                            os.remove(tmp_file)
+                                    except IOError:
+                                        # failed to remove tmp cert
+                                        log.debug("Failed to remove tmp cert file")
+                                        pass
+                                    raise ValueError(f"Certificate already exists with the same name ({ca_cert_name})")
+
+                                # Add this CA certificate
+                                self.add_cert(ca_cert_name, ca_file_name, ca=True)
+                                ca_count += 1
+                                log.info(f"Successfully added CA certificate ({ca_cert_name})")
+                except IOError as e:
+                    # Some failure, remove all the tmp files
+                    ca_file.close()
+                    for tmp_file in ca_file_to_cleanup:
+                        os.remove(tmp_file)
+                    raise e
+        except EnvironmentError as e:
+            raise e
