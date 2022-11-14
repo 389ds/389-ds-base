@@ -187,6 +187,7 @@ _chars = {
 # Utilities
 #
 
+
 def selinux_present():
     """
     Determine if selinux libraries are on a system, and if so, if we are in
@@ -1440,11 +1441,10 @@ def get_instance_list():
                 insts.append(inst)
     except OSError as e:
         log.error("Failed to check directory: {} - {}".format(conf_dir, str(e)))
-    except IOError as e:
-        log.error(e)
-        log.error("Perhaps you need to be a different user?")
+
     insts.sort()
     return insts
+
 
 # used by arg parse completers
 def instance_choices(prefix, parsed_args, **kwargs):
@@ -1455,6 +1455,7 @@ def instance_choices(prefix, parsed_args, **kwargs):
         inst_names.append(inst.replace("slapd-", ""))
 
     return inst_names
+
 
 def get_user_is_ds_owner():
     # Check if we have permission to administer the DS instance. This is required
@@ -1630,6 +1631,7 @@ def elapsed_time(timestamp1, timestamp2):
         return str(timedelta(seconds=elapsed_secs))
     else:
         return ""
+
 
 def get_task_status(inst, log, taskObj, dn=None, show_log=False, watch=False, use_json=False):
     """Get the status of a Task, if "watching" keep looping over the tasks
