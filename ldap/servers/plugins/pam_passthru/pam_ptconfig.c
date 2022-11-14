@@ -195,12 +195,12 @@ static int
 missing_suffix_to_int(char *missing_suffix)
 {
     int retval = -1; /* -1 is error */
-    if (!PL_strcasecmp(missing_suffix, PAMPT_MISSING_SUFFIX_ERROR_STRING)) {
-        retval = PAMPT_MISSING_SUFFIX_ERROR;
+    if (missing_suffix == NULL || !PL_strcasecmp(missing_suffix, PAMPT_MISSING_SUFFIX_IGNORE_STRING)) {
+        retval = PAMPT_MISSING_SUFFIX_IGNORE;
     } else if (!PL_strcasecmp(missing_suffix, PAMPT_MISSING_SUFFIX_ALLOW_STRING)) {
         retval = PAMPT_MISSING_SUFFIX_ALLOW;
-    } else if (!PL_strcasecmp(missing_suffix, PAMPT_MISSING_SUFFIX_IGNORE_STRING)) {
-        retval = PAMPT_MISSING_SUFFIX_IGNORE;
+    } else if (!PL_strcasecmp(missing_suffix, PAMPT_MISSING_SUFFIX_ERROR_STRING)) {
+        retval = PAMPT_MISSING_SUFFIX_ERROR;
     }
 
     return retval;
