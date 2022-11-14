@@ -1,10 +1,12 @@
-
+import os
 from lib389.nss_ssl import NssSsl, CERT_NAME, CA_NAME
 from lib389.cli_base import _warn
+
 
 def show_servercert(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     log.info(tls.display_cert_details(CERT_NAME))
+
 
 def list_client_cas(inst, log, args):
     tls = NssSsl(dirsrv=inst)
@@ -12,16 +14,19 @@ def list_client_cas(inst, log, args):
     for c in tls.list_client_ca_certs():
         log.info(c[0])
 
+
 def list_cas(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     # This turns an array of [('CA', 'C,,')]
     for c in tls.list_ca_certs():
         log.info(c[0])
 
+
 def show_cert(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     nickname = args.nickname
     log.info(tls.display_cert_details(nickname))
+
 
 def import_client_ca(inst, log, args):
     tls = NssSsl(dirsrv=inst)
@@ -33,21 +38,20 @@ def import_client_ca(inst, log, args):
     tls.add_cert(nickname=nickname, input_file=cert_path)
     tls.edit_cert_trust(nickname, "T,,")
 
+
 def import_ca(inst, log, args):
+    if not os.path.isfile(args.cert_path):
+        raise ValueError(f'Certificate file "{args.cert_path}" does not exist')
+
     tls = NssSsl(dirsrv=inst)
-    cert_path = args.cert_path
-    nickname = args.nickname
-    if nickname.lower() == CERT_NAME.lower() or nickname.lower() == CA_NAME.lower():
-        log.error("You may not import a CA with the nickname %s or %s" % (CERT_NAME, CA_NAME))
-        return
-    tls.add_cert(nickname=nickname, input_file=cert_path)
-    tls.edit_cert_trust(nickname, "C,,")
+    tls.add_ca_cert_bundle(args.cert_path, args.nickname)
 
 def import_key_cert_pair(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     key_path = args.key_path
     cert_path = args.cert_path
     tls.add_server_key_and_cert(key_path, cert_path)
+
 
 def generate_key_csr(inst, log, args):
     tls = NssSsl(dirsrv=inst)
@@ -56,10 +60,12 @@ def generate_key_csr(inst, log, args):
     out_path = tls.create_rsa_key_and_csr(alt_names, subject)
     log.info(out_path)
 
+
 def import_server_cert(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     cert_path = args.cert_path
     tls.import_rsa_crt(crt=cert_path)
+
 
 def remove_cert(inst, log, args, warn=True):
     tls = NssSsl(dirsrv=inst)
@@ -109,11 +115,13 @@ def create_parser(subparsers):
 
     import_ca_parser = subcommands.add_parser(
         'import-ca',
-        help="Import a CA or intermediate CA for signing this servers certificates (aka Server-Cert). You should import all the CA's in the chain as required."
+        help="Import a CA or intermediate CA for signing this servers certificates (aka Server-Cert). "
+             "You should import all the CA's in the chain as required.  PEM bundles are accepted"
     )
     import_ca_parser.add_argument('cert_path',
         help="The path to the x509 cert to import as a server CA")
-    import_ca_parser.add_argument('nickname', help="The name of the certificate once imported")
+    import_ca_parser.add_argument('nickname', nargs='+', required=True,
+                                  help="The name of the certificate once imported")
     import_ca_parser.set_defaults(func=import_ca)
 
     import_server_cert_parser = subcommands.add_parser(

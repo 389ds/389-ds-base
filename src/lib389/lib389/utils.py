@@ -187,6 +187,7 @@ _chars = {
 # Utilities
 #
 
+
 def selinux_present():
     """
     Determine if selinux libraries are on a system, and if so, if we are in
@@ -241,8 +242,11 @@ def selinux_restorecon(path):
         log.debug("Failed to run restorecon on: " + path)
 
 
-def _parse_semanage_fcontexts(cmd, regex=r"^(/[^ ]*)[^:=]+:[^:]*:([^:]*):.*$", reject={}):
-    '''Parse semanage fcontext -L output'''
+def _parse_semanage_fcontexts(cmd, regex=r"^(/[^ ]*)[^:=]+:[^:]*:([^:]*):.*$", reject=None):
+    """Parse semanage fcontext -L output
+    """
+    if reject is None:
+        reject = {}
     info = {}
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     args = ' '.join(ensure_list_str(result.args))
@@ -250,11 +254,11 @@ def _parse_semanage_fcontexts(cmd, regex=r"^(/[^ ]*)[^:=]+:[^:]*:([^:]*):.*$", r
     stderr = ensure_str(result.stderr)
     if result.returncode:
         log.debug("CMD: {args} returned {result.returncode} STDOUT: {stdout} STDERR: {stderr}")
-        return info;
+        return info
     for m in re.finditer(regex, stdout, flags=re.MULTILINE):
-         if not m.group(1) in reject:
-             info[m.group(1)] = m.group(2)
-    return info;
+        if not m.group(1) in reject:
+            info[m.group(1)] = m.group(2)
+    return info
 
 
 def _get_selinux_fcontext_info():
@@ -268,6 +272,7 @@ def _get_selinux_fcontext_info():
         }
     return selinux_fcontext_info
 
+
 def resolve_selinux_path(path):
     '''Return the path as expected by semanage fcontext'''
     path = str(Path(path).resolve())
@@ -278,6 +283,7 @@ def resolve_selinux_path(path):
             if path.startswith(r):
                 path = path.replace(r, equiv[r])
     return path
+
 
 def selinux_label_file(path, label):
     """
@@ -299,16 +305,16 @@ def selinux_label_file(path, label):
     if path in local:
         if local[path] == label:
             return
-        log.info(f"Removing seLinux file context {path} with label {local[path]}.")
+        log.debug(f"Removing SELinux file context {path} with label {local[path]}.")
         subprocess.run(["semanage", "fcontext", "-d", path])
         del local[path]
     if path in policy:
         if policy[path] == label:
             return
-        raise ValueError(f'Cannot change file context for {path} because it is defined in seLinux policy. Please choose another path.')
+        raise ValueError(f'Cannot change file context for {path} because it is defined in SELinux policy. Please choose another path.')
     if label:
         try:
-            log.info(f"Setting label {label} in seLinux file context {path}.")
+            log.debug(f"Setting label {label} in SELinux file context {path}.")
             result = subprocess.run(["semanage", "fcontext", "-a", "-t", label, path],
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
@@ -322,7 +328,7 @@ def selinux_label_file(path, label):
         except (OSError, subprocess.CalledProcessError) as e:
             raise ValueError(f"Failed to set SElinux label {label} on {path}: {str(e)}")
     if os.path.exists(path):
-        #pytest fails if I use selinux_restorecon(path)
+        # pytest fails if I use selinux_restorecon(path)
         subprocess.run(["restorecon", "-R", path])
 
 
@@ -336,7 +342,7 @@ def selinux_clean_files_label(all=False):
         if label in ( 'dirsrv_config_t', 'dirsrv_tmpfs_t', 'dirsrv_var_lib_t', 'dirsrv_var_lock_t', 'dirsrv_var_log_t', 'dirsrv_var_run_t', ):
             if all or not os.path.exists(path):
                 selinux_label_file(path, None)
-                
+
 
 def selinux_clean_ports_label():
     """Remove labels from all port having ldap_port_t labels."""
@@ -1440,11 +1446,10 @@ def get_instance_list():
                 insts.append(inst)
     except OSError as e:
         log.error("Failed to check directory: {} - {}".format(conf_dir, str(e)))
-    except IOError as e:
-        log.error(e)
-        log.error("Perhaps you need to be a different user?")
+
     insts.sort()
     return insts
+
 
 # used by arg parse completers
 def instance_choices(prefix, parsed_args, **kwargs):
@@ -1455,6 +1460,7 @@ def instance_choices(prefix, parsed_args, **kwargs):
         inst_names.append(inst.replace("slapd-", ""))
 
     return inst_names
+
 
 def get_user_is_ds_owner():
     # Check if we have permission to administer the DS instance. This is required
@@ -1583,6 +1589,7 @@ def is_valid_hostname(hostname):
     allowed = re.compile("(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split("."))
 
+
 def get_default_db_lib():
     return os.getenv('NSSLAPD_DB_LIB', default=DEFAULT_DB_LIB)
 
@@ -1630,6 +1637,7 @@ def elapsed_time(timestamp1, timestamp2):
         return str(timedelta(seconds=elapsed_secs))
     else:
         return ""
+
 
 def get_task_status(inst, log, taskObj, dn=None, show_log=False, watch=False, use_json=False):
     """Get the status of a Task, if "watching" keep looping over the tasks
