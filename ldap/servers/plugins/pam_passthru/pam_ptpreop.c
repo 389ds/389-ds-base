@@ -462,8 +462,8 @@ pam_passthru_bindpreop(Slapi_PBlock *pb)
         int is_ssl = 0;
         slapi_pblock_get(pb, SLAPI_CONN_IS_SSL_SESSION, &is_ssl);
         if (!is_ssl) {
-            slapi_log_err(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                          "pam_passthru_bindpreop - Connection not secure (secure connection required; check config)\n");
+            slapi_log_err(SLAPI_LOG_WARNING, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                          "pam_passthru_bindpreop - Client connection not secure and pamSecure is true (missing LDAPS)\n");
             goto done;
         }
     }

@@ -11,7 +11,7 @@ import ldap
 from lib389.plugins import (PassThroughAuthenticationPlugin, PAMPassThroughAuthPlugin,
                             PAMPassThroughAuthConfigs, PAMPassThroughAuthConfig)
 
-from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
+from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add, generic_show, generic_enable, generic_disable, generic_status
 
 arg_to_attr_pam = {
     'exclude_suffix': 'pamExcludeSuffix',
@@ -234,18 +234,19 @@ def _add_parser_args_pam(parser):
 def create_parser(subparsers):
     passthroughauth_parser = subparsers.add_parser('pass-through-auth',
                                                    help='Manage and configure Pass-Through Authentication plugins '
-                                                        '(URLs and PAM)')
+                                                        '(LDAP URLs and PAM)')
     subcommands = passthroughauth_parser.add_subparsers(help='action')
+
     add_generic_plugin_parsers(subcommands, PassThroughAuthenticationPlugin)
 
-    list = subcommands.add_parser('list', help='List pass-though plugin URLs or PAM configurations')
+    list = subcommands.add_parser('list', help='List pass-though plugin LDAP URLs or PAM configurations')
     subcommands_list = list.add_subparsers(help='action')
-    list_urls = subcommands_list.add_parser('urls', help='Lists URLs')
+    list_urls = subcommands_list.add_parser('urls', help='Lists LDAP URLs')
     list_urls.set_defaults(func=pta_list)
     list_pam = subcommands_list.add_parser('pam-configs', help='Lists PAM configurations')
     list_pam.set_defaults(func=pam_pta_list)
 
-    url = subcommands.add_parser('url', help='Manage PTA URL configurations')
+    url = subcommands.add_parser('url', help='Manage PTA LDAP URL configurations')
     subcommands_url = url.add_subparsers(help='action')
 
     add_url = subcommands_url.add_parser('add', help='Add the config entry')
@@ -266,6 +267,19 @@ def create_parser(subparsers):
     delete_url = subcommands_url.add_parser('delete', help='Delete the config entry')
     delete_url.add_argument('URL', help='The full LDAP URL you get from the "list" command')
     delete_url.set_defaults(func=pta_del)
+
+    # Pam PTA and PTA are not the same plugin! We need to enable and control them seperately!
+    show_parser = subcommands.add_parser('pam-show', help='Displays the plugin configuration')
+    show_parser.set_defaults(func=generic_show, plugin_cls=PAMPassThroughAuthPlugin)
+
+    enable_parser = subcommands.add_parser('pam-enable', help='Enables the plugin')
+    enable_parser.set_defaults(func=generic_enable, plugin_cls=PAMPassThroughAuthPlugin)
+
+    disable_parser = subcommands.add_parser('pam-disable', help='Disables the plugin')
+    disable_parser.set_defaults(func=generic_disable, plugin_cls=PAMPassThroughAuthPlugin)
+
+    status_parser = subcommands.add_parser('pam-status', help='Displays the plugin status')
+    status_parser.set_defaults(func=generic_status, plugin_cls=PAMPassThroughAuthPlugin)
 
     pam = subcommands.add_parser('pam-config', help='Manage PAM PTA configurations.')
     pam.add_argument('NAME', help='The PAM PTA configuration name')
