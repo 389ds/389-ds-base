@@ -120,8 +120,7 @@ def create_parser(subparsers):
     )
     import_ca_parser.add_argument('cert_path',
         help="The path to the x509 cert to import as a server CA")
-    import_ca_parser.add_argument('nickname', nargs='+', required=True,
-                                  help="The name of the certificate once imported")
+    import_ca_parser.add_argument('nickname', nargs='+', help="The name of the certificate once imported")
     import_ca_parser.set_defaults(func=import_ca)
 
     import_server_cert_parser = subcommands.add_parser(
