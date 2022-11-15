@@ -88,6 +88,28 @@ static dbmdb_dbi_t *dbi_slots;    /* The alloced slots */
 static int dbi_nbslots;           /* Number of available slots in dbi_slots */
 
 /*
+ * twalk_r is not available before glibc-2.30 so lets replace it by twalk
+ * and a global variable (it is possible because there is a single call
+ *   and it is protected by global mutex dbmdb_ctx->dbis_lock )
+ */
+#if __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 30)
+
+static struct {
+    void *closure;
+    void (*cb)(const void *nodep, VISIT which, void *closure);
+} twalk_ctx;
+
+static void twalk_cb(const void *nodep, VISIT which, int depth)
+{
+    twalk_ctx.cb(nodep, which, twalk_ctx.closure);
+}
+
+#define twalk_r(_tree, _cb, _closure) { twalk_ctx.cb = (_cb); twalk_ctx.closure = (_closure); twalk(_tree, twalk_cb); }
+
+#endif
+
+
+/*
  * Rules:
  * NULL comes before anything else.
  * Otherwise, strcasecmp(elem_a->rdn_elem_nrdn_rdn - elem_b->rdn_elem_nrdn_rdn) is
