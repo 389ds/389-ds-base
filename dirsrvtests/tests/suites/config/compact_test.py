@@ -1,7 +1,16 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2022 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 import logging
 import pytest
 import os
 import time
+import datetime
 from lib389.utils import get_default_db_lib
 from lib389.tasks import DBCompactTask
 from lib389.backend import DatabaseConfig
@@ -72,11 +81,31 @@ def test_compaction_interval_and_time(topo):
     """
 
     inst = topo.ms["supplier1"]
-    config = DatabaseConfig(inst)
-    config.set([('nsslapd-db-compactdb-interval', '2'), ('nsslapd-db-compactdb-time', '00:01')])
-    inst.deleteErrorLogs()
 
-    time.sleep(6)
+    # Calculate the compaction time (1 minute from now)
+    now = datetime.datetime.now()
+    current_hour = now.hour
+    current_minute = now.minute + 2
+    if current_hour < 10:
+        hour = "0" + str(current_hour)
+    else:
+        hour = str(current_hour)
+    if current_minute < 10:
+        minute = "0" + str(current_minute)
+    else:
+        minute = str(current_minute)
+    compact_time = hour + ":" + minute
+
+    # Set compaction TOD
+    config = DatabaseConfig(inst)
+    config.set([('nsslapd-db-compactdb-interval', '2'), ('nsslapd-db-compactdb-time', compact_time)])
+    inst.deleteErrorLogs(restart=True)
+
+    # Check compaction occurred as expected
+    time.sleep(60)
+    assert not inst.searchErrorsLog("Compacting databases")
+
+    time.sleep(61)
     assert inst.searchErrorsLog("Compacting databases")
     inst.deleteErrorLogs(restart=False)
 
