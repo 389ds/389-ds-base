@@ -2,6 +2,7 @@ import logging
 import pytest
 import os
 import time
+import datetime
 from lib389.tasks import DBCompactTask
 from lib389.backend import DatabaseConfig
 from lib389.replica import Changelog5
@@ -53,22 +54,34 @@ def test_compaction_interval_and_time(topo):
 
     inst = topo.ms["supplier1"]
 
-    # Configure DB compaction
-    config = DatabaseConfig(inst)
-    config.set([('nsslapd-db-compactdb-interval', '2'), ('nsslapd-db-compactdb-time', '00:01')])
+    # Calculate the compaction time (2 minutes from now)
+    now = datetime.datetime.now()
+    current_hour = now.hour
+    current_minute = now.minute + 2
+    if current_hour < 10:
+        hour = "0" + str(current_hour)
+    else:
+        hour = str(current_hour)
+    if current_minute < 10:
+        minute = "0" + str(current_minute)
+    else:
+        minute = str(current_minute)
+    compact_time = hour + ":" + minute
 
     # Configure changelog compaction
     cl5 = Changelog5(inst)
     cl5.replace_many(
         ('nsslapd-changelogcompactdb-interval', '2'),
-        ('nsslapd-changelogcompactdb-time', '00:01'),
-        ('nsslapd-changelogtrim-interval',  '2')
+        ('nsslapd-changelogcompactdb-time', compact_time),
+        ('nsslapd-changelogtrim-interval', '2')
     )
     inst.deleteErrorLogs()
 
-    # Check is compaction occurred
-    time.sleep(6)
-    assert inst.searchErrorsLog("Compacting databases")
+    # Check compaction occurred as expected
+    time.sleep(60)
+    assert not inst.searchErrorsLog("compacting replication changelogs")
+
+    time.sleep(61)
     assert inst.searchErrorsLog("compacting replication changelogs")
     inst.deleteErrorLogs(restart=False)
 

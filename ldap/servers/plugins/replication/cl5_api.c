@@ -103,6 +103,7 @@
 
 #define NO_DISK_SPACE 1024
 #define MIN_DISK_SPACE 10485760 /* 10 MB */
+#define _SEC_PER_DAY 86400
 
 /***** Data Definitions *****/
 
@@ -293,6 +294,7 @@ static int _cl5FileEndsWith(const char *filename, const char *ext);
 
 static PRLock *cl5_diskfull_lock = NULL;
 static int cl5_diskfull_flag = 0;
+static PRBool compacting = PR_FALSE;
 
 static void cl5_set_diskfull(void);
 static void cl5_set_no_diskfull(void);
@@ -3099,7 +3101,7 @@ _cl5TrimCleanup(void)
 static time_t
 _cl5_get_tod_expiration(char *expire_time)
 {
-    time_t start_time, todays_elapsed_time, now = time(NULL);
+    time_t todays_elapsed_time, now = time(NULL);
     struct tm *tm_struct = localtime(&now);
     char hour_str[3] = {0};
     char min_str[3] = {0};
@@ -3109,9 +3111,8 @@ _cl5_get_tod_expiration(char *expire_time)
 
     /* Get today's start time */
     todays_elapsed_time = (tm_struct->tm_hour * 3600) + (tm_struct->tm_min * 60) + (tm_struct->tm_sec);
-    start_time = slapi_current_utc_time() - todays_elapsed_time;
 
-    /* Get the hour and minute and calculate the expiring time.  The time was
+    /* Get the hour and minute and calculate the expiring TOD.  The time was
      * already validated in bdb_config.c:  HH:MM */
     hour_str[0] = *s++;
     hour_str[1] = *s++;
@@ -3122,7 +3123,34 @@ _cl5_get_tod_expiration(char *expire_time)
     min = strtoll(min_str, &endp, 10);
     expiring_time = (hour * 60 * 60) + (min * 60);
 
-    return start_time + expiring_time;
+    /* Calculate the time in seconds when the compaction should start, midnight
+     * requires special treatment (for both current time and configured TOD) */
+    if (expiring_time == 0) {
+        /* Compaction TOD configured for midnight */
+        if (todays_elapsed_time == 0) {
+            /* It's currently midnight, compact now! */
+            return 0;
+        } else {
+            /* Return the time until it's midnight */
+            return _SEC_PER_DAY - todays_elapsed_time;
+        }
+    } else if (todays_elapsed_time == 0) {
+        /* It's currently midnight, just use the configured TOD */
+        return expiring_time;
+    } else if (todays_elapsed_time > expiring_time) {
+        /* We missed TOD today, do it tomorrow */
+        return _SEC_PER_DAY - (todays_elapsed_time - expiring_time);
+    } else {
+        /* Compaction is coming up */
+        return expiring_time - todays_elapsed_time;
+    }
+}
+
+static void
+do_cl_compact(time_t when, void *arg)
+{
+    cl5CompactDBs();
+    compacting = PR_FALSE;
 }
 
 static int
@@ -3131,7 +3159,6 @@ _cl5TrimMain(void *param __attribute__((unused)))
     time_t timePrev = slapi_current_utc_time();
     time_t timeCompactPrev = slapi_current_utc_time();
     time_t timeNow;
-    PRBool compacting = PR_FALSE;
     int32_t compactdb_time = 0;
 
     PR_AtomicIncrement(&s_cl5Desc.threadCount);
@@ -3144,25 +3171,14 @@ _cl5TrimMain(void *param __attribute__((unused)))
             _cl5DoTrimming();
         }
 
-        if (!compacting) {
-            /* Once we know we want to compact we need to stop refreshing the
-             * TOD expiration. Otherwise if the compact time is close to
-             * midnight we could roll over past midnight during the checkpoint
-             * sleep interval, and we'd never actually compact the databases.
-             * We also need to get this value before the sleep.
-            */
-            compactdb_time = _cl5_get_tod_expiration(s_cl5Desc.dbTrim.compactTime);
-        }
         if ((s_cl5Desc.dbTrim.compactInterval > 0) &&
-            (timeNow - timeCompactPrev >= s_cl5Desc.dbTrim.compactInterval))
+            (timeNow - timeCompactPrev >= s_cl5Desc.dbTrim.compactInterval) &&
+            !compacting)
         {
             compacting = PR_TRUE;
-            if (slapi_current_utc_time() > compactdb_time) {
-				/* time to trim */
-				timeCompactPrev = timeNow;
-				cl5CompactDBs();
-				compacting = PR_FALSE;
-            }
+            compactdb_time = _cl5_get_tod_expiration(s_cl5Desc.dbTrim.compactTime);
+            slapi_eq_once_rel(do_cl_compact, NULL, slapi_current_rel_time_t() + compactdb_time);
+			timeCompactPrev = timeNow;
         }
         if (NULL == s_cl5Desc.clLock) {
             /* most likely, emergency */
