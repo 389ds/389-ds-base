@@ -108,7 +108,7 @@ int bdb_db_size(Slapi_PBlock *pb);
 int bdb_upgradedb(Slapi_PBlock *pb);
 int bdb_upgradednformat(Slapi_PBlock *pb);
 int bdb_upgradeddformat(Slapi_PBlock *pb);
-int32_t bdb_compact(struct ldbminfo *li, PRBool just_changelog);
+int bdb_do_compact(struct ldbminfo *li, PRBool just_changelog);
 int bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task);
 int bdb_cleanup(struct ldbminfo *li);
 int bdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool use_lock);
