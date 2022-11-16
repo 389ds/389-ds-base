@@ -2362,14 +2362,14 @@ task_fixup_tombstone_thread(void *arg)
     slapi_task_begin(task, 1);
     slapi_task_log_notice(task, "Beginning tombstone fixup task...\n");
     slapi_log_err(SLAPI_LOG_REPL, TASK_TOMBSTONE_FIXUP,
-                  "fixup_tombstone_task_thread: Beginning tombstone fixup task...\n");
+                  "fixup_tombstone_task_thread: Beginning tombstone fixup task with strip mode: %d...\n", task_data->stripcsn);
 
     if (task_data->stripcsn) {
         /* find tombstones with nsTombstoneCSN */
-        filter = "(&(nstombstonecsn=*)(objectclass=nsTombstone)(|(objectclass=*)(objectclass=ldapsubentry)))";
+        filter = "(&(nstombstonecsn=*)(objectclass=nsTombstone)(!(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff))(|(objectclass=*)(objectclass=ldapsubentry)))";
     } else {
-        /* find tombstones missing nsTombstoneCSN */
-        filter = "(&(!(nstombstonecsn=*))(objectclass=nsTombstone)(|(objectclass=*)(objectclass=ldapsubentry)))";
+        /* find tombstones missing nsTombstoneCSN and ignore the RUV (that should never be purged) */
+        filter = "(&(!(nstombstonecsn=*))(objectclass=nsTombstone)(!(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff))(|(objectclass=*)(objectclass=ldapsubentry)))";
     }
 
     /* Okay check the specified backends only */

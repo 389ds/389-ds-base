@@ -413,6 +413,8 @@ class DirSrv(SimpleLDAPObject, object):
         # Set the default systemd status. This MAY be overidden in the setup utils
         # as required, generally for containers.
         self.systemd_override = None
+        # Status telling whether dbscan supports '-D libdb' option ?
+        self._dbisupport = None
 
         # Reset the args (py.test reuses the args_instance for each test case)
         # We allocate a "default" prefix here which allows an un-allocate or
@@ -2968,10 +2970,11 @@ class DirSrv(SimpleLDAPObject, object):
         os.remove(del_file)
 
     def is_dbi_supported(self):
+        if self._dbisupport is not None:
+            return self._dbisupport
         # check if -D and -L options are supported
         try:
-            cmd = ["%s/dbscan" % self.get_bin_dir(),
-                    "--help"]
+            cmd = ["%s/dbscan" % self.get_bin_dir(), "--help"]
             self.log.debug("DEBUG: checking dbscan supported options %s" % cmd)
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         except subprocess.CalledProcessError:
@@ -2979,27 +2982,29 @@ class DirSrv(SimpleLDAPObject, object):
         output, stderr = p.communicate()
         self.log.debug("is_dbi_supported output " + output.decode())
         if "-D <dbimpl>" in output.decode() and "-L <dbhome>" in output.decode():
-            return True
+            self._dbisupport = True
         else:
-            return False
+            self._dbisupport = False
+        return self._dbisupport
 
     def is_dbi(self, dbipattern):
-        try:
-            cmd = ["%s/dbscan" % self.get_bin_dir(),
-                    "-D",
-                    self.get_db_lib(),
-                    "-L",
-                    self.ds_paths.db_dir],
-            self.log.debug("DEBUG: starting with %s" % cmd)
-            output = subprocess.check_output(*cmd, text=True, stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError:
-            self.log.error('Failed to run dbscan: "%s"' % output)
-            raise ValueError('Failed to run dbscan')
-        self.log.debug("is_dbi output is: " + output)
+        if self.is_dbi_supported():
+            # Use dbscan to determine whether the database instance exists.
+            output = self.dbscan(args=['-L', self.ds_paths.db_dir], stopping=False)
+            self.log.debug("is_dbi output is: " + output)
+            return dbipattern.lower() in output.lower()
+        else:
+            # lmdb is not supported. Check if the database instance file exists.
+            if '.db' in dbipattern:
+                indexfile = os.path.join(self.dbdir, bename, index)
+            else:
+                indexfile = os.path.join(self.dbdir, bename, index + '.db')
+            # (we should also accept a version number for .db suffix)
+            for f in glob.glob(f'{indexfile}*'):
+                return True
+            return False
 
-        return dbipattern.lower() in output.lower()
-
-    def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False):
+    def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False, args=None, stopping=True):
         """Wrapper around dbscan tool that analyzes and extracts information
         from an import Directory Server database file
 
@@ -3009,50 +3014,55 @@ class DirSrv(SimpleLDAPObject, object):
         :param id: Entry id to dump
         :param width: Entry truncate size (bytes)
         :param isRaw: Dump as a raw data
-        :returns: A dumped string
+        :param args: use args as parameters instead of using bename, index, key
+        :param stopping: stop then restart the instance (if started)
+        :returns: dbscan output as a string
         """
 
         DirSrvTools.lib389User(user=DEFAULT_USER)
         prog = os.path.join(self.ds_paths.bin_dir, DBSCAN)
-
-        if not bename:
-            self.log.error("dbscan: missing required backend name")
-            return False
-
-        if not index:
-            self.log.error("dbscan: missing required index name")
-            return False
-        elif '.db' in index:
-            indexfile = os.path.join(self.dbdir, bename, index)
+        if not self.status():
+                stopping = False
+        cmd = [ prog ]
+        if self.is_dbi_supported():
+            cmd.extend(['-D', self.get_db_lib()])
+        if args:
+            cmd.extend(args)
         else:
-            indexfile = os.path.join(self.dbdir, bename, index + '.db')
-        # (we should also accept a version number for .db suffix)
-        for f in glob.glob(f'{indexfile}*'):
-            indexfile = f
-
-        cmd = [prog, '-f', indexfile]
-
-        if 'id2entry' in index:
-            if key and key.isdigit():
-                cmd.extend(['-K', key])
-        else:
-            if key:
-                cmd.extend(['-k', key])
-
+            if not bename:
+                raise ValueError('dbscan: missing required backend name')
+            if not index:
+                raise ValueError('dbscan: missing required index name')
+            if '.db' in index:
+                indexfile = os.path.join(self.dbdir, bename, index)
+            else:
+                indexfile = os.path.join(self.dbdir, bename, index + '.db')
+            # (we should also accept a version number for .db suffix)
+            for f in glob.glob(f'{indexfile}*'):
+                indexfile = f
+            cmd.extends(['-f', indexfile])
+            if 'id2entry' in index:
+                if key and key.isdigit():
+                    cmd.extend(['-K', key])
+                else:
+                    if key:
+                        cmd.extend(['-k', key])
         if width:
             cmd.extend(['-t', width])
-
         if isRaw:
             cmd.append('-R')
-
-        self.stop(timeout=10)
-
+        if stopping:
+            self.stop()
         self.log.info('Running script: %s', cmd)
-        output = subprocess.check_output(cmd)
-
-        self.start(timeout=10)
-
-        return output
+        try:
+            result = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            result.check_returncode();
+        except subprocess.CalledProcessError:
+            self.log.error('Failed to run dbscan: "%s"' % result)
+            raise ValueError('Failed to run dbscan')
+        if stopping:
+            self.start()
+        return result.stdout
 
     def dbverify(self, bename):
         """

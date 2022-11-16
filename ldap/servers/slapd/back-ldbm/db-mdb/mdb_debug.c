@@ -151,13 +151,15 @@ void log_stack(int loglvl)
     int nbframes;
     int i;
 
-    nbframes = backtrace(frames, (sizeof frames)/sizeof frames[0]);
-    symbols = backtrace_symbols(frames, nbframes);
-    if (symbols) {
-        for (i=0; i<nbframes; i++) {
-           slapi_log_err(loglvl, "log_stack", "\t[%d]\t%s\n", i, symbols[i]);
+    if (loglvl & dbgmdb_level) {
+        nbframes = backtrace(frames, (sizeof frames)/sizeof frames[0]);
+        symbols = backtrace_symbols(frames, nbframes);
+        if (symbols) {
+            for (i=0; i<nbframes; i++) {
+               slapi_log_err(SLAPI_LOG_DBGMDB, "log_stack", "\t[%d]\t%s\n", i, symbols[i]);
+            }
+            free(symbols);
         }
-        free(symbols);
     }
 }
 
@@ -196,6 +198,8 @@ static flagsdesc_t mdb_loglvl_desc[] = {
     { "MDB API", DBGMDB_LEVEL_MDBAPI },
     { "TXN", DBGMDB_LEVEL_TXN },
     { "IMPORT", DBGMDB_LEVEL_IMPORT },
+    { "BULKOP", DBGMDB_LEVEL_BULKOP },
+    { "DBGMDB", DBGMDB_LEVEL_OTHER },
     { 0 }
 };
 
@@ -257,7 +261,7 @@ dbgcursor2str(char *buff, size_t bufsiz, MDB_cursor *cursor)
 void
 dbg_log(const char *file, int lineno, const char *funcname, int loglevel, char *fmt, ...)
 {
-    if (loglevel & dbgmdb_level) {
+    if (loglevel & (dbgmdb_level | DBGMDB_LEVEL_FORCE)) {
         char flagsstr[DBGVAL2STRMAXSIZE];
         char *p = NULL;
         va_list ap;
@@ -268,20 +272,47 @@ dbg_log(const char *file, int lineno, const char *funcname, int loglevel, char *
         if (strchr(file, '/')) {
             file = strrchr(file, '/')+1;
         }
-        append_flags(flagsstr, sizeof flagsstr, 0, "LOGLVL", loglevel, mdb_loglvl_desc);
+        append_flags(flagsstr, sizeof flagsstr, 0, "LOGLVL", loglevel & DBGMDB_LEVEL_PRINTABLE, mdb_loglvl_desc);
         slapi_log_err(SLAPI_LOG_DBGMDB, (char*)funcname, "dbmdb: %s[%d]: %s %s\n", file, lineno, flagsstr, p);
         slapi_ch_free_string(&p);
     }
+}
+
+static int
+dbg_should_log2(int loglvl, const char *filename)
+{
+    int rc = ((dbgmdb_level & loglvl) || ( filename && strcasestr(filename, BE_CHANGELOG_FILE)));
+    return rc;
+}
+
+static int
+dbg_should_log(int loglvl, MDB_dbi dbi, MDB_cursor *cursor)
+{
+    dbmdb_dbi_t *dbi1;
+
+    if (dbgmdb_level & loglvl) {
+        return 1;
+    }
+    if (dbgmdb_level & DBGMDB_LEVEL_REPL) {
+        if (cursor) {
+            dbi = mdb_cursor_dbi(cursor);
+        }
+        dbi1 = dbmdb_get_dbi_from_slot(dbi);
+        if (dbi1) {
+            return dbg_should_log2(0, dbi1->dbname);
+        }
+    }
+    return 0;
 }
 
 int
 dbg_mdb_cursor_open(const char *file, int lineno, const char *funcname, MDB_txn *txn, MDB_dbi dbi, MDB_cursor **cursor)
 {
     int rc = mdb_cursor_open(txn, dbi, cursor);
-    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+    if (dbg_should_log(DBGMDB_LEVEL_MDBAPI, dbi, NULL)) {
         char dbistr[DBGVAL2STRMAXSIZE];
         dbi_str(NULL, dbi, dbistr);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_open(txn: %p, %s, cursor: %p)=%d", txn, dbistr, *cursor, rc);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_FORCE, "mdb_cursor_open(txn: %p, %s, cursor: %p)=%d", txn, dbistr, *cursor, rc);
     }
     return rc;
 }
@@ -290,8 +321,8 @@ int
 dbg_mdb_cursor_renew(const char *file, int lineno, const char *funcname, MDB_txn *txn, MDB_cursor *cursor)
 {
     int rc = mdb_cursor_renew(txn, cursor);
-    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_renew(txn: %p, cursor: %p)=%d", txn, cursor, rc);
+    if (dbg_should_log(DBGMDB_LEVEL_MDBAPI, 0, cursor)) {
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_FORCE, "mdb_cursor_renew(txn: %p, cursor: %p)=%d", txn, cursor, rc);
     }
     return rc;
 }
@@ -299,16 +330,18 @@ dbg_mdb_cursor_renew(const char *file, int lineno, const char *funcname, MDB_txn
 void
 dbg_mdb_cursor_close(const char *file, int lineno, const char *funcname, MDB_cursor *cursor)
 {
-    mdb_cursor_close(cursor);
-    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+    if (dbg_should_log(DBGMDB_LEVEL_MDBAPI, 0, cursor)) {
         char dbistr[DBGVAL2STRMAXSIZE];
         dbi_str(cursor, 0, dbistr);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_close(cursor: %p) %s", cursor, dbistr);
+        mdb_cursor_close(cursor);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_FORCE, "mdb_cursor_close(cursor: %p) %s", cursor, dbistr);
+    } else {
+        mdb_cursor_close(cursor);
     }
 }
 
 int
-dbg_mdb_cursor_get(const char *file, int lineno, const char *funcname, MDB_cursor *cursor, MDB_val *key, MDB_val *data, MDB_cursor_op op)
+__dbg_mdb_cursor_get(const char *file, int lineno, const char *funcname, int loglvl, MDB_cursor *cursor, MDB_val *key, MDB_val *data, MDB_cursor_op op)
 {
     char oldkeystr[DBGVAL2STRMAXSIZE];
     char olddatastr[DBGVAL2STRMAXSIZE];
@@ -317,33 +350,41 @@ dbg_mdb_cursor_get(const char *file, int lineno, const char *funcname, MDB_curso
     char flagsstr[DBGVAL2STRMAXSIZE];
     char cursorstr[DBGVAL2STRMAXSIZE];
     char dbistr[DBGVAL2STRMAXSIZE];
-    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+    int sl = 0;
+    if (dbg_should_log(loglvl, 0, cursor)) {
         dbi_str(cursor, 0, dbistr);
         dbgval2str(oldkeystr, sizeof keystr, key);
         dbgval2str(olddatastr, sizeof datastr, data);
         dbgcursor2str(cursorstr, sizeof cursorstr, cursor);
         append_enum(flagsstr, sizeof flagsstr, 0, "op", op, mdb_cursor_op_desc);
+        sl = 1;
     }
     int rc = mdb_cursor_get(cursor, key, data, op);
-    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+    if (sl) {
         dbgval2str(keystr, sizeof keystr, key);
         dbgval2str(datastr, sizeof datastr, data);
         if (*oldkeystr && strcmp(oldkeystr, keystr)) {
-            dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_get requested key was: %s", oldkeystr);
+            dbg_log(file, lineno, funcname, loglvl+DBGMDB_LEVEL_FORCE, "mdb_cursor_get requested key was: %s", oldkeystr);
         }
         if (*olddatastr && strcmp(olddatastr, datastr)) {
-            dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_get requested data was: %s", olddatastr);
+            dbg_log(file, lineno, funcname, loglvl+DBGMDB_LEVEL_FORCE, "mdb_cursor_get requested data was: %s", olddatastr);
         }
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_get(cursor: %s, key: %s,data: %s, %s)=%d %s", cursorstr, keystr, datastr, flagsstr, rc, dbistr);
+        dbg_log(file, lineno, funcname, loglvl+DBGMDB_LEVEL_FORCE, "mdb_cursor_get(cursor: %s, key: %s,data: %s, %s)=%d %s", cursorstr, keystr, datastr, flagsstr, rc, dbistr);
     }
     return rc;
+}
+
+int
+dbg_mdb_cursor_get(const char *file, int lineno, const char *funcname, MDB_cursor *cursor, MDB_val *key, MDB_val *data, MDB_cursor_op op)
+{
+    return __dbg_mdb_cursor_get(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, cursor, key, data, op);
 }
 
 int
 dbg_mdb_put(const char *file, int lineno, const char *funcname, MDB_txn *txn, MDB_dbi dbi, MDB_val *key, MDB_val *data, unsigned int flags)
 {
     int rc = mdb_put(txn, dbi, key, data, flags);
-    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+    if (dbg_should_log(DBGMDB_LEVEL_MDBAPI, dbi, NULL)) {
         char keystr[DBGVAL2STRMAXSIZE];
         char datastr[DBGVAL2STRMAXSIZE];
         char flagsstr[DBGVAL2STRMAXSIZE];
@@ -353,7 +394,7 @@ dbg_mdb_put(const char *file, int lineno, const char *funcname, MDB_txn *txn, MD
         dbgval2str(keystr, sizeof keystr, key);
         dbgval2str(datastr, sizeof datastr, data);
         append_flags(flagsstr, sizeof flagsstr, 0, "flags", flags, mdb_op_flags_desc);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_put(txn: 0x%p, %s, key: %s, data: %s, %s)=%d %s", txn, dbistr, keystr, datastr, flagsstr, rc, dbistr);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_FORCE, "mdb_put(txn: 0x%p, %s, key: %s, data: %s, %s)=%d %s", txn, dbistr, keystr, datastr, flagsstr, rc, dbistr);
     }
     return rc;
 }
@@ -364,12 +405,12 @@ dbg_mdb_get(const char *file, int lineno, const char *funcname, MDB_txn *txn, MD
     char keystr[DBGVAL2STRMAXSIZE];
     char datastr[DBGVAL2STRMAXSIZE];
     char dbistr[DBGVAL2STRMAXSIZE];
-    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
 
+    if (dbg_should_log(DBGMDB_LEVEL_MDBAPI, dbi, NULL)) {
         dbi_str(NULL, dbi, dbistr);
         dbgval2str(keystr, sizeof keystr, key);
         dbgval2str(datastr, sizeof datastr, data);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "CALLING mdb_get(txn: %p, %s ,key: %s, data: %s) %s", txn, dbistr, keystr, datastr, dbistr);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_FORCE, "CALLING mdb_get(txn: %p, %s ,key: %s, data: %s) %s", txn, dbistr, keystr, datastr, dbistr);
     }
     int rc = mdb_get(txn, dbi, key, data);
     if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
@@ -384,7 +425,8 @@ int
 dbg_mdb_del(const char *file, int lineno, const char *funcname, MDB_txn *txn, MDB_dbi dbi, MDB_val *key, MDB_val *data)
 {
     int rc = mdb_del(txn, dbi, key, data);
-    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+
+    if (dbg_should_log(DBGMDB_LEVEL_MDBAPI, dbi, NULL)) {
         char keystr[DBGVAL2STRMAXSIZE];
         char datastr[DBGVAL2STRMAXSIZE];
         char dbistr[DBGVAL2STRMAXSIZE];
@@ -392,7 +434,7 @@ dbg_mdb_del(const char *file, int lineno, const char *funcname, MDB_txn *txn, MD
         dbi_str(NULL, dbi, dbistr);
         dbgval2str(keystr, sizeof keystr, key);
         dbgval2str(datastr, sizeof datastr, data);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_del(txn: %p, %s, key: %s, data: %s)=%d %s", txn, dbistr, keystr, datastr, rc, dbistr);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_FORCE, "mdb_del(txn: %p, %s, key: %s, data: %s)=%d %s", txn, dbistr, keystr, datastr, rc, dbistr);
     }
     return rc;
 }
@@ -401,7 +443,7 @@ int
 dbg_mdb_cursor_put(const char *file, int lineno, const char *funcname, MDB_cursor *cursor, MDB_val *key, MDB_val *data, unsigned int flags)
 {
     int rc = mdb_cursor_put(cursor, key, data, flags);
-    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+    if (dbg_should_log(DBGMDB_LEVEL_MDBAPI, 0, cursor)) {
         char keystr[DBGVAL2STRMAXSIZE];
         char datastr[DBGVAL2STRMAXSIZE];
         char flagsstr[DBGVAL2STRMAXSIZE];
@@ -413,7 +455,7 @@ dbg_mdb_cursor_put(const char *file, int lineno, const char *funcname, MDB_curso
         dbgval2str(datastr, sizeof datastr, data);
         dbgcursor2str(cursorstr, sizeof cursorstr, cursor);
         append_flags(flagsstr, sizeof flagsstr, 0, "flags", flags, mdb_op_flags_desc);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_cursor_put(cursor: %s,key: %s,data: %s,%s)=%d %s", cursorstr, keystr, datastr, flagsstr, rc, dbistr);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_FORCE, "mdb_cursor_put(cursor: %s,key: %s,data: %s,%s)=%d %s", cursorstr, keystr, datastr, flagsstr, rc, dbistr);
     }
     return rc;
 }
@@ -422,10 +464,10 @@ int
 dbg_mdb_dbi_open(const char *file, int lineno, const char *funcname, MDB_txn *txn, const char *dbname, unsigned int flags, MDB_dbi *dbi)
 {
     int rc = mdb_dbi_open(txn, dbname, flags, dbi);
-    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+    if (dbg_should_log2(DBGMDB_LEVEL_MDBAPI, dbname)) {
         char flagsstr[DBGVAL2STRMAXSIZE];
         append_flags(flagsstr, sizeof flagsstr, 0, "flags", flags, mdb_dbi_flags_desc);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_dbi_open(txn: %p, dbname: %s, %s, *%d)=%d", txn, dbname, flagsstr, *dbi, rc);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_FORCE, "mdb_dbi_open(txn: %p, dbname: %s, %s, *%d)=%d", txn, dbname, flagsstr, *dbi, rc);
     }
     return rc;
 }
@@ -434,10 +476,10 @@ int
 dbg_mdb_drop(const char *file, int lineno, const char *funcname, MDB_txn *txn, MDB_dbi dbi, int del)
 {
     int rc = mdb_drop(txn, dbi, del);
-    if (dbgmdb_level & DBGMDB_LEVEL_MDBAPI) {
+    if (dbg_should_log(DBGMDB_LEVEL_MDBAPI, dbi, NULL)) {
         char dbistr[DBGVAL2STRMAXSIZE];
         dbi_str(NULL, dbi, dbistr);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI, "mdb_drop(txn: %p, %s, del: %d)=%d", txn, dbistr, del, rc);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_FORCE, "mdb_drop(txn: %p, %s, del: %d)=%d", txn, dbistr, del, rc);
     }
     return rc;
 }
@@ -450,7 +492,7 @@ int dbg_txn_begin(const char *file, int lineno, const char *funcname, MDB_env *e
     char strflags[100];
     dbmdb_envflags2str(flags, strflags, sizeof strflags);
     dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "TXN_BEGIN[%d]. txn_parent=%p, %s, stack is:", pthread_gettid(), parent_txn, strflags);
-    log_stack(SLAPI_LOG_DBGMDB);
+    log_stack(DBGMDB_LEVEL_TXN);
     dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "Waiting ...\n");
     int rc = mdb_txn_begin(env, parent_txn, flags, txn);
     dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "Done. txn_begin(env=%p, txn_parent=%p, flags=0x%x, txn=0x%p) returned %d.",
@@ -476,7 +518,7 @@ int dbg_txn_end(const char *file, int lineno, const char *funcname, MDB_txn *txn
         mdb_txn_abort(txn);
         dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "TXN_ABORT[%d] (txn=0x%p). stack is:", pthread_gettid(), txn);
     }
-    log_stack(SLAPI_LOG_DBGMDB);
+    log_stack(DBGMDB_LEVEL_TXN);
     return rc;
 }
 
@@ -485,14 +527,14 @@ void dbg_txn_reset(const char *file, int lineno, const char *funcname, MDB_txn *
 {
     mdb_txn_reset(txn);
     dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "TXN_RESET[%d] (txn=0x%p). stack is:", pthread_gettid(), txn);
-    log_stack(SLAPI_LOG_DBGMDB);
+    log_stack(DBGMDB_LEVEL_TXN);
 }
 
 int dbg_txn_renew(const char *file, int lineno, const char *funcname, MDB_txn *txn)
 {
     int rc = mdb_txn_renew(txn);
     dbg_log(file, lineno, funcname, DBGMDB_LEVEL_TXN, "TXN_RENEW[%d] (txn=0x%p) returned %d. stack is:", pthread_gettid(), txn, rc);
-    log_stack(SLAPI_LOG_DBGMDB);
+    log_stack(DBGMDB_LEVEL_TXN);
     return rc;
 }
 
@@ -502,6 +544,11 @@ void dbmdb_log_dbi_set_fn(const char *file, int lineno, const char *funcname, co
     dladdr(fn, &info);
     /* Cannot use dbi_str here because slot is not yet up2date (so dbname is an argument) */
     dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI,  "%s(txn=0x%p, dbi=%d <%s>, fn=0x%p <%s>)\n", action, txn, dbi, dbname, fn, info.dli_sname);
+}
+
+int dbg_mdb_bulkop_cursor_get(const char *file, int lineno, const char *funcname, MDB_cursor *cursor, MDB_val *key, MDB_val *data, MDB_cursor_op op)
+{
+    return __dbg_mdb_cursor_get(file, lineno, funcname, DBGMDB_LEVEL_BULKOP, cursor, key, data, op);
 }
 
 #else /* DBMDB_DEBUG */
