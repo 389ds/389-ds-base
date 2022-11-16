@@ -1532,6 +1532,8 @@ dbi_error_t dbmdb_map_error(const char *funcname, int err)
     switch (err) {
         case 0:
             return DBI_RC_SUCCESS;
+        case DBI_RC_BUFFER_SMALL:
+            return DBI_RC_BUFFER_SMALL;
         case MDB_KEYEXIST:
             return DBI_RC_KEYEXIST;
         case MDB_NOTFOUND:
@@ -1625,12 +1627,22 @@ char *dbmdb_public_get_db_filename(dbi_db_t *db)
     return (char*)(dbmdb_db->dbname);
 }
 
+/*
+ * In data mode (i.e: (bulkdata->v.flags & DBI_VF_BULK_DATA)):
+ *   bulkdata->v.data is a dbmdb_bulkdata_t
+ *          it contains data to set the cursor then
+ *          last data read
+ *   each dbmdb_public_bulk_nextdata returns the last data and collect next one
+ *
+ * In records mode
+ *   bulkdata->v.data is a   MDB_VAL[];  char[] (the MDB_VAL_ARRAY is growing from v.data while the char heap is decreasing from bulkdata->v.data+bulkdata->v.ulen)
+ *     MDB_VAL array is null terminated.
+ *
+ *   if too small then bulkdata->size is set to the needed size
+ */
+
 int dbmdb_public_bulk_free(dbi_bulk_t *bulkdata)
 {
-    if ((bulkdata->v.flags & DBI_VF_BULK_RECORD) && bulkdata->v.size == 1) {
-        slapi_ch_free(&((MDB_val *)(bulkdata->v.data))->mv_data);
-        bulkdata->v.size = 0;
-    }
     /* No specific action required for mdb handling */
     return DBI_RC_SUCCESS;
 }
@@ -1642,6 +1654,7 @@ int dbmdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
     char *v = dbmdb_data->data.mv_data;
     int rc = 0;
 
+    dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_BULKOP, "dbmdb_public_bulk_nextdata idx=%d", *idx);
     PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_DATA);
     if (dbmdb_data->use_multiple) {
         PR_ASSERT(dbmdb_data->data_size);
@@ -1660,7 +1673,11 @@ int dbmdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
             return DBI_RC_NOTFOUND;
         }
         dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data.mv_size);
-        rc = MDB_CURSOR_GET(dbmdb_data->cursor, &dbmdb_data->key, &dbmdb_data->data, dbmdb_data->op);
+        rc = MDB_BULKOP_CURSOR_GET(dbmdb_data->cursor, &dbmdb_data->key, &dbmdb_data->data, dbmdb_data->op);
+        if (rc == MDB_NOTFOUND) {
+            rc = 0;
+            dbmdb_data->op = 0;
+        }
     }
     rc = dbmdb_map_error(__FUNCTION__, rc);
     return rc;
@@ -1668,20 +1685,20 @@ int dbmdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
 
 int dbmdb_public_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *data)
 {
-    MDB_val *vals = bulkdata->v.data;
-    MDB_val *endvals = &vals[bulkdata->v.size];
-    MDB_val *val = NULL;
     int *idx = (int*) (&bulkdata->it);
+    struct {
+        MDB_val k;
+        MDB_val d;
+    } *vals = bulkdata->v.data, *val = &vals[*idx];
 
+    dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_BULKOP, "dbmdb_public_bulk_nextrecord idx=%d", *idx);
     PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
-    if (&vals[*idx] >= endvals) {
+    if (val->k.mv_data == NULL) {
         return DBI_RC_NOTFOUND;
     }
-    val = &vals[*idx];
-    dblayer_value_set_buffer(bulkdata->be, key, val->mv_data, val->mv_size);
-    val = &vals[*idx+1];
-    dblayer_value_set_buffer(bulkdata->be, data, val->mv_data, val->mv_size);
-    (*idx) += 2;
+    (*idx)++;
+    dblayer_value_set_buffer(bulkdata->be, key, val->k.mv_data, val->k.mv_size);
+    dblayer_value_set_buffer(bulkdata->be, data, val->d.mv_data, val->d.mv_size);
     return 0;
 }
 
@@ -1693,17 +1710,22 @@ int dbmdb_public_bulk_init(dbi_bulk_t *bulkdata)
 
 int dbmdb_public_bulk_start(dbi_bulk_t *bulkdata)
 {
+    dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_BULKOP, "dbmdb_public_bulk_start");
     bulkdata->it = (void*) 0;
     return DBI_RC_SUCCESS;
 }
 
 int dbmdb_fill_bulkop_records(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata)
 {
-#define BRVAL(dpl)  &((MDB_val *)(bulkdata->v.data))[dpl]
+    struct {
+        MDB_val k;
+        MDB_val d;
+    } *vals = bulkdata->v.data, vzero = {0};
     char *endheap = &((char*)(bulkdata->v.data))[bulkdata->v.ulen];
     MDB_cursor *mcursor = (MDB_cursor*)cursor->cur;
-    MDB_val *mdata = NULL;
-    MDB_val *mkey = NULL;
+    MDB_val mdata = {0};
+    MDB_val mkey = {0};
+    int nbrec = 0;
     int mop = 0;
     int rc = 0;
 
@@ -1713,15 +1735,21 @@ int dbmdb_fill_bulkop_records(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key
      *   size : 2 * number of records
      *   data :   MDB_val[size] key_data_pairs / Empty / Heap
      */
-    dbmdb_public_bulk_free(bulkdata);
+    dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_BULKOP, "dbmdb_fill_bulkop_records");
+
     bulkdata->v.size = 0;
+    *vals = vzero;
     switch (op)
     {
         case DBI_OP_MOVE_TO_FIRST:
             mop = MDB_FIRST;
             break;
         case DBI_OP_MOVE_TO_KEY:
-            mop = MDB_SET;
+            if (key->size && key->data) {
+                mop = MDB_SET;
+            } else {
+                mop = MDB_FIRST;
+            }
             break;
         case DBI_OP_NEXT_KEY:
             mop = MDB_NEXT_NODUP;
@@ -1740,54 +1768,55 @@ int dbmdb_fill_bulkop_records(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key
     if (!mop) {
         return DBI_RC_UNSUPPORTED;
     }
+    dbmdb_dbival2dbt(key, &mkey, PR_FALSE);
     while (!rc) {
-        char *keyinheap;
-        char *datainheap;
-        if ((char*)BRVAL(bulkdata->v.size+2) >= endheap) {
-            break;
+        if (mop != MDB_SET) {
+            mkey.mv_data = NULL;
+            mkey.mv_size = 0;
         }
-        mkey = BRVAL(bulkdata->v.size);
-        mdata = BRVAL(bulkdata->v.size+1);
-        mkey->mv_data = mdata->mv_data = NULL;
-        mkey->mv_size = mdata->mv_size = 0;
-        if (bulkdata->v.size == 0) {
-            dbmdb_dbival2dbt(key, mkey, PR_FALSE);
-        }
-        rc = MDB_CURSOR_GET(mcursor, mkey, mdata, mop);
-        if (rc) {
-            if ((rc == MDB_NOTFOUND) && bulkdata->v.size) {
+        mdata.mv_data = NULL;
+        mdata.mv_size = 0;
+        rc = MDB_BULKOP_CURSOR_GET(mcursor, &mkey, &mdata, mop);
+        if (rc == MDB_NOTFOUND) {
+            if (nbrec) {
                 rc = 0;
             }
-            rc = dbmdb_map_error(__FUNCTION__, rc);
+            break;
+        } else if (rc) {
             break;
         }
-        keyinheap = endheap - mkey->mv_size;
-        datainheap = keyinheap - mdata->mv_size;
-        endheap = datainheap;
-        if ((char*)BRVAL(bulkdata->v.size+2) >= datainheap) {
-            /* Buffer is too small to store this value */
-            if (bulkdata->v.size) {
-                MDB_CURSOR_GET(mcursor, mkey, mdata, MDB_PREV);
-                break;
-            }
-            bulkdata->v.size = -1;
-            keyinheap = slapi_ch_malloc(mkey->mv_size + mdata->mv_size);
-            datainheap = keyinheap + mkey->mv_size;
+        if (((char*)(vals+2)) <=  endheap - mkey.mv_size - mdata.mv_size) {
+            /* Store record in buffer */
+            vals->d.mv_size = mdata.mv_size;
+            vals->d.mv_data = endheap - mdata.mv_size;
+            vals->k.mv_size = mkey.mv_size;
+            vals->k.mv_data = endheap - mkey.mv_size - mdata.mv_size;
+            memcpy(vals->d.mv_data, mdata.mv_data, mdata.mv_size);
+            memcpy(vals->k.mv_data, mkey.mv_data, mkey.mv_size);
+            endheap -= (mkey.mv_size + mdata.mv_size);
+            *++vals = vzero;
+        } else if (nbrec) {
+            /* Run out of buffer space ==> Move cursor back */
+            dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_BULKOP, "dbmdb_fill_bulkop_records: buffer is full ==> moving cursor back");
+            rc = MDB_BULKOP_CURSOR_GET(mcursor, &mkey, &mdata, MDB_PREV);
+            break;
+        } else {
+            /* First record is too big for buffer */
+            size_t oldsz = bulkdata->v.ulen;
+            size_t newsz = 4 * (sizeof (MDB_val)) + mkey.mv_size + mdata.mv_size;
+            bulkdata->v.ulen = bulkdata->v.size = newsz;
+            dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_BULKOP, "dbmdb_fill_bulkop_records buffer too small: current size is %ld bytes while %ld are needed.", oldsz, newsz);
+            rc = MDB_BULKOP_CURSOR_GET(mcursor, &mkey, &mdata, MDB_PREV);
+            return DBI_RC_BUFFER_SMALL;
         }
         mop = MDB_NEXT;
-        bulkdata->v.size += 2;
-        memcpy(keyinheap, mkey->mv_data, mkey->mv_size);
-        memcpy(datainheap, mdata->mv_data, mdata->mv_size);
-        mkey->mv_data = keyinheap;
-        mdata->mv_data = datainheap;
-        if (bulkdata->v.size == 1) {
-            break;
-        }
+        nbrec++;
     }
     /* Copy last key back to key */
     if (rc == 0) {
-        rc = dbmdb_dbt2dbival(mkey, key, PR_TRUE, rc);
+        rc = dbmdb_dbt2dbival(&mkey, key, PR_TRUE, rc);
     }
+    dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_BULKOP, "dbmdb_fill_bulkop_records stored %d records. rc=%d", nbrec, rc);
     return rc;
 }
 
@@ -1801,12 +1830,14 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
     if (!(cursor && cursor->cur))
         return DBI_RC_INVALID;
     if (bulkdata->v.flags & DBI_VF_BULK_RECORD) {
-        return dbmdb_fill_bulkop_records(cursor, op, key, bulkdata);
+        dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_BULKOP, "DBI_VF_BULK_RECORD");
+        rc = dbmdb_fill_bulkop_records(cursor, op, key, bulkdata);
+        return dbmdb_map_error(__FUNCTION__,rc);
     }
 
     dbmdb_cur = (MDB_cursor*)cursor->cur;
     bulkdata->v.size = sizeof *dbmdb_data;
-    dbmdb_data->cursor = (MDB_cursor*)cursor->cur;
+    dbmdb_data->cursor = dbmdb_cur;
     dbmdb_dbival2dbt(key, &dbmdb_data->key, PR_FALSE);
     mdb_dbi_flags(mdb_cursor_txn(dbmdb_cur), mdb_cursor_dbi(dbmdb_cur), &dbmdb_data->dbi_flags);
     dbmdb_data->use_multiple = (dbmdb_data->dbi_flags & MDB_DUPFIXED);
@@ -1816,6 +1847,7 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
     dbmdb_data->data.mv_size = 0;
     dbmdb_data->op = 0;
     mval = &dbmdb_data->data;
+    dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_BULKOP, "DBI_VF_BULK_DATA multiple=%d dbi_flags=0x%x", dbmdb_data->use_multiple, dbmdb_data->dbi_flags);
 
     /* if dbmdb_data->use_multiple:
      *  WARNING lmdb documentation about GET_MULTIPLE is wrong:
@@ -1825,31 +1857,32 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
      *   retrieve the first item in bulkdata->key and bulkdata->data and prepare to retieve next item in
      *   dbmdb_public_bulk_nextrecord or dbmdb_public_bulk_nextdata
      */
+
     switch (op)
     {
         case DBI_OP_MOVE_TO_FIRST:
                 /* Returns dups of first entries */
-            rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_FIRST);
+            rc = MDB_BULKOP_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_FIRST);
             if (rc == 0) {
                 dbmdb_data->op = MDB_NEXT_DUP;
                 if (dbmdb_data->use_multiple) {
                     dbmdb_data->data0 = *mval;
                     dbmdb_data->data_size = mval->mv_size;
                     memset(mval, 0, sizeof dbmdb_data->data);
-                    rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_GET_MULTIPLE);
+                    rc = MDB_BULKOP_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_GET_MULTIPLE);
                 }
             }
             break;
         case DBI_OP_MOVE_TO_KEY:
                 /* Move customer to the specified key and returns dups */
-            rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_SET);
+            rc = MDB_BULKOP_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_SET);
             if (rc == 0) {
                 dbmdb_data->op =  (bulkdata->v.flags & DBI_VF_BULK_RECORD) ? MDB_NEXT : MDB_NEXT_DUP;
                 if (dbmdb_data->use_multiple) {
                     dbmdb_data->data0 = *mval;
                     dbmdb_data->data_size = mval->mv_size;
                     memset(mval, 0, sizeof dbmdb_data->data);
-                    rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_GET_MULTIPLE);
+                    rc = MDB_BULKOP_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_GET_MULTIPLE);
                 }
             }
             break;
@@ -1857,9 +1890,9 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
             if (dbmdb_data->use_multiple) {
                 memset(&dbmdb_data->data0, 0, sizeof dbmdb_data->data0);
                 memset(mval, 0, sizeof dbmdb_data->data);
-                rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_NEXT_MULTIPLE);
+                rc = MDB_BULKOP_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_NEXT_MULTIPLE);
             } else {
-                rc = MDB_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_NEXT_NODUP);
+                rc = MDB_BULKOP_CURSOR_GET(dbmdb_data->cursor,  &dbmdb_data->key, mval, MDB_NEXT_NODUP);
                 if (rc == 0) {
                     dbmdb_data->op = MDB_NEXT_DUP;
                 }
@@ -2113,8 +2146,8 @@ void *dbmdb_recno_cache_build(void *arg)
         rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi->dbi, &rckey, &rcdata, 0);
         slapi_ch_free(&rckey.mv_data);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build", 
-                          "Failed to write record in db %s, key=%s error: %s\n", 
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build",
+                          "Failed to write record in db %s, key=%s error: %s\n",
                           rcctx->rcdbi->dbname, (char*)(key.mv_data), mdb_strerror(rc));
         } else {
             dbmdb_generate_recno_cache_key_by_data(&rckey, &key, &data);
@@ -2122,8 +2155,8 @@ void *dbmdb_recno_cache_build(void *arg)
             slapi_ch_free(&rckey.mv_data);
             txn_ctx.flags |= DBMDB_TXNCTX_NEED_COMMIT;
             if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build", 
-                              "Failed to write record in db %s, key=%s error: %s\n", 
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build",
+                              "Failed to write record in db %s, key=%s error: %s\n",
                               rcctx->rcdbi->dbname, (char*)(key.mv_data), mdb_strerror(rc));
             }
         }
@@ -2137,14 +2170,14 @@ void *dbmdb_recno_cache_build(void *arg)
         rckey.mv_size = 2;
         rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi->dbi, &rckey, &rckey, 0);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build", 
-                          "Failed to write record in db %s, key=%s error: %s\n", 
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build",
+                          "Failed to write record in db %s, key=%s error: %s\n",
                           rcctx->rcdbi->dbname, (char*)(rckey.mv_data), mdb_strerror(rc));
             }
         txn_ctx.flags |= DBMDB_TXNCTX_NEED_COMMIT;
     } else {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build", 
-                      "Failed to walk record in db %s, error: %s\n", 
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build",
+                      "Failed to walk record in db %s, error: %s\n",
                       rcctx->rcdbi->dbname, mdb_strerror(rc));
     }
 
@@ -2340,6 +2373,15 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
 
     dbmdb_dbival2dbt(key, &dbmdb_key, PR_FALSE);
     dbmdb_dbival2dbt(data, &dbmdb_data, PR_FALSE);
+    if (dbmdb_key.mv_data == NULL || dbmdb_key.mv_size == 0) {
+        /* _cl5GetFirstEntry that use cursor with DBI_OP_NEXT and an empty key.
+         * This return first records with bdb but fails with MDB_BAD_VALSIZE when
+         * using lmdb. So lets explicithly use DBI_OP_MOVE_TO_FIRST in this case.
+         */
+        if (op == DBI_OP_NEXT) {
+            op = DBI_OP_MOVE_TO_FIRST;
+        }
+    }
     switch (op)
     {
         case DBI_OP_MOVE_TO_KEY:

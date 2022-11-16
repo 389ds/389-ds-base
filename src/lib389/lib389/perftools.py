@@ -45,7 +45,7 @@ class IdGenerator:
         return self._formatId()
 
     def _formatId(self, id):
-        # Should be overwritten in subclass 
+        # Should be overwritten in subclass
         # Should return an id
         return str(id)
 
@@ -75,7 +75,7 @@ class IdGeneratorWithNames(IdGenerator):
         self._voyelles = [ 'a', 'e', 'i', 'o', 'u', 'ai', 'an', 'au', 'en', 'ei', 'en', 'eu', 'in', 'on', 'ou' ]
         self._consonnes = [ 'b', 'c', 'ch', 'cr', 'd', 'f', 'g', 'j', 'l', 'm', 'n', 'p', 'ph', 'qu', 'r', 's', 't', 'v' ]
         self._syllabs = [c+v for c in self._consonnes for v in self._voyelles]
-        shuffle(self._syllabs) 
+        shuffle(self._syllabs)
         self._level = 0
         self._syllabsLen = len(self._syllabs)
         while (nbids > 0):
@@ -153,7 +153,7 @@ class PerformanceTools:
         perfdir= f"{prefix}/var/log/dirsrv/perfdir"
         print(f"Results and logs are stored in {perfdir} directory.")
         self._options = {
-            'nbUsers' : 10000,                
+            'nbUsers' : 10000,
             'seed' : 'lib389PerfTools',
             'resultDir' : perfdir,
             'suffix' : DEFAULT_SUFFIX,
@@ -163,7 +163,7 @@ class PerformanceTools:
         self._instance = None
         os.makedirs(perfdir, mode=0o755, exist_ok = True)
         self._ldclt_template = self.getFilePath("template.ldclt");
-        # Generate a dummy template anyway we do not plan to create entries 
+        # Generate a dummy template anyway we do not plan to create entries
         with open(self._ldclt_template, "w") as f:
             f.write("objectclass: inetOrgPerson\n");
         self._users_parents_dn = f"ou=People,{self._options['suffix']}"
@@ -243,7 +243,7 @@ class PerformanceTools:
                 csv.nl();
 
     def getFilePath(self, filename):
-        return os.path.join(self._options['resultDir'], filename)   
+        return os.path.join(self._options['resultDir'], filename)
 
     def log(self, filename, msg):
         with open(self.getFilePath(filename), "at") as f:
@@ -274,7 +274,7 @@ class PerformanceTools:
                         need_rebuild = False
                     else:
                         print (f"db is {self._instance.get_db_lib()} instead of {get_default_db_lib()} ==> instance must be rebuild")
-                else:    
+                else:
                     print (f"missing instance ==> instance must be rebuild")
             except Exception:
                 pass
@@ -286,9 +286,9 @@ class PerformanceTools:
             topology = create_topology({ReplicaRole.STANDALONE: 1})
             self._instance = topology.standalone
             #  Adjust db size if needed (i.e about 670 K users)
-            defaultDBsize = 1073741824 
-            entrySize =  1600 # Real size is around 1525 
-            if (self._instance.get_db_lib() == "mdb" and 
+            defaultDBsize = 1073741824
+            entrySize =  2000 # Real size is around 1525 but got error with 1800 (likely due to some recent changes in entries)
+            if (self._instance.get_db_lib() == "mdb" and
                     nb_users * entrySize > defaultDBsize):
                 mdb_config = LMDB_LDBMConfig(self._instance)
                 mdb_config.replace("nsslapd-mdb-max-size", str(nb_users * entrySize))
@@ -299,7 +299,7 @@ class PerformanceTools:
                 uidgen = IdGeneratorWithNumbers(nb_users)
                 cnGen = IdGeneratorWithNames(100)
                 snGen = IdGeneratorWithNames(100)
-        
+
                 for uid in uidgen:
                     cn = cnGen.random()
                     sn = snGen.random()
@@ -317,7 +317,7 @@ class PerformanceTools:
                     super(UserAccounts, useraccounts).create(rdn, properties)
                     f.write(f'{uid}\n')
         return self._instance;
-        
+
     @staticmethod
     def filterMeasures(values, m, ecart):
         # keep values around m
@@ -373,7 +373,7 @@ class PerformanceTools:
         return res
 
     def ldclt(self, measure_name, args, nbThreads=10, nbMes=10):
-        # First ldclt measure is always bad so do 1 measure more 
+        # First ldclt measure is always bad so do 1 measure more
         # and discard it from final result
         nbMes += 1
 
@@ -409,7 +409,7 @@ class PerformanceTools:
         print (" Done.")
         stop_time = time.time()
         # Lets parse the result
-        res = { "measure_name" : measure_name, 
+        res = { "measure_name" : measure_name,
                 "cmd" : cmd,
                 "stdout" : result.stdout,
                 "stderr" : result.stderr,
@@ -435,7 +435,7 @@ class PerformanceTools:
         return self.ldclt(name, args, nbThreads=nb_threads)
 
     # I wish I could make the base dn vary rather than use the dn in filter
-    # but I did not find how to do that (the RDN trick as in modify 
+    # but I did not find how to do that (the RDN trick as in modify
     #  generates the same search than measure_search_by_uid test)
     def measure_search_by_filtering_the_dn(self, name, nb_threads = 1):
         nb_users = self._options['nbUsers']
@@ -473,7 +473,7 @@ class PerformanceTools:
 
     def _do_measure(self, measure_name, measure_cb, nbMes):
         # Perform non ldcltl measure
-        #  
+        #
         first_time = time.time()
         rawres = []
         for m in range(nbMes):
@@ -484,7 +484,7 @@ class PerformanceTools:
                 continue
         last_time = time.time()
         # Lets parse the result
-        res = { "measure_name" : measure_name, 
+        res = { "measure_name" : measure_name,
                 "start_time" : first_time,
                 "stop_time" : last_time,
                 "nb_measures" : nbMes,
@@ -512,7 +512,7 @@ class PerformanceTools:
 
         def argsused(self):
             return [ "nb_threads", "name" ]
-        
+
         def description(self):
             return self._base_description
 
@@ -531,13 +531,13 @@ class PerformanceTools:
     class TesterImportExport(Tester):
         # A special tester for export/import
         def __init__(self):
-            super().__init__("export/import", 
+            super().__init__("export/import",
                 "Measure export rate in entries per seconds then measure import rate.",
                  None)
 
         def argsused(self):
             return []
-        
+
         def run(self, perftools, args=None):
             res = perftools.mesure_export_import()
             for r in res:
@@ -546,7 +546,7 @@ class PerformanceTools:
     @staticmethod
     def listTests():
         # List of test for which args.nb_threads is useful
-        return { t.name() :  t for t in [ 
+        return { t.name() :  t for t in [
             PerformanceTools.Tester("search_uid", "Measure number of searches per seconds using filter with random existing uid.", "measure_search_by_uid"),
             PerformanceTools.Tester("search_uid_in_dn", "Measure number of searches per seconds using filter with random existing uid in dn (i.e: (uid:dn:uid_value)).", "measure_search_by_filtering_the_dn"),
             PerformanceTools.Tester("modify_sn", "Measure number of modify per seconds replacing sn by random value on random entries.", "measure_modify"),

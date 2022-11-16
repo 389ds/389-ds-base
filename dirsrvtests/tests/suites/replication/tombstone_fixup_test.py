@@ -40,9 +40,10 @@ def test_precise_tombstone_purging(topology_m1):
         5. Success
         6. Success
     """
-    
+
     m1 = topology_m1.ms['supplier1']
     m1_tasks = Tasks(m1)
+    m1_tasks.log = log
 
     # Create tombstone entry
     users = UserAccounts(m1, DEFAULT_SUFFIX)
@@ -58,26 +59,22 @@ def test_precise_tombstone_purging(topology_m1):
     args = {EXPORT_REPL_INFO: True,
             TASK_WAIT: True}
     m1_tasks.exportLDIF(DEFAULT_SUFFIX, None, ldif_file, args)
-    time.sleep(.5)
 
-    # Strip LDIF of nsTombstoneCSN, getthe LDIF lines, the n create new ldif 
+    # Strip LDIF of nsTombstoneCSN, getthe LDIF lines, the n create new ldif
     ldif = open(ldif_file, "r")
     lines = ldif.readlines()
     ldif.close()
-    time.sleep(.5)
 
     ldif = open(ldif_file, "w")
     for line in lines:
         if not line.lower().startswith('nstombstonecsn'):
             ldif.write(line)
     ldif.close()
-    time.sleep(.5)
 
     # import the new ldif file
     log.info('Import replication LDIF file...')
     args = {TASK_WAIT: True}
     m1_tasks.importLDIF(DEFAULT_SUFFIX, None, ldif_file, args)
-    time.sleep(.5)
 
     # Search for the tombstone again
     tombstones = Tombstones(m1, DEFAULT_SUFFIX)
@@ -89,20 +86,23 @@ def test_precise_tombstone_purging(topology_m1):
     args = {TASK_WAIT: True,
             TASK_TOMB_STRIP: True}
     m1_tasks.fixupTombstones(DEFAULT_BENAME, args)
-    time.sleep(.5)
 
     # Search for tombstones with nsTombstoneCSN - better not find any
     for ts in tombstones.list():
         assert not ts.present("nsTombstoneCSN")
-    
+
     # Now run the fixup task
     args = {TASK_WAIT: True}
     m1_tasks.fixupTombstones(DEFAULT_BENAME, args)
-    time.sleep(.5)
 
     # Search for tombstones with nsTombstoneCSN - better find some
     tombstones = Tombstones(m1, DEFAULT_SUFFIX)
     assert len(tombstones.list()) == 1
+
+    # Verify that all tombstones have a nsTombstoneCSN
+    for ts in tombstones.list():
+        log.info(f'Checking nsTombstoneCSN on tombstone {ts}')
+        assert ts.present("nsTombstoneCSN")
 
     #
     # Part 4 - Test tombstone purging
