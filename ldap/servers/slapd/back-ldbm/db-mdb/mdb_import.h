@@ -27,21 +27,25 @@ typedef enum { IM_UNKNOWN, IM_IMPORT, IM_INDEX, IM_UPGRADE, IM_BULKIMPORT } Impo
 
 typedef struct importctx ImportCtx_t;
 
+#define DNRC_IS_ENTRY(dnrc)  (((dnrc) & DNRC_ERROR) == 0)
+
 typedef enum {
-    DNRC_OK,          /* Regular entry */
-    DNRC_BADDN,       /* Invalid DN syntax */
-    DNRC_BAD_SUFFIX_ID, /* DN is the backend suffix and the entry ID != 1 */
-    DNRC_DUP,         /* DN already exist in the private database */
-    DNRC_ERROR,       /* Some lmdb error occured */
-    DNRC_NODN,        /* No dn: in entry string */
-    DNRC_NOPARENT_DN, /* Entry DN has a single rdn */
-    DNRC_NOPARENT_ID, /* Parent info record is not found or no parenid: in entry */
-    DNRC_NORDN,       /* No rdn: in entry string */
-    DNRC_RUV,         /* RUV entry */
-    DNRC_SUFFIX,      /* Suffix entry */
-    DNRC_TOMBSTONE,   /* Tombstone entry */
-    DNRC_VERSION,     /* Not an entry but initial ldif version string */
-    DNRC_WAIT,        /* Parent id not yet in private db */
+    DNRC_OK,              /* Regular entry */
+    DNRC_RUV,             /* RUV entry */
+    DNRC_SUFFIX,          /* Suffix entry */
+    DNRC_TOMBSTONE,       /* Tombstone entry */
+    DNRC_ERROR = 0x100,   /* Some lmdb error occured */
+    DNRC_BADDN,           /* Invalid DN syntax */
+    DNRC_BAD_SUFFIX_ID,   /* DN is the backend suffix and the entry ID != 1 */
+    DNRC_DUP,             /* DN already exist in the private database */
+    DNRC_NODN,            /* No dn: in entry string */
+    DNRC_NOPARENT_DN,     /* Entry DN has a single rdn */
+    DNRC_NOPARENT_ID,     /* Parent info record is not found or no parenid: in entry */
+    DNRC_NORDN,           /* No rdn: in entry string */
+    DNRC_VERSION,         /* Not an entry but initial ldif version string */
+    DNRC_WAIT,            /* Parent id not yet in private db */
+    DNRC_POSPONE_RUV,     /* RUV entry is before suffix entry */
+    DNRC_BAD_TOMBSTONE,   /* Invalid tombstone entry */
 } dnrc_t;
 
 /******************** Queues ********************/

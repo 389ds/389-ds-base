@@ -269,6 +269,8 @@ def test_healthcheck_MO_plugin_missing_indexes(topology_st):
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+    # Restart the intsnce after changing the plugin to avoid breaking the other tests
+    standalone.restart()
 
 
 @pytest.mark.ds50873

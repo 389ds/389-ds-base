@@ -445,7 +445,7 @@ idl_new_range_fetch(
     }
 
     /* Make a cursor */
-    ret = dblayer_new_cursor(be, db, txn, &cursor);
+    ret = dblayer_new_cursor(be, db, s_txn.back_txn_txn, &cursor);
     if (0 != ret) {
         ldbm_nasty("idl_new_range_fetch - idl_new.c", index_id, 1, ret);
         goto error;
