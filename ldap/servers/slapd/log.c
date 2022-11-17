@@ -237,6 +237,17 @@ g_set_accesslog_level(int val)
 }
 
 /******************************************************************************
+* Set the stat level
+******************************************************************************/
+void
+g_set_statlog_level(int val)
+{
+    LOG_ACCESS_LOCK_WRITE();
+    loginfo.log_access_stat_level = val;
+    LOG_ACCESS_UNLOCK_WRITE();
+}
+
+/******************************************************************************
 * Set whether the process is alive or dead
 * If it is detached, then we write the error in 'stderr'
 ******************************************************************************/
@@ -286,6 +297,7 @@ g_log_init()
     if ((loginfo.log_access_buffer->lock = PR_NewLock()) == NULL) {
         exit(-1);
     }
+    loginfo.log_access_stat_level = cfg->statloglevel;
 
     /* ERROR LOG */
     loginfo.log_error_state = cfg->errorlog_logging_enabled;
@@ -2755,7 +2767,21 @@ vslapd_log_access(char *fmt, va_list ap)
 
     return (rc);
 }
+int
+slapi_log_stat(int loglevel, const char *fmt, ...)
+{
+    char buf[2048];
+    va_list args;
+    int rc = LDAP_SUCCESS;
 
+    if (loglevel & loginfo.log_access_stat_level) {
+            va_start(args, fmt);
+            PR_vsnprintf(buf, sizeof(buf), fmt, args);
+            rc = slapi_log_access(LDAP_DEBUG_STATS, "%s", buf);
+            va_end(args);
+    }
+    return rc;
+}
 int
 slapi_log_access(int level,
                  char *fmt,

@@ -652,6 +652,92 @@ slapi_operation_time_expiry(Slapi_Operation *o, time_t timeout, struct timespec 
     slapi_timespec_expire_rel(timeout, &(o->o_hr_time_rel), expiry);
 }
 
+
+/*
+ * Operation extension for operation statistics
+ */
+static int op_stat_objtype = -1;
+static int op_stat_handle = -1;
+
+Op_stat *
+op_stat_get_operation_extension(Slapi_PBlock *pb)
+{
+    Slapi_Operation *op;
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    return (Op_stat *)slapi_get_object_extension(op_stat_objtype,
+                                                             op, op_stat_handle);
+}
+
+void
+op_stat_set_operation_extension(Slapi_PBlock *pb, Op_stat *op_stat)
+{
+    Slapi_Operation *op;
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    slapi_set_object_extension(op_stat_objtype, op,
+                               op_stat_handle, (void *)op_stat);
+}
+
+/*
+ * constructor for the operation object extension.
+ */
+static void *
+op_stat_constructor(void *object __attribute__((unused)), void *parent __attribute__((unused)))
+{
+    Op_stat *op_statp = NULL;
+    op_statp = (Op_stat *)slapi_ch_calloc(1, sizeof(Op_stat));
+    op_statp->search_stat = (Op_search_stat *)slapi_ch_calloc(1, sizeof(Op_search_stat));
+
+    return op_statp;
+}
+/*
+ * destructor for the operation object extension.
+ */
+static void
+op_stat_destructor(void *extension, void *object __attribute__((unused)), void *parent __attribute__((unused)))
+{
+    Op_stat *op_statp = (Op_stat *)extension;
+
+    if (NULL == op_statp) {
+        return;
+    }
+
+    if (op_statp->search_stat) {
+        struct component_keys_lookup *keys, *next;
+
+        /* free all the individual key counter */
+        keys = op_statp->search_stat->keys_lookup;
+        while (keys) {
+            next = keys->next;
+            slapi_ch_free_string(&keys->attribute_type);
+            slapi_ch_free_string(&keys->key);
+            slapi_ch_free_string(&keys->index_type);
+            slapi_ch_free((void **) &keys);
+            keys = next;
+        }
+        slapi_ch_free((void **) &op_statp->search_stat);
+    }
+    slapi_ch_free((void **) &op_statp);
+}
+
+#define SLAPI_OP_STAT_MODULE "Module to collect operation stat"
+/* Called once from main */
+void
+op_stat_init(void)
+{
+    if (slapi_register_object_extension(SLAPI_OP_STAT_MODULE,
+                                        SLAPI_EXT_OPERATION,
+                                        op_stat_constructor,
+                                        op_stat_destructor,
+                                        &op_stat_objtype,
+                                        &op_stat_handle) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "op_stat_init",
+                      "slapi_register_object_extension failed; "
+                      "operation statistics is not enabled\n");
+    }
+}
+
 /* Set the time the operation actually started */
 void
 slapi_operation_set_time_started(Slapi_Operation *o)

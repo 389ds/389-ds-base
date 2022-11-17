@@ -120,6 +120,7 @@ struct logging_opts
     int log_access_exptime;              /* time */
     int log_access_exptimeunit;          /* unit time */
     int log_access_exptime_secs;         /* time in secs */
+    int log_access_stat_level;           /* statistics level in access log file */
 
     int log_access_level;               /* access log level */
     char *log_access_file;              /* access log file path */
