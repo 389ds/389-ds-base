@@ -454,6 +454,33 @@ int operation_is_flag_set(Slapi_Operation *op, int flag);
 unsigned long operation_get_type(Slapi_Operation *op);
 LDAPMod **copy_mods(LDAPMod **orig_mods);
 
+/* Structures use to collect statistics per operation */
+/* used for LDAP_STAT_READ_INDEX */
+struct component_keys_lookup
+{
+    char *index_type;
+    char *attribute_type;
+    char *key;
+    int id_lookup_cnt;
+    struct component_keys_lookup *next;
+};
+typedef struct op_search_stat
+{
+    struct component_keys_lookup *keys_lookup;
+    struct timespec keys_lookup_start;
+    struct timespec keys_lookup_end;
+} Op_search_stat;
+
+/* structure store in the operation extension */
+typedef struct op_stat
+{
+    Op_search_stat *search_stat;
+} Op_stat;
+
+void op_stat_init(void);
+Op_stat *op_stat_get_operation_extension(Slapi_PBlock *pb);
+void op_stat_set_operation_extension(Slapi_PBlock *pb, Op_stat *op_stat);
+
 /*
  * From ldap.h
  * #define LDAP_MOD_ADD            0x00

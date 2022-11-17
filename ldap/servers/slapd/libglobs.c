@@ -729,6 +729,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.accessloglevel,
      CONFIG_INT, NULL, SLAPD_DEFAULT_ACCESSLOG_LEVEL_STR, NULL},
+    {CONFIG_STATLOGLEVEL_ATTRIBUTE, config_set_statlog_level,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.statloglevel,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_STATLOG_LEVEL, NULL},
     {CONFIG_SECURITYLOGLEVEL_ATTRIBUTE, config_set_securitylog_level,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.securityloglevel,
@@ -1834,6 +1838,7 @@ FrontendConfig_init(void)
     init_accesslogbuffering = cfg->accesslogbuffering = LDAP_ON;
     init_csnlogging = cfg->csnlogging = LDAP_ON;
     init_accesslog_compress_enabled = cfg->accesslog_compress = LDAP_OFF;
+    cfg->statloglevel = SLAPD_DEFAULT_STATLOG_LEVEL;
 
     init_securitylog_logging_enabled = cfg->securitylog_logging_enabled = LDAP_ON;
     cfg->securitylog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
@@ -5468,6 +5473,39 @@ config_set_accesslog_level(const char *attrname, char *value, char *errorbuf, in
 }
 
 int
+config_set_statlog_level(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    long level = 0;
+    char *endp = NULL;
+
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 1)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    errno = 0;
+    level = strtol(value, &endp, 10);
+
+    if (*endp != '\0' || errno == ERANGE || level < 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: stat log level \"%s\" is invalid,"
+                                                                   " access log level must range from 0 to %lld",
+                              attrname, value, (long long int)LONG_MAX);
+        retVal = LDAP_OPERATIONS_ERROR;
+        return retVal;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        g_set_statlog_level(level);
+        slapdFrontendConfig->statloglevel = level;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+int
 config_set_securitylog_level(const char *attrname, char *value, char *errorbuf, int apply)
 {
     int retVal = LDAP_SUCCESS;
@@ -6684,6 +6722,17 @@ config_get_accesslog_level()
     int retVal;
 
     retVal = slapdFrontendConfig->accessloglevel;
+
+    return retVal;
+}
+
+int
+config_get_statlog_level()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    retVal = slapdFrontendConfig->statloglevel;
 
     return retVal;
 }
