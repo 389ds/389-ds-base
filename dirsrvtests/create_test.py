@@ -12,6 +12,7 @@
 
 import argparse, argcomplete
 import argcomplete
+import datetime
 import optparse
 import os
 import re
@@ -34,7 +35,7 @@ def display_usage():
           '-s|--suite <suite name> ' +
           '[ i|--instances <number of standalone instances> ' +
           '[ -m|--suppliers <number of suppliers> -h|--hubs <number of hubs> ' +
-          '-c|--consumers <number of consumers> ] -o|--outputfile ]\n')
+          '-c|--consumers <number of consumers> ] -o|--outputfile -C|--copyright <name of the entity>]\n')
     print('If only "-t" is provided then a single standalone instance is ' +
           'created. Or you can create a test suite script using ' +
           '"-s|--suite" instead of using "-t|--ticket". The "-i" option ' +
@@ -158,6 +159,7 @@ if len(sys.argv) > 0:
     parser.add_argument('-o', '--filename', default=None, help="Custom test script file name")
     parser.add_argument('-u', '--uuid', action='store_true',
                         help="Display a test case uuid to used for new test functions in script")
+    parser.add_argument('-C', '--copyright', default="Red Hat, Inc.", help="Add a copyright section in the beginning of the file")
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
@@ -241,6 +243,20 @@ if len(sys.argv) > 0:
     except IOError:
         print("Can\'t open file:", filename)
         exit(1)
+
+    # Write the copyright section
+    if args.copyright:
+        today = datetime.date.today()
+        current_year = today.year
+
+        TEST.write('# --- BEGIN COPYRIGHT BLOCK ---\n')
+        TEST.write('# Copyright (C) {} {}\n'.format(current_year, args.copyright))
+        TEST.write('# All rights reserved.\n')
+        TEST.write('#\n')
+        TEST.write('# License: GPL (version 3 or any later version).\n')
+        TEST.write('# See LICENSE for details.\n')
+        TEST.write('# --- END COPYRIGHT BLOCK ---\n')
+        TEST.write('#\n')
 
     # Write the imports
     if my_topology[0]:

@@ -52,7 +52,7 @@ setup(
     long_description=long_description,
     url='http://www.port389.org/docs/389ds/FAQ/upstream-test-framework.html',
 
-    author='Red Hat Inc., and William Brown',
+    author='Red Hat, Inc., and William Brown',
     author_email='389-devel@lists.fedoraproject.org',
 
     classifiers=[
