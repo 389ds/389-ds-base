@@ -130,6 +130,7 @@ struct logging_opts
     char *log_accessinfo_file;           /* access log rotation info file */
     LogBufferInfo *log_access_buffer;    /* buffer for access log */
     int log_access_compress;             /* Compress rotated logs */
+    int log_access_stat_level;           /* statistics level in access log file */
 
     /* These are security audit log specific */
     int log_security_state;

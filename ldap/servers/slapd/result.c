@@ -33,6 +33,7 @@ static long current_conn_count;
 static PRLock *current_conn_count_mutex;
 static int flush_ber(Slapi_PBlock *pb, Connection *conn, Operation *op, BerElement *ber, int type);
 static char *notes2str(unsigned int notes, char *buf, size_t buflen);
+static void log_op_stat(Slapi_PBlock *pb);
 static void log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries);
 static void log_entry(Operation *op, Slapi_Entry *e);
 static void log_referral(Operation *op);
@@ -1999,6 +2000,68 @@ notes2str(unsigned int notes, char *buf, size_t buflen)
     return (buf);
 }
 
+static void
+log_op_stat(Slapi_PBlock *pb)
+{
+
+    Connection *conn = NULL;
+    Operation *op = NULL;
+    Op_stat *op_stat;
+    struct timespec duration;
+    char stat_etime[ETIME_BUFSIZ] = {0};
+
+    if (config_get_statlog_level() == 0) {
+        return;
+    }
+
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    op_stat = op_stat_get_operation_extension(pb);
+
+    if (conn == NULL || op == NULL || op_stat == NULL) {
+        return;
+    }
+    /* process the operation */
+    switch (op->o_tag) {
+        case LDAP_REQ_BIND:
+        case LDAP_REQ_UNBIND:
+        case LDAP_REQ_ADD:
+        case LDAP_REQ_DELETE:
+        case LDAP_REQ_MODRDN:
+        case LDAP_REQ_MODIFY:
+        case LDAP_REQ_COMPARE:
+            break;
+        case LDAP_REQ_SEARCH:
+            if ((LDAP_STAT_READ_INDEX & config_get_statlog_level()) &&
+                op_stat->search_stat) {
+                struct component_keys_lookup *key_info;
+                for (key_info = op_stat->search_stat->keys_lookup; key_info; key_info = key_info->next) {
+                    slapi_log_stat(LDAP_STAT_READ_INDEX,
+                                   "conn=%" PRIu64 " op=%d STAT read index: attribute=%s key(%s)=%s --> count %d\n",
+                                   op->o_connid, op->o_opid,
+                                   key_info->attribute_type, key_info->index_type, key_info->key,
+                                   key_info->id_lookup_cnt);
+                }
+               
+                /* total elapsed time */
+                slapi_timespec_diff(&op_stat->search_stat->keys_lookup_end, &op_stat->search_stat->keys_lookup_start, &duration);
+                snprintf(stat_etime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)duration.tv_sec, (int64_t)duration.tv_nsec);
+                slapi_log_stat(LDAP_STAT_READ_INDEX,
+                               "conn=%" PRIu64 " op=%d STAT read index: duration %s\n",
+                               op->o_connid, op->o_opid, stat_etime); 
+            }
+            break;
+        case LDAP_REQ_ABANDON_30:
+        case LDAP_REQ_ABANDON:
+            break;
+
+        default:
+            slapi_log_err(SLAPI_LOG_ERR,
+                          "log_op_stat", "Ignoring unknown LDAP request (conn=%" PRIu64 ", tag=0x%lx)\n",
+                          conn->c_connid, op->o_tag);
+            break;
+    }
+}
 
 static void
 log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries)
@@ -2155,6 +2218,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
             } else {
                 ext_str = "";
             }
+            log_op_stat(pb);
             slapi_log_access(LDAP_DEBUG_STATS,
                              "conn=%" PRIu64 " op=%d RESULT err=%d"
                              " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s\n",
