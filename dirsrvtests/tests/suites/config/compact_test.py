@@ -5,11 +5,7 @@
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
-<<<<<<< HEAD
-
-=======
 #
->>>>>>> 4a5f6a8c2 (Issue 5534 - Add copyright text to the repository files)
 import logging
 import pytest
 import os
