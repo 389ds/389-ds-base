@@ -33,7 +33,7 @@ static long current_conn_count;
 static PRLock *current_conn_count_mutex;
 static int flush_ber(Slapi_PBlock *pb, Connection *conn, Operation *op, BerElement *ber, int type);
 static char *notes2str(unsigned int notes, char *buf, size_t buflen);
-static void log_op_stat(Slapi_PBlock *pb);
+static void log_op_stat(Slapi_PBlock *pb, uint64_t connid, int32_t op_id, int32_t op_internal_id, int32_t op_nested_count);
 static void log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries);
 static void log_entry(Operation *op, Slapi_Entry *e);
 static void log_referral(Operation *op);
@@ -2000,65 +2000,82 @@ notes2str(unsigned int notes, char *buf, size_t buflen)
     return (buf);
 }
 
+#define STAT_LOG_CONN_OP_FMT_INT_INT "conn=Internal(%" PRIu64 ") op=%d(%d)(%d)"
+#define STAT_LOG_CONN_OP_FMT_EXT_INT "conn=%" PRIu64 " (Internal) op=%d(%d)(%d)"
 static void
-log_op_stat(Slapi_PBlock *pb)
+log_op_stat(Slapi_PBlock *pb, uint64_t connid, int32_t op_id, int32_t op_internal_id, int32_t op_nested_count)
 {
-
-    Connection *conn = NULL;
     Operation *op = NULL;
     Op_stat *op_stat;
     struct timespec duration;
     char stat_etime[ETIME_BUFSIZ] = {0};
+    int internal_op;
 
     if (config_get_statlog_level() == 0) {
         return;
     }
 
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    internal_op = operation_is_flag_set(op, OP_FLAG_INTERNAL);
     op_stat = op_stat_get_operation_extension(pb);
 
-    if (conn == NULL || op == NULL || op_stat == NULL) {
+    if (op == NULL || op_stat == NULL) {
         return;
     }
     /* process the operation */
-    switch (op->o_tag) {
-        case LDAP_REQ_BIND:
-        case LDAP_REQ_UNBIND:
-        case LDAP_REQ_ADD:
-        case LDAP_REQ_DELETE:
-        case LDAP_REQ_MODRDN:
-        case LDAP_REQ_MODIFY:
-        case LDAP_REQ_COMPARE:
+    switch (operation_get_type(op)) {
+        case SLAPI_OPERATION_BIND:
+        case SLAPI_OPERATION_UNBIND:
+        case SLAPI_OPERATION_ADD:
+        case SLAPI_OPERATION_DELETE:
+        case SLAPI_OPERATION_MODRDN:
+        case SLAPI_OPERATION_MODIFY:
+        case SLAPI_OPERATION_COMPARE:
+        case SLAPI_OPERATION_EXTENDED:
             break;
-        case LDAP_REQ_SEARCH:
+        case SLAPI_OPERATION_SEARCH:
             if ((LDAP_STAT_READ_INDEX & config_get_statlog_level()) &&
                 op_stat->search_stat) {
                 struct component_keys_lookup *key_info;
                 for (key_info = op_stat->search_stat->keys_lookup; key_info; key_info = key_info->next) {
-                    slapi_log_stat(LDAP_STAT_READ_INDEX,
-                                   "conn=%" PRIu64 " op=%d STAT read index: attribute=%s key(%s)=%s --> count %d\n",
-                                   op->o_connid, op->o_opid,
-                                   key_info->attribute_type, key_info->index_type, key_info->key,
-                                   key_info->id_lookup_cnt);
+                    if (internal_op) {
+                        slapi_log_stat(LDAP_STAT_READ_INDEX,
+                                       connid == 0 ? STAT_LOG_CONN_OP_FMT_INT_INT "STAT read index: attribute=%s key(%s)=%s --> count %d\n":
+                                                     STAT_LOG_CONN_OP_FMT_EXT_INT "STAT read index: attribute=%s key(%s)=%s --> count %d\n",
+                                       connid, op_id, op_internal_id, op_nested_count,
+                                       key_info->attribute_type, key_info->index_type, key_info->key,
+                                       key_info->id_lookup_cnt);
+                    } else {
+                        slapi_log_stat(LDAP_STAT_READ_INDEX,
+                                       "conn=%" PRIu64 " op=%d STAT read index: attribute=%s key(%s)=%s --> count %d\n",
+                                       connid, op_id,
+                                       key_info->attribute_type, key_info->index_type, key_info->key,
+                                       key_info->id_lookup_cnt);
+                    }
                 }
                
                 /* total elapsed time */
                 slapi_timespec_diff(&op_stat->search_stat->keys_lookup_end, &op_stat->search_stat->keys_lookup_start, &duration);
                 snprintf(stat_etime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)duration.tv_sec, (int64_t)duration.tv_nsec);
-                slapi_log_stat(LDAP_STAT_READ_INDEX,
-                               "conn=%" PRIu64 " op=%d STAT read index: duration %s\n",
-                               op->o_connid, op->o_opid, stat_etime); 
+                if (internal_op) {
+                    slapi_log_stat(LDAP_STAT_READ_INDEX,
+                                   connid == 0 ? STAT_LOG_CONN_OP_FMT_INT_INT "STAT read index: duration %s\n":
+                                                 STAT_LOG_CONN_OP_FMT_EXT_INT "STAT read index: duration %s\n",
+                                   connid, op_id, op_internal_id, op_nested_count, stat_etime);
+                } else {
+                    slapi_log_stat(LDAP_STAT_READ_INDEX,
+                                   "conn=%" PRIu64 " op=%d STAT read index: duration %s\n",
+                                   op->o_connid, op->o_opid, stat_etime);
+                }
             }
             break;
-        case LDAP_REQ_ABANDON_30:
-        case LDAP_REQ_ABANDON:
+        case SLAPI_OPERATION_ABANDON:
             break;
 
         default:
             slapi_log_err(SLAPI_LOG_ERR,
-                          "log_op_stat", "Ignoring unknown LDAP request (conn=%" PRIu64 ", tag=0x%lx)\n",
-                          conn->c_connid, op->o_tag);
+                          "log_op_stat", "Ignoring unknown LDAP request (conn=%" PRIu64 ", op_type=0x%lx)\n",
+                          connid, operation_get_type(op));
             break;
     }
 }
@@ -2218,7 +2235,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
             } else {
                 ext_str = "";
             }
-            log_op_stat(pb);
+            log_op_stat(pb, op->o_connid, op->o_opid, 0, 0);
             slapi_log_access(LDAP_DEBUG_STATS,
                              "conn=%" PRIu64 " op=%d RESULT err=%d"
                              " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s%s\n",
@@ -2233,6 +2250,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
             }
         } else {
             int optype;
+            log_op_stat(pb, connid, op_id, op_internal_id, op_nested_count);
 #define LOG_MSG_FMT " tag=%" BERTAG_T " nentries=%d wtime=%s optime=%s etime=%s%s%s\n"
             slapi_log_access(LDAP_DEBUG_ARGS,
                              connid == 0 ? LOG_CONN_OP_FMT_INT_INT LOG_MSG_FMT :
