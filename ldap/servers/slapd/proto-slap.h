@@ -515,7 +515,7 @@ long long config_get_pw_minage(void);
 long long config_get_pw_warning(void);
 int config_get_errorlog_level(void);
 int config_get_accesslog_level(void);
-int config_get_statlog_level();
+int config_get_statlog_level(void);
 int config_get_securitylog_level(void);
 int config_get_auditlog_logging_enabled(void);
 int config_get_auditfaillog_logging_enabled(void);

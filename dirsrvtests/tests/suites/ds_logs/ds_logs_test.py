@@ -13,7 +13,7 @@ import pytest
 import subprocess
 from lib389._mapped_object import DSLdapObject
 from lib389.topologies import topology_st
-from lib389.plugins import AutoMembershipPlugin, ReferentialIntegrityPlugin, AutoMembershipDefinitions
+from lib389.plugins import AutoMembershipPlugin, ReferentialIntegrityPlugin, AutoMembershipDefinitions, MemberOfPlugin
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
@@ -1251,6 +1251,94 @@ def test_stat_index(topology_st, request):
         for user in users_set:
             user.delete()
         topology_st.standalone.config.set("nsslapd-statlog-level", "0")
+
+    request.addfinalizer(fin)
+
+def test_stat_internal_op(topology_st, request):
+    """Check that statistics can also be collected for internal operations
+
+    :id: 19f393bd-5866-425a-af7a-4dade06d5c77
+    :setup: Standalone Instance
+    :steps:
+        1. Check that nsslapd-statlog-level is 0 (default)
+        2. Enable memberof plugins
+        3. Create a user
+        4. Remove access log (to only detect new records)
+        5. Enable statistic logging nsslapd-statlog-level=1
+        6. Check that on direct SRCH there is no 'Internal' Stat records
+        7. Remove access log (to only detect new records)
+        8. Add group with the user, so memberof triggers internal search
+           and check it exists 'Internal' Stat records
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+    """
+
+    inst = topology_st.standalone
+
+    # Step 1
+    log.info("Assert nsslapd-statlog-level is by default 0")
+    assert topology_st.standalone.config.get_attr_val_int("nsslapd-statlog-level") == 0
+
+    # Step 2
+    memberof = MemberOfPlugin(inst)
+    memberof.enable()
+    inst.restart()
+
+    # Step 3 Add setup entries
+    users = UserAccounts(inst, DEFAULT_SUFFIX, rdn=None)
+    user = users.create(properties={'uid': 'test_1',
+                                    'cn': 'test_1',
+                                    'sn': 'test_1',
+                                    'description': 'member',
+                                    'uidNumber': '1000',
+                                    'gidNumber': '2000',
+                                    'homeDirectory': '/home/testuser'})
+    # Step 4 reset accesslog
+    topology_st.standalone.stop()
+    lpath = topology_st.standalone.ds_access_log._get_log_path()
+    os.unlink(lpath)
+    topology_st.standalone.start()
+
+    # Step 5 enable statistics
+    log.info("Set nsslapd-statlog-level: 1 to enable indexing statistics")
+    topology_st.standalone.config.set("nsslapd-statlog-level", "1")
+
+    # Step 6 for direct SRCH only non internal STAT records
+    entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "uid=test_1")
+    topology_st.standalone.stop()
+    assert topology_st.standalone.ds_access_log.match('.*STAT read index.*')
+    assert topology_st.standalone.ds_access_log.match('.*STAT read index: attribute.*')
+    assert topology_st.standalone.ds_access_log.match('.*STAT read index: duration.*')
+    assert not topology_st.standalone.ds_access_log.match('.*Internal.*STAT.*')
+    topology_st.standalone.start()
+
+    # Step 7 reset accesslog
+    topology_st.standalone.stop()
+    lpath = topology_st.standalone.ds_access_log._get_log_path()
+    os.unlink(lpath)
+    topology_st.standalone.start()
+
+    # Step 8 trigger internal searches and check internal stat records
+    groups = Groups(inst, DEFAULT_SUFFIX, rdn=None)
+    group = groups.create(properties={'cn': 'mygroup',
+                                      'member': 'uid=test_1,%s' % DEFAULT_SUFFIX,
+                                      'description': 'group'})
+    topology_st.standalone.restart()
+    assert topology_st.standalone.ds_access_log.match('.*Internal.*STAT read index.*')
+    assert topology_st.standalone.ds_access_log.match('.*Internal.*STAT read index: attribute.*')
+    assert topology_st.standalone.ds_access_log.match('.*Internal.*STAT read index: duration.*')
+
+    def fin():
+        log.info('Deleting user/group')
+        user.delete()
+        group.delete()
 
     request.addfinalizer(fin)
 
