@@ -106,7 +106,7 @@ def _get_backend(inst, be_name):
         if (is_a_dn(be_name) and str2dn(be_suffix) == str2dn(be_name)) or (not is_a_dn(be_name) and cn == be_name):
             return be
 
-    raise ValueError('Could not find backend suffix: {}'.format(name))
+    raise ValueError('Could not find backend suffix: {}'.format(be_name))
 
 
 def _get_index(inst, be_name, attr):
