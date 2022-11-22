@@ -76,7 +76,7 @@ RSA_ATTRS_MAP = OrderedDict([
 ])
 
 
-def _security_generic_get(inst, basedn, logs, args, attrs_map):
+def _security_generic_get(inst, basedn, log, args, attrs_map):
     result = {}
     for attr, props in attrs_map.items():
         val = props.cls(inst).get_attr_val_utf8(props.attr)
@@ -89,7 +89,7 @@ def _security_generic_get(inst, basedn, logs, args, attrs_map):
         print('\n'.join([f'{attr}: {value or ""}' for attr, value in result.items()]))
 
 
-def _security_generic_set(inst, basedn, logs, args, attrs_map):
+def _security_generic_set(inst, basedn, log, args, attrs_map):
     for attr, props in attrs_map.items():
         arg = getattr(args, attr.replace('-', '_'))
         if arg is None:
