@@ -1,0 +1,14 @@
+# AUTO-GENERATED FILE - DO NOT EDIT!! Use ldapmodify.
+# CRC32 6651500c
+dn: olcOverlay={1}unique
+objectClass: olcOverlayConfig
+objectClass: olcUniqueConfig
+olcOverlay: {1}unique
+olcUniqueURI: ldap:///?mail?sub?
+structuralObjectClass: olcUniqueConfig
+entryUUID: 7ed4e9d0-f8e9-103c-8ecb-e51fa20c07f9
+creatorsName: cn=config
+createTimestamp: 20221115042701Z
+entryCSN: 20221115042701.652581Z#000000#000#000000
+modifiersName: cn=config
+modifyTimestamp: 20221115042701Z
