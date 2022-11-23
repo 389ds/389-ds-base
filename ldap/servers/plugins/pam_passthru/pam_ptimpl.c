@@ -234,13 +234,13 @@ do_one_pam_auth(
     PRBool module_thread_safe /* if not thread safe, make sure only one thread auth at a time */
     )
 {
-    MyStrBuf pam_id;
+    MyStrBuf pam_id = {0};
     const char *binddn = NULL;
     Slapi_DN *bindsdn = NULL;
     int rc = PAM_SUCCESS;
     int retcode = LDAP_SUCCESS;
-    pam_handle_t *pam_handle;
-    struct my_pam_conv_str my_data;
+    pam_handle_t *pam_handle = NULL;
+    struct my_pam_conv_str my_data = {0};
     struct pam_conv my_pam_conv = {pam_conv_func, NULL};
     char *errmsg = NULL; /* free with PR_smprintf_free */
     int locked = 0;
@@ -264,6 +264,17 @@ do_one_pam_auth(
 
     if (locked) {
         errmsg = PR_smprintf("Account inactivated. Contact system administrator.");
+        retcode = LDAP_UNWILLING_TO_PERFORM; /* user inactivated */
+        goto done;                           /* skip the pam stuff */
+    }
+
+    /*
+     * We need to check for pam_service as null, because if it is then pam_start will fail
+     * before it allocates pam_handle. This causes pam_end to segfault as the pam_handle is
+     * invalid.
+     */
+    if (pam_service == NULL) {
+        errmsg = PR_smprintf("Pam service is invalid. Contact system administrator.");
         retcode = LDAP_UNWILLING_TO_PERFORM; /* user inactivated */
         goto done;                           /* skip the pam stuff */
     }
@@ -427,8 +438,8 @@ int
 pam_passthru_do_pam_auth(Slapi_PBlock *pb, Pam_PassthruConfig *cfg)
 {
     int rc = LDAP_SUCCESS;
-    MyStrBuf pam_id_attr; /* avoid malloc if possible */
-    MyStrBuf pam_service; /* avoid malloc if possible */
+    MyStrBuf pam_id_attr = {0}; /* avoid malloc if possible */
+    MyStrBuf pam_service = {0}; /* avoid malloc if possible */
     int method1, method2, method3;
     PRBool final_method;
     PRBool fallback = PR_FALSE;
@@ -445,7 +456,7 @@ pam_passthru_do_pam_auth(Slapi_PBlock *pb, Pam_PassthruConfig *cfg)
     init_my_str_buf(&pam_service, cfg->pamptconfig_service);
 
     fallback = cfg->pamptconfig_fallback;
-    
+
     module_thread_safe = cfg->pamptconfig_thread_safe;
 
     slapi_pblock_get(pb, SLAPI_REQCONTROLS, &reqctrls);
