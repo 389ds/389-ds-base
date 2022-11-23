@@ -10,7 +10,7 @@
 from lib389.schema import Schema, Resolver
 from lib389.backend import Backends
 from lib389.migrate.openldap.config import olOverlayType
-from lib389.plugins import MemberOfPlugin, ReferentialIntegrityPlugin, AttributeUniquenessPlugins
+from lib389.plugins import MemberOfPlugin, ReferentialIntegrityPlugin, AttributeUniquenessPlugins, PassThroughAuthenticationPlugin, PAMPassThroughAuthPlugin, PAMPassThroughAuthConfigs
 import ldap
 import os
 from ldif import LDIFParser
@@ -139,6 +139,21 @@ class ImportTransformer(LDIFParser):
             except:
                 # Not found, move on.
                 pass
+
+        # If userPassword is present AND it is a SASL map, then we migrate it to the nsSaslauthId
+        # type to prevent account password confusion.
+        try:
+            pw_a = amap['userpassword']
+            pw = entry[pw_a][0]
+            if pw.startswith(b'{SASL}'):
+                entry.pop(pw_a)
+                sasl_id = pw.replace(b'{SASL}', b'')
+                # Add the marker objectClass and the map attr
+                entry[oc_a] += [b'nsSaslauthAccount']
+                entry['nsSaslauthId'] = [sasl_id]
+        except:
+            # Not found, move on.
+            pass
 
         # Write it out
         self.writer.unparse(dn, entry)
@@ -457,6 +472,72 @@ class PluginPwdPolicyAudit(MigrationAction):
         log.info(f" * [ ] - Enable Password Policy for new accounts in {self.suffix}. See `dsconf {self.inst_name} localpwp --help` ")
 
 
+class PluginPassThroughDisable(MigrationAction):
+    def __init__(self):
+        pass
+
+    def apply(self, inst):
+        pta = PassThroughAuthenticationPlugin(inst)
+        pta.disable()
+
+    def __unicode__(self):
+        return "PluginPassThroughDisable"
+
+    def display_plan(self, log):
+        log.info(f" * Plugin:PassThrough Disable")
+
+    def display_post(self, log):
+        pass
+
+
+class PluginPAMPassThroughEnable(MigrationAction):
+    def __init__(self):
+        pass
+
+    def apply(self, inst):
+        pta = PAMPassThroughAuthPlugin(inst)
+        pta.enable()
+
+    def __unicode__(self):
+        return "PAMPassThroughAuthPlugin"
+
+    def display_plan(self, log):
+        log.info(f" * Plugin:PamPassThrough Enable")
+
+    def display_post(self, log):
+        pass
+
+
+class PluginPAMPassThroughConfigure(MigrationAction):
+    def __init__(self, suffix):
+        self.suffix = suffix
+
+    def apply(self, inst):
+        ptas = PAMPassThroughAuthConfigs(inst)
+        # PAMPassThroughAuthConfig
+        pta = ptas.ensure_state(properties = {
+            'cn': 'saslauthd',
+            'pamService': 'saslauthd',
+            'pamIncludeSuffix': self.suffix,
+            'pamFilter': '(objectClass=nsSaslauthAccount)',
+            'pamIdAttr': 'nsSaslauthId',
+            'pamIDMapMethod': 'ENTRY',
+            'pamSecure': 'TRUE',
+            'pamFallback': 'FALSE',
+            'pamModuleIsThreadSafe': 'TRUE',
+            'pamMissingSuffix': 'ALLOW',
+        })
+
+    def __unicode__(self):
+        return "PluginPAMPassThroughConfigure"
+
+    def display_plan(self, log):
+        log.info(f" * Plugin:PamPassThrough Configure")
+
+    def display_post(self, log):
+        log.info(f" * [ ] - Review Plugin:PAMPassThrough Migrated SASLauthd Configuration is Correct")
+
+
 class PluginUnknownManual(MigrationAction):
     def __init__(self, overlay):
         self.overlay = overlay
@@ -721,6 +802,12 @@ class Migration(object):
                 self.plan.append(PluginPwdPolicyAudit(oldb.suffix, self.inst.serverid))
             else:
                 raise Exception("Unknown overlay type, this is a bug!")
+        # We can't programatically detect the use of sasl authd. We can however
+        # create a configuration that "isn't harmful" in the case it's not used,
+        # and that does work in the case that it is present.
+        self.plan.append(PluginPassThroughDisable())
+        self.plan.append(PluginPAMPassThroughEnable())
+        self.plan.append(PluginPAMPassThroughConfigure(oldb.suffix))
 
 
     def _gen_db_plan(self):

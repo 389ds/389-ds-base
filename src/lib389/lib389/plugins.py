@@ -1519,7 +1519,7 @@ class PAMPassThroughAuthConfigs(DSLdapObjects):
 
     def __init__(self, instance, basedn="cn=PAM Pass Through Auth,cn=plugins,cn=config"):
         super(PAMPassThroughAuthConfigs, self).__init__(instance)
-        self._objectclasses = ['top', 'extensibleObject', 'nsslapdplugin', 'pamConfig']
+        self._objectclasses = ['top', 'extensibleObject', 'pamConfig']
         self._filterattrs = ['cn']
         self._scope = ldap.SCOPE_ONELEVEL
         self._childobject = PAMPassThroughAuthConfig
