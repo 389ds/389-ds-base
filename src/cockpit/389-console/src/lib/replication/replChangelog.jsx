@@ -161,7 +161,7 @@ export class Changelog extends React.Component {
             loading: true,
         });
         const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
-            'replication', 'get-changelog', '--suffix', this.props.suffix];
+            'replication', 'get-changelog'];
         log_cmd("reloadChangelog", "Load the replication changelog info", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -205,7 +205,7 @@ export class Changelog extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to reload changelog for "${this.props.suffix}" - ${errMsg.desc}`
+                        `Failed to reload changelog - ${errMsg.desc}`
                     );
                     this.setState({
                         loading: false,
