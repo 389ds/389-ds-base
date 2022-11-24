@@ -23,7 +23,8 @@ from lib389.cli_conf.plugins import attruniq as cli_attruniq
 from lib389.cli_conf.plugins import dna as cli_dna
 from lib389.cli_conf.plugins import linkedattr as cli_linkedattr
 from lib389.cli_conf.plugins import managedentries as cli_managedentries
-from lib389.cli_conf.plugins import passthroughauth as cli_passthroughauth
+from lib389.cli_conf.plugins import pampassthrough as cli_pampassthrough
+from lib389.cli_conf.plugins import ldappassthrough as cli_ldappassthrough
 from lib389.cli_conf.plugins import retrochangelog as cli_retrochangelog
 from lib389.cli_conf.plugins import automember as cli_automember
 from lib389.cli_conf.plugins import posix_winsync as cli_posix_winsync
@@ -110,9 +111,10 @@ def create_parser(subparsers):
     cli_accountpolicy.create_parser(subcommands)
     cli_attruniq.create_parser(subcommands)
     cli_dna.create_parser(subcommands)
+    cli_ldappassthrough.create_parser(subcommands)
     cli_linkedattr.create_parser(subcommands)
     cli_managedentries.create_parser(subcommands)
-    cli_passthroughauth.create_parser(subcommands)
+    cli_pampassthrough.create_parser(subcommands)
     cli_retrochangelog.create_parser(subcommands)
     cli_posix_winsync.create_parser(subcommands)
     cli_contentsync.create_parser(subcommands)
