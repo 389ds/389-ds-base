@@ -171,6 +171,7 @@ struct _import_worker_info
     ImportWorkerInfo *next;
     size_t index_buffer_size; /* Size of index buffering for this index */
     char name[WORKER_NAME_LEN]; /* For debug */
+    void *mdb_stat;         /* Performance statistics in lmdb case */
 };
 
 /* Values for work_type */

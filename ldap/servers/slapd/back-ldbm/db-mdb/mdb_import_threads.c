@@ -26,6 +26,8 @@
 #include <assert.h>
 #include "mdb_import.h"
 #include "../vlv_srch.h"
+#include <sys/time.h>
+#include <time.h>
 
 #define CV_TIMEOUT    10000000  /* 10 milli seconds timeout */
 
@@ -166,9 +168,9 @@ void
 wait_for_starting(ImportWorkerInfo *info)
 {
     PRIntervalTime sleeptime;
-    sleeptime = PR_MillisecondsToInterval(import_sleep_time);
     /* pause until we're told to run */
     while ((info->command == PAUSE) && !info_is_finished(info)) {
+        sleeptime = PR_MillisecondsToInterval(import_sleep_time);
         info->state = WAITING;
         DS_Sleep(sleeptime);
     }
@@ -3139,13 +3141,11 @@ dbmdb_import_worker(void *param)
         wait_for_starting(info);
 
         /* Wait until data get queued */
-        if (wqelmnt->wait_id == 0) {
-            pthread_mutex_lock(&ctx->workerq.mutex);
-            while (wqelmnt->wait_id == 0 && !info_is_finished(info) && ctx->producer.state != FINISHED) {
-                safe_cond_wait(&ctx->workerq.cv, &ctx->workerq.mutex);
-            }
-            pthread_mutex_unlock(&ctx->workerq.mutex);
+        pthread_mutex_lock(&ctx->workerq.mutex);
+        while (wqelmnt->wait_id == 0 && !info_is_finished(info) && ctx->producer.state != FINISHED) {
+            safe_cond_wait(&ctx->workerq.cv, &ctx->workerq.mutex);
         }
+        pthread_mutex_unlock(&ctx->workerq.mutex);
         if (wqelmnt->wait_id == 0) {
              break;
         }
@@ -3712,9 +3712,13 @@ dbmdb_import_writer(void*param)
     int count = 0;
     int rc = 0;
 
+    MDB_STAT_INIT(info);
     while (!rc && !info_is_finished(info)) {
+        MDB_STAT_STEP(info, MDB_STAT_PAUSE);
         wait_for_starting(info);
+        MDB_STAT_STEP(info, MDB_STAT_READ);
         slot = dbmdb_import_q_getall(&ctx->writerq);
+        MDB_STAT_STEP(info, MDB_STAT_RUN);
         if (info_is_finished(info)) {
             dbmdb_import_q_flush(&ctx->writerq);
             break;
@@ -3725,11 +3729,14 @@ dbmdb_import_writer(void*param)
 
         for (; slot; slot = nextslot) {
             if (!txn) {
+                MDB_STAT_STEP(info, MDB_STAT_TXNSTART);
                 rc = TXN_BEGIN(ctx->ctx->env, NULL, 0, &txn);
             }
             if (!rc) {
+                MDB_STAT_STEP(info, MDB_STAT_WRITE);
                 rc = MDB_PUT(txn, slot->dbi->dbi, &slot->key, &slot->data, 0);
             }
+            MDB_STAT_STEP(info, MDB_STAT_RUN);
             nextslot = slot->next;
             slapi_ch_free((void**)&slot);
         }
@@ -3737,7 +3744,9 @@ dbmdb_import_writer(void*param)
             break;
         }
         if  (count++ >= WRITER_MAX_OPS_IN_TXN) {
+            MDB_STAT_STEP(info, MDB_STAT_TXNSTOP);
             rc = TXN_COMMIT(txn);
+            MDB_STAT_STEP(info, MDB_STAT_RUN);
             if (rc) {
                 break;
             }
@@ -3746,13 +3755,17 @@ dbmdb_import_writer(void*param)
         }
     }
     if (txn && !rc) {
+        MDB_STAT_STEP(info, MDB_STAT_TXNSTOP);
         rc = TXN_COMMIT(txn);
+        MDB_STAT_STEP(info, MDB_STAT_RUN);
         if (!rc) {
             txn = NULL;
         }
     }
     if (txn) {
+        MDB_STAT_STEP(info, MDB_STAT_TXNSTOP);
         TXN_ABORT(txn);
+        MDB_STAT_STEP(info, MDB_STAT_RUN);
         txn = NULL;
     }
     if (rc) {
@@ -3762,6 +3775,7 @@ dbmdb_import_writer(void*param)
         thread_abort(info);
     }
     info_set_state(info);
+    MDB_STAT_END(info);
 }
 
 /***************************************************************************/
@@ -4092,9 +4106,16 @@ dbmdb_import_init_writer(ImportJob *job, ImportRole_t role)
 void
 dbmdb_free_import_ctx(ImportJob *job)
 {
+    WorkerQueueData_t *s = NULL;
+    int i=0;
     if (job->writer_ctx) {
         ImportCtx_t *ctx = job->writer_ctx;
         job->writer_ctx = NULL;
+        s = (WorkerQueueData_t*)ctx->workerq.slots;
+        /* Clear workerinfo  data */
+        for(i=0; i<ctx->workerq.max_slots; i++) {
+            slapi_ch_free(&s[i].winfo.mdb_stat);
+        }
         pthread_mutex_destroy(&ctx->workerq.mutex);
         pthread_cond_destroy(&ctx->workerq.cv);
         slapi_ch_free((void**)&ctx->workerq.slots);
@@ -4107,4 +4128,88 @@ dbmdb_free_import_ctx(ImportJob *job)
         charray_free(ctx->indexAttrs);
         slapi_ch_free((void**)&ctx);
     }
+}
+
+/***************************************************************************/
+/******************** Performance statistics functions *********************/
+/***************************************************************************/
+
+static inline void __attribute__((always_inline))
+_add_delta_time(struct timespec *cumul, struct timespec *now, struct timespec *last)
+{
+    struct timespec tmp1;
+    struct timespec tmp2;
+    #define NSINS 1000000000
+
+    /* tmp1 = now -last */
+    if (now->tv_nsec < last->tv_nsec) {
+        now->tv_sec--;
+        now->tv_nsec += NSINS;
+    }
+    tmp1.tv_sec = now->tv_sec - last->tv_sec;
+    tmp1.tv_nsec = now->tv_nsec - last->tv_nsec;
+    /* tmp2 = cumul + tmp1 */
+    tmp2.tv_sec = cumul->tv_sec + tmp1.tv_sec;
+    tmp2.tv_nsec = cumul->tv_nsec + tmp1.tv_nsec;
+    if (tmp2.tv_nsec > NSINS) {
+        tmp2.tv_nsec -= NSINS;
+        tmp2.tv_sec++;
+    }
+    /* cumul = tmp2 */
+    *cumul = tmp2;
+}
+
+static inline double __attribute__((always_inline))
+_time_to_double(struct timespec *t)
+{
+    double res = t->tv_sec;
+    res += t->tv_nsec / 1000000000.0;
+    return res;
+}
+
+void
+mdb_stat_collect(mdb_stat_info_t *sinfo, mdb_stat_step_t step, int init)
+{
+    struct timespec now;
+
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &now);
+    if (!init) {
+        _add_delta_time(&sinfo->steps[sinfo->last_step].realtime, &now,  &sinfo->last.realtime);
+    }
+    sinfo->last.realtime = now;
+    sinfo->last_step = step;
+}
+
+char *
+mdb_stat_summarize(mdb_stat_info_t *sinfo, char *buf, size_t bufsize)
+{
+    static const char *names[MDB_STAT_LAST_STEP] = MDB_STAT_STEP_NAMES;
+    double v[MDB_STAT_LAST_STEP];
+    double total = 0.0;
+    char tmp[50];
+    int pos = 0;
+    int len = 0;
+    int i = 0;
+
+    if (!sinfo) {
+        return NULL;
+    }
+
+    for (i=0; i<MDB_STAT_LAST_STEP; i++) {
+        v[i] = _time_to_double(&sinfo->steps[i].realtime);
+        total += v[i];
+    }
+    for (i=0; i<MDB_STAT_LAST_STEP; i++) {
+        double percent = 100.0 * v[i] / total;
+        PR_snprintf(tmp, (sizeof tmp), "%s: %.2f%% ", names[i], percent);
+        len = strlen(tmp);
+        if (pos+len+4 < bufsize) {
+            strcpy(buf+pos, tmp);
+            pos += len;
+        } else {
+            strcpy(buf+pos, "...");
+            break;
+        }
+    }
+    return buf;
 }

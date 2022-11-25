@@ -48,6 +48,41 @@ typedef enum {
     DNRC_BAD_TOMBSTONE,   /* Invalid tombstone entry */
 } dnrc_t;
 
+/********************* Stat *********************/
+
+typedef enum {
+    MDB_STAT_RUN,
+    MDB_STAT_READ,
+    MDB_STAT_WRITE,
+    MDB_STAT_PAUSE,
+    MDB_STAT_TXNSTART,
+    MDB_STAT_TXNSTOP,
+    MDB_STAT_LAST_STEP  /* Last item in this enum */
+} mdb_stat_step_t;
+
+/* Should be kept in sync with mdb_stat_step_t */
+#define MDB_STAT_STEP_NAMES { "run", "read", "write", "pause", "txnbegin", "txncommit" }
+
+/* Per thread per step statistics */
+typedef struct {
+  struct timespec realtime;  /* Cumulated time spend in this step */
+  /* Possible improvment: aggregate here some statistic from getrusage(RUSAGE_THREAD,stats) syscall */
+} mdb_stat_slot_t;
+
+/* Per thread statistics */
+typedef struct {
+    mdb_stat_step_t last_step;
+    mdb_stat_slot_t last;
+    mdb_stat_slot_t steps[MDB_STAT_LAST_STEP];
+} mdb_stat_info_t;
+
+#define MDB_STAT_PT(info)      ((mdb_stat_info_t*)((info)->mdb_stat))
+#define MDB_STAT_INIT(info)    { (info)->mdb_stat = slapi_ch_calloc(1, sizeof (mdb_stat_info_t)); \
+                                 mdb_stat_collect(MDB_STAT_PT(info), MDB_STAT_RUN, 1); }
+#define MDB_STAT_END(info)    { mdb_stat_collect(MDB_STAT_PT(info), MDB_STAT_RUN, 0); }
+#define MDB_STAT_STEP(info, step)    { mdb_stat_collect(MDB_STAT_PT(info), (step), 0); }
+
+
 /******************** Queues ********************/
 
 typedef struct {
@@ -177,3 +212,6 @@ void dbmdb_free_worker_slot(struct importqueue *q, void *slot);
 int dbmdb_import_init_writer(ImportJob *job, ImportRole_t role);
 void dbmdb_free_import_ctx(ImportJob *job);
 void dbmdb_build_import_index_list(ImportCtx_t *ctx);
+
+void mdb_stat_collect(mdb_stat_info_t *sinfo, mdb_stat_step_t step, int init);
+char *mdb_stat_summarize(mdb_stat_info_t *sinfo, char *buf, size_t bufsize);
