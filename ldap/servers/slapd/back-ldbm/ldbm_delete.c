@@ -1407,11 +1407,6 @@ commit_return:
     goto common_return;
 
 error_return:
-    /* Revert the caches if this is the parent operation */
-    if (parent_op && betxn_callback_fails) {
-        revert_cache(inst, &parent_time);
-    }
-
     if (tombstone) {
         if (cache_is_in_cache(&inst->inst_cache, tombstone)) {
             tomb_ep_id = tombstone->ep_id; /* Otherwise, tombstone might have been freed. */
@@ -1494,6 +1489,11 @@ error_return:
         slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
                       "conn=%" PRIu64 " op=%d modify_unswitch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                       conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, myrc);
+    }
+
+    /* Revert the caches if this is the parent operation */
+    if (parent_op && betxn_callback_fails) {
+        revert_cache(inst, &parent_time);
     }
 
 common_return:

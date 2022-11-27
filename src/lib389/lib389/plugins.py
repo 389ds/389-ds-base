@@ -1141,13 +1141,15 @@ class AutoMembershipPlugin(Plugin):
     def __init__(self, instance, dn="cn=Auto Membership Plugin,cn=plugins,cn=config"):
         super(AutoMembershipPlugin, self).__init__(instance, dn)
 
-    def fixup(self, basedn, _filter=None):
+    def fixup(self, basedn, _filter=None, cleanup=False):
         """Create an automember rebuild membership task
 
         :param basedn: Basedn to fix up
         :type basedn: str
         :param _filter: a filter for entries to fix up
         :type _filter: str
+        :param cleanup: cleanup old group memberships
+        :type cleanup: boolean
 
         :returns: an instance of Task(DSLdapObject)
         """
@@ -1156,6 +1158,9 @@ class AutoMembershipPlugin(Plugin):
         task_properties = {'basedn': basedn}
         if _filter is not None:
             task_properties['filter'] = _filter
+        if cleanup:
+            task_properties['cleanup'] = "yes"
+
         task.create(properties=task_properties)
 
         return task

@@ -155,7 +155,7 @@ def fixup(inst, basedn, log, args):
     log.info('Attempting to add task entry... This will fail if Automembership plug-in is not enabled.')
     if not plugin.status():
         log.error("'%s' is disabled. Rebuild membership task can't be executed" % plugin.rdn)
-    fixup_task = plugin.fixup(args.DN, args.filter)
+    fixup_task = plugin.fixup(args.DN, args.filter, args.cleanup)
     if args.wait:
         log.info(f'Waiting for fixup task "{fixup_task.dn}" to complete.  You can safely exit by pressing Control C ...')
         fixup_task.wait(timeout=args.timeout)
@@ -225,8 +225,8 @@ def create_parser(subparsers):
     subcommands = automember.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, AutoMembershipPlugin)
 
-    list = subcommands.add_parser('list', help='List Automembership definitions or regex rules.')
-    subcommands_list = list.add_subparsers(help='action')
+    automember_list = subcommands.add_parser('list', help='List Automembership definitions or regex rules.')
+    subcommands_list = automember_list.add_subparsers(help='action')
     list_definitions = subcommands_list.add_parser('definitions', help='Lists Automembership definitions.')
     list_definitions.set_defaults(func=definition_list)
     list_regexes = subcommands_list.add_parser('regexes', help='List Automembership regex rules.')
@@ -269,6 +269,8 @@ def create_parser(subparsers):
     fixup_task.add_argument('-f', '--filter', required=True, help='Sets the LDAP filter for entries to fix up')
     fixup_task.add_argument('-s', '--scope', required=True, choices=['sub', 'base', 'one'], type=str.lower,
                             help='Sets the LDAP search scope for entries to fix up')
+    fixup_task.add_argument('--cleanup', action='store_true',
+                            help="Clean up previous group memberships before rebuilding")
     fixup_task.add_argument('--wait', action='store_true',
                             help="Wait for the task to finish, this could take a long time")
     fixup_task.add_argument('--timeout', default=0, type=int,
@@ -279,7 +281,7 @@ def create_parser(subparsers):
     fixup_status.add_argument('--dn', help="The task entry's DN")
     fixup_status.add_argument('--show-log', action='store_true', help="Display the task log")
     fixup_status.add_argument('--watch', action='store_true',
-                       help="Watch the task's status and wait for it to finish")
+                              help="Watch the task's status and wait for it to finish")
 
     abort_fixup = subcommands.add_parser('abort-fixup', help='Abort the rebuild membership task.')
     abort_fixup.set_defaults(func=abort)
