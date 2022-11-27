@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2022 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -1040,11 +1040,6 @@ ldbm_back_modify(Slapi_PBlock *pb)
     goto common_return;
 
 error_return:
-    /* Revert the caches if this is the parent operation */
-    if (parent_op) {
-        revert_cache(inst, &parent_time);
-    }
-
     if (postentry != NULL) {
         slapi_entry_free(postentry);
         postentry = NULL;
@@ -1099,6 +1094,10 @@ error_return:
         }
         if (!not_an_error) {
             rc = SLAPI_FAIL_GENERAL;
+        }
+        /* Revert the caches if this is the parent operation */
+        if (parent_op) {
+            revert_cache(inst, &parent_time);
         }
     }
 

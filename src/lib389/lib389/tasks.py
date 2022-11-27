@@ -1007,12 +1007,13 @@ class Tasks(object):
         return exitCode
 
     def automemberRebuild(self, suffix=DEFAULT_SUFFIX, scope='sub',
-                          filterstr='objectclass=top', args=None):
+                          filterstr='objectclass=top', cleanup=False, args=None):
         '''
-        @param suffix - The suffix the task should examine - defualt is
+        @param suffix - The suffix the task should examine - default is
                         "dc=example,dc=com"
         @param scope - The scope of the search to find entries
-        @param fitlerstr - THe search filter to find entries
+        @param fitlerstr - The search filter to find entries
+        @param cleanup - reset/clear the old group mmeberships prior to rebuilding
         @param args - is a dictionary that contains modifier of the task
                 wait: True/[False] - If True,  waits for the completion of
                                      the task before to return
@@ -1028,6 +1029,8 @@ class Tasks(object):
         entry.setValues('basedn', suffix)
         entry.setValues('filter', filterstr)
         entry.setValues('scope', scope)
+        if cleanup:
+            entry.setValues('cleanup', 'yes')
 
         # start the task and possibly wait for task completion
         try:
