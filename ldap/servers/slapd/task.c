@@ -48,7 +48,7 @@ static uint64_t shutting_down = 0;
 #define TASK_DATE_NAME "nsTaskCreated"
 #define TASK_WARNING_NAME "nsTaskWarning"
 
-#define DEFAULT_TTL "3600"                        /* seconds */
+#define DEFAULT_TTL "43200" /* 12 hours in seconds */
 #define TASK_SYSCONFIG_FILE_ATTR "sysconfigfile" /* sysconfig reload task file attr */
 #define TASK_SYSCONFIG_LOGCHANGES_ATTR "logchanges"
 #define TASK_TOMBSTONE_FIXUP "fixup tombstones task"
