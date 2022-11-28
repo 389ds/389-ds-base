@@ -56,6 +56,42 @@
 
 #define LMDB_MIN_DB_SIZE            (1024*1024*1024)
 
+
+/* import thread usage statistics */
+#define MDB_STAT_INIT(stats)    { mdb_stat_collect(&stats, MDB_STAT_RUN, 1); }
+#define MDB_STAT_END(stats)     { mdb_stat_collect(&stats, MDB_STAT_RUN, 0); }
+#define MDB_STAT_STEP(stats, step)    { mdb_stat_collect(&stats, (step), 0); }
+
+typedef enum {
+    MDB_STAT_RUN,
+    MDB_STAT_READ,
+    MDB_STAT_WRITE,
+    MDB_STAT_PAUSE,
+    MDB_STAT_TXNSTART,
+    MDB_STAT_TXNSTOP,
+    MDB_STAT_LAST_STEP  /* Last item in this enum */
+} mdb_stat_step_t;
+
+/* Should be kept in sync with mdb_stat_step_t */
+#define MDB_STAT_STEP_NAMES { "run", "read", "write", "pause", "txnbegin", "txncommit" }
+
+/* Per thread per step statistics */
+typedef struct {
+  struct timespec realtime;  /* Cumulated time spend in this step */
+  /* Possible improvment: aggregate here some statistic from getrusage(RUSAGE_THREAD,stats) syscall */
+} mdb_stat_slot_t;
+
+/* Per thread statistics */
+typedef struct {
+    mdb_stat_step_t last_step;
+    mdb_stat_slot_t last;
+    mdb_stat_slot_t steps[MDB_STAT_LAST_STEP];
+} mdb_stat_info_t;
+
+void mdb_stat_collect(mdb_stat_info_t *sinfo, mdb_stat_step_t step, int init);
+char *mdb_stat_summarize(mdb_stat_info_t *sinfo, char *buf, size_t bufsize);
+
+
 /* The private db records data (i.e entry_info) format is:
  *      ID: entry ID
  *      ID: nb ancestors
@@ -168,9 +204,9 @@ void
 wait_for_starting(ImportWorkerInfo *info)
 {
     PRIntervalTime sleeptime;
+    sleeptime = PR_MillisecondsToInterval(import_sleep_time);
     /* pause until we're told to run */
     while ((info->command == PAUSE) && !info_is_finished(info)) {
-        sleeptime = PR_MillisecondsToInterval(import_sleep_time);
         info->state = WAITING;
         DS_Sleep(sleeptime);
     }
@@ -3711,14 +3747,15 @@ dbmdb_import_writer(void*param)
     MDB_txn *txn = NULL;
     int count = 0;
     int rc = 0;
+    mdb_stat_info_t stats = {0};
 
-    MDB_STAT_INIT(info);
+    MDB_STAT_INIT(stats);
     while (!rc && !info_is_finished(info)) {
-        MDB_STAT_STEP(info, MDB_STAT_PAUSE);
+        MDB_STAT_STEP(stats, MDB_STAT_PAUSE);
         wait_for_starting(info);
-        MDB_STAT_STEP(info, MDB_STAT_READ);
+        MDB_STAT_STEP(stats, MDB_STAT_READ);
         slot = dbmdb_import_q_getall(&ctx->writerq);
-        MDB_STAT_STEP(info, MDB_STAT_RUN);
+        MDB_STAT_STEP(stats, MDB_STAT_RUN);
         if (info_is_finished(info)) {
             dbmdb_import_q_flush(&ctx->writerq);
             break;
@@ -3729,14 +3766,14 @@ dbmdb_import_writer(void*param)
 
         for (; slot; slot = nextslot) {
             if (!txn) {
-                MDB_STAT_STEP(info, MDB_STAT_TXNSTART);
+                MDB_STAT_STEP(stats, MDB_STAT_TXNSTART);
                 rc = TXN_BEGIN(ctx->ctx->env, NULL, 0, &txn);
             }
             if (!rc) {
-                MDB_STAT_STEP(info, MDB_STAT_WRITE);
+                MDB_STAT_STEP(stats, MDB_STAT_WRITE);
                 rc = MDB_PUT(txn, slot->dbi->dbi, &slot->key, &slot->data, 0);
             }
-            MDB_STAT_STEP(info, MDB_STAT_RUN);
+            MDB_STAT_STEP(stats, MDB_STAT_RUN);
             nextslot = slot->next;
             slapi_ch_free((void**)&slot);
         }
@@ -3744,9 +3781,9 @@ dbmdb_import_writer(void*param)
             break;
         }
         if  (count++ >= WRITER_MAX_OPS_IN_TXN) {
-            MDB_STAT_STEP(info, MDB_STAT_TXNSTOP);
+            MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP);
             rc = TXN_COMMIT(txn);
-            MDB_STAT_STEP(info, MDB_STAT_RUN);
+            MDB_STAT_STEP(stats, MDB_STAT_RUN);
             if (rc) {
                 break;
             }
@@ -3755,27 +3792,40 @@ dbmdb_import_writer(void*param)
         }
     }
     if (txn && !rc) {
-        MDB_STAT_STEP(info, MDB_STAT_TXNSTOP);
+        MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP);
         rc = TXN_COMMIT(txn);
-        MDB_STAT_STEP(info, MDB_STAT_RUN);
+        MDB_STAT_STEP(stats, MDB_STAT_RUN);
         if (!rc) {
             txn = NULL;
         }
     }
     if (txn) {
-        MDB_STAT_STEP(info, MDB_STAT_TXNSTOP);
+        MDB_STAT_STEP(stats, MDB_STAT_TXNSTOP);
         TXN_ABORT(txn);
-        MDB_STAT_STEP(info, MDB_STAT_RUN);
+        MDB_STAT_STEP(stats, MDB_STAT_RUN);
         txn = NULL;
     }
+    MDB_STAT_STEP(stats, MDB_STAT_WRITE);
+    if (!rc) {
+        /* Ensure that all data are written on disk */
+        rc = mdb_env_sync(ctx->ctx->env, 1);
+    }
+    MDB_STAT_END(stats);
+
     if (rc) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_writer",
                 "Failed to write in the database. Error is 0x%x: %s.\n",
                 rc, mdb_strerror(rc));
         thread_abort(info);
+    } else {
+        char buf[200];
+        char *summary = mdb_stat_summarize(&stats, buf, sizeof buf);
+        if (summary) {
+            import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_monitor_threads",
+                              "Import writer thread usage: %s", summary);
+        }
     }
     info_set_state(info);
-    MDB_STAT_END(info);
 }
 
 /***************************************************************************/
@@ -4106,16 +4156,9 @@ dbmdb_import_init_writer(ImportJob *job, ImportRole_t role)
 void
 dbmdb_free_import_ctx(ImportJob *job)
 {
-    WorkerQueueData_t *s = NULL;
-    int i=0;
     if (job->writer_ctx) {
         ImportCtx_t *ctx = job->writer_ctx;
         job->writer_ctx = NULL;
-        s = (WorkerQueueData_t*)ctx->workerq.slots;
-        /* Clear workerinfo  data */
-        for(i=0; i<ctx->workerq.max_slots; i++) {
-            slapi_ch_free(&s[i].winfo.mdb_stat);
-        }
         pthread_mutex_destroy(&ctx->workerq.mutex);
         pthread_cond_destroy(&ctx->workerq.cv);
         slapi_ch_free((void**)&ctx->workerq.slots);
@@ -4189,26 +4232,27 @@ mdb_stat_summarize(mdb_stat_info_t *sinfo, char *buf, size_t bufsize)
     char tmp[50];
     int pos = 0;
     int len = 0;
-    int i = 0;
 
     if (!sinfo) {
         return NULL;
     }
 
-    for (i=0; i<MDB_STAT_LAST_STEP; i++) {
+    for (size_t i=0; i<MDB_STAT_LAST_STEP; i++) {
         v[i] = _time_to_double(&sinfo->steps[i].realtime);
         total += v[i];
     }
-    for (i=0; i<MDB_STAT_LAST_STEP; i++) {
-        double percent = 100.0 * v[i] / total;
-        PR_snprintf(tmp, (sizeof tmp), "%s: %.2f%% ", names[i], percent);
-        len = strlen(tmp);
-        if (pos+len+4 < bufsize) {
-            strcpy(buf+pos, tmp);
-            pos += len;
-        } else {
-            strcpy(buf+pos, "...");
-            break;
+    if (total > 0.0) {
+        for (size_t i=0; i<MDB_STAT_LAST_STEP; i++) {
+            double percent = 100.0 * v[i] / total;
+            PR_snprintf(tmp, (sizeof tmp), "%s: %.2f%% ", names[i], percent);
+            len = strlen(tmp);
+            if (pos+len+4 < bufsize) {
+                strcpy(buf+pos, tmp);
+                pos += len;
+            } else {
+                strcpy(buf+pos, "...");
+                break;
+            }
         }
     }
     return buf;

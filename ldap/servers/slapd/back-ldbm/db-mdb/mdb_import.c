@@ -621,14 +621,6 @@ dbmdb_import_monitor_threads(ImportJob *job, int *status)
             sprintf(p, "recent rate %.1f/sec, ",
                          job->recent_progress_rate);
             import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_monitor_threads", "%s", buffer);
-            for (current_worker = job->worker_list; current_worker != NULL; current_worker = current_worker->next) {
-                char buf[200];
-                char *summary = mdb_stat_summarize(MDB_STAT_PT(current_worker), buf, sizeof buf);
-                if (summary) {
-                    import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_monitor_threads",
-                                      "Thread %s: %s", current_worker->name, summary);
-                }
-            }
         }
 
         count++;
