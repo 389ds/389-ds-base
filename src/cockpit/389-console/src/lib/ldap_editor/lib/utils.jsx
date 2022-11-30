@@ -1250,3 +1250,12 @@ export function isValidLDAPUrl (url) {
     }
     return false;
 }
+
+export function getBaseDNFromTree (entrydn, treeViewRootSuffixes) {
+    for (const suffixObj of treeViewRootSuffixes) {
+        if (entrydn.toLowerCase().indexOf(suffixObj.name.toLowerCase()) !== -1) {
+            return suffixObj.name;
+        }
+    }
+    return "";
+}

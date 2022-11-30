@@ -451,19 +451,17 @@ class EditableTable extends React.Component {
                         }
                     },
                     {
-
                         title: (value, rowIndex, cellIndex, props) => (
                             <React.Fragment>
                                 <EditableTextCell
                                     // isDisabled={myData.isDisabled}
-                                    value={value !== "" ? "********" : ""}
+                                    value={value !== "" ? "********" : <Label color="red" icon={<InfoCircleIcon />}> Empty value! </Label>}
                                     rowIndex={rowIndex}
                                     cellIndex={cellIndex}
                                     props={props}
                                     handleTextInputChange={this.handleTextInputChange}
                                     inputAriaLabel={'_' + value} // To avoid empty property when value is empty.
                                 />
-                                { value === '' && <Label color="red" icon={<InfoCircleIcon />}> Empty value! </Label> }
                             </React.Fragment>
                         ),
                         props: {
@@ -521,14 +519,13 @@ class EditableTable extends React.Component {
                             <React.Fragment>
                                 <EditableTextCell
                                     // isDisabled={myData.isDisabled}
-                                    value={value}
+                                    value={value === "" ? <Label color="red" icon={<InfoCircleIcon />}> Empty value! </Label> : value}
                                     rowIndex={rowIndex}
                                     cellIndex={cellIndex}
                                     props={props}
                                     handleTextInputChange={this.handleTextInputChange}
                                     inputAriaLabel={'_' + value} // To avoid empty property when value is empty.
                                 />
-                                { value === '' && <Label color="red" icon={<InfoCircleIcon />}> Empty value! </Label> }
                             </React.Fragment>
                         ),
                         props: {
