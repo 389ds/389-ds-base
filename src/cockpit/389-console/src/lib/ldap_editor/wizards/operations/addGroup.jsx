@@ -30,7 +30,8 @@ import {
 import LdapNavigator from '../../lib/ldapNavigator.jsx';
 import {
     createLdapEntry,
-    runGenericSearch
+    runGenericSearch,
+    decodeLine
 } from '../../lib/utils.jsx';
 import {
     InfoCircleIcon
@@ -478,10 +479,19 @@ class AddGroup extends React.Component {
                             </TextContent>
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top-xlg">
-                            <Label onClick={this.openLDAPNavModal} href="#" variant="outline" color="blue" icon={<InfoCircleIcon />}>
-                                Search Base DN
-                            </Label>
-                            <strong>&nbsp;&nbsp;{usersSearchBaseDn}</strong>
+                            <TextContent>
+                                <Text>
+                                    Search Base:
+                                    <Text
+                                        className="ds-left-margin"
+                                        component={TextVariants.a}
+                                        onClick={this.openLDAPNavModal}
+                                        href="#"
+                                    >
+                                        {usersSearchBaseDn}
+                                    </Text>
+                                </Text>
+                            </TextContent>
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top">
                             <SearchInput

@@ -5,11 +5,8 @@ import {
     Bullseye,
     Card, CardHeader, CardBody, CardTitle,
     Dropdown, DropdownItem, DropdownPosition,
-    FormSelect, FormSelectOption,
     Grid, GridItem,
     Label, LabelGroup,
-    Modal,
-    ModalVariant,
     Pagination,
     SearchInput,
     SimpleList, SimpleListItem,
@@ -36,6 +33,7 @@ import {
     modifyLdapEntry,
 } from '../../lib/utils.jsx';
 import EditableTable from '../../lib/editableTable.jsx';
+import EditGroup from './editGroup.jsx';
 import {
     LDAP_OPERATIONS,
     BINARY_ATTRIBUTES,
@@ -95,6 +93,11 @@ class EditLdapEntry extends React.Component {
             selectedAttributes: [],
             attrsToRemove: [],
             modifying: true,
+            isGroupOfNames: false,
+            isGroupOfUniqueNames: false,
+            groupMembers: [],
+            groupGenericEditor: false,
+            localProps: {...this.props},
         };
 
         this.onNext = ({ id }) => {
@@ -114,7 +117,7 @@ class EditLdapEntry extends React.Component {
                 // Generate the LDIF data at step 4.
                 this.generateLdifData();
             } else if (id === 6) {
-                const params = { serverId: this.props.editorLdapServer };
+                const params = { serverId: this.state.localProps.editorLdapServer };
                 modifyLdapEntry(params, this.state.ldifArray, (result) => {
                     if (result.errorCode === 0) {
                         result.output = "Successfully modified entry"
@@ -124,13 +127,13 @@ class EditLdapEntry extends React.Component {
                         commandOutput: result.errorCode === 0 ? 'Successfully modified entry!' : 'Failed to modify entry, error: ' + result.errorCode ,
                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                         modifying: false,
-                    }, () => { this.props.onReload() }); // refreshes tableView
+                    }, () => { this.state.localProps.onReload() }); // refreshes tableView
                     const opInfo = { // This is what refreshes treeView
                         operationType: 'MODIFY',
                         resultCode: result.errorCode,
                         time: Date.now()
                     }
-                    this.props.setWizardOperationInfo(opInfo);
+                    this.state.localProps.setWizardOperationInfo(opInfo);
                 });
             }
         };
@@ -160,7 +163,7 @@ class EditLdapEntry extends React.Component {
             const val = value.toLowerCase();
 
             // Get fresh list of Objectclasses and what is selected
-            this.props.allObjectclasses.map(oc => {
+            this.state.localProps.allObjectclasses.map(oc => {
                 let selected = false;
                 let selectionDisabled = false;
                 for (const selectedOC of this.state.selectedObjectClasses) {
@@ -233,7 +236,27 @@ class EditLdapEntry extends React.Component {
             })
         }
 
+        this.useGroupGenericEditor = this.useGroupGenericEditor.bind(this);
+        this.loadEntry = this.loadEntry.bind(this);
         // End constructor().
+    }
+
+    useGroupGenericEditor = () => {
+        this.originalEntryRows = [];
+        this.setState({
+            groupGenericEditor: true
+        });
+    }
+
+    openEditEntry = (dn) => {
+        // used by group modal
+        let editProps = { ...this.state.localProps};
+        editProps.wizardEntryDn = dn;
+        this.setState({
+            localProps: editProps,
+            isGroupOfNames: false,
+            isGroupOfUniqueNames: false,
+        })
     }
 
     isAttributeSingleValued = (attr) => {
@@ -265,22 +288,24 @@ class EditLdapEntry extends React.Component {
         });
     }
 
-    componentDidMount () {
+    loadEntry(reload) {
         const ocArray = [];
-        getSingleValuedAttributes(this.props.editorLdapServer,
-            (myAttrs) => {
-                this.singleValuedAttributes = [...myAttrs];
-        });
+        if (reload) {
+            this.originalEntryRows = [];
+        }
 
-        getBaseLevelEntryAttributes(this.props.editorLdapServer,
-            this.props.wizardEntryDn,
+        getBaseLevelEntryAttributes(this.state.localProps.editorLdapServer,
+            this.state.localProps.wizardEntryDn,
             (entryDetails) => {
                 let objectclasses = [];
-                const rdnInfo = getRdnInfo(this.props.wizardEntryDn);
+                const rdnInfo = getRdnInfo(this.state.localProps.wizardEntryDn);
                 let namingAttr = "";
                 let namingValue = "";
                 let namingIndex = -1;
                 let attrPropsName = "";
+                let isGroupOfUniqueNames = false;
+                let isGroupOfNames = false;
+                let members = [];
 
                 entryDetails
                 .filter(data => (data.attribute + data.value !== '' && // Filter out empty lines
@@ -295,6 +320,11 @@ class EditLdapEntry extends React.Component {
 
                     if (attrLowerCase === "objectclass") {
                         objectclasses.push(val);
+                        if (val.toLowerCase() === "groupofnames") {
+                            isGroupOfNames = true;
+                        } else if (val.toLowerCase() === "groupofuniquenames") {
+                            isGroupOfUniqueNames = true;
+                        }
                     } else {
                         // Base64 encoded values
                         if (line.attribute === "dn") {
@@ -341,10 +371,15 @@ class EditLdapEntry extends React.Component {
                         obj.required = namingAttribute;
                         this.originalEntryRows.push(obj);
                     }
+
+                    // Handle groupo members separately
+                    if (attrLowerCase === "member" || attrLowerCase === "uniquemember") {
+                        members.push(val);
+                    }
                 });
 
                 // Mark the existing objectclass classes as selected
-                this.props.allObjectclasses.map(oc => {
+                this.state.localProps.allObjectclasses.map(oc => {
                     let selected = false;
                     let selectionDisabled = false;
                     for (const entryOC of objectclasses) {
@@ -388,11 +423,24 @@ class EditLdapEntry extends React.Component {
                     namingValue: namingValue,
                     origAttrs: JSON.parse(JSON.stringify(this.originalEntryRows)),
                     origOC: JSON.parse(JSON.stringify(selectedObjectClasses)),
+                    isGroupOfNames: isGroupOfNames,
+                    isGroupOfUniqueNames: isGroupOfUniqueNames,
+                    groupMembers: members.sort(),
                     loading: false,
                 }, () => {
                     this.updateAttributeTableRows();
                 });
         });
+    }
+
+    componentDidMount () {
+        getSingleValuedAttributes(this.props.editorLdapServer,
+            (myAttrs) => {
+                this.singleValuedAttributes = [...myAttrs];
+        });
+        this.setState({
+            localProps:  {...this.props}
+        }, () => { this.loadEntry() });
     }
 
     onSetPageOc = (_event, pageNumber) => {
@@ -689,10 +737,10 @@ class EditLdapEntry extends React.Component {
 
     generateLdifData = () => {
         const statementRows = [];
-        const ldifArray = [];
         const updateArray = [];
         const addArray = [];
         const removeArray = [];
+        let ldifArray = [];
         let cleanLdifArray = [];
         let numOfChanges = 0;
         let isFilePath = false;
@@ -1152,7 +1200,7 @@ class EditLdapEntry extends React.Component {
                     <div>
                         <Bullseye className="ds-margin-top-xlg" key="add-entry-bulleye" >
                             <Title headingLevel="h3" size="lg" key="loading-title">
-                                Loading ObjectClasses ...
+                                Loading ...
                             </Title>
                         </Bullseye>
                         <Spinner className="ds-center" size="lg" key="loading-spinner" />
@@ -1257,14 +1305,14 @@ class EditLdapEntry extends React.Component {
                 </TextContent>
                 <EditableTable
                     key={editableTableData}
-                    wizardEntryDn={this.props.wizardEntryDn}
+                    wizardEntryDn={this.state.localProps.wizardEntryDn}
                     editableTableData={editableTableData}
                     quickUpdate
                     isAttributeSingleValued={this.isAttributeSingleValued}
                     isAttributeRequired={this.isAttributeRequired}
                     enableNextStep={this.enableNextStep}
                     saveCurrentRows={this.saveCurrentRows}
-                    allObjectclasses={this.props.allObjectclasses}
+                    allObjectclasses={this.state.localProps.allObjectclasses}
                     disableNamingChange
                 />
             </>
@@ -1322,7 +1370,7 @@ class EditLdapEntry extends React.Component {
                     <Alert
                         variant={resultVariant}
                         isInline
-                        title="Result for Entry Modification"
+                        title="Result for Entry Modification"editEntry
                     >
                         {commandOutput}
                         {this.state.adding &&
@@ -1404,18 +1452,40 @@ class EditLdapEntry extends React.Component {
         ];
 
         const title = <>
-            Entry DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+            Entry DN: &nbsp;&nbsp;<strong>{this.state.localProps.wizardEntryDn}</strong>
         </>;
 
-        return (
+        let editPage =
             <Wizard
-                isOpen={this.props.isWizardOpen}
-                onClose={this.props.toggleOpenWizard}
+                isOpen={this.state.localProps.isWizardOpen}
+                onClose={this.state.localProps.toggleOpenWizard}
                 steps={editEntrySteps}
                 title="Edit An LDAP Entry"
                 description={title}
                 onNext={this.onNext}
-            />
+            />;
+
+        if (!this.state.groupGenericEditor && (this.state.isGroupOfNames || this.state.isGroupOfUniqueNames)) {
+            editPage =
+                <EditGroup
+                    key={this.state.groupMembers}
+                    groupdn={this.state.localProps.wizardEntryDn}
+                    members={this.state.groupMembers}
+                    useGenericEditor={this.useGroupGenericEditor}
+                    isGroupOfNames={this.state.isGroupOfNames}
+                    isGroupOfUniqueNames={this.state.isGroupOfUniqueNames}
+                    treeViewRootSuffixes={this.state.localProps.treeViewRootSuffixes}
+                    editorLdapServer={this.state.localProps.editorLdapServer}
+                    addNotification={this.state.localProps.addNotification}
+                    openEditEntry={this.openEditEntry}
+                    onReload={this.loadEntry}
+                />;
+        }
+
+        return (
+            <>
+                {editPage}
+            </>
         );
     }
 }

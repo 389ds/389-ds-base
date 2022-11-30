@@ -73,8 +73,8 @@ export class DoubleConfirmModal extends React.Component {
                         </Text>
                     </TextContent>
                     <TextContent>
-                        <Text className="ds-center ds-margin-top-xlg" component={TextVariants.h4}>
-                            {item}
+                        <Text className="ds-center ds-margin-top" component={TextVariants.h4}>
+                            <i>{item}</i>
                         </Text>
                     </TextContent>
                     <Grid className="ds-margin-top-xlg">
@@ -101,7 +101,6 @@ DoubleConfirmModal.propTypes = {
     handleChange: PropTypes.func,
     actionHandler: PropTypes.func,
     spinning: PropTypes.bool,
-    item: PropTypes.string,
     checked: PropTypes.bool,
     mTitle: PropTypes.string,
     mMsg: PropTypes.string,
