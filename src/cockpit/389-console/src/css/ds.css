@@ -88,6 +88,10 @@ td {
     color: #f0ab00 !important;
 }
 
+.ds-pf-green-color {
+    color: green !important;
+}
+
 .ds-editor-tree {
     max-height: 70vh;
     overflow: auto;
@@ -110,6 +114,10 @@ td {
 
 .ds-right-align {
     text-align: right;
+}
+
+.ds-left-align {
+    text-align: left !important;
 }
 
 .ds-label {
@@ -244,11 +252,11 @@ textarea {
 }
 
 .ds-float-right {
-    float: right;
+    float: right !important;
 }
 
 .ds-float-left {
-    float: left;
+    float: left !important;
 }
 
 .ds-config-header {

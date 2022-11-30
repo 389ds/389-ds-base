@@ -54,13 +54,15 @@ class ReferralTable extends React.Component {
 
     getDeleteButton(name) {
         return (
-            <TrashAltIcon
-                className="ds-center"
-                onClick={() => {
-                    this.props.deleteRef(name);
-                }}
-                title="Delete this referral"
-            />
+            <a>
+                <TrashAltIcon
+                    className="ds-center"
+                    onClick={() => {
+                        this.props.deleteRef(name);
+                    }}
+                    title="Delete this referral"
+                />
+            </a>
         );
     }
 
@@ -317,13 +319,15 @@ class EncryptedAttrTable extends React.Component {
 
     getDeleteButton(name) {
         return (
-            <TrashAltIcon
-                className="ds-center"
-                onClick={() => {
-                    this.props.deleteAttr(name);
-                }}
-                title="Delete this attribute"
-            />
+            <a>
+                <TrashAltIcon
+                    className="ds-center"
+                    onClick={() => {
+                        this.props.deleteAttr(name);
+                    }}
+                    title="Delete this attribute"
+                />
+            </a>
         );
     }
 

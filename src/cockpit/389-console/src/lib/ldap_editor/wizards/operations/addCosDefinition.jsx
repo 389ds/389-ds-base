@@ -345,7 +345,7 @@ class AddCoS extends React.Component {
             this.setState({
                 cosAttrRows,
                 attributeList,
-                tableModificationTime 
+                tableModificationTime
             });
         });
         this.setState({
@@ -910,10 +910,19 @@ class AddCoS extends React.Component {
                             </TextContent>
                         </GridItem>
                         <GridItem span={9} className="ds-margin-top-xlg">
-                            <Label onClick={this.openLDAPNavModal} href="#" variant="outline" color="blue" icon={<InfoCircleIcon />}>
-                                Search Base DN
-                            </Label>
-                            <strong>&nbsp;&nbsp;{cosSearchBaseDn}</strong>
+                            <TextContent>
+                                <Text>
+                                    Search Base:
+                                    <Text
+                                        className="ds-left-margin"
+                                        component={TextVariants.a}
+                                        onClick={this.openLDAPNavModal}
+                                        href="#"
+                                    >
+                                        {cosSearchBaseDn}
+                                    </Text>
+                                </Text>
+                            </TextContent>
                         </GridItem>
                         <GridItem span={3} className="ds-margin-top-xlg ds-right-align">
                             <Button
@@ -937,7 +946,7 @@ class AddCoS extends React.Component {
                             CoS Template Selected: <strong>&nbsp;&nbsp;{cosTemplateDNSelected}</strong>
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top-xlg">
-                            {(cosAvailableOptions.length !== 0) ? 
+                            {(cosAvailableOptions.length !== 0) ?
                                 <SimpleList onSelect={this.onSelectTemplate}>
                                     {cosAvailableOptions}
                                 </SimpleList>
