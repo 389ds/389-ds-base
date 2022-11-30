@@ -226,13 +226,15 @@ class ManagerTable extends React.Component {
 
     getDeleteButton(name) {
         return (
-            <TrashAltIcon
-                className="ds-center"
-                onClick={() => {
-                    this.props.confirmDelete(name);
-                }}
-                title="Delete Replication Manager"
-            />
+            <a>
+                <TrashAltIcon
+                    className="ds-center"
+                    onClick={() => {
+                        this.props.confirmDelete(name);
+                    }}
+                    title="Delete Replication Manager"
+                />
+            </a>
         );
     }
 
