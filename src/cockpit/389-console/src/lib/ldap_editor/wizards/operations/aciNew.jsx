@@ -13,8 +13,6 @@ import {
     Form, FormHelperText, FormSelect, FormSelectOption,
     Grid, GridItem,
     HelperText, HelperTextItem,
-    InputGroup,
-    Label,
     Modal, ModalVariant,
     SearchInput,
     Select, SelectOption, SelectVariant,
@@ -892,10 +890,19 @@ class AddNewAci extends React.Component {
                     />
                 }
                 <div className="ds-margin-bottom-md" />
-                <Label onClick={this.onUsersDrawerClick} href="#" variant="outline" color="blue" icon={<InfoCircleIcon />}>
-                    Search Base DN
-                </Label>
-                <strong>&nbsp;&nbsp;{usersSearchBaseDn}</strong>
+                <TextContent>
+                    <Text>
+                        Search Base:
+                        <Text
+                            className="ds-left-margin"
+                            component={TextVariants.a}
+                            onClick={this.onUsersDrawerClick}
+                            href="#"
+                        >
+                            {usersSearchBaseDn}
+                        </Text>
+                    </Text>
+                </TextContent>
 
                 <Drawer className="ds-margin-top" isExpanded={isUsersDrawerExpanded} onExpand={this.onDrawerExpand}>
                     <DrawerContent panelContent={usersPanelContent}>

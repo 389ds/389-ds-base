@@ -162,7 +162,7 @@ To test changes to the 389-console plugin, you can set up links from your worksp
 
 - Create cockpit directory under user's home directory
 
-    mkdir ~/.local/share/cockpit/389-console
+    mkdir ~/.local/share/cockpit
 
 - Link your workspace directory
 
