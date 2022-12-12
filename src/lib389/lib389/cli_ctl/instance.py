@@ -227,9 +227,7 @@ def prepare_ds_root(inst, log, args):
         log.debug(f'Copying {bin} into {destbin}')
         os.makedirs(os.path.dirname(destbin), 0o755, True)
         copyfile(bin, destbin)
-    # And finally, update the template files
-    for dse in ('/usr/share/dirsrv/data/template-dse-minimal.ldif', '/usr/share/dirsrv/data/template-dse.ldif'):
-        copy_and_skip_entry(dse, ('libpwdchan-plugin',))
+    # And finally, update the template file
     # Use PO and PF to escape { } in formatted strings
     PO = '{'
     PF = '}'
