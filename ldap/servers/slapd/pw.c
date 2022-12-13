@@ -280,7 +280,8 @@ pw_name2scheme(char *name)
         } else {
             /* if not, let's setup pbkdf2 */
 #ifdef RUST_ENABLE
-            char *pbkdf = "PBKDF2-SHA512";
+            /* until 1.3.10 supports Rust hashers we can't use PBKDF2-SHA512 by default */
+            char *pbkdf = "PBKDF2_SHA256";
 #else
             char *pbkdf = "PBKDF2_SHA256";
 #endif
