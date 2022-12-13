@@ -52,7 +52,6 @@ static Slapi_DN* _pluginDN = NULL;
 MemberOfConfig *qsortConfig = 0;
 static int usetxn = 0;
 static int premodfn = 0;
-static PRBool fixup_running = PR_FALSE;
 static PRLock *fixup_lock = NULL;
 static int32_t fixup_progress_count = 0;
 static int64_t fixup_progress_elapsed = 0;
@@ -64,6 +63,15 @@ typedef struct _memberofstringll
     const char *dn;
     void *next;
 } memberofstringll;
+
+typedef struct _fixup_ll
+{
+    Slapi_DN *sdn;
+    char *filter_str;
+    void *next;
+} mo_fixup_ll;
+
+static mo_fixup_ll *fixup_list = NULL;
 
 typedef struct _memberof_get_groups_data
 {
@@ -437,6 +445,15 @@ memberof_postop_close(Slapi_PBlock *pb __attribute__((unused)))
     config_rwlock = NULL;
     PR_DestroyLock(fixup_lock);
     fixup_lock = NULL;
+
+    mo_fixup_ll *fixup_task = fixup_list;
+    while (fixup_task != NULL) {
+        mo_fixup_ll *tmp = fixup_task;
+        fixup_task = fixup_task->next;
+        slapi_sdn_free(&tmp->sdn);
+        slapi_ch_free_string(&tmp->filter_str);
+        slapi_ch_free((void**)&tmp);
+    }
 
     slapi_log_err(SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "<-- memberof_postop_close\n");
@@ -2817,7 +2834,6 @@ memberof_fixup_task_thread(void *arg)
     }
 
     PR_Lock(fixup_lock);
-    fixup_running = PR_TRUE;
     fixup_progress_count = 0;
     fixup_progress_elapsed = slapi_current_rel_time_t();
     fixup_start_time = slapi_current_rel_time_t();
@@ -2849,11 +2865,10 @@ memberof_fixup_task_thread(void *arg)
     /* Mark this as a task operation */
     configCopy.fixup_task = 1;
     configCopy.task = task;
-
+    Slapi_DN *sdn = slapi_sdn_new_dn_byref(td->dn);
     if (usetxn) {
-        Slapi_DN *sdn = slapi_sdn_new_dn_byref(td->dn);
         Slapi_Backend *be = slapi_be_select_exact(sdn);
-        slapi_sdn_free(&sdn);
+
         if (be) {
             fixup_pb = slapi_pblock_new();
             slapi_pblock_set(fixup_pb, SLAPI_BACKEND, be);
@@ -2894,13 +2909,36 @@ done:
                           fixup_progress_count, slapi_current_rel_time_t() - fixup_start_time);
     slapi_task_inc_progress(task);
 
+    /* Cleanup task linked list */
+    PR_Lock(fixup_lock);
+    mo_fixup_ll *prev = NULL;
+    for (mo_fixup_ll *curr = fixup_list; curr; curr = curr->next) {
+        mo_fixup_ll *next = curr->next;
+        if (slapi_sdn_compare(curr->sdn, sdn) == 0 &&
+            strcasecmp(curr->filter_str, td->filter_str) == 0)
+        {
+            /* free current code */
+            slapi_sdn_free(&curr->sdn);
+            slapi_ch_free_string(&curr->filter_str);
+            slapi_ch_free((void**)&curr);
+
+            /* update linked list */
+            if (prev == NULL) {
+                /* first node */
+                fixup_list = next;
+            } else {
+                prev->next = next;
+            }
+            break;
+        }
+        prev = curr;
+    }
+    PR_Unlock(fixup_lock);
+    slapi_sdn_free(&sdn);
+
     /* this will queue the destruction of the task */
     slapi_task_finish(task, rc);
     slapi_task_dec_refcount(task);
-
-    PR_Lock(fixup_lock);
-    fixup_running = PR_FALSE;
-    PR_Unlock(fixup_lock);
 
     slapi_log_err(SLAPI_LOG_INFO, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "memberof_fixup_task_thread - Memberof task finished (processed %d entries in %ld seconds)\n",
@@ -2919,22 +2957,12 @@ memberof_task_add(Slapi_PBlock *pb,
     int rv = SLAPI_DSE_CALLBACK_OK;
     task_data *mytaskdata = NULL;
     Slapi_Task *task = NULL;
+    Slapi_DN *sdn = NULL;
     char *bind_dn;
     const char *filter;
     const char *dn = 0;
 
     *returncode = LDAP_SUCCESS;
-
-    PR_Lock(fixup_lock);
-    if (fixup_running) {
-        PR_Unlock(fixup_lock);
-        *returncode = LDAP_UNWILLING_TO_PERFORM;
-        slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
-                "memberof_task_add - there is already a fixup task running\n");
-        rv = SLAPI_DSE_CALLBACK_ERROR;
-        goto out;
-    }
-    PR_Unlock(fixup_lock);
 
     /* get arg(s) */
     if ((dn = slapi_entry_attr_get_ref(e, "basedn")) == NULL) {
@@ -2948,6 +2976,39 @@ memberof_task_add(Slapi_PBlock *pb,
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
+
+    PR_Lock(fixup_lock);
+    sdn = slapi_sdn_new_dn_byval(dn);
+    if (fixup_list == NULL) {
+        fixup_list = (mo_fixup_ll *)slapi_ch_calloc(1, sizeof(mo_fixup_ll));
+        fixup_list->sdn = sdn;
+        fixup_list->filter_str = slapi_ch_strdup(filter);
+    } else {
+        for (mo_fixup_ll *fixup_task = fixup_list; fixup_task; fixup_task = fixup_task->next) {
+            if (slapi_sdn_compare(sdn, fixup_task->sdn) == 0 &&
+                strcasecmp(filter, fixup_task->filter_str) == 0)
+            {
+                /* Found an identical running task, reject it */
+                PR_Unlock(fixup_lock);
+                slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
+                        "memberof_task_add - there is already an identical fixup task running: base: %s filter: %s\n",
+                        slapi_sdn_get_dn(sdn), filter);
+                slapi_sdn_free(&sdn);
+                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                rv = SLAPI_DSE_CALLBACK_ERROR;
+                goto out;
+            }
+        }
+        /* Add the new task DN to the top of the list */
+        mo_fixup_ll *head = fixup_list;
+        mo_fixup_ll *new_task = (mo_fixup_ll *)slapi_ch_calloc(1, sizeof(mo_fixup_ll));
+        new_task->sdn = sdn;
+        new_task->filter_str = slapi_ch_strdup(filter);
+        new_task->next = head;
+        fixup_list = new_task;
+    }
+    PR_Unlock(fixup_lock);
+
 
     /* setup our task data */
     slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);

@@ -67,12 +67,15 @@ def test_fixup_task_limit(topo):
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         memberof.fixup(DEFAULT_SUFFIX)
 
+    # Add second task but on different suffix which should be allowed
+    memberof.fixup("ou=people," + DEFAULT_SUFFIX)
+
     # Wait for first task to complete
     task.wait()
 
     # Add new task which should be allowed now
     memberof.fixup(DEFAULT_SUFFIX)
-     
+
 
 if __name__ == '__main__':
     # Run isolated
