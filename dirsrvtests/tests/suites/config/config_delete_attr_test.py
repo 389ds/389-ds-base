@@ -75,6 +75,7 @@ def test_reset_attributes(topology_st):
         'nsslapd-defaultnamingcontext',
         'nsslapd-accesslog',
         'nsslapd-auditlog',
+        'nsslapd-securitylog',
         'nsslapd-errorlog',
         'nsslapd-tmpdir',
         'nsslapd-rundir',

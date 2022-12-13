@@ -21,6 +21,9 @@ from lib389.idm.user import UserAccount, UserAccounts
 from lib389.dirsrv_log import DirsrvSecurityLog
 from lib389.utils import ensure_str
 from lib389.idm.domain import Domain
+from lib389.idm.account import Anonymous
+from lib389.config import CertmapLegacy
+from lib389.nss_ssl import NssSsl
 
 
 log = logging.getLogger(__name__)
@@ -32,6 +35,8 @@ DN_QUOATED = "uid=\"cn=mark\",ou=people," + DEFAULT_SUFFIX
 DN_QUOATED_ESCAPED = "uid=cn\\3dmark,ou=people," + DEFAULT_SUFFIX
 DN_LONG = "uid=" + ("z" * 520) + ",ou=people," + DEFAULT_SUFFIX
 DN_LONG_TRUNCATED = "uid=" + ("z" * 508) + "..."
+RDN_TEST_USER = 'testuser'
+RDN_TEST_USER_WRONG = 'testuser_wrong'
 
 
 @pytest.fixture
@@ -56,7 +61,7 @@ def setup_test(topo, request):
         pass
 
 
-def check_log(inst, event_id, msg, dn=None):
+def check_log(inst, event_id, msg, dn=None, bind_method=None):
     """Check the security log
     """
     time.sleep(1)  # give a little time to flush to disk
@@ -68,14 +73,21 @@ def check_log(inst, event_id, msg, dn=None):
             # Skip log title lines
             continue
 
-    event = json.loads(line)
-    if dn is not None:
-        if event['dn'] == dn.lower() and event['event'] == event_id and event['msg'] == msg:
-            # Found it
-            return
-    elif event['event'] == event_id and event['msg'] == msg:
-            # Found it
-            return
+        event = json.loads(line)
+        found = False
+        if event['event'] == event_id and event['msg'] == msg:
+            if dn is not None:
+                if event['dn'] == dn.lower():
+                    found = True
+            if bind_method is not None:
+                if event['bind_method'] == bind_method:
+                    found = True
+
+            if not found and (dn is not None or bind_method is not None):
+                continue
+            else:
+                # Found it
+                return
 
     assert False
 
@@ -105,6 +117,9 @@ def test_invalid_binds(topo, setup_test):
 
     inst = topo.standalone
     user_entry = UserAccount(inst, DN)
+
+    # Delete the previous securty logs
+    inst.deleteSecurityLogs()
 
     # Good bind
     user_entry.bind(PASSWORD)
@@ -153,6 +168,9 @@ def test_authorization(topo, setup_test):
     """
     inst = topo.standalone
 
+    # Delete the previous securty logs
+    inst.deleteSecurityLogs()
+
     # Bind as a user
     user_entry = UserAccount(inst, DN)
     user_conn = user_entry.bind(PASSWORD)
@@ -167,7 +185,7 @@ def test_authorization(topo, setup_test):
 
 
 def test_account_lockout(topo, setup_test):
-    """Specify a test case purpose or name here
+    """Test that accound locked message is displayed correctly
 
     :id: b70494f0-7d8e-4d90-8265-9d009bbb08b4
     :setup: Standalone Instance
@@ -181,6 +199,9 @@ def test_account_lockout(topo, setup_test):
         3. Success
     """
     inst = topo.standalone
+
+    # Delete the previous securty logs
+    inst.deleteSecurityLogs()
 
     # Configure account lockout
     inst.config.set('passwordlockout', 'on')
@@ -219,6 +240,9 @@ def test_tcp_events(topo, setup_test):
 
     inst = topo.standalone
 
+    # Delete the previous securty logs
+    inst.deleteSecurityLogs()
+
     # Start interactive ldapamodfy command
     ldap_cmd = ['ldapmodify', '-x', '-D', DN_DM, '-w', PASSWORD,
         '-H', f'ldap://{inst.host}:{inst.port}']
@@ -232,6 +256,108 @@ def test_tcp_events(topo, setup_test):
     # Kill ldapmodify and check the log
     os.kill(int(ldapmodify_pid), signal.SIGKILL)
     check_log(inst, "TCP_ERROR", "Bad Ber Tag or uncleanly closed connection - B1")
+
+
+def test_anonymous_bind(topo, setup_test):
+    """Test that anonymous bind message is displayed correctly
+
+    :id: 0df3c6c1-e93a-4baf-88c6-825c1d4d9b8e
+    :setup: Standalone Instance
+    :steps:
+        1. Bind anonymously
+        2. Check for account lockout event
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+
+    inst = topo.standalone
+
+    # Delete the previous securty logs
+    inst.deleteSecurityLogs()
+
+    Anonymous(inst).bind()
+    check_log(inst, "BIND_SUCCESS", "ANONYMOUS_BIND")
+
+
+def test_cert_map_failed_event(topo, setup_test):
+    """Trigger a CERT_MAP_FAILED event that should be logged in the security log.
+    Also test that BIND_SUCCESS works with TLSCLIENTAUTH
+
+    :id: eb0c638b-4a30-4108-b38b-e75e55ccb6c8
+    :setup: Standalone Instance
+    :steps:
+        1. Enable TLS
+        2. Create a user
+        3. Create User certificates - one is for the new user, another one is free
+        4. Turn on the certmap.
+        5. Check that EXTERNAL is listed in supported mechns.
+        6. Restart to allow certmaps to be re-read
+        7. Attempt a bind with TLS external with the correct credentials
+        8. Now attempt a bind with TLS external with a wrong cert
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Securotylog should display BIND_SUCCESS works with TLSCLIENTAUTH
+        8. Securotylog should display BIND_FAILED works with CERT_MAP_FAILED
+    """
+
+    inst = topo.standalone
+
+    inst.enable_tls()
+
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.create(properties={
+        'uid': RDN_TEST_USER,
+        'cn' : RDN_TEST_USER,
+        'sn' : RDN_TEST_USER,
+        'uidNumber' : '1000',
+        'gidNumber' : '2000',
+        'homeDirectory' : f'/home/{RDN_TEST_USER}'
+    })
+
+    ssca_dir = inst.get_ssca_dir()
+    ssca = NssSsl(dbpath=ssca_dir)
+    ssca.create_rsa_user(RDN_TEST_USER)
+    ssca.create_rsa_user(RDN_TEST_USER_WRONG)
+
+    # Get the details of where the key and crt are.
+    tls_locs = ssca.get_rsa_user(RDN_TEST_USER)
+    tls_locs_wrong = ssca.get_rsa_user(RDN_TEST_USER_WRONG)
+
+    user.enroll_certificate(tls_locs['crt_der_path'])
+
+    # Turn on the certmap.
+    cm = CertmapLegacy(inst)
+    certmaps = cm.list()
+    certmaps['default']['DNComps'] = ''
+    certmaps['default']['FilterComps'] = ['cn']
+    certmaps['default']['VerifyCert'] = 'off'
+    cm.set(certmaps)
+
+    # Check that EXTERNAL is listed in supported mechns.
+    assert(inst.rootdse.supports_sasl_external())
+
+    # Restart to allow certmaps to be re-read: Note, we CAN NOT use post_open
+    # here, it breaks on auth. see lib389/__init__.py
+    inst.restart(post_open=False)
+
+    # Delete the previous securty logs
+    inst.deleteSecurityLogs()
+
+    # Attempt a bind with TLS external
+    inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir, userkey=tls_locs['key'], usercert=tls_locs['crt'])
+    inst.restart()
+    check_log(inst, "BIND_SUCCESS", "", bind_method="TLSCLIENTAUTH")
+
+    # Now attempt a bind with TLS external with a wrong cert
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir, userkey=tls_locs_wrong['key'], usercert=tls_locs_wrong['crt'])
+    check_log(inst, "BIND_FAILED", "CERT_MAP_FAILED")
 
 
 if __name__ == '__main__':
