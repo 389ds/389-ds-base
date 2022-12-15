@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2022 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -11,6 +11,7 @@ import os
 import pytest
 import ldap
 from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX
+from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
 from lib389.index import Indexes
 from lib389.backend import Backends, DatabaseConfig
 from lib389.idm.user import UserAccounts
@@ -18,6 +19,7 @@ from lib389.idm.group import Groups, Group
 from lib389.topologies import topology_st as topo
 from lib389.utils import ds_is_older
 from lib389.plugins import MemberOfPlugin
+from lib389.idm.nscontainer import nsContainer
 
 pytestmark = pytest.mark.tier1
 
@@ -213,6 +215,50 @@ def test_unindexed_internal_search_crashes_server(topo, add_a_group_with_users, 
     task = memberof.fixup(DEFAULT_SUFFIX)
     task.wait()
     assert inst.status()
+
+
+def test_reject_virtual_attr_for_indexing(topo):
+    """Reject trying to add an index for a virtual attribute (nsrole and COS)
+
+    :id: 0fffa7a8-aaec-44d6-bdbc-93cf4b197b56
+    :customerscenario: True
+    :setup: Standalone instance
+    :steps:
+        1. Create COS
+        2. Adding index for nsRole is rejected
+        3. Adding index for COS attribute is rejected
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    # Create COS:  add container, create template, and definition
+    nsContainer(topo.standalone, f'cn=cosClassicTemplates,{DEFAULT_SUFFIX}').create(properties={'cn': 'cosClassicTemplates'})
+    properties = {'employeeType': 'EngType',
+                  'cn': '"cn=filterRoleEngRole,dc=example,dc=com",cn=cosClassicTemplates,dc=example,dc=com'
+                  }
+    CosTemplate(topo.standalone,
+                'cn="cn=filterRoleEngRole,dc=example,dc=com",cn=cosClassicTemplates,{}'.format(
+                    DEFAULT_SUFFIX)) \
+        .create(properties=properties)
+    properties = {'cosTemplateDn': 'cn=cosClassicTemplate,{}'.format(DEFAULT_SUFFIX),
+                  'cosAttribute': 'employeeType',
+                  'cosSpecifier': 'nsrole',
+                  'cn': 'cosClassicGenerateEmployeeTypeUsingnsrole'}
+    CosClassicDefinition(topo.standalone, 'cn=cosClassicGenerateEmployeeTypeUsingnsrole,{}'.format(DEFAULT_SUFFIX)) \
+        .create(properties=properties)
+
+    # Test nsrole and cos attribute
+    be_insts = Backends(topo.standalone).list()
+    for be in be_insts:
+        if be.get_attr_val_utf8_l('nsslapd-suffix') == DEFAULT_SUFFIX:
+            # Attempt to add nsRole as index
+            with pytest.raises(ValueError):
+                be.add_index('nsrole', ['eq'])
+            # Attempt to add COS attribute as index
+            with pytest.raises(ValueError):
+                be.add_index('employeeType', ['eq'])
+            break
 
 
 if __name__ == "__main__":
