@@ -729,6 +729,21 @@ class Backend(DSLdapObject):
         :param matching_rules - a List of matching rules for the index
         :param reindex - If set to True then index the attribute after creating it.
         """
+
+        # Reject adding an index for a virtual attribute
+        virt_attr_list = ['nsrole']
+        for cosDefType in [CosIndirectDefinitions, CosPointerDefinitions, CosClassicDefinitions]:
+            defs = cosDefType(self._instance, self.get_suffix()).list()
+            for cosDef in defs:
+                attrs = cosDef.get_attr_val_utf8_l("cosAttribute").split()
+                for attr in attrs:
+                    if attr in ["default", "override", "operational", "operational-default", "merge-schemes"]:
+                        # We are at the end, just break out
+                        break
+                    virt_attr_list.append(attr)
+        if attr_name.lower() in virt_attr_list:
+            raise ValueError(f"You should not index a virtual attribute ({attr_name})")
+
         new_index = Index(self._instance)
         props = {'cn': attr_name,
                  'nsSystemIndex': 'False',
