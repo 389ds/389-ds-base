@@ -30,7 +30,7 @@ from lib389.configurations.sample import (
     create_base_cn,
     create_base_c,
 )
-from lib389.instance.options import General2Base, Slapd2Base, Backend2Base
+from lib389.instance.options import General2Base, Slapd2Base, Backend2Base, Options2
 from lib389.paths import Paths
 from lib389.saslmap import SaslMappings
 from lib389.instance.remove import remove_ds_instance
@@ -276,8 +276,8 @@ class SetupDs(object):
         general = {'config_version': 2,
                    'full_machine_name': socket.getfqdn(),
                    'strict_host_checking': False,
-                   'selinux': True,
-                   'systemd': ds_paths.with_systemd,
+                   'selinux': Options2.default_values['selinux'],
+                   'systemd': Options2.get_systemd_default(),
                    'defaults': '999999999', 'start': True}
 
         slapd = {'self_sign_cert_valid_months': 24,
@@ -286,10 +286,10 @@ class SetupDs(object):
                  'initconfig_dir': ds_paths.initconfig_dir,
                  'self_sign_cert': True,
                  'root_password': '',
-                 'port': 389,
+                 'port': Options2.default_values['port'],
                  'instance_name': 'localhost',
                  'user': ds_paths.user,
-                 'secure_port': 636,
+                 'secure_port': Options2.default_values['secure_port'],
                  'prefix': ds_paths.prefix,
                  'bin_dir': ds_paths.bin_dir,
                  'sbin_dir': ds_paths.sbin_dir,

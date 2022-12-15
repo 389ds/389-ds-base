@@ -275,132 +275,269 @@ def test_setup_ds_custom_db_dir(topology):
         assert not "ldap_port_t" in res
 
 
-def write_file(fname, pwd, is_runnable, lines):
-    log.debug(f'Creating file {fname} with:')
-    with open(fname, 'wt') as f:
-        for line in lines:
-            log.debug(line)
-            f.write(line+'\n')
-        os.chown(fname, pwd.pw_uid, pwd.pw_gid)
-        if (is_runnable):
-            os.chmod(fname, 0o755)
-    log.debug(f'End of file: {fname}')
+class UserEnv:
+    def __init__(self, user):
+        if os.geteuid() == 0:  
+            try:
+                pw = pwd.getpwnam(user)
+            except KeyError:
+                subprocess.run(('/usr/sbin/useradd', user), check=True)
+                pw = pwd.getpwnam(user)
+        else:
+            pw = pwd.getpwuid(os.geteuid())
+            user = pw.pw_name
+        self.user = user
+        self.pw = pw
+        self.dir = None
+        self.runid = 1
+        self._instances = {}
+        self._dirs = []
 
-def test_setup_ds_as_non_root():
+    def setdir(self, testname):
+        # Stop instance from current dir
+        if self.dir in self._instances:
+            lines = [ f'dsctl {i} stop' for i in self._instances[self.dir] ]
+            self.run(lines)
+        # Then create new dir
+        dir = f'{self.pw.pw_dir}/{testname}'
+        self.dir = dir
+        if os.path.isdir(dir):
+           rmtree(dir)
+        self._dirs.append(dir)
+        os.makedirs(dir)
+        if os.geteuid() == 0:  
+            os.chown(dir, self.pw.pw_uid, self.pw.pw_gid)
+
+    def write_file(self, fname, is_runnable=False, lines=()):
+        log.debug(f'Creating file {fname} with:')
+        with open(fname, 'wt') as f:
+            for line in lines:
+                log.debug(line)
+                f.write(line+'\n')
+            os.chown(fname, self.pw.pw_uid, self.pw.pw_gid)
+            if (is_runnable):
+                os.chmod(fname, 0o755)
+        log.debug(f'End of file: {fname}')
+
+    def add_instance_for_cleanup(self, serverid):
+        if not self.dir in self._instances:
+            self._instances[self.dir] = []
+        self._instances[self.dir].append(serverid)
+
+    def run(self, lines, exit_on_error=True):
+        # Prepare test script
+        # Export current path and python path in test script
+        # to insure that right binary/libraries are used
+        path = os.environ['PATH']
+        pythonpath = os.getenv('PYTHONPATH', '')
+        if exit_on_error:
+            eoe = ( "set -e # Exit on error" , )
+        else:
+            eoe = ()
+        name = f'{self.dir}/run.{self.runid}'
+        self.runid = self.runid + 1
+        self.write_file(name, is_runnable=True, lines=(
+            '#!/usr/bin/bash',
+            'set -x',
+            f'export PATH="{self.dir}/bin:{path}"',
+            f'export PYTHONPATH="{pythonpath}:$PYTHONPATH"',
+            *eoe,
+            *lines,
+            'exit 0',
+        ))
+        # Run the script as self.user
+        log.debug(f'Run script {name} as user {self.user}')
+        if os.geteuid() == 0:  
+            return subprocess.run(['/usr/bin/su', '-', self.user, name], capture_output=True, text=True)
+        else:
+            return subprocess.run([name], capture_output=True, text=True)
+
+    def cleanup(self):
+        path = os.environ['PATH']
+        lines = []
+        for k,v in self._instances.items():
+            lines.append(f'export PATH="{k}/bin:{path}"')
+            for i in v:
+                if DEBUGGING:
+                    lines.append((f'dsctl {i} stop'))
+                else:
+                    lines.append((f'dsctl {i} remove --do-it'))
+        log.debug(f'CLEANUP LINES: {lines}')
+        if lines:
+            self.run(list(lines))
+        if DEBUGGING:
+            log.debug(f'CLEANUP DIRS: {self._dirs}')
+            for d in self._dirs:
+                if os.path.isdir(d):
+                    rmtree(d)
+
+
+@pytest.fixture(scope="module")
+def nru(request):
+    # Geberate a non root user
+    env = UserEnv('user1')
+
+    def fin():
+        # Should delete the UserEnv object and remove the temporary directory
+        if env:
+            env.cleanup()
+
+    request.addfinalizer(fin)
+    return env;
+
+
+def test_setup_ds_as_non_root(nru, request):
     """Test creating an instance as a non root user
 
     :id: c727998e-a960-11ec-898e-482ae39447e5
     :setup: no instance
     :steps:
-        1. Add linux user NON_ROOT_USER if it does not already exist
-        2. Create a temporary directory
-        3. Create test.sh script that
-             Set Paths
+        1. Create a dscreate template file
+        2. Create an run a test script that
              Run dscreate ds-root
              Run dscreate from-file
              Add a backend
              Search users in backend and store output in a file
              Stop the instance
-        4. Create a dscreate template file
-        5. Run su - NON_ROOT_USER test.sh
-        6. Check that pid file exists and kill the associated process
-        7. Check demo_user is in the search result
-        8. Check that test.sh returned 0
-        9. (Implicit task): remove the temporary
+        3. Check that pid file exists and kill the associated process
+        4. Check demo_user is in the search result
+        5. Check that test.sh returned 0
 
 
     :expectedresults:
         1. No error.
         2. No error.
-        3. No error.
-        4. No error.
-        5. No error.
-        6. Should fail to kill the process (That is supposed to be stopped)
-        7. demo_user should be in search result
-        8. return code should be 0
-        9. No error.
+        3. Should fail to kill the process (That is supposed to be stopped)
+        4. demo_user should be in search result
+        5. return code should be 0
 
     """
 
-    # Add linux user NON_ROOT_USER if it does not already exist
-    NON_ROOT_USER='user1'
-    try:
-        pwd_nru = pwd.getpwnam(NON_ROOT_USER)
-    except KeyError:
-        subprocess.run(('/usr/sbin/useradd', NON_ROOT_USER), check=True)
-        pwd_nru = pwd.getpwnam(NON_ROOT_USER)
+    nru.setdir(testname=request.node.name)
+    # Prepare dscreate template
+    nru.write_file(f'{nru.dir}/ds.tmpl', lines=(
+        '[general]',
+        '[slapd]',
+        f'port = {INSTANCE_PORT}',
+        f'instance_name = {INSTANCE_SERVERID}',
+        f'root_password = {PW_DM}',
+        f'secure_port = {INSTANCE_SECURE_PORT}',
+        '[backend-userroot]',
+        'create_suffix_entry = True',
+        'require_index = True',
+        'sample_entries = yes',
+        'suffix = dc=example,dc=com',
+    ))
+    # Create the test script and run it as nru.user
+    nru.add_instance_for_cleanup(INSTANCE_SERVERID)
+    result = nru.run((
+        'type dscreate',
+        f'dscreate ds-root {nru.dir}/root {nru.dir}/bin',
+        'hash -d dscreate # Remove dscreate from hash to use the new one',
+        'type dscreate',
+        f'dscreate from-file {nru.dir}/ds.tmpl',
+        f'dsconf {INSTANCE_SERVERID} backend create --suffix dc=foo,dc=bar --be-name=foo --create-entries',
+        f'ldapsearch -x -H ldap://localhost:{INSTANCE_PORT} -D "cn=directory manager" -w {PW_DM} -b dc=foo,dc=bar "uid=*" | tee {nru.dir}/search.out',
+        f'dsctl {INSTANCE_SERVERID} stop',
+    ))
+    log.info(f'test.sh stdout is: {str(result.stdout)}')
+    log.info(f'test.sh stderr is: {str(result.stderr)}')
 
-    # Create a temporary directory
-    with TemporaryDirectory() as dir:
-        os.chown(dir, pwd_nru.pw_uid, pwd_nru.pw_gid)
-        # Prepare test script
-        if DEBUGGING:
-            dbg_script = (
-                'savedir()',
-                '{',
-                f'    cp -R {dir} /tmp/dbg_test_setup_ds_as_non_root',
-                '}',
-                'trap savedir exit',
-                'trap savedir err',
-            )
-        else:
-            dbg_script = ( )
-        # Export current path and python path in test script
-        # to insure that right binary/libraries are used
-        path = os.environ['PATH']
-        pythonpath = os.getenv('PYTHONPATH', '')
-        write_file(f'{dir}/test.sh', pwd_nru, True, (
-            '#!/usr/bin/bash',
-            'set -x',
-            *dbg_script,
-            f'export PATH="{dir}/bin:{path}:$PATH"',
-            f'export PYTHONPATH="{pythonpath}:$PYTHONPATH"',
-            'set -e # Exit on error',
-            'type dscreate',
-            f'dscreate ds-root {dir}/root {dir}/bin',
-            'hash -d dscreate # Remove dscreate from hash to use the new one',
-            'type dscreate',
-            f'dscreate from-file {dir}/t',
-            f'dsconf {INSTANCE_SERVERID} backend create --suffix dc=foo,dc=bar --be-name=foo --create-entries',
-            f'ldapsearch -x -H ldap://localhost:{INSTANCE_PORT} -D "cn=directory manager" -w {PW_DM} -b dc=foo,dc=bar "uid=*" | tee {dir}/search.out',
-            f'dsctl {INSTANCE_SERVERID} stop',
-            'exit 0',
-        ))
-        # Prepare dscreate template
-        write_file(f'{dir}/t', pwd_nru, False, (
-            '[general]',
-            '[slapd]',
-            f'port = {INSTANCE_PORT}',
-            f'instance_name = {INSTANCE_SERVERID}',
-            f'root_password = {PW_DM}',
-            f'secure_port = {INSTANCE_SECURE_PORT}',
-            '[backend-userroot]',
-            'create_suffix_entry = True',
-            'require_index = True',
-            'sample_entries = yes',
-            'suffix = dc=example,dc=com',
-        ))
-        # Run the script as NON_ROOT_USER
-        log.debug(f'Run script {dir}/test.sh as user {NON_ROOT_USER}')
-        result = subprocess.run(('/usr/bin/su', '-', NON_ROOT_USER, f'{dir}/test.sh'), capture_output=True, universal_newlines=True)
-        log.info(f'test.sh stdout is: {str(result.stdout)}')
-        log.info(f'test.sh stderr is: {str(result.stderr)}')
+    # Let check that demo_user is in the search result
+    with open(f'{nru.dir}/search.out', 'rt') as f:
+        assert(re.findall('demo_user', f.read()))
+    log.debug(f'Check that test script finished successfully.')
+    assert(result.returncode == 0)
 
-        # Check that pid file exists
-        log.debug(f'Check that pid file {dir}/root/run/dirsrv/slapd-{INSTANCE_SERVERID}.pid exist')
-        pid_filename = f'{dir}/root/run/dirsrv/slapd-{INSTANCE_SERVERID}.pid'
-        with open(pid_filename, 'rt') as f:
-            pid = int(f.readline())
-        assert pid>1
-        # Signal the 389ds instance to stop (and raise an exception if we can do that)
-        # because the process should already be stopped.
-        log.debug(f'Check that instance with pid {pid} is stopped')
-        with pytest.raises(OSError) as e_info:
-            os.kill(pid, 15)
-        # Let check that demo_user is in the search result
-        log.debug(f'Check that {dir}/search.out contains with pid {pid} is stopped')
-        with open(f'{dir}/search.out', 'rt') as f:
-            assert(re.findall('demo_user', f.read()))
-        log.debug(f'Check that Wtest.sh finihed successfully.')
-        assert(result.returncode == 0)
-    # Instance got deleted by the with cleanup
+def test_setup_ds_as_non_root_with_default_options(nru, request):
+    """Test creating an instance as a non root user
+
+    :id: 160e3eaa-7cb9-11ed-9b2b-482ae39447e5
+    :setup: Create a non root user environment
+    :steps:
+        1. Create a dscreate template file
+        2. Create an run a test script that
+             Run dscreate ds-root
+             Run dscreate from-file without specifying any ports
+             Add a backend
+             Search users in backend and store output in a file
+             Stop the instance
+        3. Check demo_user is in the search result
+        4. Check that test.sh returned 0
+
+
+    :expectedresults:
+        1. No error.
+        2. No error.
+        3. Should fail to kill the process (That is supposed to be stopped)
+        4. demo_user should be in search result
+        5. return code should be 0
+
+    """
+
+    nru.setdir(testname=request.node.name)
+    # Prepare dscreate template
+    nru.write_file(f'{nru.dir}/ds.tmpl', lines=(
+        '[general]',
+        '[slapd]',
+        f'instance_name = {INSTANCE_SERVERID}',
+        f'root_password = {PW_DM}',
+        '[backend-userroot]',
+        'create_suffix_entry = True',
+        'require_index = True',
+        'sample_entries = yes',
+        'suffix = dc=example,dc=com',
+    ))
+    # Remove instance if test fails
+    nru.add_instance_for_cleanup(INSTANCE_SERVERID)
+    # Create the test script and run it as nru.user
+    result = nru.run((
+        f'dscreate ds-root {nru.dir}/root {nru.dir}/bin',
+        'hash -d dscreate # Remove dscreate from hash to use the new one',
+        'type dscreate',
+        f'dscreate from-file {nru.dir}/ds.tmpl',
+        f'dsconf {INSTANCE_SERVERID} backend create --suffix dc=foo,dc=bar --be-name=foo --create-entries',
+        "port=`awk '/nsslapd-port/ { print $2; }' "  + f"{nru.dir}/root/etc/dirsrv/slapd-{INSTANCE_SERVERID}/dse.ldif`",
+        f'ldapsearch -x -H ldap://localhost:$port -D "cn=directory manager" -w {PW_DM} -b dc=foo,dc=bar "uid=*" | tee {nru.dir}/search.out',
+        f'dsctl {INSTANCE_SERVERID} stop',
+    ))
+    log.info(f'test.sh stdout is: {str(result.stdout)}')
+    log.info(f'test.sh stderr is: {str(result.stderr)}')
+
+    # Let check that demo_user is in the search result
+    with open(f'{nru.dir}/search.out', 'rt') as f:
+        assert(re.findall('demo_user', f.read()))
+    log.debug(f'Check that test script finished successfully.')
+    assert(result.returncode == 0)
+
+def test_dscreate_non_root_defaults(nru, request):
+    """Test creating an instance as a non root user
+
+    :id: 98174234-7cb9-11ed-9be5-482ae39447e5
+    :setup: Create a non root user environment
+    :steps:
+        1. Run dscreate create-template --advanced
+        2. Checks that we got expected default values
+
+
+    :expectedresults:
+        1. No error.
+        2. Check that:
+             selinux=False 
+             systemd=False 
+             port != 389
+             secure_port != 636
+
+    """
+
+    nru.setdir(testname=request.node.name)
+    # Prepare dscreate template
+    # Create the test script and run it as nru.user
+    result = nru.run(("dscreate create-template --advanced",))
+    stdout = ensure_str(result.stdout)
+    assert(result.returncode == 0)
+    log.debug(f"stdout={stdout}")
+    assert ";selinux = False" in stdout
+    assert ";systemd = False" in stdout
+    assert not ";secure_port = 636" in stdout
+    assert not ";port = 389" in stdout
