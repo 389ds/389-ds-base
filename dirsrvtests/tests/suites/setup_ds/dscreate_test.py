@@ -382,7 +382,7 @@ def test_setup_ds_as_non_root():
         ))
         # Run the script as NON_ROOT_USER
         log.debug(f'Run script {dir}/test.sh as user {NON_ROOT_USER}')
-        result = subprocess.run(('/usr/bin/su', '-', NON_ROOT_USER, f'{dir}/test.sh'), capture_output=True, text=True)
+        result = subprocess.run(('/usr/bin/su', '-', NON_ROOT_USER, f'{dir}/test.sh'), capture_output=True, universal_newlines=True)
         log.info(f'test.sh stdout is: {str(result.stdout)}')
         log.info(f'test.sh stderr is: {str(result.stderr)}')
 
