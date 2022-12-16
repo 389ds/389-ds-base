@@ -111,6 +111,7 @@ dbmdb_ldif2db(Slapi_PBlock *pb)
     char *instance_name;
     Slapi_Task *task = NULL;
     int ret, task_flags;
+    dbmdb_ctx_t *ctx = NULL;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
@@ -224,6 +225,15 @@ dbmdb_ldif2db(Slapi_PBlock *pb)
                                                                     "(error %d: %s)\n",
                               ret, dblayer_strerror(ret));
             }
+            goto fail;
+        }
+
+        ctx = MDB_CONFIG(li);
+        ret = mdb_env_set_flags(ctx->env, MDB_NOSYNC, 1);
+        if (0 != ret) {
+            slapi_log_err(SLAPI_LOG_ALERT, "dbmdb_ldif2db", "Failed to set MDB_NOSYNC flags on database environment. "
+                              "(error %d: %s)\n",
+                              ret, dblayer_strerror(ret));
             goto fail;
         }
     }
@@ -1204,6 +1214,7 @@ dbmdb_db2index(Slapi_PBlock *pb)
     backend *be;
     int return_value = -1;
     Slapi_Task *task;
+    dbmdb_ctx_t *ctx = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_db2index", "=>\n");
     if (g_get_shutdown() || c_get_shutdown()) {
@@ -1238,6 +1249,14 @@ dbmdb_db2index(Slapi_PBlock *pb)
             slapi_log_err(SLAPI_LOG_ERR,
                           "ldbm2index", "Failed to init database: %s\n", instance_name);
             return return_value;
+        }
+        ctx = MDB_CONFIG(li);
+        return_value = mdb_env_set_flags(ctx->env, MDB_NOSYNC, 1);
+        if (0 != return_value) {
+            slapi_log_err(SLAPI_LOG_ALERT, "dbmdb_ldif2db", "Failed to set MDB_NOSYNC flags on database environment. "
+                              "(error %d: %s)\n",
+                              return_value, dblayer_strerror(return_value));
+            return -1;
         }
 
         /* vlv_init should be called before dbmdb_instance_start
