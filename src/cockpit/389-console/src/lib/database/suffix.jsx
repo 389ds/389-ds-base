@@ -742,7 +742,7 @@ export class Suffix extends React.Component {
         })
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "delete", this.props.suffix
+            "backend", "delete", this.props.suffix, "--do-it"
         ];
         log_cmd("doDelete", "Delete database", cmd);
         cockpit
