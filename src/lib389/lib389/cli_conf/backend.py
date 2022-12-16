@@ -236,14 +236,17 @@ def backend_delete(inst, basedn, log, args, warn=True):
     dn = _search_backend_dn(inst, args.be_name)
     if dn is None:
         raise ValueError("Unable to find a backend with the name: ({})".format(args.be_name))
-    if warn and args.json is False:
-        _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
+    if not args.ack:
+        log.info("""Not removing backend: if you are really sure add: --do-it""")
+    else:
+        if warn and args.json is False:
+            _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
 
-    be = _get_backend(inst, args.be_name)
-    _recursively_del_backends(be)
-    be.delete()
+        be = _get_backend(inst, args.be_name)
+        _recursively_del_backends(be)
+        be.delete()
 
-    log.info("The database, and any sub-suffixes, were sucessfully deleted")
+        log.info("The database, and any sub-suffixes, were successfully deleted")
 
 
 def backend_import(inst, basedn, log, args):
@@ -1152,6 +1155,9 @@ def create_parser(subparsers):
     delete_parser = subcommands.add_parser('delete', help='Delete a backend database')
     delete_parser.set_defaults(func=backend_delete)
     delete_parser.add_argument('be_name', help='The backend name or suffix')
+    delete_parser.add_argument('--do-it', dest="ack",
+                               help="Remove backend and its subsuffixes",
+                               action='store_true', default=False)
 
     #######################################################
     # Get Suffix Tree (for use in web console)
