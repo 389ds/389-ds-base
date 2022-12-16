@@ -65,7 +65,8 @@ from lib389.utils import (
     format_cmd_list,
     get_default_db_lib,
     selinux_present,
-    selinux_label_port)
+    selinux_label_port,
+    get_user_is_root)
 from lib389.paths import Paths
 from lib389.nss_ssl import NssSsl
 from lib389.tasks import BackupTask, RestoreTask
@@ -3447,3 +3448,20 @@ class DirSrv(SimpleLDAPObject, object):
         task.create(properties=task_properties)
 
         return task
+
+    def is_rootdn_bound(self):
+        # Return True if root DN is authenticated for this DirSrv instance
+        if self.state != DIRSRV_STATE_ONLINE:
+            return False
+
+        if self.binddn is None and get_user_is_root():
+            # ldapi
+            return True
+
+        if self.binddn is not None:
+            # Bind DN provided, is it the root DN?
+            rootdn = self.config.get_attr_val_utf8_l('nsslapd-rootdn')
+            if self.binddn.lower() == rootdn:
+                return True
+
+        return False
