@@ -126,16 +126,19 @@ def db_monitor(inst, basedn, log, args):
     report_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ldbm_mon = ldbm_monitor.get_status()
     dbcachesize = int(ldbm_mon['nsslapd-db-cache-size-bytes'][0])
-    if 'nsslapd-db-page-size' in ldbm_mon:
+    # Warning: there are two different page sizes associated with bdb:
+    # - nsslapd-db-mp-pagesize the db mempool (i.e the db cache) page size which is usually 4K
+    # - nsslapd-db-pagesize the db instances (i.e id2entry, indexes, changelog) page size which
+    #   is usually 8K
+    # To compute the db cache statistics we must use the nsslapd-db-mp-pagesize
+    if 'nsslapd-db-mp-pagesize' in ldbm_mon:
         pagesize = int(ldbm_mon['nsslapd-db-mp-pagesize'][0])
     else:
-        try:
-            pagesize = os.statvfs(inst.ds_paths.db_home_dir).f_bsize
-        except OSError:
-            # let use the usual default file system preferred block size
-            pagesize = 4096
-    log.debug(f'DB mempool pagesize: {pagesize}')
-    log.debug(f'ldbm_mon: {ldbm_mon}')
+        # targeting a remote instance that does not have github issue 5550 fix.
+        # So lets use the usual default file system preferred block size
+        # db cache free statistics may be wrong but we gave no way to
+        # compute it rightly.
+        pagesize = 4096
     dbhitratio = ldbm_mon['dbcachehitratio'][0]
     dbcachepagein = ldbm_mon['dbcachepagein'][0]
     dbcachepageout = ldbm_mon['dbcachepageout'][0]
