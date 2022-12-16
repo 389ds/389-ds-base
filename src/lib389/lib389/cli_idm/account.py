@@ -145,11 +145,18 @@ def reset_password(inst, basedn, log, args):
 
 def change_password(inst, basedn, log, args):
     dn = _get_dn_arg(args.dn, msg="Enter dn to change password")
-    cur_password = _get_arg(args.current_password, hidden=True, confirm=False, msg="Enter current password for %s" % dn)
-    new_password = _get_arg(args.new_password, hidden=True, confirm=True, msg="Enter new password for %s" % dn)
     accounts = Accounts(inst, basedn)
     acct = accounts.get(dn=dn)
-    acct.change_password(cur_password, new_password)
+
+    if not inst.is_rootdn_bound():
+        cur_password = _get_arg(args.current_password, hidden=True, confirm=False, msg="Enter current password for %s" % dn)
+        new_password = _get_arg(args.new_password, hidden=True, confirm=True, msg="Enter new password for %s" % dn)
+        acct.change_password(cur_password, new_password)
+    if inst.is_rootdn_bound():
+        # is root/rootdn do not prompt for old password
+        new_password = _get_arg(args.new_password, hidden=True, confirm=True, msg="Enter new password for %s" % dn)
+        acct.reset_password(new_password)
+
     log.info('changed password for %s' % dn)
 
 
