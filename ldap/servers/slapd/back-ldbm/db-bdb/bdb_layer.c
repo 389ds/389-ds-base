@@ -1417,6 +1417,37 @@ bdb_check_and_set_import_cache(struct ldbminfo *li)
     return 0;
 }
 
+/*
+ * Creates the db handler with the proper pagesize.
+ * This function should be systematically used instead of db_create when the handler
+ * is used to open a database.
+ * ( db_create may still be used when removing or renaming a database )
+ */
+int
+dbbdb_create_db_for_open(backend *be, const char *funcname, int open_flags, DB **dbp, DB_ENV *dbenv)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    bdb_config *conf = (bdb_config *)li->li_dblayer_config;
+    int rval;
+
+    rval = db_create(dbp, dbenv, 0);
+    if (rval) {
+        slapi_log_err(SLAPI_LOG_ERR, funcname, "Unable to create db handler! %d\n", rval);
+        return rval;
+    }
+
+    if (open_flags & DB_CREATE) {
+        unsigned pagesize = (conf->bdb_page_size == 0) ? DBLAYER_PAGESIZE : conf->bdb_page_size;
+        rval = (*dbp)->set_pagesize(*dbp, pagesize);
+        if (rval) {
+            slapi_log_err(SLAPI_LOG_ERR,
+                          funcname, "dbp->set_pagesize(%" PRIu32 ") failed %d\n", pagesize, rval);
+            return rval;
+        }
+    }
+    return rval;
+}
+
 
 /* mode is one of
  * DBLAYER_NORMAL_MODE,
@@ -1654,24 +1685,12 @@ bdb_instance_start(backend *be, int mode)
         }
 
         inst->inst_id2entry = NULL;
-        return_value = db_create(&inst->inst_id2entry, mypEnv->bdb_DB_ENV, 0);
+        return_value = dbbdb_create_db_for_open(be, "bdb_instance_start", open_flags,
+                                                (DB**)&inst->inst_id2entry, mypEnv->bdb_DB_ENV);
         if (0 != return_value) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "bdb_instance_start", "Unable to create id2entry db file! %d\n",
-                          return_value);
             goto out;
         }
         dbp = inst->inst_id2entry;
-
-        return_value = dbp->set_pagesize(dbp,
-                                         (conf->bdb_page_size == 0) ? DBLAYER_PAGESIZE : conf->bdb_page_size);
-        if (0 != return_value) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "bdb_instance_start", "dbp->set_pagesize(%" PRIu32 " or %" PRIu32 ") failed %d\n",
-                          conf->bdb_page_size, DBLAYER_PAGESIZE,
-                          return_value);
-            goto out;
-        }
 
         if ((charray_get_index(conf->bdb_data_directories,
                                inst->inst_parent_dir_name) != 0) &&
@@ -1685,20 +1704,11 @@ bdb_instance_start(backend *be, int mode)
                     dbp, NULL /* txnid */, abs_id2entry_file, subname, DB_BTREE,
                     open_flags, priv->dblayer_file_mode, return_value);
             dbp->close(dbp, 0);
-            return_value = db_create(&inst->inst_id2entry,
-                                     mypEnv->bdb_DB_ENV, 0);
+            return_value = dbbdb_create_db_for_open(be, "bdb_instance_start", open_flags,
+                                                    (DB**)&inst->inst_id2entry, mypEnv->bdb_DB_ENV);
             if (0 != return_value)
                 goto out;
             dbp = inst->inst_id2entry;
-            return_value = dbp->set_pagesize(dbp,
-                                             (conf->bdb_page_size == 0) ? DBLAYER_PAGESIZE : conf->bdb_page_size);
-            if (0 != return_value) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "bdb_instance_start", "dbp->set_pagesize(%" PRIu32 " or %" PRIu32 ") failed %d\n",
-                              conf->bdb_page_size, DBLAYER_PAGESIZE,
-                              return_value);
-                goto out;
-            }
 
             slapi_ch_free_string(&abs_id2entry_file);
         }
@@ -1905,18 +1915,8 @@ bdb_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv, char **path, in
         }
         *ppEnv = mypEnv->bdb_DB_ENV;
     }
-    rval = db_create(&dbp, *ppEnv, 0);
+    rval = dbbdb_create_db_for_open(be, "dblayer_get_aux_id2entry_ext", dbflags, &dbp, *ppEnv);
     if (rval) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_get_aux_id2entry_ext", "Unable to create id2entry db handler! %d\n", rval);
-        goto err;
-    }
-
-    rval = dbp->set_pagesize(dbp, (conf->bdb_page_size == 0) ? DBLAYER_PAGESIZE : conf->bdb_page_size);
-    if (rval) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_get_aux_id2entry_ext", "dbp->set_pagesize(%" PRIu32 " or %" PRIu32 ") failed %d\n",
-                      conf->bdb_page_size, DBLAYER_PAGESIZE, rval);
         goto err;
     }
 
@@ -2360,7 +2360,7 @@ bdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, DB 
 
     if (!ppDB)
         goto out;
-    return_value = db_create(ppDB, pENV->bdb_DB_ENV, 0);
+    return_value = dbbdb_create_db_for_open(be, "dblayer_open_file", open_flags, (DB**)ppDB, pENV->bdb_DB_ENV);
     if (0 != return_value)
         goto out;
 
@@ -2397,7 +2397,7 @@ bdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, DB 
                 dbp, NULL /* txnid */, abs_file_name, subname, DB_BTREE,
                 open_flags, priv->dblayer_file_mode, return_value);
         dbp->close(dbp, 0);
-        return_value = db_create(ppDB, pENV->bdb_DB_ENV, 0);
+        return_value = dbbdb_create_db_for_open(be, "dblayer_open_file", open_flags,(DB**)ppDB, pENV->bdb_DB_ENV);
         if (0 != return_value) {
             goto out;
         }
