@@ -161,6 +161,7 @@ class MonitorLDBM(DSLdapObject):
             'nsslapd-db-page-write-rate',
             'nsslapd-db-pages-in-use',
             'nsslapd-db-txn-region-wait-rate',
+            'nsslapd-db-mp-pagesize',
         ]
         if not ds_is_older("1.4.0", instance=instance):
             self._backend_keys.extend([

@@ -153,6 +153,7 @@ bdb_perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
             perf->longest_chain_length = mpstat->st_hash_longest;
             perf->hash_elements_examine_rate = mpstat->st_hash_examined;
             perf->pages_in_use = mpstat->st_page_dirty + mpstat->st_page_clean;
+            perf->mp_pagesize = mpstat->st_pagesize;
             perf->dirty_pages = mpstat->st_page_dirty;
             perf->clean_pages = mpstat->st_page_clean;
             perf->page_trickle_rate = mpstat->st_page_trickle;
@@ -246,6 +247,8 @@ static SlapiLDBMPerfctrATMap bdb_perfctr_at_map[] = {
      offsetof(performance_counters, page_write_rate)},
     {SLAPI_LDBM_PERFCTR_AT_PREFIX "pages-in-use",
      offsetof(performance_counters, pages_in_use)},
+    {SLAPI_LDBM_PERFCTR_AT_PREFIX "mp-pagesize",
+     offsetof(performance_counters, mp_pagesize)},
     {SLAPI_LDBM_PERFCTR_AT_PREFIX "txn-region-wait-rate",
      offsetof(performance_counters, txn_region_wait_rate)},
 };

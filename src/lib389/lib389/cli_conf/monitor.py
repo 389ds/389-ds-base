@@ -9,6 +9,7 @@
 
 import datetime
 import json
+import os
 from lib389.monitor import (Monitor, MonitorLDBM, MonitorSNMP, MonitorDiskSpace)
 from lib389.chaining import (ChainingLinks)
 from lib389.backend import Backends
@@ -125,16 +126,25 @@ def db_monitor(inst, basedn, log, args):
     report_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ldbm_mon = ldbm_monitor.get_status()
     dbcachesize = int(ldbm_mon['nsslapd-db-cache-size-bytes'][0])
-    if 'nsslapd-db-page-size' in ldbm_mon:
-        pagesize = int(ldbm_mon['nsslapd-db-page-size'][0])
+    # Warning: there are two different page sizes associated with bdb:
+    # - nsslapd-db-mp-pagesize the db mempool (i.e the db cache) page size which is usually 4K
+    # - nsslapd-db-pagesize the db instances (i.e id2entry, indexes, changelog) page size which
+    #   is usually 8K
+    # To compute the db cache statistics we must use the nsslapd-db-mp-pagesize
+    if 'nsslapd-db-mp-pagesize' in ldbm_mon:
+        pagesize = int(ldbm_mon['nsslapd-db-mp-pagesize'][0])
     else:
-        pagesize = 8 * 1024  # Taken from DBLAYER_PAGESIZE
+        # targeting a remote instance that does not have github issue 5550 fix.
+        # So lets use the usual default file system preferred block size
+        # db cache free statistics may be wrong but we gave no way to
+        # compute it rightly.
+        pagesize = 4096
     dbhitratio = ldbm_mon['dbcachehitratio'][0]
     dbcachepagein = ldbm_mon['dbcachepagein'][0]
     dbcachepageout = ldbm_mon['dbcachepageout'][0]
     dbroevict = ldbm_mon['nsslapd-db-page-ro-evict-rate'][0]
     dbpages = int(ldbm_mon['nsslapd-db-pages-in-use'][0])
-    dbcachefree = int(dbcachesize - (pagesize * dbpages))
+    dbcachefree = max(int(dbcachesize - (pagesize * dbpages)), 0)
     dbcachefreeratio = dbcachefree/dbcachesize
     ndnratio = ldbm_mon['normalizeddncachehitratio'][0]
     ndncursize = int(ldbm_mon['currentnormalizeddncachesize'][0])
