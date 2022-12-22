@@ -1,0 +1,25 @@
+[package]
+name = "librnsslapd"
+version = "0.1.0"
+authors = ["William Brown <william@blackhats.net.au>"]
+edition = "2018"
+build = "build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+path = "src/lib.rs"
+name = "rnsslapd"
+crate-type = ["staticlib", "lib"]
+
+# [profile.release]
+# panic = "abort"
+# lto = true
+
+[dependencies]
+slapd = { path = "../slapd" }
+libc = "0.2"
+
+[build-dependencies]
+cbindgen = "0.9"
+

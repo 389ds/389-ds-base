@@ -1,0 +1,22 @@
+[package]
+name = "librslapd"
+version = "0.1.0"
+authors = ["William Brown <william@blackhats.net.au>"]
+edition = "2018"
+build = "build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+path = "src/lib.rs"
+name = "rslapd"
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+slapd = { path = "../slapd" }
+libc = "0.2"
+concread =  "^0.2.20"
+
+[build-dependencies]
+cbindgen = "0.9"
+

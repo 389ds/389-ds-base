@@ -216,3 +216,7 @@ wrappers/ds_systemd_ask_password_acl
 docs/slapi.doxy
 man/man3/
 html/
+src/librslapd/target/
+ldap/servers/slapd/rust-slapi-private.h
+vendor
+vendor.tar.gz
