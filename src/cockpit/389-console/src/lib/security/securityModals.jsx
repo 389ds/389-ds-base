@@ -200,6 +200,98 @@ export class SecurityAddCertModal extends React.Component {
     }
 }
 
+export class SecurityAddCSRModal extends React.Component {
+    render() {
+        const {
+            showModal,
+            closeHandler,
+            handleChange,
+            saveHandler,
+            spinning,
+            error
+        } = this.props;
+
+        let saveBtnName = "Create Certificate Signing Request";
+        const extraPrimaryProps = {};
+        if (spinning) {
+            saveBtnName = "Creating Certificate Signing Request ...";
+            extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
+
+        return (
+            <Modal
+                variant={ModalVariant.medium}
+                aria-labelledby="ds-modal"
+                title="Create Certificate Signing Request"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={error.csrName || error.csrSubject || spinning}
+                    >
+                        {saveBtnName}
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal autoComplete="off">
+                    <TextContent>
+                        <Text component={TextVariants.h4}>
+                            Create a Certificate Signing Request
+                        </Text>
+                    </TextContent>
+                    <hr />
+                    <Grid title="Enter Certificate Signing Request name">
+                        <GridItem className="ds-label" span={3}>
+                            CSR Name
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                type="text"
+                                id="csrName"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="csrName"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.csrName ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="Enter Certificate Signing Request subject"
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            CSR Subject
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                type="text"
+                                id="csrSubject"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="csrSubject"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.csrSubject ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                </Form>
+            </Modal>
+        );
+    }
+}
+
 export class SecurityEnableModal extends React.Component {
     render() {
         const {
@@ -664,6 +756,21 @@ SecurityAddCACertModal.propTypes = {
 };
 
 SecurityAddCACertModal.defaultProps = {
+    showModal: false,
+    spinning: false,
+    error: {},
+};
+
+SecurityAddCSRModal.propTypes = {
+    showModal: PropTypes.bool,
+    closeHandler: PropTypes.func,
+    handleChange: PropTypes.func,
+    saveHandler: PropTypes.func,
+    spinning: PropTypes.bool,
+    error: PropTypes.object,
+};
+
+SecurityAddCSRModal.defaultProps = {
     showModal: false,
     spinning: false,
     error: {},

@@ -17,6 +17,306 @@ import {
 } from '@patternfly/react-table';
 import PropTypes from "prop-types";
 
+class KeyTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
+            columns: [
+                { title: 'Cipher', transforms: [sortable] },
+                { title: 'Key Identifier', transforms: [sortable] },
+                { title: 'State', transforms: [sortable] },
+            ],
+        };
+
+        this.onSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.onPerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage: perPage
+            });
+        };
+
+        this.onSort = this.onSort.bind(this);
+        this.onSearchChange = this.onSearchChange.bind(this);
+    }
+
+    onSort(_event, index, direction) {
+        const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
+        });
+    }
+
+    componentDidMount() {
+        let rows = [];
+        let columns = this.state.columns;
+
+        for (const ServerKey of this.props.ServerKeys) {
+            rows.push(
+                {
+                    isOpen: false,
+                    cells: [ServerKey.attrs.cipher, ServerKey.attrs.key_id, ServerKey.attrs.state],
+                },
+            );
+        }
+
+        if (rows.length == 0) {
+            rows = [{ cells: ['No Orphan keys'] }];
+            columns = [{ title: 'Orphan keys' }];
+        }
+        this.setState({
+            rows: rows,
+            columns: columns
+        });
+    }
+
+    onSearchChange(value, event) {
+        const rows = [];
+        let count = 0;
+
+        for (const ServerKey of this.props.ServerKeys) {
+            const val = value.toLowerCase();
+
+            // Check for matches of all the parts
+            if (val != "" && ServerKey.attrs.algo.toLowerCase().indexOf(val) == -1 &&
+                ServerKey.attrs.key_id.toLowerCase().indexOf(val) == -1 &&
+                ServerKey.attrs.state.toLowerCase().indexOf(val) == -1) {
+                // Not a match
+                continue;
+            }
+
+            rows.push(
+                {
+                    isOpen: false,
+                    cells: [ServerKey.attrs.cipher, ServerKey.attrs.key_id, ServerKey.attrs.state],
+
+                },
+            );
+        }
+
+        this.setState({
+            rows: rows,
+            value: value,
+            page: 1,
+        });
+    }
+
+    actions() {
+        return [
+            {
+                title: 'Delete Key',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.delKey(rowData.cells[1])
+            }
+        ];
+    }
+
+    render() {
+        const { perPage, page, sortBy, rows, columns } = this.state;
+
+        return (
+            <div className="ds-margin-top-lg">
+                <SearchInput
+                    placeholder='Search Keys'
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
+                <Table
+                    className="ds-margin-top"
+                    aria-label="orph key table"
+                    cells={columns}
+                    key={rows}
+                    rows={rows}
+                    variant={TableVariant.compact}
+                    sortBy={sortBy}
+                    onSort={this.onSort}
+                    actions={rows.length > 0 ? this.actions() : null}
+                    dropdownPosition="right"
+                    dropdownDirection="bottom"
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+                <Pagination
+                    itemCount={this.state.rows.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={this.state.perPage}
+                    page={page}
+                    variant={PaginationVariant.bottom}
+                    onSetPage={this.onSetPage}
+                    onPerPageSelect={this.onPerPageSelect}
+                />
+            </div>
+        );
+    }
+}
+
+class CSRTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
+            columns: [
+                { title: 'Name', transforms: [sortable] },
+                { title: 'Subject DN', transforms: [sortable] },
+                { title: 'Modification Date', transforms: [sortable] },
+            ],
+        };
+
+        this.onSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.onPerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage: perPage,
+                page: 1
+            });
+        };
+
+        this.onSort = this.onSort.bind(this);
+        this.onSearchChange = this.onSearchChange.bind(this);
+    }
+
+
+    onSort(_event, index, direction) {
+        const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
+        });
+    }
+
+    componentDidMount() {
+        let rows = [];
+        let columns = this.state.columns;
+
+        for (const ServerCSR of this.props.ServerCSRs) {
+            rows.push(
+                {
+                    isOpen: false,
+                    cells: [ServerCSR.attrs.name, ServerCSR.attrs.subject, ServerCSR.attrs.modified],
+
+                },
+            );
+        }
+        if (rows.length == 0) {
+            rows = [{ cells: ['No Certificate Signing Requests'] }];
+            columns = [{ title: 'Certificate Signing Requests' }];
+        }
+        this.setState({
+            rows: rows,
+            columns: columns
+        });
+    }
+
+    onSearchChange(value, event) {
+        const rows = [];
+        let count = 0;
+
+        for (const cert of this.props.ServerCSRs) {
+            const val = value.toLowerCase();
+
+            // Check for matches of all the parts
+            if (val != "" && cert.attrs.name.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.subject.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.modified.toLowerCase().indexOf(val) == -1) {
+                // Not a match
+                continue;
+            }
+
+            rows.push(
+                {
+                    isOpen: false,
+                    cells: [cert.attrs.name, cert.attrs.subject, cert.attrs.modified],
+
+                },
+            );
+        }
+
+        this.setState({
+            rows: rows,
+            value: value,
+            page: 1,
+        });
+    }
+
+    actions() {
+        return [
+            {
+                title: 'Delete CSR',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.delCSR(rowData.cells[0])
+            }
+        ];
+    }
+
+    render() {
+        const { perPage, page, sortBy, rows, columns } = this.state;
+
+        return (
+            <div className="ds-margin-top-lg">
+                <SearchInput
+                    placeholder='Search CSRs'
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
+                <Table
+                    className="ds-margin-top"
+                    aria-label="csr table"
+                    cells={columns}
+                    key={rows}
+                    rows={rows}
+                    variant={TableVariant.compact}
+                    sortBy={sortBy}
+                    onSort={this.onSort}
+                    actions={rows.length > 0 ? this.actions() : null}
+                    dropdownPosition="right"
+                    dropdownDirection="bottom"
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+                <Pagination
+                    itemCount={this.state.rows.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant={PaginationVariant.bottom}
+                    onSetPage={this.onSetPage}
+                    onPerPageSelect={this.onPerPageSelect}
+                />
+            </div>
+        );
+    }
+}
+
 class CertTable extends React.Component {
     constructor(props) {
         super(props);
@@ -446,7 +746,26 @@ CertTable.defaultProps = {
     certs: [],
 };
 
+CSRTable.propTypes = {
+    ServerCSRs: PropTypes.array,
+    delCSR: PropTypes.func,
+};
+
+CSRTable.defaultProps = {
+    ServerCSRs: [],
+};
+
+KeyTable.propTypes = {
+    ServerKeys: PropTypes.array,
+    delKey: PropTypes.func,
+};
+
+KeyTable.defaultProps = {
+    ServerKeys: [],
+};
 export {
     CertTable,
-    CRLTable
+    CRLTable,
+    CSRTable,
+    KeyTable,
 };
