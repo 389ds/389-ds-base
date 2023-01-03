@@ -30,6 +30,7 @@ import LinkedAttributes from "./lib/plugins/linkedAttributes.jsx";
 import ManagedEntries from "./lib/plugins/managedEntries.jsx";
 import MemberOf from "./lib/plugins/memberOf.jsx";
 import PassthroughAuthentication from "./lib/plugins/passthroughAuthentication.jsx";
+import PAMPassthroughAuthentication from "./lib/plugins/pamPassThru.jsx";
 import ReferentialIntegrity from "./lib/plugins/referentialIntegrity.jsx";
 import RetroChangelog from "./lib/plugins/retroChangelog.jsx";
 import RootDNAccessControl from "./lib/plugins/rootDNAccessControl.jsx";
@@ -545,10 +546,27 @@ export class Plugins extends React.Component {
                 )
             },
             passthroughAuthentication: {
-                name: "Pass Through Auth",
-                icon: this.getIconAndName("Pass Through Auth", "Pass Through Authentication"),
+                name: "LDAP Pass Through Auth",
+                icon: this.getIconAndName("LDAP Pass Through Auth", "Pass Through Authentication"),
                 component: (
                     <PassthroughAuthentication
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.props.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                        wasActiveList={this.props.wasActiveList}
+                        attributes={this.state.attributes}
+                        key={this.props.wasActiveList}
+                    />
+                )
+            },
+            pamPassthroughAuthentication: {
+                name: "PAM Pass Through Auth",
+                icon: this.getIconAndName("PAM Pass Through Auth", "PAM Pass Through Auth"),
+                component: (
+                    <PAMPassthroughAuthentication
                         rows={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
