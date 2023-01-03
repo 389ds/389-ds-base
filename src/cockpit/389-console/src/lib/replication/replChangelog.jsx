@@ -93,7 +93,7 @@ export class Changelog extends React.Component {
                 cmd.push("--disable-encrypt");
             }
         }
-        if (cmd.length > 6) {
+        if (cmd.length > 5) {
             this.setState({
                 // Start the spinner
                 saving: true
