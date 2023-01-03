@@ -112,6 +112,29 @@ export class ServerMonitor extends React.Component {
         });
     }
 
+    convertMemory(mem_str) {
+        mem_str = mem_str.replace(",", ".")
+        if (mem_str.endsWith('m')) {
+            // Convert MB to KB
+            let mem = mem_str.slice(0, -1);
+            return parseInt(Math.round(mem * 1024));
+        } else if (mem_str.endsWith('g')) {
+            // Convert GB to KB
+            let mem = mem_str.slice(0, -1);
+            return parseInt(Math.round(mem * 1024 * 1024));
+        } else if (mem_str.endsWith('t')) {
+            // Convert TB to KB
+            let mem = mem_str.slice(0, -1);
+            return parseInt(Math.round(mem * 1024 * 1024 * 1024));
+        } else if (mem_str.endsWith('p')) {
+            // Convert PB to KB
+            let mem = mem_str.slice(0, -1);
+            return parseInt(Math.round(mem * 1024 * 1024 * 1024 * 1024));
+        } else {
+            return mem_str;
+        }
+    }
+
     refreshCharts() {
         const cmd = "ps -ef | grep -v grep | grep dirsrv/slapd-" + this.props.serverId;
         let cpu = 0;
@@ -135,8 +158,8 @@ export class ServerMonitor extends React.Component {
                             .script(cpu_cmd, [], { superuser: true, err: "message" })
                             .done(top_output => {
                                 const top_parts = top_output.trim().split(/\s+/);
-                                virt_mem = top_parts[4];
-                                res_mem = top_parts[5];
+                                virt_mem = this.convertMemory(top_parts[4]);
+                                res_mem = this.convertMemory(top_parts[5]);
                                 cpu = parseInt(top_parts[8]);
                                 const mem_cmd = "awk '/MemTotal/{print $2}' /proc/meminfo";
                                 // log_cmd("refreshCharts", "Get total memory", [mem_cmd]);
