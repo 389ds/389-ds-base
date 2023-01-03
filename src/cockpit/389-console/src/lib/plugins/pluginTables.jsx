@@ -240,16 +240,12 @@ class PluginTable extends React.Component {
 
         return (
             <div className={this.state.toggleSpinning ? "ds-disabled" : ""}>
-                <Grid>
-                    <GridItem span={5}>
-                        <SearchInput
-                            placeholder='Search Plugins'
-                            value={this.state.value}
-                            onChange={this.onSearchChange}
-                            onClear={(evt) => this.onSearchChange('', evt)}
-                        />
-                    </GridItem>
-                </Grid>
+                <SearchInput
+                    placeholder='Search Plugins'
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
                 <Table
                     className="ds-margin-top"
                     aria-label="all plugins table"
@@ -398,16 +394,12 @@ class AttrUniqConfigTable extends React.Component {
         }
         return (
             <div>
-                <Grid>
-                    <GridItem span={5}>
-                        <SearchInput
-                            placeholder='Search Configurations'
-                            value={this.state.value}
-                            onChange={this.onSearchChange}
-                            onClear={(evt) => this.onSearchChange('', evt)}
-                        />
-                    </GridItem>
-                </Grid>
+                <SearchInput
+                    placeholder='Search Configurations'
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
                 <Table
                     className="ds-margin-top"
                     aria-label="glue table"
@@ -571,16 +563,12 @@ class LinkedAttributesTable extends React.Component {
         }
         return (
             <div>
-                <Grid>
-                    <GridItem span={5}>
-                        <SearchInput
-                            placeholder='Search Configurations'
-                            value={this.state.value}
-                            onChange={this.onSearchChange}
-                            onClear={(evt) => this.onSearchChange('', evt)}
-                        />
-                    </GridItem>
-                </Grid>
+                <SearchInput
+                    placeholder='Search Configurations'
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
                 <Table
                     className="ds-margin-top"
                     aria-label="linked table"
@@ -744,16 +732,12 @@ class DNATable extends React.Component {
 
         return (
             <div>
-                <Grid>
-                    <GridItem span={5}>
-                        <SearchInput
-                            placeholder='Search Configurations'
-                            value={this.state.value}
-                            onChange={this.onSearchChange}
-                            onClear={(evt) => this.onSearchChange('', evt)}
-                        />
-                    </GridItem>
-                </Grid>
+                <SearchInput
+                    placeholder='Search Configurations'
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
                 <Table
                     className="ds-margin-top"
                     aria-label="dna table"
@@ -914,16 +898,12 @@ class DNASharedTable extends React.Component {
 
         return (
             <div>
-                <Grid>
-                    <GridItem span={5}>
-                        <SearchInput
-                            placeholder='Search Shared Configurations'
-                            value={this.state.value}
-                            onChange={this.onSearchChange}
-                            onClear={(evt) => this.onSearchChange('', evt)}
-                        />
-                    </GridItem>
-                </Grid>
+                <SearchInput
+                    placeholder='Search Shared Configurations'
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
                 <Table
                     className="ds-margin-top"
                     aria-label="dna shared table"
@@ -1087,17 +1067,13 @@ class AutoMembershipDefinitionTable extends React.Component {
         }
         return (
             <div>
-                <Grid>
-                    <GridItem span={5}>
-                        <SearchInput
-                            className="ds-margin-top-lg"
-                            placeholder='Search Definitions'
-                            value={this.state.value}
-                            onChange={this.onSearchChange}
-                            onClear={(evt) => this.onSearchChange('', evt)}
-                        />
-                    </GridItem>
-                </Grid>
+                <SearchInput
+                    className="ds-margin-top-lg"
+                    placeholder='Search Definitions'
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
                 <Table
                     className="ds-margin-top"
                     aria-label="automember def table"
@@ -1262,17 +1238,13 @@ class AutoMembershipRegexTable extends React.Component {
         }
         return (
             <div>
-                <Grid>
-                    <GridItem span={5}>
-                        <SearchInput
-                            className="ds-margin-top-lg"
-                            placeholder='Search Regular Expressions'
-                            value={this.state.value}
-                            onChange={this.onSearchChange}
-                            onClear={(evt) => this.onSearchChange('', evt)}
-                        />
-                    </GridItem>
-                </Grid>
+                <SearchInput
+                    className="ds-margin-top-lg"
+                    placeholder='Search Regular Expressions'
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
                 <Table
                     className="ds-margin-top"
                     aria-label="automember regex table"
@@ -1432,17 +1404,13 @@ class ManagedDefinitionTable extends React.Component {
         }
         return (
             <div>
-                <Grid>
-                    <GridItem span={5}>
-                        <SearchInput
-                            className="ds-margin-top-lg"
-                            placeholder='Search Definitions'
-                            value={this.state.value}
-                            onChange={this.onSearchChange}
-                            onClear={(evt) => this.onSearchChange('', evt)}
-                        />
-                    </GridItem>
-                </Grid>
+                <SearchInput
+                    className="ds-margin-top-lg"
+                    placeholder='Search Definitions'
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
                 <Table
                     className="ds-margin-top"
                     aria-label="managed def table"
@@ -1589,17 +1557,13 @@ class ManagedTemplateTable extends React.Component {
         }
         return (
             <div>
-                <Grid>
-                    <GridItem span={5}>
-                        <SearchInput
-                            placeholder='Search Templates'
-                            className="ds-margin-top-lg"
-                            value={this.state.value}
-                            onChange={this.onSearchChange}
-                            onClear={(evt) => this.onSearchChange('', evt)}
-                        />
-                    </GridItem>
-                </Grid>
+                <SearchInput
+                    placeholder='Search Templates'
+                    className="ds-margin-top-lg"
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
                 <Table
                     className="ds-margin-top"
                     aria-label="managed template table"
@@ -1746,17 +1710,13 @@ class PassthroughAuthURLsTable extends React.Component {
         }
         return (
             <div>
-                <Grid>
-                    <GridItem span={5}>
-                        <SearchInput
-                            placeholder='Search'
-                            className="ds-margin-top-lg"
-                            value={this.state.value}
-                            onChange={this.onSearchChange}
-                            onClear={(evt) => this.onSearchChange('', evt)}
-                        />
-                    </GridItem>
-                </Grid>
+                <SearchInput
+                    placeholder='Search'
+                    className="ds-margin-top-lg"
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
                 <Table
                     className="ds-margin-top"
                     aria-label="passthru url table"
@@ -1916,17 +1876,13 @@ class PassthroughAuthConfigsTable extends React.Component {
         }
         return (
             <div>
-                <Grid>
-                    <GridItem span={5}>
-                        <SearchInput
-                            placeholder='Search'
-                            className="ds-margin-top-lg"
-                            value={this.state.value}
-                            onChange={this.onSearchChange}
-                            onClear={(evt) => this.onSearchChange('', evt)}
-                        />
-                    </GridItem>
-                </Grid>
+                <SearchInput
+                    placeholder='Search'
+                    className="ds-margin-top-lg"
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
                 <Table
                     className="ds-margin-top"
                     aria-label="pass config table"
