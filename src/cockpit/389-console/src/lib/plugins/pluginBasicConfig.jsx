@@ -230,7 +230,7 @@ class PluginBasicConfig extends React.Component {
                         <hr />
                     </Grid>
                 </Form>
-                <div className="ds-left-margin">
+                <div className="ds-indent">
                     {this.props.children}
                 </div>
                 {this.state.currentPluginPath !== "" &&
