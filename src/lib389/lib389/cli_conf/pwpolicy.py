@@ -102,7 +102,10 @@ def list_policies(inst, basedn, log, args):
         attr_list = list(pwp_manager.arg_to_attr.values())
 
         for pwp_entry in pwp_entries.list():
-            dn_comps = ldap.dn.explode_dn(pwp_entry.get_attr_val_utf8_l('cn'))
+            # Sometimes, the cn value includes quotes (for example, after migration from pre-CLI version).
+            # We need to strip them as python-ldap doesn't expect them
+            dn_comps_str = pwp_entry.get_attr_val_utf8_l('cn').strip("\'").strip("\"")
+            dn_comps = ldap.dn.explode_dn(dn_comps_str)
             dn_comps.pop(0)
             entrydn = ",".join(dn_comps)
             policy_type = _get_policy_type(inst, entrydn)
