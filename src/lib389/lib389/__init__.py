@@ -3502,3 +3502,10 @@ class DirSrv(SimpleLDAPObject, object):
                 return True
 
         return False
+
+    def is_in_container(self):
+        if not self._containerised:
+            container_result = subprocess.run(["systemd-detect-virt", "-c"], stdout=subprocess.PIPE)
+        if self._containerised or container_result.returncode == 0:
+            return True
+        return False
