@@ -356,12 +356,10 @@ def test_deny_all_access_with_targetfilter_using_boolean_or_of_two_equality_sear
     conn = UserAccount(topo.standalone, USER_ANANDA).bind(PW_DM)
     # aci will deny_all_access_with_targetfilter_using_boolean_or_of_two_equality_search
     user = UserAccount(conn, USER_ANANDA)
-    with pytest.raises(IndexError):
-        user.get_attr_val_utf8('uid')
+    assert len(user.get_attr_val_utf8('uid')) == 0
     # aci will deny_all_access_with_targetfilter_using_boolean_or_of_two_equality_search
     user = UserAccount(conn, USER_ANUJ)
-    with pytest.raises(IndexError):
-        user.get_attr_val_utf8('uid')
+    assert len(user.get_attr_val_utf8('uid')) == 0
     # with root no blockage
     assert UserAccount(topo.standalone, USER_ANANDA).get_attr_val_utf8('uid') == 'Ananda Borah'
     # with root no blockage
@@ -466,8 +464,7 @@ def test_deny_all_access_with_targetfilter_using_presence_search(
     conn = UserAccount(topo.standalone, USER_ANANDA).bind(PW_DM)
     # aci will eny_all_access_with_targetfilter_using_presence_search
     user = UserAccount(conn, 'uid=test_user_1000,ou=People,{}'.format(DEFAULT_SUFFIX))
-    with pytest.raises(IndexError):
-        user.get_attr_val_utf8('cn')
+    assert len(user.get_attr_val_utf8('cn')) == 0
     # with root no blockage
     assert UserAccount(topo.standalone, 'uid=test_user_1000,ou=People,{}'.format(DEFAULT_SUFFIX)).get_attr_val_utf8('cn') == 'test_user_1000'
 

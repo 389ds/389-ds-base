@@ -203,8 +203,7 @@ def test_deny_group_member_all_rights_to_group_members(topo, aci_of_user, test_u
     conn = UserAccount(topo.standalone, "uid=Ted Morris, ou=Accounting, {}".format(DEFAULT_SUFFIX)).bind(PW_DM)
     # group BIG_GLOBAL no access
     user = UserAccount(conn, 'uid=test_user_1000,ou=ACLGroup,dc=example,dc=com')
-    with pytest.raises(IndexError):
-        user.get_attr_val_utf8('uid')
+    assert len(user.get_attr_val_utf8('uid')) == 0
     UserAccount(topo.standalone, 'uid=test_user_1000,ou=ACLGroup,dc=example,dc=com').delete()
 
 

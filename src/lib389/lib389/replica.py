@@ -2627,7 +2627,7 @@ class ReplicationMonitor(object):
 
             # Open a connection to the consumer
             supplier_inst = DirSrv(verbose=self._instance.verbose)
-            args_instance[SER_HOST] = supplier_hostname
+            args_instance = {SER_HOST: supplier_hostname}
             if supplier_protocol == "ssl" or supplier_protocol == "ldaps":
                 args_instance[SER_SECURE_PORT] = int(supplier_port)
             else:
