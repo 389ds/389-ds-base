@@ -474,28 +474,17 @@ def test_info_disclosure(request, topo):
 
     # Search fo existing base DN
     test = Domain(conn, DEFAULT_SUFFIX)
-    try:
-        test.get_attr_vals_utf8_l('dc')
-        assert False
-    except IndexError:
-        pass
+    assert len(test.get_attr_vals_utf8_l('dc')) == 0
 
     # Search for a non existent bases
     subtree = Domain(conn, "ou=does_not_exist," + DEFAULT_SUFFIX)
-    try:
-        subtree.get_attr_vals_utf8_l('objectclass')
-    except IndexError:
-        pass
+    assert len(subtree.get_attr_vals_utf8_l('objectclass')) == 0
+
     subtree = Domain(conn, "ou=also does not exist,ou=does_not_exist," + DEFAULT_SUFFIX)
-    try:
-        subtree.get_attr_vals_utf8_l('objectclass')
-    except IndexError:
-        pass
+    assert len(subtree.get_attr_vals_utf8_l('objectclass')) == 0
+
     # Try ONE level search instead of BASE
-    try:
-        Accounts(conn, "ou=does_not_exist," + DEFAULT_SUFFIX).filter("(objectclass=top)", scope=ldap.SCOPE_ONELEVEL)
-    except IndexError:
-        pass
+    assert len(Accounts(conn, "ou=does_not_exist," + DEFAULT_SUFFIX).filter("(objectclass=top)", scope=ldap.SCOPE_ONELEVEL)) == 0
 
     # add aci
     suffix.add('aci', ACI)

@@ -53,7 +53,11 @@ def test_check_db_home_dir_in_config(topo):
     """
 
     standalone = topo.standalone
-    dbhome_value = '/dev/shm/slapd-{}'.format(standalone.serverid)
+
+    if standalone.is_in_container():
+        dbhome_value = standalone.db_dir
+    else:
+        dbhome_value = '/dev/shm/slapd-{}'.format(standalone.serverid)
     bdb_ldbmconfig = BDB_LDBMConfig(standalone)
 
     log.info('Check the config value of nsslapd-db-home-directory')
@@ -82,7 +86,10 @@ def test_check_db_home_dir_contents(topo):
 
     standalone = topo.standalone
     file_list = ['__db.001', '__db.002', '__db.003', 'DBVERSION']
-    dbhome_value = '/dev/shm/slapd-{}/'.format(standalone.serverid)
+    if standalone.is_in_container():
+        dbhome_value = standalone.db_dir
+    else:
+        dbhome_value = '/dev/shm/slapd-{}/'.format(standalone.serverid)
     old_dbhome = '/var/lib/dirsrv/slapd-{}/db'.format(standalone.serverid)
     existing_files = list(next(os.walk(dbhome_value))[2])
     old_location_files = list(next(os.walk(old_dbhome))[2])
@@ -117,7 +124,10 @@ def test_check_db_home_dir_in_dse(topo):
 
     standalone = topo.standalone
     bdb_ldbmconfig = BDB_LDBMConfig(standalone)
-    dbhome_value = '/dev/shm/slapd-{}'.format(standalone.serverid)
+    if standalone.is_in_container():
+        dbhome_value = standalone.db_dir
+    else:
+        dbhome_value = '/dev/shm/slapd-{}'.format(standalone.serverid)
     dse_ldif = DSEldif(standalone)
 
     log.info('Check value of nsslapd-db-home-directory in dse.ldif')
@@ -142,7 +152,10 @@ def test_check_db_home_dir_in_defaults(topo):
     """
 
     standalone = topo.standalone
-    dbhome_value = 'db_home_dir = /dev/shm/slapd-{instance_name}'
+    if standalone.is_in_container():
+        dbhome_value = 'db_home_dir = ' + standalone.db_dir
+    else:
+        dbhome_value = 'db_home_dir = /dev/shm/slapd-{instance_name}'
 
     log.info('Get defaults.inf path')
     def_loc = standalone.ds_paths._get_defaults_loc(DEFAULTS_PATH)
@@ -174,7 +187,10 @@ def test_delete_db_home_dir(topo):
 
     standalone = topo.standalone
     file_list = ['__db.001', '__db.002', '__db.003', 'DBVERSION']
-    dbhome_value = '/dev/shm/slapd-{}/'.format(standalone.serverid)
+    if standalone.is_in_container():
+        dbhome_value = standalone.db_dir
+    else:
+        dbhome_value = '/dev/shm/slapd-{}/'.format(standalone.serverid)
     existing_files = list(next(os.walk(dbhome_value))[2])
 
     log.info('Stop the instance')
