@@ -530,8 +530,7 @@ def test_aci_with_both_allow_and_deny(topo, aci_of_user, cleanup_tree):
     assert UserAccount(conn, USER_WITH_ACI_DELADD).get_attr_val('uid')
     conn = UserAccount(topo.standalone, USER_WITH_ACI_DELADD).bind(PW_DM)
     # aci with both allow and deny, testing deny
-    with pytest.raises(IndexError):
-        UserAccount(conn, USER_WITH_ACI_DELADD).get_attr_val('uid')
+    assert len(UserAccount(conn, USER_WITH_ACI_DELADD).get_attr_val('uid')) == 0
 
 
 def test_allow_owner_to_modify_entry(topo, aci_of_user, cleanup_tree, request):
