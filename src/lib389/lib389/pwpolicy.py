@@ -211,7 +211,10 @@ class PwPolicyManager(object):
         policies = pwp_entries.list()
 
         for policy in policies:
-            dn_comps = ldap.dn.explode_dn(policy.get_attr_val_utf8_l('cn'))
+            # Sometimes, the cn value includes quotes (for example, after migration from pre-CLI version).
+            # We need to strip them as python-ldap doesn't expect them
+            dn_comps_str = policy.get_attr_val_utf8_l('cn').strip("\'").strip("\"")
+            dn_comps = ldap.dn.explode_dn(dn_comps_str)
             dn_comps.pop(0)
             pwp_dn = ",".join(dn_comps)
             if pwp_dn == dn.lower():

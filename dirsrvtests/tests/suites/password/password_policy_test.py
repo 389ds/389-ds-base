@@ -13,23 +13,28 @@ This test script will test password policy.
 import os
 import pytest
 import time
+from lib389.config import Config
 from lib389.topologies import topology_st as topo
+from lib389.topologies import topology_m1
 from lib389.idm.domain import Domain
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.pwpolicy import PwPolicyManager
+from lib389.pwpolicy import PwPolicyManager, PwPolicyEntries
+from lib389.idm.account import Account
+from lib389.idm.nscontainer import nsContainers
+from lib389.cos import CosPointerDefinitions, CosTemplates
 import ldap
 
 
 pytestmark = pytest.mark.tier1
 
 
-def create_user(topo, uid, cn, sn, givenname, userpasseord, gid, ou):
+def create_user(inst, uid, cn, sn, givenname, userpasseord, gid, ou):
     """
     Will create user
     """
-    user = UserAccounts(topo.standalone, DEFAULT_SUFFIX, rdn=ou).create(properties={
+    user = UserAccounts(inst, DEFAULT_SUFFIX, rdn=ou).create(properties={
         'uid': uid,
         'cn': cn,
         'sn': sn,
@@ -43,8 +48,125 @@ def create_user(topo, uid, cn, sn, givenname, userpasseord, gid, ou):
     return user
 
 
+def create_subtree_policy_custom(instance, dn, properties):
+    """Creates all entries which are needed for the subtree
+    password policy
+
+    :param dn: Entry DN for the subtree pwpolicy
+    :type dn: str
+    :param properties: A dict with password policy settings
+    :type properties: dict
+
+    :returns: PwPolicyEntry instance
+    """
+
+    # Verify target dn exists before getting started
+    subtree_entry = Account(instance, dn)
+    if not subtree_entry.exists():
+        raise ValueError('Can not create subtree password policy because the target dn does not exist')
+
+    # Create the pwp container if needed
+    pwp_containers = nsContainers(instance, basedn=dn)
+    pwp_container = pwp_containers.ensure_state(properties={'cn': 'nsPwPolicyContainer'})
+
+    # Create policy entry
+    pwp_entry = None
+    properties['cn'] = '"cn=nsPwPolicyEntry_subtree,%s"' % dn
+    pwp_entries = PwPolicyEntries(instance, pwp_container.dn)
+    pwp_entry = pwp_entries.create(properties=properties)
+    try:
+        # The CoS template entry (nsPwTemplateEntry) that has the pwdpolicysubentry
+        # value pointing to the above (nsPwPolicyEntry) entry
+        cos_template = None
+        cos_templates = CosTemplates(instance, pwp_container.dn)
+        cos_template = cos_templates.create(properties={'cosPriority': '1',
+                                                        'pwdpolicysubentry': pwp_entry.dn,
+                                                        'cn': 'cn=nsPwTemplateEntry,%s' % dn})
+
+        # The CoS specification entry at the subtree level
+        cos_pointer_defs = CosPointerDefinitions(instance, dn)
+        cos_pointer_defs.create(properties={'cosAttribute': 'pwdpolicysubentry default operational',
+                                            'cosTemplateDn': cos_template.dn,
+                                            'cn': 'nsPwPolicy_CoS'})
+    except ldap.LDAPError as e:
+        # Something went wrong, remove what we have done
+        if pwp_entry is not None:
+            pwp_entry.delete()
+        if cos_template is not None:
+            cos_template.delete()
+        raise e
+
+    # make sure that local policies are enabled
+    config = Config(instance)
+    config.replace('nsslapd-pwpolicy-local', 'on')
+
+    return pwp_entry
+
+
+@pytest.fixture(scope="function")
+def policy_qoutes_setup(topology_m1, request):
+    inst = topology_m1.ms["supplier1"]
+
+    # Add self user modification and anonymous aci
+    USER_SELF_MOD_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
+    ANON_ACI = "(targetattr=\"*\")(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare) userdn = \"ldap:///anyone\";)"
+    suffix = Domain(inst, DEFAULT_SUFFIX)
+    suffix.add('aci', USER_SELF_MOD_ACI)
+    suffix.add('aci', ANON_ACI)
+
+    ous = []
+    for suffix, ou in [(DEFAULT_SUFFIX, 'dirsec'), (f'ou=people,{DEFAULT_SUFFIX}', 'others')]:
+        created_ou = OrganizationalUnits(inst, suffix).create(properties={
+            'ou': ou
+        })
+        ous.append(created_ou)
+
+    for uid, cn, sn, givenname, userpasseord, gid, ou in [
+        ('dbyers', 'Danny Byers', 'Byers', 'Danny', 'dby3rs1', '10001', 'ou=dirsec'),
+        ('orla', 'Orla Hegarty', 'Hegarty', 'Orla', '000rla1', '10002', 'ou=dirsec'),
+        ('joe', 'Joe Rath', 'Rath', 'Joe', '00j0e1', '10003', 'ou=people'),
+        ('jack', 'Jack Rath', 'Rath', 'Jack', '00j6ck1', '10004', 'ou=people'),
+        ('fred', 'Fred Byers', 'Byers', 'Fred', '00fr3d1', '10005', None),
+        ('deep', 'Deep Blue', 'Blue', 'Deep', '00de3p1', '10006', 'ou=others, ou=people'),
+        ('accntlusr', 'AccountControl User', 'ControlUser', 'Account', 'AcControl123', '10007', 'ou=dirsec'),
+        ('nocntlusr', 'NoAccountControl User', 'ControlUser', 'NoAccount', 'NoControl123', '10008', 'ou=dirsec')
+    ]:
+        create_user(inst, uid, cn, sn, givenname, userpasseord, gid, ou)
+    policy_props = {'passwordexp': 'off',
+                    'passwordchange': 'off',
+                    'passwordmustchange': 'off',
+                    'passwordchecksyntax': 'off',
+                    'passwordinhistory': '6',
+                    'passwordhistory': 'off',
+                    'passwordlockout': 'off',
+                    'passwordlockoutduration': '3600',
+                    'passwordmaxage': '8640000',
+                    'passwordmaxfailure': '3',
+                    'passwordminage': '0',
+                    'passwordminlength': '6',
+                    'passwordresetfailurecount': '600',
+                    'passwordunlock': 'on',
+                    'passwordStorageScheme': 'CLEAR',
+                    'passwordwarning': '86400'
+                    }
+    pwp = PwPolicyManager(inst)
+    for dn_dn in (f'uid=orla,ou=dirsec,{DEFAULT_SUFFIX}',
+                  f'uid=joe,ou=People,{DEFAULT_SUFFIX}'):
+        pwp.create_user_policy(dn_dn, policy_props)
+
+    # The function creates PwPolicyEntry with cn: "<DN>" value instead of <DN>
+    create_subtree_policy_custom(inst, f'ou=People,{DEFAULT_SUFFIX}', policy_props)
+
+    def fin():
+        # Remove the OrganizationalUnits that was created for this test case
+        for ou in ous:
+            inst.delete_branch_s(ou.dn, ldap.SCOPE_SUBTREE, filterstr="(|(objectclass=*)(objectclass=ldapsubentry))")
+    request.addfinalizer(fin)
+
+    return pwp
+
 @pytest.fixture(scope="module")
-def _policy_setup(topo):
+def policy_setup(topo):
     """
     Will do pretest setup.
     """
@@ -70,7 +192,7 @@ def _policy_setup(topo):
         ('accntlusr', 'AccountControl User', 'ControlUser', 'Account', 'AcControl123', '10007', 'ou=dirsec'),
         ('nocntlusr', 'NoAccountControl User', 'ControlUser', 'NoAccount', 'NoControl123', '10008', 'ou=dirsec')
     ]:
-        create_user(topo, uid, cn, sn, givenname, userpasseord, gid, ou)
+        create_user(topo.standalone, uid, cn, sn, givenname, userpasseord, gid, ou)
     policy_props = {'passwordexp': 'off',
                     'passwordchange': 'off',
                     'passwordmustchange': 'off',
@@ -140,7 +262,7 @@ def _do_transaction_for_pwp(topo, attr1, attr2):
 
 
 @pytest.fixture(scope="function")
-def _fixture_for_password_change(request, topo):
+def fixture_for_password_change(request, topo):
     pwp = PwPolicyManager(topo.standalone)
     orl = pwp.get_pwpolicy_entry(f'uid=orla,ou=dirsec,{DEFAULT_SUFFIX}')
     for attribute in ('passwordMustChange', 'passwordmustchange'):
@@ -163,7 +285,7 @@ def _fixture_for_password_change(request, topo):
         request.addfinalizer(final_task)
 
 
-def test_password_change_section(topo, _policy_setup, _fixture_for_password_change):
+def test_password_change_section(topo, policy_setup, fixture_for_password_change):
     """Password Change Section.
 
     :id: 5d018c08-9388-11ea-8394-8c16451d917b
@@ -413,7 +535,7 @@ def _fixture_for_syntax_section(request, topo):
     request.addfinalizer(final_step)
 
 
-def test_password_syntax_section(topo, _policy_setup, _fixture_for_syntax_section):
+def test_password_syntax_section(topo, policy_setup, _fixture_for_syntax_section):
     """Password Syntax Section.
 
     :id: 7bf1cb46-9388-11ea-9019-8c16451d917b
@@ -672,7 +794,7 @@ def _fixture_for_password_history(request, topo):
     request.addfinalizer(final_step)
 
 
-def test_password_history_section(topo, _policy_setup, _fixture_for_password_history):
+def test_password_history_section(topo, policy_setup, _fixture_for_password_history):
     """Password History Section.
 
         :id: 51f459a0-a0ba-11ea-ade7-8c16451d917b
@@ -870,7 +992,7 @@ def _fixture_for_password_min_age(request, topo):
     request.addfinalizer(final_step)
 
 
-def test_password_minimum_age_section(topo, _policy_setup, _fixture_for_password_min_age):
+def test_password_minimum_age_section(topo, policy_setup, _fixture_for_password_min_age):
     """Password History Section.
 
         :id: 470f5b2a-a0ba-11ea-ab2d-8c16451d917b
@@ -947,7 +1069,7 @@ def _fixture_for_password_lock_out(request, topo):
     request.addfinalizer(final_step)
 
 
-def test_account_lockout_and_lockout_duration_section(topo, _policy_setup, _fixture_for_password_lock_out):
+def test_account_lockout_and_lockout_duration_section(topo, policy_setup, _fixture_for_password_lock_out):
     """Account Lockout and Lockout Duration Section
 
         :id: 1ff0b7a4-b560-11ea-9ece-8c16451d917b
@@ -1069,7 +1191,7 @@ def _bind_self(topo, user_password_new_pass_list):
         conn = real_user.bind(password)
 
 
-def test_grace_limit_section(topo, _policy_setup, _fixture_for_grace_limit):
+def test_grace_limit_section(topo, policy_setup, _fixture_for_grace_limit):
     """Account Lockout and Lockout Duration Section
 
     :id: 288e3756-b560-11ea-9390-8c16451d917b
@@ -1290,7 +1412,7 @@ def _fixture_for_additional_cases(topo):
                               ('passwordchecksyntax', 'off'))
 
 
-def test_additional_corner_cases(topo, _policy_setup, _fixture_for_additional_cases):
+def test_additional_corner_cases(topo, policy_setup, _fixture_for_additional_cases):
     """Additional corner cases
 
     :id: 2f6cec66-b560-11ea-9d7c-8c16451d917b
@@ -1377,6 +1499,25 @@ def test_additional_corner_cases(topo, _policy_setup, _fixture_for_additional_ca
         ('uid=dbyers,ou=dirsec', 'dby3rs1')
     ])
 
+
+def test_get_pwpolicy_cn_with_quotes(topology_m1, policy_qoutes_setup):
+    """Test that that we can get pwpolicy when
+    cn attr includes quotes
+
+    :id: 5d360c40-2466-4042-bf99-14d2f68f9d66
+    :setup: Standalone
+    :steps:
+        1. Configure a custom subtree pwpolicy
+        2. Try to get the unusual subtree pwpolicy
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+
+    # Try to get the unusual subtree pwpolicy
+    people = policy_qoutes_setup.get_pwpolicy_entry(f'ou=people,{DEFAULT_SUFFIX}')
+    people.replace('passwordhistory', 'off')
+    assert people.get_attr_val_utf8('passwordhistory') == 'off'
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)
