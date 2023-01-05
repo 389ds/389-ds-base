@@ -428,10 +428,9 @@ def test_targattrfilters_keyword(topo):
     conn = UserAccount(topo.standalone, "cn=acientryusr1,ou=bug979515,{}".format(DEFAULT_SUFFIX)).bind(PW_DM)
     #  Testing the targattrfilters keyword that allows access control based on the value of the attributes being added (or deleted))
     user = UserAccount(conn, "cn=acientryusr1,ou=bug979515,{}".format(DEFAULT_SUFFIX))
-    with pytest.raises(IndexError):
-        user.get_attr_vals('mail')
-        user.get_attr_vals('telephoneNumber')
-        user.get_attr_vals('cn')
+    assert len(user.get_attr_vals('mail')) == 0
+    assert len(user.get_attr_vals('telephoneNumber')) == 0
+    assert len(user.get_attr_vals('cn')) == 0
     user = UserAccount(topo.standalone, "cn=acientryusr1,ou=bug979515,{}".format(DEFAULT_SUFFIX))
     user.get_attr_vals('mail')
     user.get_attr_vals('telephoneNumber')
