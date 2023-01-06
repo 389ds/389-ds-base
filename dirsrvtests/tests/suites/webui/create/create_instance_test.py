@@ -34,7 +34,7 @@ def test_no_instance(topology_st, page, browser_name, setup_page):
          1. Success
          2. Button is visible
     """
-
+    time.sleep(1)
     frame = check_frame_assignment(page, browser_name)
     log.info('Check the Create New instance button is present')
     frame.wait_for_selector('#noInsts')
@@ -59,7 +59,7 @@ def test_instance_button_disabled_passwd_short(topology_st, page, browser_name, 
          4. Success
          5. Button is disabled
     """
-
+    time.sleep(1)
     frame = check_frame_assignment(page, browser_name)
 
     log.info('Click on Create New Instance button')
@@ -93,7 +93,7 @@ def test_create_instance_without_database(topology_st, page, browser_name, setup
          4. Success
          5. Page redirection successful and instance is created
     """
-
+    time.sleep(1)
     frame = check_frame_assignment(page, browser_name)
 
     log.info('Click on Create New Instance button')
@@ -133,7 +133,7 @@ def test_create_instance_database_suffix_entry(topology_st, page, browser_name, 
          5. Success
          6. Page redirection successful and instance is created
     """
-
+    time.sleep(1)
     frame = check_frame_assignment(page, browser_name)
 
     log.info('Click on Create New Instance button')
@@ -184,7 +184,7 @@ def test_create_instance_database_sample_entries(topology_st, page, browser_name
          5. Success
          6. Page redirection successful and instance is created
     """
-
+    time.sleep(1)
     frame = check_frame_assignment(page, browser_name)
 
     log.info('Click on Create New Instance button')

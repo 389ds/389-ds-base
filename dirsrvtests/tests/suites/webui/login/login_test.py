@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -63,6 +63,7 @@ def test_login_no_instance(topology_st, page, browser_name):
     page.fill('#login-user-input', 'root')
     page.fill('#login-password-input', password)
     page.click('#login-button')
+    time.sleep(2)
 
     if RHEL in distro.linux_distribution():
         page.wait_for_selector('text=Red Hat Directory Server')
@@ -128,3 +129,4 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
+
