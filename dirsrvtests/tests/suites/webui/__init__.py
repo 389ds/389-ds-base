@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,6 +10,7 @@
 import pytest
 import distro
 import os
+import time
 
 from lib389.utils import *
 from lib389.topologies import topology_st
@@ -64,6 +65,7 @@ def remove_instance_through_lib(topology):
     log.info('Check and remove instance before starting tests')
     if topology.standalone.exists():
         topology.standalone.delete()
+        time.sleep(1)
 
 
 def remove_instance_through_webui(topology, page, browser_name):
@@ -79,6 +81,7 @@ def remove_instance_through_webui(topology, page, browser_name):
         frame.click('//button[normalize-space(.)=\'Remove Instance\']')
         frame = check_frame_assignment(page, browser_name)
         frame.is_visible("#no-inst-create-btn")
+        time.sleep(1)
         log.info('Instance deleted')
 
 
@@ -97,6 +100,8 @@ def setup_login(page):
     page.fill('#login-user-input', 'root')
     page.fill('#login-password-input', password)
     page.click("#login-button")
+    time.sleep(2)
+
     if RHEL in distro.linux_distribution():
         page.wait_for_selector('text=Red Hat Directory Server')
         page.click('text=Red Hat Directory Server')
