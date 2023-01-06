@@ -102,7 +102,7 @@ def subtree_status(inst, basedn, log, args):
         datetime_inactive_time = datetime.strptime(args.become_inactive_on, '%Y-%m-%dT%H:%M:%S')
         epoch_inactive_time = datetime.timestamp(datetime_inactive_time)
 
-    account_list = Accounts(inst, basedn).filter(filter, scope)
+    account_list = Accounts(inst, basedn).filter(filter, scope=scope)
     if not account_list:
         raise ValueError(f"No entries were found under {basedn}")
 
@@ -116,7 +116,7 @@ def subtree_status(inst, basedn, log, args):
             if epoch_inactive_time is None or params["Time Until Inactive"] is None or \
                epoch_inactive_time <= (params["Time Until Inactive"] + status["calc_time"]):
                 continue
-        _print_entry_status(status, entry.dn, log)
+        _print_entry_status(status, entry.dn, log, args)
 
 
 def bulk_update(inst, basedn, log, args):

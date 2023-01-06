@@ -1,11 +1,12 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import ldap
 import time
 import subprocess
 import pytest
@@ -53,9 +54,11 @@ def test_dsidm_account_entry_status_with_lock(topology_st, create_test_user):
          1. Create user account
          2. Run dsidm account entry status
          3. Run dsidm account lock
-         4. Run dsidm account entry status
-         5. Run dsidm account unlock
-         6. Run dsidm account entry status
+         4. Run dsidm account subtree status
+         5. Run dsidm account entry status
+         6. Run dsidm account unlock
+         7. Run dsidm account subtree status
+         8. Run dsidm account entry status
     :expectedresults:
          1. Success
          2. The state message should be Entry State: activated
@@ -63,6 +66,8 @@ def test_dsidm_account_entry_status_with_lock(topology_st, create_test_user):
          4. The state message should be Entry State: directly locked through nsAccountLock
          5. Success
          6. The state message should be Entry State: activated
+         7. Success
+         8. The state message should be Entry State: activated
     """
 
     standalone = topology_st.standalone
@@ -82,6 +87,12 @@ def test_dsidm_account_entry_status_with_lock(topology_st, create_test_user):
     args = FakeArgs()
     args.dn = test_user.dn
     args.json = False
+    args.basedn = DEFAULT_SUFFIX
+    args.scope = ldap.SCOPE_SUBTREE
+    args.filter = "(uid=*)"
+    args.become_inactive_on = False
+    args.inactive_only = False
+    args.json = False
 
     log.info('Test dsidm account entry-status')
     entry_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
@@ -91,6 +102,10 @@ def test_dsidm_account_entry_status_with_lock(topology_st, create_test_user):
     lock(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, check_value=lock_msg)
 
+    log.info('Test dsidm account subtree-status with locked account')
+    subtree_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, content_list=entry_list, check_value=state_lock)
+
     log.info('Test dsidm account entry-status with locked account')
     entry_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, content_list=entry_list, check_value=state_lock)
@@ -99,10 +114,13 @@ def test_dsidm_account_entry_status_with_lock(topology_st, create_test_user):
     unlock(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, check_value=unlock_msg)
 
+    log.info('Test dsidm account subtree-status with unlocked account')
+    subtree_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, content_list=entry_list, check_value=state_unlock)
+
     log.info('Test dsidm account entry-status with unlocked account')
     entry_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, content_list=entry_list, check_value=state_unlock)
-
 
 if __name__ == '__main__':
     # Run isolated
