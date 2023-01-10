@@ -696,6 +696,12 @@ cl5ConfigTrimming(Replica *replica, int maxEntries, const char *maxAge, int trim
     int isTrimmingEnabledAfter = 0;
     cldb_Handle *cldb = replica_get_cl_info(replica);
 
+    if (!cldb) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cl5ConfigTrimming - Changelog info was NULL - is your replication configuration valid?\n");
+        return CL5_BAD_STATE;
+    }
+
     if (cldb->dbState == CL5_STATE_CLOSED) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "cl5ConfigTrimming - Changelog is not initialized\n");
