@@ -43,7 +43,7 @@ import {
 } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 import ExclamationCircleIcon from '@patternfly/react-icons/dist/js/icons/exclamation-circle-icon';
-
+import PlusIcon from '@patternfly/react-icons/dist/js/icons/plus-icon';
 const DB_CONFIG = "dbconfig";
 const CHAINING_CONFIG = "chaining-config";
 const BACKUP_CONFIG = "backups";
@@ -476,7 +476,17 @@ export class Database extends React.Component {
                             icon: <CatalogIcon />,
                             id: "suffixes-tree",
                             children: suffixData,
-                            defaultExpanded: true
+                            defaultExpanded: true,
+                            action: (
+                                <Button
+                                    onClick={this.handleShowSuffixModal}
+                                    variant="plain"
+                                    aria-label="Create new suffix"
+                                    title="Create new suffix"
+                                >
+                                    <PlusIcon />
+                                </Button>
+                            ),
                         }
                     ];
                     let current_node = this.state.node_name;
@@ -1310,13 +1320,6 @@ export class Database extends React.Component {
                                 />
                             </div>
                         </div>
-                        <Button
-                            className="ds-left-margin-md"
-                            variant="primary"
-                            onClick={this.handleShowSuffixModal}
-                        >
-                            Create Suffix
-                        </Button>
                     </div>
                     <div className="ds-tree-content">
                         {db_element}
