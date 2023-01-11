@@ -6406,6 +6406,9 @@ Slapi_DN *slapi_get_next_suffix_ext(void **node, int show_private);
 int slapi_is_root_suffix(Slapi_DN *dn);
 const Slapi_DN *slapi_get_suffix_by_dn(const Slapi_DN *dn);
 const char *slapi_be_gettype(Slapi_Backend *be);
+int slapi_exist_referral(Slapi_Backend *be);
+void slapi_referral_check_init(void);
+void slapi_referral_check_stop(void);
 
 /**
  * Start database transaction
@@ -6459,6 +6462,7 @@ void slapi_be_unset_flag(Slapi_Backend *be, int flag);
 #define SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST  0x10  /* force to call filter_test (search only) */
 #define SLAPI_BE_FLAG_POST_IMPORT            0x100  /* backend was imported */
 #define SLAPI_BE_FLAG_POST_RESTORE           0x200  /* startup after restore */
+#define SLAPI_BE_FLAG_CONTAINS_REFERRAL      0x400  /* Used to flag that the backend contains a referral entry */
 
 
 /* These functions allow a plugin to register for callback when

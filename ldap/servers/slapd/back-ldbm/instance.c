@@ -259,6 +259,11 @@ ldbm_instance_start(backend *be)
     }
 
     rc = dblayer_instance_start(be, DBLAYER_NORMAL_MODE);
+    if (slapi_exist_referral(be)) {
+        slapi_be_set_flag(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL);
+    } else {
+        slapi_be_unset_flag(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL);
+    }
     be->be_state = BE_STATE_STARTED;
 
     PR_Unlock(be->be_state_lock);
