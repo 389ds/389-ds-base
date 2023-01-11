@@ -21,6 +21,7 @@ import {
     SecurityAddCertModal,
     SecurityAddCACertModal,
     SecurityAddCSRModal,
+    SecurityViewCSRModal,
 } from "./securityModals.jsx";
 import PropTypes from "prop-types";
 import { log_cmd } from "../../lib/tools.jsx";
@@ -38,14 +39,23 @@ export class CertificateManagement extends React.Component {
             showEditModal: false,
             showAddModal: false,
             showAddCSRModal: false,
+            showViewCSRModal: false,
             modalSpinning: false,
             showConfirmDelete: false,
             showCSRConfirmDelete: false,
             showKeyConfirmDelete: false,
             certName: "",
             certFile: "",
-            csrSubject: "",
+            csrContent: "",
             csrName: "",
+            csrSubject: "",
+            csrSubjectCommonName: "",
+            csrSubjectOrg: "",
+            csrSubjectOrgUnit: "",
+            csrSubjectLocality: "",
+            csrSubjectState: "",
+            csrSubjectCountry: "",
+            csrSubjectEmail: "",
             keyID: "",
             flags: "",
             _flags: "",
@@ -71,6 +81,7 @@ export class CertificateManagement extends React.Component {
 
         this.addCACert = this.addCACert.bind(this);
         this.handleChange = this.handleChange.bind(this);
+        this.handleCSRChange = this.handleCSRChange.bind(this);
         this.addCert = this.addCert.bind(this);
         this.showAddModal = this.showAddModal.bind(this);
         this.closeAddModal = this.closeAddModal.bind(this);
@@ -78,6 +89,8 @@ export class CertificateManagement extends React.Component {
         this.closeAddCAModal = this.closeAddCAModal.bind(this);
         this.showAddCSRModal = this.showAddCSRModal.bind(this);
         this.closeAddCSRModal = this.closeAddCSRModal.bind(this);
+        this.showViewCSRModal = this.showViewCSRModal.bind(this);
+        this.closeViewCSRModal = this.closeViewCSRModal.bind(this);
         this.showEditModal = this.showEditModal.bind(this);
         this.closeEditModal = this.closeEditModal.bind(this);
         this.showEditCAModal = this.showEditCAModal.bind(this);
@@ -91,6 +104,7 @@ export class CertificateManagement extends React.Component {
         this.delCert = this.delCert.bind(this);
         this.addCSR = this.addCSR.bind(this);
         this.delCSR = this.delCSR.bind(this);
+        this.showCSR = this.showCSR.bind(this);
         this.delKey = this.delKey.bind(this);
         this.closeConfirmDelete = this.closeConfirmDelete.bind(this);
         this.closeCSRConfirmDelete = this.closeCSRConfirmDelete.bind(this);
@@ -99,6 +113,7 @@ export class CertificateManagement extends React.Component {
         this.reloadCACerts = this.reloadCACerts.bind(this);
         this.reloadCSRs = this.reloadCSRs.bind(this);
         this.reloadOrphanKeys = this.reloadOrphanKeys.bind(this);
+        this.buildSubject = this.buildSubject.bind(this);
     }
 
     showAddModal () {
@@ -134,7 +149,8 @@ export class CertificateManagement extends React.Component {
     showAddCSRModal () {
         this.setState({
             showAddCSRModal: true,
-            errObj: { csrName: true, csrSubject: true }
+            csrSubject: "",
+            errObj: { csrName: true, csrSubjectCommonName: true},
         });
     }
 
@@ -143,6 +159,28 @@ export class CertificateManagement extends React.Component {
             showAddCSRModal: false,
             csrSubject: "",
             csrName: "",
+            csrSubjectCommonName: "",
+            csrSubjectOrg: "",
+            csrSubjectOrgUnit: "",
+            csrSubjectLocality: "",
+            csrSubjectState: "",
+            csrSubjectCountry: "",
+            csrSubjectEmail: "",
+        });
+    }
+
+    showViewCSRModal (name) {
+        this.showCSR(name)
+        this.setState({
+            showViewCSRModal: true,
+            csrName: name,
+            errObj: { csrName: true},
+        });
+    }
+
+    closeViewCSRModal () {
+        this.setState({
+            showViewCSRModal: false,
         });
     }
 
@@ -179,7 +217,8 @@ export class CertificateManagement extends React.Component {
                         certFile: '',
                         certName: '',
                         modalSpinning: false
-                    }), this.reloadOrphanKeys;
+                    });
+                    this.reloadOrphanKeys();
                     this.props.addNotification(
                         "success",
                         `Successfully added certificate`
@@ -206,13 +245,13 @@ export class CertificateManagement extends React.Component {
         if (this.state.csrName == "") {
             this.props.addNotification(
                 "warning",
-                `Missing CSR name`
+                `Missing CSR Name`
             );
             return;
-        } else if (this.state.csrSubject == "") {
+        } else if (this.state.csrSubjectCommonName == "") {
             this.props.addNotification(
                 "warning",
-                `Missing CSR subject`
+                `Missing CSR Subject Common Name`
             );
             return;
         }
@@ -225,7 +264,6 @@ export class CertificateManagement extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "csr", "req", "--name=" + this.state.csrName, "--subject=" + this.state.csrSubject
         ];
-
         log_cmd("addCSR", "Creating CSR", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -255,6 +293,59 @@ export class CertificateManagement extends React.Component {
                     this.props.addNotification(
                         "error",
                         `Error creating CSR - ${msg}`
+                    );
+                });
+    }
+
+    showCSR (name) {
+        if (name == "") {
+            this.props.addNotification(
+                "warning",
+                `Missing CSR Name`
+            );
+            return;
+        }
+
+        this.setState({
+            modalSpinning: true,
+            loading: false,
+        });
+
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "security", "csr", "get", name
+        ];
+
+        log_cmd("showCSR", "Displaying CSR", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message"})
+                .done(content => {
+                    //console.log("showCSR", "content", content);
+                    this.setState({
+                        csrContent: content,
+                        showViewCSRModal: true,
+                        modalSpinning: true,
+                    });
+                    this.props.addNotification(
+                        "success",
+                        `Successfully displayed CSR`
+                    );
+                    //console.log("showCSR", "content", content);
+                    //console.log("showCSR", "csrData", this.state.csrContent);
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    let msg = errMsg.desc;
+                    if ('info' in errMsg) {
+                        msg = errMsg.desc + " - " + errMsg.info;
+                    }
+                    this.setState({
+                        modalSpinning: false,
+                        loading: false,
+                    });
+                    this.props.addNotification(
+                        "error",
+                        `Error displaying CSR - ${msg}`
                     );
                 });
     }
@@ -391,7 +482,7 @@ export class CertificateManagement extends React.Component {
         });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "security", "csr", "del", "-n", this.state.csrName
+            "security", "csr", "del", this.state.csrName
         ];
         log_cmd("delCSR", "Deleting CSR", cmd);
         cockpit
@@ -435,7 +526,7 @@ export class CertificateManagement extends React.Component {
         });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "security", "key", "del", "-k", this.state.keyID
+            "security", "key", "del", this.state.keyID
         ];
         log_cmd("delKey", "Deleting key", cmd);
         cockpit
@@ -582,6 +673,61 @@ export class CertificateManagement extends React.Component {
         });
     }
 
+    handleCSRChange (e) {
+        const value = e.target.value;
+        const errObj = this.state.errObj;
+        let valueErr = false;
+
+        if (value == "") {
+            valueErr = true;
+        }
+        errObj[e.target.id] = valueErr;
+        this.setState({
+            [e.target.id]: value,
+            errObj: errObj
+        }, this.buildSubject);
+    }
+
+    buildSubject () {
+        let subject = ""
+        const csrSubjectCN = this.state.csrSubjectCommonName;
+        const csrSubjectO = this.state.csrSubjectOrg;
+        const csrSubjectOU = this.state.csrSubjectOrgUnit;
+        const csrSubjectL = this.state.csrSubjectLocality;
+        const csrSubjectST = this.state.csrSubjectState;
+        const csrSubjectC = this.state.csrSubjectCountry;
+        const csrSubjectE = this.state.csrSubjectEmail;
+
+        // Construct CSR subject string from state fields
+        if (csrSubjectCN.length != 0) {
+            subject = 'CN=' + csrSubjectCN;
+        }
+        if (csrSubjectO.length != 0) {
+            subject += ',O=' + csrSubjectO;
+        }
+        if (csrSubjectOU.length != 0) {
+            subject += ',OU=' + csrSubjectOU;
+        }
+        if (csrSubjectL.length != 0) {
+            subject += ',L=' + csrSubjectL;
+        }
+        if (csrSubjectST.length != 0) {
+            subject += ',ST=' + csrSubjectST;
+        }
+        // It would be nice to validate country code, certutil will complain if it isnt valid...
+        if (csrSubjectC.length != 0) {
+            subject += ',C=' + csrSubjectC;
+        }
+        if (csrSubjectE.length != 0) {
+            subject += ',E=' + csrSubjectE;
+        }
+
+        // Update subject state
+        this.setState({
+            csrSubject: subject
+        });
+    }
+
     handleFlagChange (e) {
         const checked = e.target.checked;
         const id = e.target.id;
@@ -630,7 +776,7 @@ export class CertificateManagement extends React.Component {
         }
 
         newFlags = SSLFlags + "," + EmailFlags + "," + OSFlags;
-        console.log("MARK flags: ", newFlags, this.state._flags);
+
         if (newFlags != this.state._flags) {
             disableSaveBtn = false;
         }
@@ -850,6 +996,7 @@ export class CertificateManagement extends React.Component {
                                 ServerCSRs={this.state.ServerCSRs}
                                 key={this.state.tableKey}
                                 delCSR={this.showCSRDeleteConfirm}
+                                viewCSR={this.showViewCSRModal}
                             />
                             <Button
                                 variant="primary"
@@ -904,9 +1051,16 @@ export class CertificateManagement extends React.Component {
                 <SecurityAddCSRModal
                     showModal={this.state.showAddCSRModal}
                     closeHandler={this.closeAddCSRModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.handleCSRChange}
                     saveHandler={this.addCSR}
                     spinning={this.state.modalSpinning}
+                    error={this.state.errObj}
+                />
+                <SecurityViewCSRModal
+                    showModal={this.state.showViewCSRModal}
+                    closeHandler={this.closeViewCSRModal}
+                    name={this.state.csrName}
+                    item={this.state.csrContent}
                     error={this.state.errObj}
                 />
                 <DoubleConfirmModal
@@ -931,7 +1085,7 @@ export class CertificateManagement extends React.Component {
                     item={this.state.csrName}
                     checked={this.state.modalChecked}
                     mTitle="Delete CSR"
-                    mMsg="Are you sure you want to delete CSR with name?"
+                    mMsg="Are you sure you want to delete this CSR?"
                     mSpinningMsg="Deleting CSR ..."
                     mBtnName="Delete CSR"
                 />
@@ -944,7 +1098,7 @@ export class CertificateManagement extends React.Component {
                     item={this.state.keyID}
                     checked={this.state.modalChecked}
                     mTitle="Delete Key"
-                    mMsg="Are you sure you want to delete the key with identifier?"
+                    mMsg="Are you sure you want to delete this Key?"
                     mSpinningMsg="Deleting Key ..."
                     mBtnName="Delete Key"
                 />

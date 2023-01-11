@@ -1,5 +1,7 @@
 import React from "react";
 import {
+    Alert,
+    FormAlert,
     Grid,
     GridItem,
     Pagination,
@@ -45,20 +47,6 @@ class KeyTable extends React.Component {
                 perPage: perPage
             });
         };
-
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
-    }
-
-    onSort(_event, index, direction) {
-        const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
-        this.setState({
-            sortBy: {
-                index,
-                direction
-            },
-            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
-        });
     }
 
     componentDidMount() {
@@ -84,37 +72,6 @@ class KeyTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
-        const rows = [];
-        let count = 0;
-
-        for (const ServerKey of this.props.ServerKeys) {
-            const val = value.toLowerCase();
-
-            // Check for matches of all the parts
-            if (val != "" && ServerKey.attrs.algo.toLowerCase().indexOf(val) == -1 &&
-                ServerKey.attrs.key_id.toLowerCase().indexOf(val) == -1 &&
-                ServerKey.attrs.state.toLowerCase().indexOf(val) == -1) {
-                // Not a match
-                continue;
-            }
-
-            rows.push(
-                {
-                    isOpen: false,
-                    cells: [ServerKey.attrs.cipher, ServerKey.attrs.key_id, ServerKey.attrs.state],
-
-                },
-            );
-        }
-
-        this.setState({
-            rows: rows,
-            value: value,
-            page: 1,
-        });
-    }
-
     actions() {
         return [
             {
@@ -130,12 +87,19 @@ class KeyTable extends React.Component {
 
         return (
             <div className="ds-margin-top-lg">
-                <SearchInput
-                    placeholder='Search Keys'
-                    value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
-                />
+                <FormAlert>
+                    <Alert
+                        variant="default"
+                        title="An orphan key is a private key in the NSS DB for which there is NO cert 
+                        with the corresponding public key. An orphan key is created during CSR creation,
+                        when the certificate associated with a CSR has been imported into the NSS DB its
+                        orphan state will be removed.
+
+                        Make sure an orphan key is not associated with a submitted CSR before you delete it."
+                        aria-live="polite"
+                        isInline
+                    />
+                </FormAlert>
                 <Table
                     className="ds-margin-top"
                     aria-label="orph key table"
@@ -221,7 +185,6 @@ class CSRTable extends React.Component {
                 {
                     isOpen: false,
                     cells: [ServerCSR.attrs.name, ServerCSR.attrs.subject, ServerCSR.attrs.modified],
-
                 },
             );
         }
@@ -231,7 +194,7 @@ class CSRTable extends React.Component {
         }
         this.setState({
             rows: rows,
-            columns: columns
+            columns: columns,
         });
     }
 
@@ -272,6 +235,11 @@ class CSRTable extends React.Component {
                 title: 'Delete CSR',
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.delCSR(rowData.cells[0])
+            },
+            {
+                title: 'View CSR',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.viewCSR(rowData.cells[0])
             }
         ];
     }
@@ -281,6 +249,14 @@ class CSRTable extends React.Component {
 
         return (
             <div className="ds-margin-top-lg">
+                <FormAlert>
+                    <Alert
+                        variant="default"
+                        title="List of CSR files in the instance configuration directory."
+                        aria-live="polite"
+                        isInline
+                    />
+                </FormAlert>
                 <SearchInput
                     placeholder='Search CSRs'
                     value={this.state.value}
@@ -749,6 +725,7 @@ CertTable.defaultProps = {
 CSRTable.propTypes = {
     ServerCSRs: PropTypes.array,
     delCSR: PropTypes.func,
+    viewCSR: PropTypes.func,
 };
 
 CSRTable.defaultProps = {

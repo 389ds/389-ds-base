@@ -469,25 +469,44 @@ only.
             '-in',
             '%s/%s'% (csr_dir, csr_name),
         ]
+        self.log.debug("cmd: %s", format_cmd_list(cmd))
         try:
             result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         except subprocess.CalledProcessError as e:
             raise ValueError(e.output.decode('utf-8').rstrip())
 
-        # Reformat openssl output
+        # Parse the subject string from openssl output
         result = result.replace("subject=", "")
         result = result.replace(" ", "").strip()
         result = result.split(',')
         result = result[slice(None, None, -1)]
         result = ','.join([str(elem) for elem in result])
+        return result
+
+    def _csr_show(self, name):
+        csr_dir = self.dirsrv.get_cert_dir()
+        result = ""
+        # Display PEM contents of a CSR file
+        if name and csr_dir:
+            if os.path.exists(csr_dir + "/" + name + ".csr"):
+                cmd = [
+                    "/usr/bin/sed",
+                    "-n",
+                    '/BEGIN NEW/,/END NEW/p',
+                    csr_dir + "/" + name + ".csr"
+                ]
+                self.log.debug("cmd: %s", format_cmd_list(cmd))
+                try:
+                    result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+                except subprocess.CalledProcessError as e:
+                    raise ValueError(e.output.decode('utf-8').rstrip())
 
         return result
 
-    def _csr_list(self):
+    def _csr_list(self, csr_dir=None):
         csr_list = []
         csr_dir = self.dirsrv.get_cert_dir()
-
-        # Search for .csr file extensions in /etc/dirsrv/slapd-INSTANCE_NAME
+        # Search for .csr file extensions in instance config dir
         cmd = [
             '/usr/bin/find',
             csr_dir,
@@ -498,6 +517,7 @@ only.
             '-printf',
             '%f\\n',
         ]
+        self.log.debug("cmd: %s", format_cmd_list(cmd))
         try:
             result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
         except subprocess.CalledProcessError as e:
@@ -508,26 +528,26 @@ only.
             return []
 
         # For each .csr file, get last modified time and subject DN
-        for csr_name in result.splitlines():
+        for csr_file in result.splitlines():
             csr = []
-            # Add abs path
-            csr.append(csr_name.rsplit('.', 1)[0])
             # Get last modified time stamp
             cmd = [
                 '/usr/bin/date',
                 '-r',
-                '%s/%s'% (csr_dir, csr_name),
+                '%s/%s'% (csr_dir, csr_file),
                 '+%Y-%m-%d %H:%M:%S',
             ]
             try:
                 result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
             except subprocess.CalledProcessError as e:
                 raise ValueError(e.output.decode('utf-8').rstrip())
+
+            # Add csr modified timestamp
             csr.append(result.strip())
-
             # Use openssl to get the csr subject DN
-            csr.append(self._openssl_get_csr_subject(csr_dir, csr_name))
-
+            csr.append(self._openssl_get_csr_subject(csr_dir, csr_file))
+            # Add csr name, without extension
+            csr.append(csr_file.rsplit('.', 1)[0])
             csr_list.append(csr)
 
         return csr_list
@@ -953,10 +973,10 @@ only.
             key = re.split(r'\s{2,}', line)
             if orphan:
                 if 'orphan' in line:
-                    key_list.append(key)    
-            else:    
+                    key_list.append(key)
+            else:
                 key_list.append(key)
-            
+
         return key_list
 
     def del_key(self, keyid):

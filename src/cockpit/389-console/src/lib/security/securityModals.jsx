@@ -2,6 +2,7 @@ import React from "react";
 import {
     Button,
     Checkbox,
+    ClipboardCopy, ClipboardCopyVariant, Card, CardBody, CardFooter, CardTitle,
     Form,
     FormSelect,
     FormSelectOption,
@@ -233,7 +234,7 @@ export class SecurityAddCSRModal extends React.Component {
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={error.csrName || error.csrSubject || spinning}
+                        isDisabled={error.csrName || error.csrSubjectCommonName || spinning}
                     >
                         {saveBtnName}
                     </Button>,
@@ -243,18 +244,13 @@ export class SecurityAddCSRModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <TextContent>
-                        <Text component={TextVariants.h4}>
-                            Create a Certificate Signing Request
-                        </Text>
-                    </TextContent>
-                    <hr />
-                    <Grid title="Enter Certificate Signing Request name">
+                    <Grid title="CSR Name">
                         <GridItem className="ds-label" span={3}>
-                            CSR Name
+                            Name
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
+                                title="Name used to identify a CSR"
                                 type="text"
                                 id="csrName"
                                 aria-describedby="horizontal-form-name-helper"
@@ -267,26 +263,196 @@ export class SecurityAddCSRModal extends React.Component {
                         </GridItem>
                     </Grid>
                     <Grid
-                        title="Enter Certificate Signing Request subject"
+                        title="CSR Subject: Common Name"
                         className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
-                            CSR Subject
+                            Common Name (CN)
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
+                                title="The fully qualified domain name (FQDN) of your server"
                                 type="text"
-                                id="csrSubject"
+                                id="csrSubjectCommonName"
                                 aria-describedby="horizontal-form-name-helper"
-                                name="csrSubject"
+                                name="csrSubjectCommonName"
                                 onChange={(str, e) => {
                                     handleChange(e);
                                 }}
-                                validated={error.csrSubject ? ValidatedOptions.error : ValidatedOptions.default}
+                                validated={error.csrSubjectCommonName ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
+                    <Grid
+                        title="CSR Subject: Organisation"
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Organization (O)
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                title="The legal name of your organization"
+                                type="text"
+                                id="csrSubjectOrg"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="csrSubjectOrg"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.csrSubjectOrg ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="CSR Subject: Organisational Unit"
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Organizational Unit (OU)
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                title="The division of your organization handling the certificate"
+                                type="text"
+                                id="csrSubjectOrgUnit"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="csrSubjectOrgUnit"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.csrSubjectOrgUnit ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="CSR Subject: City/Locality"
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            City/Locality (L)
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                title="The city where your organization is located"
+                                type="text"
+                                id="csrSubjectLocality"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="csrSubjectLocality"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.csrSubjectLocality ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="CSR Subject: State/Region"
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            State/County/Region (ST)
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                title="The state/region where your organization is located"
+                                type="text"
+                                id="csrSubjectState"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="csrSubjectState"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.csrSubjectState ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="CSR Subject: Country Code"
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Country Code (C)
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                title="Two-letter country code where organization is located"
+                                type="text"
+                                id="csrSubjectCountry"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="csrSubjectCountry"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.csrSubjectCountry ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                    <Grid
+                        title="CSR Subject: Email Address"
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Email Address
+                        </GridItem>
+                        <GridItem span={9}>
+                            <TextInput
+                                title="Email address used to contact your organization"
+                                type="text"
+                                id="csrSubjectEmail"
+                                aria-describedby="horizontal-form-name-helper"
+                                name="csrSubjectEmail"
+                                onChange={(str, e) => {
+                                    handleChange(e);
+                                }}
+                                validated={error.csrSubjectEmail ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                        <GridItem offset={0} className="ds-margin-top-lg ds-margin-bottom" span={10}>
+                            <TextContent>
+                                <Text component={TextVariants.h4}>
+                                    You can view/copy the generated CSR using the table actions.
+                                </Text>
+                            </TextContent>
+                        </GridItem>
+                    </Grid>
                 </Form>
+            </Modal>
+        );
+    }
+}
+
+export class SecurityViewCSRModal extends React.Component {
+    render() {
+        const {
+            showModal,
+            closeHandler,
+            item,
+            name,
+        } = this.props;
+
+        return (
+            <Modal
+                variant={ModalVariant.medium}
+                aria-labelledby="ds-modal"
+                title={name + ".csr"}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <TextContent title="CSR content">
+                    <Text component={TextVariants.pre}>
+                        <Text component={TextVariants.small}>
+                            <ClipboardCopy hoverTip="Copy to clipboard" clickTip="Copied" variant={ClipboardCopyVariant.expansion} isBlock>
+                                {item ? item : "Nothing to display"}
+                            </ClipboardCopy>
+                        </Text>
+                    </Text>
+                </TextContent>
             </Modal>
         );
     }
@@ -771,6 +937,21 @@ SecurityAddCSRModal.propTypes = {
 };
 
 SecurityAddCSRModal.defaultProps = {
+    showModal: false,
+    spinning: false,
+    error: {},
+};
+
+SecurityViewCSRModal.propTypes = {
+    showModal: PropTypes.bool,
+    closeHandler: PropTypes.func,
+    handleChange: PropTypes.func,
+    saveHandler: PropTypes.func,
+    spinning: PropTypes.bool,
+    error: PropTypes.object,
+};
+
+SecurityViewCSRModal.defaultProps = {
     showModal: false,
     spinning: false,
     error: {},
