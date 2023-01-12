@@ -320,25 +320,15 @@ export class CertificateManagement extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message"})
                 .done(content => {
-                    //console.log("showCSR", "content", content);
                     this.setState({
                         csrContent: content,
                         showViewCSRModal: true,
                         modalSpinning: true,
                     });
-                    this.props.addNotification(
-                        "success",
-                        `Successfully displayed CSR`
-                    );
-                    //console.log("showCSR", "content", content);
-                    //console.log("showCSR", "csrData", this.state.csrContent);
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
                     this.setState({
                         modalSpinning: false,
                         loading: false,
@@ -882,7 +872,7 @@ export class CertificateManagement extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "key", "list", "--orphan"
         ];
-        log_cmd("loadOrphanKeys", "Load Orphan Keys", cmd);
+        log_cmd("reloadOrphanKeys", "Reload Orphan Keys", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -898,14 +888,16 @@ export class CertificateManagement extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
+                    if (!errMsg.desc.includes('certutil: no keys found')) {
+                        this.props.addNotification(
+                            "error",
+                            `Error loading Orphan Keys - ${errMsg.desc}`
+                        );
                     }
-                    this.props.addNotification(
-                        "error",
-                        `Error loading Orphan Keys - ${msg}`
-                    );
+                    this.setState({
+                        loading: false,
+                        ServerKeys: []
+                    });
                 });
     }
 
@@ -1053,6 +1045,7 @@ export class CertificateManagement extends React.Component {
                     closeHandler={this.closeAddCSRModal}
                     handleChange={this.handleCSRChange}
                     saveHandler={this.addCSR}
+                    previewValue={this.state.csrSubject}
                     spinning={this.state.modalSpinning}
                     error={this.state.errObj}
                 />

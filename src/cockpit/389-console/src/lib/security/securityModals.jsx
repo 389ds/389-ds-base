@@ -243,7 +243,7 @@ export class SecurityAddCSRModal extends React.Component {
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
+                <Form className="ds-margin-top" isHorizontal autoComplete="off">
                     <Grid title="CSR Name">
                         <GridItem className="ds-label" span={3}>
                             Name
@@ -300,7 +300,6 @@ export class SecurityAddCSRModal extends React.Component {
                                 onChange={(str, e) => {
                                     handleChange(e);
                                 }}
-                                validated={error.csrSubjectOrg ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -321,7 +320,6 @@ export class SecurityAddCSRModal extends React.Component {
                                 onChange={(str, e) => {
                                     handleChange(e);
                                 }}
-                                validated={error.csrSubjectOrgUnit ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -342,7 +340,6 @@ export class SecurityAddCSRModal extends React.Component {
                                 onChange={(str, e) => {
                                     handleChange(e);
                                 }}
-                                validated={error.csrSubjectLocality ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -363,7 +360,6 @@ export class SecurityAddCSRModal extends React.Component {
                                 onChange={(str, e) => {
                                     handleChange(e);
                                 }}
-                                validated={error.csrSubjectState ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -384,7 +380,6 @@ export class SecurityAddCSRModal extends React.Component {
                                 onChange={(str, e) => {
                                     handleChange(e);
                                 }}
-                                validated={error.csrSubjectCountry ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -405,17 +400,19 @@ export class SecurityAddCSRModal extends React.Component {
                                 onChange={(str, e) => {
                                     handleChange(e);
                                 }}
-                                validated={error.csrSubjectEmail ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
-                        <GridItem offset={0} className="ds-margin-top-lg ds-margin-bottom" span={10}>
-                            <TextContent>
-                                <Text component={TextVariants.h4}>
-                                    You can view/copy the generated CSR using the table actions.
-                                </Text>
-                            </TextContent>
+                    </Grid>
+                    <hr />
+                    <Grid>
+                        <GridItem span={3}>
+                            Computed Subject
+                        </GridItem>
+                        <GridItem span={9}>
+                            <b>{this.props.previewValue}</b>
                         </GridItem>
                     </Grid>
+                    <hr />
                 </Form>
             </Modal>
         );

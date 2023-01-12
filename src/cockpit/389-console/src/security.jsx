@@ -430,14 +430,16 @@ export class Security extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
+                    if (!errMsg.desc.includes('certutil: no keys found')) {
+                        this.props.addNotification(
+                            "error",
+                            `Error loading Orphan Keys - ${errMsg.desc}`
+                        );
                     }
-                    this.props.addNotification(
-                        "error",
-                        `Error loading Orphan Keys - ${msg}`
-                    );
+                    this.setState({
+                        loaded: true,
+                        serverOrphanKeys: []
+                    }, this.props.enableTree());
                 });
     }
 

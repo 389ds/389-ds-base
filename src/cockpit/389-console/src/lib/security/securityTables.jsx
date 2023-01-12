@@ -1,12 +1,11 @@
 import React from "react";
 import {
-    Alert,
-    FormAlert,
     Grid,
     GridItem,
     Pagination,
     PaginationVariant,
     SearchInput,
+    Tooltip,
 } from '@patternfly/react-core';
 import {
     expandable,
@@ -76,8 +75,11 @@ class KeyTable extends React.Component {
         return [
             {
                 title: 'Delete Key',
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.delKey(rowData.cells[1])
+                onClick: (event, rowId, rowData, extra) => {
+                    if (rowData.cells[1]) {
+                        this.props.delKey(rowData.cells[1])
+                    }
+                }
             }
         ];
     }
@@ -87,19 +89,22 @@ class KeyTable extends React.Component {
 
         return (
             <div className="ds-margin-top-lg">
-                <FormAlert>
-                    <Alert
-                        variant="default"
-                        title="An orphan key is a private key in the NSS DB for which there is NO cert 
-                        with the corresponding public key. An orphan key is created during CSR creation,
-                        when the certificate associated with a CSR has been imported into the NSS DB its
-                        orphan state will be removed.
-
-                        Make sure an orphan key is not associated with a submitted CSR before you delete it."
-                        aria-live="polite"
-                        isInline
-                    />
-                </FormAlert>
+                <Tooltip
+                        content={
+                        <div>
+                            <p align="justify">
+                            An orphan key is a private key in the NSS DB for which there is NO cert 
+                            with the corresponding public key. An orphan key is created during CSR creation,
+                            when the certificate associated with a CSR has been imported into the NSS DB its
+                            orphan state will be removed.
+                            <br /><br />
+                            Make sure an orphan key is not associated with a submitted CSR before you delete it.
+                            </p>
+                        </div>
+                        }
+                    >
+                        <a className="ds-font-size-sm">What is an orphan key?</a>
+                </Tooltip>
                 <Table
                     className="ds-margin-top"
                     aria-label="orph key table"
@@ -233,13 +238,19 @@ class CSRTable extends React.Component {
         return [
             {
                 title: 'Delete CSR',
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.delCSR(rowData.cells[0])
+                onClick: (event, rowId, rowData, extra) => {
+                    if (rowData.cells.length > 1) {
+                        this.props.delCSR(rowData.cells[0])
+                    }
+                }
             },
             {
                 title: 'View CSR',
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.viewCSR(rowData.cells[0])
+                onClick: (event, rowId, rowData, extra) => {
+                    if (rowData.cells.length > 1) {
+                        this.props.viewCSR(rowData.cells[0])
+                    }
+                }
             }
         ];
     }
@@ -249,14 +260,6 @@ class CSRTable extends React.Component {
 
         return (
             <div className="ds-margin-top-lg">
-                <FormAlert>
-                    <Alert
-                        variant="default"
-                        title="List of CSR files in the instance configuration directory."
-                        aria-live="polite"
-                        isInline
-                    />
-                </FormAlert>
                 <SearchInput
                     placeholder='Search CSRs'
                     value={this.state.value}
