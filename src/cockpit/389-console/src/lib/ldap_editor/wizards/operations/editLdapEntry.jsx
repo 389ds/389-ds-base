@@ -683,7 +683,7 @@ class EditLdapEntry extends React.Component {
             let personOC = false;
             for (const existingOC of this.state.selectedObjectClasses) {
                 if (existingOC.cells[0].toLowerCase() === 'person' ||
-                   existingOC.cells[0].toLowerCase() === 'nsperson') {
+                    existingOC.cells[0].toLowerCase() === 'nsperson') {
                     personOC = true;
                     break;
                 }
