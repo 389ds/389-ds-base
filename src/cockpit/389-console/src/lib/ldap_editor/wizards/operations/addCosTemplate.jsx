@@ -540,7 +540,7 @@ class AddCosTemplate extends React.Component {
             const required = oc.cells[1].split(',');
             const optional = oc.cells[2].split(',');
 
-            for (const attr of required) {
+            for (let attr of required) {
                 attr = attr.trim().toLowerCase();
                 if (attr === '') {
                     continue;
@@ -596,7 +596,7 @@ class AddCosTemplate extends React.Component {
                 }
             }
 
-            for (const attr of optional) {
+            for (let attr of optional) {
                 attr = attr.trim();
                 if (attr === '') {
                     continue;
