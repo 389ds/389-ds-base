@@ -140,7 +140,7 @@ int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_
              */
              slapi_log_error(SLAPI_LOG_CRIT, "dbmdb_start_txn",
                     "Code issue: Trying to handle a db instance in a thread that is already holding a txn.\n");
-            log_stack(SLAPI_LOG_CRIT);
+            slapi_log_backtrace(SLAPI_LOG_CRIT);
             abort();
         }
 

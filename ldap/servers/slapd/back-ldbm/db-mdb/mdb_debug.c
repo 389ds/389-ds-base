@@ -12,7 +12,6 @@
 #endif
 #include "mdb_layer.h"
 
-#include <execinfo.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -143,23 +142,10 @@ void dbmdb_format_dbslist_info(char *info, dbmdb_dbi_t *dbi)
 }
 
 
-void log_stack(int loglvl)
+static inline void log_stack(int loglvl)
 {
-    /* Log stack (1 error message per frame to avoid log framework buffer overflow) */
-    void *frames[100];
-    char **symbols;
-    int nbframes;
-    int i;
-
     if (loglvl & dbgmdb_level) {
-        nbframes = backtrace(frames, (sizeof frames)/sizeof frames[0]);
-        symbols = backtrace_symbols(frames, nbframes);
-        if (symbols) {
-            for (i=0; i<nbframes; i++) {
-               slapi_log_err(SLAPI_LOG_DBGMDB, "log_stack", "\t[%d]\t%s\n", i, symbols[i]);
-            }
-            free(symbols);
-        }
+        slapi_log_backtrace(SLAPI_LOG_DBGMDB);
     }
 }
 

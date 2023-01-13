@@ -23,7 +23,6 @@ void dbmdb_format_dbslist_info(char *info, dbmdb_dbi_t *dbi);
 extern int dbgmdb_level; /* defined in mdb_debug.c */
 void dbg_log(const char *file, int lineno, const char *funcname, int loglevel, char *fmt, ...);
 void dbgval2str(char *buff, size_t bufsiz, MDB_val *val);
-void log_stack(int loglvl);
 void dbmdb_dbg_set_dbi_slots(dbmdb_dbi_t *slots);
 
 /* #define DBMDB_DEBUG 1 */
