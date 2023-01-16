@@ -1190,7 +1190,7 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
              * online import/bulk import/reindex failed and suffix database was cleared)
              */
             slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_open_dbi_from_filename", "Attempt to open to open dbi %s/%s while txn is already pending. The only case this message is expected is after a failed import or reindex.\n", be->be_name, filename);
-            log_stack(SLAPI_LOG_WARNING);
+            slapi_log_backtrace(SLAPI_LOG_WARNING);
             return MDB_NOTFOUND;
         }
 

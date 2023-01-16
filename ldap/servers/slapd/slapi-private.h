@@ -1508,6 +1508,8 @@ void slapi_pblock_set_task_warning(Slapi_PBlock *pb, task_warning warning);
 
 int slapi_exists_or_add_internal(Slapi_DN *dn, const char *filter, const char *entry, const char *modifier_name);
 
+void slapi_log_backtrace(int loglevel);
+
 #ifdef __cplusplus
 }
 #endif

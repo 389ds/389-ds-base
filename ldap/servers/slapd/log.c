@@ -33,6 +33,7 @@
 #define _PSEP '/'
 #include <json-c/json.h>
 #include <assert.h>
+#include <execinfo.h>
 
 #ifdef SYSTEMTAP
 #include <sys/sdt.h>
@@ -2882,6 +2883,29 @@ slapi_is_loglevel_set(const int loglevel)
 {
     return (slapd_ldap_debug & slapi_log_map[loglevel] ? 1 : 0);
 }
+
+/*
+ * Log current thread stack backtrace to the errors log.
+ *
+ * loglevel - The logging level:  replication, plugin, etc
+ */
+void
+slapi_log_backtrace(int loglevel)
+{
+    if (slapi_is_loglevel_set(loglevel)) {
+        void *frames[100];
+        int nbframes = backtrace(frames, (sizeof frames)/sizeof frames[0]);
+        char **symbols = backtrace_symbols(frames, nbframes);
+        if (symbols) {
+            /* Logs 1 line per frames to avoid risking log message truncation */
+            for (size_t i=0; i<nbframes; i++) {
+               slapi_log_err(loglevel, "slapi_log_backtrace", "\t[%ld]\t%s\n", i, symbols[i]);
+            }
+            free(symbols);
+        }
+    }
+}
+
 
 /******************************************************************************
 * write in the access log

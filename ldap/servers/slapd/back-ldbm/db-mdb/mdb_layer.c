@@ -1545,7 +1545,7 @@ dbi_error_t dbmdb_map_error(const char *funcname, int err)
             }
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_map_error",
                 "%s failed with db error %d : %s\n", funcname, err, msg);
-            log_stack(SLAPI_LOG_ERR);
+            slapi_log_backtrace(SLAPI_LOG_ERR);
             return DBI_RC_OTHER;
     }
 }
@@ -2550,11 +2550,11 @@ int dbmdb_public_new_cursor(dbi_db_t *db,  dbi_cursor_t *cursor)
            rc = MDB_NOTFOUND;
         } else if (rc==EINVAL) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_new_cursor", "Invalid dbi =%d (%s) while opening cursor in txn= %p\n", dbi->dbi, dbi->dbname, TXN(cursor->txn));
-            log_stack(SLAPI_LOG_ERR);
+            slapi_log_backtrace(SLAPI_LOG_ERR);
         } else {
             rc = EINVAL;
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_public_new_cursor", "Failed to open cursor dbi =%d (%s) in txn= %p\n", dbi->dbi, dbi->dbname, TXN(cursor->txn));
-            log_stack(SLAPI_LOG_ERR);
+            slapi_log_backtrace(SLAPI_LOG_ERR);
          }
     }
     if (rc && cursor->islocaltxn)
