@@ -273,7 +273,7 @@ export class CertificateManagement extends React.Component {
                         showAddCSRModal: false,
                         csrSubject: '',
                         csrName: '',
-                        modalSpinning: false
+                        modalSpinning: false,
                     });
                     this.props.addNotification(
                         "success",
@@ -282,18 +282,22 @@ export class CertificateManagement extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
+                    if (errMsg.desc.includes('certutil -s: improperly formatted name:')) {
+                        this.props.addNotification(
+                            "error",
+                            `Error Incorrect County Code`
+                        );
+                    } else {
+                        this.props.addNotification(
+                            "error",
+                            `Error creating CSR - ${errMsg.desc}`
+                        );
                     }
                     this.setState({
                         modalSpinning: false,
                         loading: false,
                     });
-                    this.props.addNotification(
-                        "error",
-                        `Error creating CSR - ${msg}`
-                    );
+
                 });
     }
 
@@ -305,11 +309,6 @@ export class CertificateManagement extends React.Component {
             );
             return;
         }
-
-        this.setState({
-            modalSpinning: true,
-            loading: false,
-        });
 
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -323,19 +322,13 @@ export class CertificateManagement extends React.Component {
                     this.setState({
                         csrContent: content,
                         showViewCSRModal: true,
-                        modalSpinning: true,
                     });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    this.setState({
-                        modalSpinning: false,
-                        loading: false,
-                    });
                     this.props.addNotification(
                         "error",
-                        `Error displaying CSR - ${msg}`
+                        `Error displaying CSR - ${errMsg.desc}`
                     );
                 });
     }
