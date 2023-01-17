@@ -74,6 +74,10 @@ export class Security extends React.Component {
             // Ciphers
             supportedCiphers: [],
             enabledCiphers: [],
+            // Certificate Signing Requests
+            serverCSRs: [],
+            // Orphan keys
+            serverOrphanKeys: [],
             // Config settings
             securityEnabled: false,
             requireSecureBinds: false,
@@ -226,6 +230,7 @@ export class Security extends React.Component {
         this.loadSupportedCiphers = this.loadSupportedCiphers.bind(this);
         this.loadCerts = this.loadCerts.bind(this);
         this.loadCACerts = this.loadCACerts.bind(this);
+        this.loadCSRs = this.loadCSRs.bind(this);
         this.closeConfirmDisable = this.closeConfirmDisable.bind(this);
         this.enableSecurity = this.enableSecurity.bind(this);
         this.disableSecurity = this.disableSecurity.bind(this);
@@ -318,7 +323,7 @@ export class Security extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "ca-certificate", "list",
         ];
-        log_cmd("loadCACerts", "Load certificates", cmd);
+        log_cmd("loadCACerts", "Load CA certificates", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -326,8 +331,7 @@ export class Security extends React.Component {
                     this.setState(() => (
                         {
                             CACerts: certs,
-                            loaded: true
-                        }), this.props.enableTree()
+                        }), this.loadCSRs
                     );
                 })
                 .fail(err => {
@@ -375,6 +379,67 @@ export class Security extends React.Component {
                         "error",
                         `Error loading server certificates - ${msg}`
                     );
+                });
+    }
+
+    loadCSRs () {
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "security", "csr", "list",
+        ];
+        log_cmd("loadCSRs", "Load CSRs", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const csrs = JSON.parse(content);
+                    this.setState(() => (
+                        {
+                            serverCSRs: csrs,
+                        }), this.loadOrphanKeys
+                    );
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    let msg = errMsg.desc;
+                    if ('info' in errMsg) {
+                        msg = errMsg.desc + " - " + errMsg.info;
+                    }
+                    this.props.addNotification(
+                        "error",
+                        `Error loading CSRs - ${msg}`
+                    );
+                });
+    }
+
+    loadOrphanKeys () {
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "security", "key", "list", "--orphan"
+        ];
+        log_cmd("loadOrphanKeys", "Load Orphan Keys", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const keys = JSON.parse(content);
+                    this.setState(() => (
+                        {
+                            serverOrphanKeys: keys,
+                            loaded: true
+                        }), this.props.enableTree()
+                    );
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    if (!errMsg.desc.includes('certutil: no keys found')) {
+                        this.props.addNotification(
+                            "error",
+                            `Error loading Orphan Keys - ${errMsg.desc}`
+                        );
+                    }
+                    this.setState({
+                        loaded: true,
+                        serverOrphanKeys: []
+                    }, this.props.enableTree());
                 });
     }
 
@@ -1071,6 +1136,8 @@ export class Security extends React.Component {
                                     serverId={this.props.serverId}
                                     CACerts={this.state.CACerts}
                                     ServerCerts={this.state.serverCerts}
+                                    ServerCSRs={this.state.serverCSRs}
+                                    ServerKeys={this.state.serverOrphanKeys}
                                     addNotification={this.props.addNotification}
                                 />
                             </Tab>
