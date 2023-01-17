@@ -132,7 +132,6 @@ class NssSsl(DSLint):
         :type alt_names: [str, ]
         :returns: String of the subject DN.
         """
-
         if self.dirsrv and len(alt_names) > 0:
             return SELF_ISSUER.format(GIVENNAME=self.dirsrv.get_uuid(), HOSTNAME=alt_names[0])
         elif len(alt_names) > 0:
@@ -461,6 +460,98 @@ only.
             cert_values.append(re.match(r'^(.+[^\s])[\s]+([^\s]+)$', line.rstrip()).groups())
         return cert_values
 
+    def _openssl_get_csr_subject(self, csr_dir, csr_name):
+        cmd = [
+            '/usr/bin/openssl',
+            'req',
+            '-subject',
+            '-noout',
+            '-in',
+            '%s/%s'% (csr_dir, csr_name),
+        ]
+        self.log.debug("cmd: %s", format_cmd_list(cmd))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+
+        # Parse the subject string from openssl output
+        result = result.replace("subject=", "")
+        result = result.replace(" ", "").strip()
+        result = result.split(',')
+        result = result[slice(None, None, -1)]
+        result = ','.join([str(elem) for elem in result])
+        return result
+
+    def _csr_show(self, name):
+        csr_dir = self.dirsrv.get_cert_dir()
+        result = ""
+        # Display PEM contents of a CSR file
+        if name and csr_dir:
+            if os.path.exists(csr_dir + "/" + name + ".csr"):
+                cmd = [
+                    "/usr/bin/sed",
+                    "-n",
+                    '/BEGIN NEW/,/END NEW/p',
+                    csr_dir + "/" + name + ".csr"
+                ]
+                self.log.debug("cmd: %s", format_cmd_list(cmd))
+                try:
+                    result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+                except subprocess.CalledProcessError as e:
+                    raise ValueError(e.output.decode('utf-8').rstrip())
+
+        return result
+
+    def _csr_list(self, csr_dir=None):
+        csr_list = []
+        csr_dir = self.dirsrv.get_cert_dir()
+        # Search for .csr file extensions in instance config dir
+        cmd = [
+            '/usr/bin/find',
+            csr_dir,
+            '-type',
+            'f',
+            '-name',
+            '*.csr',
+            '-printf',
+            '%f\\n',
+        ]
+        self.log.debug("cmd: %s", format_cmd_list(cmd))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+
+        # Bail out if we cant find any .csr files
+        if len(result) == 0:
+            return []
+
+        # For each .csr file, get last modified time and subject DN
+        for csr_file in result.splitlines():
+            csr = []
+            # Get last modified time stamp
+            cmd = [
+                '/usr/bin/date',
+                '-r',
+                '%s/%s'% (csr_dir, csr_file),
+                '+%Y-%m-%d %H:%M:%S',
+            ]
+            try:
+                result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+            except subprocess.CalledProcessError as e:
+                raise ValueError(e.output.decode('utf-8').rstrip())
+
+            # Add csr modified timestamp
+            csr.append(result.strip())
+            # Use openssl to get the csr subject DN
+            csr.append(self._openssl_get_csr_subject(csr_dir, csr_file))
+            # Add csr name, without extension
+            csr.append(csr_file.rsplit('.', 1)[0])
+            csr_list.append(csr)
+
+        return csr_list
+
     def _rsa_cert_key_exists(self, cert_tuple):
         name = cert_tuple[0]
         cmd = [
@@ -587,18 +678,22 @@ only.
         self.log.debug("nss output: %s", result)
         return True
 
-    def create_rsa_key_and_csr(self, alt_names=[], subject=None):
+    def create_rsa_key_and_csr(self, alt_names=[], subject=None, name=None):
         """Create a new RSA key and the certificate signing request. This
         request can be submitted to a CA for signing. The returned certificate
         can be added with import_rsa_crt.
         """
-        csr_path = os.path.join(self._certdb, '%s.csr' % CERT_NAME)
+        if name is None:
+            csr_path = os.path.join(self._certdb, '%s.csr' % CERT_NAME)
+        else:
+            csr_path = os.path.join(self._certdb, '%s.csr' % name)
 
         if len(alt_names) == 0:
             alt_names = self.detect_alt_names(alt_names)
         if subject is None:
             subject = self.generate_cert_subject(alt_names)
 
+        self.log.debug(f"CSR name -> {name}")
         self.log.debug(f"CSR subject -> {subject}")
         self.log.debug(f"CSR alt_names -> {alt_names}")
 
@@ -855,6 +950,52 @@ only.
         crt_path = '%s/%s%s.crt' % (self._certdb, USER_PREFIX, name)
         crt_der_path = '%s/%s%s.der' % (self._certdb, USER_PREFIX, name)
         return {'ca': ca_path, 'key': key_path, 'crt': crt_path, 'crt_der_path': crt_der_path}
+
+    def list_keys(self, orphan=None):
+        key_list = []
+        cmd = [
+            '/usr/bin/certutil',
+            '-K',
+            '-d',
+            self._certdb,
+            '-f',
+            '%s/%s' % (self._certdb, PWD_TXT),
+        ]
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+
+        # Ignore the first line of certutil output
+        for line in result.splitlines()[1:]:
+            # Normalise the output of certutil
+            line = re.sub(r"\<[^>]*\>","", line)
+            key = re.split(r'\s{2,}', line)
+            if orphan:
+                if 'orphan' in line:
+                    key_list.append(key)
+            else:
+                key_list.append(key)
+
+        return key_list
+
+    def del_key(self, keyid):
+        cmd = [
+            '/usr/bin/certutil',
+            '-F',
+            '-d',
+            self._certdb,
+            '-f',
+            '%s/%s' % (self._certdb, PWD_TXT),
+            '-k',
+            keyid,
+        ]
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+
+        return result
 
     # Certificate helper functions
     def del_cert(self,  nickname):
