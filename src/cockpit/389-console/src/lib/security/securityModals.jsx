@@ -208,6 +208,7 @@ export class SecurityAddCSRModal extends React.Component {
             closeHandler,
             handleChange,
             saveHandler,
+            previewValue,
             spinning,
             error
         } = this.props;
@@ -409,7 +410,7 @@ export class SecurityAddCSRModal extends React.Component {
                             Computed Subject
                         </GridItem>
                         <GridItem span={9}>
-                            <b>{this.props.previewValue}</b>
+                            <b>{previewValue}</b>
                         </GridItem>
                     </Grid>
                     <hr />

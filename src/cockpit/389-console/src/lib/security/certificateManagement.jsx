@@ -150,6 +150,14 @@ export class CertificateManagement extends React.Component {
         this.setState({
             showAddCSRModal: true,
             csrSubject: "",
+            csrName: "",
+            csrSubjectCommonName: "",
+            csrSubjectOrg: "",
+            csrSubjectOrgUnit: "",
+            csrSubjectLocality: "",
+            csrSubjectState: "",
+            csrSubjectCountry: "",
+            csrSubjectEmail: "",
             errObj: { csrName: true, csrSubjectCommonName: true},
         });
     }
@@ -285,7 +293,7 @@ export class CertificateManagement extends React.Component {
                     if (errMsg.desc.includes('certutil -s: improperly formatted name:')) {
                         this.props.addNotification(
                             "error",
-                            `Error Incorrect County Code`
+                            `Error Improperly formatted subject`
                         );
                     } else {
                         this.props.addNotification(
