@@ -344,6 +344,68 @@ def cert_get(inst, basedn, log, args):
         log.info('Trust Flags: {}'.format(details[4]))
 
 
+def csr_list(inst, basedn, log, args):
+    """
+    List all files with .csr extension in instance config dir
+    """
+    csr_list = []
+    tlsdb = NssSsl(dirsrv=inst)
+    details = tlsdb._csr_list(args.path)
+    for detail in details:
+        if args.json:
+            csr_list.append(
+                {
+                    "type": "csr",
+                    "attrs": {
+                                'modified': detail[0],
+                                'subject': detail[1],
+                                'name': detail[2],
+                            }
+                }
+            )
+        else:
+            log.info('Modified: {}'.format(detail[0]))
+            log.info('Subject: {}\n'.format(detail[1]))
+            log.info('Name: {}'.format(detail[2]))
+
+    if args.json:
+        log.info(json.dumps(csr_list, indent=4))
+
+
+def csr_get(inst, basedn, log, args):
+    """
+    Show PEM format of a csr
+    """
+    tlsdb = NssSsl(dirsrv=inst)
+    details = tlsdb._csr_show(args.name)
+    log.info(f"{details}")
+
+
+def csr_gen(inst, basedn, log, args):
+    """
+    Generate a .csr file in instance config dir
+    """
+    tlsdb = NssSsl(dirsrv=inst)
+    alt_names = args.alt_names
+    subject = args.subject
+    name = args.name
+    out_path = tlsdb.create_rsa_key_and_csr(alt_names, subject, name)
+    log.info(out_path)
+
+
+def csr_del(inst, basedn, log, args):
+    """
+    Delete a .csr file from instance config dir
+    """
+    csr_dir = inst.get_cert_dir()
+    file_path = os.path.join(csr_dir, args.name + ".csr")
+    try:
+        os.remove(file_path)
+    except FileNotFoundError:
+        raise ValueError(file_path + " not found")
+    log.info(f"Successfully deleted: " + file_path)
+
+
 def cert_edit(inst, basedn, log, args):
     """Edit cert
     """
@@ -358,6 +420,44 @@ def cert_del(inst, basedn, log, args):
     tlsdb = NssSsl(dirsrv=inst)
     tlsdb.del_cert(args.name)
     log.info(f"Successfully deleted certificate")
+
+
+def key_list(inst, basedn, log, args):
+    """
+    List keys in the NSS DB
+    """
+    key_list = []
+    tls = NssSsl(dirsrv=inst)
+    keys = tls.list_keys(args.orphan)
+
+    for key in keys:
+        if args.json:
+            key_list.append(
+                {
+                    "type": "key",
+                    "attrs": {
+                                'cipher': key[0],
+                                'key_id': key[1],
+                                'state': key[2],
+                            }
+                }
+            )
+        else:
+            log.info('Cipher: {}'.format(key[0]))
+            log.info('Key Id: {}'.format(key[1]))
+            log.info('State: {}\n'.format(key[2]))
+
+    if args.json:
+            log.info(json.dumps(key_list, indent=4))
+
+
+def key_del(inst, basedn, log, args):
+    """
+    Delete a key from NSS DB
+    """
+    tls = NssSsl(dirsrv=inst)
+    keys = tls.del_key(args.key_id)
+    log.info(keys)
 
 
 def create_parser(subparsers):
@@ -495,3 +595,45 @@ def create_parser(subparsers):
                                     help='Lists only supported ciphers')
     ciphers_list_group.add_argument('--disabled', action='store_true',
                                     help='Lists only supported ciphers but without enabled ciphers')
+
+    # Certificate Signing Request Management
+    csr = security_sub.add_parser('csr', help='Manage certificate signing requests')
+    csr_sub = csr.add_subparsers(help='csr')
+
+    csr_list_parser = csr_sub.add_parser('list', help='List CSRs', description=('List all CSR files in instance'
+        ' configuration directiory'))
+    csr_list_parser.add_argument('--path', '-p', default=None, help="Directory contanining CSR file")
+    csr_list_parser.set_defaults(func=csr_list)
+
+    csr_get_parser = csr_sub.add_parser('get', help='Display CSR content', description=('Displays the contents of a CSR, '
+        ' which can be used for submittal to CA'))
+    csr_get_parser.add_argument('name', help="Name of the CSR file to display")
+    csr_get_parser.set_defaults(func=csr_get)
+
+    csr_req_parser = csr_sub.add_parser('req', help='Generate a Certificate Signing Request', 
+        description=('Generate a CSR that can be submitted to a CA for verification'))
+    csr_req_parser.add_argument('--subject', '-s', required=True, help="Subject field")
+    csr_req_parser.add_argument('--name', '-n', required=True, help="Name")
+    csr_req_parser.add_argument('alt_names', nargs='*',
+         help="CSR alternative names. These are auto-detected if not provided")
+    csr_req_parser.set_defaults(func=csr_gen)
+
+    csr_delete_parser = csr_sub.add_parser('del', help='Delete a CSR file', description=('Delete a CSR file'))
+    csr_delete_parser.add_argument('name', help="Name of the CSR file to delete")
+    csr_delete_parser.set_defaults(func=csr_del)
+
+    # Key Management
+    key = security_sub.add_parser('key', help='Manage keys in NSS DB')
+    key_sub = key.add_subparsers(help='key')
+
+    key_list_parser = key_sub.add_parser('list', help='List all keys in NSS DB')
+    key_list_parser.add_argument('--orphan', action='store_true', help='List orphan keys (An orphan key is'
+        ' a private key in the NSS DB for which there is NO cert with the corresponding '
+        ' public key). An orphan key is created during CSR generation, when the associated certificate is imported'
+        ' into the NSS DB, its orphan state will be removed.')
+    key_list_parser.set_defaults(func=key_list)
+
+    key_del_parser = key_sub.add_parser('del', help='Delete a key from NSS DB', description=('Remove a'
+        ' key from the NSS DB. Make sure the key is not in use before you delete'))
+    key_del_parser.add_argument('key_id', help='This is the key ID displayed when listing keys')
+    key_del_parser.set_defaults(func=key_del)
