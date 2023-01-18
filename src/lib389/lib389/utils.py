@@ -41,6 +41,7 @@ import shlex
 import operator
 import subprocess
 import math
+import errno
 # Setuptools ships with 'packaging' module, let's use it from there
 try:
     from pkg_resources.extern.packaging.version import LegacyVersion
@@ -1327,6 +1328,32 @@ def socket_check_open(host, port):
                 return True
             else:
                 return False
+
+
+def socket_check_bind(port):
+    """
+    Check if a socket can be bound.  Need to handle cases where IPv6 is
+    completely disabled.
+    """
+    # Trying IPv6 first ...
+    host = "::1"
+    family = socket.AF_INET6
+    try:
+        with closing(socket.socket(family, socket.SOCK_STREAM)) as sock:
+            sock.bind((host, port))
+            return True
+    except OSError as e:
+        if e.errno == errno.EACCES or  e.errno == errno.EADDRINUSE:
+            return False
+    # Maybe there is no IPv6, adjust hostname, and try IPv4 ...
+    host = "127.0.0.1"
+    family = socket.AF_INET
+    try:
+        with closing(socket.socket(family, socket.SOCK_STREAM)) as sock:
+            sock.bind((host, port))
+            return True
+    except OSError as e:
+        return False
 
 
 def ensure_bytes(val):
