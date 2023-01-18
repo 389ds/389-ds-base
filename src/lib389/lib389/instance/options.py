@@ -8,9 +8,11 @@
 
 import socket
 import sys
+import os
+import random
 from lib389.paths import Paths
 from lib389._constants import INSTALL_LATEST_CONFIG
-from lib389.utils import get_default_db_lib
+from lib389.utils import get_default_db_lib, socket_check_bind
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
@@ -51,6 +53,48 @@ class Options2(object):
     # It provides a number of options for:
     # - dict overlay
     # - parsing the config parser types.
+
+    def get_default():
+        # Get option default values if these values are dynamic
+        # Concerned options are:
+        #   - selinux
+        #   - systemd
+        #   - port
+        #   - secure_port
+        if os.geteuid() == 0:
+            return { 'selinux': True,
+                     'systemd': True,
+                     'port': 389,
+                     'secure_port': 636 }
+        values = { 'selinux': False, 'systemd': False }
+        # Try first to select a couple of port like (n*1000+389, n*1000+636)
+        for delta in range(1000, 65000, 1000):
+            values['port'] = 389+delta
+            values['secure_port'] = 636+delta
+            if socket_check_bind(values['port']) and socket_check_bind(values['secure_port']):
+                return values;
+        # Nothing found, so lets use a couple of random values
+        for tryid in range(10000):
+            values['port'], values['secure_port'] = random.choices(range(1000,65535), k=2)
+            if socket_check_bind(values['port']) and socket_check_bind(values['secure_port']):
+                return values;
+        # Still nothing found.
+        # Cannot not raise an exception as this code is also triggered while building 389ds
+        # So lets silently choose a couple of ports (probably busy) and get a failure later
+        # on (when starting the instance if in dscreate case).
+        values['port'], values['secure_port'] = random.choices(range(1000,65535), k=2)
+        return values;
+
+    default_values = get_default()
+
+    def get_systemd_default():
+        # Cannot use ds_paths.with_systemd in get_default() because dse template
+        # is not available in build. So a function is used instead.
+        if Options2.default_values['systemd']:
+            return ds_paths.with_systemd
+        else:
+            return False
+
 
     def __init__(self, log):
         # 'key' : (default, helptext, valid_func )
@@ -126,12 +170,12 @@ class General2Base(Options2):
         self._type['strict_host_checking'] = bool
         self._helptext['strict_host_checking'] = "Sets whether the server verifies the forward and reverse record set in the \"full_machine_name\" parameter. When installing this instance with GSSAPI authentication behind a load balancer, set this parameter to \"false\". Container installs imply \"false\"."
 
-        self._options['selinux'] = True
+        self._options['selinux'] = Options2.default_values['selinux']
         self._type['selinux'] = bool
         self._helptext['selinux'] = "Enables SELinux detection and integration during the installation of this instance. If set to \"True\", dscreate auto-detects whether SELinux is enabled. Set this parameter only to \"False\" in a development environment."
         self._advanced['selinux'] = True
 
-        self._options['systemd'] = ds_paths.with_systemd
+        self._options['systemd'] = Options2.get_systemd_default()
         self._type['systemd'] = bool
         self._helptext['systemd'] = "Enables systemd platform features. If set to \"True\", dscreate auto-detects whether systemd is installed. Set this only to \"False\" in a development environment."
         self._advanced['systemd'] = True
@@ -188,11 +232,11 @@ class Slapd2Base(Options2):
         self._helptext['prefix'] = "Sets the file system prefix for all other directories. You can refer to this value in other fields using the {prefix} variable or the $PREFIX environment variable. Only set this parameter in a development environment."
         self._advanced['prefix'] = True
 
-        self._options['port'] = 389
+        self._options['port'] = Options2.default_values['port']
         self._type['port'] = int
         self._helptext['port'] = "Sets the TCP port the instance uses for LDAP connections."
 
-        self._options['secure_port'] = 636
+        self._options['secure_port'] = Options2.default_values['secure_port']
         self._type['secure_port'] = int
         self._helptext['secure_port'] = "Sets the TCP port the instance uses for TLS-secured LDAP connections (LDAPS)."
 
