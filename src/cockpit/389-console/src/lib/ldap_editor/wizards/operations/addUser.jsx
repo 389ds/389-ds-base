@@ -178,7 +178,7 @@ class AddUser extends React.Component {
                 this.generateLdifData();
             } else if (id === 6) {
                 // Create the LDAP entry.
-                const myLdifArray = this.state.ldifArray;
+                let myLdifArray = this.state.ldifArray;
                 createLdapEntry(this.props.editorLdapServer,
                     myLdifArray,
                     (result) => {
@@ -250,7 +250,7 @@ class AddUser extends React.Component {
     }
 
     componentDidMount () {
-        const attributesArray = [];
+        let attributesArray = [];
         // Set the default poisx user attributes
         this.allowedAttrs[this.state.accountType].map(attr => {
             attributesArray.push({ cells: [attr] });
@@ -320,7 +320,7 @@ class AddUser extends React.Component {
         // The property 'isAttributeSelected' is used to build the LDAP entry to add.
         // The row ID cannot be used since it changes with the pagination.
         const attrName = this.state.pagedRowsUser[rowId].cells[0];
-        const allItems = [...this.state.rowsUser];
+        let allItems = [...this.state.rowsUser];
         const index = allItems.findIndex(item => item.cells[0] === attrName);
         allItems[index].isAttributeSelected = isSelected;
         const selectedAttributes = allItems
@@ -363,7 +363,7 @@ class AddUser extends React.Component {
             if (skipAttributeSelection) { // Do not check the attribute selection ( because it has not changed ).
                 editableTableData = [...this.state.savedRows];
             } else {
-                const arrayOfAttrObjects = [...this.state.savedRows];
+                let arrayOfAttrObjects = [...this.state.savedRows];
                 for (const myAttr of newSelectedAttrs) {
                     const found = arrayOfAttrObjects.find(el => el.attr === myAttr);
                     if (found === undefined) {
@@ -480,7 +480,7 @@ class AddUser extends React.Component {
     }
 
     generateLdifData = () => {
-        const ldifArray = [];
+        let ldifArray = [];
         let isFilePath = false;
         let objectClassData = this.userObjectclasses[this.state.accountType];
         let cleanLdifArray = [];

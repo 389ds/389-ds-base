@@ -387,7 +387,7 @@ class LdapNavigator extends React.Component {
             return;
         }
 
-        const updatedChildren = [];
+        let updatedChildren = [];
         let nbIterations = 0;
 
         const child_params = {
@@ -420,7 +420,7 @@ class LdapNavigator extends React.Component {
     processDirectChildren = (directChildren, params, resCode) => {
         // Retrieve the selected node from ==> this.state.activeItems: [treeViewItem, parentItem]
         const myActiveNode = this.state.activeItems[0];
-        const myChildren = [];
+        let myChildren = [];
         let childId = 0; // Used to quickly locate the node in the tree data.
 
         if (directChildren === null) { // There was a failure to connect to the LDAP server.
