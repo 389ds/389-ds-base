@@ -278,7 +278,7 @@ class AddGroup extends React.Component {
 
     generateLdifData = () => {
         const objectClassData = ['objectClass: top'];
-        const valueData = [];
+        let valueData = [];
         let memberAttr = "";
 
         if (this.state.posixGroup) {

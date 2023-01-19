@@ -140,7 +140,7 @@ class GenericUpdate extends React.Component {
         // FIXME:
         // disableCheckbox doesn't exist for version 2020.06!
         // Need to upgrade...
-        const attributesArray = [];
+        let attributesArray = [];
         let namingAttr = '';
         switch (this.props.entryType) {
             case ENTRY_TYPE.user:
@@ -288,7 +288,7 @@ class GenericUpdate extends React.Component {
             // The property 'isAttributeSelected' is used to build the LDAP entry to add.
             // The row ID cannot be used since it changes with the pagination.
             const attrName = this.state.pagedRowsAttrs[rowId].cells[0];
-            const allItems = [...this.state.rowsAttrs];
+            let allItems = [...this.state.rowsAttrs];
             const index = allItems.findIndex(item => item.cells[0] === attrName);
             allItems[index].isAttributeSelected = isSelected;
             const selectedAttributes = allItems
@@ -347,7 +347,7 @@ class GenericUpdate extends React.Component {
             if (skipAttributeSelection) { // Do not check the attribute selection ( because it has not changed ).
                 editableTableData = [...this.state.savedRows];
             } else {
-                const arrayOfAttrObjects = [...this.state.savedRows];
+                let arrayOfAttrObjects = [...this.state.savedRows];
                 for (const myAttr of newSelectedAttrs) {
                     const found = arrayOfAttrObjects.find(el => el.attr === myAttr);
                     if (found === undefined) {
@@ -442,13 +442,13 @@ class GenericUpdate extends React.Component {
 
     generateLdifDataUser = () => {
         // ObjectClass 'Person' is required.
-        const objectClassData = ['ObjectClass: top', 'ObjectClass: Person'];
+        let objectClassData = ['ObjectClass: top', 'ObjectClass: Person'];
         if (this.state.allAttributesSelected) {
             objectClassData.push('ObjectClass: OrganizationalPerson',
                                  'ObjectClass: InetOrgPerson');
         }
 
-        const valueData = [];
+        let valueData = [];
         for (const item of this.state.savedRows) {
             const attrName = item.attr;
             valueData.push(`${attrName}: ${item.val}`);
@@ -476,7 +476,7 @@ class GenericUpdate extends React.Component {
 
     generateLdifDataOu = () => {
         const objectClassData = ['ObjectClass: top', 'ObjectClass: organizationalUnit'];
-        const valueData = [];
+        let valueData = [];
         let rdnValue = "";
         for (const item of this.state.savedRows) {
             const attrName = item.attr;

@@ -438,7 +438,7 @@ class AddCoS extends React.Component {
             // The property 'isAttributeSelected' is used to build the LDAP entry to add.
             // The row ID cannot be used since it changes with the pagination.
             const attrName = this.state.pagedRowsCoS[rowId].cells[0];
-            const allItems = [...this.state.rowsCoS];
+            let allItems = [...this.state.rowsCoS];
             const index = allItems.findIndex(item => item.cells[0] === attrName);
             allItems[index].isAttributeSelected = isSelected;
             const selectedAttributes = allItems
@@ -449,8 +449,7 @@ class AddCoS extends React.Component {
                 rowsCoS: allItems,
                 pagedRowsCoS: rows,
                 selectedAttributes
-            },
-                () => this.updateValuesTableRows());
+            }, () => this.updateValuesTableRows());
         }
     };
 
@@ -679,7 +678,7 @@ class AddCoS extends React.Component {
     }
 
     generateLdifData = () => {
-        const objectClassData = ['ObjectClass: top',
+        let objectClassData = ['ObjectClass: top',
             'ObjectClass: LdapSubEntry',
             'ObjectClass: cosSuperDefinition'];
         if (this.state.cosType === 'pointer') {
@@ -690,7 +689,7 @@ class AddCoS extends React.Component {
             objectClassData.push('ObjectClass: cosClassicDefinition');
         }
 
-        const valueData = [];
+        let valueData = [];
         for (const item of this.state.savedRows) {
             const attrName = item.attr;
             valueData.push(`${attrName}: ${item.val}`);
