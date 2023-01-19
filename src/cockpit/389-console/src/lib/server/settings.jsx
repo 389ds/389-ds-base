@@ -943,7 +943,7 @@ export class ServerSettings extends React.Component {
                             <Tab eventKey={0} title={<TabTitleText>General Settings</TabTitleText>}>
                                 <Form autoComplete="off" className="ds-margin-top-xlg">
                                     <Grid
-                                        title="The version of the Directory Server rpm package"
+                                        title="The version of the Directory Server package"
                                     >
                                         <GridItem className="ds-label" span={2}>
                                             Server Version
