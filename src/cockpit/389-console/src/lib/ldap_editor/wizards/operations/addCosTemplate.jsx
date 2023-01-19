@@ -419,13 +419,13 @@ class AddCosTemplate extends React.Component {
 
     onSelectOc = (event, isSelected, rowId) => {
         // Process only the entries in the current page ( pagedRowsOc )
-        const rows = [...this.state.pagedRowsOc];
+        let rows = [...this.state.pagedRowsOc];
         rows[rowId].selected = isSelected;
         // Find the entry in the full array and set 'isAttributeSelected' accordingly
         // The property 'selected' is used to build the attribute table.
         // The row ID cannot be used since it changes with the pagination.
         const ocName = this.state.pagedRowsOc[rowId].cells[0];
-        const allItems = [...this.state.rowsOc];
+        let allItems = [...this.state.rowsOc];
         const index = allItems.findIndex(item => item.cells[0] === ocName);
         allItems[index].selected = isSelected;
 
@@ -485,7 +485,7 @@ class AddCosTemplate extends React.Component {
         // The property 'isAttributeSelected' is used to build the LDAP entry to add.
         // The row ID cannot be used since it changes with the pagination.
         const attrName = this.state.pagedRowsAttr[rowId].cells[0];
-        const allItems = [...this.state.rowsAttr];
+        let allItems = [...this.state.rowsAttr];
         const index = allItems.findIndex(item => item.cells[0] === attrName);
         allItems[index].isAttributeSelected = isSelected;
         const selectedAttributes = allItems
@@ -528,8 +528,8 @@ class AddCosTemplate extends React.Component {
 
     updateAttributeTableRows = () => {
         const ocToProcess = [...this.state.selectedObjectClasses];
-        const rowsAttr = [];
-        const attrList = [];
+        let rowsAttr = [];
+        let attrList = [];
         let namingRowID = this.state.namingRowID;
         let namingAttr = this.state.namingAttr;
         let namingVal = this.state.namingVal;
@@ -642,7 +642,7 @@ class AddCosTemplate extends React.Component {
         const objectClassData = ['top'];
         const attribute = this.state.namingAttr;
         const value = this.state.namingVal;
-        const valueData = [];
+        let valueData = [];
 
         for (const oc of this.state.selectedObjectClasses) {
             if (oc && !objectClassData.includes(oc.cells[0])) {
