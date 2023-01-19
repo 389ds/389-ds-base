@@ -148,7 +148,7 @@ export function getRootSuffixEntryDetails (params, entryDetailsCallback) {
   let modifyTimestamp = '';
   // let entryId = '';
   let result = {};
-  const entryArray = []; // Will contain the entry but the numSubordinates and modifyTimestamp.
+  let entryArray = []; // Will contain the entry but the numSubordinates and modifyTimestamp.
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
     .done(data => {
@@ -209,7 +209,7 @@ export function getRootSuffixEntryDetails (params, entryDetailsCallback) {
 function getResourceLimits () {
   const timeLimit = getTimeLimit();
   const sizeLimit = getSizeLimit();
-  const limits = [];
+  let limits = [];
   if (timeLimit > 0) {
     limits.push('-l', timeLimit);
   }
@@ -256,7 +256,7 @@ export function getSearchEntries (params, resultCallback) {
   let numSubordinates = '0';
   let modifyTimestamp = '';
   let searchResult = null;
-  const allEntries = [];
+  let allEntries = [];
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' }) // string.split("\n\r")
     .done(data => {
@@ -384,7 +384,7 @@ export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCa
   */
 
   log_cmd("getBaseLevelEntryAttributes", "", cmd);
-  const entryArray = [];
+  let entryArray = [];
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
     .done(data => {
@@ -452,7 +452,7 @@ export function getBaseLevelEntryFullAttributes (serverId, baseDn, entryAttribut
   ];
 
   log_cmd("getBaseLevelEntryFullAttributes", "", cmd);
-  const entryArray = [];
+  let entryArray = [];
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
     .done(data => {
@@ -527,7 +527,7 @@ export function getOneLevelEntries (params, oneLevelCallback) {
   let numSubordinates = '';
   let modifyTimestamp = '';
   let searchResult = null;
-  const allEntries = [];
+  let allEntries = [];
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' }) // string.split("\n\r")
     .done(data => {
@@ -764,7 +764,7 @@ export function listAccessLogs (logDirectory, logListCallback) {
 
   log_cmd("listAccessLogs", "", cmd);
 
-  const logDataArray = [];
+  let logDataArray = [];
 
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
@@ -870,7 +870,7 @@ export function getAllObjectClasses (serverId, allOcCallback) {
     'objectclasses',
     'list'
   ];
-  const result = [];
+  let result = [];
   log_cmd("getAllObjectClasses", "", cmd);
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
@@ -902,7 +902,7 @@ export function getSingleValuedAttributes (serverId, svCallback) {
     'attributetypes',
     'list'
   ];
-  const result = [];
+  let result = [];
   log_cmd("getSingleValuedAttributes", "", cmd);
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
@@ -932,7 +932,7 @@ export function getAttributesNameAndOid (serverId, attrCallback) {
     'attributetypes',
     'list'
   ];
-  const result = [];
+  let result = [];
   log_cmd("getAttributesNameAndOid", "", cmd);
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
@@ -997,7 +997,7 @@ export function showCertificate (certificate, showCertCallback) {
   ];
 
   let result = {};
-  const certDataArray = [];
+  let certDataArray = [];
 
   cockpit
     .spawn(cmd, { superuser: true, err: 'message' })
@@ -1130,7 +1130,7 @@ export function generateRootEntryLdif (suffixDn, ldifCallback) {
       console.log(`The RDN attribute ${myRdnAttr} is not supported for root entry creation!`);
   }
 
-  const ldifArray = [];
+  let ldifArray = [];
   if (isValid) {
     ldifArray.push(`dn: ${suffixDn}`);
     ldifArray.push('objectClass: top');
@@ -1146,7 +1146,7 @@ export function generateRootEntryLdif (suffixDn, ldifCallback) {
 export function retrieveAllAcis (params, aciCallback) {
     let entryDn = params.baseDn;
     const potentialEntries = [params.baseDn];
-    const resultArray = []; // An item will be like {entryDn:<DN>, aciArray:[aci:<ACI_1>,aci:<ACI_2>]}
+    let resultArray = []; // An item will be like {entryDn:<DN>, aciArray:[aci:<ACI_1>,aci:<ACI_2>]}
     const myParams = {
         serverId: params.serverId,
         baseDn: entryDn,
@@ -1232,7 +1232,7 @@ export function foldLine (line) {
   }
 
   const size = Math.ceil(line.length / LDIF_MAX_CHAR_PER_LINE)
-  const lineArray = new Array(size);
+  let lineArray = new Array(size);
   // Handle the first line separately since it doesn't start with a space.
   lineArray[0] = line.substring(0, LDIF_MAX_CHAR_PER_LINE);
 

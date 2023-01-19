@@ -605,8 +605,8 @@ class EditLdapEntry extends React.Component {
 
     getAllAttrs = () => {
         const ocToProcess = [...this.state.selectedObjectClasses];
-        const rowsAttr = [];
-        const attrList = [];
+        let rowsAttr = [];
+        let attrList = [];
 
         ocToProcess.map(oc => {
             // Rebuild the attribute arrays.
@@ -736,10 +736,10 @@ class EditLdapEntry extends React.Component {
     };
 
     generateLdifData = () => {
-        const statementRows = [];
-        const updateArray = [];
-        const addArray = [];
-        const removeArray = [];
+        let statementRows = [];
+        let updateArray = [];
+        let addArray = [];
+        let removeArray = [];
         let ldifArray = [];
         let cleanLdifArray = [];
         let numOfChanges = 0;
@@ -793,9 +793,9 @@ class EditLdapEntry extends React.Component {
             found = false;
         }
 
-        for (const datum of updateArray) {
+        for (let datum of updateArray) {
             const myAttr = datum.attr;
-            const myVal = datum.val;
+            let myVal = datum.val;
             const isUserPwd = myAttr.toLowerCase() === "userpassword";
             isFilePath = false;
 
@@ -961,7 +961,7 @@ class EditLdapEntry extends React.Component {
         // Loop delete rows
         for (const datum of removeArray) {
             const myAttr = datum.attr;
-            const myVal = datum.val;
+            let myVal = datum.val;
             const isUserPwd = myAttr.toLowerCase() === "userpassword";
             isFilePath = false;
             // Update LDIF array
@@ -1370,7 +1370,7 @@ class EditLdapEntry extends React.Component {
                     <Alert
                         variant={resultVariant}
                         isInline
-                        title="Result for Entry Modification"editEntry
+                        title="Result for Entry Modification"
                     >
                         {commandOutput}
                         {this.state.adding &&

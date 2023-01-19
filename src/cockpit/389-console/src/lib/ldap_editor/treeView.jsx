@@ -196,7 +196,7 @@ class EditorTreeView extends React.Component {
         // Always close the drop down
         this.props.onToggleEntryMenu(false);
 
-        const entryRows = [];
+        let entryRows = [];
         const isEmptySuffix = treeViewItem.isEmptySuffix;
         let entryIcon = treeViewItem.icon; // Only already set for special suffixes.
         let entryStateIcon = "";
@@ -204,7 +204,7 @@ class EditorTreeView extends React.Component {
         const isSuffixEntry = treeViewItem.id === "0";
         const entryModTime = treeViewItem.modTime;
         const fullEntry = treeViewItem.fullEntry;
-        const encodedValues = [];
+        let encodedValues = [];
         let isRole = false;
         fullEntry
             .filter(data => (data.attribute + data.value !== '') && // Filter out empty lines

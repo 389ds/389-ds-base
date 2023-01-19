@@ -387,7 +387,7 @@ class AddLdapEntry extends React.Component {
         // The property 'isAttributeSelected' is used to build the LDAP entry to add.
         // The row ID cannot be used since it changes with the pagination.
         const attrName = this.state.pagedRowsAttr[rowId].cells[0];
-        const allItems = [...this.state.rowsAttr];
+        let allItems = [...this.state.rowsAttr];
         const index = allItems.findIndex(item => item.cells[0] === attrName);
         allItems[index].isAttributeSelected = isSelected;
         const selectedAttributes = allItems
@@ -430,8 +430,8 @@ class AddLdapEntry extends React.Component {
 
     updateAttributeTableRows = () => {
         const ocToProcess = [...this.state.selectedObjectClasses];
-        const rowsAttr = [];
-        const attrList = [];
+        let rowsAttr = [];
+        let attrList = [];
         let namingRowID = this.state.namingRowID;
         let namingAttr = this.state.namingAttr;
         let isNamingAttr = false;
@@ -539,7 +539,7 @@ class AddLdapEntry extends React.Component {
         const objectClassData = ['top'];
         const attribute = this.state.namingAttr;
         const value = this.state.namingVal;
-        const valueData = [];
+        let valueData = [];
 
         for (const oc of this.state.selectedObjectClasses) {
             if (oc && !objectClassData.includes(oc.cells[0])) {
