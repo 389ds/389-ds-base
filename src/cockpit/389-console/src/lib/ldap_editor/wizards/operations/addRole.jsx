@@ -284,7 +284,7 @@ class AddRole extends React.Component {
     }
 
     updateAttributesTableRows () {
-        const attributesArray = [];
+        let attributesArray = [];
         attributesArray.push({
             cells: ['cn', 'LdapSubEntry'],
             selected: true,
@@ -416,7 +416,7 @@ class AddRole extends React.Component {
             // The property 'isAttributeSelected' is used to build the LDAP entry to add.
             // The row ID cannot be used since it changes with the pagination.
             const attrName = this.state.pagedRowsRole[rowId].cells[0];
-            const allItems = [...this.state.rowsRole];
+            let allItems = [...this.state.rowsRole];
             const index = allItems.findIndex(item => item.cells[0] === attrName);
             allItems[index].isAttributeSelected = isSelected;
             const selectedAttributes = allItems
@@ -480,7 +480,7 @@ class AddRole extends React.Component {
             if (skipAttributeSelection) { // Do not check the attribute selection ( because it has not changed ).
                 editableTableData = [...this.state.savedRows];
             } else {
-                const arrayOfAttrObjects = [...this.state.savedRows];
+                let arrayOfAttrObjects = [...this.state.savedRows];
                 for (const myAttr of newSelectedAttrs) {
                     const found = arrayOfAttrObjects.find(el => el.attr === myAttr);
                     if (found === undefined) {
@@ -612,7 +612,7 @@ class AddRole extends React.Component {
     }
 
     generateLdifData = () => {
-        const objectClassData = ['ObjectClass: top',
+        let objectClassData = ['ObjectClass: top',
                                  'ObjectClass: LdapSubEntry',
                                  'ObjectClass: nsRoleDefinition'];
         if (this.state.roleType === 'managed') {
@@ -626,7 +626,7 @@ class AddRole extends React.Component {
                                 'ObjectClass: nsNestedRoleDefinition');
         }
 
-        const valueData = [];
+        let valueData = [];
         for (const item of this.state.savedRows) {
             const attrName = item.attr;
             valueData.push(`${attrName}: ${item.val}`);
