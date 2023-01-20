@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -9,21 +9,11 @@
 import os
 import subprocess
 
-def cockpit_present():
-    rpm_handle = os.popen('rpm -qa --qf "%{NAME}\n"')
-    rpm_list = rpm_handle.read().splitlines()
-    if 'cockpit' in rpm_list:
-        return True
-    else:
-        return False
-
 
 def enable_cockpit(inst, log, args):
     """
     Enable Cockpit socket
     """
-    if not cockpit_present():
-        raise ValueError("The 'cockpit' package is not installed on this system")
 
     ENABLE_CMD = ['sudo', 'systemctl', 'enable', '--now', 'cockpit.socket']
     try:
