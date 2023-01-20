@@ -109,9 +109,14 @@ export class Security extends React.Component {
 
         // Server Cert
         this.handleServerCertSelect = (event, selection) => {
+            let disableSaveBtn = !this.configChanged();
+            if (this.state._nssslpersonalityssl !== selection) {
+                disableSaveBtn = false;
+            }
             this.setState({
                 nssslpersonalityssl: selection,
-                isServerCertOpen: false
+                isServerCertOpen: false,
+                disableSaveBtn,
             });
         };
         this.handleServerCertToggle = isServerCertOpen => {
@@ -240,6 +245,7 @@ export class Security extends React.Component {
         this.onSelectToggle = this.onSelectToggle.bind(this);
         this.onSelectClear = this.onSelectClear.bind(this);
         this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
+        this.onSecEnableChange = this.onSecEnableChange.bind(this);
     }
 
     componentDidMount () {
@@ -558,6 +564,7 @@ export class Security extends React.Component {
                             _sslVersionMin: attrs.sslversionmin,
                             _sslVersionMax: attrs.sslversionmax,
                             _allowWeakCipher: allowWeak,
+                            disableSaveBtn: true,
                         }
                     ), function() {
                         if (!saving) {
@@ -628,23 +635,51 @@ export class Security extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "enable",
         ];
-        log_cmd("enableSecurity", "Enable security", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
+
+        if (this.state._nssslpersonalityssl !== this.state.primaryCertName) {
+            const rsa_cmd = [
+                'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+                'security', 'rsa', 'set', '--nss-cert-name=' + this.state.primaryCertName
+            ];
+            log_cmd("enableSecurity", "Update RSA", rsa_cmd);
+            cockpit
+                .spawn(rsa_cmd, { superuser: true, err: "message" })
                 .done(() => {
-                    this.props.addNotification(
-                        "success",
-                        `Successfully enabled security.`
-                    );
-                    this.props.addNotification(
-                        "warning",
-                        `You must restart the Directory Server for these changes to take effect.`
-                    );
-                    this.setState({
-                        securityEnabled: true,
-                        secEnableSpinner: false,
-                        showSecurityEnableModal: false,
-                    });
+                    this.loadSecurityConfig();
+                    log_cmd("enableSecurity", "Enable security", cmd);
+                    cockpit
+                            .spawn(cmd, { superuser: true, err: "message" })
+                            .done(() => {
+                                this.loadSecurityConfig();
+                                this.props.addNotification(
+                                    "success",
+                                    `Successfully enabled security.`
+                                );
+                                this.props.addNotification(
+                                    "warning",
+                                    `You must restart the Directory Server for these changes to take effect.`
+                                );
+                                this.setState({
+                                    securityEnabled: true,
+                                    secEnableSpinner: false,
+                                    showSecurityEnableModal: false,
+                                });
+                            })
+                            .fail(err => {
+                                const errMsg = JSON.parse(err);
+                                let msg = errMsg.desc;
+                                if ('info' in errMsg) {
+                                    msg = errMsg.desc + " - " + errMsg.info;
+                                }
+                                this.props.addNotification(
+                                    "error",
+                                    `Error enabling security - ${msg}`
+                                );
+                                this.setState({
+                                    secEnableSpinner: false,
+                                    showSecurityEnableModal: false,
+                                });
+                            });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -654,13 +689,48 @@ export class Security extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error enabling security - ${msg}`
+                        `Error enabling security (RSA cert name)- ${msg}`
                     );
                     this.setState({
                         secEnableSpinner: false,
                         showSecurityEnableModal: false,
                     });
                 });
+        } else {
+            log_cmd("enableSecurity", "Enable security", cmd);
+            cockpit
+                    .spawn(cmd, { superuser: true, err: "message" })
+                    .done(() => {
+                        this.props.addNotification(
+                            "success",
+                            `Successfully enabled security.`
+                        );
+                        this.props.addNotification(
+                            "warning",
+                            `You must restart the Directory Server for these changes to take effect.`
+                        );
+                        this.setState({
+                            securityEnabled: true,
+                            secEnableSpinner: false,
+                            showSecurityEnableModal: false,
+                        });
+                    })
+                    .fail(err => {
+                        const errMsg = JSON.parse(err);
+                        let msg = errMsg.desc;
+                        if ('info' in errMsg) {
+                            msg = errMsg.desc + " - " + errMsg.info;
+                        }
+                        this.props.addNotification(
+                            "error",
+                            `Error enabling security - ${msg}`
+                        );
+                        this.setState({
+                            secEnableSpinner: false,
+                            showSecurityEnableModal: false,
+                        });
+                    });
+        }
     }
 
     disableSecurity () {
@@ -731,6 +801,10 @@ export class Security extends React.Component {
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'security', 'set'
         ];
+        const rsa_cmd = [
+            'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+            'security', 'rsa', 'set'
+        ];
 
         if (this.state._validateCert !== this.state.validateCert) {
             cmd.push("--verify-cert-chain-on-startup=" + this.state.validateCert);
@@ -775,6 +849,53 @@ export class Security extends React.Component {
                 val = "on";
             }
             cmd.push("--tls-client-renegotiation=" + val);
+        }
+
+        if (this.state._nssslpersonalityssl !== this.state.nssslpersonalityssl) {
+            rsa_cmd.push("--nss-cert-name=" + this.state.nssslpersonalityssl);
+        }
+        if (rsa_cmd.length > 6) {
+            log_cmd("saveSecurityConfig", "Applying security RSA config change", rsa_cmd);
+            const msg = "Successfully updated security RSA configuration.";
+
+            this.setState({
+                // Start the spinner
+                saving: true
+            });
+
+            cockpit
+                    .spawn(rsa_cmd, { superuser: true, err: "message" })
+                    .done(content => {
+                        this.loadSecurityConfig();
+                        if (cmd.length < 6) {
+                            this.props.addNotification(
+                                "success",
+                                msg
+                            );
+                            this.props.addNotification(
+                                "warning",
+                                `You must restart the Directory Server for these changes to take effect.`
+                            );
+                            this.setState({
+                                saving: false
+                            });
+                        }
+                    })
+                    .fail(err => {
+                        const errMsg = JSON.parse(err);
+                        this.loadSecurityConfig();
+                        this.setState({
+                            saving: false
+                        });
+                        let msg = errMsg.desc;
+                        if ('info' in errMsg) {
+                            msg = errMsg.desc + " - " + errMsg.info;
+                        }
+                        this.props.addNotification(
+                            "error",
+                            `Error updating security RSA configuration - ${msg}`
+                        );
+                    });
         }
 
         if (cmd.length > 5) {
