@@ -97,8 +97,6 @@ AC_SUBST([rust_vendor_sources])
 if test "$enable_rust_offline" = yes; then
     AC_CHECK_PROG(CARGO, [cargo], [yes], [no])
     AC_CHECK_PROG(RUSTC, [rustc], [yes], [no])
-    # Since fernet uses the openssl lib.
-    PKG_CHECK_MODULES([OPENSSL], [openssl])
 
     AS_IF([test "$CARGO" != "yes" -o "$RUSTC" != "yes"], [
       AC_MSG_FAILURE("Rust based plugins cannot be built cargo=$CARGO rustc=$RUSTC")
@@ -819,6 +817,8 @@ else
     nss_libdir=`$PKG_CONFIG --libs-only-L dirsec-nss | sed -e s/-L// | sed -e s/\ .*$//`
 fi
 AC_SUBST(nss_libdir)
+
+PKG_CHECK_MODULES([OPENSSL], [openssl])
 
 m4_include(m4/openldap.m4)
 m4_include(m4/db.m4)
