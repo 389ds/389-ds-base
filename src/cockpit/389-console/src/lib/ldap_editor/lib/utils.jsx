@@ -1043,7 +1043,7 @@ export function showCertificate (certificate, showCertCallback) {
 export function b64DecodeUnicode (str) {
   // Going backwards: from bytestream, to percent-encoding, to original string.
   try {
-      result = decodeURIComponent(atob(str).split('').map(c => {
+      let result = decodeURIComponent(atob(str).split('').map(c => {
           return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
       }).join(''));
       return result;
