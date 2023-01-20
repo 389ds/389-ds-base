@@ -449,6 +449,69 @@ def test_setup_ds_as_non_root(nru, request):
     log.debug(f'Check that test script finished successfully.')
     assert(result.returncode == 0)
 
+def test_setup_ds_as_non_root_with_non_canonic_paths(nru, request):
+    """Test creating an instance as a non root user
+
+    :id: db8e1ca0-98ce-11ed-89b9-482ae39447e5
+    :setup: no instance
+    :steps:
+        1. Create a dscreate template file
+        2. Create an run a test script that
+             Run dscreate ds-root using non canonic paths
+             Run dscreate from-file
+             Add a backend
+             Search users in backend and store output in a file
+             Stop the instance
+        3. Check that pid file exists and kill the associated process
+        4. Check demo_user is in the search result
+        5. Check that test.sh returned 0
+
+
+    :expectedresults:
+        1. No error.
+        2. No error.
+        3. Should fail to kill the process (That is supposed to be stopped)
+        4. demo_user should be in search result
+        5. return code should be 0
+
+    """
+
+    nru.setdir(testname=request.node.name)
+    # Prepare dscreate template
+    nru.write_file(f'{nru.dir}/ds.tmpl', lines=(
+        '[general]',
+        '[slapd]',
+        f'port = {INSTANCE_PORT}',
+        f'instance_name = {INSTANCE_SERVERID}',
+        f'root_password = {PW_DM}',
+        f'secure_port = {INSTANCE_SECURE_PORT}',
+        '[backend-userroot]',
+        'create_suffix_entry = True',
+        'require_index = True',
+        'sample_entries = yes',
+        'suffix = dc=example,dc=com',
+    ))
+    # Create the test script and run it as nru.user
+    nru.add_instance_for_cleanup(INSTANCE_SERVERID)
+    result = nru.run((
+        'type dscreate',
+        f'dscreate ds-root {nru.dir}/root/. {nru.dir}/bin/',
+        'hash -d dscreate # Remove dscreate from hash to use the new one',
+        'type dscreate',
+        f'dscreate from-file {nru.dir}/ds.tmpl',
+        f'dsconf {INSTANCE_SERVERID} backend create --suffix dc=foo,dc=bar --be-name=foo --create-entries',
+        f'ldapsearch -x -H ldap://localhost:{INSTANCE_PORT} -D "cn=directory manager" -w {PW_DM} -b dc=foo,dc=bar "uid=*" | tee {nru.dir}/search.out',
+        f'dsctl {INSTANCE_SERVERID} stop',
+    ))
+    log.info(f'test.sh stdout is: {str(result.stdout)}')
+    log.info(f'test.sh stderr is: {str(result.stderr)}')
+
+    # Let check that demo_user is in the search result
+    with open(f'{nru.dir}/search.out', 'rt') as f:
+        assert(re.findall('demo_user', f.read()))
+    log.debug(f'Check that test script finished successfully.')
+    assert(result.returncode == 0)
+
 def test_setup_ds_as_non_root_with_default_options(nru, request):
     """Test creating an instance as a non root user
 
@@ -482,11 +545,6 @@ def test_setup_ds_as_non_root_with_default_options(nru, request):
         '[slapd]',
         f'instance_name = {INSTANCE_SERVERID}',
         f'root_password = {PW_DM}',
-        '[backend-userroot]',
-        'create_suffix_entry = True',
-        'require_index = True',
-        'sample_entries = yes',
-        'suffix = dc=example,dc=com',
     ))
     # Remove instance if test fails
     nru.add_instance_for_cleanup(INSTANCE_SERVERID)
