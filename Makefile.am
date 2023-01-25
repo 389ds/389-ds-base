@@ -26,6 +26,29 @@ CMOCKA_INCLUDES = @cmocka_inc@
 PROFILING_DEFINES = @profiling_defs@
 NSPR_INCLUDES = @nspr_inc@
 
+# Rust inclusions.
+if RUST_ENABLE
+# Rust enabled
+RUST_ON = 1
+CARGO_FLAGS = @cargo_defs@
+RUSTC_FLAGS = @asan_rust_defs@ @debug_rust_defs@
+# -L@abs_top_builddir@/rs/@rust_target_dir@
+RUST_LDFLAGS = -ldl -lpthread -lgcc_s -lc -lm -lrt -lutil
+RUST_DEFINES = -DRUST_ENABLE
+if RUST_ENABLE_OFFLINE
+RUST_OFFLINE = --locked --offline
+else
+RUST_OFFLINE =
+endif
+else
+# Rust disabled
+RUST_ON = 0
+CARGO_FLAGS =
+RUSTC_FLAGS =
+RUST_LDFLAGS =
+RUST_DEFINES =
+endif
+
 SVRCORE_INCLUDES = @svrcore_inc@
 SASL_INCLUDES = @sasl_inc@
 EVENT_INCLUDES = @event_inc@
@@ -80,7 +103,7 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 # Now that we have all our defines in place, setup the CPPFLAGS
 
 # These flags are the "must have" for all components
-AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(PROFILING_DEFINES)
+AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(PROFILING_DEFINES) $(RUST_DEFINES)
 # Flags for Directory Server
 # WARNING: This needs a clean up, because slap.h is a horrible mess and is publically exposed!
 DSPLUGIN_CPPFLAGS = $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES) $(NUNCSTANS_INCLUDES) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ $(NSPR_INCLUDES) @systemd_inc@
@@ -138,7 +161,7 @@ AM_LDFLAGS = -lpthread
 else
 #AM_LDFLAGS = -Wl,-z,defs
 # Provide the tcmalloc links if needed
-AM_LDFLAGS = $(ASAN_DEFINES) $(PROFILING_LINKS) $(TCMALLOC_LINK)
+AM_LDFLAGS = $(RUST_LDFLAGS) $(ASAN_DEFINES) $(PROFILING_LINKS) $(TCMALLOC_LINK)
 endif #end hpux
 
 # https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html#Updating-version-info
@@ -173,6 +196,10 @@ SLAPD_LDFLAGS = -version-info 1:0:1
 #------------------------
 BUILT_SOURCES = dberrstrs.h \
 	$(POLICY_FC)
+
+if RUST_ENABLE
+BUILT_SOURCES += rust-slapi-private.h rust-nsslapd-private.h
+endif
 
 if enable_posix_winsync
 LIBPOSIX_WINSYNC_PLUGIN = libposix-winsync-plugin.la
@@ -232,10 +259,17 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	doxyfile.stamp ldap/admin/src/scripts/dbmon.sh \
 	$(NULL)
 
+if RUST_ENABLE
+CLEANFILES += rust-slapi-private.h
+endif
+
 clean-local:
 	-rm -rf dist
 	-rm -rf $(abs_top_builddir)/html
 	-rm -rf $(abs_top_builddir)/man
+if RUST_ENABLE
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs cargo clean --manifest-path=$(srcdir)/src/Cargo.toml
+endif
 
 dberrstrs.h: Makefile
 	perl $(srcdir)/ldap/servers/slapd/mkDBErrStrs.pl -i @db_incdir@ -o .
@@ -336,6 +370,10 @@ serverplugin_LTLIBRARIES = libacl-plugin.la \
 	libwhoami-plugin.la $(LIBACCTPOLICY_PLUGIN) \
 	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) \
 	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN) $(LIBPOSIX_WINSYNC_PLUGIN)
+
+if RUST_ENABLE
+serverplugin_LTLIBRARIES += libpwdchan-plugin.la
+endif
 
 noinst_LIBRARIES = libavl.a
 
@@ -1094,6 +1132,144 @@ libnunc_stans_la_LDFLAGS = $(AM_LDFLAGS) $(NUNCSTANS_LDFLAGS)
 libnunc_stans_la_LIBADD = libsds.la
 libnunc_stans_la_DEPENDENCIES = libsds.la
 
+if RUST_ENABLE
+
+noinst_LTLIBRARIES = librslapd.la librnsslapd.la libpwdchan.la
+
+### Why does this exist?
+#
+# Both cargo and autotools are really opinionated. It's really hard to make this work. :(
+#
+# https://people.gnome.org/~federico/blog/librsvg-build-infrastructure.html
+# https://gitlab.gnome.org/GNOME/librsvg/blob/master/Makefile.am
+
+### Rust datastructures
+
+### Rust lib slapd components
+RSLAPD_LIB = @abs_top_builddir@/rs/@rust_target_dir@/librslapd.a
+
+librslapd_la_SOURCES = \
+	src/librslapd/Cargo.toml \
+	src/librslapd/build.rs \
+	src/librslapd/src/cache.rs \
+	src/librslapd/src/lib.rs
+
+librslapd_la_EXTRA = src/librslapd/Cargo.lock
+
+@abs_top_builddir@/rs/@rust_target_dir@/librslapd.a: $(librslapd_la_SOURCES)
+	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librslapd/Cargo.toml \
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
+
+# The header needs the lib build first.
+rust-slapi-private.h: @abs_top_builddir@/rs/@rust_target_dir@/librslapd.a
+
+# Build rust ns-slapd components as a library.
+RNSSLAPD_LIB = @abs_top_builddir@/rs/@rust_target_dir@/librnsslapd.a
+
+librnsslapd_la_SOURCES = \
+	src/librnsslapd/Cargo.toml \
+	src/librnsslapd/build.rs \
+	src/librnsslapd/src/lib.rs
+
+librnsslapd_la_EXTRA = src/librnsslapd/Cargo.lock
+
+@abs_top_builddir@/rs/@rust_target_dir@/librnsslapd.a: $(librnsslapd_la_SOURCES)
+	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librnsslapd/Cargo.toml \
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
+
+# The header needs the lib build first.
+rust-nsslapd-private.h: @abs_top_builddir@/rs/@rust_target_dir@/librnsslapd.a
+
+libslapi_r_plugin_SOURCES = \
+	src/slapi_r_plugin/src/backend.rs \
+	src/slapi_r_plugin/src/ber.rs \
+	src/slapi_r_plugin/src/charray.rs \
+	src/slapi_r_plugin/src/constants.rs \
+	src/slapi_r_plugin/src/dn.rs \
+	src/slapi_r_plugin/src/entry.rs \
+	src/slapi_r_plugin/src/error.rs \
+	src/slapi_r_plugin/src/log.rs \
+	src/slapi_r_plugin/src/macros.rs \
+	src/slapi_r_plugin/src/pblock.rs \
+	src/slapi_r_plugin/src/plugin.rs \
+	src/slapi_r_plugin/src/search.rs \
+	src/slapi_r_plugin/src/syntax_plugin.rs \
+	src/slapi_r_plugin/src/task.rs \
+	src/slapi_r_plugin/src/value.rs \
+	src/slapi_r_plugin/src/lib.rs
+
+# == pwdchan
+
+PWDCHAN_LIB = @abs_top_builddir@/rs/@rust_target_dir@/libpwdchan.a
+
+libpwdchan_la_SOURCES = \
+	src/plugins/pwdchan/Cargo.toml \
+	src/plugins/pwdchan/src/lib.rs \
+	$(libslapi_r_plugin_SOURCES)
+
+libpwdchan_la_EXTRA = src/plugin/pwdchan/Cargo.lock
+
+@abs_top_builddir@/rs/@rust_target_dir@/libpwdchan.a: $(libpwdchan_la_SOURCES) libslapd.la libpwdchan.la
+	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/plugins/pwdchan/Cargo.toml \
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
+	cp $(PWDCHAN_LIB) @abs_top_builddir@/.libs/libpwdchan.a
+
+# == pwdchan
+
+EXTRA_DIST = $(librslapd_la_SOURCES) $(librslapd_la_EXTRA) \
+			$(libpwdchan_la_SOURCES) $(libpwdchan_la_EXTRA) \
+			$(librnsslapd_la_SOURCES) $(librnsslapd_la_EXTRA)
+
+## Run rust tests
+# cargo does not support offline tests :(
+if RUST_ENABLE_OFFLINE
+else
+check-local:
+	for thing in "librslapd" "librnsslapd" ; do \
+		echo LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
+		RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+		CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+		SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+		SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+			cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/$${thing}/Cargo.toml ; \
+		LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
+		RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+		CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+		SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+		SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+			cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/$${thing}/Cargo.toml ; \
+	done
+# Plugin tests are a little different
+	for thing in "plugins/pwdchan" ; do \
+		echo LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
+		RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+		CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+		SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+		SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+			cargo test $(RUST_OFFLINE) --features=slapi_r_plugin/test_log_direct \
+			--manifest-path=$(srcdir)/src/$${thing}/Cargo.toml -- --nocapture ; \
+		LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
+		RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+		CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+		SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+		SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+			cargo test $(RUST_OFFLINE) --features=slapi_r_plugin/test_log_direct \
+			--manifest-path=$(srcdir)/src/$${thing}/Cargo.toml -- --nocapture ; \
+	done
+endif
+endif
 
 #------------------------
 # libns-dshttpd
@@ -1253,6 +1429,10 @@ libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) @db_
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB) $(SYSTEMD_LINK) libsds.la
 libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 
+if RUST_ENABLE
+libslapd_la_LIBADD += $(RSLAPD_LIB)
+libslapd_la_LDFLAGS += -lssl -lcrypto
+endif
 
 #////////////////////////////////////////////////////////////////
 #
@@ -1495,6 +1675,16 @@ libderef_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libderef_plugin_la_DEPENDENCIES = libslapd.la
 libderef_plugin_la_LDFLAGS = -avoid-version
 
+if RUST_ENABLE
+#------------------------
+# libpwdchan-plugin
+#-----------------------
+libpwdchan_plugin_la_SOURCES = src/slapi_r_plugin/src/init.c
+libpwdchan_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) -lpwdchan
+libpwdchan_plugin_la_DEPENDENCIES = libslapd.la $(PWDCHAN_LIB)
+libpwdchan_plugin_la_LDFLAGS = -avoid-version
+endif
+
 #------------------------
 # libpbe-plugin
 #-----------------------
@@ -1634,7 +1824,8 @@ libpwdstorage_plugin_la_SOURCES = ldap/servers/plugins/pwdstorage/clear_pwd.c \
 	ldap/servers/plugins/pwdstorage/sha_pwd.c \
 	ldap/servers/plugins/pwdstorage/smd5_pwd.c \
 	ldap/servers/plugins/pwdstorage/ssha_pwd.c \
-	ldap/servers/plugins/pwdstorage/pbkdf2_pwd.c
+	ldap/servers/plugins/pwdstorage/pbkdf2_pwd.c \
+	$(NULLSTRING)
 
 libpwdstorage_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
 libpwdstorage_plugin_la_LIBADD = libslapd.la $(NSS_LINK) $(NSPR_LINK) $(LIBCRYPT)
@@ -1959,8 +2150,17 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	$(GETSOCKETPEER)
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) $(SVRCORE_INCLUDES)
-ns_slapd_LDADD = libnunc-stans.la libslapd.la libldaputil.la $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
-	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK) $(EVENT_LINK)
+# We need our libraries to come first, then our externals libraries second.
+ns_slapd_LDADD = libnunc-stans.la libslapd.la libldaputil.la
+if RUST_ENABLE
+ns_slapd_LDADD += $(RNSSLAPD_LIB)
+endif
+ns_slapd_LDADD += $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
+       $(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK) $(EVENT_LINK)
+if RUST_ENABLE
+ns_slapd_LDADD += -lssl -lcrypto
+endif
+
 ns_slapd_DEPENDENCIES = libslapd.la libnunc-stans.la
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load
 # some C++ shared libraries (such as icu).
@@ -2127,6 +2327,7 @@ fixupcmd = sed \
 	-e 's,@enable_presence\@,$(enable_presence),g' \
 	-e 's,@enable_asan\@,$(ASAN_ON),g' \
 	-e 's,@enable_perl\@,@enable_perl@,g' \
+	-e 's,@enable_rust\@,@enable_rust@,g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \

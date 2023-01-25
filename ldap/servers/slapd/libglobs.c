@@ -133,6 +133,10 @@
 #endif
 #include <sys/resource.h>
 
+#ifdef RUST_ENABLE
+#include <rust-slapi-private.h>
+#endif
+
 #define REMOVE_CHANGELOG_CMD "remove"
 
 int slapd_ldap_debug = SLAPD_DEFAULT_ERRORLOG_LEVEL;
@@ -1474,6 +1478,11 @@ FrontendConfig_init(void)
     slapdFrontendConfig_t *cfg = getFrontendConfig();
     struct rlimit rlp;
     int64_t maxdescriptors = SLAPD_DEFAULT_MAXDESCRIPTORS;
+
+#ifdef RUST_ENABLE
+    /* prove rust is working */
+    PR_ASSERT(do_nothing_rust() == 0);
+#endif
 
 #if SLAPI_CFG_USE_RWLOCK == 1
     /* initialize the read/write configuration lock */

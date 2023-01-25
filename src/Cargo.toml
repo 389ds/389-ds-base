@@ -1,0 +1,15 @@
+
+[workspace]
+members = [
+    "librslapd",
+    "librnsslapd",
+    "slapd",
+    "slapi_r_plugin",
+    "plugins/pwdchan",
+]
+
+[profile.release]
+panic = "abort"
+lto = true
+
+

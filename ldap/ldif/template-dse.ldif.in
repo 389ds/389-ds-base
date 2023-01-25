@@ -208,6 +208,58 @@ nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init
 nsslapd-plugintype: pwdstoragescheme
 nsslapd-pluginenabled: on
 
+dn: cn=PBKDF2,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: PBKDF2
+nsslapd-pluginpath: libpwdchan-plugin
+nsslapd-plugininitfunc: pwdchan_pbkdf2_plugin_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+nsslapd-pluginId: PBKDF2
+nsslapd-pluginVersion: none
+nsslapd-pluginVendor: 389 Project
+nsslapd-pluginDescription: PBKDF2
+
+dn: cn=PBKDF2-SHA1,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: PBKDF2-SHA1
+nsslapd-pluginpath: libpwdchan-plugin
+nsslapd-plugininitfunc: pwdchan_pbkdf2_sha1_plugin_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+nsslapd-pluginId: PBKDF2-SHA1
+nsslapd-pluginVersion: none
+nsslapd-pluginVendor: 389 Project
+nsslapd-pluginDescription: PBKDF2-SHA1\
+
+dn: cn=PBKDF2-SHA256,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: PBKDF2-SHA256
+nsslapd-pluginpath: libpwdchan-plugin
+nsslapd-plugininitfunc: pwdchan_pbkdf2_sha256_plugin_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+nsslapd-pluginId: PBKDF2-SHA256
+nsslapd-pluginVersion: none
+nsslapd-pluginVendor: 389 Project
+nsslapd-pluginDescription: PBKDF2-SHA256\
+
+dn: cn=PBKDF2-SHA512,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: PBKDF2-SHA512
+nsslapd-pluginpath: libpwdchan-plugin
+nsslapd-plugininitfunc: pwdchan_pbkdf2_sha512_plugin_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+nsslapd-pluginId: PBKDF2-SHA512
+nsslapd-pluginVersion: none
+nsslapd-pluginVendor: 389 Project
+nsslapd-pluginDescription: PBKDF2-SHA512
+
 dn: cn=AES,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin

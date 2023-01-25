@@ -1,0 +1,6 @@
+[source.crates-io]
+registry = "https://github.com/rust-lang/crates.io-index"
+@rust_vendor_sources@
+
+[source.vendored-sources]
+directory = "./vendor"

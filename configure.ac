@@ -78,29 +78,70 @@ AC_CHECK_FUNCS([clock_gettime], [], AC_MSG_ERROR([unable to locate required symb
 # This will detect if we need to add the LIBADD_DL value for us.
 LT_LIB_DLLOAD
 
+# Optional rust component support.
+AC_MSG_CHECKING(for --enable-rust-offline)
+AC_ARG_ENABLE(rust_offline, AS_HELP_STRING([--enable-rust-offline], [Enable rust building offline. you MUST have run vendor! (default: no)]),
+              [], [ enable_rust_offline=no ])
+AC_MSG_RESULT($enable_rust_offline)
+AM_CONDITIONAL([RUST_ENABLE_OFFLINE],[test "$enable_rust_offline" = yes])
+
+AS_IF([test "$enable_rust_offline" = yes],
+    [rust_vendor_sources="replace-with = \"vendored-sources\""],
+    [rust_vendor_sources=""])
+AC_SUBST([rust_vendor_sources])
+
+AC_MSG_CHECKING(for --enable-rust)
+AC_ARG_ENABLE(rust, AS_HELP_STRING([--enable-rust], [Enable rust language features (default: no)]),
+              [], [ enable_rust=no ])
+AC_MSG_RESULT($enable_rust)
+if test "$enable_rust" = yes -o "$enable_rust_offline" = yes; then
+    AC_CHECK_PROG(CARGO, [cargo], [yes], [no])
+    AC_CHECK_PROG(RUSTC, [rustc], [yes], [no])
+    # Since fernet uses the openssl lib.
+    PKG_CHECK_MODULES([OPENSSL], [openssl])
+
+    AS_IF([test "$CARGO" != "yes" -o "$RUSTC" != "yes"], [
+      AC_MSG_FAILURE("Rust based plugins cannot be built cargo=$CARGO rustc=$RUSTC")
+    ])
+fi
+AC_SUBST([enable_rust])
+AM_CONDITIONAL([RUST_ENABLE],[test "$enable_rust" = yes -o "$enable_rust_offline" = yes])
+
 AC_MSG_CHECKING(for --enable-debug)
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (default: no)]),
 [
   AC_MSG_RESULT(yes)
   debug_defs="-g3 -DDEBUG -DMCC_DEBUG -O0"
+  debug_rust_defs="-C debuginfo=2 -Z macro-backtrace"
+  cargo_defs=""
+  rust_target_dir="debug"
 ],
 [
   AC_MSG_RESULT(no)
   debug_defs=""
+  debug_rust_defs="-C debuginfo=2"
+  cargo_defs="--release"
+  rust_target_dir="release"
 ])
 AC_SUBST([debug_defs])
+AC_SUBST([debug_rust_defs])
+AC_SUBST([cargo_defs])
+AC_SUBST([rust_target_dir])
 
 AC_MSG_CHECKING(for --enable-asan)
 AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc address sanitizer options (default: no)]),
 [
   AC_MSG_RESULT(yes)
   asan_defs="-fsanitize=address -fno-omit-frame-pointer"
+  asan_rust_defs="-Z sanitizer=address"
 ],
 [
   AC_MSG_RESULT(no)
   asan_defs=""
+  asan_rust_defs=""
 ])
 AC_SUBST([asan_defs])
+AC_SUBST([asan_rust_defs])
 AM_CONDITIONAL(enable_asan,test "$enable_asan" = "yes")
 
 if test -z "$enable_perl" ; then
@@ -797,6 +838,8 @@ AC_DEFINE([LDAP_ERROR_LOGGING], [1], [LDAP error logging flag])
 AC_CONFIG_FILES([src/pkgconfig/dirsrv.pc src/pkgconfig/nunc-stans.pc src/pkgconfig/libsds.pc])
 
 AC_CONFIG_FILES([Makefile rpm/389-ds-base.spec  ])
+
+AC_CONFIG_FILES([.cargo/config])
 
 AC_OUTPUT
 

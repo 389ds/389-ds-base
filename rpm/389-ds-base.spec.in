@@ -24,6 +24,8 @@
 %else
 %global use_tcmalloc 0
 %endif
+# This enables rust in the build.
+%global use_rust __RUST_ON__
 %endif
 
 # fedora 15 and later uses tmpfiles.d
@@ -74,6 +76,11 @@ BuildRequires:    systemd-units
 BuildRequires:    systemd-devel
 %if %{use_asan}
 BuildRequires:    libasan
+%endif
+# If rust is enabled
+%if %{use_rust}
+BuildRequires:    cargo
+BuildRequires:    rust
 %endif
 # Needed to support regeneration of the autotool artifacts.
 BuildRequires:    autoconf
@@ -257,6 +264,9 @@ ASAN_FLAGS="--enable-asan --enable-debug"
 %if %{use_tcmalloc}
 TCMALLOC_FLAGS="--enable-tcmalloc"
 %endif
+%if %{use_rust}
+RUST_FLAGS="--enable-rust --enable-rust-offline"
+%endif
 
 # Rebuild the autotool artifacts now.
 autoreconf -fiv
@@ -266,7 +276,7 @@ autoreconf -fiv
            --with-systemdsystemunitdir=%{_unitdir} \
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} \
-           $NSSARGS $TCMALLOC_FLAGS $ASAN_FLAGS \
+           $NSSARGS $TCMALLOC_FLAGS $ASAN_FLAGS $RUST_FLAGS \
            --enable-cmocka
 
 make setup.py
@@ -363,6 +373,7 @@ sysctl --system &> $output; true
 
 echo looking for instances in %{_sysconfdir}/%{pkgname} > $output 2>&1 || :
 instbase="%{_sysconfdir}/%{pkgname}"
+ninst=0
 for dir in $instbase/slapd-* ; do
     echo dir = $dir >> $output 2>&1 || :
     if [ ! -d "$dir" ] ; then continue ; fi
@@ -492,7 +503,7 @@ fi
 %{_libdir}/%{pkgname}/python
 %dir %{_libdir}/%{pkgname}/plugins
 %{_libdir}/%{pkgname}/plugins/*.so
-# THis has to be hardcoded to /lib - $libdir changes between lib/lib64, but
+# This has to be hardcoded to /lib - $libdir changes between lib/lib64, but
 # sysctl.d is always in /lib.
 %{_prefix}/lib/sysctl.d/*
 %dir %{_localstatedir}/lib/%{pkgname}
