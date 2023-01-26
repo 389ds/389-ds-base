@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -211,6 +211,34 @@ def test_dn_syntax_spaces_delete(topo,  props,  rawdn):
     group = groups.create(properties=props.copy())
     group = Group(topo.standalone, dn=rawdn)
     group.delete()
+
+
+def test_boolean_case(topo):
+    """Test that we can a boolean value in any case
+
+       :id: 56777c1d-b058-41e1-abd5-87a6f1512db2
+       :customerscenario: True
+       :setup: Standalone Instance
+       :steps:
+           1. Create test user
+           2. Add boolean attribute value that is lowercase "false"
+       :expectedresults:
+           1. Success
+           2. Success
+    """
+    inst = topo.standalone
+    users  = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.create_test_user(uid=1011)
+
+    user.add('objectclass', 'extensibleObject')
+    user.add('pamsecure', 'false')
+    user.replace('pamsecure', 'FALSE')
+    user.replace('pamsecure', 'true')
+    user.replace('pamsecure', 'TRUE')
+
+    # Test some invalid syntax
+    with pytest.raises(ldap.INVALID_SYNTAX):
+        user.replace('pamsecure', 'blah')
 
 
 if __name__ == '__main__':
