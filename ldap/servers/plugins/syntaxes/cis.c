@@ -853,12 +853,12 @@ boolean_validate(
      */
     if (val != NULL) {
         if (val->bv_len == 4) {
-            if (strncmp(val->bv_val, "TRUE", 4) != 0) {
+            if (strncasecmp(val->bv_val, "TRUE", 4) != 0) {
                 rc = 1;
                 goto exit;
             }
         } else if (val->bv_len == 5) {
-            if (strncmp(val->bv_val, "FALSE", 5) != 0) {
+            if (strncasecmp(val->bv_val, "FALSE", 5) != 0) {
                 rc = 1;
                 goto exit;
             }
