@@ -185,18 +185,19 @@ def prepare_ds_root(inst, log, args):
 
     # Perform consistency checks then create the wrappers
     if args.bin_dir:
+        args.bin_dir = os.path.normpath(args.bin_dir)
         found = False
         for path in os.environ['PATH'].split(':'):
             if path.startswith('.'):
                 continue
-            if path == args.bin_dir:
+            if os.path.normpath(path) == args.bin_dir:
                 found = True
                 break
             if os.path.exists(f'{path}/dsconf'):
-                log.error(f'bin_dir argument should be before {path} in PATH')
+                log.error(f'bin_dir argument ({args.bin_dir}) should be before {path} in PATH')
                 return False
         if not found:
-            log.error(f'bin_dir argument should be in PATH')
+            log.error(f'bin_dir argument ({args.bin_dir}) should be in PATH')
             return False
         os.makedirs(args.bin_dir, 0o755, True)
         for wrapper in ['dsconf',  'dscreate',  'dsctl',  'dsidm']:
@@ -209,6 +210,7 @@ def prepare_ds_root(inst, log, args):
                 p = "${@}"
                 f.write(f'exec /usr/sbin/{wrapper} "{p}"\n')
             os.chmod(f'{args.bin_dir}/{wrapper}', 0o755)
+    args.root_dir = os.path.normpath(args.root_dir)
     os.makedirs(args.root_dir, 0o700, True)
     # Copy subtrees
     for dir in ['/usr/share/dirsrv/', '/etc/dirsrv/config',  '/etc/dirsrv/schema', ]:
