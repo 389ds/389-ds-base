@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,6 +11,8 @@ from lib389._mapped_object import DSLdapObjects
 # Account derives DSLdapObject - it gives us the lock / unlock functions.
 from lib389.idm.account import Account
 from lib389.utils import ds_is_older
+from lib389.cli_base.dsrc import dsrc_to_ldap
+from lib389._constants import DSRC_HOME
 
 MUST_ATTRIBUTES = [
     'uid',
@@ -30,7 +33,8 @@ TEST_USER_PROPERTIES = {
     'homeDirectory' : '/home/testuser'
 }
 
-#### Modern userAccounts
+
+# Modern userAccounts
 
 class nsUserAccount(Account):
     _must_attributes = [
@@ -67,13 +71,14 @@ class nsUserAccount(Account):
             'posixAccount',
         ]
         user_compare_exclude = [
-            'nsUniqueId', 
-            'modifyTimestamp', 
-            'createTimestamp', 
+            'nsUniqueId',
+            'modifyTimestamp',
+            'createTimestamp',
             'entrydn'
         ]
         self._compare_exclude = self._compare_exclude + user_compare_exclude
         self._protected = False
+
 
 class nsUserAccounts(DSLdapObjects):
     """DSLdapObjects that represents all nsUserAccount entries in suffix.
@@ -99,6 +104,11 @@ class nsUserAccounts(DSLdapObjects):
         ]
         self._filterattrs = [RDN, 'displayName', 'cn']
         self._childobject = nsUserAccount
+
+        dsrc_inst = dsrc_to_ldap(DSRC_HOME, instance.serverid, self._log)
+        if dsrc_inst is not None and 'people_rdn' in dsrc_inst and dsrc_inst['people_rdn'] is not None:
+            rdn = dsrc_inst['people_rdn']
+
         if rdn is None:
             self._basedn = basedn
         else:
@@ -128,7 +138,7 @@ class nsUserAccounts(DSLdapObjects):
         return super(nsUserAccounts, self).create(rdn, properties)
 
 
-#### Traditional style userAccounts.
+# Traditional style userAccounts.
 
 class UserAccount(Account):
     """A single instance of User Account entry
@@ -161,9 +171,9 @@ class UserAccount(Account):
         if not ds_is_older('1.4.0', instance=instance):
             self._create_objectclasses.append('nsAccount')
         user_compare_exclude = [
-            'nsUniqueId', 
-            'modifyTimestamp', 
-            'createTimestamp', 
+            'nsUniqueId',
+            'modifyTimestamp',
+            'createTimestamp',
             'entrydn'
         ]
         self._compare_exclude = self._compare_exclude + user_compare_exclude
@@ -201,6 +211,11 @@ class UserAccounts(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = UserAccount
+
+        dsrc_inst = dsrc_to_ldap(DSRC_HOME, instance.serverid, self._log)
+        if dsrc_inst is not None and 'people_rdn' in dsrc_inst and dsrc_inst['people_rdn'] is not None:
+            rdn = dsrc_inst['people_rdn']
+
         if rdn is None:
             self._basedn = basedn
         else:

@@ -1,6 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -58,7 +58,7 @@ def _warn(data, msg=None):
     if msg is not None:
         print("%s :" % msg)
     if 'Yes I am sure' != input("Type 'Yes I am sure' to continue: "):
-        raise Exception("Not sure if want")
+        raise Exception("Not sure if I want to")
     return data
 
 
@@ -69,7 +69,7 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
         if args and args.json:
             log.info(json.dumps({"type": "list", "items": []}, indent=4))
         else:
-            log.info("No objects to display")
+            log.info("No entries to display")
     elif len(ol) > 0:
         # We might sort this in the future
         if args and args.json:
@@ -88,10 +88,16 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
 def _generic_get(inst, basedn, log, manager_class, selector, args=None):
     mc = manager_class(inst, basedn)
     if args and args.json:
-        o = mc.get(selector, json=True)
+        try:
+            o = mc.get(selector, json=True)
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError(f'Could not find the entry under "{mc._basedn}"')
         log.info(o)
     else:
-        o = mc.get(selector)
+        try:
+            o = mc.get(selector)
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError(f'Could not find the entry under "{mc._basedn}"')
         o_str = o.display()
         log.info(o_str)
 
@@ -105,7 +111,11 @@ def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
 
 def _generic_create(inst, basedn, log, manager_class, kwargs, args=None):
     mc = manager_class(inst, basedn)
-    o = mc.create(properties=kwargs)
+    try:
+        o = mc.create(properties=kwargs)
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f'The base DN "{mc._basedn}" does not exist')
+
     o_str = o.__unicode__()
     log.info('Successfully created %s' % o_str)
 
@@ -113,7 +123,10 @@ def _generic_create(inst, basedn, log, manager_class, kwargs, args=None):
 def _generic_delete(inst, basedn, log, object_class, dn, args=None):
     # Load the oc direct
     o = object_class(inst, dn)
-    o.delete()
+    try:
+        o.delete()
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f'The entry does not exist')
     log.info('Successfully deleted %s' % dn)
 
 
@@ -135,12 +148,18 @@ def _generic_rename(inst, basedn, log, manager_class, selector, args=None):
     # type of DSLdapObjects (plural)
     mc = manager_class(inst, basedn)
     # Get the object singular by selector
-    o = mc.get(selector)
+    try:
+        o = mc.get(selector)
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f'The entry does not exist')
     rdn_attr = ldap.dn.str2dn(o.dn)[0][0][0]
     arguments = {'new_rdn': f'{rdn_attr}={args.new_name}'}
     if args.keep_old_rdn:
         arguments['deloldrdn'] = False
-    _generic_rename_inner(log, o, **arguments)
+    try:
+        _generic_rename_inner(log, o, **arguments)
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f'The base DN "{mc._basedn}" does not exist')
 
 
 def _generic_rename_dn(inst, basedn, log, manager_class, dn, args=None):
@@ -161,6 +180,9 @@ def _generic_rename_dn(inst, basedn, log, manager_class, dn, args=None):
         arguments['newsuperior'] = new_parent
     if args.keep_old_rdn:
         arguments['deloldrdn'] = False
-    _generic_rename_inner(log, o, **arguments)
+    try:
+        _generic_rename_inner(log, o, **arguments)
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f'The base DN "{mc._basedn}" does not exist')
 
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -24,22 +25,27 @@ SINGULAR = nsUserAccount
 MANY = nsUserAccounts
 RDN = 'uid'
 
+
 # These are a generic specification, try not to tamper with them
 
 def list(inst, basedn, log, args):
     _generic_list(inst, basedn, log.getChild('_generic_list'), MANY, args)
 
+
 def get(inst, basedn, log, args):
     rdn = _get_arg( args.selector, msg="Enter %s to retrieve" % RDN)
     _generic_get(inst, basedn, log.getChild('_generic_get'), MANY, rdn, args)
+
 
 def get_dn(inst, basedn, log, args):
     dn = _get_arg( args.dn, msg="Enter dn to retrieve")
     _generic_get_dn(inst, basedn, log.getChild('_generic_get_dn'), MANY, dn, args)
 
+
 def create(inst, basedn, log, args):
     kwargs = _get_attributes(args, SINGULAR._must_attributes)
     _generic_create(inst, basedn, log.getChild('_generic_create'), MANY, kwargs, args)
+
 
 def delete(inst, basedn, log, args, warn=True):
     dn = _get_arg( args.dn, msg="Enter dn to delete")
@@ -47,16 +53,21 @@ def delete(inst, basedn, log, args, warn=True):
         _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
     _generic_delete(inst, basedn, log.getChild('_generic_delete'), SINGULAR, dn, args)
 
+
 def modify(inst, basedn, log, args, warn=True):
     rdn = _get_arg( args.selector, msg="Enter %s to retrieve" % RDN)
     _generic_modify(inst, basedn, log.getChild('_generic_modify'), MANY, rdn, args)
+
 
 def rename(inst, basedn, log, args, warn=True):
     rdn = _get_arg( args.selector, msg="Enter %s to retrieve" % RDN)
     _generic_rename(inst, basedn, log.getChild('_generic_rename'), MANY, rdn, args)
 
+
 def create_parser(subparsers):
-    user_parser = subparsers.add_parser('user', help='Manage posix users')
+    user_parser = subparsers.add_parser('user',
+                                        help='Manage posix users.  The organizationalUnit (by default "ou=people") needs '
+                                             'to exist prior to managing users.')
 
     subcommands = user_parser.add_subparsers(help='action')
 
@@ -71,9 +82,9 @@ def create_parser(subparsers):
     get_dn_parser.set_defaults(func=get_dn)
     get_dn_parser.add_argument('dn', nargs='?', help='The dn to get')
 
-    create_parser = subcommands.add_parser('create', help='create')
-    create_parser.set_defaults(func=create)
-    populate_attr_arguments(create_parser, SINGULAR._must_attributes)
+    create_user_parser = subcommands.add_parser('create', help='create')
+    create_user_parser.set_defaults(func=create)
+    populate_attr_arguments(create_user_parser, SINGULAR._must_attributes)
 
     modify_parser = subcommands.add_parser('modify', help='modify <add|delete|replace>:<attribute>:<value> ...')
     modify_parser.set_defaults(func=modify)

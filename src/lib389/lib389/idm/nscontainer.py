@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017, Red Hat, Inc.
+# Copyright (C) 2023, Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389._mapped_object import DSLdapObject, DSLdapObjects
+
 
 class nsContainer(DSLdapObject):
     """A single instance of a nsContainer. This is similar to OU
@@ -28,6 +29,7 @@ class nsContainer(DSLdapObject):
         ]
         self._protected = False
 
+
 class nsContainers(DSLdapObjects):
     """The set of nsContainers on the server.
 
@@ -45,6 +47,7 @@ class nsContainers(DSLdapObjects):
         self._filterattrs = ['cn']
         self._childobject = nsContainer
         self._basedn = basedn
+
 
 class nsHiddenContainer(DSLdapObject):
     """A single instance of a hidden container. This is a combination
@@ -67,6 +70,7 @@ class nsHiddenContainer(DSLdapObject):
         ]
         self._protected = False
 
+
 class nsHiddenContainers(DSLdapObjects):
     """The set of nsHiddenContainers on the server.
 
@@ -85,6 +89,3 @@ class nsHiddenContainers(DSLdapObjects):
         self._filterattrs = ['cn']
         self._childobject = nsHiddenContainer
         self._basedn = basedn
-
-
-

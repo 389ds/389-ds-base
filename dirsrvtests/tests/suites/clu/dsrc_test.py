@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -67,6 +67,8 @@ def test_dsrc(topo, setup):
     # Setup our args
     args = FakeArgs()
     args.basedn = DEFAULT_SUFFIX
+    args.groups_rdn = None
+    args.people_rdn = None
     args.binddn = DN_DM
     args.json = None
     args.uri = None
@@ -141,4 +143,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main(["-s", CURRENT_FILE])
-
