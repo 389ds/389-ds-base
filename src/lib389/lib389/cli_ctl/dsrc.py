@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -20,6 +20,8 @@ def create_dsrc(inst, log, args):
     [instance]
     uri = ldaps://hostname:port
     basedn = dc=example,dc=com
+    people_rdn = ou=people
+    groups_rdn = ou=groups
     binddn = uid=user,....
     saslmech = [EXTERNAL|PLAIN]
     tls_cacertdir = /path/to/cacertdir
@@ -83,6 +85,14 @@ def create_dsrc(inst, log, args):
         if not path.exists(args.pwdfile):
             raise ValueError('--pwdfile does not exist!')
         config[inst.serverid]['pwdfile'] = args.pwdfile
+    if args.people_rdn is not None:
+        if not is_dn(args.people_rdn):
+            raise ValueError("The value for people-dn is not a valid DN!")
+        config[inst.serverid]['people_rdn'] = args.people_rdn
+    if args.groups_rdn is not None:
+        if not is_dn(args.groups_rdn):
+            raise ValueError("The value for groups-dn is not a valid DN!")
+        config[inst.serverid]['groups_rdn'] = args.groups_rdn
 
     if len(config[inst.serverid]) == 0:
         # No args set
@@ -195,6 +205,20 @@ def modify_dsrc(inst, log, args):
                 del config[inst.serverid]['pwdfile']
             else:
                 config[inst.serverid]['pwdfile'] = args.pwdfile
+        if args.people_rdn is not None:
+            if not is_dn(args.people_rdn):
+                raise ValueError('--people-rdn is not a valid DN!')
+            if args.people_rdn == '':
+                del config[inst.serverid]['people_rdn']
+            else:
+                config[inst.serverid]['people_rdn'] = args.people_rdn
+        if args.groups_rdn is not None:
+            if not is_dn(args.groups_rdn):
+                raise ValueError('--groups-rdn is not a valid DN!')
+            if args.groups_rdn == '':
+                del config[inst.serverid]['groups_rdn']
+            else:
+                config[inst.serverid]['groups_rdn'] = args.groups_rdn
 
         # Okay now rewrite the file
         with open(dsrc_file, 'w') as configfile:
@@ -245,6 +269,7 @@ def delete_dsrc(inst, log, args):
 
     log.info(f'Successfully updated: {dsrc_file}')
 
+
 def display_dsrc(inst, log, args):
     """Display the contents of the ~/.dsrc file
     """
@@ -276,6 +301,10 @@ def create_parser(subparsers):
     dsrc_create_parser.set_defaults(func=create_dsrc)
     dsrc_create_parser.add_argument('--uri', help="The URI (LDAP URL) for the Directory Server instance.")
     dsrc_create_parser.add_argument('--basedn', help="The default database suffix.")
+    dsrc_create_parser.add_argument('--people-rdn',
+                                    help="Set the RDN for the 'people' subtree.  Default is \"ou=people\"")
+    dsrc_create_parser.add_argument('--groups-rdn',
+                                    help="Set the RDN for the 'groups' subtree.  Default is \"ou=groups\"")
     dsrc_create_parser.add_argument('--binddn', help="The default Bind DN used or authentication.")
     dsrc_create_parser.add_argument('--saslmech', help="The SASL mechanism to use: PLAIN or EXTERNAL.")
     dsrc_create_parser.add_argument('--tls-cacertdir', help="The directory containing the Trusted Certificate Authority certificate.")
@@ -290,6 +319,8 @@ def create_parser(subparsers):
     dsrc_modify_parser.set_defaults(func=modify_dsrc)
     dsrc_modify_parser.add_argument('--uri', nargs='?', const='', help="The URI (LDAP URL) for the Directory Server instance.")
     dsrc_modify_parser.add_argument('--basedn', nargs='?', const='', help="The default database suffix.")
+    dsrc_modify_parser.add_argument('--people-rdn', nargs='?', const='', help="Sets the RDN used for the 'people' container")
+    dsrc_modify_parser.add_argument('--groups-rdn', nargs='?', const='', help="Sets the RDN used for the 'groups' container")
     dsrc_modify_parser.add_argument('--binddn', nargs='?', const='', help="The default Bind DN used or authentication.")
     dsrc_modify_parser.add_argument('--saslmech', nargs='?', const='', help="The SASL mechanism to use: PLAIN or EXTERNAL.")
     dsrc_modify_parser.add_argument('--tls-cacertdir', nargs='?', const='', help="The directory containing the Trusted Certificate Authority certificate.")

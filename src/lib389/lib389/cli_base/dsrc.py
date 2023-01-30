@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -98,6 +98,8 @@ def dsrc_to_ldap(path, instance_name, log):
     [instance]
     uri = ldaps://hostname:port
     basedn = dc=example,dc=com
+    people_rdn = ou=people
+    groups_rdn = ou=groups
     binddn = uid=user,....
     saslmech = [EXTERNAL|PLAIN]
     tls_cacertdir = /path/to/cadir
@@ -129,8 +131,10 @@ def dsrc_to_ldap(path, instance_name, log):
     dsrc_inst['args'] = {}
 
     # Read all the values
-    dsrc_inst['uri'] = config.get(instance_name, 'uri')
+    dsrc_inst['uri'] = config.get(instance_name, 'uri', fallback=f"ldapi://%2fvar%2frun%2fslapd-{server_id}.socket")
     dsrc_inst['basedn'] = config.get(instance_name, 'basedn', fallback=None)
+    dsrc_inst['people_rdn'] = config.get(instance_name, 'people_rdn', fallback=None)
+    dsrc_inst['groups_rdn'] = config.get(instance_name, 'groups_rdn', fallback=None)
     dsrc_inst['binddn'] = config.get(instance_name, 'binddn', fallback=None)
     dsrc_inst['saslmech'] = config.get(instance_name, 'saslmech', fallback=None)
     if dsrc_inst['saslmech'] is not None and dsrc_inst['saslmech'] not in ['EXTERNAL', 'PLAIN']:
@@ -187,7 +191,7 @@ def dsrc_to_repl_monitor(path, log):
 
     The file should be an ini file, and instance should identify a section.
 
-    The ini fileshould have the content:
+    The ini file should have the content:
 
     [repl-monitor-connections]
     connection1 = server1.example.com:38901:cn=Directory manager:*
