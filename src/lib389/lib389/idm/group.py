@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,11 +9,14 @@
 
 from lib389._mapped_object import DSLdapObject, DSLdapObjects
 from lib389.utils import ds_is_older, ensure_str
+from lib389.cli_base.dsrc import dsrc_to_ldap
+from lib389._constants import DSRC_HOME
 
 MUST_ATTRIBUTES = [
     'cn',
 ]
 RDN = 'cn'
+
 
 class Group(DSLdapObject):
     """A single instance of Group entry
@@ -78,6 +82,7 @@ class Group(DSLdapObject):
 
         self.ensure_present('member', dn)
 
+
 class Groups(DSLdapObjects):
     """DSLdapObjects that represents Groups entry
     By default it uses 'ou=Groups' as rdn.
@@ -95,6 +100,11 @@ class Groups(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = Group
+
+        dsrc_inst = dsrc_to_ldap(DSRC_HOME, instance.serverid, self._log)
+        if dsrc_inst is not None and 'groups_rdn' in dsrc_inst and dsrc_inst['groups_rdn'] is not None:
+            rdn = dsrc_inst['groups_rdn']
+
         if rdn is None:
             self._basedn = ensure_str(basedn)
         else:
@@ -137,6 +147,11 @@ class UniqueGroups(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = UniqueGroup
+
+        dsrc_inst = dsrc_to_ldap(DSRC_HOME, instance.serverid, self._log)
+        if dsrc_inst is not None and 'groups_rdn' in dsrc_inst and dsrc_inst['groups_rdn'] is not None:
+            rdn = dsrc_inst['groups_rdn']
+
         if rdn is None:
             self._basedn = ensure_str(basedn)
         else:
@@ -195,8 +210,12 @@ class nsAdminGroups(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = nsAdminGroup
+
+        dsrc_inst = dsrc_to_ldap(DSRC_HOME, instance.serverid, self._log)
+        if dsrc_inst is not None and 'people_rdn' in dsrc_inst and dsrc_inst['people_rdn'] is not None:
+            rdn = dsrc_inst['people_rdn']
+
         if rdn is None:
             self._basedn = basedn
         else:
             self._basedn = '{},{}'.format(rdn, basedn)
-
