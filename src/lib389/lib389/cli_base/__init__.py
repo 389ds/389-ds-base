@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -344,7 +344,10 @@ def _generic_modify(inst, basedn, log, manager_class, selector, args=None):
     # type of DSLdapObjects (plural)
     mc = manager_class(inst, basedn)
     # Get the object singular by selector
-    o = mc.get(selector)
+    try:
+        o = mc.get(selector)
+    except ldap.NO_SUCH_OBJECT:
+        raise ValueError(f'The entry, or base DN ({mc._basedn}) does not exist')
     _generic_modify_inner(log, o, args.changes)
 
 
