@@ -2,6 +2,7 @@
 
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -23,6 +24,7 @@ from lib389.cli_idm import initialise as cli_init
 from lib389.cli_idm import organizationalunit as cli_ou
 from lib389.cli_idm import group as cli_group
 from lib389.cli_idm import posixgroup as cli_posixgroup
+from lib389.cli_idm import uniquegroup as cli_uniquegroup
 from lib389.cli_idm import user as cli_user
 from lib389.cli_idm import client_config as cli_client_config
 from lib389.cli_idm import role as cli_role
@@ -79,8 +81,10 @@ cli_user.create_parser(subparsers)
 cli_client_config.create_parser(subparsers)
 cli_role.create_parser(subparsers)
 cli_service.create_parser(subparsers)
+cli_uniquegroup.create_parser(subparsers)
 
 argcomplete.autocomplete(parser)
+
 
 # handle a control-c gracefully
 def signal_handler(signal, frame):

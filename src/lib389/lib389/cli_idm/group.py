@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -24,22 +25,27 @@ SINGULAR = Group
 MANY = Groups
 RDN = 'cn'
 
+
 # These are a generic specification, try not to tamper with them
 
 def list(inst, basedn, log, args):
     _generic_list(inst, basedn, log.getChild('_generic_list'), MANY, args)
 
+
 def get(inst, basedn, log, args):
     rdn = _get_arg( args.selector, msg="Enter %s to retrieve" % RDN)
     _generic_get(inst, basedn, log.getChild('_generic_get'), MANY, rdn, args)
+
 
 def get_dn(inst, basedn, log, args):
     dn = _get_arg( args.dn, msg="Enter dn to retrieve")
     _generic_get_dn(inst, basedn, log.getChild('_generic_get_dn'), MANY, dn, args)
 
+
 def create(inst, basedn, log, args):
     kwargs = _get_attributes(args, MUST_ATTRIBUTES)
     _generic_create(inst, basedn, log.getChild('_generic_create'), MANY, kwargs, args)
+
 
 def delete(inst, basedn, log, args, warn=True):
     dn = _get_arg( args.dn , msg="Enter dn to delete")
@@ -47,13 +53,16 @@ def delete(inst, basedn, log, args, warn=True):
         _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
     _generic_delete(inst, basedn, log.getChild('_generic_delete'), SINGULAR, dn, args)
 
+
 def modify(inst, basedn, log, args, warn=True):
     rdn = _get_arg( args.selector, msg="Enter %s to retrieve" % RDN)
     _generic_modify(inst, basedn, log.getChild('_generic_modify'), MANY, rdn, args)
 
+
 def rename(inst, basedn, log, args, warn=True):
     rdn = _get_arg( args.selector, msg="Enter %s to retrieve" % RDN)
     _generic_rename(inst, basedn, log.getChild('_generic_rename'), MANY, rdn, args)
+
 
 def members(inst, basedn, log, args):
     cn = _get_arg( args.cn, msg="Enter %s of group" % RDN)
@@ -67,6 +76,7 @@ def members(inst, basedn, log, args):
         for m in member_list:
             log.info('dn: %s' % m)
 
+
 def add_member(inst, basedn, log, args):
     cn = _get_arg( args.cn, msg="Enter %s of group to add member too" % RDN)
     dn = _get_arg( args.dn, msg="Enter dn to add as member")
@@ -74,6 +84,7 @@ def add_member(inst, basedn, log, args):
     group = groups.get(cn)
     group.add_member(dn)
     log.info('added member: %s' % dn)
+
 
 def remove_member(inst, basedn, log, args):
     cn = _get_arg( args.cn, msg="Enter %s of group to remove member from" % RDN)
@@ -83,9 +94,13 @@ def remove_member(inst, basedn, log, args):
     group.remove_member(dn)
     log.info('removed member: %s' % dn)
 
-def create_parser(subparsers):
-    group_parser = subparsers.add_parser('group', help='Manage groups')
 
+def create_parser(subparsers):
+    group_parser = subparsers.add_parser('group',
+                                         help='Manage groups.  The organizationalUnit (by default "ou=groups") needs '
+                                              'to exist prior to managing groups.  Groups uses the '
+                                              'objectclass "groupOfNames" and the grouping attribute '
+                                              '"member"')
     subcommands = group_parser.add_subparsers(help='action')
 
     list_parser = subcommands.add_parser('list', help='list')
