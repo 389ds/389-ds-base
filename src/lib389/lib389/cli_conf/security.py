@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -460,6 +460,18 @@ def key_del(inst, basedn, log, args):
     log.info(keys)
 
 
+def export_cert(inst, basedn, log, args):
+    tls = NssSsl(dirsrv=inst)
+    nickname = args.nickname
+    der_format = False
+    output_file = None
+    if args.binary_format:
+        der_format = True
+    if args.output_file is not None:
+        output_file = args.output_file
+    tls.export_cert(nickname, output_file, der_format)
+
+
 def create_parser(subparsers):
     security = subparsers.add_parser('security', help='Manage security settings')
     security_sub = security.add_subparsers(help='security')
@@ -610,7 +622,7 @@ def create_parser(subparsers):
     csr_get_parser.add_argument('name', help="Name of the CSR file to display")
     csr_get_parser.set_defaults(func=csr_get)
 
-    csr_req_parser = csr_sub.add_parser('req', help='Generate a Certificate Signing Request', 
+    csr_req_parser = csr_sub.add_parser('req', help='Generate a Certificate Signing Request',
         description=('Generate a CSR that can be submitted to a CA for verification'))
     csr_req_parser.add_argument('--subject', '-s', required=True, help="Subject field")
     csr_req_parser.add_argument('--name', '-n', required=True, help="Name")
@@ -637,3 +649,16 @@ def create_parser(subparsers):
         ' key from the NSS DB. Make sure the key is not in use before you delete'))
     key_del_parser.add_argument('key_id', help='This is the key ID displayed when listing keys')
     key_del_parser.set_defaults(func=key_del)
+
+    # Export certificate
+    export_cert_parser = security_sub.add_parser(
+        'export-cert',
+        help="Export a certificate to PEM or DER/Binary format.  PEM format is the default"
+    )
+    export_cert_parser.add_argument('nickname', help="The name of the certificate to export")
+    export_cert_parser.add_argument('--binary-format', action='store_true',
+                                    help="Export certificate in DER/binary format")
+    export_cert_parser.add_argument('--output-file',
+                                    help='The name for the exported certificate.  Default name is the certificate '
+                                         'nickname with an extension of ".pem" or ".crt"')
+    export_cert_parser.set_defaults(func=export_cert)

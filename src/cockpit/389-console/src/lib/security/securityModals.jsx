@@ -3,6 +3,7 @@ import {
     Button,
     Checkbox,
     ClipboardCopy, ClipboardCopyVariant, Card, CardBody, CardFooter, CardTitle,
+    FileUpload,
     Form,
     FormSelect,
     FormSelectOption,
@@ -10,35 +11,46 @@ import {
     GridItem,
     Modal,
     ModalVariant,
+    Radio,
     Text,
+    TextArea,
     TextContent,
     TextVariants,
     TextInput,
+    Tooltip,
     ValidatedOptions,
 } from "@patternfly/react-core";
+import OutlinedQuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 import PropTypes from "prop-types";
 
-export class SecurityAddCACertModal extends React.Component {
+export class ExportCertModal extends React.Component {
     render() {
         const {
             showModal,
             closeHandler,
             handleChange,
             saveHandler,
+            fileName,
+            nickName,
+            binaryFormat,
+            certDir,
             spinning,
-            error
         } = this.props;
-        let saveBtnName = "Add Certificate";
+
+        let exportBtnName = "Export Certificate";
         const extraPrimaryProps = {};
         if (spinning) {
-            saveBtnName = "Adding Certificate ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            exportBtnName = "Exporting Certificate ...";
+            extraPrimaryProps.spinnerAriaValueText = "Exporting";
         }
+
+        const title = <>Export Certificate: &nbsp;&nbsp;<i>{nickName}</i></>;
+        const desc = <>Enter the full path and file name, if the path portion is omitted the cetificate is written to the server's certificate directory <i>{certDir}</i></>
 
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Add Certificate Authority"
+                title={title}
                 aria-labelledby="ds-modal"
                 isOpen={showModal}
                 onClose={closeHandler}
@@ -48,58 +60,52 @@ export class SecurityAddCACertModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={spinning}
-                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        spinnerAriaValueText={spinning ? "Exporting" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={error.certFile || error.certName || spinning}
+                        isDisabled={fileName === "" || spinning}
                     >
-                        {saveBtnName}
+                        {exportBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
                     </Button>
                 ]}
             >
-                <Form isHorizontal autoComplete="off">
-                    <TextContent>
-                        <Text component={TextVariants.h4}>
-                            Add a CA Certificate to the security database.
-                        </Text>
-                    </TextContent>
-                    <hr />
-                    <Grid title="Enter full path to and and including certificate file name">
-                        <GridItem className="ds-label" span={3}>
-                            Certificate File
-                        </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
-                                type="text"
-                                id="certFile"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="certFile"
-                                onChange={(str, e) => {
-                                    handleChange(e);
-                                }}
-                                validated={error.certFile ? ValidatedOptions.error : ValidatedOptions.default}
-                            />
+                <Form isHorizontal autoComplete="off" className="ds-margin-top-lg">
+                    <Grid>
+                        <GridItem className="ds-label" span={12}>
+                            {desc}
                         </GridItem>
                     </Grid>
-                    <Grid
-                        title="Enter name/nickname of the certificate"
-                        className="ds-margin-top"
-                    >
+                    <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
-                            Certificate Nickname
+                            Certificate File Name
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
                                 type="text"
-                                id="certName"
+                                title="Enter full path to and and including certificate file name"
+                                id="exportFileName"
                                 aria-describedby="horizontal-form-name-helper"
-                                name="certName"
+                                name="exportFileName"
                                 onChange={(str, e) => {
                                     handleChange(e);
                                 }}
-                                validated={error.certName ? ValidatedOptions.error : ValidatedOptions.default}
+                                validated={fileName === "" ? ValidatedOptions.error : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                        <GridItem
+                            title="Export certificate in its binary format.  Otherwise a PEM file is created."
+                            className="ds-margin-top-lg" span={12}
+                        >
+                            <Checkbox
+                                label="Export Certificate In Binary/DER Format"
+                                isChecked={binaryFormat}
+                                onChange={(checked, e) => {
+                                    handleChange(e);
+                                }}
+                                id="exportDERFormat"
+                                name="binaryFormat"
                             />
                         </GridItem>
                     </Grid>
@@ -117,7 +123,33 @@ export class SecurityAddCertModal extends React.Component {
             handleChange,
             saveHandler,
             spinning,
-            error
+            certName,
+            certFile,
+            certText,
+            certRadioText,
+            certRadioFile,
+            certRadioSelect,
+            certRadioUpload,
+            handleRadioChange,
+            badCertText,
+            certNames,
+            // Select server cert
+            handleCertSelect,
+            handleCertToggle,
+            isSelectCertOpen,
+            selectCertName,
+            // File Upload
+            uploadValue,
+            uploadFileName,
+            uploadIsLoading,
+            uploadIsRejected,
+            handleFileInputChange,
+            handleTextOrDataChange,
+            handleFileReadStarted,
+            handleFileReadFinished,
+            handleClear,
+            handleFileRejected,
+            isCACert,
         } = this.props;
 
         let saveBtnName = "Add Certificate";
@@ -127,22 +159,51 @@ export class SecurityAddCertModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
+        const certTextLabel =
+            <div>
+                <Tooltip
+                    content={
+                        <div>
+                            Paste the base64 encoded certificate that
+                            starts with "-----BEGIN CERTIFICATE-----"
+                            and ends with "-----END CERTIFICATE-----".
+                            Make sure there are no special carriage return
+                            characters after each line.
+                        </div>
+                      }
+                >
+                    <div>Certificate Text <OutlinedQuestionCircleIcon /></div>
+                </Tooltip>
+            </div>;
+
+        let title = "Add Server Certificate";
+        let desc = "Add a Server Certificate to the security database.";
+        if (isCACert) {
+            title = "Add Certificate Authority";
+            desc = "Add a CA Certificate to the security database.";
+        }
+
         return (
             <Modal
                 variant={ModalVariant.medium}
+                title={title}
                 aria-labelledby="ds-modal"
-                title="Add Certificate"
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
                     <Button
                         key="confirm"
                         variant="primary"
-                        onClick={saveHandler}
+                        onClick={() => {
+                            saveHandler(isCACert);
+                        }}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={error.certFile || error.certName || spinning}
+                        isDisabled={certName === "" || (certRadioFile && certFile === "") ||
+                            (certRadioText && (certText === "" || badCertText)) ||
+                            (certRadioUpload && uploadValue === "")
+                        }
                     >
                         {saveBtnName}
                     </Button>,
@@ -154,30 +215,12 @@ export class SecurityAddCertModal extends React.Component {
                 <Form isHorizontal autoComplete="off">
                     <TextContent>
                         <Text component={TextVariants.h4}>
-                            Add A Certificate To The Security Database.
+                            {desc}
                         </Text>
                     </TextContent>
-                    <hr />
-                    <Grid title="Enter full path to and and including certificate file name">
-                        <GridItem className="ds-label" span={3}>
-                            Certificate File
-                        </GridItem>
-                        <GridItem span={9}>
-                            <TextInput
-                                type="text"
-                                id="certFile"
-                                aria-describedby="horizontal-form-name-helper"
-                                name="certFile"
-                                onChange={(str, e) => {
-                                    handleChange(e);
-                                }}
-                                validated={error.certFile ? ValidatedOptions.error : ValidatedOptions.default}
-                            />
-                        </GridItem>
-                    </Grid>
                     <Grid
+                        className="ds-margin-top-lg"
                         title="Enter name/nickname of the certificate"
-                        className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
                             Certificate Nickname
@@ -191,10 +234,115 @@ export class SecurityAddCertModal extends React.Component {
                                 onChange={(str, e) => {
                                     handleChange(e);
                                 }}
-                                validated={error.certName ? ValidatedOptions.error : ValidatedOptions.default}
+                                validated={certName === "" ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
+                    <Grid className="ds-margin-top" >
+                        <GridItem span={12}>
+                            <div title="Choose a cerificate from the server's certificate directory">
+                                <Radio
+                                    id="certRadioSelect"
+                                    label="Choose Cerificate From Server"
+                                    name="certChoice"
+                                    isChecked={certRadioSelect}
+                                    onChange={handleRadioChange}
+                                />
+                            </div>
+                            <div className={certRadioSelect ? "ds-margin-top ds-radio-indent" : "ds-margin-top ds-radio-indent ds-disabled"}>
+                                <FormSelect
+                                    value={selectCertName}
+                                    id="selectCertName"
+                                    onChange={handleCertSelect}
+                                    aria-label="FormSelect Input"
+                                    className="ds-cert-select"
+                                >
+                                    {certNames.map((option, index) => (
+                                        <FormSelectOption
+                                            key={index}
+                                            value={option}
+                                            label={option}
+                                        />
+                                    ))}
+                                </FormSelect>
+                            </div>
+                            <div title="Enter the full path on the server to and including the certificate file name">
+                                <Radio
+                                    id="certRadioFile"
+                                    className="ds-margin-top-lg"
+                                    label="Certificate File Location"
+                                    name="certChoice"
+
+                                    isChecked={certRadioFile}
+                                    onChange={handleRadioChange}
+                                />
+                            </div>
+                            <div className={certRadioFile ? "ds-margin-top ds-radio-indent" : "ds-margin-top ds-radio-indent ds-disabled"}>
+                                <TextInput
+                                    type="text"
+                                    id="certFile"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="certFile"
+                                    onChange={(value, e) => {
+                                        handleChange(e);
+                                    }}
+                                    validated={certRadioFile && certFile === "" ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                            </div>
+                            <Radio
+                                id="certRadioText"
+                                className="ds-margin-top-lg"
+                                label={certTextLabel}
+                                name="certChoice"
+                                onChange={handleRadioChange}
+                                isChecked={certRadioText}
+                            />
+                            <div className={certRadioText ? "ds-margin-top ds-radio-indent" : "ds-margin-top ds-radio-indent ds-disabled"}>
+                                <TextArea
+                                    id="certText"
+                                    value={certText}
+                                    onChange={(value, e) => {
+                                        handleChange(e);
+                                    }}
+                                    aria-label="cert text input"
+                                    validated={certRadioText && (certText === "" || badCertText) ? ValidatedOptions.error : ValidatedOptions.default}
+                                />
+                            </div>
+                            <div title="Upload the contents of a PEM file from the client system.">
+                                <Radio
+                                    id="certRadioUpload"
+                                    className="ds-margin-top-lg"
+                                    label="Upload Local PEM File"
+                                    name="certChoice"
+                                    onChange={handleRadioChange}
+                                    isChecked={certRadioUpload}
+                                />
+                            </div>
+                            <div className={certRadioUpload ? "ds-margin-top ds-radio-indent" : "ds-margin-top ds-radio-indent ds-disabled"}>
+                                <FileUpload
+                                    id="uploadPEMFile"
+                                    type="text"
+                                    value={uploadValue}
+                                    filename={uploadFileName}
+                                    filenamePlaceholder="Drag and drop a file, or upload one"
+                                    onFileInputChange={handleFileInputChange}
+                                    onDataChange={handleTextOrDataChange}
+                                    onTextChange={handleTextOrDataChange}
+                                    onReadStarted={handleFileReadStarted}
+                                    onReadFinished={handleFileReadFinished}
+                                    onClearClick={handleClear}
+                                    isLoading={uploadIsLoading}
+                                    dropzoneProps={{
+                                        accept: '.pem',
+                                        onDropRejected: handleFileRejected
+                                    }}
+                                    validated={uploadIsRejected || (certRadioUpload && uploadValue === "") ? 'error' : 'default'}
+                                    browseButtonText="Upload PEM File"
+                                />
+                            </div>
+                        </GridItem>
+                    </Grid>
+
                 </Form>
             </Modal>
         );
@@ -895,6 +1043,23 @@ EditCertModal.defaultProps = {
     spinning: false,
 };
 
+ExportCertModal.propTypes = {
+    showModal: PropTypes.bool,
+    closeHandler: PropTypes.func,
+    handleChange: PropTypes.func,
+    saveHandler: PropTypes.func,
+    binaryFormat: PropTypes.bool,
+    fileName: PropTypes.string,
+    spinning: PropTypes.bool,
+};
+
+ExportCertModal.defaultProps = {
+    showModal: false,
+    fileName: "",
+    binaryFormat: false,
+    spinning: false,
+};
+
 SecurityAddCertModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
@@ -907,21 +1072,7 @@ SecurityAddCertModal.propTypes = {
 SecurityAddCertModal.defaultProps = {
     showModal: false,
     spinning: false,
-    error: {},
-};
-
-SecurityAddCACertModal.propTypes = {
-    showModal: PropTypes.bool,
-    closeHandler: PropTypes.func,
-    handleChange: PropTypes.func,
-    saveHandler: PropTypes.func,
-    spinning: PropTypes.bool,
-    error: PropTypes.object,
-};
-
-SecurityAddCACertModal.defaultProps = {
-    showModal: false,
-    spinning: false,
+    saveHandler: () => {},
     error: {},
 };
 
