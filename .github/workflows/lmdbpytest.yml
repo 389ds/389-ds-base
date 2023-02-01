@@ -1,6 +1,10 @@
 name: LMDB Test
 
 on:
+  push:
+  pull_request:
+  schedule:
+    - cron:  '0 0 * * *'
   workflow_dispatch:
     inputs:
       pytest_tests:
@@ -11,10 +15,6 @@ on:
         description: 'Set to "true" to enable debugging with tmate (https://github.com/marketplace/actions/debugging-with-tmate)'     
         required: false
         default: false
-  workflow_run:
-    workflows: [Test]
-    types:
-      - completed
 
 jobs:
   build:
