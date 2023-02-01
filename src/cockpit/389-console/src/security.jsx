@@ -998,25 +998,6 @@ export class Security extends React.Component {
                     <div className="ds-margin-bottom-md">
                         <Form isHorizontal autoComplete="off">
                             <Grid
-                                title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  This parameter specifically sets what interface to use for TLS traffic.  Requires restart. (nsslapd-securelistenhost)."
-                            >
-                                <GridItem className="ds-label" span={3}>
-                                    Secure Listen Host
-                                </GridItem>
-                                <GridItem span={8}>
-                                    <TextInput
-                                        value={this.state.secureListenhost}
-                                        type="text"
-                                        id="secureListenhost"
-                                        aria-describedby="horizontal-form-name-helper"
-                                        name="server-hostname"
-                                        onChange={(str, e) => {
-                                            this.handleChange(e);
-                                        }}
-                                    />
-                                </GridItem>
-                            </Grid>
-                            <Grid
                                 title="The name, or nickname, of the server certificate inthe NSS database the server should use (nsSSLPersonalitySSL)."
                             >
                                 <GridItem className="ds-label" span={3}>
@@ -1137,6 +1118,25 @@ export class Security extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
+                                title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  This parameter specifically sets what interface to use for TLS traffic.  Requires restart. (nsslapd-securelistenhost)."
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Secure Listen Host
+                                </GridItem>
+                                <GridItem span={8}>
+                                    <TextInput
+                                        value={this.state.secureListenhost}
+                                        type="text"
+                                        id="secureListenhost"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="server-hostname"
+                                        onChange={(str, e) => {
+                                            this.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
                                 title="Require all connections use TLS (nsslapd-require-secure-binds)."
                             >
                                 <GridItem className="ds-label" span={4}>
@@ -1254,6 +1254,7 @@ export class Security extends React.Component {
                                     ServerCSRs={this.state.serverCSRs}
                                     ServerKeys={this.state.serverOrphanKeys}
                                     addNotification={this.props.addNotification}
+                                    certDir={this.props.certDir}
                                 />
                             </Tab>
                             <Tab eventKey={2} title={<TabTitleText>Cipher Preferences</TabTitleText>}>

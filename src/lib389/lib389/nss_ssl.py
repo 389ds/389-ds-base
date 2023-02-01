@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -1123,7 +1123,6 @@ only.
             if self._rsa_cert_is_caclienttrust(cert)
         ]
 
-
     def add_cert(self, nickname, input_file, ca=False):
         """Add server or CA cert
         """
@@ -1131,6 +1130,12 @@ only.
         # Verify input_file exists
         if not os.path.exists(input_file):
             raise ValueError("The certificate file ({}) does not exist".format(input_file))
+
+        pem_file = True
+        if not input_file.lower().endswith(".pem"):
+            pem_file = False
+        else:
+            self._assert_not_chain(input_file)
 
         if ca:
             trust_flags = "CT,,"
@@ -1144,10 +1149,12 @@ only.
             '-n', nickname,
             '-t', trust_flags,
             '-i', input_file,
-            '-a',
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
+        if pem_file:
+            cmd.append('-a')
+
         self.log.debug("add_cert cmd: %s", format_cmd_list(cmd))
         try:
             check_output(cmd, stderr=subprocess.STDOUT)
@@ -1223,6 +1230,12 @@ only.
         if not os.path.exists(cert_file):
             raise ValueError("The certificate file ({}) does not exist".format(cert_file))
 
+        if not cert_file.lower().endswith(".pem"):
+            # Binary cert, this can not be a bundle
+            self.add_cert(nicknames[0], cert_file, ca=True)
+            log.info(f"Successfully added CA certificate ({nicknames[0]})")
+            return
+
         try:
             with open(cert_file, 'r') as f:
                 ca_count = 0
@@ -1284,3 +1297,42 @@ only.
                     raise e
         except EnvironmentError as e:
             raise e
+
+    def export_cert(self, nickname, output_file=None, der_format=False):
+        """
+        :param nickname: name of certificate
+        :param output_file: name for exported certificate
+        :param der_format: export certificate in DER/binary format
+        :raise ValueError: error
+        """
+        cmd = [
+            '/usr/bin/certutil',
+            '-L',
+            '-d', self._certdb,
+            '-n', nickname,
+            '-f',
+            '%s/%s' % (self._certdb, PWD_TXT),
+        ]
+
+        # Handle args for PEM vs DER options
+        if der_format:
+            cmd.append('-r')
+            if output_file is None:
+                output_file = nickname + ".crt"
+        else:
+            cmd.append('-a')
+            if output_file is None:
+                output_file = nickname + ".pem"
+
+        # Set output file name
+        if not output_file.startswith("/"):
+            # Must be full path, otherwise but it in the cert dir
+            output_file = f"{self._certdb}/{output_file}"
+        cmd.append('-o')
+        cmd.append(output_file)
+
+        self.log.debug("export_cert cmd: %s", format_cmd_list(cmd))
+        try:
+            check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
