@@ -201,6 +201,7 @@ td {
 .ds-panel-left {
     width: 50%;
 }
+
 .ds-panel-right {
     width: 50%;
 }
@@ -357,6 +358,10 @@ textarea {
 .ds-left-margin-md {
     /* same as ds-tree - used by create suffix button */
     margin-left: 15px !important;
+}
+
+.ds-radio-indent {
+    margin-left: 25px !important;
 }
 
 .ds-margin-left-sm {

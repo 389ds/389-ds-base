@@ -262,6 +262,7 @@ export class Server extends React.Component {
                         addNotification={this.props.addNotification}
                         serverId={this.props.serverId}
                         enableTree={this.enableTree}
+                        certDir={this.state.attrs['nsslapd-certdir']}
                     />
                 );
             } else if (this.state.node_name === "ldapi-config") {
