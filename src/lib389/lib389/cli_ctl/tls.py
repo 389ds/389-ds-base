@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -54,6 +54,7 @@ def import_ca(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     tls.add_ca_cert_bundle(args.cert_path, args.nickname)
 
+
 def import_key_cert_pair(inst, log, args):
     tls = NssSsl(dirsrv=inst)
     key_path = args.key_path
@@ -81,6 +82,18 @@ def remove_cert(inst, log, args, warn=True):
     if warn:
         _warn(nickname, msg="Deleting certificate %s" % nickname)
     tls.del_cert(nickname)
+
+
+def export_cert(inst, log, args):
+    tls = NssSsl(dirsrv=inst)
+    nickname = args.nickname
+    der_format = False
+    output_file = None
+    if args.binary_format:
+        der_format = True
+    if args.output_file is not None:
+        output_file = args.output_file
+    tls.export_cert(nickname, output_file, der_format)
 
 
 def create_parser(subparsers):
@@ -156,4 +169,14 @@ def create_parser(subparsers):
     remove_cert_parser.add_argument('nickname', help="The name of the certificate to delete")
     remove_cert_parser.set_defaults(func=remove_cert)
 
-
+    export_cert_parser = subcommands.add_parser(
+        'export-cert',
+        help="Export a certificate to PEM or DER/Binary format.  PEM format is the default"
+    )
+    export_cert_parser.add_argument('nickname', help="The name of the certificate to export")
+    export_cert_parser.add_argument('--binary-format', action='store_true',
+                                    help="Export certificate in DER/binary format")
+    export_cert_parser.add_argument('--output-file',
+                                    help='The name for the exported certificate.  Default name is the certificate '
+                                         'nickname with an extension of ".pem" or ".crt"')
+    export_cert_parser.set_defaults(func=export_cert)
