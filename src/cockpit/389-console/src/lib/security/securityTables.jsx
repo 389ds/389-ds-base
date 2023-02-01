@@ -93,7 +93,7 @@ class KeyTable extends React.Component {
                         content={
                         <div>
                             <p align="justify">
-                            An orphan key is a private key in the NSS DB for which there is NO cert 
+                            An orphan key is a private key in the NSS DB for which there is NO cert
                             with the corresponding public key. An orphan key is created during CSR creation,
                             when the certificate associated with a CSR has been imported into the NSS DB its
                             orphan state will be removed.
@@ -481,6 +481,14 @@ class CertTable extends React.Component {
                 title: 'Edit Trust Flags',
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editCert(rowData.cells[0], rowData.flags)
+            },
+            {
+                title: 'Export Certificate',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.exportCert(rowData.cells[0])
+            },
+            {
+                isSeparator: true
             },
             {
                 title: 'Delete Certificate',
