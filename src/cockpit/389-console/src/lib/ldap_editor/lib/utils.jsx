@@ -71,7 +71,7 @@ export function getUserSuffixes (serverId, suffixCallback) {
   ];
   log_cmd("getUserSuffixes", "list suffixes", suffixCmd);
   cockpit
-    .spawn(suffixCmd, { superuser: true })
+    .spawn(suffixCmd, { superuser: true, err: "message" })
     .done(content => {
       const suffList = JSON.parse(content);
       suffixCallback(suffList.items)
