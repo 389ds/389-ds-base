@@ -407,6 +407,11 @@ class FakeArgs(object):
         return len(self.__dict__.keys())
 
 
+class StdErrFilter(logging.Filter):
+    def filter(self, rec):
+        return rec.levelno in (logging.ERROR)
+
+
 def setup_script_logger(name, verbose=False):
     """Reset the python logging system for STDOUT, and attach a new
     console logger with cli expected formatting.
@@ -430,6 +435,12 @@ def setup_script_logger(name, verbose=False):
 
     log_handler.setFormatter(logging.Formatter(log_format))
     root.addHandler(log_handler)
+
+    log_handler_err = logging.StreamHandler(sys.stderr)
+    log_handler_err.setLevel(logging.ERROR)
+    log_handler_err.addFilter(StdErrFilter())
+    log_handler_err.setFormatter(logging.Formatter(log_format))
+    log.addHandler(log_handler_err)
 
     return log
 
