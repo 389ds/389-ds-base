@@ -76,7 +76,8 @@ def test_ssl_version_range(topo):
         pass
 
     if not skip:
-        if ds_is_older('1.4.4'):
+        # TLS 1.0 and TLS 1.1 were moved to LEGACY on 1.4.3, adjusting the sanity check
+        if ds_is_older('1.4.3'):
             ssl_versions = [('sslVersionMin', ['TLS1.0', 'TLS1.1', 'TLS1.2', 'TLS1.0']),
                             ('sslVersionMax', ['TLS1.0', 'TLS1.1', 'TLS1.2'])]
         else:
