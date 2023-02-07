@@ -67,7 +67,7 @@ jobs:
       - name: Build using ${{ matrix.compiler }}
         run: bash -c "(make V=0 2> >(tee /dev/stderr)) > log.txt"
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.name }}
           path: log.txt

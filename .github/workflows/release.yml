@@ -23,7 +23,7 @@ jobs:
       - name: Get the version
         id: get_version
         run: |
-            echo ::set-output name=version::${VERSION}
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
         env:
           VERSION: ${{ github.event.inputs.version || github.ref_name }}
 
@@ -42,7 +42,7 @@ jobs:
           TAG=${{ steps.get_version.outputs.version }} make -f rpm.mk dist-bz2
 
       - name: Upload tarball
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ steps.get_version.outputs.version }}.tar.bz2
           path: ${{ steps.get_version.outputs.version }}.tar.bz2
