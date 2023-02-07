@@ -39,10 +39,11 @@ def create_instance(config_attr):
     standalone.open()
     return standalone
 
+
 # During UI & CLI rebase in 1.4.3 (8abefc754351dac6163c669d3087b8721e6e796c)
 # the use of setup-ds.pl was dropped
 # only support 'false'
-@pytest.mark.parametrize("config_attr", ('false'))
+@pytest.mark.parametrize("config_attr", ['false'])
 def test_slapd_InstScriptsEnabled(config_attr):
     """Tests InstScriptsEnabled attribute with "True" and "False" options
 
