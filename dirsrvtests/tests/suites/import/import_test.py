@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -26,6 +26,8 @@ from lib389.config import LDBMConfig
 from lib389.utils import ds_is_newer
 from lib389.idm.user import UserAccount
 from lib389.idm.account import Accounts
+from lib389.cli_ctl.dbtasks import dbtasks_ldif2db
+from lib389.cli_base import FakeArgs
 
 pytestmark = pytest.mark.tier1
 
@@ -245,6 +247,7 @@ def test_online_import_with_warning(topo, _import_clean):
     assert import_task.present('nstaskwarning')
     assert TaskWarning.WARN_SKIPPED_IMPORT_ENTRY == import_task.get_task_warn()
 
+
 def test_crash_on_ldif2db(topo, _import_clean):
     """
     Delete the cn=monitor entry for an LDBM backend instance. Doing this will
@@ -357,6 +360,7 @@ def _toggle_private_import_mem(request, topo):
             ('nsslapd-db-private-import-mem', 'off'))
     request.addfinalizer(finofaci)
 
+
 #unstable or unstatus tests, skipped for now
 #@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
@@ -418,7 +422,7 @@ def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
     # Measure offline import time duration total_time2
     total_time2 = _import_offline(topo, 1000)
     # total_time1 < total_time2
-    log.info("toral_time1 = %f" % total_time1)
+    log.info("total_time1 = %f" % total_time1)
     log.info("total_time2 = %f" % total_time2)
     assert total_time1 < total_time2
 
@@ -499,9 +503,33 @@ def test_import_perf_after_failure(topo):
     topo.standalone.restart()
 
 
+def test_import_wrong_file_path(topo):
+    """Make an import fail by specifying the wrong LDIF file name
+
+    :id: 6795a3cd-b95e-4777-bc77-25ab864882a3
+    :setup: Standalone Instance
+    :steps:
+        1. Do an import with an invalid file path
+        2. Appropriate error is returned
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+    import_ldif = '/nope/perf_import.ldif'
+    args = FakeArgs()
+    args.instance = topo.standalone.serverid
+    args.backend = "userroot"
+    args.encrypted = False
+    args.replication = False
+    args.ldif = import_ldif
+
+    with pytest.raises(ValueError) as e:
+        dbtasks_ldif2db(topo.standalone, log, args)
+    assert "The LDIF file does not exist" in str(e.value)
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-
