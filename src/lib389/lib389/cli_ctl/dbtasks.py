@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -7,7 +7,10 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import os
 from lib389._constants import TaskWarning
+from pathlib import Path
+
 
 def dbtasks_db2index(inst, log, args):
     rtn = False
@@ -34,7 +37,6 @@ def dbtasks_db2index(inst, log, args):
         return rtn
 
 
-
 def dbtasks_db2bak(inst, log, args):
     # Needs an output name?
     if not inst.db2bak(args.archive):
@@ -54,6 +56,13 @@ def dbtasks_bak2db(inst, log, args):
 
 
 def dbtasks_db2ldif(inst, log, args):
+    # Check if file path exists
+    path = Path(args.ldif)
+    parent = path.parent.absolute()
+    if not parent.exists():
+        raise ValueError("The LDIF file location does not exist: " + args.ldif)
+
+    # Export backend
     if not inst.db2ldif(bename=args.backend, encrypt=args.encrypted, repl_data=args.replication,
                         outputfile=args.ldif, suffixes=None, excludeSuffixes=None, export_cl=False):
         log.fatal("db2ldif failed")
@@ -63,6 +72,10 @@ def dbtasks_db2ldif(inst, log, args):
 
 
 def dbtasks_ldif2db(inst, log, args):
+    # Check if ldif file exists
+    if not os.path.exists(args.ldif):
+        raise ValueError("The LDIF file does not exist: " + args.ldif)
+
     ret = inst.ldif2db(bename=args.backend, encrypt=args.encrypted, import_file=args.ldif,
                         suffixes=None, excludeSuffixes=None, import_cl=False)
     if not ret:
@@ -156,4 +169,3 @@ def create_parser(subcommands):
     ldifs_parser = subcommands.add_parser('ldifs', help="List all the LDIF files located in the server's LDIF directory")
     ldifs_parser.add_argument('--delete', nargs=1, help="Delete LDIF file")
     ldifs_parser.set_defaults(func=dbtasks_ldifs)
-

@@ -59,7 +59,7 @@ def test_tls_command_returns_error_text(topo):
         assert False
     except ValueError as e:
         assert '255' not in str(e)
-        assert 'error converting ascii to binary' in str(e)
+        assert 'could not decode certificate' in str(e)
 
     # dsctl localhost tls import-server-cert
     try:
