@@ -17,9 +17,10 @@ from lib389.idm.nscontainer import nsContainers
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389.replica import ReplicationManager
+from lib389.replica import ReplicationManager, Replicas
 from lib389.agreement import Agreements
 from lib389.plugins import MemberOfPlugin
+from lib389.dirsrv_log import DirsrvErrorLog
 
 pytestmark = pytest.mark.tier1
 
@@ -129,17 +130,37 @@ def _test_base(topology):
     return base_m2
 
 
+def _dump_logs(topology):
+    """ Logs instances error logs"""
+    for inst in topology:
+        errlog = DirsrvErrorLog(inst)
+        log.info(f'{inst.serverid} errorlog:')
+        for l in errlog.readlines():
+            log.info(l.strip())
+
+
 def _delete_test_base(inst, base_m2_dn):
     """Delete test container with entries and entry conflicts"""
 
-    ents = inst.search_s(base_m2_dn, ldap.SCOPE_SUBTREE, filterstr="(|(objectclass=*)(objectclass=ldapsubentry))")
+    try:
+        ents = inst.search_s(base_m2_dn, ldap.SCOPE_SUBTREE, filterstr="(|(objectclass=*)(objectclass=ldapsubentry))")
+        for ent in sorted(ents, key=lambda e: len(e.dn), reverse=True):
+            log.debug("Delete entry children {}".format(ent.dn))
+            try:
+                inst.delete_ext_s(ent.dn)
+            except ldap.NO_SUCH_OBJECT:  # For the case with objectclass: glue entries
+                pass
+    except ldap.NO_SUCH_OBJECT:  # Subtree is already removed.
+        pass
 
-    for ent in sorted(ents, key=lambda e: len(e.dn), reverse=True):
-        log.debug("Delete entry children {}".format(ent.dn))
-        try:
-            inst.delete_ext_s(ent.dn)
-        except ldap.NO_SUCH_OBJECT:  # For the case with objectclass: glue entries
-            pass
+
+def _resume_agmts(inst):
+    """Resume all agreements in the instance"""
+
+    replicas = Replicas(inst)
+    replica = replicas.get(DEFAULT_SUFFIX)
+    for agreement in replica.get_agreements().list():
+        agreement.resume()
 
 
 @pytest.fixture
@@ -149,6 +170,16 @@ def base_m2(topology_m2, request):
     def fin():
         if not DEBUGGING:
             _delete_test_base(topology_m2.ms["supplier1"], tb.dn)
+            _delete_test_base(topology_m2.ms["supplier2"], tb.dn)
+            # Replication may break while deleting the container because naming
+            # conflict entries still exists on the other side
+            # Note IMHO there a bug in the entryrdn handling of replicated delete operation
+            # ( children naming conflict or glue entries older than the parent delete operation should
+            #   should be deleted when the parent is deleted )
+            # So let restarts the agmt once everything is deleted.
+            topology_m2.pause_all_replicas()
+            topology_m2.resume_all_replicas()
+
     request.addfinalizer(fin)
 
     return tb
@@ -363,7 +394,6 @@ class TestTwoSuppliers:
         topology_m2.resume_all_replicas()
 
         repl.test_replication_topology(topology_m2)
-        time.sleep(30)
 
         user_dns_m1 = [user.dn for user in test_users_m1.list()]
         user_dns_m2 = [user.dn for user in test_users_m2.list()]
@@ -796,17 +826,22 @@ class TestTwoSuppliers:
 
         M1 = topology_m2.ms["supplier1"]
         M2 = topology_m2.ms["supplier2"]
+        repl = ReplicationManager(SUFFIX)
 
         # add a test user
         test_users_m1 = UserAccounts(M1, base_m2.dn, rdn=None)
         user_1 = test_users_m1.create_test_user(uid=1000)
         test_users_m2 = UserAccount(M2, user_1.dn)
         # Waiting fo the user to be replicated
-        for i in range(0,10):
+        for i in range(0,60):
             time.sleep(1)
             if test_users_m2.exists():
                 break
-        assert(test_users_m2.exists())
+        try:
+            assert(test_users_m2.exists())
+        except AssertionError as e:
+            _dump_logs(topology_m2)
+            raise e from None
 
         # Stop replication agreements
         topology_m2.pause_all_replicas()
@@ -825,7 +860,7 @@ class TestTwoSuppliers:
 
         # resume replication agreements
         topology_m2.resume_all_replicas()
-        time.sleep(5)
+        repl.test_replication_topology(topology_m2)
 
         # check that on M1, the entry 'uid' has two values 'foo1' and 'foo2'
         final_dn = re.sub('^.*1000,', 'uid=foo2,', original_dn)
@@ -880,6 +915,7 @@ class TestTwoSuppliers:
 
         M1 = topology_m2.ms["supplier1"]
         M2 = topology_m2.ms["supplier2"]
+        repl = ReplicationManager(SUFFIX)
 
         # add a test user with a dummy 'uid' extra value because modrdn removes
         # uid that conflict with 'account' objectclass
@@ -890,11 +926,15 @@ class TestTwoSuppliers:
         test_users_m2 = UserAccount(M2, user_1.dn)
 
         # Waiting fo the user to be replicated
-        for i in range(0,10):
+        for i in range(0,60):
             time.sleep(1)
             if test_users_m2.exists():
                 break
-        assert(test_users_m2.exists())
+        try:
+            assert(test_users_m2.exists())
+        except AssertionError as e:
+            _dump_logs(topology_m2)
+            raise e from None
 
         # Stop replication agreements
         topology_m2.pause_all_replicas()
@@ -913,7 +953,7 @@ class TestTwoSuppliers:
 
         # resume replication agreements
         topology_m2.resume_all_replicas()
-        time.sleep(5)
+        repl.test_replication_topology(topology_m2)
 
         # check that on M1, the entry 'employeenumber' has value 'foo1'
         final_dn = re.sub('^.*1000,', 'employeenumber=foo2,', original_dn)

@@ -1126,9 +1126,10 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
          */
         if (entryrdn_get_switch()) /* subtree-rename: on */
         {
+            const Slapi_DN *oldsdn = slapi_entry_get_sdn_const(e->ep_entry);
             Slapi_RDN newsrdn;
             slapi_rdn_init_sdn(&newsrdn, (const Slapi_DN *)&dn_newdn);
-            retval = entryrdn_rename_subtree(be, (const Slapi_DN *)sdn, &newsrdn,
+            retval = entryrdn_rename_subtree(be, oldsdn, &newsrdn,
                                              (const Slapi_DN *)dn_newsuperiordn,
                                              e->ep_id, &txn, is_tombstone);
             slapi_rdn_done(&newsrdn);

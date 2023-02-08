@@ -1054,8 +1054,7 @@ keys2idl(
     int allidslimit)
 {
     IDList *idl = NULL;
-    Op_stat *op_stat;
-    PRBool collect_stat = PR_FALSE;
+    Op_stat *op_stat = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "keys2idl", "=> type %s indextype %s\n", type, indextype);
 
@@ -1063,8 +1062,9 @@ keys2idl(
     if (LDAP_STAT_READ_INDEX & config_get_statlog_level()) {
         op_stat = op_stat_get_operation_extension(pb);
         if (op_stat->search_stat) {
-            collect_stat = PR_TRUE;
             clock_gettime(CLOCK_MONOTONIC, &(op_stat->search_stat->keys_lookup_start));
+        } else {
+            op_stat = NULL;
         }
     }
 
@@ -1074,7 +1074,7 @@ keys2idl(
         int key_len;
 
         idl2 = index_read_ext_allids(pb, be, type, indextype, slapi_value_get_berval(ivals[i]), txn, err, unindexed, allidslimit);
-        if (collect_stat) {
+        if (op_stat) {
             /* gather the index lookup statistics */
             key_stat = (struct component_keys_lookup *) slapi_ch_calloc(1, sizeof (struct component_keys_lookup));
 
@@ -1139,7 +1139,7 @@ keys2idl(
     }
 
     /* All the keys have been fetch, time to take the completion time */
-    if (collect_stat) {
+    if (op_stat) {
         clock_gettime(CLOCK_MONOTONIC, &(op_stat->search_stat->keys_lookup_end));
     }
 
