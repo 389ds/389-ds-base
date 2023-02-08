@@ -134,7 +134,7 @@ connection_table_new(int table_size)
     ct->list_size = (table_size+ct->list_num-1)/ct->list_num; /* to avoid rounding issue */
     ct->num_active = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
     ct->c = (Connection **)slapi_ch_calloc(1, table_size * sizeof(Connection *));
-    ct->fd = (struct POLL_STRUCT **)slapi_ch_calloc(1, table_size * sizeof(struct POLL_STRUCT));
+    ct->fd = (struct POLL_STRUCT **)slapi_ch_calloc(1, ct->list_num * sizeof(struct POLL_STRUCT*));
     ct->table_mutex = PR_NewLock();
     /* Allocate the freelist */
     ct->c_freelist = (Connection **)slapi_ch_calloc(1, table_size * sizeof(Connection *));
