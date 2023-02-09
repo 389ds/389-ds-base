@@ -279,8 +279,6 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_MAXBERSIZE_STR "2097152"
 #define SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN (-1)
 #define SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR "-1"
-#define SLAPD_DEFAULT_CONNTABLESIZE 65536 /* connection table size */
-#define SLAPD_DEFAULT_NUM_LISTENERS 1 /* connection table lists */
 #define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL 3600
 #define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL_STR "3600"
 
@@ -375,6 +373,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_GROUPEVALNESTLEVEL_STR "0"
 #define SLAPD_DEFAULT_SNMP_INDEX 0
 #define SLAPD_DEFAULT_SNMP_INDEX_STR "0"
+#define SLAPD_DEFAULT_NUM_LISTENERS 1
+#define SLAPD_DEFAULT_NUM_LISTENERS_STR "1"
 
 #define SLAPD_DEFAULT_PW_INHISTORY 6
 #define SLAPD_DEFAULT_PW_INHISTORY_STR "6"
@@ -2235,7 +2235,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_THREADNUMBER_ATTRIBUTE "nsslapd-threadnumber"
 #define CONFIG_MAXTHREADSPERCONN_ATTRIBUTE "nsslapd-maxthreadsperconn"
 #define CONFIG_MAXDESCRIPTORS_ATTRIBUTE "nsslapd-maxdescriptors"
-#define CONFIG_CONNTABLESIZE_ATTRIBUTE "nsslapd-conntablesize"
+#define CONFIG_NUM_LISTENERS_ATTRIBUTE "nsslapd-numlisteners"
 #define CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE "nsslapd-reservedescriptors"
 #define CONFIG_IDLETIMEOUT_ATTRIBUTE "nsslapd-idletimeout"
 #define CONFIG_IOBLOCKTIMEOUT_ATTRIBUTE "nsslapd-ioblocktimeout"
@@ -2439,7 +2439,7 @@ typedef struct _slapdFrontendConfig
     slapi_int_t ioblocktimeout;
     slapi_onoff_t lastmod;
     int64_t maxdescriptors;
-    int conntablesize;
+    int num_listeners;
     slapi_int_t maxthreadsperconn;
     int outbound_ldap_io_timeout;
     slapi_onoff_t nagle;

@@ -973,6 +973,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.refer_url,
      CONFIG_STRING, NULL, NULL, NULL /* deletion is not allowed */},
+    {CONFIG_NUM_LISTENERS_ATTRIBUTE, config_set_num_listeners,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.num_listeners,
+     CONFIG_INT, NULL, SLAPD_DEFAULT_NUM_LISTENERS_STR, NULL},
     {CONFIG_MAXDESCRIPTORS_ATTRIBUTE, config_set_maxdescriptors,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.maxdescriptors,
@@ -1770,6 +1774,7 @@ FrontendConfig_init(void)
     cfg->groupevalnestlevel = SLAPD_DEFAULT_GROUPEVALNESTLEVEL;
     cfg->snmp_index = SLAPD_DEFAULT_SNMP_INDEX;
     cfg->SSLclientAuth = SLAPD_DEFAULT_SSLCLIENTAUTH;
+    cfg->num_listeners = SLAPD_DEFAULT_NUM_LISTENERS;
     init_accesscontrol = cfg->accesscontrol = LDAP_ON;
 
     /* nagle triggers set/unset TCP_CORK setsockopt per operation
@@ -5004,6 +5009,38 @@ config_set_reservedescriptors(const char *attrname, char *value, char *errorbuf,
 }
 
 int
+config_set_num_listeners(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    long nValue = 0;
+    int minVal = 1;
+    int maxVal = 4;
+    char *endp = NULL;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    errno = 0;
+    nValue = strtol(value, &endp, 0);
+    if (*endp != '\0' || errno == ERANGE || nValue < minVal || nValue > maxVal) {
+        nValue = (nValue < minVal) ? minVal : maxVal;
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                "%s: invalid value \"%s\", connection table num lists must range from %d to %d. "
+                                "Server will use a setting of %d.",
+                                attrname, value, minVal, maxVal, nValue);
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapdFrontendConfig->num_listeners = nValue;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+int
 config_set_ioblocktimeout(const char *attrname, char *value, char *errorbuf, int apply)
 {
     int retVal = LDAP_SUCCESS;
@@ -6809,6 +6846,19 @@ config_get_referral_mode(void)
     CFG_UNLOCK_READ(slapdFrontendConfig);
 
     return ret;
+}
+
+int
+config_get_num_listeners(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->num_listeners;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
 }
 
 /* return yes/no without actually copying the referral url
