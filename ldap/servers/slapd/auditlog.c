@@ -228,6 +228,7 @@ add_entry_attrs(Slapi_Entry *entry, lenstr *l)
                 addlenstr(l, log_val);
                 addlenstr(l, "\n");
             }
+            charray_free(vals);
         }
     } else {
         /* Return all attributes */
