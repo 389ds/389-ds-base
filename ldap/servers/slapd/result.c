@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1996,7 +1996,6 @@ notes2str(unsigned int notes, char *buf, size_t buflen)
     return (buf);
 }
 
-
 static void
 log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries)
 {
@@ -2295,7 +2294,7 @@ encode_read_entry(Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, int alluseratt
 
     if (conn == NULL || op == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "encode_read_entry",
-                      "NULL param error: conn (0x%p) op (0x%p)\n", conn, op);
+                      "NULL param error: conn (%p) op (%p)\n", conn, op);
         rc = -1;
         goto cleanup;
     }
