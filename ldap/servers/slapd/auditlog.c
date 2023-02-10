@@ -250,7 +250,6 @@ add_entry_attrs(Slapi_Entry *entry, lenstr *l)
             if (entry_attr) {
                 log_entry_attr(entry_attr, req_attr, l);
             }
-            charray_free(vals);
         }
     } else {
         /* Return all attributes */
