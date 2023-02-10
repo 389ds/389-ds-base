@@ -43,6 +43,7 @@ struct mt_node
     int mtn_dstr_plg_rootmode;    /* determines how to process root updates in distribution */
     mtn_distrib_fct mtn_dstr_plg; /* pointer to the actual ditribution function */
     void *mtn_extension;          /* plugins can extend a mapping tree node */
+    int32_t mtn_extension_count;  /* factory extension count */
 };
 
 /*
@@ -273,7 +274,8 @@ mapping_tree_get_extension_type()
          * with it.
          */
         extension_type = factory_register_type(SLAPI_EXT_MTNODE,
-                                               offsetof(mapping_tree_node, mtn_extension));
+                                               offsetof(mapping_tree_node, mtn_extension),
+                                               offsetof(mapping_tree_node, mtn_extension_count));
     }
     return extension_type;
 }
@@ -841,12 +843,13 @@ free_and_return:
 void
 mtn_create_extension(mapping_tree_node *node)
 {
+    int32_t ext_count = 0;
     if (node == NULL)
         return;
 
     node->mtn_extension = factory_create_extension(mapping_tree_get_extension_type(),
-                                                   node, NULL /* parent */);
-
+                                                   node, NULL /* parent */, &ext_count);
+    node->mtn_extension_count = ext_count;
     mtn_create_extension(node->mtn_children);
     mtn_create_extension(node->mtn_brother);
 }
@@ -1342,6 +1345,7 @@ mapping_tree_entry_add_callback(Slapi_PBlock *pb __attribute__((unused)),
     mapping_tree_node *node = NULL;
     int i;
     backend *be;
+    int32_t ext_count = 0;
 
     /*
      * Previously this function would not take the MT lock assuming that due to the single pointer
@@ -1391,8 +1395,8 @@ mapping_tree_entry_add_callback(Slapi_PBlock *pb __attribute__((unused)),
         }
     }
 
-    node->mtn_extension = factory_create_extension(mapping_tree_get_extension_type(), node, NULL);
-
+    node->mtn_extension = factory_create_extension(mapping_tree_get_extension_type(), node, NULL, &ext_count);
+    node->mtn_extension_count = ext_count;
     /*
      * Check defaultNamingContext is set.
      * If it is not set, set the to-be-added suffix to the config param.

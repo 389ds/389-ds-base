@@ -102,7 +102,9 @@ get_operation_object_type()
          * that it may call the constructors or destructors registered
          * with it.
          */
-        operation_type = factory_register_type(SLAPI_EXT_OPERATION, offsetof(Operation, o_extension));
+        operation_type = factory_register_type(SLAPI_EXT_OPERATION,
+                                               offsetof(Operation, o_extension),
+                                               offsetof(Operation, o_extension_count));
     }
     return operation_type;
 }

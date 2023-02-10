@@ -24,9 +24,9 @@
  *
  * --- An interface is made available to the core server.
  *
- *   int factory_register_type(const char *name, size_t offset)
- *   void *factory_create_extension(int type,void *object,void *parent)
- *   void factory_destroy_extension(int type,void *object,void *parent,void **extension)
+ *   int factory_register_type(const char *name, size_t offset, size_t count_offset)
+ *   void *factory_create_extension(int type,void *object,void *parent, int32_t *ext_count)
+ *   void factory_destroy_extension(int type,void *object,void *parent, void **extension)
  *
  * An object that wishes to make itself available for extension must
  * register with the Factory.  It passes it's name, say 'Operation',
@@ -38,7 +38,13 @@
  * must call the factory_create_extension with its type handle so that
  * the extension block can be constructed. A pointer to the block is
  * returned that *must* be stored in the object structure at the offset
- * declared by the call to factory_register_type.
+ * declared by the call to factory_register_type.  We must also set the
+ * "extension count" or "count_offet" when registering the factory type.
+ *
+ * Due to dynamic plugins we need to maintain a count of the extensions
+ * that were allocated which is found in ext_count after calling
+ * factory_create_extension.  This count needs to be stored in the object
+ * as well. E.g. Operation struct "o_extension_count".
  *
  * When an extensible object is destroyed the extension block must also
  * be destroyed. The factory_destroy_extension call is provided to
@@ -123,18 +129,20 @@ struct factory_type
     int extension_count;                                  /* The number of extensions registered for this object */
     PRLock *extension_lock;                               /* Protect the array of extensions */
     size_t extension_offset;                              /* The offset into the object where the extension pointer is */
+    size_t extension_count_offset;                        /* The offset into the object where the extension count is */
     long existence_count;                                 /* Keep track of how many extensions blocks are in existence */
     struct factory_extension *extensions[MAX_EXTENSIONS]; /* The extension registered for this object type */
 };
 
 static struct factory_type *
-new_factory_type(const char *name, size_t offset)
+new_factory_type(const char *name, size_t offset, size_t count_offset)
 {
     struct factory_type *ft = (struct factory_type *)slapi_ch_calloc(1, sizeof(struct factory_type));
     ft->name = slapi_ch_strdup(name);
     ft->extension_lock = PR_NewLock();
     ft->extension_count = 0;
     ft->extension_offset = offset;
+    ft->extension_count_offset = count_offset;
     ft->existence_count = 0;
     return ft;
 }
@@ -253,7 +261,7 @@ factory_type_store_name_to_type(const char *name)
  * See documentation at head of file.
  */
 int
-factory_register_type(const char *name, size_t offset)
+factory_register_type(const char *name, size_t offset, size_t count_offset)
 {
     int type = 0;
     if (number_of_types == 0) {
@@ -261,7 +269,7 @@ factory_register_type(const char *name, size_t offset)
     }
     PR_Lock(factory_type_store_lock);
     if (number_of_types < MAX_TYPES) {
-        struct factory_type *ft = new_factory_type(name, offset);
+        struct factory_type *ft = new_factory_type(name, offset, count_offset);
         type = factory_type_store_add(ft);
     } else {
         slapi_log_err(SLAPI_LOG_ERR, "factory_register_type",
@@ -279,20 +287,20 @@ factory_register_type(const char *name, size_t offset)
  * See documentation at head of file.
  */
 void *
-factory_create_extension(int type, void *object, void *parent)
+factory_create_extension(int type, void *object, void *parent, int32_t *count)
 {
-    int n;
+    int32_t n;
     void **extension = NULL;
     struct factory_type *ft = factory_type_store_get_factory_type(type);
 
     if (ft != NULL) {
         PR_Lock(ft->extension_lock);
         if ((n = ft->extension_count) > 0) {
-            int i;
             factory_type_increment_existence(ft);
             PR_Unlock(ft->extension_lock);
+            *count = n;
             extension = (void **)slapi_ch_calloc(n + 1, sizeof(void *));
-            for (i = 0; i < n; i++) {
+            for (size_t i = 0; i < n; i++) {
                 if (ft->extensions[i] == NULL || ft->extensions[i]->removed) {
                     continue;
                 }
@@ -323,14 +331,12 @@ factory_destroy_extension(int type, void *object, void *parent, void **extension
     if (extension != NULL && *extension != NULL) {
         struct factory_type *ft = factory_type_store_get_factory_type(type);
         if (ft != NULL) {
-            int i, n;
-
+            char *object_base = (char *)object;
             PR_Lock(ft->extension_lock);
-            n = ft->extension_count;
+            int32_t n = (int32_t)(object_base + ft->extension_count_offset)[0];
             factory_type_decrement_existence(ft);
-            for (i = 0; i < n; i++) {
+            for (size_t i = 0; i <= n; i++) {  // MARK < n ??
                 slapi_extension_destructor_fnptr destructor;
-
                 if (ft->extensions[i] == NULL) {
                     continue;
                 }
@@ -425,8 +431,9 @@ slapi_get_object_extension(int objecttype, void *object, int extensionhandle)
     if (ft != NULL) {
         char *object_base = (char *)object;
         void **o_extension = (void **)(object_base + ft->extension_offset);
+        int32_t extension_count = (int32_t)(object_base + ft->extension_count_offset)[0];
         void **extension_array = (void **)(*o_extension);
-        if (extension_array != NULL) {
+        if (extension_array != NULL && extensionhandle <= extension_count) {
             object_extension = extension_array[extensionhandle];
         }
     }
@@ -443,8 +450,9 @@ slapi_set_object_extension(int objecttype, void *object, int extensionhandle, vo
     if (ft != NULL) {
         char *object_base = (char *)object;
         void **o_extension = (void **)(object_base + ft->extension_offset);
+        int32_t extension_count = (int32_t)(object_base + ft->extension_count_offset)[0];
         void **extension_array = (void **)(*o_extension);
-        if (extension_array != NULL) {
+        if (extension_array != NULL && extensionhandle <= extension_count) {
             extension_array[extensionhandle] = extension;
         }
     }

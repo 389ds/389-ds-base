@@ -1825,7 +1825,10 @@ get_entry_object_type()
          * that it may call the constructors or destructors registered
          * with it.
          */
-        entry_type = factory_register_type(SLAPI_EXT_ENTRY, offsetof(Slapi_Entry, e_extension));
+        entry_type = factory_register_type(SLAPI_EXT_ENTRY,
+                                           offsetof(Slapi_Entry, e_extension),
+                                           offsetof(Slapi_Entry, e_extension_count)
+        );
     }
     return entry_type;
 }
@@ -1849,10 +1852,12 @@ Slapi_Entry *
 slapi_entry_alloc()
 {
     Slapi_Entry *e = (Slapi_Entry *)slapi_ch_calloc(1, sizeof(struct slapi_entry));
+    int32_t ext_count = 0;
     slapi_sdn_init(&e->e_sdn);
     slapi_rdn_init(&e->e_srdn);
 
-    e->e_extension = factory_create_extension(get_entry_object_type(), e, NULL);
+    e->e_extension = factory_create_extension(get_entry_object_type(), e, NULL, &ext_count);
+    e->e_extension_count = ext_count;
     if (!counters_created) {
         PR_CREATE_COUNTER(slapi_entry_counter_created, "Slapi_Entry", "created", "");
         PR_CREATE_COUNTER(slapi_entry_counter_deleted, "Slapi_Entry", "deleted", "");

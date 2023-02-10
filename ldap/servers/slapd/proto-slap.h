@@ -1366,8 +1366,8 @@ void g_set_global_mrl(struct matchingRuleList *newglobalmrl);
  * factory.c
  */
 
-int factory_register_type(const char *name, size_t offset);
-void *factory_create_extension(int type, void *object, void *parent);
+int factory_register_type(const char *name, size_t offset, size_t count_offset);
+void *factory_create_extension(int type, void *object, void *parent, int32_t *count);
 void factory_destroy_extension(int type, void *object, void *parent, void **extension);
 
 /*

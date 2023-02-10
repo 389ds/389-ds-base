@@ -123,10 +123,14 @@ Slapi_Operation *
 internal_operation_new(unsigned long op_type, int flags)
 {
     Slapi_Operation *op = operation_new(flags | OP_FLAG_INTERNAL /*Internal*/);
+    int32_t ext_count = 0;
     /* set operation type: add, delete, etc */
     operation_set_type(op, op_type);
     /* Call the plugin extension constructors */
-    op->o_extension = factory_create_extension(get_operation_object_type(), op, NULL /* Parent */);
+    op->o_extension = factory_create_extension(get_operation_object_type(),
+                                               op, NULL /* Parent */,
+                                               &ext_count);
+    op->o_extension_count = ext_count;
     return op;
 }
 

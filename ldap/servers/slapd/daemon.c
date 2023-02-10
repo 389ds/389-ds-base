@@ -1820,7 +1820,9 @@ daemon_register_connection()
          * that it may call the constructors or destructors registered
          * with it.
          */
-        connection_type = factory_register_type(SLAPI_EXT_CONNECTION, offsetof(Connection, c_extension));
+        connection_type = factory_register_type(SLAPI_EXT_CONNECTION,
+                                                offsetof(Connection, c_extension),
+                                                offsetof(Connection, c_extension_count));
     }
 }
 
@@ -1844,6 +1846,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
     PRFileDesc *pr_clonefd = NULL;
     slapdFrontendConfig_t *fecfg = getFrontendConfig();
     ber_len_t maxbersize;
+    int32_t ext_count = 0;
 
     if (newconn) {
         *newconn = NULL;
@@ -1924,7 +1927,8 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
     connection_reset(conn, ns, &from, sizeof(from), secure);
 
     /* Call the plugin extension constructors */
-    conn->c_extension = factory_create_extension(connection_type, conn, NULL /* Parent */);
+    conn->c_extension = factory_create_extension(connection_type, conn, NULL /* Parent */, &ext_count);
+    conn->c_extension_count = ext_count;
 
 #if defined(ENABLE_LDAPI)
     /* ldapi */

@@ -2072,6 +2072,7 @@ connection_add_operation(Connection *conn, Operation *op)
     Operation **olist = &conn->c_ops;
     int id = conn->c_opsinitiated++;
     PRUint64 connid = conn->c_connid;
+    int32_t ext_count = 0;
     Operation **tmp;
 
     /* slapi_ch_stop_recording(); */
@@ -2083,7 +2084,8 @@ connection_add_operation(Connection *conn, Operation *op)
     op->o_opid = id;
     op->o_connid = connid;
     /* Call the plugin extension constructors */
-    op->o_extension = factory_create_extension(get_operation_object_type(), op, conn);
+    op->o_extension = factory_create_extension(get_operation_object_type(), op, conn, &ext_count);
+    op->o_extension_count = ext_count;
 }
 
 /*

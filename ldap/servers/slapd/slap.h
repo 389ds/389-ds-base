@@ -835,6 +835,7 @@ struct slapi_entry
                                      to global watermark */
     Slapi_RWLock *e_virtual_lock; /* for access to cached vattrs */
     void *e_extension;            /* A list of entry object extensions */
+    int32_t e_extension_count;    /* factory extension count */
     unsigned char e_flags;
     Slapi_Attr *e_aux_attrs;      /* Attr list used for upgrade */
 };
@@ -1591,6 +1592,7 @@ typedef struct op
     char **o_searchattrs; /* original attr names requested  */ /* JCM - Search Param */
     unsigned long o_flags;                                     /* flags for this operation      */
     void *o_extension;                                         /* plugins are able to extend the Operation object */
+    int32_t o_extension_count;                                 /* The number of factory extensions */
     Slapi_DN *o_target_spec;                                   /* used to decide which plugins should be called for the operation */
     void *o_target_entry;                                      /* Only used for SEARCH operation
                                                                 * reference of search target entry (base search) in the entry cache
@@ -1701,6 +1703,7 @@ typedef struct conn
     struct conn *c_prev;             /* active connections in the table*/
     Slapi_Backend *c_bi_backend;     /* which backend is doing the import */
     void *c_extension;               /* plugins are able to extend the Connection object */
+    int32_t c_extension_count;      /* factory extension count */
     void *c_sasl_conn;               /* sasl library connection sasl_conn_t */
     int c_local_ssf;                 /* flag to tell us the local SSF */
     int c_sasl_ssf;                  /* flag to tell us the SASL SSF */

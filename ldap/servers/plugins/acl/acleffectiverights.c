@@ -327,6 +327,7 @@ _ger_new_gerpb(
     struct acl_cblock *conn_aclcb;
     Acl_PBlock *geraclpb;
     Operation *gerop;
+    int32_t ext_count = 0;
     int rc = LDAP_SUCCESS;
 
     *save_aclcb = NULL;
@@ -377,7 +378,8 @@ _ger_new_gerpb(
          * conn is a no-use parameter in the functions
          * chained down from factory_create_extension
          */
-        gerop->o_extension = factory_create_extension(get_operation_object_type(), (void *)gerop, (void *)conn);
+        gerop->o_extension = factory_create_extension(get_operation_object_type(), (void *)gerop, (void *)conn, &ext_count);
+        gerop->o_extension_count = ext_count;
         slapi_pblock_set(*gerpb, SLAPI_OPERATION, gerop);
         slapi_sdn_set_ndn_byval(&gerop->o_sdn, subjectndn);
         geraclpb = acl_get_ext(ACL_EXT_OPERATION, (void *)gerop);
