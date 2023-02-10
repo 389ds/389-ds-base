@@ -178,6 +178,40 @@ write_auditfail_log_entry(Slapi_PBlock *pb)
 }
 
 /*
+ * Write the attribute values to the audit log as "comments"
+ *
+ *   Slapi_Attr *entry - the attribute begin logged.
+ *   char *attrname - the attribute name.
+ *   lenstr *l - the audit log buffer
+ *
+ *   Resulting output in the log:
+ *
+ *       #ATTR: VALUE
+ *       #ATTR: VALUE
+ */
+static void
+log_entry_attr(Slapi_Attr *entry_attr, char *attrname, lenstr *l)
+{
+    Slapi_Value **vals = attr_get_present_values(entry_attr);
+    for(size_t i = 0; vals && vals[i]; i++) {
+        char log_val[256] = "";
+        const struct berval *bv = slapi_value_get_berval(vals[i]);
+        if (bv->bv_len >= 256) {
+            strncpy(log_val, bv->bv_val, 252);
+            strcpy(log_val+252, "...");
+        } else {
+            strncpy(log_val, bv->bv_val, bv->bv_len);
+            log_val[bv->bv_len] = 0;
+        }
+        addlenstr(l, "#");
+        addlenstr(l, attrname);
+        addlenstr(l, ": ");
+        addlenstr(l, log_val);
+        addlenstr(l, "\n");
+    }
+}
+
+/*
  * Write "requested" attributes from the entry to the audit log as "comments"
  *
  *   Slapi_Entry *entry - the entry being updated
@@ -212,30 +246,16 @@ add_entry_attrs(Slapi_Entry *entry, lenstr *l)
         for (req_attr = ldap_utf8strtok_r(display_attrs, ", ", &last); req_attr;
              req_attr = ldap_utf8strtok_r(NULL, ", ", &last))
         {
-            char **vals = slapi_entry_attr_get_charray(entry, req_attr);
-            for(size_t i = 0; vals && vals[i]; i++) {
-                char log_val[256] = {0};
-
-                if (strlen(vals[i]) > 256) {
-                    strncpy(log_val, vals[i], 252);
-                    strcat(log_val, "...");
-                } else {
-                    strcpy(log_val, vals[i]);
-                }
-                addlenstr(l, "#");
-                addlenstr(l, req_attr);
-                addlenstr(l, ": ");
-                addlenstr(l, log_val);
-                addlenstr(l, "\n");
+            slapi_entry_attr_find(entry, req_attr, &entry_attr);
+            if (entry_attr) {
+                log_entry_attr(entry_attr, req_attr, l);
             }
-            charray_free(vals);
         }
     } else {
         /* Return all attributes */
         for (; entry_attr; entry_attr = entry_attr->a_next) {
             Slapi_Value **vals = attr_get_present_values(entry_attr);
             char *attr = NULL;
-            const char *val = NULL;
 
             slapi_attr_get_type(entry_attr, &attr);
             if (strcmp(attr, PSEUDO_ATTR_UNHASHEDUSERPASSWORD) == 0) {
@@ -252,23 +272,7 @@ add_entry_attrs(Slapi_Entry *entry, lenstr *l)
                 addlenstr(l, ": ****************************\n");
                 continue;
             }
-
-            for(size_t i = 0; vals && vals[i]; i++) {
-                char log_val[256] = {0};
-
-                val = slapi_value_get_string(vals[i]);
-                if (strlen(val) > 256) {
-                    strncpy(log_val, val, 252);
-                    strcat(log_val, "...");
-                } else {
-                    strcpy(log_val, val);
-                }
-                addlenstr(l, "#");
-                addlenstr(l, attr);
-                addlenstr(l, ": ");
-                addlenstr(l, log_val);
-                addlenstr(l, "\n");
-            }
+            log_entry_attr(entry_attr, attr, l);
         }
     }
     slapi_ch_free_string(&display_attrs);
