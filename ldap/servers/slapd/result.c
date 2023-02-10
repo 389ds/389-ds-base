@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -2014,14 +2014,16 @@ log_op_stat(Slapi_PBlock *pb, uint64_t connid, int32_t op_id, int32_t op_interna
     if (config_get_statlog_level() == 0) {
         return;
     }
-
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    internal_op = operation_is_flag_set(op, OP_FLAG_INTERNAL);
-    op_stat = op_stat_get_operation_extension(pb);
-
-    if (op == NULL || op_stat == NULL) {
+    if (op == NULL) {
         return;
     }
+    internal_op = operation_is_flag_set(op, OP_FLAG_INTERNAL);
+    op_stat = op_stat_get_operation_extension(pb);
+    if (op_stat == NULL) {
+        return;
+    }
+
     /* process the operation */
     switch (operation_get_type(op)) {
         case SLAPI_OPERATION_BIND:
@@ -2380,7 +2382,7 @@ encode_read_entry(Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, int alluseratt
 
     if (conn == NULL || op == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "encode_read_entry",
-                      "NULL param error: conn (0x%p) op (0x%p)\n", conn, op);
+                      "NULL param error: conn (%p) op (%p)\n", conn, op);
         rc = -1;
         goto cleanup;
     }

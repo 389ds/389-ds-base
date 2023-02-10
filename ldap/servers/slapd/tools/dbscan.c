@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1108,13 +1108,20 @@ _read_line(FILE *file, int *keyword, dbi_val_t *val)
 int
 importdb(const char *dbimpl_name, const char *filename, const char *dump_name)
 {
-    FILE *dump = fopen(dump_name, "r");
+    FILE *dump = NULL;
     dbi_val_t key = {0}, data = {0};
     struct back_txn txn = {0};
     dbi_env_t *env = NULL;
     dbi_db_t *db = NULL;
     int keyword = 0;
     int ret = 0;
+
+    if (dump_name == NULL) {
+        printf("Error: dump_name can not be NULL\n");
+        return 1;
+    }
+
+    dump = fopen(dump_name, "r");
 
     dblayer_init_pvt_txn();
 
