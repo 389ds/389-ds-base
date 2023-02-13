@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -98,6 +98,39 @@ def test_origins(topo, name, oid, xorg):
         'no_user_mod': None,
         'equality': None,
         'substr': None,
+        'ordering': None,
+        'usage': None,
+        'sup': None
+    }
+    schema.add_attributetype(parameters)
+
+
+def test_mrs(topo):
+    """Test an attribute can be added with a matching rule
+
+    :id: e4eb06e0-7f80-41fe-8868-08c2bafc7590
+    :setup: Standalone Instance
+    :steps:
+        1. Add an attribute with a matching rule
+    :expectedresults:
+        1. Success
+    """
+    schema = Schema(topo.standalone)
+
+    # Add new attribute
+    parameters = {
+        'names': ['test-mr'],
+        'oid': '99999999',
+        'desc': 'Test matching rule',
+        'syntax': '1.3.6.1.4.1.1466.115.121.1.15',
+        'syntax_len': None,
+        'x_ordered': None,
+        'collective': None,
+        'obsolete': None,
+        'single_value': None,
+        'no_user_mod': None,
+        'equality': None,
+        'substr': 'numericstringsubstringsmatch',
         'ordering': None,
         'usage': None,
         'sup': None
