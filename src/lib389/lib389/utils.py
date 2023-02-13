@@ -42,12 +42,6 @@ import operator
 import subprocess
 import math
 import errno
-# Setuptools ships with 'packaging' module, let's use it from there
-try:
-    from pkg_resources.extern.packaging.version import LegacyVersion
-# Fallback to a normal 'packaging' module in case 'setuptools' is stripped
-except:
-    from packaging.version import LegacyVersion
 from socket import getfqdn
 from ldapurl import LDAPUrl
 from contextlib import closing
@@ -1218,6 +1212,76 @@ def generate_ds_params(inst_num, role=ReplicaRole.STANDALONE):
 
     return instance_data
 
+class DSVersion():
+    def __init__(self, version):
+        self._version = str(version)
+        self._key = _cmpkey(self._version)
+
+    def __str__(self):
+        return self._version
+
+    def __repr__(self):
+        return f"<DSVersion('{self}')>"
+
+    def __hash__(self):
+        return hash(self._key)
+
+    def __lt__(self, other):
+        if not isinstance(other, DSVersion):
+            return NotImplemented
+
+        return self._key < other._key
+
+    def __le__(self, other):
+        if not isinstance(other, DSVersion):
+            return NotImplemented
+
+        return self._key <= other._key
+
+    def __eq__(self, other):
+        if not isinstance(other, DSVersion):
+            return NotImplemented
+
+        return self._key == other._key
+
+    def __ge__(self, other):
+        if not isinstance(other, DSVersion):
+            return NotImplemented
+
+        return self._key >= other._key
+
+    def __gt__(self, other):
+        if not isinstance(other, DSVersion):
+            return NotImplemented
+
+        return self._key > other._key
+
+    def __ne__(self, other):
+        if not isinstance(other, DSVersion):
+            return NotImplemented
+
+        return self._key != other._key
+
+
+def _parse_version_parts(s):
+    for part in re.compile(r"(\d+ | [a-z]+ | \. | -)", re.VERBOSE).split(s):
+
+        if not part or part == ".":
+            continue
+
+        if part[:1] in "0123456789":
+            # pad for numeric comparison
+            yield part.zfill(8)
+        else:
+            yield "*" + part
+
+def _cmpkey(version):
+    parts = []
+    for part in _parse_version_parts(version.lower()):
+        parts.append(part)
+
+    return tuple(parts)
+
 
 def get_ds_version(paths=None):
     """
@@ -1245,9 +1309,9 @@ def ds_is_related(relation, *ver, instance=None):
     if len(ver) > 1:
         for cmp_ver in ver:
             if cmp_ver.startswith(ds_ver[:3]):
-                return ops[relation](LegacyVersion(ds_ver),LegacyVersion(cmp_ver))
+                return ops[relation](DSVersion(ds_ver), DSVersion(cmp_ver))
     else:
-        return ops[relation](LegacyVersion(ds_ver), LegacyVersion(ver[0]))
+        return ops[relation](DSVersion(ds_ver), DSVersion(ver[0]))
 
 
 def ds_is_older(*ver, instance=None):
