@@ -23,15 +23,7 @@ from subprocess import check_output, run, PIPE
 from lib389.passwd import password_generate
 from lib389._mapped_object_lint import DSLint
 from lib389.lint import DSCERTLE0001, DSCERTLE0002
-from lib389.utils import ensure_str, format_cmd_list, cert_is_ca
-
-
-# Setuptools ships with 'packaging' module, let's use it from there
-try:
-    from pkg_resources.extern.packaging.version import LegacyVersion
-# Fallback to a normal 'packaging' module in case 'setuptools' is stripped
-except:
-    from packaging.version import LegacyVersion
+from lib389.utils import ensure_str, format_cmd_list, cert_is_ca, DSVersion
 
 KEYBITS = 4096
 CA_NAME = 'Self-Signed-CA'
@@ -238,7 +230,7 @@ only.
             openssl_version = check_output(['/usr/bin/openssl', 'version']).decode('utf-8').strip()
         except subprocess.CalledProcessError as e:
             raise ValueError(e.output.decode('utf-8').rstrip())
-        rehash_available = LegacyVersion(openssl_version.split(' ')[1]) >= LegacyVersion('1.1.0')
+        rehash_available = DSVersion(openssl_version.split(' ')[1]) >= DSVersion('1.1.0')
 
         if rehash_available:
             cmd = ['/usr/bin/openssl', 'rehash', certdir]
