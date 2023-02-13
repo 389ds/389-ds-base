@@ -500,7 +500,10 @@ def is_dn_parent(parent_dn, child_dn, ):
 def normalizeDN(dn, usespace=False):
     # not great, but will do until we use a newer version of python-ldap
     # that has DN utilities
-    ary = ldap.explode_dn(dn.lower())
+    try:
+        ary = ldap.explode_dn(dn.lower())
+    except ldap.DECODING_ERROR:
+        raise ValueError(f"Unable to normalize DN '{dn}'")
     joinstr = ","
     if usespace:
         joinstr = ", "

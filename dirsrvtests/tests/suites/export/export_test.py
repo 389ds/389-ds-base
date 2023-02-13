@@ -6,11 +6,9 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-
 import os
 import pytest
 import subprocess
-
 from lib389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.utils import *
@@ -108,16 +106,12 @@ def test_db2ldif_cli_with_non_accessible_ldif_file_path(topo):
             assert False
         else:
             log.info('db2ldif failed properly: error ({})'.format(e.returncode))
-<<<<<<< HEAD
-            assert True
 
     log.info("parsing the errors log to search for the error reported")
     search_str = str(topo.standalone.ds_error_log.match(r".*ERR - bdb_db2ldif - db2ldif: userRoot: can't open*"))[1:-1]
     assert len(search_str) > 0
     log.info("error string : %s" % search_str)
-=======
             assert "The LDIF file location does not exist" in str(e.output)
->>>>>>> cee276d39 (Issue 5632 - CLI - improve error handling with db2ldif)
 
     log.info("Restarting the instance...")
     topo.standalone.start()
