@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -11,6 +11,7 @@ import ldap
 from lib389.backend import Backends
 from lib389.utils import ensure_str
 from lib389.pwpolicy import PwPolicyEntries, PwPolicyManager
+from lib389.password_plugins import PasswordPlugins
 from lib389.idm.account import Account
 
 
@@ -51,13 +52,13 @@ def _get_pw_policy(inst, targetdn, log, use_json=None):
         all_attrs = policy.get_attrs_vals_utf8(attr_list)
         attrs = {k: v for k, v in all_attrs.items() if len(v) > 0}
     if use_json:
-        print(json.dumps({
-            "dn": ensure_str(policydn),
-            "targetdn": targetdn,
-            "type": "entry",
-            "pwp_type": policy_type,
-            "basedn": basedn,
-            "attrs": attrs}, indent=4))
+        log.info(json.dumps({
+                 "dn": ensure_str(policydn),
+                 "targetdn": targetdn,
+                 "type": "entry",
+                 "pwp_type": policy_type,
+                 "basedn": basedn,
+                 "attrs": attrs}, indent=4))
     else:
         if "global" in policy_type.lower():
             response = "Global Password Policy: cn=config\n------------------------------------\n"
@@ -69,7 +70,7 @@ def _get_pw_policy(inst, targetdn, log, use_json=None):
             else:
                 value = value[0]
             response += "{}: {}\n".format(key, value)
-        print(response)
+        log.info(response)
 
 
 def list_policies(inst, basedn, log, args):
@@ -125,9 +126,9 @@ def list_policies(inst, basedn, log, args):
                 result += "%s (%s)\n" % (entrydn, policy_type.lower())
 
     if args.json:
-        print(json.dumps(result, indent=4))
+        log.info(json.dumps(result, indent=4))
     else:
-        print(result)
+        log.info(result)
 
 
 def get_local_policy(inst, basedn, log, args):
@@ -147,7 +148,7 @@ def create_subtree_policy(inst, basedn, log, args):
     attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
     pwp_manager.create_subtree_policy(args.DN[0], attrs)
 
-    print('Successfully created subtree password policy')
+    log.info('Successfully created subtree password policy')
 
 
 def create_user_policy(inst, basedn, log, args):
@@ -156,7 +157,7 @@ def create_user_policy(inst, basedn, log, args):
     attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
     pwp_manager.create_user_policy(args.DN[0], attrs)
 
-    print('Successfully created user password policy')
+    log.info('Successfully created user password policy')
 
 
 def set_global_policy(inst, basedn, log, args):
@@ -164,8 +165,7 @@ def set_global_policy(inst, basedn, log, args):
     pwp_manager = PwPolicyManager(inst)
     attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
     pwp_manager.set_global_policy(attrs)
-
-    print('Successfully updated global password policy')
+    log.info('Successfully updated global password policy')
 
 
 def set_local_policy(inst, basedn, log, args):
@@ -184,7 +184,7 @@ def set_local_policy(inst, basedn, log, args):
     else:
         raise ValueError("There are no password policies to set")
 
-    print('Successfully updated %s' % policy_type.lower())
+    log.info('Successfully updated %s' % policy_type.lower())
 
 
 def del_local_policy(inst, basedn, log, args):
@@ -193,7 +193,21 @@ def del_local_policy(inst, basedn, log, args):
     policy_type = _get_policy_type(inst, targetdn)
     pwp_manager = PwPolicyManager(inst)
     pwp_manager.delete_local_policy(targetdn)
-    print('Successfully deleted %s' % policy_type.lower())
+    log.info('Successfully deleted %s' % policy_type.lower())
+
+
+def list_schemes(inst, basedn, log, args):
+    schemes = PasswordPlugins(inst).list()
+    scheme_list = []
+    for scheme in schemes:
+        scheme_list.append(scheme.get_attr_val_utf8('cn'))
+
+    if args.json:
+        result = {'type': 'list', 'items': scheme_list}
+        log.info(json.dumps(result, indent=4))
+    else:
+        for scheme in scheme_list:
+            log.info(scheme)
 
 
 def create_parser(subparsers):
@@ -290,9 +304,12 @@ def create_parser(subparsers):
     set_global_parser.add_argument('--pwdisglobal', help="Set to \"on\" to enable password policy state attributes to be replicated")
     set_global_parser.add_argument('--pwdallowhash', help="Set to \"on\" to allow adding prehashed passwords")
     set_global_parser.add_argument('--pwpinheritglobal', help="Set to \"on\" to allow local policies to inherit the global policy")
+    # list password storage schemes
+    list_scehmes_parser = global_subcommands.add_parser('list-schemes', help='Get a list of the current password storage schemes')
+    list_scehmes_parser.set_defaults(func=list_schemes)
 
     #############################################
-    # Wrap it up.  Now that we copied all the parent arugments to the subparsers,
+    # Wrap it up.  Now that we copied all the parent arguments to the subparsers,
     # and the DN argument needed only by the local policies
     #############################################
     set_parser.add_argument('DN', nargs=1, help='Set the local policy for this entry DN')

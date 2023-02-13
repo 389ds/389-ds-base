@@ -1364,19 +1364,13 @@ export class GlobalPwPolicy extends React.Component {
                                             }}
                                             aria-label="FormSelect Input"
                                         >
-                                            <FormSelectOption key="0" value="PBKDF2_SHA256" label="PBKDF2_SHA256" />
-                                            <FormSelectOption key="1" value="SSHA512" label="SSHA512" />
-                                            <FormSelectOption key="2" value="SSHA384" label="SSHA384" />
-                                            <FormSelectOption key="3" value="SSHA256" label="SSHA256" />
-                                            <FormSelectOption key="4" value="SSHA" label="SSHA" />
-                                            <FormSelectOption key="5" value="MD5" label="MD5" />
-                                            <FormSelectOption key="6" value="SMD5" label="SMD5" />
-                                            <FormSelectOption key="7" value="CRYPT-MD5" label="CRYPT-MD5" />
-                                            <FormSelectOption key="8" value="CRYPT-SHA512" label="CRYPT-SHA512" />
-                                            <FormSelectOption key="9" value="CRYPT-SHA256" label="CRYPT-SHA256" />
-                                            <FormSelectOption key="10" value="CRYPT" label="CRYPT" />
-                                            <FormSelectOption key="11" value="GOST_YESCRYPT" label="GOST_YESCRYPT" />
-                                            <FormSelectOption key="12" value="CLEAR" label="CLEAR" />
+                                            {this.props.pwdStorageSchemes.map((option, index) => (
+                                                <FormSelectOption
+                                                    key={index}
+                                                    value={option}
+                                                    label={option}
+                                                />
+                                            ))}
                                         </FormSelect>
                                     </GridItem>
                                 </Grid>
@@ -1635,8 +1629,10 @@ export class GlobalPwPolicy extends React.Component {
 
 GlobalPwPolicy.propTypes = {
     attrs: PropTypes.array,
+    pwdStorageSchemes: PropTypes.array,
 };
 
 GlobalPwPolicy.defaultProps = {
     attrs: [],
+    pwdStorageSchemes: []
 };
