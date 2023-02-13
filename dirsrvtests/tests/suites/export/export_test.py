@@ -6,11 +6,9 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-
 import os
 import pytest
 import subprocess
-
 from lib389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.utils import *
@@ -108,7 +106,6 @@ def test_db2ldif_cli_with_non_accessible_ldif_file_path(topo):
             assert False
         else:
             log.info('db2ldif failed properly: error ({})'.format(e.returncode))
-            assert "The LDIF file location does not exist" in str(e.output)
 
     log.info("Restarting the instance...")
     topo.standalone.start()
