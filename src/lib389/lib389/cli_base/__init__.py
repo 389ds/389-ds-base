@@ -412,6 +412,11 @@ class StdErrFilter(logging.Filter):
         return rec.levelno in (logging.ERROR,)
 
 
+class StdOutFilter(logging.Filter):
+    def filter(self, rec):
+        return rec.levelno not in (logging.ERROR,)
+
+
 def setup_script_logger(name, verbose=False):
     """Reset the python logging system for STDOUT, and attach a new
     console logger with cli expected formatting.
@@ -434,6 +439,7 @@ def setup_script_logger(name, verbose=False):
         log_format = '%(message)s'
 
     log_handler.setFormatter(logging.Formatter(log_format))
+    log_handler.addFilter(StdOutFilter())
     root.addHandler(log_handler)
 
     log_handler_err = logging.StreamHandler(sys.stderr)
