@@ -187,25 +187,19 @@ class CreatePolicy extends React.Component {
                                 <GridItem span={9}>
                                     <FormSelect
                                         id="create_passwordstoragescheme"
-                                        value={this.state.storagescheme}
+                                        value={this.props.create_passwordstoragescheme}
                                         onChange={(value, event) => {
                                             this.props.handleChange(event);
                                         }}
                                         aria-label="FormSelect Input"
                                     >
-                                        <FormSelectOption key="0" value="PBKDF2_SHA256" label="PBKDF2_SHA256" />
-                                        <FormSelectOption key="1" value="SSHA512" label="SSHA512" />
-                                        <FormSelectOption key="2" value="SSHA384" label="SSHA384" />
-                                        <FormSelectOption key="3" value="SSHA256" label="SSHA256" />
-                                        <FormSelectOption key="4" value="SSHA" label="SSHA" />
-                                        <FormSelectOption key="5" value="MD5" label="MD5" />
-                                        <FormSelectOption key="6" value="SMD5" label="SMD5" />
-                                        <FormSelectOption key="7" value="CRYPT-MD5" label="CRYPT-MD5" />
-                                        <FormSelectOption key="8" value="CRYPT-SHA512" label="CRYPT-SHA512" />
-                                        <FormSelectOption key="9" value="CRYPT-SHA256" label="CRYPT-SHA256" />
-                                        <FormSelectOption key="10" value="CRYPT" label="CRYPT" />
-                                        <FormSelectOption key="11" value="GOST_YESCRYPT" label="GOST_YESCRYPT" />
-                                        <FormSelectOption key="12" value="CLEAR" label="CLEAR" />
+                                        {this.props.pwdStorageSchemes.map((option, index) => (
+                                            <FormSelectOption
+                                                key={index}
+                                                value={option}
+                                                label={option}
+                                            />
+                                        ))}
                                     </FormSelect>
                                 </GridItem>
                             </Grid>
@@ -1993,7 +1987,35 @@ export class LocalPwPolicy extends React.Component {
                         _create_passwordmintokenlength: "0",
                         _create_passwordbadwords: "",
                         _create_passworduserattributes: [],
-                    }, this.props.enableTree);
+                    }, () => {
+                        const gcmd = [
+                            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                            "config", "get", "passwordstoragescheme"
+                        ];
+                        log_cmd("loadPolicies", "Load global password policy password scheme", gcmd);
+                        cockpit
+                                .spawn(gcmd, { superuser: true, err: "message" })
+                                .done(content => {
+                                    const config = JSON.parse(content);
+                                    const attrs = config.attrs;
+                                    const defaultStorageScheme = attrs['passwordstoragescheme'][0];
+                                    this.setState({
+                                        create_passwordstoragescheme: defaultStorageScheme,
+                                        _create_passwordstoragescheme: defaultStorageScheme,
+                                    }, this.props.enableTree);
+                                })
+                                .fail(err => {
+                                    const errMsg = JSON.parse(err);
+                                    this.setState({
+                                        loaded: true,
+                                        loading: false,
+                                    });
+                                    this.props.addNotification(
+                                        "error",
+                                        `Error loading global password storage scheme - ${errMsg.desc}`
+                                    );
+                                });
+                    });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -2033,7 +2055,7 @@ export class LocalPwPolicy extends React.Component {
                     let pwUserAttrs = [];
                     let pwInHistory = "0";
                     let pwBadWords = "";
-                    let pwScheme = "";
+                    let pwScheme = this.state.create_passwordstoragescheme; // Default
                     let pwWarning = "0";
                     let pwMaxAge = "0";
                     let pwMinAge = "0";
@@ -2188,99 +2210,97 @@ export class LocalPwPolicy extends React.Component {
                         pwTPRDelayValidFrom = attrs.passwordTPRDelayValidFrom[0];
                     }
 
-                    this.setState(() => (
-                        {
-                            editPolicy: true,
-                            loading: false,
-                            localActiveTabKey: 1,
-                            activeKey: 0,
-                            policyName: name,
-                            policyType: config.pwp_type,
-                            saveGeneralDisabled: true,
-                            saveUserDisabled: true,
-                            saveExpDisabled: true,
-                            saveLockoutDisabled: true,
-                            saveSyntaxDisabled: true,
-                            // Settings
-                            passwordchange: pwChange,
-                            passwordmustchange: pwMustChange,
-                            passwordhistory: pwHistory,
-                            passwordtrackupdatetime: pwTrackUpdate,
-                            passwordexp: pwExpire,
-                            passwordsendexpiringtime: pwSendExpire,
-                            passwordlockout: pwLockout,
-                            passwordunlock: pwUnlock,
-                            passwordchecksyntax: pwCheckSyntax,
-                            passwordpalindrome: pwPalindrome,
-                            passworddictcheck: pwDictCheck,
-                            passwordstoragescheme: pwScheme,
-                            passwordinhistory: pwInHistory,
-                            passwordwarning: pwWarning,
-                            passwordmaxage: pwMaxAge,
-                            passwordminage: pwMinAge,
-                            passwordgracelimit: pwGraceLimit,
-                            passwordlockoutduration: pwLockoutDur,
-                            passwordmaxfailure: pwMaxFailure,
-                            passwordresetfailurecount: pwFailCount,
-                            passwordminlength: pwMinLen,
-                            passwordmindigits: pwMinDigits,
-                            passwordminalphas: pwMinAlphas,
-                            passwordminuppers: pwMinUppers,
-                            passwordminlowers: pwMinLowers,
-                            passwordminspecials: pwMinSpecials,
-                            passwordmin8bit: pwMin8bit,
-                            passwordmaxrepeats: pwMaxRepeats,
-                            passwordmaxsequence: pwMaxSeq,
-                            passwordmaxseqsets: pwMaxSeqSets,
-                            passwordmaxclasschars: pwMaxClassChars,
-                            passwordmincategories: pwMinCat,
-                            passwordmintokenlength: pwMinTokenLen,
-                            passwordbadwords: pwBadWords,
-                            passworduserattributes: pwUserAttrs,
-                            passwordtprmaxuse: pwTPRMaxUse,
-                            passwordtprdelayexpireat: pwTPRDelayExpireAt,
-                            passwordtprdelayvalidfrom: pwTPRDelayValidFrom,
-                            // Record original values
-                            _passwordchange: pwChange,
-                            _passwordmustchange: pwMustChange,
-                            _passwordhistory: pwHistory,
-                            _passwordtrackupdatetime: pwTrackUpdate,
-                            _passwordexp: pwExpire,
-                            _passwordsendexpiringtime: pwSendExpire,
-                            _passwordlockout: pwLockout,
-                            _passwordunlock: pwUnlock,
-                            _passwordchecksyntax: pwCheckSyntax,
-                            _passwordpalindrome: pwPalindrome,
-                            _passworddictcheck: pwDictCheck,
-                            _passwordstoragescheme: pwScheme,
-                            _passwordinhistory: pwInHistory,
-                            _passwordwarning: pwWarning,
-                            _passwordmaxage: pwMaxAge,
-                            _passwordminage: pwMinAge,
-                            _passwordgracelimit: pwGraceLimit,
-                            _passwordlockoutduration: pwLockoutDur,
-                            _passwordmaxfailure: pwMaxFailure,
-                            _passwordresetfailurecount: pwFailCount,
-                            _passwordminlength: pwMinLen,
-                            _passwordmindigits: pwMinDigits,
-                            _passwordminalphas: pwMinAlphas,
-                            _passwordminuppers: pwMinUppers,
-                            _passwordminlowers: pwMinLowers,
-                            _passwordminspecials: pwMinSpecials,
-                            _passwordmin8bit: pwMin8bit,
-                            _passwordmaxrepeats: pwMaxRepeats,
-                            _passwordmaxsequence: pwMaxSeq,
-                            _passwordmaxseqsets: pwMaxSeqSets,
-                            _passwordmaxclasschars: pwMaxClassChars,
-                            _passwordmincategories: pwMinCat,
-                            _passwordmintokenlength: pwMinTokenLen,
-                            _passwordbadwords: pwBadWords,
-                            _passworduserattributes: pwUserAttrs,
-                            _passwordtprmaxuse: pwTPRMaxUse,
-                            _passwordtprdelayexpireat: pwTPRDelayExpireAt,
-                            _passwordtprdelayvalidfrom: pwTPRDelayValidFrom,
-                        })
-                    );
+                    this.setState({
+                        editPolicy: true,
+                        loading: false,
+                        localActiveTabKey: 1,
+                        activeKey: 0,
+                        policyName: name,
+                        policyType: config.pwp_type,
+                        saveGeneralDisabled: true,
+                        saveUserDisabled: true,
+                        saveExpDisabled: true,
+                        saveLockoutDisabled: true,
+                        saveSyntaxDisabled: true,
+                        // Settings
+                        passwordchange: pwChange,
+                        passwordmustchange: pwMustChange,
+                        passwordhistory: pwHistory,
+                        passwordtrackupdatetime: pwTrackUpdate,
+                        passwordexp: pwExpire,
+                        passwordsendexpiringtime: pwSendExpire,
+                        passwordlockout: pwLockout,
+                        passwordunlock: pwUnlock,
+                        passwordchecksyntax: pwCheckSyntax,
+                        passwordpalindrome: pwPalindrome,
+                        passworddictcheck: pwDictCheck,
+                        passwordstoragescheme: pwScheme,
+                        passwordinhistory: pwInHistory,
+                        passwordwarning: pwWarning,
+                        passwordmaxage: pwMaxAge,
+                        passwordminage: pwMinAge,
+                        passwordgracelimit: pwGraceLimit,
+                        passwordlockoutduration: pwLockoutDur,
+                        passwordmaxfailure: pwMaxFailure,
+                        passwordresetfailurecount: pwFailCount,
+                        passwordminlength: pwMinLen,
+                        passwordmindigits: pwMinDigits,
+                        passwordminalphas: pwMinAlphas,
+                        passwordminuppers: pwMinUppers,
+                        passwordminlowers: pwMinLowers,
+                        passwordminspecials: pwMinSpecials,
+                        passwordmin8bit: pwMin8bit,
+                        passwordmaxrepeats: pwMaxRepeats,
+                        passwordmaxsequence: pwMaxSeq,
+                        passwordmaxseqsets: pwMaxSeqSets,
+                        passwordmaxclasschars: pwMaxClassChars,
+                        passwordmincategories: pwMinCat,
+                        passwordmintokenlength: pwMinTokenLen,
+                        passwordbadwords: pwBadWords,
+                        passworduserattributes: pwUserAttrs,
+                        passwordtprmaxuse: pwTPRMaxUse,
+                        passwordtprdelayexpireat: pwTPRDelayExpireAt,
+                        passwordtprdelayvalidfrom: pwTPRDelayValidFrom,
+                        // Record original values
+                        _passwordchange: pwChange,
+                        _passwordmustchange: pwMustChange,
+                        _passwordhistory: pwHistory,
+                        _passwordtrackupdatetime: pwTrackUpdate,
+                        _passwordexp: pwExpire,
+                        _passwordsendexpiringtime: pwSendExpire,
+                        _passwordlockout: pwLockout,
+                        _passwordunlock: pwUnlock,
+                        _passwordchecksyntax: pwCheckSyntax,
+                        _passwordpalindrome: pwPalindrome,
+                        _passworddictcheck: pwDictCheck,
+                        _passwordstoragescheme: pwScheme,
+                        _passwordinhistory: pwInHistory,
+                        _passwordwarning: pwWarning,
+                        _passwordmaxage: pwMaxAge,
+                        _passwordminage: pwMinAge,
+                        _passwordgracelimit: pwGraceLimit,
+                        _passwordlockoutduration: pwLockoutDur,
+                        _passwordmaxfailure: pwMaxFailure,
+                        _passwordresetfailurecount: pwFailCount,
+                        _passwordminlength: pwMinLen,
+                        _passwordmindigits: pwMinDigits,
+                        _passwordminalphas: pwMinAlphas,
+                        _passwordminuppers: pwMinUppers,
+                        _passwordminlowers: pwMinLowers,
+                        _passwordminspecials: pwMinSpecials,
+                        _passwordmin8bit: pwMin8bit,
+                        _passwordmaxrepeats: pwMaxRepeats,
+                        _passwordmaxsequence: pwMaxSeq,
+                        _passwordmaxseqsets: pwMaxSeqSets,
+                        _passwordmaxclasschars: pwMaxClassChars,
+                        _passwordmincategories: pwMinCat,
+                        _passwordmintokenlength: pwMinTokenLen,
+                        _passwordbadwords: pwBadWords,
+                        _passworduserattributes: pwUserAttrs,
+                        _passwordtprmaxuse: pwTPRMaxUse,
+                        _passwordtprdelayexpireat: pwTPRDelayExpireAt,
+                        _passwordtprdelayvalidfrom: pwTPRDelayValidFrom,
+                    });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -2804,19 +2824,13 @@ export class LocalPwPolicy extends React.Component {
                                             }}
                                             aria-label="FormSelect Input"
                                         >
-                                            <FormSelectOption key="0" value="PBKDF2_SHA256" label="PBKDF2_SHA256" />
-                                            <FormSelectOption key="1" value="SSHA512" label="SSHA512" />
-                                            <FormSelectOption key="2" value="SSHA384" label="SSHA384" />
-                                            <FormSelectOption key="3" value="SSHA256" label="SSHA256" />
-                                            <FormSelectOption key="4" value="SSHA" label="SSHA" />
-                                            <FormSelectOption key="5" value="MD5" label="MD5" />
-                                            <FormSelectOption key="6" value="SMD5" label="SMD5" />
-                                            <FormSelectOption key="7" value="CRYPT-MD5" label="CRYPT-MD5" />
-                                            <FormSelectOption key="8" value="CRYPT-SHA512" label="CRYPT-SHA512" />
-                                            <FormSelectOption key="9" value="CRYPT-SHA256" label="CRYPT-SHA256" />
-                                            <FormSelectOption key="10" value="CRYPT" label="CRYPT" />
-                                            <FormSelectOption key="11" value="GOST_YESCRYPT" label="GOST_YESCRYPT" />
-                                            <FormSelectOption key="12" value="CLEAR" label="CLEAR" />
+                                            {this.props.pwdStorageSchemes.map((option, index) => (
+                                                <FormSelectOption
+                                                    key={index}
+                                                    value={option}
+                                                    label={option}
+                                                />
+                                            ))}
                                         </FormSelect>
                                     </GridItem>
                                 </Grid>
@@ -3092,9 +3106,11 @@ export class LocalPwPolicy extends React.Component {
                             create_passwordchecksyntax={this.state.create_passwordchecksyntax}
                             create_passworddictcheck={this.state.create_passworddictcheck}
                             create_passwordpalindrome={this.state.create_passwordpalindrome}
+                            create_passwordstoragescheme={this.state.create_passwordstoragescheme}
                             onUserAttrsCreateToggle={this.onUserAttrsCreateToggle}
                             onUserAttrsCreateClear={this.onUserAttrsCreateClear}
                             isUserAttrsCreateOpen={this.state.isUserAttrsCreateOpen}
+                            pwdStorageSchemes={this.props.pwdStorageSchemes}
                         />
                     </Tab>
                 </Tabs>
@@ -3145,8 +3161,10 @@ export class LocalPwPolicy extends React.Component {
 
 LocalPwPolicy.propTypes = {
     attrs: PropTypes.array,
+    pwdStorageSchemes: PropTypes.array,
 };
 
 LocalPwPolicy.defaultProps = {
     attrs: [],
+    pwdStorageSchemes: [],
 };
