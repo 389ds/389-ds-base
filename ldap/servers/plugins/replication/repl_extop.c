@@ -493,9 +493,9 @@ free_and_return:
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                 "decode_startrepl_extop - decoded csn: %s\n", *csnstr);
         ruv_dump_to_log(*supplier_ruv, "decode_startrepl_extop");
-        for (size_t i = 0; *extra_referrals && extra_referrals[i]; i++) {
+        for (size_t i = 0; *extra_referrals && (*extra_referrals)[i]; i++) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "decode_startrepl_extop - "
-                "decoded referral: %s\n", *extra_referrals[i]);
+                "decoded referral: %s\n", (*extra_referrals)[i]);
         }
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                 "decode_startrepl_extop - Finshed decoding payload.\n");
