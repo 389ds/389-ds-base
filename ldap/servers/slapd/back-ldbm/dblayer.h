@@ -124,6 +124,8 @@ typedef int dblayer_clear_vlv_cache_fn_t(backend *be, dbi_txn_t *txn, dbi_db_t *
 typedef int dblayer_dbi_db_remove_fn_t(backend *be, dbi_db_t *db);
 typedef IDList *dblayer_idl_new_fetch_fn_t(backend *be, dbi_db_t *db, dbi_val_t *inkey, dbi_txn_t *txn,
                                   struct attrinfo *a, int *flag_err, int allidslimit);
+typedef int dblayer_cursor_iterate_fn_t(dbi_cursor_t *cursor, dbi_iterate_cb_t *action_cb,
+                                        const dbi_val_t *startingkey, void *ctx);
 
 struct dblayer_private
 {
@@ -207,6 +209,7 @@ struct dblayer_private
     dblayer_clear_vlv_cache_fn_t *dblayer_clear_vlv_cache_fn;
     dblayer_dbi_db_remove_fn_t *dblayer_dbi_db_remove_fn;
     dblayer_idl_new_fetch_fn_t *dblayer_idl_new_fetch_fn;
+    dblayer_cursor_iterate_fn_t *dblayer_cursor_iterate_fn;
 };
 
 #define DBLAYER_PRIV_SET_DATA_DIR 0x1

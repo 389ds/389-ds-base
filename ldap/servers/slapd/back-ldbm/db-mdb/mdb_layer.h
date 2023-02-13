@@ -414,6 +414,10 @@ int dbmdb_show_stat(const char *dbhome, FILE *fout, FILE *ferr);
 int dbmdb_public_in_import(ldbm_instance *inst);
 const char *dbmdb_public_get_db_suffix(void);
 int dbmdb_public_delete_db(Slapi_Backend *be, dbi_db_t *db);
+int dbmdb_dblayer_cursor_iterate(dbi_cursor_t *cursor,
+                           int (*action_cb)(dbi_val_t *key, dbi_val_t *data, void *ctx),
+                           const dbi_val_t *startingkey, void *ctx);
+
 
 
 /* dbimpl helpers */

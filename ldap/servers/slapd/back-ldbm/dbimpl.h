@@ -116,6 +116,7 @@ typedef struct {
 } dbi_dbslist_t;
 
 struct attrinfo;
+typedef int dbi_iterate_cb_t(dbi_val_t *key, dbi_val_t *data, void *ctx);
 
 /*
  * dbimpl.c Function prototypes are stored here instead of in
@@ -163,6 +164,10 @@ int dblayer_private_close(Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db);
 dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome);
 int dblayer_db_remove(Slapi_Backend *be, dbi_db_t *db);
 int dblayer_show_statistics(const char *dbimpl_name, const char *dbhome, FILE *fout, FILE *ferr);
+int dblayer_is_lmdb(Slapi_Backend *be);
+int dblayer_cursor_iterate(dbi_cursor_t *cursor, 
+                           int (*action_cb)(dbi_val_t *key, dbi_val_t *data, void *ctx),
+                           const dbi_val_t *startingkey, void *ctx);
 
 
 #endif /* DBIMPL_H_ */
