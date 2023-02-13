@@ -566,7 +566,7 @@ class AttributeTypeModal extends React.Component {
 
                         <Grid title="An equality matching rule">
                             <GridItem className="ds-label" span={3}>
-                                Equality Matching Rules
+                                Equality Matching Rule
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -579,7 +579,7 @@ class AttributeTypeModal extends React.Component {
                                     isOpen={isEqualityMROpen}
                                     aria-labelledby="typeAhead-equality-mr"
                                     placeholderText="Type an Equality matching rule..."
-                                    noResultsFoundText="There are no matching entries"
+                                    noResultsFoundText="There are no matching rules"
                                 >
                                     {matchingrules.map((mr, index) => (
                                         <SelectOption
@@ -605,7 +605,7 @@ class AttributeTypeModal extends React.Component {
                                     isOpen={isOrderMROpen}
                                     aria-labelledby="typeAhead-order-mr"
                                     placeholderText="Type an Ordering matching rule.."
-                                    noResultsFoundText="There are no matching entries"
+                                    noResultsFoundText="There are no matching rules"
                                 >
                                     {matchingrules.map((mr, index) => (
                                         <SelectOption
@@ -630,7 +630,7 @@ class AttributeTypeModal extends React.Component {
                                     selections={atSubMr}
                                     isOpen={isSubstringMROpen}
                                     placeholderText="Type a Substring matching rule..."
-                                    noResultsFoundText="There are no matching entries"
+                                    noResultsFoundText="There are no matching rules"
                                 >
                                     {matchingrules.map((mr, index) => (
                                         <SelectOption
