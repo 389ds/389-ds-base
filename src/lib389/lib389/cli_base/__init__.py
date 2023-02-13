@@ -409,7 +409,7 @@ class FakeArgs(object):
 
 class StdErrFilter(logging.Filter):
     def filter(self, rec):
-        return rec.levelno in (logging.ERROR)
+        return rec.levelno in (logging.ERROR,)
 
 
 def setup_script_logger(name, verbose=False):
