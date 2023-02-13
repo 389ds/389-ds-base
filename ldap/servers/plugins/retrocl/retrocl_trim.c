@@ -423,7 +423,7 @@ retrocl_init_trimming(void)
     const char *cl_maxage;
     time_t ageval = 0; /* Don't trim, by default */
     const char *cl_trim_interval;
-    int trim_interval;
+    int trim_interval = DEFAULT_CHANGELOGDB_TRIM_INTERVAL;
 
     cl_maxage = retrocl_get_config_str(CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
     if (cl_maxage) {
