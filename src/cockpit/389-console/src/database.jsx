@@ -100,6 +100,7 @@ export class Database extends React.Component {
             BackupRows: [],
             backupRefreshing: false,
             suffixList: [],
+            pwdStorageSchemes: [],
             loaded: false,
         };
 
@@ -111,6 +112,7 @@ export class Database extends React.Component {
         this.loadLDIFs = this.loadLDIFs.bind(this);
         this.loadBackups = this.loadBackups.bind(this);
         this.loadSuffixList = this.loadSuffixList.bind(this);
+        this.loadPwdStorageSchemes = this.loadPwdStorageSchemes.bind(this);
 
         // Suffix
         this.handleShowSuffixModal = this.handleShowSuffixModal.bind(this);
@@ -144,6 +146,7 @@ export class Database extends React.Component {
                     this.loadLDIFs();
                     this.loadBackups();
                     this.loadSuffixList();
+                    this.loadPwdStorageSchemes();
                 }
                 this.loadSuffixTree(false);
             } else {
@@ -166,6 +169,22 @@ export class Database extends React.Component {
                     const suffixList = JSON.parse(content);
                     this.setState(() => (
                         { suffixList: suffixList.items }
+                    ));
+                });
+    }
+
+    loadPwdStorageSchemes () {
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "pwpolicy", "list-schemes"
+        ];
+        log_cmd("loadPwdStorageSchemes", "Get a list of all the password storage sehemes", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const schemes = JSON.parse(content);
+                    this.setState(() => (
+                        { pwdStorageSchemes: schemes.items }
                     ));
                 });
     }
@@ -1222,6 +1241,7 @@ export class Database extends React.Component {
                         serverId={this.props.serverId}
                         addNotification={this.props.addNotification}
                         attrs={this.state.attributes}
+                        pwdStorageSchemes={this.state.pwdStorageSchemes}
                         enableTree={this.enableTree}
                     />;
             } else if (this.state.node_name === LOCAL_PWP_CONFIG) {
@@ -1230,6 +1250,7 @@ export class Database extends React.Component {
                         serverId={this.props.serverId}
                         addNotification={this.props.addNotification}
                         attrs={this.state.attributes}
+                        pwdStorageSchemes={this.state.pwdStorageSchemes}
                         enableTree={this.enableTree}
                     />;
             } else if (this.state.node_name === BACKUP_CONFIG) {
