@@ -9,6 +9,10 @@
 import os
 import logging
 import socket  # For hostname detection for GSSAPI tests
+import time
+import subprocess
+from signal import SIGALRM, alarm, signal
+from datetime import timedelta
 import pytest
 from lib389 import DirSrv
 from lib389.utils import generate_ds_params, is_fips
@@ -26,6 +30,33 @@ if DEBUGGING:
 else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
+
+
+# Github kills workflow after 6 hours so lets keep 1 hour margin
+# For workflow and test initialization, and artifacts collection
+DEFAULT_TEST_TIMEOUT = 5 * 3600
+
+_test_timeout = DEFAULT_TEST_TIMEOUT
+
+
+def set_timeout(timeout):
+    """Set the test timeout.
+       There is an example about how to use it in
+       https://github.com/389ds/389-ds-base/tree/main/dirsrvtests/tests/suites/lib389/timeout_test.py
+
+    :param timeout: timeout in seconds
+                    0 for no timeout
+                    negative value: reset default timeout
+    :type timeout: int
+
+    :return - None
+    """
+    global _test_timeout
+    if timeout < 0:
+        _test_timeout = DEFAULT_TEST_TIMEOUT
+    else:
+        _test_timeout = timeout
+    log.info(f"Set Topologies timeout to {str(timedelta(seconds=_test_timeout))}")
 
 
 def _remove_ssca_db(topology):
@@ -126,7 +157,7 @@ def _create_instances(topo_dict, suffix):
         return TopologyMain(standalones=ins, suppliers=ms, consumers=cs, hubs=hs)
 
 
-def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
+def create_topology(topo_dict, suffix=DEFAULT_SUFFIX, request=None, cleanup_cb=None):
     """Create a requested topology. Cascading replication scenario isn't supported
 
     :param topo_dict: a dictionary {ReplicaRole.STANDALONE: num, ReplicaRole.SUPPLIER: num,
@@ -134,6 +165,10 @@ def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
     :type topo_dict: dict
     :param suffix: a suffix for the replication
     :type suffix: str
+    :param request: The pytest request
+    :type request: FixtureRequest
+    :param cleanup_cb: a callback for additional cleanup task
+    :type cleanup_cb: Callable[[TopologyMain], None]
 
     :return - TopologyMain object
     """
@@ -141,19 +176,57 @@ def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
     if not topo_dict:
         ValueError("You need to specify the dict. For instance: {ReplicaRole.STANDALONE: 1}")
 
-    if ReplicaRole.HUB in topo_dict.keys():
-        NotImplementedError("Cascading replication scenario isn't supported."
-                            "Please, use existing topology or create your own.")
+    if cleanup_cb and not request:
+        ValueError("You need to specify the pytest fixture request when specifying cleanup callback.")
 
     topo = _create_instances(topo_dict, suffix)
 
+    # register topo finalizer
+    log.info(f"Topology request is {topo}")
+    if request:
+        log.info(f"Topology has a request")
+        def fin():
+            alarm(0)
+            [inst.stop() for inst in topo]
+            if DEBUGGING is None:
+                if cleanup_cb:
+                    cleanup_cb(topo)
+                if not _remove_ssca_db(topo):
+                    log.warning("Failed to remove the CA certificate database during the tescase cleanup phase.")
+                for inst in topo:
+                    if inst.exists():
+                        inst.delete()
+
+        request.addfinalizer(fin)
+
+        # Timeout management
+        def timeout(signum, frame):
+            # Lets try to stop gracefully all instances and off-line "tasks".
+            # In case of deadlock or loop a thread will not be able to finish
+            # and the server will not die.
+            log.error("Timeout. kill ns-slapd processes with SIGTERM.")
+            subprocess.run(["/usr/bin/pkill", "--signal", "TERM", "ns-slapd",], stderr=subprocess.STDOUT)
+            time.sleep(120)
+            # Everything should be stopped except stuck instances
+            # lets kill with a signal that generate core and could not
+            # be confused with SIGSEGV or SIGBUS
+            log.error("Timeout. kill remaining ns-slapd processes with SIGQUIT.")
+            subprocess.run(["/usr/bin/pkill", "--signal", "QUIT", "ns-slapd",], stderr=subprocess.STDOUT)
+            # let enough time to write the cores
+            time.sleep(120)
+            raise TimeoutError(f"Test timed out after {str(timedelta(seconds=_test_timeout))}")
+
+        signal(SIGALRM, timeout)
+        log.info(f"Armed timeout of {str(timedelta(seconds=_test_timeout))}")
+        alarm(_test_timeout)
+
     # Start with a single supplier, and create it "first".
     first_supplier = None
+    repl = ReplicationManager(DEFAULT_SUFFIX)
     try:
         first_supplier = list(topo.ms.values())[0]
         log.info("Creating replication topology.")
         # Now get the first supplier ready.
-        repl = ReplicationManager(DEFAULT_SUFFIX)
         repl.create_first_supplier(first_supplier)
     except IndexError:
         pass
@@ -176,15 +249,46 @@ def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
             log.info("Ensuring supplier %s to %s ..." % (mo.serverid, mi.serverid))
             repl.ensure_agreement(mo, mi)
 
-    # Add supplier -> consumer agreements.
-    for c in topo.cs.values():
-        log.info("Joining consumer %s from %s ..." % (c.serverid, first_supplier.serverid))
-        repl.join_consumer(first_supplier, c)
+    if ReplicaRole.HUB in topo_dict.keys():
+        first_hub = list(topo.hs.values())[0]
+        # Initialize the hubs
+        for h in topo.hs.values():
+            log.info("Joining hub %s from %s ..." % (h.serverid, first_supplier.serverid))
+            repl.join_hub(first_supplier, h)
 
-    for m in topo.ms.values():
+        # Initialize the consumers
+        # Add hub -> consumer agreements.
         for c in topo.cs.values():
-            log.info("Ensuring consumer %s from %s ..." % (c.serverid, m.serverid))
-            repl.ensure_agreement(m, c)
+            log.info("Joining consumer %s from %s ..." % (c.serverid, first_hub.serverid))
+            repl.join_consumer(first_hub, c)
+
+        # Mesh the supplier<->hub agreements.
+        for mo in topo.ms.values():
+            for h in topo.hs.values():
+                if mo is not first_supplier:
+                    log.info("Ensuring supplier %s to hub %s ..." % (mo.serverid, h.serverid))
+                    repl.ensure_agreement(mo, h)
+                log.info("Ensuring hub %s to supplier %s ..." % (h.serverid, mo.serverid))
+                repl.ensure_agreement(h, mo)
+
+        # Mesh the hub->consumer agreements.
+        for h in topo.hs.values():
+            if h is first_hub:
+                continue
+            for c in topo.cs.values():
+                log.info("Ensuring consumer %s from hub %s ..." % (c.serverid, h.serverid))
+                repl.ensure_agreement(h, c)
+    else:
+        # Master(s) -> Consumer(s) topologies
+        # Add supplier -> consumer agreements.
+        for c in topo.cs.values():
+            log.info("Joining consumer %s from %s ..." % (c.serverid, first_supplier.serverid))
+            repl.join_consumer(first_supplier, c)
+
+        for m in topo.ms.values():
+            for c in topo.cs.values():
+                log.info("Ensuring consumer %s from %s ..." % (c.serverid, m.serverid))
+                repl.ensure_agreement(m, c)
 
     # Clear out the tmp dir
     for instance in topo:
@@ -253,16 +357,7 @@ class TopologyMain(object):
 def topology_st(request):
     """Create DS standalone instance"""
 
-    topology = create_topology({ReplicaRole.STANDALONE: 1})
-
-    def fin():
-        topology.standalone.stop()
-        if DEBUGGING is None:
-            assert _remove_ssca_db(topology)
-            if topology.standalone.exists():
-                topology.standalone.delete()
-
-    request.addfinalizer(fin)
+    topology = create_topology({ReplicaRole.STANDALONE: 1}, request=request)
 
     topology.logcap = LogCapture()
     return topology
@@ -284,7 +379,8 @@ def topology_st_gssapi(request):
 
     REALM = hostname[1].upper()
 
-    topology = create_topology({ReplicaRole.STANDALONE: 1})
+    topology = create_topology({ReplicaRole.STANDALONE: 1}, request=request,
+                               cleanup_cb = lambda x: krb.destroy_realm())
 
     # Fix the hostname.
     topology.standalone.host = socket.gethostname()
@@ -324,16 +420,6 @@ def topology_st_gssapi(request):
 
     topology.standalone.clearTmpDir(__file__)
 
-    def fin():
-        topology.standalone.stop()
-        if DEBUGGING is None:
-            assert _remove_ssca_db(topology)
-            if topology.standalone.exists():
-                topology.standalone.delete()
-            krb.destroy_realm()
-
-    request.addfinalizer(fin)
-
     topology.logcap = LogCapture()
     return topology
 
@@ -342,20 +428,11 @@ def topology_st_gssapi(request):
 def topology_no_sample(request):
     """Create instance without sample entries to reproduce not initialised database"""
 
-    topology = create_topology({ReplicaRole.STANDALONE: 1}, None)
+    topology = create_topology({ReplicaRole.STANDALONE: 1}, None, request=request)
     topology.standalone.backends.create(properties={
         'cn': 'userRoot',
         'nsslapd-suffix': DEFAULT_SUFFIX,
     })
-
-    def fin():
-        topology.standalone.stop()
-        if DEBUGGING is None:
-            assert _remove_ssca_db(topology)
-            if topology.standalone.exists():
-                topology.standalone.delete()
-
-    request.addfinalizer(fin)
 
     topology.logcap = LogCapture()
     return topology
@@ -365,17 +442,7 @@ def topology_no_sample(request):
 def topology_i2(request):
     """Create two instance DS deployment"""
 
-    topology = create_topology({ReplicaRole.STANDALONE: 2})
-
-    def fin():
-        [inst.stop() for inst in topology]
-        if DEBUGGING is None:
-            assert _remove_ssca_db(topology)
-            for inst in topology:
-                if inst.exists():
-                    inst.delete()
-
-    request.addfinalizer(fin)
+    topology = create_topology({ReplicaRole.STANDALONE: 2}, request=request)
 
     topology.logcap = LogCapture()
     return topology
@@ -385,17 +452,7 @@ def topology_i2(request):
 def topology_i3(request):
     """Create three instance DS deployment"""
 
-    topology = create_topology({ReplicaRole.STANDALONE: 3})
-
-    def fin():
-        [inst.stop() for inst in topology]
-        if DEBUGGING is None:
-            assert _remove_ssca_db(topology)
-            for inst in topology:
-                if inst.exists():
-                    inst.delete()
-
-    request.addfinalizer(fin)
+    topology = create_topology({ReplicaRole.STANDALONE: 3}, request=request)
 
     topology.logcap = LogCapture()
     return topology
@@ -404,18 +461,7 @@ def topology_i3(request):
 def topology_m1(request):
     """Create Replication Deployment with one supplier and one consumer"""
 
-    topology = create_topology({ReplicaRole.SUPPLIER: 1})
-
-    def fin():
-        [inst.stop() for inst in topology]
-        if DEBUGGING is None:
-            assert _remove_ssca_db(topology)
-            for inst in topology:
-                if inst.exists():
-                    inst.delete()
-
-
-    request.addfinalizer(fin)
+    topology = create_topology({ReplicaRole.SUPPLIER: 1}, request=request)
 
     topology.logcap = LogCapture()
     return topology
@@ -425,17 +471,7 @@ def topology_m1c1(request):
     """Create Replication Deployment with one supplier and one consumer"""
 
     topology = create_topology({ReplicaRole.SUPPLIER: 1,
-                                ReplicaRole.CONSUMER: 1})
-
-    def fin():
-        [inst.stop() for inst in topology]
-        if DEBUGGING is None:
-            assert _remove_ssca_db(topology)
-            for inst in topology:
-                if inst.exists():
-                    inst.delete()
-
-    request.addfinalizer(fin)
+                                ReplicaRole.CONSUMER: 1}, request=request)
 
     topology.logcap = LogCapture()
     return topology
@@ -445,17 +481,7 @@ def topology_m1c1(request):
 def topology_m2(request):
     """Create Replication Deployment with two suppliers"""
 
-    topology = create_topology({ReplicaRole.SUPPLIER: 2})
-
-    def fin():
-        [inst.stop() for inst in topology]
-        if DEBUGGING is None:
-            assert _remove_ssca_db(topology)
-            for inst in topology:
-                if inst.exists():
-                    inst.delete()
-
-    request.addfinalizer(fin)
+    topology = create_topology({ReplicaRole.SUPPLIER: 2}, request=request)
 
     topology.logcap = LogCapture()
     return topology
@@ -465,17 +491,7 @@ def topology_m2(request):
 def topology_m3(request):
     """Create Replication Deployment with three suppliers"""
 
-    topology = create_topology({ReplicaRole.SUPPLIER: 3})
-
-    def fin():
-        [inst.stop() for inst in topology]
-        if DEBUGGING is None:
-            assert _remove_ssca_db(topology)
-            for inst in topology:
-                if inst.exists():
-                    inst.delete()
-
-    request.addfinalizer(fin)
+    topology = create_topology({ReplicaRole.SUPPLIER: 3}, request=request)
 
     topology.logcap = LogCapture()
     return topology
@@ -485,17 +501,7 @@ def topology_m3(request):
 def topology_m4(request):
     """Create Replication Deployment with four suppliers"""
 
-    topology = create_topology({ReplicaRole.SUPPLIER: 4})
-
-    def fin():
-        [inst.stop() for inst in topology]
-        if DEBUGGING is None:
-            assert _remove_ssca_db(topology)
-            for inst in topology:
-                if inst.exists():
-                    inst.delete()
-
-    request.addfinalizer(fin)
+    topology = create_topology({ReplicaRole.SUPPLIER: 4}, request=request)
 
     topology.logcap = LogCapture()
     return topology
@@ -506,17 +512,7 @@ def topology_m2c2(request):
     """Create Replication Deployment with two suppliers and two consumers"""
 
     topology = create_topology({ReplicaRole.SUPPLIER: 2,
-                                ReplicaRole.CONSUMER: 2})
-
-    def fin():
-        [inst.stop() for inst in topology]
-        if DEBUGGING is None:
-            assert _remove_ssca_db(topology)
-            for inst in topology:
-                if inst.exists():
-                    inst.delete()
-
-    request.addfinalizer(fin)
+                                ReplicaRole.CONSUMER: 2}, request=request)
 
     topology.logcap = LogCapture()
     return topology
@@ -527,35 +523,7 @@ def topology_m1h1c1(request):
     """Create Replication Deployment with one supplier, one consumer and one hub"""
 
     topo_roles = {ReplicaRole.SUPPLIER: 1, ReplicaRole.HUB: 1, ReplicaRole.CONSUMER: 1}
-    topology = _create_instances(topo_roles, DEFAULT_SUFFIX)
-    supplier = topology.ms["supplier1"]
-    hub = topology.hs["hub1"]
-    consumer = topology.cs["consumer1"]
-
-    # Start with the supplier, and create it "first".
-    log.info("Creating replication topology.")
-    # Now get the first supplier ready.
-    repl = ReplicationManager(DEFAULT_SUFFIX)
-    repl.create_first_supplier(supplier)
-    # Finish the topology creation
-    repl.join_hub(supplier, hub)
-    repl.join_consumer(hub, consumer)
-
-    repl.test_replication(supplier, consumer)
-
-    # Clear out the tmp dir
-    for instance in topology:
-        instance.clearTmpDir(__file__)
-
-    def fin():
-        [inst.stop() for inst in topology]
-        if DEBUGGING is None:
-            assert _remove_ssca_db(topology)
-            for inst in topology:
-                if inst.exists():
-                    inst.delete()
-
-    request.addfinalizer(fin)
+    topology = create_topology(topo_roles, request=request)
 
     topology.logcap = LogCapture()
     return topology
