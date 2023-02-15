@@ -136,6 +136,7 @@ BuildRequires:    python%{python3_pkgversion}-argcomplete
 BuildRequires:    python%{python3_pkgversion}-argparse-manpage
 BuildRequires:    python%{python3_pkgversion}-policycoreutils
 BuildRequires:    python%{python3_pkgversion}-libselinux
+BuildRequires:    python%{python3_pkgversion}-cryptography
 
 # For cockpit
 %if %{use_cockpit}
@@ -291,6 +292,7 @@ Requires: python%{python3_pkgversion}-dateutil
 Requires: python%{python3_pkgversion}-argcomplete
 Requires: python%{python3_pkgversion}-libselinux
 Requires: python%{python3_pkgversion}-setuptools
+Requires: python%{python3_pkgversion}-cryptography
 Recommends: bash-completion
 %{?python_provide:%python_provide python%{python3_pkgversion}-lib389}
 
