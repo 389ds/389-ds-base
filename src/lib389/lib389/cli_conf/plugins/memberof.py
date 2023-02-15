@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -80,10 +80,13 @@ def do_fixup(inst, basedn, log, args):
     fixup_task = plugin.fixup(args.DN, args.filter)
     if args.wait:
         log.info(f'Waiting for fixup task "{fixup_task.dn}" to complete.  You can safely exit by pressing Control C ...')
-        fixup_task.wait(timeout=None)
+        fixup_task.wait(timeout=args.timeout)
         exitcode = fixup_task.get_exit_code()
         if exitcode != 0:
-            log.error(f'MemberOf fixup task "{fixup_task.dn}" for {args.DN} has failed (error {exitcode}). Please, check logs')
+            if existcode is None:
+                raise ValueError(f'MemberOf fixup task "{fixup_task.dn}" for {args.DN} has not completed. Please, check logs')
+            else:
+                raise ValueError(f'MemberOf fixup task "{fixup_task.dn}" for {args.DN} has failed (error {exitcode}). Please, check logs')
         else:
             log.info('Fixup task successfully completed')
     else:
@@ -93,6 +96,7 @@ def do_fixup(inst, basedn, log, args):
 def do_fixup_status(inst, basedn, log, args):
     get_task_status(inst, log, MemberOfFixupTasks, dn=args.dn, show_log=args.show_log,
                     watch=args.watch, use_json=args.json)
+
 
 def _add_parser_args(parser):
     parser.add_argument('--attr',
@@ -154,6 +158,8 @@ def create_parser(subparsers):
                             'their memberOf attribute regenerated.')
     fixup.add_argument('--wait', action='store_true',
                        help="Wait for the task to finish, this could take a long time")
+    fixup.add_argument('--timeout', type=int, default=0,
+                        help="Sets the task timeout. ,Default is 0 (no timeout)")
 
     fixup_status = subcommands.add_parser('fixup-status', help='Check the status of a fix-up task')
     fixup_status.set_defaults(func=do_fixup_status)
