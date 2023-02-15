@@ -45,7 +45,8 @@ import errno
 from socket import getfqdn
 from ldapurl import LDAPUrl
 from contextlib import closing
-
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 import lib389
 from pathlib import Path
 from lib389.paths import ( Paths, DEFAULTS_PATH )
@@ -1834,3 +1835,35 @@ def get_task_status(inst, log, taskObj, dn=None, show_log=False, watch=False, us
         elif not use_json:
             log.info("Refreshing status ...")
         time.sleep(2)
+
+
+def is_cert_der(file_name):
+    try:
+        with open(file_name, 'tr') as check_file:
+            check_file.read()
+            # PEM cert
+            return False
+    except UnicodeDecodeError:
+        # DER cert
+        return True
+
+
+def cert_is_ca(cert_file_name):
+    with open(cert_file_name, "rb") as f:
+        if is_cert_der(cert_file_name):
+            cert = x509.load_der_x509_certificate(f.read(), default_backend())
+        else:
+            cert = x509.load_pem_x509_certificate(f.read(), default_backend())
+
+    key_usage = cert.extensions.get_extension_for_oid(x509.oid.ExtensionOID.KEY_USAGE)
+    if not key_usage.value.key_cert_sign:
+        return False
+
+    basic_constraints = cert.extensions.get_extension_for_oid(
+        x509.oid.ExtensionOID.BASIC_CONSTRAINTS
+    )
+    if not basic_constraints.value.ca:
+        return False
+
+    # This is a CA cert
+    return True
