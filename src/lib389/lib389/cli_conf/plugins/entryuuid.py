@@ -1,6 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2021 William Brown <william@blackhats.net.au>
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -12,6 +12,7 @@ from lib389.plugins import EntryUUIDPlugin, EntryUUIDFixupTasks
 from lib389.cli_conf import add_generic_plugin_parsers
 from lib389.utils import get_task_status
 
+
 def do_fixup(inst, basedn, log, args):
     plugin = EntryUUIDPlugin(inst)
     log.info('Attempting to add task entry...')
@@ -21,10 +22,13 @@ def do_fixup(inst, basedn, log, args):
     fixup_task = plugin.fixup(args.DN, args.filter)
     if args.wait:
         log.info(f'Waiting for fixup task "{fixup_task.dn}" to complete.  You can safely exit by pressing Control C ...')
-        fixup_task.wait(timeout=None)
+        fixup_task.wait(timeout=args.timeout)
         exitcode = fixup_task.get_exit_code()
         if exitcode != 0:
-            log.error(f'EntryUUID fixup task "{fixup_task.dn}" for {args.DN} has failed (error {exitcode}). Please, check logs')
+            if exitcode is None:
+                raise ValueError(f'EntryUUID fixup task "{fixup_task.dn}" for {args.DN} has not completed. Please, check logs')
+            else:
+                raise ValueError(f'EntryUUID fixup task "{fixup_task.dn}" for {args.DN} has failed (error {exitcode}). Please, check logs')
         else:
             log.info('Fixup task successfully completed')
     else:
@@ -34,6 +38,7 @@ def do_fixup(inst, basedn, log, args):
 def do_fixup_status(inst, basedn, log, args):
     get_task_status(inst, log, EntryUUIDFixupTasks, dn=args.dn, show_log=args.show_log,
                     watch=args.watch, use_json=args.json)
+
 
 def create_parser(subparsers):
     referint = subparsers.add_parser('entryuuid', help='Manage and configure EntryUUID plugin')
@@ -49,6 +54,8 @@ def create_parser(subparsers):
                             'will have their EntryUUID attribute regenerated if not present.')
     fixup.add_argument('--wait', action='store_true',
                        help="Wait for the task to finish, this could take a long time")
+    fixup.add_argument('--timeout', type=int, default=0,
+                       help="Sets the task timeout. Default is 0 (no timeout)")
 
     fixup_status = subcommands.add_parser('fixup-status', help='Check the status of a fix-up task')
     fixup_status.set_defaults(func=do_fixup_status)

@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -189,7 +190,7 @@ def reload_schema(inst, basedn, log, args):
     print('Attempting to add task entry... This will fail if Schema Reload plug-in is not enabled.')
     task = schema.reload(args.schemadir)
     if args.wait:
-        task.wait()
+        task.wait(timeout=args.timeout)
         rc = task.get_exit_code()
         if rc == 0:
             print("Schema reload task ({}) successfully finished.".format(task.dn))
@@ -204,7 +205,7 @@ def validate_syntax(inst, basedn, log, args):
     schema = Schema(inst)
     log.info('Attempting to add task entry...')
     validate_task = schema.validate_syntax(args.DN, args.filter)
-    validate_task.wait()
+    validate_task.wait(timeout=args.timeout)
     exitcode = validate_task.get_exit_code()
     if exitcode != 0:
         log.error(f'Validate syntax task for {args.DN} has failed. Please, check logs')
@@ -389,19 +390,24 @@ def create_parser(subparsers):
     reload_parser.set_defaults(func=reload_schema)
     reload_parser.add_argument('-d', '--schemadir', help="directory where schema files are located")
     reload_parser.add_argument('--wait', action='store_true', default=False, help="Wait for the reload task to complete")
+    reload_parser.add_argument('--timeout', default=120, type=int,
+                               help="Set a timeout to wait for the reload task.  Default is 120 seconds")
 
     validate_parser = schema_subcommands.add_parser('validate-syntax',
-                                                    help='Run a task to check every modification to attributes to make sure '
-                                                         'that the new value has the required syntax for that attribute type')
+                                                    help='Run a task to check that all attributes in an entry have the correct syntax')
     validate_parser.set_defaults(func=validate_syntax)
     validate_parser.add_argument('DN', help="Base DN that contains entries to validate")
     validate_parser.add_argument('-f', '--filter', help='Filter for entries to validate.\n'
                                                         'If omitted, all entries with filter "(objectclass=*)" are validated')
+    validate_parser.add_argument('--timeout', default=120, type=int,
+                                 help="Set a timeout to wait for the validation task.  Default is 120 seconds")
 
     import_oldap_schema_parser = schema_subcommands.add_parser('import-openldap-file',
-                                                    help='Import an openldap formatted dynamic schema ldifs. These will contain values like olcAttributeTypes and olcObjectClasses.')
+                                                               help='Import an openldap formatted dynamic schema ldifs. '
+                                                                    'These will contain values like olcAttributeTypes and olcObjectClasses.')
     import_oldap_schema_parser.set_defaults(func=import_openldap_schema_file)
     import_oldap_schema_parser.add_argument('schema_file', help="Path to the openldap dynamic schema ldif to import")
     import_oldap_schema_parser.add_argument('--confirm',
                                             default=False, action='store_true',
-                                            help="Confirm that you want to apply these schema migration actions to the 389-ds instance. By default no actions are taken.")
+                                            help="Confirm that you want to apply these schema migration actions to the "
+                                                 "389-ds instance. By default no actions are taken.")

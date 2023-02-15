@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -88,15 +88,14 @@ class Task(DSLdapObject):
                 return None
         return None
 
-    def wait(self, timeout=120):
+    def wait(self, timeout=120, sleep_interval=2):
         """Wait until task is complete."""
 
         time_passed = 0
-        sleep_interval = 2
-        if timeout is None:
+        if timeout is None or timeout == 0:
             self._log.debug("No timeout is set, this may take a long time ...")
 
-        while timeout is None or time_passed < timeout:
+        while timeout is None or timeout == 0 or time_passed < timeout:
             if self.is_complete():
                 break
             time_passed = time_passed + sleep_interval
@@ -169,7 +168,7 @@ class FixupLinkedAttributesTask(Task):
 
 
 class MemberUidFixupTask(Task):
-    """A single instance of memberOf task entry
+    """A single instance of posix group fix task entry
 
     :param instance: An instance
     :type instance: lib389.DirSrv

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -257,7 +257,7 @@ def backend_import(inst, basedn, log, args):
     task = mc.import_ldif(ldifs=args.ldifs, chunk_size=args.chunks_size, encrypted=args.encrypted,
                           gen_uniq_id=args.gen_uniq_id, only_core=args.only_core, include_suffixes=args.include_suffixes,
                           exclude_suffixes=args.exclude_suffixes)
-    task.wait(timeout=None)
+    task.wait(timeout=args.timeout)
     result = task.get_exit_code()
     warning = task.get_task_warn()
 
@@ -267,7 +267,10 @@ def backend_import(inst, basedn, log, args):
         else:
             log.info("The import task has finished successfully, with warning code {}, check the logs for more detail".format(warning))
     else:
-        raise ValueError("Import task failed\n-------------------------\n{}".format(ensure_str(task.get_task_log())))
+        if result is None:
+            raise ValueError(f"Import task has not completed\n-------------------------\n{ensure_str(task.get_task_log())}")
+        else:
+            raise ValueError(f"Import task failed\n-------------------------\n{ensure_str(task.get_task_log())}")
 
 
 def backend_export(inst, basedn, log, args):
@@ -289,13 +292,16 @@ def backend_export(inst, basedn, log, args):
                           encrypted=args.encrypted, min_base64=args.min_base64, no_dump_uniq_id=args.no_dump_uniq_id,
                           replication=args.replication, not_folded=args.not_folded, no_seq_num=args.no_seq_num,
                           include_suffixes=args.include_suffixes, exclude_suffixes=args.exclude_suffixes)
-    task.wait(timeout=None)
+    task.wait(timeout=args.timeout)
     result = task.get_exit_code()
 
     if task.is_complete() and result == 0:
         log.info("The export task has finished successfully")
     else:
-        raise ValueError("Export task failed\n-------------------------\n{}".format(ensure_str(task.get_task_log())))
+        if result is None:
+            raise ValueError(f"Export task did not complete\n-------------------------\n{ensure_str(task.get_task_log())}")
+        else:
+            raise ValueError(f"Export task failed\n-------------------------\n{ensure_str(task.get_task_log())}")
 
 
 def is_db_link(inst, rdn):
@@ -816,9 +822,14 @@ def backend_compact(inst, basedn, log, args):
     if args.only_changelog:
         task_properties = {'justChangelog': 'yes'}
     task.create(properties=task_properties)
-    task.wait()
-    if task.get_exit_code() != 0:
-        raise ValueError("Failed to create Database Compaction Task")
+    task.wait(timeout=args.timeout)
+    result = task.get_exit_code()
+    if result != 0:
+        if result is None:
+            raise ValueError("Database Compaction Task has not completed")
+        else:
+            raise ValueError(f"Database Compaction Task failed, error: {result}")
+
     log.info("Successfully started Database Compaction Task")
 
 
@@ -1105,6 +1116,8 @@ def create_parser(subparsers):
                                help="Specifies the suffixes or the subtrees to be included")
     import_parser.add_argument('-x', '--exclude-suffixes', nargs='+',
                                help="Specifies the suffixes to be excluded")
+    import_parser.add_argument('--timeout', type=int, default=0,
+                               help="Set a timeout to wait for the export task.  Default is 0 (no timeout)")
 
     #######################################################
     # Export LDIF
@@ -1134,6 +1147,8 @@ def create_parser(subparsers):
                                help="Specifies the suffixes or the subtrees to be included")
     export_parser.add_argument('-x', '--exclude-suffixes', nargs='+',
                                help="Specifies the suffixes to be excluded")
+    export_parser.add_argument('--timeout', default=0, type=int,
+                               help="Set a timeout to wait for the export task.  Default is 0 (no timeout)")
 
     #######################################################
     # Create a new backend database
@@ -1167,3 +1182,5 @@ def create_parser(subparsers):
     compact_parser = subcommands.add_parser('compact-db', help='Compact the database and the replication changelog')
     compact_parser.set_defaults(func=backend_compact)
     compact_parser.add_argument('--only-changelog', action='store_true', help='Compacts only the replication change log')
+    compact_parser.add_argument('--timeout', default=0, type=int,
+                                help="Set a timeout to wait for the compaction task.  Default is 0 (no timeout)")
