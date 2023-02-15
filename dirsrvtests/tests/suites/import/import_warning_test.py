@@ -106,6 +106,7 @@ def test_import_warning(topology_st):
     args.only_core = False
     args.include_suffixes = 'dc=example,dc=com'
     args.exclude_suffixes = None
+    args.timeout = 0
 
     log.info('Import the LDIF file')
     backend_import(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
