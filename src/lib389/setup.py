@@ -32,7 +32,7 @@ with open(path.join(here, 'README.md'), 'r') as f:
     long_description = f.read()
 
 #
-# For some historical reason when using prefix install 
+# For some historical reason when using prefix install
 #  files that should be in /usr/sbin/, /usr/share/ are
 #  in $PREFIX/sbin, $PREFIX/share
 # So lets mimick this behavior
@@ -100,6 +100,7 @@ setup(
         'python-ldap',
         'setuptools',
         'distro',
+        'cryptography'
         ],
 
     cmdclass={
