@@ -184,7 +184,7 @@ syntax_validate_task_thread(void *arg)
     slapi_task_begin(task, 1);
     slapi_task_log_notice(task, "Syntax validation task starting (arg: %s) ...\n",
                           td->filter_str);
-    slapi_log_err(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_INFO, SYNTAX_PLUGIN_SUBSYSTEM,
                   "syntax_validate_task_thread - Starting (base: \"%s\", filter: \"%s\") ...\n",
                   td->dn, td->filter_str);
 
@@ -206,7 +206,7 @@ syntax_validate_task_thread(void *arg)
     slapi_task_log_status(task, "Syntax validate task complete.  Found %" PRIu64
                                 " invalid entries.\n",
                           slapi_counter_get_value(td->invalid_entries));
-    slapi_log_err(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM, "syntax_validate_task_thread - Complete."
+    slapi_log_err(SLAPI_LOG_INFO, SYNTAX_PLUGIN_SUBSYSTEM, "syntax_validate_task_thread - Complete."
                                                           "  Found %" PRIu64 " invalid entries.\n",
                   slapi_counter_get_value(td->invalid_entries));
     slapi_task_inc_progress(task);

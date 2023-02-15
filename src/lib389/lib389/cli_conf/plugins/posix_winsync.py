@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -31,10 +31,13 @@ def do_fixup(inst, basedn, log, args):
         log.error(f"'{plugin.rdn}' is disabled. Fix up task can't be executed")
         return
     fixup_task = plugin.fixup(args.DN, args.filter)
-    fixup_task.wait()
+    fixup_task.wait(timeout=args.timeout)
     exitcode = fixup_task.get_exit_code()
     if exitcode != 0:
-        log.error(f'MemberUID task for {args.DN} has failed. Please, check logs')
+        if exitcode is None:
+            raise ValueError(f'MemberUID task for {args.DN} has not completed. Please, check logs')
+        else:
+            raise ValueError(f'MemberUID task for {args.DN} has failed. Please, check logs')
     else:
         log.info('Successfully added task entry')
 
@@ -73,3 +76,5 @@ def create_parser(subparsers):
                        help='Filter for entries to fix up.\n If omitted, all entries with objectclass '
                             'inetuser/inetadmin/nsmemberof under the specified base will have '
                             'their memberOf attribute regenerated.')
+    fixup.add_argument('--timeout', default=120, type=int,
+                       help="Set a timeout to wait for the fixup task.  Default is 120 seconds")

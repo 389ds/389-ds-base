@@ -83,6 +83,7 @@ def test_posix_winsync_fixup(topology_st, set_log_file_and_ldif):
     args = FakeArgs()
     args.DN = DEFAULT_SUFFIX
     args.filter = None
+    args.timeout = 0
 
     log.info('Run Fixup task')
     do_fixup(standalone, DEFAULT_SUFFIX, log, args)
