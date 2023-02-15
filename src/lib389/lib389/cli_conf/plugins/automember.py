@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -158,12 +158,15 @@ def fixup(inst, basedn, log, args):
     fixup_task = plugin.fixup(args.DN, args.filter)
     if args.wait:
         log.info(f'Waiting for fixup task "{fixup_task.dn}" to complete.  You can safely exit by pressing Control C ...')
-        fixup_task.wait(timeout=None)
+        fixup_task.wait(timeout=args.timeout)
         exitcode = fixup_task.get_exit_code()
         if exitcode != 0:
-            log.error(f'Rebuild membership task "{fixup_task.dn}" for {args.DN} has failed (error {exitcode}). Please, check logs')
+            if excit_Code is None:
+                raise ValueError(f'Rebuild membership task "{fixup_task.dn}" for {args.DN} has not completed. Please, check logs')
+            else:
+                raise ValueError(f'Rebuild membership task "{fixup_task.dn}" for {args.DN} has failed (error {exitcode}). Please, check logs')
         else:
-            log.info('Fixup task successfully completed')
+            raise ValueError('Fixup task successfully completed')
     else:
         log.info(f'Successfully added task entry "{fixup_task.dn}". This task is running in the background. To track its progress you can use the "fixup-status" command.')
 
@@ -179,10 +182,13 @@ def abort(inst, basedn, log, args):
     if not plugin.status():
         log.error("'%s' is disabled. Abort rebuild membership task can't be executed" % plugin.rdn)
     fixup_task = plugin.abort_fixup(args.DN, args.filter)
-    fixup_task.wait()
+    fixup_task.wait(timeout=args.timeout)
     exitcode = fixup_task.get_exit_code()
     if exitcode != 0:
-        log.error('Abort rebuild membership task for %s has failed. Please, check logs')
+        if exitcode is None:
+            raise ValueError('Abort rebuild membership task has not completed. Please, check logs')
+        else:
+            raise ValueError('Abort rebuild membership task has failed. Please, check logs')
     else:
         log.info('Successfully added abort task entry')
 
@@ -257,14 +263,16 @@ def create_parser(subparsers):
     show_regex = subcommands_regex.add_parser('show', help='Displays Automembership regex.')
     show_regex.set_defaults(func=regex_show)
 
-    fixup = subcommands.add_parser('fixup', help='Run a rebuild membership task.')
-    fixup.set_defaults(func=fixup)
-    fixup.add_argument('DN', help="Base DN that contains entries to fix up")
-    fixup.add_argument('-f', '--filter', required=True, help='Sets the LDAP filter for entries to fix up')
-    fixup.add_argument('-s', '--scope', required=True, choices=['sub', 'base', 'one'], type=str.lower,
-                       help='Sets the LDAP search scope for entries to fix up')
-    fixup.add_argument('--wait', action='store_true',
-                       help="Wait for the task to finish, this could take a long time")
+    fixup_task = subcommands.add_parser('fixup', help='Run a rebuild membership task.')
+    fixup_task.set_defaults(func=fixup)
+    fixup_task.add_argument('DN', help="Base DN that contains entries to fix up")
+    fixup_task.add_argument('-f', '--filter', required=True, help='Sets the LDAP filter for entries to fix up')
+    fixup_task.add_argument('-s', '--scope', required=True, choices=['sub', 'base', 'one'], type=str.lower,
+                            help='Sets the LDAP search scope for entries to fix up')
+    fixup_task.add_argument('--wait', action='store_true',
+                            help="Wait for the task to finish, this could take a long time")
+    fixup_task.add_argument('--timeout', default=0, type=int,
+                            help="Set a timeout to wait for the fixup task.  Default is 0 (no timeout)")
 
     fixup_status = subcommands.add_parser('fixup-status', help='Check the status of a fix-up task')
     fixup_status.set_defaults(func=do_fixup_status)
@@ -275,3 +283,5 @@ def create_parser(subparsers):
 
     abort_fixup = subcommands.add_parser('abort-fixup', help='Abort the rebuild membership task.')
     abort_fixup.set_defaults(func=abort)
+    abort_fixup.add_argument('--timeout', default=0, type=int,
+                            help="Set a timeout to wait for the abort task.  Default is 0 (no timeout)")

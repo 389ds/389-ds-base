@@ -83,6 +83,7 @@ objectClass: person
 objectClass: organizationalPerson
 objectClass: inetOrgPerson
 objectclass: inetUser
+objectclass: posixAccount
 cn: {CN}
 sn: {LAST}
 uid: {UID}
@@ -103,6 +104,9 @@ l: {LOCATION}
 ou: {OU}
 mail: {UID}@example.com
 mail: {UIDNUMBER}@example.com
+uidNumber: {UIDNUMBER}
+gidNumber: {UIDNUMBER}
+homeDirectory: /home/{UID}
 postalAddress: 518, Dept #851, Room#{OU}
 title: {TITLE}
 usercertificate;binary:: MIIBvjCCASegAwIBAgIBAjANBgkqhkiG9w0BAQQFADAnMQ8wDQYD

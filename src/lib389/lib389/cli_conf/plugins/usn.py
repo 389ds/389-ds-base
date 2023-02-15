@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -36,10 +36,13 @@ def tombstone_cleanup(inst, basedn, log, args):
     if not plugin.status():
         log.error("'%s' is disabled. Fix up task can't be executed" % plugin.rdn)
     task = plugin.cleanup(args.suffix, args.backend, args.max_usn)
-    task.wait()
+    task.wait(timeout=args.timeout)
     exitcode = task.get_exit_code()
     if exitcode != 0:
-        log.error('USM tombstone cleanup task has failed. Please, check logs')
+        if exitcode is None:
+            raise ValueError('USM tombstone cleanup task has not completed. Please, check logs')
+        else:
+            raise ValueError('USM tombstone cleanup task has failed. Please, check logs')
     else:
         log.info('Successfully added task entry')
 
@@ -69,3 +72,5 @@ def create_parser(subparsers):
                                     'specified. Backend instance in which USN tombstone entries (backend)')
     cleanup_parser.add_argument('-m', '--max-usn', type=int, help='Sets the highest USN value to delete when '
                                                                  'removing tombstone entries (max_usn_to_delete)')
+    cleanup_parser.add_argument('--timeout', type=int, default=120,
+                                help="Sets the cleanup task timeout.  Default is 120 seconds,")
