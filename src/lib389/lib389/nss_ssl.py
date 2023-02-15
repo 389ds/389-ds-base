@@ -16,15 +16,15 @@ import socket
 import time
 import shutil
 import logging
-# from nss import nss
 import subprocess
+import uuid
 from datetime import datetime, timedelta
 from subprocess import check_output, run, PIPE
 from lib389.passwd import password_generate
 from lib389._mapped_object_lint import DSLint
 from lib389.lint import DSCERTLE0001, DSCERTLE0002
-from lib389.utils import ensure_str, format_cmd_list
-import uuid
+from lib389.utils import ensure_str, format_cmd_list, DSVersion, cert_is_ca
+
 
 # Setuptools ships with 'packaging' module, let's use it from there
 try:
@@ -1138,8 +1138,14 @@ only.
             self._assert_not_chain(input_file)
 
         if ca:
+            # Verify this is a CA cert
+            if not cert_is_ca(input_file):
+                raise ValueError(f"Certificate ({nickname}) is not a CA certificate")
             trust_flags = "CT,,"
         else:
+            # Verify this is a server cert
+            if cert_is_ca(input_file):
+                raise ValueError(f"Certificate ({nickname}) is not a server certificate")
             trust_flags = ",,"
 
         cmd = [
@@ -1260,6 +1266,13 @@ only.
                                 names_len = len(nicknames)
                                 if names_len > ca_count:
                                     if nicknames[ca_count].lower() == CERT_NAME.lower() or nicknames[ca_count].lower() == CA_NAME.lower():
+                                        # cleanup
+                                        try:
+                                            for tmp_file in ca_files_to_cleanup:
+                                                os.remove(tmp_file)
+                                        except IOError as e:
+                                            # failed to remove tmp cert
+                                            log.debug("Failed to remove tmp cert file: " + str(e))
                                         raise ValueError(f"You may not import a CA with the nickname {CERT_NAME} or {CA_NAME}")
                                     ca_cert_name = nicknames[ca_count]
                                 else:
@@ -1279,21 +1292,36 @@ only.
                                     try:
                                         for tmp_file in ca_files_to_cleanup:
                                             os.remove(tmp_file)
-                                    except IOError:
+                                    except IOError as e:
                                         # failed to remove tmp cert
-                                        log.debug("Failed to remove tmp cert file")
-                                        pass
+                                        log.debug("Failed to remove tmp cert file: " + str(e))
                                     raise ValueError(f"Certificate already exists with the same name ({ca_cert_name})")
+
+                                # Verify this is a CA cert
+                                if not cert_is_ca(ca_file_name):
+                                    raise ValueError(f"Certificate ({ca_cert_name}) is not a CA certificate")
 
                                 # Add this CA certificate
                                 self.add_cert(ca_cert_name, ca_file_name, ca=True)
                                 ca_count += 1
                                 log.info(f"Successfully added CA certificate ({ca_cert_name})")
+
+                    # All done, cleanup
+                    try:
+                        for tmp_file in ca_files_to_cleanup:
+                            os.remove(tmp_file)
+                    except IOError as e:
+                        # failed to remove tmp cert
+                        log.debug("Failed to remove tmp cert file: " + str(e))
                 except IOError as e:
                     # Some failure, remove all the tmp files
                     ca_file.close()
-                    for tmp_file in ca_file_to_cleanup:
-                        os.remove(tmp_file)
+                    try:
+                        for tmp_file in ca_files_to_cleanup:
+                            os.remove(tmp_file)
+                    except IOError as e:
+                        # failed to remove tmp cert
+                        log.debug("Failed to remove tmp cert file: " + str(e))
                     raise e
         except EnvironmentError as e:
             raise e
