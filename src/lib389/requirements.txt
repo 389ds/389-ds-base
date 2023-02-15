@@ -6,3 +6,4 @@ argparse-manpage
 python-ldap
 setuptools
 distro
+cryptography
