@@ -2249,7 +2249,7 @@ sub parseLineNormal
 		$fdTaken++;
 		if ($1 > $highestFdTaken){ $highestFdTaken = $1; }
 	}
-	if (m/ fd=/ && m/closed/i){
+	if (m/ fd=/ && m/ (closed|disconnect) /i){
 		($connID) = $_ =~ /conn=(\d*)\s/;
 		handleConnClose($connID);
 	}
@@ -2362,7 +2362,7 @@ sub parseLineNormal
 		}
 		$isVlvNotes = 0;
 	}
-	if (m/ closed error 32/i){
+	if (m/ (closed|disconnect) error 32/i){
 		$brokenPipeCount++;
 		if (m/- T1/){ $hashes->{rc}->{"T1"}++; }
 		elsif (m/- T2/){ $hashes->{rc}->{"T2"}++; }
@@ -2377,7 +2377,7 @@ sub parseLineNormal
 		elsif (m/- U1/){ $hashes->{rc}->{"U1"}++; }
 		else { $hashes->{rc}->{"other"}++; }
 	}
-	if (m/ closed error 131/i || m/ closed error -5961/i){
+	if (m/ (closed|disconnect) error 131/i || m/ (closed|disconnect) error -5961/i){
 		$connResetByPeerCount++;
 		if (m/- T1/){ $hashes->{src}->{"T1"}++; }
 		elsif (m/- T2/){ $hashes->{src}->{"T2"}++; }
@@ -2392,7 +2392,7 @@ sub parseLineNormal
 		elsif (m/- U1/){ $hashes->{src}->{"U1"}++; }
 		else { $hashes->{src}->{"other"}++; }
 	}
-	if (m/ closed error 11/i){
+	if (m/ (closed|disconnect) error 11/i){
 		$resourceUnavailCount++;
 		if (m/- T1/){ $hashes->{rsrc}->{"T1"}++; }
 		elsif (m/- T2/){ $hashes->{rsrc}->{"T2"}++; }
