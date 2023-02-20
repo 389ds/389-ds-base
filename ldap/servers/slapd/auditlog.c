@@ -254,7 +254,6 @@ add_entry_attrs(Slapi_Entry *entry, lenstr *l)
     } else {
         /* Return all attributes */
         for (; entry_attr; entry_attr = entry_attr->a_next) {
-            Slapi_Value **vals = attr_get_present_values(entry_attr);
             char *attr = NULL;
 
             slapi_attr_get_type(entry_attr, &attr);
