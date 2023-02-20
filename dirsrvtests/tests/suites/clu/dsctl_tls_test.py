@@ -44,7 +44,7 @@ def test_tls_command_returns_error_text(topo):
         assert '255' not in str(e)
         assert 'improperly formatted name' in str(e)
 
-   # dsctl localhost tls remove-cert
+    # dsctl localhost tls remove-cert
     try:
         tls.del_cert("bad")
         assert False
@@ -59,7 +59,7 @@ def test_tls_command_returns_error_text(topo):
         assert False
     except ValueError as e:
         assert '255' not in str(e)
-        assert 'could not decode certificate' in str(e)
+        assert 'Unable to load PEM file' in str(e)
 
     # dsctl localhost tls import-server-cert
     try:
