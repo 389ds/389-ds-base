@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -83,6 +83,21 @@
 
 /* ---------------------- Factory Extension ---------------------- */
 
+/*
+ * Macro to access extended data within an object
+ *  extension is the object extension member (Seen as an opaque "void *" in the object
+ *     For exemple in strutc conn:
+ *         void *c_extension;               #* plugins are able to extend the Connection object *#
+ *     extensionhandle is the handle (int) got when registering an extension for a given object type
+ *  but implemented as a union object_extensions[size_1] array
+ *   with first element is the size and the other the datas
+ *  i.e: when calling OBJECT_EXT_DATA(extension, extensionhandle),
+ *   then it is mandatory to have 0 <= extensionhandle < OBJECT_EXT_SIZE(extension)
+ */
+#define OBJECT_EXT_SIZE(extension) ((union object_extensions*)(extension))[0].size
+#define OBJECT_EXT_DATA(extension, extensionhandle) ((union object_extensions*)(extension))[(extensionhandle)+1].ext
+
+
 struct factory_extension
 {
     const char *pluginname;
@@ -90,6 +105,17 @@ struct factory_extension
     slapi_extension_destructor_fnptr destructor;
     int removed;
 };
+
+/*
+ * the array containing all pointers to the extended data within an object
+ *  First element is a size, the other ones are extended data pointers
+ */
+union object_extensions
+{
+    int size;
+    void *ext;
+};
+
 
 static struct factory_extension *
 new_factory_extension(
@@ -282,7 +308,7 @@ void *
 factory_create_extension(int type, void *object, void *parent)
 {
     int n;
-    void **extension = NULL;
+    void *extension = NULL;
     struct factory_type *ft = factory_type_store_get_factory_type(type);
 
     if (ft != NULL) {
@@ -291,14 +317,15 @@ factory_create_extension(int type, void *object, void *parent)
             int i;
             factory_type_increment_existence(ft);
             PR_Unlock(ft->extension_lock);
-            extension = (void **)slapi_ch_calloc(n + 1, sizeof(void *));
+            extension = slapi_ch_calloc(n + 1, sizeof(union object_extensions));
+            OBJECT_EXT_SIZE(extension) = n;
             for (i = 0; i < n; i++) {
                 if (ft->extensions[i] == NULL || ft->extensions[i]->removed) {
                     continue;
                 }
                 slapi_extension_constructor_fnptr constructor = ft->extensions[i]->constructor;
                 if (constructor != NULL) {
-                    extension[i] = (*constructor)(object, parent);
+                    OBJECT_EXT_DATA(extension,i) = (*constructor)(object, parent);
                 }
             }
         } else {
@@ -310,7 +337,7 @@ factory_create_extension(int type, void *object, void *parent)
         slapi_log_err(SLAPI_LOG_ERR, "factory_create_extension",
                       "Object type handle %d not valid. Object not registered?\n", type);
     }
-    return (void *)extension;
+    return extension;
 }
 
 /*
@@ -326,8 +353,8 @@ factory_destroy_extension(int type, void *object, void *parent, void **extension
             int i, n;
 
             PR_Lock(ft->extension_lock);
-            n = ft->extension_count;
             factory_type_decrement_existence(ft);
+            n = OBJECT_EXT_SIZE(*extension);
             for (i = 0; i < n; i++) {
                 slapi_extension_destructor_fnptr destructor;
 
@@ -336,8 +363,7 @@ factory_destroy_extension(int type, void *object, void *parent, void **extension
                 }
                 destructor = ft->extensions[i]->destructor;
                 if (destructor != NULL) {
-                    void **extention_array = (void **)(*extension);
-                    (*destructor)(extention_array[i], object, parent);
+                    (*destructor)(OBJECT_EXT_DATA(*extension,i), object, parent);
                 }
             }
             PR_Unlock(ft->extension_lock);
@@ -425,9 +451,8 @@ slapi_get_object_extension(int objecttype, void *object, int extensionhandle)
     if (ft != NULL) {
         char *object_base = (char *)object;
         void **o_extension = (void **)(object_base + ft->extension_offset);
-        void **extension_array = (void **)(*o_extension);
-        if (extension_array != NULL) {
-            object_extension = extension_array[extensionhandle];
+        if (*o_extension != NULL && OBJECT_EXT_SIZE(*o_extension) > extensionhandle) {
+            object_extension = OBJECT_EXT_DATA(*o_extension, extensionhandle);
         }
     }
     return object_extension;
@@ -443,9 +468,8 @@ slapi_set_object_extension(int objecttype, void *object, int extensionhandle, vo
     if (ft != NULL) {
         char *object_base = (char *)object;
         void **o_extension = (void **)(object_base + ft->extension_offset);
-        void **extension_array = (void **)(*o_extension);
-        if (extension_array != NULL) {
-            extension_array[extensionhandle] = extension;
+        if (*o_extension != NULL && OBJECT_EXT_SIZE(*o_extension) > extensionhandle) {
+            OBJECT_EXT_DATA(*o_extension, extensionhandle) = extension;
         }
     }
 }
