@@ -73,17 +73,18 @@ def test_dsentrydn(topo):
     assert user.get_attr_val_utf8('dsentrydn') == NEW_USER_DN
 
     # Check DN returned to client matches "dsEntryDN"
-    users = UserAccounts(inst, SUFFIX).list()
+    users = UserAccounts(inst, SUFFIX, rdn="ou=humans").list()
     for user in users:
-        if user.dn.startswith("tUser"):
+        if user.rdn.startswith("tUser"):
             assert user.dn == NEW_USER_DN
             break
 
-    # Disable 'nsslapd-return-original-entrydn' andcheck DN is normalized
-    inst.config.replace('nsslapd-return-original-entrydn', 'on')
-    users = UserAccounts(inst, SUFFIX).list()
+    # Disable 'nsslapd-return-original-entrydn' and check DN is normalized
+    inst.config.replace('nsslapd-return-original-entrydn', 'off')
+    inst.restart()
+    users = UserAccounts(inst, SUFFIX, rdn="ou=humans").list()
     for user in users:
-        if user.dn.startswith("tUser"):
+        if user.rdn.startswith("tUser"):
             assert user.dn == NEW_USER_NORM_DN
             break
 
