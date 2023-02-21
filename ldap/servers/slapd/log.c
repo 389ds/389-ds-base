@@ -3949,9 +3949,11 @@ slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg)
         } else if (external_bind && pb_conn->c_unix_local) {
             /* LDAPI */
             PR_snprintf(method_and_mech, sizeof(method_and_mech), "LDAPI");
-        } else if (!strcasecmp(saslmech, "GSSAPI") || !strcasecmp(saslmech, "DIGEST-MD5")) {
-            /* SASL */
-            PR_snprintf(method_and_mech, sizeof(method_and_mech), "SASL/%s", saslmech);
+        } else if (saslmech) {
+            if (!strcasecmp(saslmech, "GSSAPI") || !strcasecmp(saslmech, "DIGEST-MD5")) {
+                /* SASL */
+                PR_snprintf(method_and_mech, sizeof(method_and_mech), "SASL/%s", saslmech);
+            }
         }
         break;
     default:
