@@ -1114,7 +1114,7 @@ export class ReplAgmts extends React.Component {
     }
 
     saveAgmt () {
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-agmt', 'set', this.state.agmtName, '--suffix=' + this.props.suffix,
         ];

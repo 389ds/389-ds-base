@@ -351,22 +351,25 @@ def csr_list(inst, basedn, log, args):
     csr_list = []
     tlsdb = NssSsl(dirsrv=inst)
     details = tlsdb._csr_list(args.path)
+
     for detail in details:
         if args.json:
             csr_list.append(
                 {
                     "type": "csr",
                     "attrs": {
-                                'modified': detail[0],
-                                'subject': detail[1],
-                                'name': detail[2],
-                            }
+                        'modified': detail[0],
+                        'subject': detail[1],
+                        'subject_alt_names': detail[2],
+                        'name': detail[3],
+                    }
                 }
             )
         else:
-            log.info('Modified: {}'.format(detail[0]))
-            log.info('Subject: {}\n'.format(detail[1]))
-            log.info('Name: {}'.format(detail[2]))
+            log.info(f'Modified: {detail[0]}')
+            log.info(f'Subject: {detail[1]}')
+            log.info(f'Subject Alternative Names: {", ".join(detail[2])}')
+            log.info(f'Name: {detail[3]}\n')
 
     if args.json:
         log.info(json.dumps(csr_list, indent=4))

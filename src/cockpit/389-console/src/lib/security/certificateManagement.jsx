@@ -51,6 +51,8 @@ export class CertificateManagement extends React.Component {
             certText: "",
             csrContent: "",
             csrName: "",
+            csrAltNames: [],
+            csrIsSelectOpen: false,
             csrSubject: "",
             csrSubjectCommonName: "",
             csrSubjectOrg: "",
@@ -137,8 +139,30 @@ export class CertificateManagement extends React.Component {
             });
         };
 
+        this.csrOnSelect = (e, selection) => {
+            if (this.state.csrAltNames.includes(selection)) {
+                this.setState(
+                    (prevState) => ({
+                        csrAltNames: prevState['csrAltNames'].filter((item) => item !== selection),
+                        csrIsSelectOpen: false
+                    }),
+                );
+            } else {
+                this.setState({
+                    csrIsSelectOpen: false,
+                });
+            }
+        };
+
+        this.csrOnToggle = isOpen => {
+            this.setState({
+                csrIsSelectOpen: isOpen,
+            });
+        }
+
         this.handleChange = this.handleChange.bind(this);
         this.handleCSRChange = this.handleCSRChange.bind(this);
+        this.handleAltNameChange = this.handleAltNameChange.bind(this);
         this.addCert = this.addCert.bind(this);
         this.showAddModal = this.showAddModal.bind(this);
         this.showAddCAModal = this.showAddCAModal.bind(this);
@@ -268,6 +292,7 @@ export class CertificateManagement extends React.Component {
             csrSubjectState: "",
             csrSubjectCountry: "",
             csrSubjectEmail: "",
+            csrAltNames: [],
             errObj: { csrName: true, csrSubjectCommonName: true},
         });
     }
@@ -561,28 +586,18 @@ export class CertificateManagement extends React.Component {
     }
 
     addCSR () {
-        if (this.state.csrName === "") {
-            this.props.addNotification(
-                "warning",
-                `Missing CSR Name`
-            );
-            return;
-        } else if (this.state.csrSubjectCommonName === "") {
-            this.props.addNotification(
-                "warning",
-                `Missing CSR Subject Common Name`
-            );
-            return;
-        }
-
         this.setState({
             modalSpinning: true,
             loading: true,
         });
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "csr", "req", "--name=" + this.state.csrName, "--subject=" + this.state.csrSubject
         ];
+        for (const altname of this.state.csrAltNames) {
+            cmd.push(altname);
+        }
+
         log_cmd("addCSR", "Creating CSR", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -936,6 +951,7 @@ export class CertificateManagement extends React.Component {
 
     handleCSRChange (e) {
         const value = e.target.value;
+        const attr = e.target.id;
         const errObj = this.state.errObj;
         let valueErr = false;
 
@@ -944,9 +960,27 @@ export class CertificateManagement extends React.Component {
         }
         errObj[e.target.id] = valueErr;
         this.setState({
-            [e.target.id]: value,
+            [attr]: value,
             errObj: errObj
         }, this.buildSubject);
+    }
+
+    handleAltNameChange (altName) {
+        if (this.state.csrAltNames.includes(altName)) {
+            this.setState(
+                (prevState) => ({
+                    csrAltNames: prevState['csrAltNames'].filter((item) => item !== altName),
+                    csrIsSelectOpen: false
+                }),
+            );
+        } else {
+            this.setState(
+                (prevState) => ({
+                    csrAltNames: [...prevState['csrAltNames'], altName],
+                    csrIsSelectOpen: false,
+                }),
+            );
+        }
     }
 
     buildSubject () {
@@ -1372,8 +1406,14 @@ export class CertificateManagement extends React.Component {
                     showModal={this.state.showAddCSRModal}
                     closeHandler={this.closeAddCSRModal}
                     handleChange={this.handleCSRChange}
+                    handleAltNameChange={this.handleAltNameChange}
                     saveHandler={this.addCSR}
                     previewValue={this.state.csrSubject}
+                    csrName={this.state.csrName}
+                    csrAltNames={this.state.csrAltNames}
+                    csrIsSelectOpen={this.state.csrIsSelectOpen}
+                    handleOnSelect={this.csrOnSelect}
+                    handleOnToggle={this.csrOnToggle}
                     spinning={this.state.modalSpinning}
                     error={this.state.errObj}
                 />
