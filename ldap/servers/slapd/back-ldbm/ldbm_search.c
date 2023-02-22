@@ -1001,6 +1001,7 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
     int err = 0;
     int r = 0;
     char logbuf[1024] = {0};
+    Slapi_Operation *operation;
 
     slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
     if (NULL == filter) {
@@ -1035,8 +1036,18 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
     case LDAP_SCOPE_SUBTREE:
         /* Now optimise the filter for use */
         slapi_filter_optimise(filter);
-        /* make (|(originalfilter)(objectclass=referral)) */
-        filter_exec = create_subtree_filter(filter, managedsait);
+
+        slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+        if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL) || (operation && operation_is_flag_set(operation, OP_FLAG_INTERNAL))) {
+            /* For performance reason, skip adding (objectclass=referral) in case
+             *  - there is no referral on the server
+             *  - this is an internal SRCH
+             */
+            filter_exec = slapi_filter_dup(filter);
+        } else {
+            /* make (|(originalfilter)(objectclass=referral)) */
+            filter_exec = create_subtree_filter(filter, managedsait);
+        }
 
         slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_search", "Optimised SUB filter to - %s\n",
              slapi_filter_to_string(filter_exec, logbuf, sizeof(logbuf)));

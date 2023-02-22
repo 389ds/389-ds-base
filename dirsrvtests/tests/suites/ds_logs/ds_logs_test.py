@@ -8,13 +8,18 @@
 #
 from decimal import *
 import os
+import time
 import logging
 import pytest
 import subprocess
+from lib389.backend import Backend
+from lib389.mappingTree import MappingTrees
+from lib389.idm.domain import Domain
+from lib389.configurations.sample import create_base_domain
 from lib389._mapped_object import DSLdapObject
 from lib389.topologies import topology_st
 from lib389.plugins import AutoMembershipPlugin, ReferentialIntegrityPlugin, AutoMembershipDefinitions
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL, PASSWORD
@@ -208,6 +213,32 @@ def disable_access_log_buffering(topology_st, request):
     request.addfinalizer(fin)
 
     return disable_access_log_buffering
+
+def create_backend(inst, rdn, suffix):
+    # We only support dc= in this test.
+    assert suffix.startswith('dc=')
+    be1 = Backend(inst)
+    be1.create(properties={
+            'cn': rdn,
+            'nsslapd-suffix': suffix,
+        },
+        create_mapping_tree=False
+    )
+
+    # Now we temporarily make the MT for this node so we can add the base entry.
+    mts = MappingTrees(inst)
+    mt = mts.create(properties={
+        'cn': suffix,
+        'nsslapd-state': 'backend',
+        'nsslapd-backend': rdn,
+    })
+
+    # Create the domain entry
+    create_base_domain(inst, suffix)
+    # Now delete the mt
+    mt.delete()
+
+    return be1
 
 @pytest.mark.bz1273549
 def test_check_default(topology_st):
@@ -1164,6 +1195,309 @@ def test_cert_personality_log_help(topology_st):
                                          r"\(currently, nsSSLPersonalitySSL attribute "
                                          r"is set to '{}'\)\..*".format(WRONG_NICK))
 
+def test_referral_check(topology_st, request):
+    """Check that referral detection mechanism works
+
+    :id: ff9b4247-d1fd-4edc-ba74-6ad61e65c0a4
+    :setup: Standalone Instance
+    :steps:
+        1. Set nsslapd-referral-check-period=7 to accelerate test
+        2. Add a test entry
+        3. Remove error log file
+        4. Check that no referral entry exist
+        5. Create a referral entry
+        6. Check that the server detects the referral
+        7. Delete the referral entry
+        8. Check that the server detects the deletion of the referral
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+    """
+
+    inst = topology_st.standalone
+
+    # Step 1 reduce nsslapd-referral-check-period to accelerate test
+    REFERRAL_CHECK=7
+    topology_st.standalone.config.set("nsslapd-referral-check-period", str(REFERRAL_CHECK))
+    topology_st.standalone.restart()
+
+    # Step 2 Add a test entry
+    users = UserAccounts(inst, DEFAULT_SUFFIX, rdn=None)
+    user = users.create(properties={'uid': 'test_1',
+                                    'cn': 'test_1',
+                                    'sn': 'test_1',
+                                    'description': 'member',
+                                    'uidNumber': '1000',
+                                    'gidNumber': '2000',
+                                    'homeDirectory': '/home/testuser'})
+
+    # Step 3 Remove error log file
+    topology_st.standalone.stop()
+    lpath = topology_st.standalone.ds_error_log._get_log_path()
+    os.unlink(lpath)
+    topology_st.standalone.start()
+
+    # Step 4 Check that no referral entry is found (on regular deployment)
+    entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "uid=test_1")
+    time.sleep(REFERRAL_CHECK + 1)
+    assert not topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected.*')
+
+    # Step 5 Create a referral entry
+    REFERRAL_DN = "cn=my_ref,%s" % DEFAULT_SUFFIX
+    properties = ({'cn': 'my_ref',
+                   'uid': 'my_ref',
+                   'sn': 'my_ref',
+                   'uidNumber': '1000',
+                   'gidNumber': '2000',
+                   'homeDirectory': '/home/testuser',
+                   'description': 'referral entry',
+                   'objectclass': "top referral extensibleObject".split(),
+                   'ref': 'ref: ldap://remote/%s' % REFERRAL_DN})
+    referral = UserAccount(inst, REFERRAL_DN)
+    referral.create(properties=properties)
+
+    # Step 6 Check that the server detected the referral
+    time.sleep(REFERRAL_CHECK + 1)
+    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected under %s.*' % DEFAULT_SUFFIX)
+    assert not topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % DEFAULT_SUFFIX)
+
+    # Step 7 Delete the referral entry
+    referral.delete()
+
+    # Step 8 Check that the server detected the deletion of the referral
+    time.sleep(REFERRAL_CHECK + 1)
+    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % DEFAULT_SUFFIX)
+
+    def fin():
+        log.info('Deleting user/referral')
+        try:
+            user.delete()
+            referral.delete()
+        except:
+            pass
+
+    request.addfinalizer(fin)
+
+def test_referral_subsuffix(topology_st, request):
+    """Test the results of an inverted parent suffix definition in the configuration.
+
+    For more details see:
+    https://www.port389.org/docs/389ds/design/mapping_tree_assembly.html
+
+    :id: 4faf210a-4fde-4e4f-8834-865bdc8f4d37
+    :setup: Standalone instance
+    :steps:
+        1. First create two Backends, without mapping trees.
+        2. create the mapping trees for these backends
+        3. reduce nsslapd-referral-check-period to accelerate test
+        4. Remove error log file
+        5. Create a referral entry on parent suffix
+        6. Check that the server detected the referral
+        7. Delete the referral entry
+        8. Check that the server detected the deletion of the referral
+        9. Remove error log file
+        10. Create a referral entry on child suffix
+        11. Check that the server detected the referral on both parent and child suffixes
+        12. Delete the referral entry
+        13. Check that the server detected the deletion of the referral on both parent and child suffixes
+        14. Remove error log file
+        15. Create a referral entry on parent suffix
+        16. Check that the server detected the referral on both parent and child suffixes
+        17. Delete the child referral entry
+        18. Check that the server detected the deletion of the referral on child suffix but not on parent suffix
+        19. Delete the parent referral entry
+        20. Check that the server detected the deletion of the referral parent suffix
+
+    :expectedresults:
+        all steps succeeds
+    """
+    inst = topology_st.standalone
+    # Step 1 First create two Backends, without mapping trees.
+    PARENT_SUFFIX='dc=parent,dc=com'
+    CHILD_SUFFIX='dc=child,%s' % PARENT_SUFFIX
+    be1 = create_backend(inst, 'Parent', PARENT_SUFFIX)
+    be2 = create_backend(inst, 'Child', CHILD_SUFFIX)
+    # Step 2 create the mapping trees for these backends
+    mts = MappingTrees(inst)
+    mt1 = mts.create(properties={
+        'cn': PARENT_SUFFIX,
+        'nsslapd-state': 'backend',
+        'nsslapd-backend': 'Parent',
+    })
+    mt2 = mts.create(properties={
+        'cn': CHILD_SUFFIX,
+        'nsslapd-state': 'backend',
+        'nsslapd-backend': 'Child',
+        'nsslapd-parent-suffix': PARENT_SUFFIX,
+    })
+
+    dc_ex = Domain(inst, dn=PARENT_SUFFIX)
+    assert dc_ex.exists()
+
+    dc_st = Domain(inst, dn=CHILD_SUFFIX)
+    assert dc_st.exists()
+
+    # Step 3 reduce nsslapd-referral-check-period to accelerate test
+    # requires a restart done on step 4
+    REFERRAL_CHECK=7
+    topology_st.standalone.config.set("nsslapd-referral-check-period", str(REFERRAL_CHECK))
+
+    # Check that if we create a referral at parent level
+    #  - referral is detected at parent backend
+    #  - referral is not detected at child backend
+
+    # Step 3 Remove error log file
+    topology_st.standalone.stop()
+    lpath = topology_st.standalone.ds_error_log._get_log_path()
+    os.unlink(lpath)
+    topology_st.standalone.start()
+
+    # Step 4 Create a referral entry on parent suffix
+    REFERRAL_DN = "cn=my_ref,%s" % PARENT_SUFFIX
+    properties = ({'cn': 'my_ref',
+                   'uid': 'my_ref',
+                   'sn': 'my_ref',
+                   'uidNumber': '1000',
+                   'gidNumber': '2000',
+                   'homeDirectory': '/home/testuser',
+                   'description': 'referral entry',
+                   'objectclass': "top referral extensibleObject".split(),
+                   'ref': 'ref: ldap://remote/%s' % REFERRAL_DN})
+    referral = UserAccount(inst, REFERRAL_DN)
+    referral.create(properties=properties)
+
+    # Step 5 Check that the server detected the referral
+    time.sleep(REFERRAL_CHECK + 1)
+    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected under %s.*' % PARENT_SUFFIX)
+    assert not topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected under %s.*' % CHILD_SUFFIX)
+    assert not topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % PARENT_SUFFIX)
+
+    # Step 6 Delete the referral entry
+    referral.delete()
+
+    # Step 7 Check that the server detected the deletion of the referral
+    time.sleep(REFERRAL_CHECK + 1)
+    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % PARENT_SUFFIX)
+
+    # Check that if we create a referral at child level
+    #  - referral is detected at parent backend
+    #  - referral is detected at child backend
+
+    # Step 8 Remove error log file
+    topology_st.standalone.stop()
+    lpath = topology_st.standalone.ds_error_log._get_log_path()
+    os.unlink(lpath)
+    topology_st.standalone.start()
+
+    # Step 9 Create a referral entry on child suffix
+    REFERRAL_DN = "cn=my_ref,%s" % CHILD_SUFFIX
+    properties = ({'cn': 'my_ref',
+                   'uid': 'my_ref',
+                   'sn': 'my_ref',
+                   'uidNumber': '1000',
+                   'gidNumber': '2000',
+                   'homeDirectory': '/home/testuser',
+                   'description': 'referral entry',
+                   'objectclass': "top referral extensibleObject".split(),
+                   'ref': 'ref: ldap://remote/%s' % REFERRAL_DN})
+    referral = UserAccount(inst, REFERRAL_DN)
+    referral.create(properties=properties)
+
+    # Step 10 Check that the server detected the referral on both parent and child suffixes
+    time.sleep(REFERRAL_CHECK + 1)
+    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected under %s.*' % PARENT_SUFFIX)
+    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected under %s.*' % CHILD_SUFFIX)
+    assert not topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % CHILD_SUFFIX)
+
+    # Step 11 Delete the referral entry
+    referral.delete()
+
+    # Step 12 Check that the server detected the deletion of the referral on both parent and child suffixes
+    time.sleep(REFERRAL_CHECK + 1)
+    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % PARENT_SUFFIX)
+    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % CHILD_SUFFIX)
+
+    # Check that if we create a referral at child level and parent level
+    #  - referral is detected at parent backend
+    #  - referral is detected at child backend
+
+    # Step 13 Remove error log file
+    topology_st.standalone.stop()
+    lpath = topology_st.standalone.ds_error_log._get_log_path()
+    os.unlink(lpath)
+    topology_st.standalone.start()
+
+    # Step 14 Create a referral entry on parent suffix
+    #         Create a referral entry on child suffix
+    REFERRAL_DN = "cn=my_ref,%s" % PARENT_SUFFIX
+    properties = ({'cn': 'my_ref',
+                   'uid': 'my_ref',
+                   'sn': 'my_ref',
+                   'uidNumber': '1000',
+                   'gidNumber': '2000',
+                   'homeDirectory': '/home/testuser',
+                   'description': 'referral entry',
+                   'objectclass': "top referral extensibleObject".split(),
+                   'ref': 'ref: ldap://remote/%s' % REFERRAL_DN})
+    referral = UserAccount(inst, REFERRAL_DN)
+    referral.create(properties=properties)
+    REFERRAL_DN = "cn=my_ref,%s" % CHILD_SUFFIX
+    properties = ({'cn': 'my_ref',
+                   'uid': 'my_ref',
+                   'sn': 'my_ref',
+                   'uidNumber': '1000',
+                   'gidNumber': '2000',
+                   'homeDirectory': '/home/testuser',
+                   'description': 'referral entry',
+                   'objectclass': "top referral extensibleObject".split(),
+                   'ref': 'ref: ldap://remote/%s' % REFERRAL_DN})
+    referral = UserAccount(inst, REFERRAL_DN)
+    referral.create(properties=properties)
+
+    # Step 15 Check that the server detected the referral on both parent and child suffixes
+    time.sleep(REFERRAL_CHECK + 1)
+    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected under %s.*' % PARENT_SUFFIX)
+    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected under %s.*' % CHILD_SUFFIX)
+    assert not topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % CHILD_SUFFIX)
+
+    # Step 16 Delete the child referral entry
+    REFERRAL_DN = "cn=my_ref,%s" % CHILD_SUFFIX
+    referral = UserAccount(inst, REFERRAL_DN)
+    referral.delete()
+
+    # Step 17 Check that the server detected the deletion of the referral on child suffix but not on parent suffix
+    time.sleep(REFERRAL_CHECK + 1)
+    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % CHILD_SUFFIX)
+    assert not topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % PARENT_SUFFIX)
+
+    # Step 18 Delete the parent referral entry
+    REFERRAL_DN = "cn=my_ref,%s" % PARENT_SUFFIX
+    referral = UserAccount(inst, REFERRAL_DN)
+    referral.delete()
+
+    # Step 19 Check that the server detected the deletion of the referral parent suffix
+    time.sleep(REFERRAL_CHECK + 1)
+    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % PARENT_SUFFIX)
+
+    def fin():
+        log.info('Deleting referral')
+        try:
+            REFERRAL_DN = "cn=my_ref,%s" % PARENT_SUFFIX
+            referral = UserAccount(inst, REFERRAL_DN)
+            referral.delete()
+            REFERRAL_DN = "cn=my_ref,%s" % CHILD_SUFFIX
+            referral = UserAccount(inst, REFERRAL_DN)
+            referral.delete()
+        except:
+            pass
+
+    request.addfinalizer(fin)
 
 if __name__ == '__main__':
     # Run isolated

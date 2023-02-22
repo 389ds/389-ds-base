@@ -1315,6 +1315,11 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.tcp_keepalive_time, CONFIG_INT,
      (ConfigGetFunc)config_get_tcp_keepalive_time, SLAPD_DEFAULT_TCP_KEEPALIVE_TIME_STR, NULL},
+    {CONFIG_REFERRAL_CHECK_PERIOD, config_set_referral_check_period,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.referral_check_period,
+     CONFIG_INT, (ConfigGetFunc)config_set_referral_check_period,
+     SLAPD_DEFAULT_REFERRAL_CHECK_PERIOD_STR, NULL}
     /* End config */
     };
 
@@ -1846,6 +1851,7 @@ FrontendConfig_init(void)
 #endif
 #endif
     init_extract_pem = cfg->extract_pem = LDAP_ON;
+    cfg->referral_check_period = SLAPD_DEFAULT_REFERRAL_CHECK_PERIOD;
     /*
      * Default upgrade hash to on - this is an important security step, meaning that old
      * or legacy hashes are upgraded on bind. It means we are proactive in securing accounts
@@ -8267,6 +8273,40 @@ config_get_verify_filter_schema()
     }
     /* Should be unreachable ... */
     return FILTER_POLICY_OFF;
+}
+
+int32_t
+config_get_referral_check_period()
+{
+    int32_t retVal;
+
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->referral_check_period;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int32_t
+config_set_referral_check_period(const char *attrname, char *value, char *errorbuf, int apply __attribute__((unused)))
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int32_t min = 5;
+    int32_t max = 3600;
+    int32_t referral_check_period;
+    char *endp = NULL;
+
+    errno = 0;
+    referral_check_period = strtol(value, &endp, 10);
+    if ((*endp != '\0') || (errno == ERANGE) || (referral_check_period < min) || (referral_check_period > max)) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "limit \"%s\" is invalid, %s must range from %d to %d",
+                              value, CONFIG_REFERRAL_CHECK_PERIOD, min, max);
+        return LDAP_OPERATIONS_ERROR;
+    }
+    slapi_atomic_store_32(&(slapdFrontendConfig->referral_check_period), referral_check_period, __ATOMIC_RELEASE);
+
+    return LDAP_SUCCESS;
 }
 
 int32_t
