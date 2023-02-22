@@ -432,6 +432,9 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_TCP_KEEPALIVE_TIME 300
 #define SLAPD_DEFAULT_TCP_KEEPALIVE_TIME_STR "300"
 
+#define SLAPD_DEFAULT_REFERRAL_CHECK_PERIOD 300
+#define SLAPD_DEFAULT_REFERRAL_CHECK_PERIOD_STR "300"
+
 #define MIN_THREADS 16
 #define MAX_THREADS 512
 
@@ -2349,6 +2352,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_LISTEN_BACKLOG_SIZE "nsslapd-listen-backlog-size"
 #define CONFIG_DYNAMIC_PLUGINS "nsslapd-dynamic-plugins"
 #define CONFIG_RETURN_DEFAULT_OPATTR "nsslapd-return-default-opattr"
+#define CONFIG_REFERRAL_CHECK_PERIOD "nsslapd-referral-check-period"
 #define CONFIG_RETURN_ENTRY_DN "nsslapd-return-original-entrydn"
 
 #define CONFIG_CN_USES_DN_SYNTAX_IN_DNS "nsslapd-cn-uses-dn-syntax-in-dns"
@@ -2703,6 +2707,7 @@ typedef struct _slapdFrontendConfig
 
     slapi_int_t tcp_fin_timeout;
     slapi_int_t tcp_keepalive_time;
+    int32_t referral_check_period;
     slapi_onoff_t return_orig_dn;
     char *auditlog_display_attrs;
 } slapdFrontendConfig_t;
