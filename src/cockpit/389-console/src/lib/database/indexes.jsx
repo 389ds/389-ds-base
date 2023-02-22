@@ -318,7 +318,7 @@ export class SuffixIndexes extends React.Component {
     };
 
     saveIndex() {
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "index", "add", "--attr=" + this.state.indexName[0],
             this.props.suffix,
@@ -465,7 +465,7 @@ export class SuffixIndexes extends React.Component {
     saveEditIndex() {
         const origMRS = this.state._mrs;
         const newMRS = this.state.mrs;
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "index", "set", "--attr=" + this.state.indexName,
             this.props.suffix,

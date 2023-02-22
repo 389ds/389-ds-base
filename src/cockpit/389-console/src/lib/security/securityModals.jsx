@@ -3,15 +3,21 @@ import {
     Button,
     Checkbox,
     ClipboardCopy, ClipboardCopyVariant, Card, CardBody, CardFooter, CardTitle,
+    Divider,
     FileUpload,
     Form,
     FormSelect,
     FormSelectOption,
     Grid,
     GridItem,
+    HelperText,
+    HelperTextItem,
     Modal,
     ModalVariant,
     Radio,
+    Select,
+    SelectOption,
+    SelectVariant,
     Text,
     TextArea,
     TextContent,
@@ -22,6 +28,7 @@ import {
 } from "@patternfly/react-core";
 import OutlinedQuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 import PropTypes from "prop-types";
+import { bad_file_name, validHostname } from "../tools.jsx";
 
 export class ExportCertModal extends React.Component {
     render() {
@@ -355,9 +362,15 @@ export class SecurityAddCSRModal extends React.Component {
             showModal,
             closeHandler,
             handleChange,
+            handleAltNameChange,
             saveHandler,
             previewValue,
             spinning,
+            csrName,
+            csrAltNames,
+            csrIsSelectOpen,
+            handleOnToggle,
+            handleOnSelect,
             error
         } = this.props;
 
@@ -366,6 +379,21 @@ export class SecurityAddCSRModal extends React.Component {
         if (spinning) {
             saveBtnName = "Creating Certificate Signing Request ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
+        }
+
+        let validAltNames = true;
+        let invalidNames = "";
+        let index = 0;
+        for (const hostname of csrAltNames) {
+            index += 1;
+            if (!validHostname(hostname)) {
+                validAltNames = false;
+                if (invalidNames === "") {
+                    invalidNames += '"' + hostname + '"';
+                } else {
+                    invalidNames += ', "' + hostname + '"';
+                }
+            }
         }
 
         return (
@@ -383,7 +411,7 @@ export class SecurityAddCSRModal extends React.Component {
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={error.csrName || error.csrSubjectCommonName || spinning}
+                        isDisabled={error.csrName || error.csrSubjectCommonName || spinning || !validAltNames}
                     >
                         {saveBtnName}
                     </Button>,
@@ -407,14 +435,45 @@ export class SecurityAddCSRModal extends React.Component {
                                 onChange={(str, e) => {
                                     handleChange(e);
                                 }}
-                                validated={error.csrName ? ValidatedOptions.error : ValidatedOptions.default}
+                                validated={error.csrName || bad_file_name(csrName) ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
-                    <Grid
-                        title="CSR Subject: Common Name"
-                        className="ds-margin-top"
-                    >
+                    <Grid title="CSR Subject alternative host names">
+                        <GridItem className="ds-label" span={3}>
+                            Subject Alternative Names
+                        </GridItem>
+                        <GridItem span={9}>
+                            <Select
+                                variant={SelectVariant.typeaheadMulti}
+                                typeAheadAriaLabel="Type a host name"
+                                onToggle={handleOnToggle}
+                                onSelect={handleOnSelect}
+                                selections={csrAltNames}
+                                aria-labelledby="typeAhead-alt-names"
+                                placeholderText="Type an alternative host name"
+                                isOpen={csrIsSelectOpen}
+                                isCreatable
+                                isCreateOptionOnTop
+                                onCreateOption={handleAltNameChange}
+                                validated={validAltNames ? ValidatedOptions.default : ValidatedOptions.error}
+                            >
+                                {csrAltNames.map((hostname, index) => (
+                                    <SelectOption
+                                        key={index}
+                                        value={hostname}
+                                    />
+                                ))}
+                            </Select>
+                            <div className={validAltNames ? "ds-hidden" : ""}>
+                                <HelperText>
+                                    <HelperTextItem variant="error">Invalid host names: {invalidNames}</HelperTextItem>
+                                </HelperText>
+                            </div>
+                        </GridItem>
+                    </Grid>
+                    <Divider />
+                    <Grid title="CSR Subject: Common Name">
                         <GridItem className="ds-label" span={3}>
                             Common Name (CN)
                         </GridItem>
@@ -432,10 +491,7 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid
-                        title="CSR Subject: Organisation"
-                        className="ds-margin-top"
-                    >
+                    <Grid title="CSR Subject: Organisation">
                         <GridItem className="ds-label" span={3}>
                             Organization (O)
                         </GridItem>
@@ -452,10 +508,7 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid
-                        title="CSR Subject: Organisational Unit"
-                        className="ds-margin-top"
-                    >
+                    <Grid title="CSR Subject: Organisational Unit">
                         <GridItem className="ds-label" span={3}>
                             Organizational Unit (OU)
                         </GridItem>
@@ -472,10 +525,7 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid
-                        title="CSR Subject: City/Locality"
-                        className="ds-margin-top"
-                    >
+                    <Grid title="CSR Subject: City/Locality">
                         <GridItem className="ds-label" span={3}>
                             City/Locality (L)
                         </GridItem>
@@ -492,10 +542,7 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid
-                        title="CSR Subject: State/Region"
-                        className="ds-margin-top"
-                    >
+                    <Grid title="CSR Subject: State/Region">
                         <GridItem className="ds-label" span={3}>
                             State/County/Region (ST)
                         </GridItem>
@@ -512,10 +559,7 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid
-                        title="CSR Subject: Country Code"
-                        className="ds-margin-top"
-                    >
+                    <Grid title="CSR Subject: Country Code">
                         <GridItem className="ds-label" span={3}>
                             Country Code (C)
                         </GridItem>
@@ -532,10 +576,7 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid
-                        title="CSR Subject: Email Address"
-                        className="ds-margin-top"
-                    >
+                    <Grid title="CSR Subject: Email Address">
                         <GridItem className="ds-label" span={3}>
                             Email Address
                         </GridItem>
@@ -552,7 +593,7 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <hr />
+                    <Divider />
                     <Grid>
                         <GridItem span={3}>
                             Computed Subject
@@ -561,7 +602,6 @@ export class SecurityAddCSRModal extends React.Component {
                             <b>{previewValue}</b>
                         </GridItem>
                     </Grid>
-                    <hr />
                 </Form>
             </Modal>
         );

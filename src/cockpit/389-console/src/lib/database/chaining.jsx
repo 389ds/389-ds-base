@@ -181,7 +181,7 @@ export class ChainingDatabaseConfig extends React.Component {
 
     save_chaining_config () {
         // Build up the command list
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'chaining', 'config-set-def'
         ];
@@ -1213,7 +1213,7 @@ export class ChainingConfig extends React.Component {
         }
 
         // Build up the command of all the changes we need to make
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "link-set", this.props.suffix
         ];

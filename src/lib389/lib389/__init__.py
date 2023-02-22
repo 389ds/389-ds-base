@@ -551,7 +551,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.ldapuri = args.get(SER_LDAP_URL, None)
         self.log.debug("Allocate %s with %s", self.__class__, self.ldapuri)
         # Still needed in setup, even if ldapuri over writes.
-        if self.ldapuri is not None:
+        if self.ldapuri is not None and not self.ldapuri.startswith("ldapi"):
             ldapuri_parsed = urlparse(self.ldapuri)
             self.host = ldapuri_parsed.hostname
             try:
