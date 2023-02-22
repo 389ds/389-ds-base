@@ -32,13 +32,13 @@ export function searchFilter(searchFilterValue, columnsToSearch, rows) {
 export function log_cmd(js_func, desc, cmd_array) {
     if (console) {
         const pw_args = ["--passwd", "--bind-pw", "--nsslapd-rootpw"];
-        const cmd_list = [];
+        let cmd_list = [];
         let converted_pw = false;
 
         for (const idx in cmd_array) {
             const cmd = cmd_array[idx].toString();
             converted_pw = false;
-            for (var arg_idx in pw_args) {
+            for (const arg_idx in pw_args) {
                 if (cmd.startsWith(pw_args[arg_idx])) {
                     // We are setting a password, if it has a value we need to hide it
                     const arg_len = cmd.indexOf("=");
@@ -239,4 +239,9 @@ export function listsEqual(list1, list2) {
     } else {
         return false;
     }
+}
+
+export function validHostname(hostname) {
+    var reHostname = new RegExp(/^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/);
+    return reHostname.exec(hostname);
 }

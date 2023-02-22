@@ -951,7 +951,7 @@ export function getAttributesNameAndOid (serverId, attrCallback) {
 }
 
 export function deleteLdapData (serverId, entryDN, numSubordinates, deleteCallback) {
-  const cmd = [
+  let cmd = [
     'ldapdelete',
     '-Y',
     'EXTERNAL',

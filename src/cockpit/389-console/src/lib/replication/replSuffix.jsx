@@ -208,7 +208,7 @@ export class ReplSuffix extends React.Component {
         }
 
         // Now enable replication
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'enable', '--suffix=' + this.props.suffix,
             '--role=' + this.state.enableRole

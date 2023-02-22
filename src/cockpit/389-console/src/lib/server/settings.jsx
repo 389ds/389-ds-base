@@ -436,7 +436,7 @@ export class ServerSettings extends React.Component {
         this.setState({
             rootDNReloading: true,
         });
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
@@ -510,7 +510,7 @@ export class ServerSettings extends React.Component {
         this.setState({
             diskMonReloading: true,
         });
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];

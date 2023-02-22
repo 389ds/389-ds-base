@@ -406,7 +406,7 @@ class AddNewAci extends React.Component {
 
         this.handleSearchClick = () => {
             if (this.state.isSearchRunning) {
-                // MARK return;
+                return;
             }
             this.setState({
                 isSearchRunning: true,

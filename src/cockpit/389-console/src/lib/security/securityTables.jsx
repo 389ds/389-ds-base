@@ -148,6 +148,7 @@ class CSRTable extends React.Component {
             columns: [
                 { title: 'Name', transforms: [sortable] },
                 { title: 'Subject DN', transforms: [sortable] },
+                { title: 'Subject Alternative Names', transforms: [sortable] },
                 { title: 'Modification Date', transforms: [sortable] },
             ],
         };
@@ -189,7 +190,10 @@ class CSRTable extends React.Component {
             rows.push(
                 {
                     isOpen: false,
-                    cells: [ServerCSR.attrs.name, ServerCSR.attrs.subject, ServerCSR.attrs.modified],
+                    cells: [
+                        ServerCSR.attrs.name, ServerCSR.attrs.subject,
+                        ServerCSR.attrs.subject_alt_names.join(", "), ServerCSR.attrs.modified
+                    ],
                 },
             );
         }
@@ -213,6 +217,7 @@ class CSRTable extends React.Component {
             // Check for matches of all the parts
             if (val != "" && cert.attrs.name.toLowerCase().indexOf(val) == -1 &&
                 cert.attrs.subject.toLowerCase().indexOf(val) == -1 &&
+                cert.attrs.subject_alt_names.join().toLowerCase().indexOf(val) == -1 &&
                 cert.attrs.modified.toLowerCase().indexOf(val) == -1) {
                 // Not a match
                 continue;
@@ -221,7 +226,11 @@ class CSRTable extends React.Component {
             rows.push(
                 {
                     isOpen: false,
-                    cells: [cert.attrs.name, cert.attrs.subject, cert.attrs.modified],
+                    cells: [
+                        cert.attrs.name, cert.attrs.subject,
+                        cert.attrs.subject_alt_names.join(", "),
+                        cert.attrs.modified
+                    ],
 
                 },
             );

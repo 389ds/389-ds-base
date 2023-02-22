@@ -125,7 +125,7 @@ export class ReplConfig extends React.Component {
         if (changeType == "Promoting") {
             action = "promote";
         }
-        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', action,
+        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', action,
             '--suffix=' + this.props.suffix, "--newrole=" + this.state.newRole];
         if (this.state.newRole == "Supplier") {
             const ridNum = parseInt(this.state.newRID, 10);
