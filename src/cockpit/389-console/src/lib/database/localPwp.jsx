@@ -1311,7 +1311,7 @@ export class LocalPwPolicy extends React.Component {
         if (this.state.createPolicyType == "Subtree Policy") {
             action = "addsubtree";
         }
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', action, this.state.policyDN
         ];
@@ -1395,7 +1395,7 @@ export class LocalPwPolicy extends React.Component {
             loading: true
         });
 
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
@@ -1472,7 +1472,7 @@ export class LocalPwPolicy extends React.Component {
             loading: true
         });
 
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
@@ -1549,7 +1549,7 @@ export class LocalPwPolicy extends React.Component {
             loading: true
         });
 
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
@@ -1669,7 +1669,7 @@ export class LocalPwPolicy extends React.Component {
             loading: true
         });
 
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
@@ -1746,7 +1746,7 @@ export class LocalPwPolicy extends React.Component {
             saving: true
         });
 
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
@@ -2972,7 +2972,7 @@ export class LocalPwPolicy extends React.Component {
                         <Tab eventKey={4} title={<TabTitleText>Temporary Password Rules</TabTitleText>}>
                             <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 {this.state.passwordmustchange == false && (
-                                <FormAlert>
+                                <FormAlert className="ds-margin-top">
                                     <Alert
                                         variant="info"
                                         title='"User Must Change Password After Reset" must be enabled in General Settings to activate TPR.'
@@ -3001,7 +3001,6 @@ export class LocalPwPolicy extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                {pwSyntaxRows}
                             </Form>
                             <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid
@@ -3046,7 +3045,6 @@ export class LocalPwPolicy extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                {pwSyntaxRows}
                             </Form>
                             <Button
                                 isDisabled={this.state.saveTPRDisabled || this.state.saving}
