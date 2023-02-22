@@ -483,6 +483,32 @@ only.
         result = ','.join([str(elem) for elem in result])
         return result
 
+    def _openssl_get_csr_sub_alt_names(self, csr_dir, csr_name):
+        cmd = [
+            '/usr/bin/openssl',
+            'req',
+            '-noout',
+            '-text',
+            '-in',
+            '%s/%s'% (csr_dir, csr_name),
+        ]
+        self.log.debug("cmd: %s", format_cmd_list(cmd))
+        try:
+            result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        except subprocess.CalledProcessError as e:
+            raise ValueError(e.output.decode('utf-8').rstrip())
+
+        subaltnames = []
+        lines = result.split('\n')
+        for line in lines:
+            if 'DNS:' in line:
+                names = line.split(',')
+                for altname in names:
+                    altname = altname.replace("DNS:", "")
+                    subaltnames.append(altname.replace(",:", "").strip())
+
+        return subaltnames
+
     def _csr_show(self, name):
         csr_dir = self.dirsrv.get_cert_dir()
         result = ""
@@ -546,6 +572,8 @@ only.
             csr.append(result.strip())
             # Use openssl to get the csr subject DN
             csr.append(self._openssl_get_csr_subject(csr_dir, csr_file))
+            # Use openssl to get the csr subject alt host names
+            csr.append(self._openssl_get_csr_sub_alt_names(csr_dir, csr_file))
             # Add csr name, without extension
             csr.append(csr_file.rsplit('.', 1)[0])
             csr_list.append(csr)

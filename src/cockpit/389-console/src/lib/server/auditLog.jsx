@@ -273,7 +273,7 @@ l
             config_attrs = exp_attrs;
         }
 
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
