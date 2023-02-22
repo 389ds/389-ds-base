@@ -100,7 +100,6 @@ export class GlobalPwPolicy extends React.Component {
             // We use the exact attribute name for the ID of
             // each field, so we can loop over them to efficently
             // check for changes, and updating/saving the config.
-
             saveGeneralDisabled: true,
             saveExpDisabled: true,
             saveLockoutDisabled: true,
@@ -177,7 +176,7 @@ export class GlobalPwPolicy extends React.Component {
             saving: true
         });
 
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
@@ -281,7 +280,7 @@ export class GlobalPwPolicy extends React.Component {
             saving: true
         });
 
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
@@ -358,7 +357,7 @@ export class GlobalPwPolicy extends React.Component {
             saving: true
         });
 
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
@@ -406,6 +405,7 @@ export class GlobalPwPolicy extends React.Component {
     handleSyntaxChange = (e, selection, isPlaceholder) => {
         let attr;
         let value;
+
         if (selection) {
             attr = "passworduserattributes";
             value = selection;
@@ -478,7 +478,7 @@ export class GlobalPwPolicy extends React.Component {
             saving: true
         });
 
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
@@ -555,7 +555,7 @@ export class GlobalPwPolicy extends React.Component {
             saving: true
         });
 
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
@@ -1047,8 +1047,8 @@ export class GlobalPwPolicy extends React.Component {
                                 variant={SelectVariant.typeaheadMulti}
                                 typeAheadAriaLabel="Type an attribute to check"
                                 onToggle={this.onSelectToggle}
-                                onSelect={this.handleSyntaxChange}
                                 onClear={this.onSelectClear}
+                                onSelect={this.handleSyntaxChange}
                                 selections={this.state.passworduserattributes}
                                 isOpen={this.state.isSelectOpen}
                                 aria-labelledby="typeAhead-user-attr"
@@ -1512,7 +1512,7 @@ export class GlobalPwPolicy extends React.Component {
                         <Tab eventKey={4} title={<TabTitleText>Temporary Password Rules</TabTitleText>}>
                             <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 {this.state.passwordmustchange == false && (
-                                <FormAlert>
+                                <FormAlert className="ds-margin-top">
                                     <Alert
                                         variant="info"
                                         title='"User Must Change Password After Reset" must be enabled in General Settings to activate TPR.'
@@ -1541,7 +1541,6 @@ export class GlobalPwPolicy extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                {pwSyntaxRows}
                             </Form>
                             <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid
@@ -1586,7 +1585,6 @@ export class GlobalPwPolicy extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                {pwSyntaxRows}
                             </Form>
                             <Button
                                 isDisabled={this.state.saveTPRDisabled || this.state.saving}

@@ -480,7 +480,7 @@ export class Suffix extends React.Component {
 
     createSubSuffix() {
         // Create a new suffix
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "create", "--be-name", this.state.subSuffixBeName,
             "--suffix=" + this.state.subSuffixValue + "," + this.props.suffix,
@@ -547,7 +547,7 @@ export class Suffix extends React.Component {
         this.setState({
             linkSaving: true
         });
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "link-create",
             "--suffix=" + this.state.createLinkSuffix + "," + this.props.suffix,
@@ -740,7 +740,7 @@ export class Suffix extends React.Component {
         this.setState({
             modalSpinning: true
         })
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "delete", this.props.suffix
         ];
@@ -769,7 +769,7 @@ export class Suffix extends React.Component {
     // Save config
     saveSuffixConfig() {
         console.log("Save suffix config: ", this.props.suffix);
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'backend', 'suffix', 'set', this.props.suffix
         ];

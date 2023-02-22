@@ -550,7 +550,7 @@ export class ServerSASL extends React.Component {
         });
 
         // Build up the command list
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'config'
         ];
 

@@ -162,7 +162,7 @@ export class VLVIndexes extends React.Component {
 
     createSortIndex(index) {
         const index_value = index.join(' ');
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "vlv-index", "add-index", "--parent-name=" + this.state.createIndexParent,
             "--index-name=" + this.state.createIndexParent + " - " + index_value,

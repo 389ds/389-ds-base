@@ -208,7 +208,7 @@ export class ServerTuning extends React.Component {
     }
 
     saveConfig() {
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];

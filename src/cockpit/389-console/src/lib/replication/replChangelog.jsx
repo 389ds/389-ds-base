@@ -68,7 +68,7 @@ export class Changelog extends React.Component {
     }
 
     saveSettings () {
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'set-changelog'
         ];

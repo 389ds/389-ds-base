@@ -234,7 +234,7 @@ export class ReplRUV extends React.Component {
 
     exportChangelog () {
         // Do changelog export
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "export-changelog"
         ];

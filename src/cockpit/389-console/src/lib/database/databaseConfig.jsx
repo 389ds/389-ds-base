@@ -224,7 +224,7 @@ export class GlobalDatabaseConfig extends React.Component {
 
     save_db_config() {
         // Build up the command list
-        const cmd = [
+        let cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'backend', 'config', 'set'
         ];

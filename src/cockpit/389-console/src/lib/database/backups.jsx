@@ -325,7 +325,7 @@ export class Backups extends React.Component {
     }
 
     doBackup () {
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backup", "create"
         ];
