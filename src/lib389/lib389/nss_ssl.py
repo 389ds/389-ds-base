@@ -23,7 +23,7 @@ from subprocess import check_output, run, PIPE
 from lib389.passwd import password_generate
 from lib389._mapped_object_lint import DSLint
 from lib389.lint import DSCERTLE0001, DSCERTLE0002
-from lib389.utils import ensure_str, format_cmd_list, DSVersion, cert_is_ca
+from lib389.utils import ensure_str, format_cmd_list, cert_is_ca
 
 
 # Setuptools ships with 'packaging' module, let's use it from there
