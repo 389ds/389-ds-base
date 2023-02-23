@@ -1193,8 +1193,17 @@ subtree_candidates(
     Operation *op = NULL;
     PRBool is_bulk_import = PR_FALSE;
 
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     /* make (|(originalfilter)(objectclass=referral)) */
-    ftop = create_subtree_filter(filter, managedsait, &focref, &forr);
+    if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL) || (op && operation_is_flag_set(op, OP_FLAG_INTERNAL))) {
+        /* For performance reason, skip adding (objectclass=referral) in case
+         *  - there is no referral on the server
+         *  - this is an internal SRCH
+         */
+        ftop = filter;
+    } else {
+        ftop = create_subtree_filter(filter, managedsait, &focref, &forr);
+    }
 
     /* Fetch a candidate list for the original filter */
     candidates = filter_candidates_ext(pb, be, base, ftop, NULL, 0, err, allidslimit);
@@ -1209,7 +1218,6 @@ subtree_candidates(
     has_tombstone_filter = (filter->f_flags & SLAPI_FILTER_TOMBSTONE);
     slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
     /* Check if it is for bulk import. */
-    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     if (op && entryrdn_get_switch() && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
         operation_is_flag_set(op, OP_FLAG_BULK_IMPORT)) {
         is_bulk_import = PR_TRUE;

@@ -617,6 +617,8 @@ int32_t config_set_ldapssotoken_secret(const char *attrname, char *value, char *
 int32_t config_set_ldapssotoken_ttl(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_get_ldapssotoken_ttl();
 
+int32_t config_get_referral_check_period();
+int32_t config_set_referral_check_period(const char *attrname, char *value, char *errorbuf, int apply);
 
 int is_abspath(const char *);
 char *rel2abspath(char *);

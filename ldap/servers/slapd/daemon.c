@@ -1162,6 +1162,7 @@ slapd_daemon(daemon_ports_t *ports)
             }
         }
     }
+    slapi_referral_check_init();
 
     /* We are now ready to accept incoming connections */
     if (n_tcps != NULL) {
@@ -1296,6 +1297,7 @@ slapd_daemon(daemon_ports_t *ports)
     op_thread_cleanup();
     housekeeping_stop(); /* Run this after op_thread_cleanup() logged sth */
     disk_monitoring_stop();
+    slapi_referral_check_stop();
 
     /*
      * Now that they are abandonded, we need to mark them as done.

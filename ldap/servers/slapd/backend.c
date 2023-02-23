@@ -17,6 +17,7 @@
 #include "nspr.h"
 
 static PRMonitor *global_backend_mutex = NULL;
+static Slapi_Eq_Context referral_check_ctx = NULL;
 
 void
 be_init(Slapi_Backend *be, const char *type, const char *name, int isprivate, int logchanges, int sizelimit, int timelimit)
@@ -202,6 +203,122 @@ slapi_be_gettype(Slapi_Backend *be)
         r = be->be_type;
     }
     return r;
+}
+
+int
+slapi_exist_referral(Slapi_Backend *be)
+{
+    Slapi_PBlock *search_pb = NULL;
+    const char *suffix;
+    Slapi_Entry **entries = NULL;
+    char **referrals = NULL;
+    char *filter;
+    int rc = 0; /* assume there is no referral */
+    int exist_referral = 0;
+    LDAPControl **server_ctrls;
+
+    filter = "(objectclass=referral)";
+    if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA) && (be->be_state == BE_STATE_STARTED)) {
+        suffix = slapi_sdn_get_dn(slapi_be_getsuffix(be, 0));
+
+        /* ignore special backends */
+        if ((strcmp(suffix, "cn=schema") == 0) ||
+            (strcmp(suffix, "cn=config") == 0)) {
+            return 0; /* it does not mean anything having a referral in those backends */
+        }
+
+        /* search for ("smart") referral entries */
+        search_pb = slapi_pblock_new();
+        server_ctrls = (LDAPControl **) slapi_ch_calloc(2, sizeof (LDAPControl *));
+        server_ctrls[0] = (LDAPControl *) slapi_ch_malloc(sizeof (LDAPControl));
+        server_ctrls[0]->ldctl_oid = slapi_ch_strdup(LDAP_CONTROL_MANAGEDSAIT);
+        server_ctrls[0]->ldctl_value.bv_val = NULL;
+        server_ctrls[0]->ldctl_value.bv_len = 0;
+        server_ctrls[0]->ldctl_iscritical = '\0';
+        slapi_search_internal_set_pb(search_pb, suffix, LDAP_SCOPE_SUBTREE,
+                filter, NULL, 0, server_ctrls, NULL,
+                (void *) plugin_get_default_component_id(), 0);
+        slapi_search_internal_pb(search_pb);
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        if (LDAP_SUCCESS != rc) { /* plugin is not available */
+            exist_referral = 1; /* be safe, assume there is a referral somewhere */
+        }
+
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_REFERRALS, &referrals);
+        if ((entries && entries[0]) || referrals) {
+            exist_referral = 1;
+        }
+        slapi_free_search_results_internal(search_pb);
+        slapi_pblock_destroy(search_pb);
+    }
+    if (exist_referral) {
+        if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL)) {
+            /* it existed no referral on that backend but now it exists at least a new referral entry */
+            slapi_be_set_flag(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL);
+            slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon",
+                          "New referral entries are detected under %s (returned to SRCH req)\n",
+                          slapi_sdn_get_ndn(be->be_suffix));
+        }
+    } else if (slapi_be_is_flag_set(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL)) {
+        /* now there is no more referral */
+        slapi_be_unset_flag(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL);
+        slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon",
+                      "No more referral entry under %s\n",
+                      slapi_sdn_get_ndn(be->be_suffix));
+    }
+    return exist_referral;
+}
+
+/*
+ * This function periodically checks if it exists referrals entries
+ * in the server.
+ * This is used to accelerate SRCH request as the lookup for referrals
+ * has a negative impact on SRCH throughput
+ */
+static void
+referral_check(time_t start_time __attribute__((unused)), void *arg __attribute__((unused)))
+{
+    Slapi_Backend *be;
+    char *cookie;
+
+    /* loop over the backends to check if a it exists a "smart" referral */
+    be = slapi_get_first_backend(&cookie);
+    while (be) {
+        slapi_exist_referral(be);
+
+        /* next backend */
+        be = slapi_get_next_backend(cookie);
+    }
+    slapi_ch_free((void **) &cookie);
+}
+
+/* schedule periodic call to referral_check */
+void
+slapi_referral_check_init(void)
+{
+    referral_check_ctx = slapi_eq_repeat_rel(referral_check,
+                                             NULL, (time_t)0,
+                                             config_get_referral_check_period() * 1000);
+}
+void
+slapi_referral_check_stop(void)
+{
+    if (referral_check_ctx) {
+        slapi_eq_cancel_rel(referral_check_ctx);
+        referral_check_ctx = NULL;
+    }
+}
+
+Slapi_DN *
+be_getbasedn(Slapi_Backend *be, Slapi_DN *dn)
+{
+    if (be->be_state == BE_STATE_DELETED) {
+        slapi_sdn_set_ndn_byval(dn, NULL);
+    } else {
+        slapi_sdn_set_ndn_byref(dn, be->be_basedn);
+    }
+    return dn;
 }
 
 Slapi_DN *
