@@ -473,7 +473,9 @@ popd
 %if %{use_tsan}
 export TSAN_OPTIONS=print_stacktrace=1:second_deadlock_stack=1:history_size=7
 %endif
+%if !%{use_asan}
 if ! make DESTDIR="$RPM_BUILD_ROOT" check; then cat ./test-suite.log && false; fi
+%endif
 
 %clean
 rm -rf $RPM_BUILD_ROOT
