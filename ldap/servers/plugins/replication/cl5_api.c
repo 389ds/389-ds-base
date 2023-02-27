@@ -1841,11 +1841,23 @@ _cl5Iterate(cldb_Handle *cldb, dbi_iterate_cb_t *action_cb, DBLCI_CTX *dblcictx,
             dblcictx->startcsn = *startcsn;
             startcsn = &dblcictx->startcsn;
         }
-        /* DB txn lock accessed pages until the end of the transaction. */
-        rc = TXN_BEGIN(cldb, NULL, &txnid, readonly);
-        if (rc != 0) {
-            rc = _cl5Dberror(cldb, rc, "_cl5Iterate - Failed to begin transaction");
-            continue;
+        if (!readonly || dblayer_is_lmdb(cldb->be)) {
+            /*
+             * if write operation are performed or if lmdb is used, a transaction is needed.
+             * In bdb case DB txn lock accessed pages until the end of the transaction.
+             * in lmdb case the read or write lock is global and also held until the end
+             * of the transaction.
+             */
+            rc = TXN_BEGIN(cldb, NULL, &txnid, readonly);
+            if (rc != 0) {
+                rc = _cl5Dberror(cldb, rc, "_cl5Iterate - Failed to begin transaction");
+                continue;
+            }
+        } else {
+            /* read-only opertion on bdb are transactionless, so no reason to abort txn 
+             * after having seen some number of records 
+             */
+            dblcictx->seen.nbmax = 0;
         }
         /* create cursor */
         rc = dblayer_new_cursor(cldb->be, cldb->db, txnid, &dblcictx->cursor);
@@ -1887,17 +1899,18 @@ _cl5Iterate(cldb_Handle *cldb, dbi_iterate_cb_t *action_cb, DBLCI_CTX *dblcictx,
         dblcictx->changed.tot += dblcictx->changed.nb;
         dblcictx->seen.tot += dblcictx->seen.nb;
 
-        if (dblcictx->changed.nb) {
-            int rc2 = TXN_COMMIT(cldb, txnid);
-            if (rc2 != DBI_RC_SUCCESS) {
-                rc = _cl5Dberror(cldb, rc2, "_cl5Iterate - Failed to commit transaction");
-            }
-        } else {
-            int rc2 = TXN_ABORT(cldb, txnid);
-            if (rc2 != DBI_RC_SUCCESS) {
-                rc = _cl5Dberror(cldb, rc2, "_cl5Iterate - Failed to abort transaction");
-                if (rc == CL5_SUCCESS || rc == CL5_NOTFOUND) {
-                    rc = rc2;
+        if (txnid) {
+            if (dblcictx->changed.nb) {
+                int rc2 = TXN_COMMIT(cldb, txnid);
+                if (rc2 != DBI_RC_SUCCESS) {
+                    rc = _cl5Dberror(cldb, rc2, "_cl5Iterate - Failed to commit transaction");
+                }
+            } else {
+                int rc2 = TXN_ABORT(cldb, txnid);
+                if (rc2 != DBI_RC_SUCCESS) {
+                    if (rc == CL5_SUCCESS || rc == CL5_NOTFOUND) {
+                        rc = _cl5Dberror(cldb, rc2, "_cl5Iterate - Failed to abort transaction");
+                    }
                 }
             }
         }
