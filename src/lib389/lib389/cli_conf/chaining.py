@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -15,6 +15,7 @@ from lib389.cli_base import (
     _get_arg,
     )
 from lib389.cli_conf.monitor import _format_status
+from lib389.utils import get_passwd_from_file
 
 arg_to_attr = {
         'conn_bind_limit': 'nsbindconnectionslimit',
@@ -158,6 +159,10 @@ def def_config_set(inst, basedn, log, args):
 
 
 def create_link(inst, basedn, log, args, warn=True):
+    if args.bind_pw_file is not None:
+        args.bind_pw = get_passwd_from_file(args.bind_pw_file)
+    elif args.bind_pw_prompt:
+        args.bind_pw = _get_arg(None, msg="Enter remote bind DN password", hidden=True, confirm=True)
     attrs = _args_to_attrs(args)
     attrs['cn'] = args.CHAIN_NAME[0]
     links = ChainingLinks(inst)
@@ -172,6 +177,10 @@ def get_link(inst, basedn, log, args, warn=True):
 
 def edit_link(inst, basedn, log, args):
     chain_link = _get_link(inst, args.CHAIN_NAME[0])
+    if args.bind_pw_file is not None:
+        args.bind_pw = get_passwd_from_file(args.bind_pw_file)
+    elif args.bind_pw_prompt:
+        args.bind_pw = _get_arg(None, msg="Enter remote bind DN password", hidden=True, confirm=True)
     attrs = _args_to_attrs(args)
     did_something = False
     replace_list = []
@@ -231,37 +240,58 @@ def create_parser(subparsers):
 
     def_config_set_parser = subcommands.add_parser('config-set-def', help='Set the default creation parameters for new database links')
     def_config_set_parser.set_defaults(func=def_config_set)
-    def_config_set_parser.add_argument('--conn-bind-limit', help="Sets the maximum number of BIND connections the database link establishes with the remote server")
-    def_config_set_parser.add_argument('--conn-op-limit', help="Sets the maximum number of LDAP connections the database link establishes with the remote server ")
-    def_config_set_parser.add_argument('--abandon-check-interval', help="Sets the number of seconds that pass before the server checks for abandoned operations")
-    def_config_set_parser.add_argument('--bind-limit', help="Sets the maximum number of concurrent bind operations per TCP connection")
+    def_config_set_parser.add_argument('--conn-bind-limit',
+                                       help="Sets the maximum number of BIND connections the database link establishes "
+                                            "with the remote server")
+    def_config_set_parser.add_argument('--conn-op-limit',
+                                       help="Sets the maximum number of LDAP connections the database link establishes "
+                                            "with the remote server ")
+    def_config_set_parser.add_argument('--abandon-check-interval',
+                                       help="Sets the number of seconds that pass before the server checks for "
+                                            "abandoned operations")
+    def_config_set_parser.add_argument('--bind-limit',
+                                       help="Sets the maximum number of concurrent bind operations per TCP connection")
     def_config_set_parser.add_argument('--op-limit', help="Sets the maximum number of concurrent operations allowed")
     def_config_set_parser.add_argument('--proxied-auth',
-        help="Enables or disables proxied authorization. If set to \"off\", the server executes bind for chained operations as the user set in the nsMultiplexorBindDn attribute.")
-    def_config_set_parser.add_argument('--conn-lifetime', help="Specifies connection lifetime in seconds. \"0\" keeps the connection open forever.")
+                                       help="Enables or disables proxied authorization. If set to \"off\", the server "
+                                            "executes bind for chained operations as the user set in the "
+                                            "nsMultiplexorBindDn attribute.")
+    def_config_set_parser.add_argument('--conn-lifetime',
+                                       help="Specifies connection lifetime in seconds. \"0\" keeps the connection open forever.")
     def_config_set_parser.add_argument('--bind-timeout', help="Sets the amount of time in seconds before a bind attempt times out")
     def_config_set_parser.add_argument('--return-ref', help="Enables or disables whether referrals are returned by scoped searches")
-    def_config_set_parser.add_argument('--check-aci', help="Enables or disables whether the server evaluates ACIs on the database link as well as the remote data server")
+    def_config_set_parser.add_argument('--check-aci',
+                                       help="Enables or disables whether the server evaluates ACIs on the database "
+                                            "link as well as the remote data server")
     def_config_set_parser.add_argument('--bind-attempts', help="Sets the number of times the server tries to bind to the remote server")
     def_config_set_parser.add_argument('--size-limit', help="Sets the maximum number of entries to return from a search operation")
     def_config_set_parser.add_argument('--time-limit', help="Sets the maximum number of seconds allowed for an operation")
     def_config_set_parser.add_argument('--hop-limit',
-        help="Sets the maximum number of times a database is allowed to chain. That is the number of times a request can be forwarded from one database link to another.")
+                                       help="Sets the maximum number of times a database is allowed to chain. That is "
+                                             "the number of times a request can be forwarded from one database link to another.")
     def_config_set_parser.add_argument('--response-delay',
-        help="Sets the maximum amount of time it can take a remote server to respond to an LDAP operation request made by a database link before an error is suspected")
-    def_config_set_parser.add_argument('--test-response-delay', help="Sets the duration of the test issued by the database link to check whether the remote server is responding")
+                                       help="Sets the maximum amount of time it can take a remote server to respond to "
+                                            "an LDAP operation request made by a database link before an error is suspected")
+    def_config_set_parser.add_argument('--test-response-delay',
+                                       help="Sets the duration of the test issued by the database link to check whether "
+                                            "the remote server is responding")
     def_config_set_parser.add_argument('--use-starttls', help="Configured that database links use StartTLS if set to \"on\"")
 
-    create_link_parser = subcommands.add_parser('link-create', add_help=False, conflict_handler='resolve', parents=[def_config_set_parser],
-        help='Create a database link to a remote server')
+    create_link_parser = subcommands.add_parser('link-create', add_help=False, conflict_handler='resolve',
+                                                parents=[def_config_set_parser],
+                                                help='Create a database link to a remote server')
     create_link_parser.set_defaults(func=create_link)
     create_link_parser.add_argument('CHAIN_NAME', nargs=1, help='The name of the database link')
     create_link_parser.add_argument('--suffix', required=True, help="Sets the suffix managed by the database link")
     create_link_parser.add_argument('--server-url', required=True, help="Sets the LDAP/LDAPS URL to the remote server")
     create_link_parser.add_argument('--bind-mech', required=True,
-        help="Sets the authentication method to use to authenticate to the remote server. Valid values: \"SIMPLE\" (default), \"EXTERNAL\", \"DIGEST-MD5\", or \"GSSAPI\"")
-    create_link_parser.add_argument('--bind-dn', required=True, help="Sets the DN of the administrative entry used to communicate with the remote server")
-    create_link_parser.add_argument('--bind-pw', required=True, help="Sets the password of the administrative user")
+                                    help="Sets the authentication method to use to authenticate to the remote server. "
+                                         "Valid values: \"SIMPLE\" (default), \"EXTERNAL\", \"DIGEST-MD5\", or \"GSSAPI\"")
+    create_link_parser.add_argument('--bind-dn', required=True,
+                                    help="Sets the DN of the administrative entry used to communicate with the remote server")
+    create_link_parser.add_argument('--bind-pw', help="Sets the password of the administrative user")
+    create_link_parser.add_argument('--bind-pw-file', help="File containing the password")
+    create_link_parser.add_argument('--bind-pw-prompt', action='store_true', help="Prompt for password")
 
     get_link_parser = subcommands.add_parser('link-get', help='Displays chaining database links')
     get_link_parser.set_defaults(func=get_link)
@@ -274,9 +304,13 @@ def create_parser(subparsers):
     edit_link_parser.add_argument('--suffix', help="Sets the suffix managed by the database link")
     edit_link_parser.add_argument('--server-url', help="Sets the LDAP/LDAPS URL to the remote server")
     edit_link_parser.add_argument('--bind-mech',
-        help="Sets the authentication method to use to authenticate to the remote server: Valid values: \"SIMPLE\" (default), \"EXTERNAL\", \"DIGEST-MD5\", or \"GSSAPI\"")
-    edit_link_parser.add_argument('--bind-dn', help="Sets the DN of the administrative entry used to communicate with the remote server")
+                                  help="Sets the authentication method to use to authenticate to the remote server: "
+                                       "Valid values: \"SIMPLE\" (default), \"EXTERNAL\", \"DIGEST-MD5\", or \"GSSAPI\"")
+    edit_link_parser.add_argument('--bind-dn',
+                                  help="Sets the DN of the administrative entry used to communicate with the remote server")
     edit_link_parser.add_argument('--bind-pw', help="Sets the password of the administrative user")
+    edit_link_parser.add_argument('--bind-pw-file', help="File containing the password")
+    edit_link_parser.add_argument('--bind-pw-prompt', action='store_true', help="Prompt for password")
 
     delete_link_parser = subcommands.add_parser('link-delete', help='Delete a database link')
     delete_link_parser.set_defaults(func=delete_link)

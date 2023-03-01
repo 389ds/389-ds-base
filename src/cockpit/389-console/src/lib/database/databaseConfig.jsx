@@ -398,7 +398,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                 inputAriaLabel="number input"
                                 minusBtnAriaLabel="minus"
                                 plusBtnAriaLabel="plus"
-                                widthChars={8}
+                                widthChars={10}
                                 unit="%"
                             />
                         </GridItem>
@@ -422,7 +422,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                 inputAriaLabel="number input"
                                 minusBtnAriaLabel="minus"
                                 plusBtnAriaLabel="plus"
-                                widthChars={8}
+                                widthChars={10}
                             />
                         </GridItem>
                     </Grid>
@@ -623,7 +623,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
-                                                widthChars={8}
+                                                widthChars={10}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -646,7 +646,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
-                                                widthChars={8}
+                                                widthChars={10}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -669,7 +669,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
-                                                widthChars={8}
+                                                widthChars={10}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -692,7 +692,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
-                                                widthChars={8}
+                                                widthChars={10}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -715,7 +715,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
-                                                widthChars={8}
+                                                widthChars={10}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -810,7 +810,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
-                                                widthChars={8}
+                                                widthChars={10}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -922,7 +922,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
-                                                widthChars={8}
+                                                widthChars={10}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -945,7 +945,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
-                                                widthChars={8}
+                                                widthChars={10}
                                             />
                                         </GridItem>
                                     </Grid>
