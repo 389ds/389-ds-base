@@ -28,7 +28,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 import PropTypes from "prop-types";
-import { log_cmd, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_dn, callCmdStreamPassword } from "../tools.jsx";
 
 export class ReplSuffix extends React.Component {
     constructor (props) {
@@ -213,11 +213,12 @@ export class ReplSuffix extends React.Component {
             'replication', 'enable', '--suffix=' + this.props.suffix,
             '--role=' + this.state.enableRole
         ];
+        let passwd = "";
         if (this.state.enableBindDN != "") {
             cmd.push('--bind-dn=' + this.state.enableBindDN);
         }
         if (this.state.enableBindPW != "") {
-            cmd.push('--bind-passwd=' + this.state.enableBindPW);
+            passwd = this.state.enableBindPW;
         }
         if (this.state.enableBindGroupDN != "") {
             cmd.push('--bind-group-dn=' + this.state.enableBindGroupDN);
@@ -231,24 +232,23 @@ export class ReplSuffix extends React.Component {
         });
 
         this.props.disableTree();
-        log_cmd('enableReplication', 'Enable replication', cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.props.reload(1);
-                    this.props.addNotification(
-                        "success",
-                        `Successfully enabled replication for "${this.props.suffix}"`
-                    );
-                })
-                .fail(err => {
-                    this.props.reload(1);
-                    const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to enable replication for "${this.props.suffix}" - ${errMsg.desc}`
-                    );
-                });
+
+
+        // Something changed, perform the update
+        const config = {
+            cmd: cmd,
+            promptArg: "--bind-passwd-prompt",
+            passwd: passwd,
+            addNotification: this.props.addNotification,
+            success_msg: `Successfully enabled replication for "${this.props.suffix}"`,
+            error_msg: `Failed to enable replication for "${this.props.suffix}"`,
+            state_callback: () => {},
+            reload_func: this.props.reload,
+            reload_arg: "1",
+            funcName: "enableReplication",
+            funcDesc: "Enable replication"
+        };
+        callCmdStreamPassword(config);
     }
 
     closeDisableReplModal () {
@@ -259,12 +259,18 @@ export class ReplSuffix extends React.Component {
 
     disableReplication () {
         this.props.disableTree();
+        this.setState({
+            modalSpinning: true
+        });
         const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', 'disable', '--suffix=' + this.props.suffix];
         log_cmd('disableReplication', 'Disable replication', cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.props.reload(1);
+                    this.setState({
+                        modalSpinning: false
+                    });
                     this.props.addNotification(
                         "success",
                         `Successfully disabled replication for "${this.props.suffix}"`
@@ -272,6 +278,9 @@ export class ReplSuffix extends React.Component {
                 })
                 .fail(err => {
                     this.props.reload(1);
+                    this.setState({
+                        modalSpinning: false
+                    });
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",

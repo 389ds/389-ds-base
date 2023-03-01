@@ -8,6 +8,7 @@ import {
     Grid, GridItem,
     Label,
     Pagination,
+    SearchInput,
     Select, SelectOption, SelectVariant,
     SimpleList, SimpleListItem,
     Spinner,
@@ -136,6 +137,7 @@ class AddUser extends React.Component {
             savedRows: [],
             commandOutput: '',
             resultVariant: 'default',
+            searchValue: "",
             stepIdReached: 1,
             itemCountAddUser: 0,
             pageAddUser: 1,
@@ -144,6 +146,7 @@ class AddUser extends React.Component {
                 { title: 'Attribute Name', cellTransforms: [headerCol()] },
             ],
             rowsUser: [],
+            rowsOrig: [],
             pagedRowsUser: [],
             selectedAttributes: [],
             isAttrDropDownOpen: false,
@@ -239,12 +242,41 @@ class AddUser extends React.Component {
             this.setState({
                 itemCountAddUser: attributesArray.length,
                 rowsUser: attributesArray,
+                rowsOrig: [...attributesArray],
                 pagedRowsUser: attributesArray.slice(0, this.state.perPageAddUser),
                 accountType: selection,
                 selectedAttributes: selectedAttrs,
                 isOpenType: false,
             });
         }
+
+        this.onAttrSearchChange = (value, event) => {
+            let attrRows = [];
+            let allAttrs = [];
+            const val = value.toLowerCase();
+
+            allAttrs = this.state.rowsOrig;
+
+            // Process search filter on the entire list
+            if (val !== "") {
+                for (const row of allAttrs) {
+                    const name = row.cells[0].toLowerCase();
+                    if (name.includes(val)) {
+                        attrRows.push(row);
+                    }
+                }
+            } else {
+                // Restore entire row list
+                attrRows = allAttrs;
+            }
+
+            this.setState({
+                rowsUser: attrRows,
+                pagedRowsUser: attrRows.slice(0, this.state.perPageAttr),
+                itemCountAddUser: attrRows.length,
+            })
+        }
+
 
         // End constructor().
     }
@@ -270,6 +302,7 @@ class AddUser extends React.Component {
         this.setState({
             itemCountAddUser: attributesArray.length,
             rowsUser: attributesArray,
+            rowsOrig: [...attributesArray],
             pagedRowsUser: attributesArray.slice(0, this.state.perPageAddUser),
             selectedAttributes: [...this.requiredAttrs[this.state.accountType]],
         });
@@ -321,9 +354,10 @@ class AddUser extends React.Component {
         // The row ID cannot be used since it changes with the pagination.
         const attrName = this.state.pagedRowsUser[rowId].cells[0];
         let allItems = [...this.state.rowsUser];
+        const allAttrs = this.state.rowsOrig;
         const index = allItems.findIndex(item => item.cells[0] === attrName);
         allItems[index].isAttributeSelected = isSelected;
-        const selectedAttributes = allItems
+        let selectedAttributes = allAttrs
             .filter(item => item.isAttributeSelected)
             .map(selectedAttr => selectedAttr.cells[0]);
 
@@ -593,15 +627,28 @@ class AddUser extends React.Component {
                     </TextContent>
                     {this.buildAttrDropdown()}
                 </div>
-                <Pagination
-                    itemCount={itemCountAddUser}
-                    page={pageAddUser}
-                    perPage={perPageAddUser}
-                    onSetPage={this.onSetPageAddUser}
-                    widgetId="pagination-options-menu-add-user"
-                    onPerPageSelect={this.onPerPageSelectAddUser}
-                    isCompact
-                />
+                <Grid className="ds-margin-top-lg">
+                    <GridItem span={5}>
+                        <SearchInput
+                            className="ds-font-size-md"
+                            placeholder='Search Attributes'
+                            value={this.state.searchValue}
+                            onChange={this.onAttrSearchChange}
+                            onClear={(evt) => this.onAttrSearchChange('', evt)}
+                        />
+                    </GridItem>
+                    <GridItem span={7}>
+                        <Pagination
+                            itemCount={itemCountAddUser}
+                            page={pageAddUser}
+                            perPage={perPageAddUser}
+                            onSetPage={this.onSetPageAddUser}
+                            widgetId="pagination-options-menu-add-user"
+                            onPerPageSelect={this.onPerPageSelectAddUser}
+                            isCompact
+                        />
+                    </GridItem>
+                </Grid>
                 <Table
                     cells={columnsUser}
                     rows={pagedRowsUser}
