@@ -77,6 +77,13 @@ def test_compaction_interval_and_time(topo):
     now = datetime.datetime.now()
     current_hour = now.hour
     current_minute = now.minute + 2
+
+    if current_minute >= 60:
+        # handle time wrapping/rollover
+        current_minute = current_minute - 60
+        # Bump to the next hour
+        current_hour += 1
+
     if current_hour < 10:
         hour = "0" + str(current_hour)
     else:
@@ -85,6 +92,7 @@ def test_compaction_interval_and_time(topo):
         minute = "0" + str(current_minute)
     else:
         minute = str(current_minute)
+
     compact_time = hour + ":" + minute
 
     # Set compaction TOD
@@ -93,10 +101,10 @@ def test_compaction_interval_and_time(topo):
     inst.deleteErrorLogs(restart=True)
 
     # Check compaction occurred as expected
-    time.sleep(60)
+    time.sleep(45)
     assert not inst.searchErrorsLog("Compacting databases")
 
-    time.sleep(61)
+    time.sleep(90)
     assert inst.searchErrorsLog("Compacting databases")
     inst.deleteErrorLogs(restart=False)
 

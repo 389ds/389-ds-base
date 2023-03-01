@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_dn, callCmdStreamPassword } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { ManagerTable } from "./replTables.jsx";
 import { AddManagerModal, ChangeReplRoleModal } from "./replModals.jsx";
@@ -228,38 +228,32 @@ export class ReplConfig extends React.Component {
             addManagerSpinning: true
         });
 
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "create-manager", "--suffix=" + this.props.suffix, "--name=" + this.state.manager,
-            "--passwd=" + this.state.manager_passwd
         ];
 
-        log_cmd("addManager", "Adding Replication Manager", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.props.reloadConfig(this.props.suffix);
-                    this.props.addNotification(
-                        "success",
-                        `Successfully added Replication Manager`
-                    );
-                    this.setState({
-                        addManagerSpinning: false,
-                        showAddManagerModal: false
-                    });
+        // Something changed, perform the update
+        const config = {
+            cmd: cmd,
+            promptArg: "",  // repl manager auto prompts when passwd is missing
+            passwd: this.state.manager_passwd,
+            addNotification: this.props.addNotification,
+            msg: "Replication Manager",
+            success_msg: "Successfully added Replication Manager",
+            error_msg: "Failure adding Replication Manager",
+            state_callback: () => {
+                this.setState({
+                    addManagerSpinning: false,
+                    showAddManagerModal: false
                 })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.props.reloadConfig(this.props.suffix);
-                    this.props.addNotification(
-                        "error",
-                        `Failure adding Replication Manager - ${errMsg.desc}`
-                    );
-                    this.setState({
-                        addManagerSpinning: false,
-                        showAddManagerModal: false
-                    });
-                });
+            },
+            reload_func: this.props.reloadConfig,
+            reload_arg: this.props.suffix,
+            funcName: "addManager",
+            funcDesc: "Adding Replication Manager"
+        };
+        callCmdStreamPassword(config);
     }
 
     handleModalChange(e) {

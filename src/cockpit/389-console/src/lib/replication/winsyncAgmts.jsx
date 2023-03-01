@@ -3,7 +3,10 @@ import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { ReplAgmtTable } from "./replTables.jsx";
 import { WinsyncAgmtModal } from "./replModals.jsx";
-import { log_cmd, valid_dn, valid_port, listsEqual } from "../tools.jsx";
+import {
+    log_cmd, valid_dn, valid_port,
+    listsEqual, callCmdStreamPassword
+} from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     Button,
@@ -776,6 +779,8 @@ export class WinsyncAgmts extends React.Component {
             'repl-winsync-agmt', 'set', this.state.agmtName, '--suffix=' + this.props.suffix,
         ];
 
+        let passwd = "";
+
         // Handle Schedule
         if (this.state.agmtSync) {
             let agmt_days = "";
@@ -860,32 +865,27 @@ export class WinsyncAgmts extends React.Component {
         this.setState({
             savingAgmt: true
         });
-        log_cmd('saveAgmt', 'update winsync agreement', cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.props.reload(this.props.suffix);
-                    if (this._mounted) {
-                        this.setState({
-                            savingAgmt: false,
-                            showEditAgmtModal: false,
-                        });
-                    }
-                    this.props.addNotification(
-                        'success',
-                        'Successfully updated winsync agreement'
-                    );
+
+        // Something changed, perform the update
+        const config = {
+            cmd: cmd,
+            promptArg: "--bind-passwd-prompt",
+            passwd: passwd,
+            addNotification: this.props.addNotification,
+            success_msg: "Successfully updated winsync agreement",
+            error_msg: "Failed to update winsync agreement",
+            state_callback: () => {
+                this.setState({
+                    savingAgmt: false,
+                    showEditAgmtModal: false,
                 })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to update winsync agreement - ${errMsg.desc}`
-                    );
-                    this.setState({
-                        savingAgmt: false
-                    });
-                });
+            },
+            reload_func: this.props.reload,
+            reload_arg: this.props.suffix,
+            funcName: "saveAgmt",
+            funcDesc: "update winsync agreement"
+        };
+        callCmdStreamPassword(config);
     }
 
     pokeAgmt (agmtName) {
@@ -1040,7 +1040,7 @@ export class WinsyncAgmts extends React.Component {
                         'success',
                         'Successfully deleted winsync agreement');
                     this.setState({
-                        showDeleteConfirm: false,
+                        showConfirmDeleteAgmt: false,
                         deleteSpinning: false
                     });
                 })
@@ -1051,7 +1051,7 @@ export class WinsyncAgmts extends React.Component {
                         `Failed to delete winsync agreement - ${errMsg.desc}`
                     );
                     this.setState({
-                        showDeleteConfirm: false,
+                        showConfirmDeleteAgmt: false,
                         deleteSpinning: false
                     });
                 });
@@ -1063,10 +1063,12 @@ export class WinsyncAgmts extends React.Component {
             'repl-winsync-agmt', 'create', this.state.agmtName, '--suffix=' + this.props.suffix,
             '--host=' + this.state.agmtHost, '--port=' + this.state.agmtPort,
             '--conn-protocol=' + this.state.agmtProtocol,
-            '--bind-dn=' + this.state.agmtBindDN, '--bind-passwd=' + this.state.agmtBindPW,
+            '--bind-dn=' + this.state.agmtBindDN,
             '--ds-subtree=' + this.state.agmtDSSubtree, '--win-subtree=' + this.state.agmtWinSubtree,
             '--win-domain=' + this.state.agmtWinDomain, '--one-way-sync=' + this.state.agmtOneWaySync
         ];
+
+        let passwd = this.state.agmtBindPW;
 
         // Handle Schedule
         if (this.state.agmtSync) {
@@ -1111,35 +1113,35 @@ export class WinsyncAgmts extends React.Component {
         this.setState({
             savingAgmt: true
         });
-        log_cmd('createAgmt', 'Create winsync agreement', cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.props.reload(this.props.suffix);
-                    if (this._mounted) {
-                        this.setState({
-                            savingAgmt: false,
-                            showCreateAgmtModal: false,
-                        });
-                    }
-                    this.props.addNotification(
-                        'success',
-                        'Successfully created winsync agreement'
-                    );
-                    if (this.state.agmtInit == 'online-init') {
-                        this.initAgmt(this.state.agmtName);
-                    }
+
+        // Something changed, perform the update
+        let ext_func = ""
+        if (this.state.agmtInit === 'online-init') {
+            ext_func = this.initAgmt;
+        }
+
+        log_cmd('createAgmt', 'Create winsync agmt', cmd);
+        const config = {
+            cmd: cmd,
+            promptArg: "--bind-passwd-prompt",
+            passwd: passwd,
+            addNotification: this.props.addNotification,
+            success_msg: "Successfully created winsync agreement",
+            error_msg: "Failed to create winsync agreement",
+            state_callback: () => {
+                this.setState({
+                    savingAgmt: false,
+                    showCreateAgmtModal: false,
                 })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to create winsync agreement - ${errMsg.desc}`
-                    );
-                    this.setState({
-                        savingAgmt: false
-                    });
-                });
+            },
+            reload_func: this.props.reload,
+            reload_arg: this.props.suffix,
+            ext_func: ext_func,
+            ext_arg: this.state.agmtName,
+            funcName: "createAgmt",
+            funcDesc: "Create winsync agreement"
+        };
+        callCmdStreamPassword(config);
     }
 
     watchAgmtInit(agmtName, idx) {

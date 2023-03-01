@@ -60,7 +60,7 @@ class EditableTable extends React.Component {
             showPassword: false,
             pwdValue: "",
             pwdRowIndex: -1,
-            fileValue: null,
+            fileValue: "",
             fileName: '',
             encodedValueIsEmpty: true,
             strPathValueIsEmpty: true,
@@ -159,28 +159,31 @@ class EditableTable extends React.Component {
             }
         };
 
-        this.handleFileChange = (fileValue, fileName, event) => {
+        this.handleClear = () => {
+            this.setState({
+                fileName: ""
+            });
+        };
+
+        this.handleFileChange = (e, file) => {
             let encodedValue;
             const encodedValueIsEmpty = true;
             const strPathValueIsEmpty = true;
             const isFileTooLarge = false;
 
             this.setState({
-                fileValue,
-                fileName,
+                fileName: file.name,
                 encodedValueIsEmpty,
                 strPathValueIsEmpty,
                 isFileTooLarge
             });
-            console.log(`fileValue = #${fileValue}#`);
-            console.log(fileValue);
-            console.log(`fileValue.size = ${fileValue.size}`);
+            console.debug('handleFileChange - file: ', file);
 
-            if (fileValue.size === undefined) { // The "Clear" button was pressed.
+            if (file.size === undefined) { // The "Clear" button was pressed.
                 return;
             }
 
-            if (fileValue.size === 0) { // An empty file was selected.
+            if (file.size === 0) { // An empty file was selected.
                 console.log('An empty file was selected. Nothing to do.');
                 return;
             }
@@ -191,8 +194,8 @@ class EditableTable extends React.Component {
             //
             // https://github.com/cockpit-project/cockpit/blob/dee6324d037f3b8961d1b38960b4226c7e473abf/src/websocket/websocketconnection.c#L154
             //
-            if (fileValue.size > WEB_SOCKET_MAX_PAYLOAD) {
-                console.log('File too large!');
+            if (file.size > WEB_SOCKET_MAX_PAYLOAD) {
+                console.log('handleFileChange - File too large!');
                 this.setState({ isFileTooLarge: true });
                 return;
             }
@@ -200,32 +203,34 @@ class EditableTable extends React.Component {
             // data:image/png;base64,
             // base64encode(fileName, val => { console.log(val); })
             // https://stackoverflow.com/questions/36280818/how-to-convert-file-to-base64-in-javascript
+
             const reader = new FileReader();
-            reader.readAsDataURL(fileValue);
+            reader.readAsDataURL(file);
             reader.onload = () => {
                 const pattern = ';base64,';
                 const pos = reader.result.indexOf(pattern);
                 const toDel = reader.result.substring(0, pos + pattern.length);
-                const isAnImage = fileValue.type.startsWith('image/');
+                const isAnImage = file.type.startsWith('image/');
 
                 // Check the file type.
                 encodedValue = this.state.attrIsJpegPhoto
                 ? isAnImage
                     ? reader.result.replace(toDel, '')
-                    : null
+                    : ""
                 // The attribute is a certificate.
-                : (fileValue.type === 'application/x-x509-ca-cert') ||
-                (fileValue.type === 'application/x-x509-user-cert')
+                : (file.type === 'application/x-x509-ca-cert') ||
+                (file.type === 'application/x-x509-user-cert') ||
+                (file.type === 'application/pkix-cert')
                     ? reader.result.replace(toDel, '')
-                    : null;
+                    : "";
 
-                if (encodedValue === null) {
-                    console.log('encodedValue is null. Nothing to do.');
+                if (encodedValue === "") {
+                    console.log('handleFileChange - encodedValue is null. Nothing to do.');
                     return;
                 }
 
                 // Decode the binary value.
-                let myDecodedValue = null;
+                let myDecodedValue = "";
                 if (isAnImage) {
                     if (this.state.attrIsJpegPhoto) {
                         myDecodedValue = (<img
@@ -240,10 +245,15 @@ class EditableTable extends React.Component {
                     // TODO ==> Decode the certificate
                     // IMPORTANT! ==> Enable the "Confirm" button once the cert decoding is completed.
                     // myDecodedValue = ...
+                    myDecodedValue = (<div>
+                        <Label icon={<InfoCircleIcon />} color="blue" >
+                            Value is too large to display
+                        </Label>
+                        </div>);
                 }
 
                 // console.log(reader.result.substring(0, 100));
-                console.log(`encodedValue.substring(0, 100) = ${encodedValue.substring(0, 100)}`);
+                console.log(`handleFileChange - encodedValue.substring(0, 100) = ${encodedValue.substring(0, 100)}`);
                 const newRows = [...this.state.tableRows];
                 newRows[this.state.currentRowIndex].cells[1].props.value = myDecodedValue;
                 // Store the encoded value to use it to create the LDIF statements!
@@ -264,7 +274,7 @@ class EditableTable extends React.Component {
                 this.props.saveCurrentRows(rowDataToSave, this.state.namingRowID);
             };
             reader.onerror = (error) => {
-                console.log(`Failed to encode the file : ${fileName}`, error);
+                console.log(`handleFileChange - Failed to encode the file : ${file.name}`, error);
             };
         };
 
@@ -819,22 +829,20 @@ class EditableTable extends React.Component {
                                 The certificate must be stored in the Distinguished Encoding Rules (DER) format.
                             </Label>
                         }
-
                         { uploadSelected &&
                             <FileUpload
                                 id="file-upload"
+                                type="dataURL"
                                 className="ds-margin-top-lg"
-                                value={fileValue}
                                 filename={fileName}
-                                onChange={this.handleFileChange}
-                                /* dropzoneProps={{
-                                    accept: attrIsJpegPhoto
-                                    ? '.jpg' // [.jpeg,.jpg]
-                                    : '.der'
-                                }} */
+                                value={fileName}
+                                onFileInputChange={this.handleFileChange}
+                                onClearClick={this.handleClear}
+                                validated={uploadSelected && fileName === "" ? 'error' : 'default'}
+                                hideDefaultPreview
+                                browseButtonText="Choose Binary File"
                             />
                         }
-
                         { !uploadSelected &&
                             <TextInput
                                 value={binaryAttributeFilePath}

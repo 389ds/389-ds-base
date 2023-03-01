@@ -94,6 +94,7 @@ export class DSInstance extends React.Component {
             backupRows: [],
             notifications: [],
             activeTabKey: 1,
+            createKey: 0,
             wasActiveList: [],
             progressValue: 0,
             loadingOperate: false,
@@ -576,8 +577,10 @@ export class DSInstance extends React.Component {
     }
 
     openCreateInstanceModal() {
+        const key = this.state.createKey + 1;
         this.setState({
-            showCreateInstanceModal: true
+            showCreateInstanceModal: true,
+            createKey: key
         });
     }
 
@@ -855,6 +858,7 @@ export class DSInstance extends React.Component {
                 {serverDropdown}
                 {mainPage}
                 <CreateInstanceModal
+                    key={this.state.createKey}
                     showModal={this.state.showCreateInstanceModal}
                     closeHandler={this.closeCreateInstanceModal}
                     addNotification={this.addNotification}
