@@ -1,3 +1,5 @@
+import cockpit from "cockpit";
+
 export function searchFilter(searchFilterValue, columnsToSearch, rows) {
     if (searchFilterValue && rows && rows.length) {
         const filteredRows = [];
@@ -244,4 +246,41 @@ export function listsEqual(list1, list2) {
 export function validHostname(hostname) {
     var reHostname = new RegExp(/^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/);
     return reHostname.exec(hostname);
+}
+
+export function callCmdStreamPassword(config) {
+    // Cmd will trigger CLI to prompt for password, add it via stream
+    let cmd = [...config.cmd];
+    if (config.passwd !== "" && config.promptArg !== "") {
+        // Add password file arg
+        cmd.push(config.promptArg);
+    }
+    let buffer = "";
+
+    const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message" });
+    proc
+            .done(data => {
+                config.addNotification("success", config.success_msg);
+                config.state_callback();
+                if (config.reload_func) {
+                    config.reload_func(config.reload_arg);
+                }
+                if (config.ext_func) {
+                    config.ext_func(config.ext_arg);
+                }
+            })
+            .fail(_ => {
+                config.addNotification("error", config.error_msg + ": " + buffer);
+                config.state_callback();
+                if (config.reload_func) {
+                    config.reload_func(config.reload_arg);
+                }
+                if (config.ext_func) {
+                    config.ext_func(config.ext_arg);
+                }
+            })
+            .stream(data => {
+                buffer += data;
+                proc.input(config.passwd + "\n", true);
+            });
 }

@@ -1,4 +1,6 @@
+
 import cockpit from 'cockpit';
+import React from 'react';
 import {
     Label,
 } from '@patternfly/react-core';
@@ -395,8 +397,7 @@ export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCa
           if (currentLine.length < 1000 || currentLine.substring(0, 9).toLowerCase().startsWith("jpegphoto")) {
             entryArray.push(splitAttributeValue(currentLine));
           } else {
-            const myTruncatedValue = (<div>
-                                          currentLine.substring(0, 1000)
+            const myTruncatedValue = (<div name="truncated" attr={splitAttributeValue(currentLine).attribute}>
                                           <Label icon={<InfoCircleIcon />} color="blue" >
                                               Value is too large to display
                                           </Label>

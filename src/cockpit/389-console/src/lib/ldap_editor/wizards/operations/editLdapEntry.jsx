@@ -233,6 +233,7 @@ class EditLdapEntry extends React.Component {
             this.setState({
                 rowsAttr: attrRows,
                 pagedRowsAttr: attrRows.slice(0, this.state.perPageAttr),
+                itemCountAttr: attrRows.length,
             })
         }
 
@@ -311,70 +312,83 @@ class EditLdapEntry extends React.Component {
                 .filter(data => (data.attribute + data.value !== '' && // Filter out empty lines
                 data.attribute !== '???: ')) // and data for empty suffix(es) and in case of failure.
                 .map((line, index) => {
-                    const obj = {};
-                    const attr = line.attribute;
-                    const attrLowerCase = attr.trim().toLowerCase();
+                    let attrLowerCase;
                     let namingAttribute = false;
-                    let val = line.value.substring(1).trim();
-                    let encodedvalue = "";
+                    if (line.attribute !== undefined) {
+                        const obj = {};
+                        const attr = line.attribute;
+                        attrLowerCase = attr.trim().toLowerCase();
+                        let val = line.value.substring(1).trim();
+                        let encodedvalue = "";
 
-                    if (attrLowerCase === "objectclass") {
-                        objectclasses.push(val);
-                        if (val.toLowerCase() === "groupofnames") {
-                            isGroupOfNames = true;
-                        } else if (val.toLowerCase() === "groupofuniquenames") {
-                            isGroupOfUniqueNames = true;
-                        }
-                    } else {
-                        // Base64 encoded values
-                        if (line.attribute === "dn") {
-                            //return;
-                        }
-                        if (line.value.substring(0, 2) === '::') {
-                            val = line.value.substring(3);
-                            if (BINARY_ATTRIBUTES.includes(attrLowerCase)) {
-                                // obj.fileUpload = true;
-                                // obj.isDisabled = true;
-                                if (attrLowerCase === 'jpegphoto') {
-                                    const myPhoto = (<img
-                                        src={`data:image/png;base64,${val}`}
-                                        alt=""
-                                        style={{ width: '48px' }} // height will adjust automatically.
-                                        />);
-                                    encodedvalue = val;
-                                    val = myPhoto;
-                                } else if (attrLowerCase === 'nssymmetrickey') {
-                                    // TODO: Check why the decoding of 'nssymmetrickey is failing...
-                                    //   https://access.redhat.com/documentation/en-us/red_hat_directory_server/10
-                                    //   /html/configuration_command_and_file_reference/core_server_configuration_reference#cnchangelog5-nsSymmetricKey
-                                    //
-                                    // Just show the encoded value at the moment.
-                                    val = line.value.substring(3);
-                                }
-                            } else { // The value likely contains accented characters or has a trailing space.
-                                val = b64DecodeUnicode(line.value.substring(3));
+                        if (attrLowerCase === "objectclass") {
+                            objectclasses.push(val);
+                            if (val.toLowerCase() === "groupofnames") {
+                                isGroupOfNames = true;
+                            } else if (val.toLowerCase() === "groupofuniquenames") {
+                                isGroupOfUniqueNames = true;
                             }
                         } else {
-                            // Check for naming attribute
-                            if (attr === rdnInfo.rdnAttr && val === rdnInfo.rdnVal) {
-                                namingAttribute = true;
-                                namingAttr = attr;
-                                namingValue = val;
+                            // Base64 encoded values
+                            if (line.attribute === "dn") {
+                                //return;
                             }
+                            if (line.value.substring(0, 2) === '::') {
+                                val = line.value.substring(3);
+                                if (BINARY_ATTRIBUTES.includes(attrLowerCase)) {
+                                    // obj.fileUpload = true;
+                                    // obj.isDisabled = true;
+                                    if (attrLowerCase === 'jpegphoto') {
+                                        const myPhoto = (<img
+                                            src={`data:image/png;base64,${val}`}
+                                            alt=""
+                                            style={{ width: '48px' }} // height will adjust automatically.
+                                            />);
+                                        encodedvalue = val;
+                                        val = myPhoto;
+                                    } else if (attrLowerCase === 'nssymmetrickey') {
+                                        // TODO: Check why the decoding of 'nssymmetrickey is failing...
+                                        //   https://access.redhat.com/documentation/en-us/red_hat_directory_server/10
+                                        //   /html/configuration_command_and_file_reference/core_server_configuration_reference#cnchangelog5-nsSymmetricKey
+                                        //
+                                        // Just show the encoded value at the moment.
+                                        val = line.value.substring(3);
+                                    }
+                                } else { // The value likely contains accented characters or has a trailing space.
+                                    val = b64DecodeUnicode(line.value.substring(3));
+                                }
+                            } else {
+                                // Check for naming attribute
+                                if (attr === rdnInfo.rdnAttr && val === rdnInfo.rdnVal) {
+                                    namingAttribute = true;
+                                    namingAttr = attr;
+                                    namingValue = val;
+                                }
+                            }
+
+                            obj.id = generateUniqueId();
+                            obj.attr = attr;
+                            obj.val = val;
+                            obj.encodedvalue = encodedvalue;
+                            obj.namingAttr = namingAttribute;
+                            obj.required = namingAttribute;
+                            this.originalEntryRows.push(obj);
                         }
-
+                        // Handle group members separately
+                        if (attrLowerCase === "member" || attrLowerCase === "uniquemember") {
+                            members.push(val);
+                        }
+                    } else {
+                        // Value too large Label
+                        const obj = {};
                         obj.id = generateUniqueId();
-                        obj.attr = attr;
-                        obj.val = val;
-                        obj.encodedvalue = encodedvalue;
-                        obj.namingAttr = namingAttribute;
-                        obj.required = namingAttribute;
+                        obj.attr = line.props.attr;
+                        obj.val = line;
+                        obj.encodedvalue = "";
+                        obj.namingAttr = false;
+                        obj.required = false;
+                        attrLowerCase = line.props.attr.trim().toLowerCase();
                         this.originalEntryRows.push(obj);
-                    }
-
-                    // Handle groupo members separately
-                    if (attrLowerCase === "member" || attrLowerCase === "uniquemember") {
-                        members.push(val);
                     }
                 });
 

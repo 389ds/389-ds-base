@@ -1867,3 +1867,11 @@ def cert_is_ca(cert_file_name):
 
     # This is a CA cert
     return True
+
+
+def get_passwd_from_file(passwd_file):
+    if os.path.exists(passwd_file):
+        with open(passwd_file, 'r') as f:
+            passwd = f.readline().strip()
+            return passwd
+    raise ValueError(f"The password file '{passwd_file}' does not exist, or can not be read.")

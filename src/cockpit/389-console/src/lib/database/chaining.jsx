@@ -1,7 +1,7 @@
 import cockpit from "cockpit";
 import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, callCmdStreamPassword } from "../tools.jsx";
 import {
     Button,
     Checkbox,
@@ -1162,6 +1162,7 @@ export class ChainingConfig extends React.Component {
 
     saveLink() {
         const missingArgs = {};
+        let bind_pw = "";
         let errors = false;
 
         if (this.state.nsfarmserverurl == "") {
@@ -1225,7 +1226,7 @@ export class ChainingConfig extends React.Component {
             cmd.push('--bind-dn=' + this.state.nsmultiplexorbinddn);
         }
         if (this.state.nsmultiplexorcredentials != this.state._nsmultiplexorcredentials) {
-            cmd.push('--bind-pw=' + this.state.nsmultiplexorcredentials);
+            bind_pw = this.state.nsmultiplexorcredentials
         }
         if (this.state.timelimit != this.state._timelimit) {
             cmd.push('--time-limit=' + this.state.timelimit);
@@ -1298,30 +1299,20 @@ export class ChainingConfig extends React.Component {
                 saving: true
             });
             // Something changed, perform the update
-            log_cmd("saveLink", "Save chaining link config", cmd);
-            cockpit
-                    .spawn(cmd, { superuser: true, err: "message" })
-                    .done(content => {
-                        this.props.reload(this.props.suffix);
-                        this.props.addNotification(
-                            "success",
-                            `Successfully Updated Link Configuration`
-                        );
-                        this.setState({
-                            saving: false
-                        });
-                    })
-                    .fail(err => {
-                        const errMsg = JSON.parse(err);
-                        this.props.reload(this.props.suffix);
-                        this.props.addNotification(
-                            "error",
-                            `Failed to update link configuration - ${errMsg.desc}`
-                        );
-                        this.setState({
-                            saving: false
-                        });
-                    });
+            const config = {
+                cmd: cmd,
+                promptArg: "--bind-pw-prompt",
+                passwd: bind_pw,
+                addNotification: this.props.addNotification,
+                success_msg: "Successfully Updated Link Configuration",
+                error_msg: "Failed to update link configuration",
+                state_callback: () => { this.setState({ saving: false }) },
+                reload_func: this.props.reload,
+                reload_arg: this.props.suffix,
+                funcName: "saveLink",
+                funcDesc: "Save chaining link config"
+            };
+            callCmdStreamPassword(config);
         }
     }
 
