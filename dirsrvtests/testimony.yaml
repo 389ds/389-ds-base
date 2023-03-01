@@ -12,3 +12,11 @@ customerscenario:
     required: False
 parametrized:
     required: False
+testype:
+    required: False
+subtype1:
+    required: False
+subtype2:
+    required: False
+subsystemteam:
+    required: False
