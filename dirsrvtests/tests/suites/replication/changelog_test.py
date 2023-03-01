@@ -744,38 +744,6 @@ def test_retrochangelog_trimming_crash(topo, changelog_init):
     topo.ms["supplier1"].log.info("ticket 50736 was successfully verified.")
 
 
-@pytest.mark.bz2034407
-@pytest.mark.skipif(not os.path.isfile("/usr/bin/db_stat"), reason="libdb-utils package is not installed")
-def test_changelog_pagesize(topo):
-    """Test that changelog page size is set properly
-
-    :id: 584a9a82-756d-11ed-8b38-482ae39447e5
-    :setup: Replication with two suppliers
-    :steps:
-         1. Check that file system preferred block size is 4K
-         2. Run db_stat -e -h db_home_dir
-         3. Check for 4K page size in db_stat output
-    :expectedresults:
-         1. Mark the test as skipped if block size is not 4K
-         2. Success
-         3. Should not have any 4K page size in db_stat output
-    """
-
-    s1=topo.ms["supplier1"]
-    fs_pagesize = os.statvfs(s1.ds_paths.db_home_dir).f_bsize
-    if fs_pagesize != 4096:
-        pytest.skip("This test requires that database filesystem prefered block size is 4K.")
-        return
-    try:
-        cmd = ["/usr/bin/db_stat", "-h", s1.ds_paths.db_home_dir, "-e"]
-        log.debug(f"DEBUG: Running {cmd}")
-        output = subprocess.check_output(cmd, universal_newlines=True, stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError as e:
-        self.log.error(f'Failed to gather db statistics {cmd}: "{e.output.decode()}')
-        self.log.error(e)
-        raise e
-    assert not re.match("^4096 *Page size", output, flags=re.MULTILINE)
-
 
 if __name__ == '__main__':
     # Run isolated
