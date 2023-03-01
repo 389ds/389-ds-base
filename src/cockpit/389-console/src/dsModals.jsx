@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import { BackupTable } from "./lib/database/databaseTables.jsx";
 import { BackupModal } from "./lib/database/backups.jsx";
-import { log_cmd, bad_file_name, valid_dn } from "./lib/tools.jsx";
+import { log_cmd, bad_file_name, valid_dn, callCmdStreamPassword } from "./lib/tools.jsx";
 import {
     Button,
     Checkbox,
@@ -66,37 +66,6 @@ export class CreateInstanceModal extends React.Component {
         this.handleCreateInstance = this.handleCreateInstance.bind(this);
         this.validInstName = this.validInstName.bind(this);
         this.validRootDN = this.validRootDN.bind(this);
-        this.resetModal = this.resetModal.bind(this);
-    }
-
-    componentDidMount() {
-        this.resetModal();
-    }
-
-    resetModal() {
-        this.setState({
-            createServerId: "",
-            createPort: 389,
-            createSecurePort: 636,
-            createDM: "cn=Directory Manager",
-            createDMPassword: "",
-            createDMPasswordConfirm: "",
-            createDBCheckbox: false,
-            createDBSuffix: "",
-            createDBName: "",
-            createTLSCert: true,
-            createInitDB: "noInit",
-            loadingCreate: false,
-            createOK: false,
-            modalMsg: "",
-            errObj: {
-                createServerId: true,
-                createDMPassword: true,
-                createDMPasswordConfirm: true,
-                createDBSuffix: false,
-                createDBName: false,
-            },
-        });
     }
 
     validInstName(name) {
@@ -210,7 +179,12 @@ export class CreateInstanceModal extends React.Component {
             createDBCheckbox
         } = this.state;
         const { closeHandler, addNotification, loadInstanceList } = this.props;
-
+        let self_sign = "False";
+        if (createTLSCert) {
+            self_sign = "True";
+        }
+        let newServerId = createServerId;
+        newServerId = newServerId.replace(/^slapd-/i, ""); // strip "slapd-"
         let setup_inf =
             "[general]\n" +
             "config_version = 2\n" +
@@ -218,27 +192,12 @@ export class CreateInstanceModal extends React.Component {
             "[slapd]\n" +
             "user = dirsrv\n" +
             "group = dirsrv\n" +
-            "instance_name = INST_NAME\n" +
-            "port = PORT\n" +
-            "root_dn = ROOTDN\n" +
-            "root_password = ROOTPW\n" +
-            "secure_port = SECURE_PORT\n" +
-            "self_sign_cert = SELF_SIGN\n";
-
-        // Server ID
-        let newServerId = createServerId;
-        newServerId = newServerId.replace(/^slapd-/i, ""); // strip "slapd-"
-        setup_inf = setup_inf.replace("INST_NAME", newServerId);
-        setup_inf = setup_inf.replace("PORT", createPort);
-        setup_inf = setup_inf.replace("SECURE_PORT", createSecurePort);
-        setup_inf = setup_inf.replace("ROOTDN", createDM);
-        setup_inf = setup_inf.replace("ROOTPW", createDMPassword);
-        // Setup Self-Signed Certs
-        if (createTLSCert) {
-            setup_inf = setup_inf.replace("SELF_SIGN", "True");
-        } else {
-            setup_inf = setup_inf.replace("SELF_SIGN", "False");
-        }
+            "instance_name = " + newServerId + "\n" +
+            "port = " + createPort + "\n" +
+            "root_dn = " + createDM + "\n" +
+            // "root_password = ROOTPW\n" +
+            "secure_port = " + createSecurePort + "\n" +
+            "self_sign_cert = " + self_sign + "\n";
 
         if (createDBCheckbox) {
             setup_inf += "\n[backend-" + createDBName + "]\nsuffix = " + createDBSuffix + "\n";
@@ -361,20 +320,28 @@ export class CreateInstanceModal extends React.Component {
                                                                     );
                                                                 })
                                                                 .done(_ => {
-                                                                    // Success!!!  Now cleanup everything up...
-                                                                    log_cmd("handleCreateInstance", "Instance creation compelete, clean everything up...", rm_cmd);
-                                                                    cockpit.spawn(rm_cmd, { superuser: true }); // Remove Inf file with clear text password
-                                                                    this.setState({
-                                                                        loadingCreate: false
-                                                                    });
+                                                                    // Success!!!  Now set Root DN pw, and cleanup everything up...
+                                                                    log_cmd("handleCreateInstance", "Instance creation compelete, remove INF file...", rm_cmd);
+                                                                    cockpit.spawn(rm_cmd, { superuser: true });
 
-                                                                    loadInstanceList(createServerId);
-                                                                    addNotification(
-                                                                        "success",
-                                                                        `Successfully created instance: slapd-${createServerId}`
-                                                                    );
-                                                                    closeHandler();
-                                                                    this.resetModal();
+                                                                    const dm_pw_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + newServerId + '.socket',
+                                                                                       'directory_manager', 'password_change'];
+                                                                    const config = {
+                                                                        cmd: dm_pw_cmd,
+                                                                        promptArg: "",
+                                                                        passwd: createDMPassword,
+                                                                        addNotification: addNotification,
+                                                                        success_msg: `Successfully created instance: slapd-${createServerId}`,
+                                                                        error_msg: "Failed to set Directory Manager password",
+                                                                        state_callback: () => { this.setState({ loadingCreate: false }) },
+                                                                        reload_func: loadInstanceList,
+                                                                        reload_arg: createServerId,
+                                                                        ext_func: closeHandler,
+                                                                        ext_arg: "",
+                                                                        funcName: "handleCreateInstance",
+                                                                        funcDesc: "Set Directory Manager password..."
+                                                                    };
+                                                                    callCmdStreamPassword(config);
                                                                 });
                                                     });
                                         });

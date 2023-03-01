@@ -1118,6 +1118,8 @@ export class ReplAgmts extends React.Component {
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-agmt', 'set', this.state.agmtName, '--suffix=' + this.props.suffix,
         ];
+        let passwd = "";
+        let bootstrap_passwd = "";
 
         // Handle Schedule
         if (this.state.agmtSync) {
@@ -1155,7 +1157,7 @@ export class ReplAgmts extends React.Component {
             cmd.push('--conn-protocol=' + this.state.agmtProtocol);
         }
         if (this.state.agmtBindPW != this.state._agmtBindPW) {
-            cmd.push('--bind-passwd=' + this.state.agmtBindPW);
+            passwd = this.state.agmtBindPW;
         }
         if (this.state.agmtBindDN != this.state._agmtBindDN) {
             cmd.push('--bind-dn=' + this.state.agmtBindDN);
@@ -1183,7 +1185,7 @@ export class ReplAgmts extends React.Component {
                 cmd.push('--bootstrap-conn-protocol=' + this.state.agmtBootstrapProtocol);
             }
             if (this.state.agmtBootstrapBindPW != this.state._agmtBootstrapBindPW) {
-                cmd.push('--bootstrap-bind-passwd=' + this.state.agmtBootstrapBindPW);
+                bootstrap_passwd = this.state.agmtBootstrapBindPW
             }
             if (this.state.agmtBootstrapBindDN != this.state._agmtBootstrapBindDN) {
                 cmd.push('--bootstrap-bind-dn=' + this.state.agmtBootstrapBindDN);
@@ -1193,10 +1195,23 @@ export class ReplAgmts extends React.Component {
         this.setState({
             savingAgmt: true,
         });
-        log_cmd('saveAgmt', 'update replication agreement', cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
+
+        // Update args with password file
+        if (passwd !== "") {
+            // Add password file arg
+            cmd.push("--bind-passwd-prompt");
+        }
+        if (bootstrap_passwd !== "") {
+            // Add bootstrap password file arg
+            cmd.push("--bootstrap-bind-passwd-prompt");
+        }
+
+        log_cmd('saveAgmt', 'edit agmt', cmd);
+
+        let buffer = "";
+        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message" });
+        proc
+                .done(data => {
                     this.props.reload(this.props.suffix);
                     if (this._mounted) {
                         this.setState({
@@ -1209,15 +1224,24 @@ export class ReplAgmts extends React.Component {
                         'Successfully updated replication agreement'
                     );
                 })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
+                .fail(_ => {
                     this.props.addNotification(
                         "error",
-                        `Failed to update replication agreement - ${errMsg.desc}`
+                        `Failed to update replication agreement - ${buffer}`
                     );
                     this.setState({
                         savingAgmt: false
                     });
+                })
+                .stream(data => {
+                    buffer += data;
+                    const lines = buffer.split("\n");
+                    const last_line = lines[lines.length - 1].toLowerCase();
+                    if (last_line.includes("bootstrap")) {
+                        proc.input(bootstrap_passwd + "\n", true);
+                    } else {
+                        proc.input(passwd + "\n", true);
+                    }
                 });
     }
 
@@ -1372,7 +1396,7 @@ export class ReplAgmts extends React.Component {
                         'success',
                         'Successfully deleted replication agreement');
                     this.setState({
-                        showDeleteConfirm: false,
+                        showConfirmDeleteAgmt: false,
                     });
                 })
                 .fail(err => {
@@ -1382,7 +1406,7 @@ export class ReplAgmts extends React.Component {
                         `Failed to delete replication agreement - ${errMsg.desc}`
                     );
                     this.setState({
-                        showDeleteConfirm: false,
+                        showConfirmDeleteAgmt: false,
                     });
                 });
     }
@@ -1393,8 +1417,14 @@ export class ReplAgmts extends React.Component {
             'repl-agmt', 'create', this.state.agmtName, '--suffix=' + this.props.suffix,
             '--host=' + this.state.agmtHost, '--port=' + this.state.agmtPort,
             '--bind-method=' + this.state.agmtBindMethod, '--conn-protocol=' + this.state.agmtProtocol,
-            '--bind-dn=' + this.state.agmtBindDN, '--bind-passwd=' + this.state.agmtBindPW
+            '--bind-dn=' + this.state.agmtBindDN
         ];
+        let passwd = "";
+        let bootstrap_passwd = "";
+
+        if (this.state.agmtBindPW != "") {
+            passwd = this.state.agmtBindPW;
+        }
 
         // Handle Schedule
         if (this.state.agmtSync) {
@@ -1434,12 +1464,13 @@ export class ReplAgmts extends React.Component {
             cmd.push('--strip-list=' + this.state.agmtStripAttrs.join(' '));
         }
 
+        // Handle bootstrap settings
         if (this.state.agmtBootstrap) {
             if (this.state.agmtBootstrapBindDN != "") {
                 cmd.push('--bootstrap-bind-dn=' + this.state.agmtBootstrapBindDN);
             }
             if (this.state.agmtBootstrapBindDNPW != "") {
-                cmd.push('--bootstrap-bind-passwd=' + this.state.agmtBootstrapBindDNPW);
+                bootstrap_passwd = this.state.agmtBootstrapBindDNPW;
             }
             if (this.state.agmtBootstrapBindMethod != "") {
                 cmd.push('--bootstrap-bind-method=' + this.state.agmtBootstrapBindMethod);
@@ -1452,10 +1483,23 @@ export class ReplAgmts extends React.Component {
         this.setState({
             savingAgmt: true
         });
-        log_cmd('createAgmt', 'Create replication agreement', cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
+
+        // Update args with password prompt
+        if (passwd !== "") {
+            // Add password prompt arg
+            cmd.push("--bind-passwd-prompt");
+        }
+        if (bootstrap_passwd !== "") {
+            // Add bootstrap password prompt arg
+            cmd.push("--bootstrap-bind-passwd-prompt");
+        }
+
+        log_cmd('createAgmt', 'Create agmt', cmd);
+
+        let buffer = "";
+        const proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message" });
+        proc
+                .done(data => {
                     this.props.reload(this.props.suffix);
                     if (this._mounted) {
                         this.setState({
@@ -1471,15 +1515,24 @@ export class ReplAgmts extends React.Component {
                         this.initAgmt(this.state.agmtName);
                     }
                 })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
+                .fail(_ => {
                     this.props.addNotification(
                         "error",
-                        `Failed to create replication agreement - ${errMsg.desc}`
+                        `Failed to create replication agreement - ${buffer}`
                     );
                     this.setState({
                         savingAgmt: false
                     });
+                })
+                .stream(data => {
+                    buffer += data;
+                    const lines = buffer.split("\n");
+                    const last_line = lines[lines.length - 1].toLowerCase();
+                    if (last_line.includes("bootstrap")) {
+                        proc.input(bootstrap_passwd + "\n", true);
+                    } else {
+                        proc.input(passwd + "\n", true);
+                    }
                 });
     }
 

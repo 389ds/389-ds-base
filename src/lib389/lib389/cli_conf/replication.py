@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -16,7 +16,8 @@ from shutil import copyfile
 from getpass import getpass
 from lib389._constants import ReplicaRole, DSRC_HOME
 from lib389.cli_base.dsrc import dsrc_to_repl_monitor
-from lib389.utils import is_a_dn, copy_with_permissions
+from lib389.cli_base import _get_arg
+from lib389.utils import is_a_dn, copy_with_permissions, get_passwd_from_file
 from lib389.replica import Replicas, ReplicationMonitor, BootstrapReplicationManager, Changelog5, ChangelogLDIF
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
 from lib389._mapped_object import DSLdapObjects
@@ -88,7 +89,7 @@ def get_agmt(inst, args, winsync=False):
     try:
         agmt = agmts.get(agmt_name)
     except ldap.NO_SUCH_OBJECT:
-        raise ValueError("Could not find the agreement \"{}\" for suffix \"{}\"".format(agmt_name, args.suffix))
+        raise ValueError(f"Could not find the agreement \"{agmt_name}\" for suffix \"{args.suffix}\"")
     return agmt
 
 
@@ -149,7 +150,7 @@ def enable_replication(inst, basedn, log, args):
         repl_flag = '0'
     else:
         # error - unknown type
-        raise ValueError("Unknown replication role ({}), you must use \"supplier\", \"hub\", or \"consumer\"".format(role))
+        raise ValueError(f"Unknown replication role ({role}), you must use \"supplier\", \"hub\", or \"consumer\"")
 
     # Start the propeties and update them as needed
     repl_properties = {
@@ -204,15 +205,21 @@ def enable_replication(inst, basedn, log, args):
         raise ValueError("Replication is already enabled for this suffix")
 
     # Create replication manager if password was provided
-    if args.bind_dn and args.bind_passwd:
+    if args.bind_dn and (args.bind_passwd or args.bind_passwd_file or args.bind_passwd_prompt):
         rdn = args.bind_dn.split(",", 1)[0]
         rdn_attr, rdn_val = rdn.split("=", 1)
         manager = BootstrapReplicationManager(inst, dn=args.bind_dn, rdn_attr=rdn_attr)
+        if args.bind_passwd_file is not None:
+            passwd = get_passwd_from_file(args.bind_passwd_file)
+        elif args.bind_passwd_prompt:
+            passwd = _get_arg(None, msg="Enter Replication Manager password", hidden=True, confirm=True)
+        else:
+            passwd = args.bind_passwd
         try:
             manager.create(properties={
                 'cn': rdn_val,
                 'uid': rdn_val,
-                'userPassword': args.bind_passwd
+                'userPassword': passwd
             })
         except ldap.ALREADY_EXISTS:
             # Already there, but could have different password.  Delete and recreate
@@ -220,7 +227,7 @@ def enable_replication(inst, basedn, log, args):
             manager.create(properties={
                 'cn': rdn_val,
                 'uid': rdn_val,
-                'userPassword': args.bind_passwd
+                'userPassword': passwd
             })
         except ldap.NO_SUCH_OBJECT:
             # Invalid Entry
@@ -229,7 +236,7 @@ def enable_replication(inst, basedn, log, args):
             # Some other bad error
             raise ValueError("Failed to create replication manager entry: " + str(e))
 
-    log.info("Replication successfully enabled for \"{}\"".format(repl_root))
+    log.info(f"Replication successfully enabled for \"{repl_root}\"")
 
 
 def disable_replication(inst, basedn, log, args):
@@ -238,8 +245,8 @@ def disable_replication(inst, basedn, log, args):
         replica = replicas.get(args.suffix)
         replica.delete()
     except ldap.NO_SUCH_OBJECT:
-        raise ValueError("Backend \"{}\" is not enabled for replication".format(args.suffix))
-    log.info("Replication disabled for \"{}\"".format(args.suffix))
+        raise ValueError(f"Backend \"{args.suffix}\" is not enabled for replication")
+    log.info(f"Replication disabled for \"{args.suffix}\"")
 
 
 def promote_replica(inst, basedn, log, args):
@@ -254,10 +261,10 @@ def promote_replica(inst, basedn, log, args):
     elif role == 'hub':
         newrole = ReplicaRole.HUB
     else:
-        raise ValueError("Invalid role ({}), you must use either \"supplier\" or \"hub\"".format(role))
+        raise ValueError(f"Invalid role ({role}), you must use either \"supplier\" or \"hub\"")
 
     replica.promote(newrole, binddn=args.bind_dn, binddn_group=args.bind_group_dn, rid=args.replica_id)
-    log.info("Successfully promoted replica to \"{}\"".format(role))
+    log.info(f"Successfully promoted replica to \"{role}\"")
 
 
 def demote_replica(inst, basedn, log, args):
@@ -270,10 +277,10 @@ def demote_replica(inst, basedn, log, args):
     elif role == 'consumer':
         newrole = ReplicaRole.CONSUMER
     else:
-        raise ValueError("Invalid role ({}), you must use either \"hub\" or \"consumer\"".format(role))
+        raise ValueError(f"Invalid role ({role}), you must use either \"hub\" or \"consumer\"")
 
     replica.demote(newrole)
-    log.info("Successfully demoted replica to \"{}\"".format(role))
+    log.info(f"Successfully demoted replica to \"{role}\"")
 
 
 def list_suffixes(inst, basedn, log, args):
@@ -295,7 +302,13 @@ def list_suffixes(inst, basedn, log, args):
 def get_repl_status(inst, basedn, log, args):
     replicas = Replicas(inst)
     replica = replicas.get(args.suffix)
-    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd)
+    if args.bind_passwd_file is not None:
+        passwd = get_passwd_from_file(args.bind_passwd_file)
+    elif args.bind_passwd_prompt:
+        passwd = _get_arg(None, msg=f"Enter password for ({args.bind_dn})", hidden=True, confirm=True)
+    else:
+        passwd = args.bind_passwd
+    status = replica.status(binddn=args.bind_dn, bindpw=passwd)
     if args.json:
         log.info(json.dumps({"type": "list", "items": status}, indent=4))
     else:
@@ -306,7 +319,14 @@ def get_repl_status(inst, basedn, log, args):
 def get_repl_winsync_status(inst, basedn, log, args):
     replicas = Replicas(inst)
     replica = replicas.get(args.suffix)
-    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd, winsync=True)
+    if args.bind_passwd_file is not None:
+        passwd = get_passwd_from_file(args.bind_passwd_file)
+    elif args.bind_passwd_prompt:
+        passwd = _get_arg(None, msg=f"Enter password for ({args.bind_dn})", hidden=True, confirm=True)
+    else:
+        passwd = args.bind_passwd
+
+    status = replica.status(binddn=args.bind_dn, bindpw=passwd, winsync=True)
     if args.json:
         log.info(json.dumps({"type": "list", "items": status}, indent=4))
     else:
@@ -392,7 +412,7 @@ def get_repl_monitor_info(inst, basedn, log, args):
         if connections:
             for connection_str in connections:
                 connection = connection_str.split(":")
-                if (len(connection) != 4 or not all([len(str) > 0 for str in connection])):
+                if len(connection) != 4 or not all([len(str) > 0 for str in connection]):
                     raise ValueError(f"Please, fill in all Credential details. It should be host:port:binddn:bindpw")
                 host_regex = connection[0]
                 port_regex = connection[1]
@@ -530,7 +550,6 @@ def get_cl(inst, basedn, log, args):
 def create_repl_manager(inst, basedn, log, args):
     manager_name = "replication manager"
     repl_manager_password = ""
-    repl_manager_password_confirm = ""
 
     if args.name:
         manager_name = args.name
@@ -543,24 +562,16 @@ def create_repl_manager(inst, basedn, log, args):
         if manager_attr.lower() not in ['cn', 'uid']:
             raise ValueError(f'The RDN attribute "{manager_attr}" is not allowed, you must use "cn" or "uid"')
     else:
-        manager_dn = "cn={},cn=config".format(manager_name)
+        manager_dn = f"cn={manager_name},cn=config"
         manager_attr = "cn"
 
-    if args.passwd:
+    if args.passwd is not None:
         repl_manager_password = args.passwd
-    else:
-        # Prompt for password
-        while 1:
-            while repl_manager_password == "":
-                repl_manager_password = getpass("Enter replication manager password: ")
-            while repl_manager_password_confirm == "":
-                repl_manager_password_confirm = getpass("Confirm replication manager password: ")
-            if repl_manager_password_confirm == repl_manager_password:
-                break
-            else:
-                log.info("Passwords do not match!\n")
-                repl_manager_password = ""
-                repl_manager_password_confirm = ""
+    elif args.passwd_file is not None:
+        repl_manager_password = get_passwd_from_file(args.bind_passwd_file)
+    elif repl_manager_password == "":
+        repl_manager_password = _get_arg(None, msg=f"Enter replication manager password for \"{manager_dn}\"",
+                                         hidden=True, confirm=True)
 
     manager = BootstrapReplicationManager(inst, dn=manager_dn, rdn_attr=manager_attr)
     try:
@@ -579,7 +590,7 @@ def create_repl_manager(inst, basedn, log, args):
                 pass
         log.info("Successfully created replication manager: " + manager_dn)
     except ldap.ALREADY_EXISTS:
-        log.info("Replication Manager ({}) already exists, recreating it...".format(manager_dn))
+        log.info(f"Replication Manager ({manager_dn}) already exists, recreating it...")
         # Already there, but could have different password.  Delete and recreate
         manager.delete()
         manager.create(properties={
@@ -607,7 +618,7 @@ def del_repl_manager(inst, basedn, log, args):
     if is_a_dn(args.name):
         manager_dn = args.name
     else:
-        manager_dn = "cn={},cn=config".format(args.name)
+        manager_dn = f"cn={args.name},cn=config"
     manager = BootstrapReplicationManager(inst, dn=manager_dn)
 
     try:
@@ -692,7 +703,13 @@ def add_agmt(inst, basedn, log, args):
         if not is_a_dn(args.bind_dn):
             raise ValueError("The replica bind DN is not a valid DN")
         properties['nsDS5ReplicaBindDN'] = args.bind_dn
-    if args.bind_passwd is not None:
+    if args.bind_passwd_file is not None:
+        passwd = get_passwd_from_file(args.bind_passwd_file)
+        properties['nsDS5ReplicaCredentials'] = passwd
+    elif args.bind_passwd_prompt:
+        passwd = _get_arg(None, msg="Enter password", hidden=True, confirm=True)
+        properties['nsDS5ReplicaCredentials'] = passwd
+    elif args.bind_passwd is not None:
         properties['nsDS5ReplicaCredentials'] = args.bind_passwd
     if args.schedule is not None:
         properties['nsds5replicaupdateschedule'] = args.schedule
@@ -708,7 +725,14 @@ def add_agmt(inst, basedn, log, args):
         if not is_a_dn(args.bootstrap_bind_dn):
             raise ValueError("The replica bootstrap bind DN is not a valid DN")
         properties['nsDS5ReplicaBootstrapBindDN'] = args.bootstrap_bind_dn
-    if args.bootstrap_bind_passwd is not None:
+
+    if args.bootstrap_bind_passwd_file is not None:
+        passwd = get_passwd_from_file(args.bootstrap_bind_passwd_file)
+        properties['nsDS5ReplicaBootstrapCredentials'] = passwd
+    elif args.bootstrap_bind_passwd_prompt:
+        passwd = _get_arg(None, msg="Enter bootstrap password", hidden=True, confirm=True)
+        properties['nsDS5ReplicaBootstrapCredentials'] = passwd
+    elif args.bootstrap_bind_passwd is not None:
         properties['nsDS5ReplicaBootstrapCredentials'] = args.bootstrap_bind_passwd
     if args.bootstrap_bind_method is not None:
         bs_bind_method = args.bootstrap_bind_method.lower()
@@ -722,8 +746,12 @@ def add_agmt(inst, basedn, log, args):
         properties['nsDS5ReplicaBootstrapTransportInfo'] = args.bootstrap_conn_protocol
 
     # We do need the bind dn and credentials for 'simple' bind method
-    if (bind_method == 'simple') and (args.bind_dn is None or args.bind_passwd is None):
-        raise ValueError("You need to set the bind dn (--bind-dn) and the password (--bind-passwd) for bind method ({})".format(bind_method))
+    if (bind_method == 'simple') and (args.bind_dn is None or
+                                      (args.bind_passwd is None and
+                                       args.bind_passwd_file is None and
+                                       args.bind_passwd_prompt is False)):
+        raise ValueError(f"You need to set the bind dn (--bind-dn) and the password (--bind-passwd or -"
+                         f"-bind-passwd-file or --bind-passwd-prompt) for bind method ({bind_method})")
 
     # Create the agmt
     try:
@@ -731,7 +759,7 @@ def add_agmt(inst, basedn, log, args):
     except ldap.ALREADY_EXISTS:
         raise ValueError("A replication agreement with the same name already exists")
 
-    log.info("Successfully created replication agreement \"{}\"".format(get_agmt_name(args)))
+    log.info(f"Successfully created replication agreement \"{get_agmt_name(args)}\"")
     if args.init:
         init_agmt(inst, basedn, log, args)
 
@@ -778,6 +806,10 @@ def check_init_agmt(inst, basedn, log, args):
 
 def set_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args)
+    if args.bind_passwd_prompt:
+        args.bind_passwd = _get_arg(None, msg="Enter password", hidden=True, confirm=True)
+    if args.bootstrap_bind_passwd_prompt:
+        args.bootstrap_bind_passwd = _get_arg(None, msg="Enter bootstrap password", hidden=True, confirm=True)
     attrs = _args_to_attrs(args)
     modlist = []
     did_something = False
@@ -828,10 +860,10 @@ def poke_agmt(inst, basedn, log, args):
 
 def get_agmt_status(inst, basedn, log, args):
     agmt = get_agmt(inst, args)
-    if args.bind_dn is not None and args.bind_passwd is None:
-        args.bind_passwd = ""
-        while args.bind_passwd == "":
-            args.bind_passwd = getpass("Enter password for \"{}\": ".format(args.bind_dn))
+    if args.bind_passwd_file is not None:
+        args.bind_passwd = get_passwd_from_file(args.bind_passwd_file)
+    if (args.bind_dn is not None and args.bind_passwd is None) or args.bind_passwd_prompt:
+        args.bind_passwd = _get_arg(None, msg=f"Enter password for \"{args.bind_dn}\"", hidden=True, confirm=True)
     status = agmt.status(use_json=args.json, binddn=args.bind_dn, bindpw=args.bind_passwd)
     log.info(status)
 
@@ -872,6 +904,13 @@ def add_winsync_agmt(inst, basedn, log, args):
     if not is_a_dn(args.bind_dn):
         raise ValueError("The replica bind DN is not a valid DN")
 
+    if args.bind_passwd_file is not None:
+        passwd = get_passwd_from_file(args.bind_passwd_file)
+    if args.bind_passwd_prompt:
+        passwd = _get_arg(None, msg="Enter password", hidden=True, confirm=True)
+    else:
+        passwd = args.bind_passwd
+
     # Required properties
     properties = {
             'cn': get_agmt_name(args),
@@ -881,7 +920,7 @@ def add_winsync_agmt(inst, basedn, log, args):
             'nsDS5ReplicaPort': args.port,
             'nsDS5ReplicaTransportInfo': args.conn_protocol,
             'nsDS5ReplicaBindDN': args.bind_dn,
-            'nsDS5ReplicaCredentials': args.bind_passwd,
+            'nsDS5ReplicaCredentials': passwd,
             'nsds7windowsreplicasubtree': args.win_subtree,
             'nsds7directoryreplicasubtree': args.ds_subtree,
             'nsds7windowsDomain': args.win_domain,
@@ -907,13 +946,17 @@ def add_winsync_agmt(inst, basedn, log, args):
     if frac_list is not None:
         properties['nsds5replicatedattributelist'] = frac_list
 
+    # We do need the bind dn and credentials for 'simple' bind method
+    if passwd is None:
+        raise ValueError("You need to provide a password (--bind-passwd, --bind-passwd-file, or --bind-passwd-prompt)")
+
     # Create the agmt
     try:
         agmts.create(properties=properties)
     except ldap.ALREADY_EXISTS:
         raise ValueError("A replication agreement with the same name already exists")
 
-    log.info("Successfully created winsync replication agreement \"{}\"".format(get_agmt_name(args)))
+    log.info(f"Successfully created winsync replication agreement \"{get_agmt_name(args)}\"")
     if args.init:
         init_winsync_agmt(inst, basedn, log, args)
 
@@ -926,7 +969,8 @@ def delete_winsync_agmt(inst, basedn, log, args):
 
 def set_winsync_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args, winsync=True)
-
+    if args.bind_passwd_prompt:
+        args.bind_passwd = _get_arg(None, msg="Enter password", hidden=True, confirm=True)
     attrs = _args_to_attrs(args)
     modlist = []
     did_something = False
@@ -1156,7 +1200,11 @@ def create_parser(subparsers):
     repl_enable_parser.add_argument('--replica-id', help="Sets the replication identifier for a \"supplier\".  Values range from 1 - 65534")
     repl_enable_parser.add_argument('--bind-group-dn', help="Sets a group entry DN containing members that are \"bind/supplier\" DNs")
     repl_enable_parser.add_argument('--bind-dn', help="Sets the bind or supplier DN that can make replication updates")
-    repl_enable_parser.add_argument('--bind-passwd', help="Sets the password for replication manager (--bind-dn). This will create the manager entry if a value is set")
+    repl_enable_parser.add_argument('--bind-passwd',
+                                    help="Sets the password for replication manager (--bind-dn). This will create the "
+                                         "manager entry if a value is set")
+    repl_enable_parser.add_argument('--bind-passwd-file', help="File containing the password")
+    repl_enable_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
 
     repl_disable_parser = repl_subcommands.add_parser('disable', help='Disable replication for a suffix')
     repl_disable_parser.set_defaults(func=disable_replication)
@@ -1174,12 +1222,17 @@ def create_parser(subparsers):
     repl_status_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
     repl_status_parser.add_argument('--bind-dn', help="Sets the DN to use to authenticate to the consumer")
     repl_status_parser.add_argument('--bind-passwd', help="Sets the password for the bind DN")
+    repl_status_parser.add_argument('--bind-passwd-file', help="File containing the password")
+    repl_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
 
-    repl_winsync_status_parser = repl_subcommands.add_parser('winsync-status', help='Display the current status of all the replication agreements')
+    repl_winsync_status_parser = repl_subcommands.add_parser('winsync-status', help='Display the current status of all '
+                                                                                    'the replication agreements')
     repl_winsync_status_parser.set_defaults(func=get_repl_winsync_status)
     repl_winsync_status_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
     repl_winsync_status_parser.add_argument('--bind-dn', help="Sets the DN to use to authenticate to the consumer")
     repl_winsync_status_parser.add_argument('--bind-passwd', help="Sets the password of the bind DN")
+    repl_winsync_status_parser.add_argument('--bind-passwd-file', help="File containing the password")
+    repl_winsync_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
 
     repl_promote_parser = repl_subcommands.add_parser('promote', help='Promote a replica to a hub or supplier')
     repl_promote_parser.set_defaults(func=promote_replica)
@@ -1194,7 +1247,9 @@ def create_parser(subparsers):
     repl_add_manager_parser.add_argument('--name', help="Sets the name of the new replication manager entry.For example, " +
                                                         "if the name is \"replication manager\" then the new manager " +
                                                         "entry's DN would be \"cn=replication manager,cn=config\".")
-    repl_add_manager_parser.add_argument('--passwd', help="Sets the password for replication manager. If not provided, you will be prompted for the password")
+    repl_add_manager_parser.add_argument('--passwd', help="Sets the password for replication manager. If not provided, "
+                                                          "you will be prompted for the password")
+    repl_add_manager_parser.add_argument('--passwd-file', help="File containing the password")
     repl_add_manager_parser.add_argument('--suffix', help='The DN of the replication suffix whose replication ' +
                                                           'configuration you want to add this new manager to (OPTIONAL)')
 
@@ -1215,7 +1270,7 @@ def create_parser(subparsers):
 
     repl_create_cl = repl_subcommands.add_parser('create-changelog', help='Create the replication changelog')
     repl_create_cl.set_defaults(func=create_cl)
-
+    
     repl_delete_cl = repl_subcommands.add_parser('delete-changelog', help='Delete the replication changelog.  This will invalidate any existing replication agreements')
     repl_delete_cl.set_defaults(func=delete_cl)
 
@@ -1347,6 +1402,8 @@ def create_parser(subparsers):
     agmt_status_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
     agmt_status_parser.add_argument('--bind-dn', help="Sets the DN to use to authenticate to the consumer")
     agmt_status_parser.add_argument('--bind-passwd', help="Sets the password for the bind DN")
+    agmt_status_parser.add_argument('--bind-passwd-file', help="File containing the password")
+    agmt_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
 
     # Delete
     agmt_del_parser = agmt_subcommands.add_parser('delete', help='Delete replication agreement')
@@ -1364,7 +1421,10 @@ def create_parser(subparsers):
     agmt_add_parser.add_argument('--conn-protocol', required=True, help="Sets the replication connection protocol: LDAP, LDAPS, or StartTLS")
     agmt_add_parser.add_argument('--bind-dn', help="Sets the bind DN the agreement uses to authenticate to the replica")
     agmt_add_parser.add_argument('--bind-passwd', help="Sets the credentials for the bind DN")
-    agmt_add_parser.add_argument('--bind-method', required=True, help="Sets the bind method: \"SIMPLE\", \"SSLCLIENTAUTH\", \"SASL/DIGEST\", or \"SASL/GSSAPI\"")
+    agmt_add_parser.add_argument('--bind-passwd-file', help="File containing the password")
+    agmt_add_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
+    agmt_add_parser.add_argument('--bind-method', required=True,
+                                 help="Sets the bind method: \"SIMPLE\", \"SSLCLIENTAUTH\", \"SASL/DIGEST\", or \"SASL/GSSAPI\"")
     agmt_add_parser.add_argument('--frac-list', help="Sets the list of attributes to NOT replicate to the consumer during incremental updates")
     agmt_add_parser.add_argument('--frac-list-total', help="Sets the list of attributes to NOT replicate during a total initialization")
     agmt_add_parser.add_argument('--strip-list', help="Sets a list of attributes that are removed from updates only if the event "
@@ -1379,11 +1439,20 @@ def create_parser(subparsers):
                                                           "a consumer sends back a busy response before making another "
                                                           "attempt to acquire access.")
     agmt_add_parser.add_argument('--session-pause-time', help="Sets the amount of time in seconds a supplier should wait between update sessions.")
-    agmt_add_parser.add_argument('--flow-control-window', help="Sets the maximum number of entries and updates sent by a supplier, which are not acknowledged by the consumer.")
-    agmt_add_parser.add_argument('--flow-control-pause', help="Sets the time in milliseconds to pause after reaching the number of entries and updates set in \"--flow-control-window\"")
-    agmt_add_parser.add_argument('--bootstrap-bind-dn', help="Sets an optional bind DN the agreement can use to bootstrap initialization when bind groups are being used")
+    agmt_add_parser.add_argument('--flow-control-window',
+                                 help="Sets the maximum number of entries and updates sent by a supplier, which are not "
+                                      "acknowledged by the consumer.")
+    agmt_add_parser.add_argument('--flow-control-pause',
+                                 help="Sets the time in milliseconds to pause after reaching the number of entries and "
+                                      "updates set in \"--flow-control-window\"")
+    agmt_add_parser.add_argument('--bootstrap-bind-dn',
+                                 help="Sets an optional bind DN the agreement can use to bootstrap initialization when "
+                                      "bind groups are being used")
     agmt_add_parser.add_argument('--bootstrap-bind-passwd', help="Sets the bootstrap credentials for the bind DN")
-    agmt_add_parser.add_argument('--bootstrap-conn-protocol', help="Sets the replication bootstrap connection protocol: LDAP, LDAPS, or StartTLS")
+    agmt_add_parser.add_argument('--bootstrap-bind-passwd-file', help="File containing the password")
+    agmt_add_parser.add_argument('--bootstrap-bind-passwd-prompt', action='store_true', help="File containing the password")
+    agmt_add_parser.add_argument('--bootstrap-conn-protocol',
+                                 help="Sets the replication bootstrap connection protocol: LDAP, LDAPS, or StartTLS")
     agmt_add_parser.add_argument('--bootstrap-bind-method', help="Sets the bind method: \"SIMPLE\", or \"SSLCLIENTAUTH\"")
     agmt_add_parser.add_argument('--init', action='store_true', default=False, help="Initializes the agreement after creating it")
 
@@ -1397,6 +1466,8 @@ def create_parser(subparsers):
     agmt_set_parser.add_argument('--conn-protocol', help="Sets the replication connection protocol: LDAP, LDAPS, or StartTLS")
     agmt_set_parser.add_argument('--bind-dn', help="Sets the Bind DN the agreement uses to authenticate to the replica")
     agmt_set_parser.add_argument('--bind-passwd', help="Sets the credentials for the bind DN")
+    agmt_set_parser.add_argument('--bind-passwd-file', help="File containing the password")
+    agmt_set_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
     agmt_set_parser.add_argument('--bind-method', help="Sets the bind method: \"SIMPLE\", \"SSLCLIENTAUTH\", \"SASL/DIGEST\", or \"SASL/GSSAPI\"")
     agmt_set_parser.add_argument('--frac-list', help="Sets a list of attributes to NOT replicate to the consumer during incremental updates")
     agmt_set_parser.add_argument('--frac-list-total', help="Sets a list of attributes to NOT replicate during a total initialization")
@@ -1410,12 +1481,22 @@ def create_parser(subparsers):
                                                               "the consumer is not ready before resending data")
     agmt_set_parser.add_argument('--busy-wait-time', help="Sets the amount of time in seconds a supplier should wait after "
                                  "a consumer sends back a busy response before making another attempt to acquire access.")
-    agmt_set_parser.add_argument('--session-pause-time', help="Sets the amount of time in seconds a supplier should wait between update sessions.")
-    agmt_set_parser.add_argument('--flow-control-window', help="Sets the maximum number of entries and updates sent by a supplier, which are not acknowledged by the consumer.")
-    agmt_set_parser.add_argument('--flow-control-pause', help="Sets the time in milliseconds to pause after reaching the number of entries and updates set in \"--flow-control-window\"")
-    agmt_set_parser.add_argument('--bootstrap-bind-dn', help="Sets an optional bind DN the agreement can use to bootstrap initialization when bind groups are being used")
+    agmt_set_parser.add_argument('--session-pause-time',
+                                 help="Sets the amount of time in seconds a supplier should wait between update sessions.")
+    agmt_set_parser.add_argument('--flow-control-window',
+                                 help="Sets the maximum number of entries and updates sent by a supplier, which are not "
+                                      "acknowledged by the consumer.")
+    agmt_set_parser.add_argument('--flow-control-pause',
+                                 help="Sets the time in milliseconds to pause after reaching the number of entries and "
+                                      "updates set in \"--flow-control-window\"")
+    agmt_set_parser.add_argument('--bootstrap-bind-dn',
+                                 help="Sets an optional bind DN the agreement can use to bootstrap initialization when "
+                                      "bind groups are being used")
     agmt_set_parser.add_argument('--bootstrap-bind-passwd', help="sets the bootstrap credentials for the bind DN")
-    agmt_set_parser.add_argument('--bootstrap-conn-protocol', help="Sets the replication bootstrap connection protocol: LDAP, LDAPS, or StartTLS")
+    agmt_set_parser.add_argument('--bootstrap-bind-passwd-file', help="File containing the password")
+    agmt_set_parser.add_argument('--bootstrap-bind-passwd-prompt', action='store_true', help="Prompt for password")
+    agmt_set_parser.add_argument('--bootstrap-conn-protocol',
+                                 help="Sets the replication bootstrap connection protocol: LDAP, LDAPS, or StartTLS")
     agmt_set_parser.add_argument('--bootstrap-bind-method', help="Sets the bind method: \"SIMPLE\", or \"SSLCLIENTAUTH\"")
 
     # Get
@@ -1485,10 +1566,15 @@ def create_parser(subparsers):
     winsync_agmt_add_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication winsync suffix")
     winsync_agmt_add_parser.add_argument('--host', required=True, help="Sets the hostname of the AD server")
     winsync_agmt_add_parser.add_argument('--port', required=True, help="Sets the port number of the AD server")
-    winsync_agmt_add_parser.add_argument('--conn-protocol', required=True, help="Sets the replication winsync connection protocol: LDAP, LDAPS, or StartTLS")
-    winsync_agmt_add_parser.add_argument('--bind-dn', required=True, help="Sets the bind DN the agreement uses to authenticate to the AD Server")
-    winsync_agmt_add_parser.add_argument('--bind-passwd', required=True, help="Sets the credentials for the Bind DN")
-    winsync_agmt_add_parser.add_argument('--frac-list', help="Sets a list of attributes to NOT replicate to the consumer during incremental updates")
+    winsync_agmt_add_parser.add_argument('--conn-protocol', required=True,
+                                         help="Sets the replication winsync connection protocol: LDAP, LDAPS, or StartTLS")
+    winsync_agmt_add_parser.add_argument('--bind-dn', required=True,
+                                         help="Sets the bind DN the agreement uses to authenticate to the AD Server")
+    winsync_agmt_add_parser.add_argument('--bind-passwd', help="Sets the credentials for the Bind DN")
+    winsync_agmt_add_parser.add_argument('--bind-passwd-file', help="File containing the password")
+    winsync_agmt_add_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
+    winsync_agmt_add_parser.add_argument('--frac-list',
+                                         help="Sets a list of attributes to NOT replicate to the consumer during incremental updates")
     winsync_agmt_add_parser.add_argument('--schedule', help="Sets the replication update schedule")
     winsync_agmt_add_parser.add_argument('--win-subtree', required=True, help="Sets the suffix of the AD Server")
     winsync_agmt_add_parser.add_argument('--ds-subtree', required=True, help="Sets the Directory Server suffix")
@@ -1496,8 +1582,12 @@ def create_parser(subparsers):
     winsync_agmt_add_parser.add_argument('--sync-users', help="Synchronizes users between AD and DS")
     winsync_agmt_add_parser.add_argument('--sync-groups', help="Synchronizes groups between AD and DS")
     winsync_agmt_add_parser.add_argument('--sync-interval', help="Sets the interval that DS checks AD for changes in entries")
-    winsync_agmt_add_parser.add_argument('--one-way-sync', help="Sets which direction to perform synchronization: \"toWindows\", or \"fromWindows\,.  By default sync occurs in both directions.")
-    winsync_agmt_add_parser.add_argument('--move-action', help="Sets instructions on how to handle moved or deleted entries: \"none\", \"unsync\", or \"delete\"")
+    winsync_agmt_add_parser.add_argument('--one-way-sync',
+                                         help="Sets which direction to perform synchronization: \"toWindows\", or "
+                                              "\"fromWindows\,.  By default sync occurs in both directions.")
+    winsync_agmt_add_parser.add_argument('--move-action',
+                                         help="Sets instructions on how to handle moved or deleted entries: "
+                                              "\"none\", \"unsync\", or \"delete\"")
     winsync_agmt_add_parser.add_argument('--win-filter', help="Sets a custom filter for finding users in AD Server")
     winsync_agmt_add_parser.add_argument('--ds-filter', help="Sets a custom filter for finding AD users in DS")
     winsync_agmt_add_parser.add_argument('--subtree-pair', help="Sets the subtree pair: <DS_SUBTREE>:<WINDOWS_SUBTREE>")
@@ -1517,6 +1607,8 @@ def create_parser(subparsers):
     winsync_agmt_set_parser.add_argument('--conn-protocol', help="Sets the replication winsync connection protocol: LDAP, LDAPS, or StartTLS")
     winsync_agmt_set_parser.add_argument('--bind-dn', help="Sets the bind DN the agreement uses to authenticate to the AD Server")
     winsync_agmt_set_parser.add_argument('--bind-passwd', help="Sets the credentials for the Bind DN")
+    winsync_agmt_set_parser.add_argument('--bind-passwd-file', help="File containing the password")
+    winsync_agmt_set_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
     winsync_agmt_set_parser.add_argument('--frac-list', help="Sets a list of attributes to NOT replicate to the consumer during incremental updates")
     winsync_agmt_set_parser.add_argument('--schedule', help="Sets the replication update schedule")
     winsync_agmt_set_parser.add_argument('--win-subtree', help="Sets the suffix of the AD Server")
@@ -1525,15 +1617,20 @@ def create_parser(subparsers):
     winsync_agmt_set_parser.add_argument('--sync-users', help="Synchronizes users between AD and DS")
     winsync_agmt_set_parser.add_argument('--sync-groups', help="Synchronizes groups between AD and DS")
     winsync_agmt_set_parser.add_argument('--sync-interval', help="Sets the interval that DS checks AD for changes in entries")
-    winsync_agmt_set_parser.add_argument('--one-way-sync', help="Sets which direction to perform synchronization: \"toWindows\", or \"fromWindows\".  By default sync occurs in both directions.")
-    winsync_agmt_set_parser.add_argument('--move-action', help="Sets instructions on how to handle moved or deleted entries: \"none\", \"unsync\", or \"delete\"")
+    winsync_agmt_set_parser.add_argument('--one-way-sync',
+                                         help="Sets which direction to perform synchronization: \"toWindows\", or "
+                                              "\"fromWindows\".  By default sync occurs in both directions.")
+    winsync_agmt_set_parser.add_argument('--move-action',
+                                         help="Sets instructions on how to handle moved or deleted entries: \"none\", "
+                                              "\"unsync\", or \"delete\"")
     winsync_agmt_set_parser.add_argument('--win-filter', help="Sets a custom filter for finding users in AD Server")
     winsync_agmt_set_parser.add_argument('--ds-filter', help="Sets a custom filter for finding AD users in DS")
     winsync_agmt_set_parser.add_argument('--subtree-pair', help="Sets the subtree pair: <DS_SUBTREE>:<WINDOWS_SUBTREE>")
     winsync_agmt_set_parser.add_argument('--conn-timeout', help="Sets the timeout used for replicaton connections")
     winsync_agmt_set_parser.add_argument('--busy-wait-time', help="Sets the amount of time in seconds a supplier should wait after "
                                          "a consumer sends back a busy response before making another attempt to acquire access")
-    winsync_agmt_set_parser.add_argument('--session-pause-time', help="Sets the amount of time in seconds a supplier should wait between update sessions")
+    winsync_agmt_set_parser.add_argument('--session-pause-time',
+                                         help="Sets the amount of time in seconds a supplier should wait between update sessions")
 
     # Get
     winsync_agmt_get_parser = winsync_agmt_subcommands.add_parser('get', help='Display replication configuration')

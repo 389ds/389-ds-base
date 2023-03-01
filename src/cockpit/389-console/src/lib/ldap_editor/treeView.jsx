@@ -210,53 +210,58 @@ class EditorTreeView extends React.Component {
             .filter(data => (data.attribute + data.value !== '') && // Filter out empty lines
             (data.attribute !== '???: ')) // and data for empty suffix(es) and in case of failure.
             .map(line => {
-                const attr = line.attribute;
-                const attrLowerCase = attr.trim().toLowerCase();
-                let val = line.value.substring(1);
+                if (line.attribute !== undefined) {
+                    const attr = line.attribute;
+                    const attrLowerCase = attr.trim().toLowerCase();
+                    let val = line.value.substring(1);
 
-                if (line.value.substring(0, 2) === '::') {
-                    if (this.attributesSpecialHandling.includes(attrLowerCase)) {
-                        // Let the encoded value be added to the table first.
-                        // Keep the index where the value will be inserted ( current length of the array).
-                        // Once the decoding is done, insert the decoded value at the relevant index.
-                        encodedValues.push({ index: entryRows.length, line: line });
-                    } else {
-                        // TODO: Check why the decoding of 'nssymmetrickey is failing...
-                        if (attrLowerCase === 'nssymmetrickey') {
-                            val = line.value.substring(3);
+                    if (line.value.substring(0, 2) === '::') {
+                        if (this.attributesSpecialHandling.includes(attrLowerCase)) {
+                            // Let the encoded value be added to the table first.
+                            // Keep the index where the value will be inserted ( current length of the array).
+                            // Once the decoding is done, insert the decoded value at the relevant index.
+                            encodedValues.push({ index: entryRows.length, line: line });
                         } else {
-                            val = b64DecodeUnicode(line.value.substring(3));
+                            // TODO: Check why the decoding of 'nssymmetrickey is failing...
+                            if (attrLowerCase === 'nssymmetrickey') {
+                                val = line.value.substring(3);
+                            } else {
+                                val = b64DecodeUnicode(line.value.substring(3));
+                            }
                         }
                     }
-                }
 
-                if (attr.toLowerCase() === "userpassword") {
-                    val = "********";
-                }
-
-                entryRows.push([{ title: <strong>{attr}</strong> }, val]);
-                const myVal = val.trim().toLowerCase();
-                const accountObjectclasses = ['nsaccount', 'nsperson', 'simplesecurityobject',
-                                              'organization', 'person', 'account', 'organizationalunit',
-                                              'netscapeserver', 'domain', 'posixaccount', 'shadowaccount',
-                                              'posixgroup', 'mailrecipient', 'nsroledefinition'];
-                if (accountObjectclasses.includes(myVal)) {
-                    entryStateIcon = <LockIcon className="ds-pf-blue-color"/>
-                }
-                if (myVal === 'nsroledefinition') {
-                    isRole = true;
-                }
-                // TODO: Use a better logic to assign icons!
-                // console.log(`!entryIcon = ${!entryIcon}`);
-                if (!entryIcon && attrLowerCase === 'objectclass') {
-                    // console.log(`val.trim().toLowerCase() = ${val.trim().toLowerCase()}`);
-                    if (myVal === 'inetorgperson' || myVal === 'posixaccount' || myVal === 'person') {
-                        entryIcon = <UserIcon/>
-                    } else if (myVal === 'organizationalunit' || myVal === 'groupofuniquenames' || myVal === 'groupofnames') {
-                        entryIcon = <UsersIcon/>
-                    } else if (myVal === 'domain') {
-                        entryIcon = <DomainIcon/>
+                    if (attr.toLowerCase() === "userpassword") {
+                        val = "********";
                     }
+
+                    entryRows.push([{ title: <strong>{attr}</strong> }, val]);
+                    const myVal = val.trim().toLowerCase();
+                    const accountObjectclasses = ['nsaccount', 'nsperson', 'simplesecurityobject',
+                                                  'organization', 'person', 'account', 'organizationalunit',
+                                                  'netscapeserver', 'domain', 'posixaccount', 'shadowaccount',
+                                                  'posixgroup', 'mailrecipient', 'nsroledefinition'];
+                    if (accountObjectclasses.includes(myVal)) {
+                        entryStateIcon = <LockIcon className="ds-pf-blue-color"/>
+                    }
+                    if (myVal === 'nsroledefinition') {
+                        isRole = true;
+                    }
+                    // TODO: Use a better logic to assign icons!
+                    // console.log(`!entryIcon = ${!entryIcon}`);
+                    if (!entryIcon && attrLowerCase === 'objectclass') {
+                        // console.log(`val.trim().toLowerCase() = ${val.trim().toLowerCase()}`);
+                        if (myVal === 'inetorgperson' || myVal === 'posixaccount' || myVal === 'person') {
+                            entryIcon = <UserIcon/>
+                        } else if (myVal === 'organizationalunit' || myVal === 'groupofuniquenames' || myVal === 'groupofnames') {
+                            entryIcon = <UsersIcon/>
+                        } else if (myVal === 'domain') {
+                            entryIcon = <DomainIcon/>
+                        }
+                    }
+                } else {
+                    // Value too large Label
+                    entryRows.push([{ title: <strong>{line.props.attr}</strong> }, line]);
                 }
             });
 
@@ -361,11 +366,11 @@ class EditorTreeView extends React.Component {
                                 this.setState({ entryIcon: myPhoto });
                                 break;
                             }
-
-                            case 'usercertificate':
-                            case 'usercertificate;binary':
                             case 'userpassword':
                                 numberDecoded++;
+                                break;
+                            case 'usercertificate':
+                            case 'usercertificate;binary':
                             case 'cacertificate':
                             case 'cacertificate;binary':
                                 showCertificate(encVal,
