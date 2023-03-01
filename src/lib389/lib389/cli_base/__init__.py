@@ -29,10 +29,13 @@ def _get_arg(args, msg=None, hidden=False, confirm=False):
     else:
         if hidden:
             if confirm:
-                x = getpass("%s : " % msg)
-                y = getpass("CONFIRM - %s : " % msg)
-                assert_c(x == y, "inputs do not match, aborting.")
-                return y
+                while True:
+                    x = getpass("%s : " % msg)
+                    y = getpass("CONFIRM - %s : " % msg)
+                    if x != y:
+                        log.info("Passwords do not match, try again.")
+                    else:
+                        return y
             else:
                 return getpass("%s : " % msg)
         else:
