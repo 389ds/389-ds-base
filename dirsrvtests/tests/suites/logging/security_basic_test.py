@@ -92,6 +92,15 @@ def check_log(inst, event_id, msg, dn=None, bind_method=None):
     assert False
 
 
+@pytest.fixture(scope="module")
+def big_file():
+    TEMP_BIG_FILE = ''
+    for x in range(1048576):
+        TEMP_BIG_FILE += '+'
+
+    return TEMP_BIG_FILE
+
+
 def test_invalid_binds(topo, setup_test):
     """Test the various bind scenarios that should be logged in the security log
 
@@ -168,7 +177,7 @@ def test_authorization(topo, setup_test):
     """
     inst = topo.standalone
 
-    # Delete the previous securty logs
+    # Delete the previous security logs
     inst.deleteSecurityLogs()
 
     # Bind as a user
@@ -185,7 +194,7 @@ def test_authorization(topo, setup_test):
 
 
 def test_account_lockout(topo, setup_test):
-    """Test that accound locked message is displayed correctly
+    """Test that account locked message is displayed correctly
 
     :id: b70494f0-7d8e-4d90-8265-9d009bbb08b4
     :setup: Standalone Instance
@@ -200,7 +209,7 @@ def test_account_lockout(topo, setup_test):
     """
     inst = topo.standalone
 
-    # Delete the previous securty logs
+    # Delete the previous security logs
     inst.deleteSecurityLogs()
 
     # Configure account lockout
@@ -222,7 +231,7 @@ def test_account_lockout(topo, setup_test):
 
 
 def test_tcp_events(topo, setup_test):
-    """Trigger a TCP_ERROR event event that should be logged in the security log
+    """Trigger a TCP_ERROR event that should be logged in the security log
 
     :id: 2f653508-89ae-4325-9fed-a2c4ab304149
     :setup: Standalone Instance
@@ -240,7 +249,7 @@ def test_tcp_events(topo, setup_test):
 
     inst = topo.standalone
 
-    # Delete the previous securty logs
+    # Delete the previous security logs
     inst.deleteSecurityLogs()
 
     # Start interactive ldapamodfy command
@@ -256,6 +265,48 @@ def test_tcp_events(topo, setup_test):
     # Kill ldapmodify and check the log
     os.kill(int(ldapmodify_pid), signal.SIGKILL)
     check_log(inst, "TCP_ERROR", "Bad Ber Tag or uncleanly closed connection - B1")
+
+
+def test_tcp_events_maxbersize(topo, setup_test, big_file):
+    """Trigger a TCP_ERROR event B2 that should be logged in the security log
+
+    :id: 85e5ac23-4288-4e55-b8c3-1f8f39e95c2b
+    :setup: Standalone Instance
+    :testype: Non-functional
+    :subtype1: Security
+    :subtype2: Penetration
+    :subsystemteam: sst_idm_ds
+    :steps:
+        1. Create test user
+        1. Set maxbersize attribute to a small value (20KiB)
+        3. Add the big value to instance
+        4. Check that a TCP_ERROR is in the security log
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    inst = topo.standalone
+    user_entry = UserAccount(inst, DN)
+
+    # Delete the previous security logs
+    inst.deleteSecurityLogs()
+
+    log.info("Set nsslapd-maxbersize to 20K")
+    inst.config.set('nsslapd-maxbersize', '20480')
+    inst.restart()
+
+    log.info('Try to add attribute with a big value to instance - expect to FAIL')
+    with pytest.raises(ldap.SERVER_DOWN):
+        user_entry.add('jpegphoto', big_file)
+
+    log.info('Check security log')
+    check_log(inst, "TCP_ERROR", "Ber Too Big (nsslapd-maxbersize) - B2")
+
+    # restart the instance so it won't break next tests
+    inst.restart()
 
 
 def test_anonymous_bind(topo, setup_test):
