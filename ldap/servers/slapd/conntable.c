@@ -143,7 +143,8 @@ connection_table_new(int table_size)
     ct->conn_next_offset = 1;
     ct->conn_free_offset = 1;
 
-    slapi_log_err(SLAPI_LOG_INFO, "connection_table_new", "list_num:%d - list_size:%d\n",  ct->list_num, ct->list_size);
+    slapi_log_err(SLAPI_LOG_INFO, "connection_table_new", "Number of connection sub-tables %d, each containing %d slots.\n",
+        ct->list_num, ct->list_size);
 
     pthread_mutexattr_t monitor_attr = {0};
     pthread_mutexattr_init(&monitor_attr);
