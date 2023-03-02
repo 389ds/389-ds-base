@@ -39,6 +39,11 @@ const tuning_attrs = [
     'nsslapd-listen-backlog-size',
     'nsslapd-max-filter-nest-level',
     'nsslapd-ndn-cache-max-size',
+    'nsslapd-numlisteners',
+];
+
+const tuning_attrs_restart = [
+    'nsslapd-numlisteners',
 ];
 
 export class ServerTuning extends React.Component {
@@ -175,6 +180,7 @@ export class ServerTuning extends React.Component {
                         'nsslapd-listen-backlog-size': attrs['nsslapd-listen-backlog-size'][0],
                         'nsslapd-max-filter-nest-level': attrs['nsslapd-max-filter-nest-level'][0],
                         'nsslapd-ndn-cache-max-size': attrs['nsslapd-ndn-cache-max-size'][0],
+                        'nsslapd-numlisteners': attrs['nsslapd-numlisteners'][0],
                         // Record original values
                         '_nsslapd-ndn-cache-enabled': ndnEnabled,
                         '_nsslapd-ignore-virtual-attrs': ignoreVirtAttrs,
@@ -193,6 +199,7 @@ export class ServerTuning extends React.Component {
                         '_nsslapd-listen-backlog-size': attrs['nsslapd-listen-backlog-size'][0],
                         '_nsslapd-max-filter-nest-level': attrs['nsslapd-max-filter-nest-level'][0],
                         '_nsslapd-ndn-cache-max-size': attrs['nsslapd-ndn-cache-max-size'][0],
+                        '_nsslapd-numlisteners': attrs['nsslapd-numlisteners'][0],
                     }, this.props.enableTree());
                 })
                 .fail(err => {
@@ -208,10 +215,12 @@ export class ServerTuning extends React.Component {
     }
 
     saveConfig() {
+        const msg = "Successfully updated tuning configuration";
         const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
+        let requireRestart = false;
 
         this.setState({
             loading: true
@@ -228,6 +237,10 @@ export class ServerTuning extends React.Component {
                     }
                 }
                 cmd.push(attr + "=" + val);
+
+                if (tuning_attrs_restart.includes(attr)) {
+                    requireRestart = true;
+                }
             }
         }
 
@@ -236,10 +249,17 @@ export class ServerTuning extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.loadConfig();
-                    this.props.addNotification(
-                        "success",
-                        "Successfully updated tuning configuration"
-                    );
+                    if (requireRestart) {
+                        this.props.addNotification(
+                            "warning",
+                            msg + ". You must restart the Directory Server for these changes to take effect."
+                        );
+                    } else {
+                        this.props.addNotification(
+                            "success",
+                            msg
+                        );
+                    }
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -392,6 +412,28 @@ export class ServerTuning extends React.Component {
                                     onMinus={() => { this.onMinusConfig("nsslapd-idletimeout") }}
                                     onChange={(e) => { this.onConfigChange(e, "nsslapd-idletimeout", 0, 0) }}
                                     onPlus={() => { this.onPlusConfig("nsslapd-idletimeout") }}
+                                    inputName="input"
+                                    inputAriaLabel="number input"
+                                    minusBtnAriaLabel="minus"
+                                    plusBtnAriaLabel="plus"
+                                    widthChars={8}
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Grid
+                            title="Sets the number of threads to manage active connections (nsslapd-numlisteners)."
+                        >
+                            <GridItem className="ds-label" span={3}>
+                                Number Of Listener Threads
+                            </GridItem>
+                            <GridItem span={9}>
+                                <NumberInput
+                                    value={this.state['nsslapd-numlisteners']}
+                                    min={1}
+                                    max={4}
+                                    onMinus={() => { this.onMinusConfig("nsslapd-numlisteners") }}
+                                    onChange={(e) => { this.onConfigChange(e, "nsslapd-numlisteners", 0, 0) }}
+                                    onPlus={() => { this.onPlusConfig("nsslapd-numlisteners") }}
                                     inputName="input"
                                     inputAriaLabel="number input"
                                     minusBtnAriaLabel="minus"
