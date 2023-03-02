@@ -99,7 +99,9 @@ enum
     CL5_PURGED_DATA,   /* requested data has been purged */
     CL5_MISSING_DATA,  /* data should be in the changelog, but is missing */
     CL5_UNKNOWN_ERROR, /* unclassified error */
-    CL5_IGNORE_OP      /* ignore this updated - used by CLEANALLRUV task */
+    CL5_IGNORE_OP,     /* ignore this updated - used by CLEANALLRUV task */
+    CL5_DB_RETRY,      /* Retryable database error  */
+    CL5_LAST_ERROR_CODE /* Should always be last in this enum */
 };
 
 /***** Module APIs *****/

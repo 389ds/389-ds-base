@@ -2933,3 +2933,48 @@ error:
     *flag_err = rc;
     return idl;
 }
+
+int
+dbmdb_dblayer_cursor_iterate(dbi_cursor_t *cursor, dbi_iterate_cb_t *action_cb,
+                             const dbi_val_t *startingkey, void *ctx)
+{
+    MDB_cursor *mdb_cur = (MDB_cursor*)cursor->cur;
+    MDB_val mdb_key = {0};
+    MDB_val mdb_data = {0};
+    dbi_val_t key = {0};
+    dbi_val_t data = {0};
+    int rc = 0;
+
+    if (mdb_cur == NULL) {
+        return  DBI_RC_INVALID;
+    }
+
+    if (startingkey && startingkey->data && startingkey->size) {
+        mdb_key.mv_data = startingkey->data;
+        mdb_key.mv_size = startingkey->size;
+        rc = MDB_CURSOR_GET(mdb_cur, &mdb_key, &mdb_data, MDB_SET_RANGE);
+    } else {
+        rc = MDB_CURSOR_GET(mdb_cur, &mdb_key, &mdb_data, MDB_FIRST);
+    }
+    while (rc == MDB_SUCCESS) {
+        key.data = mdb_key.mv_data;
+        key.size = mdb_key.mv_size;
+        data.data = mdb_data.mv_data;
+        data.size = mdb_data.mv_size;
+        rc = action_cb(&key, &data, ctx);
+        if (rc == DBI_RC_NOTFOUND) {
+            rc = DBI_RC_SUCCESS;
+            break;
+        }
+        rc = MDB_CURSOR_GET(mdb_cur, &mdb_key, &mdb_data, MDB_NEXT);
+    }
+    if (rc == MDB_NOTFOUND) {
+        rc = DBI_RC_NOTFOUND;
+    } else if (rc != DBI_RC_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dblayer_cursor_iterate",
+                      "Database error while iterating a cursor ; db error - %d %s\n",
+                      rc, mdb_strerror(rc));
+        rc = dbmdb_map_error(__FUNCTION__, rc);
+    }
+    return rc;
+}

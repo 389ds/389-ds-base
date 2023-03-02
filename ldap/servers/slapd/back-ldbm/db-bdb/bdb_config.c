@@ -136,6 +136,7 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_get_db_suffix_fn = &bdb_public_get_db_suffix;
     priv->dblayer_compact_fn = &bdb_public_dblayer_compact;
     priv->dblayer_dbi_db_remove_fn = &bdb_public_delete_db;
+    priv->dblayer_cursor_iterate_fn = &bdb_dblayer_cursor_iterate;
 
     bdb_fake_priv = *priv; /* Copy the callbaks for bdb_be() */
     return 0;

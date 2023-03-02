@@ -1395,3 +1395,32 @@ ldbm_back_compact(Slapi_Backend *be, PRBool just_changelog)
 
     return  prv->dblayer_compact_fn(be, just_changelog);
 }
+
+int
+dblayer_is_lmdb(Slapi_Backend *be)
+{
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    return (li->li_flags & LI_LMDB_IMPL);
+}
+
+/*
+ * Iterate on the provided curor starting at startingkey (or first key if 
+ *  startingkey is NULL) and call action_cb for each records
+ * 
+ * action_cb callback returns:
+ *     DBI_RC_SUCCESS to iterate on next entry
+ *     DBI_RC_NOTFOUND to stop iteration with DBI_RC_SUCCESS code
+ *     other DBI_RC_ code to stop iteration with that error code.
+ */
+int dblayer_cursor_iterate(dbi_cursor_t *cursor, dbi_iterate_cb_t *action_cb,
+                           const dbi_val_t *startingkey, void *ctx)
+{
+    struct ldbminfo *li = (struct ldbminfo *)cursor->be->be_database->plg_private;
+    int rc = -1;
+    if (!li) {
+        return rc;
+    }
+    dblayer_private *prv = (dblayer_private *)li->li_dblayer_private;
+
+    return prv->dblayer_cursor_iterate_fn(cursor, action_cb, startingkey, ctx);
+}

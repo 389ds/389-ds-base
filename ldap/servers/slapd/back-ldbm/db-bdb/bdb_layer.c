@@ -7161,3 +7161,53 @@ bdb_public_delete_db(backend *be, dbi_db_t *db)
     bdb_close_file((DB**)&db);
     return unlink(dbName);
 }
+
+int
+bdb_dblayer_cursor_iterate(dbi_cursor_t *cursor, dbi_iterate_cb_t *action_cb,
+                           const dbi_val_t *startingkey, void *ctx)
+{
+    DBC *bdb_cur = (DBC*)cursor->cur;
+    DBT bdb_key = {0};
+    DBT bdb_data = {0};
+    dbi_val_t key = {0};
+    dbi_val_t data = {0};
+    int rc = 0;
+    
+    if (bdb_cur == NULL) {
+        return  DBI_RC_INVALID;
+    }
+
+    bdb_key.flags = DB_DBT_REALLOC;
+    bdb_data.flags = DB_DBT_REALLOC;
+    if (startingkey && startingkey->data && startingkey->size) {
+        bdb_key.data = slapi_ch_malloc(startingkey->size);
+        memcpy(bdb_key.data, startingkey->data, startingkey->size);
+        bdb_key.size = bdb_key.ulen = startingkey->size;
+        rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_SET_RANGE);
+    } else {
+        rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_FIRST);
+    }
+    while (rc == 0) {
+        key.data = bdb_key.data;
+        key.size = bdb_key.size;
+        data.data = bdb_data.data;
+        data.size = bdb_data.size;
+        rc = action_cb(&key, &data, ctx);
+        if (rc == DBI_RC_NOTFOUND) {
+            rc = DBI_RC_SUCCESS;
+            break;
+        }
+        rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT);
+    }
+    if (rc == DB_NOTFOUND) {
+        rc = DBI_RC_NOTFOUND;
+    } else if (rc != DBI_RC_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_dblayer_cursor_iterate",
+                "Database error while iterating a cursor ; db error - %d %s\n",
+                rc, db_strerror(rc));
+        rc = bdb_map_error(__FUNCTION__, rc);
+    }
+    slapi_ch_free(&bdb_key.data);
+    slapi_ch_free(&bdb_data.data);
+    return rc;
+}

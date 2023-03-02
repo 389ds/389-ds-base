@@ -226,6 +226,9 @@ int bdb_dse_conf_verify(struct ldbminfo *li, char *src_dir);
 int bdb_import_file_check_fn_t(ldbm_instance *inst);
 dbi_dbslist_t *bdb_list_dbs(const char *dbhome);
 int bdb_public_in_import(ldbm_instance *inst);
+int bdb_dblayer_cursor_iterate(dbi_cursor_t *cursor, 
+                           int (*action_cb)(dbi_val_t *key, dbi_val_t *data, void *ctx),
+                           const dbi_val_t *startingkey, void *ctx);
 
 
 /* dbimpl helpers */
@@ -282,3 +285,5 @@ void bdb_index_producer(void *param);
 void bdb_upgradedn_producer(void *param);
 void bdb_import_foreman(void *param);
 void bdb_import_worker(void *param);
+
+

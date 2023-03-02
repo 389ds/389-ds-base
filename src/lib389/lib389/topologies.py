@@ -18,7 +18,7 @@ from lib389 import DirSrv
 from lib389.utils import generate_ds_params, is_fips
 from lib389.mit_krb5 import MitKrb5
 from lib389.saslmap import SaslMappings
-from lib389.replica import ReplicationManager, Replicas
+from lib389.replica import Agreements, ReplicationManager, Replicas
 from lib389.nss_ssl import NssSsl
 from lib389._constants import *
 from lib389.cli_base import LogCapture
@@ -524,6 +524,16 @@ def topology_m1h1c1(request):
 
     topo_roles = {ReplicaRole.SUPPLIER: 1, ReplicaRole.HUB: 1, ReplicaRole.CONSUMER: 1}
     topology = create_topology(topo_roles, request=request)
+
+    # Since topology implements timeout, create_topology supports hub 
+    # but hub and suppliers are fully meshed while historically this topology
+    # did not have hub->master agreement.
+    # ==> we must remove hub->master agmt that breaks some test (like promote_demote)
+    supplier = topology.ms["supplier1"]
+    hub = topology.hs["hub1"]
+    for agmt in Agreements(hub).list():
+        if supplier.port == agmt.get_attr_val_int("nsDS5ReplicaPort"):
+            agmt.delete()
 
     topology.logcap = LogCapture()
     return topology
