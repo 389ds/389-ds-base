@@ -5027,9 +5027,9 @@ config_set_num_listeners(const char *attrname, char *value, char *errorbuf, int 
     if (*endp != '\0' || errno == ERANGE || nValue < minVal || nValue > maxVal) {
         nValue = (nValue < minVal) ? minVal : maxVal;
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                                "%s: invalid value \"%s\", connection table num lists must range from %d to %d. "
+                                "%s: invalid value \"%s\", %s must range from %d to %d. "
                                 "Server will use a setting of %d.",
-                                attrname, value, minVal, maxVal, nValue);
+                                CONFIG_NUM_LISTENERS_ATTRIBUTE, attrname, value, minVal, maxVal, nValue);
     }
 
     if (apply) {

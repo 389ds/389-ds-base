@@ -2432,7 +2432,7 @@ createsignalpipe(void)
     int i;
 
     /* Now we know how many listeners there are, setup signalpipes */
-    signalpipes = (signal_pipe*) malloc(sizeof(signal_pipe) * the_connection_table->list_num);
+    signalpipes = (signal_pipe*) slapi_ch_calloc(1, (sizeof(signal_pipe) * the_connection_table->list_num));
 
     /* there is a signal pipe for each ct list/thread mapping */
     for (i = 0; i < the_connection_table->list_num; i++) {
@@ -2463,13 +2463,11 @@ createsignalpipe(void)
 static int
 destroysignalpipe(void)
 {
-    int i;
-
-    for (i = 0; i < the_connection_table->list_num; i++) {
+    for (size_t i = 0; i < the_connection_table->list_num; i++) {
         (void) PR_Close(signalpipes[i].signalpipe[0]);
         (void) PR_Close(signalpipes[i].signalpipe[1]);
     }
-    free(signalpipes);
+    slapi_ch_free((void **)&signalpipes);
     return (0);
 }
 
