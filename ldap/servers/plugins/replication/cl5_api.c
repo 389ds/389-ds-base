@@ -2567,7 +2567,14 @@ _cl5CICbInit(dbi_val_t *key, dbi_val_t *data, DBLCI_CTX *dblcictx)
     csn_init_by_string(&dblcictx->csn, data->data);
     if (_cl5CIEventCheckTxnEnd(&dblcictx->seen) ||
         _cl5CIEventCheckTxnEnd(&dblcictx->changed)) {
-        /* Stop this txn */
+        /*
+         * returns DBI_RC_NOTFOUND so dblayer_cursor_iterate
+         * stops with DBI_RC_SUCCESS return code, then
+         * _cl5Iterate commits the txn and restart a new txn
+         * and iterate again starting from last seen record
+         * (i.e same key and data that the one we are
+         * currently processing )
+         */
         return DBI_RC_NOTFOUND;
     }
     dblcictx->seen.nb++;
