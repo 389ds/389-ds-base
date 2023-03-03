@@ -2429,13 +2429,11 @@ netaddr2string(const PRNetAddr *addr, char *addrbuf, size_t addrbuflen)
 static int
 createsignalpipe(void)
 {
-    int i;
-
     /* Now we know how many listeners there are, setup signalpipes */
     signalpipes = (signal_pipe*) slapi_ch_calloc(1, (sizeof(signal_pipe) * the_connection_table->list_num));
 
     /* there is a signal pipe for each ct list/thread mapping */
-    for (i = 0; i < the_connection_table->list_num; i++) {
+    for (size_t i = 0; i < the_connection_table->list_num; i++) {
         if (PR_CreatePipe(&signalpipes[i].signalpipe[0], &signalpipes[i].signalpipe[1]) != 0) {
             PRErrorCode prerr = PR_GetError();
             slapi_log_err(SLAPI_LOG_ERR, "createsignalpipe",
