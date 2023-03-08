@@ -1043,7 +1043,7 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
              *  - there is no referral on the server
              *  - this is an internal SRCH
              */
-            filter_exec = slapi_filter_dup(filter);
+            filter_exec = filter;
         } else {
             /* make (|(originalfilter)(objectclass=referral)) */
             filter_exec = create_subtree_filter(filter, managedsait);
