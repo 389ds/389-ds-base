@@ -232,7 +232,7 @@ def test_gecos_mixed_definition_topo(topo_m2, request):
     repl = ReplicationManager(DEFAULT_SUFFIX)
     m1 = topo_m2.ms["supplier1"]
     m2 = topo_m2.ms["supplier2"]
-    
+
 
     # create a test user
     testuser_dn = 'uid={},{}'.format('testuser', DEFAULT_SUFFIX)
@@ -343,7 +343,7 @@ def test_gecos_directoryString_wins_M1(topo_m2, request):
     repl = ReplicationManager(DEFAULT_SUFFIX)
     m1 = topo_m2.ms["supplier1"]
     m2 = topo_m2.ms["supplier2"]
-    
+
 
     # create a test user
     testuser_dn = 'uid={},{}'.format('testuser', DEFAULT_SUFFIX)
@@ -390,7 +390,6 @@ def test_gecos_directoryString_wins_M1(topo_m2, request):
     schema = SchemaLegacy(m2)
     attributetypes = schema.query_attributetype('gecos')
     assert attributetypes[0].syntax == "1.3.6.1.4.1.1466.115.121.1.26"
-
 
     # update M1 schema to increase its nsschemaCSN
     new_at = "( dummy-oid NAME 'dummy' DESC 'dummy attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'RFC 2307' )"
@@ -471,7 +470,7 @@ def test_gecos_directoryString_wins_M2(topo_m2, request):
     repl = ReplicationManager(DEFAULT_SUFFIX)
     m1 = topo_m2.ms["supplier1"]
     m2 = topo_m2.ms["supplier2"]
-    
+
 
     # create a test user
     testuser_dn = 'uid={},{}'.format('testuser', DEFAULT_SUFFIX)
@@ -623,9 +622,8 @@ def test_definition_with_sharp(topology_st, request):
     # start the instances
     inst.start()
 
-    i# Check that server is really running.
+    # Check that server is really running.
     assert inst.status()
-
 
 
 if __name__ == '__main__':

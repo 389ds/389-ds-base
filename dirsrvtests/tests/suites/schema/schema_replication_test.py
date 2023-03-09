@@ -336,11 +336,11 @@ def test_schema_replication_three(topology_m1c1, schema_replication_init):
     """
     _header(topology_m1c1, "Extra OC Schema is pushed - no error")
 
-    # Do an upate to trigger the schema push attempt
+    # Do an update to trigger the schema push attempt
     # add this OC on consumer. Supplier will no push the schema
     add_OC(topology_m1c1.ms["supplier1"], 1, 'consumerNewOCA')
 
-    # now push the scheam
+    # now push the schema
     trigger_schema_push(topology_m1c1)
     supplier_schema_csn = topology_m1c1.ms["supplier1"].schema.get_schema_csn()
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
