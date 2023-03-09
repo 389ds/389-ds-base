@@ -259,11 +259,6 @@ ldbm_instance_start(backend *be)
     }
 
     rc = dblayer_instance_start(be, DBLAYER_NORMAL_MODE);
-    if (slapi_exist_referral(be)) {
-        slapi_be_set_flag(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL);
-    } else {
-        slapi_be_unset_flag(be, SLAPI_BE_FLAG_CONTAINS_REFERRAL);
-    }
     be->be_state = BE_STATE_STARTED;
 
     PR_Unlock(be->be_state_lock);
@@ -318,6 +313,11 @@ ldbm_instance_startall(struct ldbminfo *li)
             ldbm_instance_register_modify_callback(inst);
             vlv_init(inst);
             slapi_mtn_be_started(inst->inst_be);
+        }
+        if (slapi_exist_referral(inst->inst_be)) {
+            slapi_be_set_flag(inst->inst_be, SLAPI_BE_FLAG_CONTAINS_REFERRAL);
+        } else {
+            slapi_be_unset_flag(inst->inst_be, SLAPI_BE_FLAG_CONTAINS_REFERRAL);
         }
         inst_obj = objset_next_obj(li->li_instance_set, inst_obj);
     }
