@@ -1223,6 +1223,7 @@ def test_referral_check(topology_st, request):
     inst = topology_st.standalone
 
     # Step 1 reduce nsslapd-referral-check-period to accelerate test
+    topology_st.standalone.restart()
     REFERRAL_CHECK=7
     topology_st.standalone.config.set("nsslapd-referral-check-period", str(REFERRAL_CHECK))
     topology_st.standalone.restart()
@@ -1318,6 +1319,7 @@ def test_referral_subsuffix(topology_st, request):
         all steps succeeds
     """
     inst = topology_st.standalone
+    topology_st.standalone.restart()
     # Step 1 First create two Backends, without mapping trees.
     PARENT_SUFFIX='dc=parent,dc=com'
     CHILD_SUFFIX='dc=child,%s' % PARENT_SUFFIX
