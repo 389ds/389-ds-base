@@ -95,6 +95,50 @@ def test_enable_replication(topology_st, page, browser_name):
     assert frame.get_by_role('button', name='Add Replication Manager').is_visible()
 
 
+def test_suffixes_visibility(topology_st, page, browser_name):
+    """ Test visibility of created suffixes in replication tab
+
+        :id: 47141eaa-a506-4a60-a3ae-8e960f692faa
+        :setup: Standalone instance
+        :steps:
+             1. Click on Replication tab check if Add Replication Manager Button is visible.
+             2. Click on Agreements tab check if column header with Replication Agreement text is visible.
+             3. Click on Winsync Agreements tab and check if column header with Winsync Agreements text is visible.
+             4. Click on Change Log tab and check if label with Changelog Maximum Entries text is visible.
+             5. Click on RUV's & Tasks tab and check if Export Changelog button is visible.
+        :expectedresults:
+             1. Element is visible.
+             2. Element is visible.
+             3. Element is visible.
+             4. Element is visible.
+             5. Element is visible.
+        """
+    setup_login(page)
+    time.sleep(1)
+    frame = check_frame_assignment(page, browser_name)
+
+    log.info('Click on Replication tab and check if element is loaded.')
+    frame.get_by_role('tab', name='Replication').click()
+    frame.get_by_role('button', name='Add Replication Manager').wait_for()
+    assert frame.get_by_role('button', name='Add Replication Manager').is_visible()
+
+    log.info('Click on Agreements tab and check if element is loaded.')
+    frame.get_by_role('tab', name='Agreements (0)', exact=True).click()
+    assert frame.get_by_role('columnheader', name='Replication Agreements').is_visible()
+
+    log.info('Click on Winsync Agreements tab and check if element is loaded.')
+    frame.get_by_role('tab', name='Winsync Agreements').click()
+    assert frame.get_by_role('columnheader', name='Replication Agreements').is_visible()
+
+    log.info('Click on Change Log tab and check if element is loaded.')
+    frame.get_by_role('tab', name='Change Log').click()
+    assert frame.get_by_text('Changelog Maximum Entries').is_visible()
+
+    log.info("Click on RUV'S & Tasks tab and check if element is loaded.")
+    frame.get_by_role('tab', name="RUV'S & Tasks").click()
+    assert frame.get_by_role('button', name='Export Changelog')
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
