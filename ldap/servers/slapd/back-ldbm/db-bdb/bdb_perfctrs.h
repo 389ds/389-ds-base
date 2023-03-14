@@ -53,7 +53,6 @@ struct _performance_counters
     uint64_t commit_rate;
     uint64_t abort_rate;
     uint64_t txn_region_wait_rate;
-    uint64_t mp_pagesize;
 };
 typedef struct _performance_counters performance_counters;
 
