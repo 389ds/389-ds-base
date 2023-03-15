@@ -23,7 +23,6 @@ nsslapd-rootpw: %ds_passwd%
 nsslapd-ldapilisten: %ldapi_enabled%
 nsslapd-ldapifilepath: %ldapi%
 nsslapd-ldapiautobind: %ldapi_autobind%
-nsslapd-ldapimaprootdn: %rootdn%
 
 dn: cn=auto_bind,cn=config
 objectclass: top

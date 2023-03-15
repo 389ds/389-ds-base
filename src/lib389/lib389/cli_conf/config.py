@@ -16,6 +16,15 @@ from lib389.cli_base import (
     )
 
 
+def _config_display_ldapimaprootdn_warning(log, args):
+    """If we update the rootdn we need to update the ldapi settings too"""
+
+    for attr in args.attr:
+        if attr.lower().startswith('nsslapd-ldapimaprootdn='):
+            log.warning("The \"nsslapd-ldapimaprootdn\" setting is obsolete and kept for compatibility reasons. "
+                        "For LDAPI configuration, \"nsslapd-rootdn\" is used instead.")
+
+
 def config_get(inst, basedn, log, args):
     if args and args.attrs:
         _generic_get_attr(inst, basedn, log.getChild('config_get'), Config, args)
@@ -27,17 +36,14 @@ def config_get(inst, basedn, log, args):
 def config_add_attr(inst, basedn, log, args):
     _generic_add_attr(inst, basedn, log.getChild('config_add_attr'), Config, args)
 
+    _config_display_ldapimaprootdn_warning(log, args)
+
 
 def config_replace_attr(inst, basedn, log, args):
     _generic_replace_attr(inst, basedn, log.getChild('config_replace_attr'), Config, args)
 
-    # If we update the rootdn we need to update the ldapi settings too
-    for attr in args.attr:
-        if attr.startswith('nsslapd-rootdn='):
-            [rootdn_attr, rootdn_val] = attr.split("=", 1)
-            args.attr = ['nsslapd-ldapimaprootdn=' + rootdn_val]
-            _generic_replace_attr(inst, basedn, log.getChild('config_get'),
-                                  Config, args)
+    _config_display_ldapimaprootdn_warning(log, args)
+
 
 def config_del_attr(inst, basedn, log, args):
     _generic_del_attr(inst, basedn, log.getChild('config_del_attr'), Config, args)

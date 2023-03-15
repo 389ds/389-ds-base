@@ -340,7 +340,7 @@ export class ServerLDAPI extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="Map the Unix root entry to this Directory Manager DN (nsslapd-ldapimaprootdn).  The UI requires this to be set to the current root DN so it is a read-only setting.">
+                    <Grid title="Map the Unix root entry to this Directory Manager DN (nsslapd-ldapimaprootdn).  The UI requires this to be set to the current root DN so it is a read-only setting. The attribute is obsolete. Current root DN is used.">
                         <GridItem className="ds-label" span={3}>
                             LDAPI Map To Root DN
                         </GridItem>
