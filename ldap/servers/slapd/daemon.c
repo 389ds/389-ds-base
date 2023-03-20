@@ -78,7 +78,7 @@ short slapd_housekeeping_timer = 10;
 #define FDS_SIGNAL_PIPE 0
 #define FDS_PROCESS_MAX 64000
 
-static signal_pipe signalpipes[SLAPD_DEFAULT_NUM_LISTENERS]; /* One signal pipe per CT list */
+static signal_pipe *signalpipes;
 static PRInt32 ct_shutdown = 0;
 static PRThread *disk_thread_p = NULL;
 static PRThread *accept_thread_p = NULL;
@@ -126,6 +126,7 @@ static void *catch_signals();
 #endif
 
 static int createsignalpipe(void);
+static int destroysignalpipe(void);
 
 static char *
 get_pid_file(void)
@@ -1133,8 +1134,8 @@ slapd_daemon(daemon_ports_t *ports)
         ps_stop_psearch_system(); /* stop any persistent searches */
     }
 
-    op_thread_cleanup();
     ct_thread_cleanup();
+    op_thread_cleanup();
     housekeeping_stop(); /* Run this after op_thread_cleanup() logged sth */
     disk_monitoring_stop();
     slapi_referral_check_stop();
@@ -1219,6 +1220,7 @@ slapd_daemon(daemon_ports_t *ports)
 
     plugin_closeall(1 /* Close Backends */, 1 /* Close Globals */);
 
+    destroysignalpipe();
     /*
      * connection_table_free could use callbacks in the backend.
      * (e.g., be_search_results_release)
@@ -1284,7 +1286,7 @@ ct_list_thread(uint64_t threadnum)
 {
     uint64_t threadid = (uint64_t) threadnum;
 
-    while (!ct_shutdown) {
+    while (!slapi_is_shutting_down()) {
          int select_return = 0;
          PRIntn num_poll = 0;
          PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_ct_thread_wakeup_timer);
@@ -1319,8 +1321,8 @@ init_ct_list_threads(void)
     for (uint64_t i = 0; i < ctlists; i++) {
         if(PR_CreateThread(PR_SYSTEM_THREAD,
                             (VFP)(void *)ct_list_thread, (void *) i,
-                            PR_PRIORITY_URGENT, PR_GLOBAL_THREAD,
-                            PR_JOINABLE_THREAD,
+                            PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                            PR_UNJOINABLE_THREAD,
                             SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL) {
             int prerr = PR_GetError();
             slapi_log_err(SLAPI_LOG_ERR, "init_ct_list_threads",
@@ -2423,13 +2425,15 @@ netaddr2string(const PRNetAddr *addr, char *addrbuf, size_t addrbuflen)
     return (retstr);
 }
 
-
+/* Create a signal pipe for each listener thread */
 static int
 createsignalpipe(void)
 {
-    int i;
+    /* Now we know how many listeners there are, setup signalpipes */
+    signalpipes = (signal_pipe*) slapi_ch_calloc(1, (sizeof(signal_pipe) * the_connection_table->list_num));
+
     /* there is a signal pipe for each ct list/thread mapping */
-    for (i = 0; i < the_connection_table->list_num; i++) {
+    for (size_t i = 0; i < the_connection_table->list_num; i++) {
         if (PR_CreatePipe(&signalpipes[i].signalpipe[0], &signalpipes[i].signalpipe[1]) != 0) {
             PRErrorCode prerr = PR_GetError();
             slapi_log_err(SLAPI_LOG_ERR, "createsignalpipe",
@@ -2451,6 +2455,17 @@ createsignalpipe(void)
                           "Failed to set FD for write pipe (%d).\n", errno);
         }
     }
+    return (0);
+}
+
+static int
+destroysignalpipe(void)
+{
+    for (size_t i = 0; i < the_connection_table->list_num; i++) {
+        (void) PR_Close(signalpipes[i].signalpipe[0]);
+        (void) PR_Close(signalpipes[i].signalpipe[1]);
+    }
+    slapi_ch_free((void **)&signalpipes);
     return (0);
 }
 
