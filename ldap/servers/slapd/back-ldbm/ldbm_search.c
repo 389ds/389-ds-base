@@ -34,7 +34,7 @@ static IDList *base_candidates(Slapi_PBlock *pb, struct backentry *e);
 static IDList *onelevel_candidates(Slapi_PBlock *pb, backend *be, const char *base, Slapi_Filter *filter, int *lookup_returned_allidsp, int *err);
 static back_search_result_set *new_search_result_set(IDList *idl, int vlv, int lookthroughlimit);
 static void delete_search_result_set(Slapi_PBlock *pb, back_search_result_set **sr);
-static int can_skip_filter_test(Slapi_PBlock *pb, struct slapi_filter *f, int scope, IDList *idl);
+static int can_skip_filter_test(Slapi_PBlock *pb, struct slapi_filter *f, int scope, IDList *idl, int sr_flags);
 
 /* This is for performance testing, allows us to disable ACL checking altogether */
 #if defined(DISABLE_ACL_CHECK)
@@ -923,14 +923,14 @@ ldbm_back_search(Slapi_PBlock *pb)
             tmp_desc = "Filter is not set";
             goto bail;
         }
-        if (can_skip_filter_test(pb, filter, scope, candidates) == 0) {
-            sr->sr_flags |= SR_FLAG_MUST_APPLY_FILTER_TEST;
+        if (can_skip_filter_test(pb, filter, scope, candidates, sr->sr_flags)) {
+            sr->sr_flags |= SR_FLAG_CAN_SKIP_FILTER_TEST;
         }
     }
 
     /* if we need to perform the filter test, pre-digest the filter to
        speed up the filter test */
-    if ((sr->sr_flags & SR_FLAG_MUST_APPLY_FILTER_TEST) ||
+    if (!(sr->sr_flags & SR_FLAG_CAN_SKIP_FILTER_TEST) ||
         li->li_filter_bypass_check) {
         int rc = 0, filt_errs = 0;
         Slapi_Filter *filter = NULL;
@@ -1360,12 +1360,13 @@ can_skip_filter_test(
     Slapi_PBlock *pb __attribute__((unused)),
     struct slapi_filter *f,
     int scope,
-    IDList *idl)
+    IDList *idl,
+    int sr_flags)
 {
     int rc = 0;
 
     /* Is the ID list ALLIDS ? */
-    if (ALLIDS(idl)) {
+    if (ALLIDS(idl) || (sr_flags & SR_FLAG_MUST_APPLY_FILTER_TEST)) {
         /* If so, then can't optimize */
         return rc;
     }
@@ -1743,7 +1744,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
                 /* If any of the ... "logic" above failed, leave the failure in place. */
                 if (filter_test == 0) {
                     filter_test = -1;
-                    if (0 == (sr->sr_flags & SR_FLAG_MUST_APPLY_FILTER_TEST)) {
+                    if (sr->sr_flags & SR_FLAG_CAN_SKIP_FILTER_TEST) {
                         /* BYPASS - it's a regular entry, check if it passes the ACL check */
                         /*
                          * Since we do access control checking in the filter test we need to check access now
@@ -1753,7 +1754,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
                         slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
                                       "Bypassing filter test for %s\n", slapi_entry_get_dn_const(e->ep_entry));
                         if (ACL_CHECK_FLAG) {
-                            filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG);
+                            filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG, 1);
                         } else {
                             filter_test = 0;
                         }
@@ -1761,7 +1762,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
                         /* If we don't check this, we could stomp the filter_test aci denied result. */
                         if (filter_test == 0 && li->li_filter_bypass_check) {
                             slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry", "Checking bypass\n");
-                            filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, 0);
+                            filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, ACL_CHECK_FLAG);
                             if (filter_test != 0) {
                                 /* Oops ! This means that we thought we could bypass the filter test, but noooo... */
                                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry",
@@ -1790,9 +1791,6 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
                         filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter_intent, ACL_CHECK_FLAG);
                         slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
                                       "Applying filter test intermediate value %d \n", filter_test);
-                        if (filter_test == 0) {
-                            filter_test = slapi_vattr_filter_test(pb, e->ep_entry, filter, 0);
-                        }
                     }
                 }
             }

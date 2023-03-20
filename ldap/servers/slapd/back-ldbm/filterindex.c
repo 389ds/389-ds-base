@@ -902,7 +902,7 @@ list_candidates(
              * and allids - we should not process anymore, and fallback to full
              * table scan at this point.
              */
-                slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "OR shortcut condition - must apply filter test\n");
+            slapi_log_err(SLAPI_LOG_FILTER, "list_candidates", "OR shortcut condition - must apply filter test\n");
             sr->sr_flags |= SR_FLAG_MUST_APPLY_FILTER_TEST;
             goto apply_set_op;
         }
@@ -912,7 +912,7 @@ list_candidates(
              * If we encounter a zero length idl, we bail now because this can never
              * result in a meaningful result besides zero.
              */
-            slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "AND shortcut condition - must apply filter test\n");
+            slapi_log_err(SLAPI_LOG_FILTER, "list_candidates", "AND shortcut condition - must apply filter test\n");
             sr->sr_flags |= SR_FLAG_MUST_APPLY_FILTER_TEST;
             goto apply_set_op;
         }
