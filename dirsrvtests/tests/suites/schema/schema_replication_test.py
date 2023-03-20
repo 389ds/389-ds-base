@@ -1,24 +1,24 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-'''
+"""
 Created on Nov 7, 2013
 
 @author: tbordaz
-'''
+"""
+import json
 import logging
 import re
 import time
-
 import ldap
 import pytest
 from lib389 import Entry
-from lib389._constants import *
+from lib389._constants import DN_CONFIG, SUFFIX
 from lib389.topologies import topology_m1c1
 
 from lib389.utils import *
@@ -296,7 +296,19 @@ def test_schema_replication_two(topology_m1c1, schema_replication_init):
     # Check the error log of the supplier does not contain an error
     # This message may happen during the learning phase
     regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
-    res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
+    pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
+
+    # Check that standard schema was not rewritten to be "user defined' on the consumer
+    cn_attrs = json.loads(topology_m1c1.cs["consumer1"].schema.query_attributetype("cn", json=True))
+    cn_attr = cn_attrs['at']
+    assert cn_attr['x_origin'][0].lower() != "user defined"
+    if len(cn_attr['x_origin']) > 1:
+        assert cn_attr['x_origin'][1].lower() != "user defined"
+
+    # Check that the new OC "supplierNewOCB" was written to be "user defined' on the consumer
+    ocs = json.loads(topology_m1c1.cs["consumer1"].schema.query_objectclass("supplierNewOCB", json=True))
+    new_oc = ocs['oc']
+    assert new_oc['x_origin'][0].lower() == "user defined"
 
 
 @pytest.mark.ds47490
@@ -450,7 +462,7 @@ def test_schema_replication_five(topology_m1c1, schema_replication_init):
     # Check the schemaCSN was NOT updated on the consumer
     # with 47721, supplier learns the missing definition
     log.debug("test_schema_replication_five supplier_schema_csn=%s", supplier_schema_csn)
-    log.debug("ctest_schema_replication_five onsumer_schema_csn=%s", consumer_schema_csn)
+    log.debug("ctest_schema_replication_five consumer_schema_csn=%s", consumer_schema_csn)
     if support_schema_learning(topology_m1c1):
         assert supplier_schema_csn == consumer_schema_csn
     else:

@@ -58,9 +58,9 @@ def test_precise_tombstone_purging(topology_m1):
     args = {EXPORT_REPL_INFO: True,
             TASK_WAIT: True}
     m1_tasks.exportLDIF(DEFAULT_SUFFIX, None, ldif_file, args)
-    time.sleep(.5)
+    m1.restart()  # harden test case
 
-    # Strip LDIF of nsTombstoneCSN, getthe LDIF lines, the n create new ldif 
+    # Strip LDIF of nsTombstoneCSN, get the LDIF lines, then create new ldif
     ldif = open(ldif_file, "r")
     lines = ldif.readlines()
     ldif.close()
