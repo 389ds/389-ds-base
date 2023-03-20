@@ -129,8 +129,8 @@ connection_table_new(int table_size)
     int free_idx = 0;
     ber_len_t maxbersize = config_get_maxbersize();
     ct = (Connection_Table *)slapi_ch_calloc(1, sizeof(Connection_Table));
-    ct->num_active = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
     ct->list_num = config_get_num_listeners();
+    ct->num_active = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
     ct->size = table_size - (table_size % ct->list_num);
     ct->list_size = ct->size/ct->list_num;
     ct->num_active = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
