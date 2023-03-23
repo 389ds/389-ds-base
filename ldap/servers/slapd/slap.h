@@ -2628,7 +2628,7 @@ typedef struct _slapdFrontendConfig
     char *ldapi_filename;                 /* filename for ldapi socket */
     slapi_onoff_t ldapi_switch;           /* switch to turn ldapi on/off */
     slapi_onoff_t ldapi_bind_switch;      /* switch to turn ldapi auto binding on/off */
-    char *ldapi_root_dn;                  /* DN to map root to over LDAPI */
+    char *ldapi_root_dn;                  /* DN to map root to over LDAPI. Obsolete setting. rootds is used instead */
     slapi_onoff_t ldapi_map_entries;      /* turns ldapi entry bind mapping on/off */
     char *ldapi_uidnumber_type;           /* type that contains uid number */
     char *ldapi_gidnumber_type;           /* type that contains gid number */

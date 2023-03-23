@@ -321,7 +321,7 @@ slapd_bind_local_user(Connection *conn)
 
         if (ret && (0 == uid || proc_uid == uid || proc_gid == gid)) {
             /* map unix root (uidNumber:0)? */
-            char *root_dn = config_get_ldapi_root_dn();
+            char *root_dn = config_get_rootdn();
 
             if (root_dn) {
                 Slapi_PBlock *entry_pb = NULL;

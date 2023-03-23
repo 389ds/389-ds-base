@@ -2775,6 +2775,9 @@ config_set_ldapi_root_dn(const char *attrname, char *value, char *errorbuf, int 
     }
 
     if (apply) {
+        slapi_log_err(SLAPI_LOG_WARNING, "config_set_ldapi_root_dn",
+                "The \"nsslapd-ldapimaprootdn\" setting is obsolete and kept for compatibility reasons. "
+                "For LDAPI configuration, \"nsslapd-rootdn\" is used instead.\n");
         CFG_LOCK_WRITE(slapdFrontendConfig);
 
         slapi_ch_free((void **)&(slapdFrontendConfig->ldapi_root_dn));

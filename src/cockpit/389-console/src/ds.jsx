@@ -73,7 +73,7 @@ const staticStates = {
         <TextContent>
             <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
                 Problem accessing required server configuration. Check LDAPI is properly
-                configured for the current Root DN (nsslapd-rootdn & nsslapd-ldapimaprootdn).
+                configured on this instance.
             </Text>
         </TextContent>
     )
