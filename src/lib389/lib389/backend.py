@@ -1165,13 +1165,36 @@ class BackendSuffixView(CompositeDSLdapObject):
             'nsslapd-cachesize',
             'nsslapd-dncachememsize',
             'nsslapd-readonly',
-            'nsslapd-referral',
             'nsslapd-require-index',
+            'nsslapd-suffix'
         ]
         mt_args = [
             'orphan',
             'nsslapd-state',
+            'nsslapd-referral',
         ]
         mt = be._mts.get(be.get_suffix())
         self.add_component(be, be_args)
         self.add_component(mt, mt_args)
+
+    def get_state(self):
+        return self.get_attr_val_utf8('nsslapd-state')
+
+    def set_state(self, new_state):
+        new_state = new_state.lower()
+        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+
+        if new_state not in ['backend', 'disabled',  'referral',  'referral on update']:
+            raise ValueError(f"Invalid backend state {new_state}, value must be one of the following: 'backend', 'disabled',  'referral',  'referral on update'")
+
+        # Can not change state of replicated backend
+        replicas = Replicas(self._instance)
+        try:
+            # Check if replication is enabled
+            replicas.get(suffix)
+            raise ValueError("Can not change the backend state of a replicated suffix")
+        except ldap.NO_SUCH_OBJECT:
+            pass
+
+        # Ok, change the state
+        self.set('nsslapd-state', new_state)

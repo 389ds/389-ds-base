@@ -1486,9 +1486,17 @@ class CompositeDSLdapObject(DSLdapObject):
         idx = self._find_idx(key)[-1]
         return self._entries[idx].get_attr_vals(key, use_json)
 
+    def get_attr_vals_utf8(self, key, use_json=False):
+        idx = self._find_idx(key)[-1]
+        return self._entries[idx].get_attr_vals_utf8(key, use_json)
+
     def get_attr_val(self, key, use_json=False):
         idx = self._find_idx(key)[-1]
-        return self._entries[idx].get_attr_vals(key, use_json)
+        return self._entries[idx].get_attr_val(key, use_json)
+
+    def get_attr_val_utf8(self, key, use_json=False):
+        idx = self._find_idx(key)[-1]
+        return self._entries[idx].get_attr_val_utf8(key, use_json)
 
     def add_values(self, values):
         raise DeprecationWarning("Not implemented any more.")
