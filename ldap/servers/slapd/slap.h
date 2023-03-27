@@ -2201,6 +2201,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_SVRTAB_ATTRIBUTE "nsslapd-svrtab"
 #define CONFIG_UNAUTH_BINDS_ATTRIBUTE "nsslapd-allow-unauthenticated-binds"
 #define CONFIG_REQUIRE_SECURE_BINDS_ATTRIBUTE "nsslapd-require-secure-binds"
+#define CONFIG_CLOSE_ON_FAILED_BIND "nsslapd-close-on-failed-bind"
 #define CONFIG_ANON_ACCESS_ATTRIBUTE "nsslapd-allow-anonymous-access"
 #define CONFIG_LOCALSSF_ATTRIBUTE "nsslapd-localssf"
 #define CONFIG_MINSSF_ATTRIBUTE "nsslapd-minssf"
@@ -2654,6 +2655,7 @@ typedef struct _slapdFrontendConfig
     char *allowed_sasl_mechs;        /* comma/space separated list of allowed sasl mechs */
     char **allowed_sasl_mechs_array; /* Array of allow sasl mechs */
     int sasl_max_bufsize;            /* The max receive buffer size for SASL */
+    slapi_onoff_t close_on_failed_bind;   /* Close connection following a failed bind */
 
     /* disk monitoring */
     slapi_onoff_t disk_monitoring;
