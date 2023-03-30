@@ -1505,7 +1505,7 @@ export class ReplMonitor extends React.Component {
         return (
             <div>
                 <div id="monitor-suffix-page" className="ds-tab-table">
-                    <Tabs activeKey={this.state.activeTabReplKey} onSelect={this.handleNavReplSelect}>
+                    <Tabs isFilled activeKey={this.state.activeTabReplKey} onSelect={this.handleNavReplSelect}>
                         <Tab eventKey={0} title={<TabTitleText>Synchronization Report</TabTitleText>}>
                             {reportContent}
                         </Tab>

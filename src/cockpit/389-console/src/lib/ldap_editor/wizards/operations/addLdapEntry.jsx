@@ -83,6 +83,7 @@ class AddLdapEntry extends React.Component {
             ],
             rowsOc: [],
             rowsAttr: [],
+            rowsAttrOrig: [],
             rowsValues: [],
             pagedRowsOc: [],
             pagedRowsAttr: [],
@@ -91,6 +92,8 @@ class AddLdapEntry extends React.Component {
             attrsToRemove: [],
             namingAttr: "",
             adding: true,
+            searchOCValue: "",
+            searchAttrValue: "",
         };
 
         this.onNext = ({ id }) => {
@@ -203,7 +206,35 @@ class AddLdapEntry extends React.Component {
             this.setState({
                 rowsOc: ocRows,
                 pagedRowsOc: ocRows.slice(0, this.state.perPageOc),
-            })
+                searchOCValue: value,
+                itemCountOc: ocRows.length,
+            });
+        }
+
+        this.onAttrSearchChange = (value, event) => {
+            let attrRows = [];
+            let allAttrs = this.state.rowsAttrOrig;
+            const val = value.toLowerCase();
+
+            // Process search filter on the entire list
+            if (val !== "") {
+                for (const row of allAttrs) {
+                    const name = row.attributeName.toLowerCase();
+                    if (name.includes(val)) {
+                        attrRows.push(row);
+                    }
+                }
+            } else {
+                // Restore entire row list
+                attrRows = allAttrs;
+            }
+
+            this.setState({
+                rowsAttr: attrRows,
+                pagedRowsAttr: attrRows.slice(0, this.state.perPageAttr),
+                itemCountAttr: attrRows.length,
+                searchAttrValue: value
+            });
         }
         // End constructor().
     }
@@ -387,7 +418,7 @@ class AddLdapEntry extends React.Component {
         // The property 'isAttributeSelected' is used to build the LDAP entry to add.
         // The row ID cannot be used since it changes with the pagination.
         const attrName = this.state.pagedRowsAttr[rowId].cells[0];
-        let allItems = [...this.state.rowsAttr];
+        let allItems = [...this.state.rowsAttrOrig];
         const index = allItems.findIndex(item => item.cells[0] === attrName);
         allItems[index].isAttributeSelected = isSelected;
         const selectedAttributes = allItems
@@ -522,6 +553,7 @@ class AddLdapEntry extends React.Component {
         rowsAttr.sort((a, b) => (a.attributeName > b.attributeName) ? 1 : -1)
         this.setState({
             rowsAttr,
+            rowsAttrOrig: [...rowsAttr],
             selectedAttributes: rowsAttr.filter(item => item.isAttributeSelected)
                 .map(attrObj => [attrObj.attributeName, attrObj.cells[1]]),
             itemCountAttr: rowsAttr.length,
@@ -724,7 +756,7 @@ class AddLdapEntry extends React.Component {
                             <SearchInput
                                 className="ds-font-size-md"
                                 placeholder='Search Objectclasses'
-                                value={this.state.searchValue}
+                                value={this.state.searchOCValue}
                                 onChange={this.onOCSearchChange}
                                 onClear={(evt) => this.onOCSearchChange('', evt)}
                             />
@@ -768,6 +800,28 @@ class AddLdapEntry extends React.Component {
                     </TextContent>
                     {this.buildAttrDropdown()}
                 </div>
+                <Grid className="ds-margin-top-lg">
+                    <GridItem span={5}>
+                        <SearchInput
+                            className="ds-font-size-md"
+                            placeholder='Search Attributes'
+                            value={this.state.searchAttrValue}
+                            onChange={this.onAttrSearchChange}
+                            onClear={(evt) => this.onAttrSearchChange('', evt)}
+                        />
+                    </GridItem>
+                    <GridItem span={7}>
+                        <Pagination
+                            itemCount={itemCountAttr}
+                            page={pageAttr}
+                            perPage={perPageAttr}
+                            onSetPage={this.onSetPageAttr}
+                            widgetId="pagination-step-attributes"
+                            onPerPageSelect={this.onPerPageSelectAttr}
+                            isCompact
+                        />
+                    </GridItem>
+                </Grid>
                 <Table
                     className="ds-margin-top"
                     cells={columnsAttr}
@@ -780,16 +834,6 @@ class AddLdapEntry extends React.Component {
                     <TableHeader />
                     <TableBody />
                 </Table>
-                <Pagination
-                    itemCount={itemCountAttr}
-                    page={pageAttr}
-                    perPage={perPageAttr}
-                    onSetPage={this.onSetPageAttr}
-                    widgetId="pagination-step-attributes"
-                    onPerPageSelect={this.onPerPageSelectAttr}
-                    dropDirection="up"
-                    isCompact
-                />
             </>
         );
 
