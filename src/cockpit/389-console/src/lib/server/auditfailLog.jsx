@@ -138,7 +138,7 @@ export class ServerAuditFailLog extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const config_attr of config_attrs) {
-            if (attr === config_attr && this.state['_' + config_attr] !== value) {
+            if (attr === config_attr && this.state['_' + config_attr].toString() !== value.toString()) {
                 disableSaveBtn = false;
                 break;
             }
@@ -146,7 +146,7 @@ export class ServerAuditFailLog extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const config_attr of config_attrs) {
-            if (attr !== config_attr && this.state['_' + config_attr] !== this.state[config_attr]) {
+            if (attr !== config_attr && this.state['_' + config_attr].toString() !== this.state[config_attr].toString()) {
                 disableSaveBtn = false;
                 break;
             }

@@ -1238,7 +1238,7 @@ export class GlobalPwPolicy extends React.Component {
         } else {
             pwp_element =
                 <div className={this.state.loading ? 'ds-fadeout ds-margin-bottom-md' : 'ds-fadein ds-left-margin ds-margin-bottom-md'}>
-                    <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tabs isFilled className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab eventKey={0} title={<TabTitleText>General Settings</TabTitleText>}>
                             <Form className="ds-margin-left-sm" isHorizontal autoComplete="off">
                                 <Grid className="ds-margin-top-xlg" title="Allow subtree/user defined local password policies (nsslapd-pwpolicy-local).">

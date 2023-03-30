@@ -316,7 +316,7 @@ export class ReplSuffix extends React.Component {
 
         let enabledContent =
             <div className={suffixClass}>
-                <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                <Tabs isFilled activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>Configuration</TabTitleText>}>
                         <ReplConfig
                             suffix={this.props.suffix}

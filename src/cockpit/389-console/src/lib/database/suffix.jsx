@@ -904,7 +904,7 @@ export class Suffix extends React.Component {
                 </Grid>
 
                 <div className="ds-sub-header">
-                    <Tabs activeKey={activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tabs isFilled activeKey={activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab eventKey={0} title={<TabTitleText>Settings</TabTitleText>}>
                             <SuffixConfig
                                 cachememsize={this.state.cachememsize}

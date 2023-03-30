@@ -939,7 +939,7 @@ export class ServerSettings extends React.Component {
                     </Grid>
 
                     <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-left-margin'}>
-                        <Tabs className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                        <Tabs isFilled className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={0} title={<TabTitleText>General Settings</TabTitleText>}>
                                 <Form autoComplete="off" className="ds-margin-top-xlg">
                                     <Grid
