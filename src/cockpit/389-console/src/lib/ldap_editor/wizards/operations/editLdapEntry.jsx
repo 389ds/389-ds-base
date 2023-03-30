@@ -98,6 +98,8 @@ class EditLdapEntry extends React.Component {
             groupMembers: [],
             groupGenericEditor: false,
             localProps: {...this.props},
+            searchOCValue: "",
+            searchValue: "",
         };
 
         this.onNext = ({ id }) => {
@@ -206,6 +208,8 @@ class EditLdapEntry extends React.Component {
             this.setState({
                 rowsOc: ocRows,
                 pagedRowsOc: ocRows.slice(0, this.state.perPageOc),
+                itemCountOc: ocRows.length,
+                searchOCValue: value
             })
         }
 
@@ -234,6 +238,7 @@ class EditLdapEntry extends React.Component {
                 rowsAttr: attrRows,
                 pagedRowsAttr: attrRows.slice(0, this.state.perPageAttr),
                 itemCountAttr: attrRows.length,
+                searchValue: value,
             })
         }
 
@@ -1226,7 +1231,7 @@ class EditLdapEntry extends React.Component {
                             <SearchInput
                                 className="ds-font-size-md"
                                 placeholder='Search Objectclasses'
-                                value={this.state.searchValue}
+                                value={this.state.searchOCValue}
                                 onChange={this.onOCSearchChange}
                                 onClear={(evt) => this.onOCSearchChange('', evt)}
                             />
