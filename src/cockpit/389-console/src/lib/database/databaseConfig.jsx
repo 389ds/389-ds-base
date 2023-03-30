@@ -601,7 +601,7 @@ export class GlobalDatabaseConfig extends React.Component {
                     </TextContent>
 
                     <div className="ds-margin-top-lg">
-                        <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                        <Tabs isFilled activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={0} title={<TabTitleText>Limits</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
@@ -609,13 +609,13 @@ export class GlobalDatabaseConfig extends React.Component {
                                         className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            Database Look Though Limit
+                                            Database Look Through Limit
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
                                                 value={this.state.looklimit}
                                                 min={-1}
-                                                max={0}
+                                                max={this.maxValue}
                                                 onMinus={() => { this.onMinusConfig("looklimit") }}
                                                 onChange={(e) => { this.onConfigChange(e, "looklimit", -1, 0) }}
                                                 onPlus={() => { this.onPlusConfig("looklimit") }}

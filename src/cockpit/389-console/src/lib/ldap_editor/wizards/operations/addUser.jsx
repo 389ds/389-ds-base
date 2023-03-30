@@ -274,6 +274,7 @@ class AddUser extends React.Component {
                 rowsUser: attrRows,
                 pagedRowsUser: attrRows.slice(0, this.state.perPageAttr),
                 itemCountAddUser: attrRows.length,
+                searchValue: value
             })
         }
 
