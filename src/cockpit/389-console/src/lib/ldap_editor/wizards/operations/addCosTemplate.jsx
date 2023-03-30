@@ -95,6 +95,7 @@ class AddCosTemplate extends React.Component {
             ],
             rowsOc: [],
             rowsAttr: [],
+            rowsAttrOrig: [],
             rowsValues: [],
             pagedRowsOc: [],
             pagedRowsAttr: [],
@@ -105,7 +106,9 @@ class AddCosTemplate extends React.Component {
             goBackToCoSDefinition: false,
             createdTemplate: "",
             isConfirmModalOpen: false,
-            createTemplateEnd: false
+            createTemplateEnd: false,
+            searchValue: "",
+            searchAttrValue: "",
         };
 
         this.handleConfirmModalToggle = () => {
@@ -279,7 +282,35 @@ class AddCosTemplate extends React.Component {
             this.setState({
                 rowsOc: ocRows,
                 pagedRowsOc: ocRows.slice(0, this.state.perPageOc),
+                itemCountOc: ocRows.length,
+                searchValue: value
             })
+        }
+
+        this.onAttrSearchChange = (value, event) => {
+            let attrRows = [];
+            let allAttrs = this.state.rowsAttrOrig;
+            const val = value.toLowerCase();
+
+            // Process search filter on the entire list
+            if (val !== "") {
+                for (const row of allAttrs) {
+                    const name = row.attributeName.toLowerCase();
+                    if (name.includes(val)) {
+                        attrRows.push(row);
+                    }
+                }
+            } else {
+                // Restore entire row list
+                attrRows = allAttrs;
+            }
+
+            this.setState({
+                rowsAttr: attrRows,
+                pagedRowsAttr: attrRows.slice(0, this.state.perPageAttr),
+                itemCountAttr: attrRows.length,
+                searchAttrValue: value
+            });
         }
         // End constructor().
     }
@@ -625,6 +656,7 @@ class AddCosTemplate extends React.Component {
         rowsAttr.sort((a, b) => (a.attributeName > b.attributeName) ? 1 : -1)
         this.setState({
             rowsAttr,
+            rowsAttrOrig: [...rowsAttr],
             selectedAttributes: rowsAttr.filter(item => item.isAttributeSelected)
                 .map(attrObj => [attrObj.attributeName, attrObj.cells[1]]),
             itemCountAttr: rowsAttr.length,
@@ -999,6 +1031,30 @@ class AddCosTemplate extends React.Component {
                     </TextContent>
                     {this.buildAttrDropdown()}
                 </div>
+                <Grid className="ds-margin-top-lg">
+                    <GridItem span={5}>
+                        <SearchInput
+                            className="ds-font-size-md"
+                            placeholder='Search Attributes'
+                            value={this.state.searchAttrValue}
+                            onChange={this.onAttrSearchChange}
+                            onClear={(evt) => this.onAttrSearchChange('', evt)}
+                        />
+                    </GridItem>
+                    <GridItem span={7}>
+                        <Pagination
+                            itemCount={itemCountAttr}
+                            page={pageAttr}
+                            perPage={perPageAttr}
+                            onSetPage={this.onSetPageAttr}
+                            widgetId="pagination-step-attributes"
+                            onPerPageSelect={this.onPerPageSelectAttr}
+                            dropDirection="up"
+                            isCompact
+                        />
+                    </GridItem>
+                </Grid>
+
                 <Table
                     className="ds-margin-top"
                     cells={columnsAttr}
@@ -1011,16 +1067,7 @@ class AddCosTemplate extends React.Component {
                     <TableHeader />
                     <TableBody />
                 </Table>
-                <Pagination
-                    itemCount={itemCountAttr}
-                    page={pageAttr}
-                    perPage={perPageAttr}
-                    onSetPage={this.onSetPageAttr}
-                    widgetId="pagination-step-attributes"
-                    onPerPageSelect={this.onPerPageSelectAttr}
-                    dropDirection="up"
-                    isCompact
-                />
+
             </>
         );
 
