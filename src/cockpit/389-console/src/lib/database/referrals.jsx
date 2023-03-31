@@ -272,7 +272,7 @@ export class SuffixReferrals extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.removeRef}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Refferal"
+                    mTitle="Delete Referral"
                     mMsg="Are you sure you want to delete this referral?"
                     mSpinningMsg="Deleting ..."
                     mBtnName="Delete"
