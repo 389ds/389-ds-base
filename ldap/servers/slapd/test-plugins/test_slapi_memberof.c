@@ -45,7 +45,11 @@
 #define TEST_SLAPI_MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE "slapimemberOfEntryScopeExcludeSubtree"
 #define TEST_SLAPI_MEMBEROF_SKIP_NESTED_ATTR "slapimemberOfSkipNested"
 #define TEST_SLAPI_MEMBEROF_MAXGROUP         "slapimemberOfMaxGroup"
+#define TEST_SLAPI_MEMBEROF_FLAG             "slapimemberOfFlag"
 
+#define MEMBEROF_RECOMPUTE_STR               "MEMBEROF_RECOMPUTE"
+#define MEMBEROF_REUSE_IF_POSSIBLE_STR       "MEMBEROF_REUSE_IF_POSSIBLE"
+#define MEMBEROF_REUSE_ONLY_STR              "MEMBEROF_REUSE_ONLY"
 
 static Slapi_PluginDesc pdesc = {TEST_SLAPI_MEMBEROF_FEATURE_DESC,
                                  "389 Project - test plugin",
@@ -64,6 +68,7 @@ typedef struct test_slapi_memberof_config
     char **groupattrs;
     char *memberof_attr;
     int32_t maxgroup;
+    memberof_flag_t flag;
     PRBool allBackends;
     PRBool skip_nested;
     char **entryScopes;
@@ -195,6 +200,7 @@ test_slapi_memberof_start(Slapi_PBlock *pb)
     const char *skip_nested = NULL;
     char **entryScopes = NULL;
     char **entryScopeExcludeSubtrees = NULL;
+    char *flag;
     size_t i;
 
     if (slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &config_e) != 0) {
@@ -210,6 +216,7 @@ test_slapi_memberof_start(Slapi_PBlock *pb)
     entryScopes = slapi_entry_attr_get_charray(config_e, TEST_SLAPI_MEMBEROF_ENTRY_SCOPE_ATTR);
     entryScopeExcludeSubtrees = slapi_entry_attr_get_charray(config_e, TEST_SLAPI_MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE);
     maxgroup = slapi_entry_attr_get_int(config_e, TEST_SLAPI_MEMBEROF_MAXGROUP);
+    flag = slapi_entry_attr_get_charptr(config_e, TEST_SLAPI_MEMBEROF_FLAG);
 
     theConfig.groupattrs = groupattrs;
     theConfig.member_dn = member_dn;
@@ -248,6 +255,19 @@ test_slapi_memberof_start(Slapi_PBlock *pb)
         theConfig.sdn_entryScopeExcludeSubtrees[i] = slapi_sdn_new_dn_byval((const char *)entryScopeExcludeSubtrees[i]);
     }
     theConfig.maxgroup = maxgroup;
+
+    /* By default we are recomputing the membership MEMBEROF_RECOMPUTE */
+    if (flag == NULL) {
+        theConfig.flag = MEMBEROF_RECOMPUTE;
+    } else if (strcasecmp(flag, MEMBEROF_RECOMPUTE_STR) == 0) {
+        theConfig.flag = MEMBEROF_RECOMPUTE;
+    } else if (strcasecmp(flag, MEMBEROF_REUSE_IF_POSSIBLE_STR) == 0) {
+        theConfig.flag = MEMBEROF_REUSE_IF_POSSIBLE;
+    } else if (strcasecmp(flag, MEMBEROF_REUSE_ONLY_STR) == 0) {
+        theConfig.flag = MEMBEROF_REUSE_ONLY;
+    } else {
+        theConfig.flag = MEMBEROF_RECOMPUTE;
+    }
 
     return SLAPI_PLUGIN_SUCCESS;
 }
@@ -368,7 +388,7 @@ test_slapi_memberof_extend_exop(Slapi_PBlock *pb)
     config.entryScopes = theConfig.sdn_entryScopes;
     config.entryScopeExcludeSubtrees = theConfig.sdn_entryScopeExcludeSubtrees;
     config.maxgroups = theConfig.maxgroup;
-    config.flag = MEMBEROF_RECOMPUTE;
+    config.flag = theConfig.flag;
     config.error_msg = error_buffer;
     config.errot_msg_lenght = error_buffer_size;
     config.subtree_search = PR_FALSE;
@@ -384,7 +404,7 @@ test_slapi_memberof_extend_exop(Slapi_PBlock *pb)
     slapi_log_err(SLAPI_LOG_NOTICE, TEST_SLAPI_MEMBEROF_PLUGIN_SUBSYSTEM,
                       "test_slapi_memberof_extend_exop - slapi_memberof -> %d).\n",
                       ret);
-    /*sval = valueset_get_valuearray(groupvals.dn_vals); */
+    /* Just fo tracing purpose log the memberships in error logs */
     for (i = slapi_valueset_first_value(groupvals.dn_vals, &v);
          i != -1;
          i = slapi_valueset_next_value(groupvals.dn_vals, i, &v)) {
