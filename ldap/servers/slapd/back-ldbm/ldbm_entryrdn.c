@@ -2826,6 +2826,7 @@ bail:
     dblayer_value_free(be, &key);
     dblayer_value_free(be, &data);
     slapi_ch_free((void **)&elem);
+    slapi_ch_free((void **)&keybuf);
     slapi_log_err(SLAPI_LOG_TRACE, "entryrdn_delete_key",
                   "<-- entryrdn_delete_key\n");
     return rc;
