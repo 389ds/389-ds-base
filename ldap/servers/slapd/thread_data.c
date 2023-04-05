@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2012 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -15,9 +15,11 @@
 /*
  * Thread Local Storage Indexes
  */
-static pthread_key_t td_requestor_dn; /* TD_REQUESTOR_DN */
-static pthread_key_t td_plugin_list;  /* SLAPI_TD_PLUGIN_LIST_LOCK - integer set to 1 or zero */
-static pthread_key_t td_op_state;
+static pthread_key_t td_requestor_dn = 0; /* TD_REQUESTOR_DN */
+static pthread_key_t td_plugin_list = 0;  /* SLAPI_TD_PLUGIN_LIST_LOCK - integer set to 1 or zero */
+static pthread_key_t td_op_state = 0;
+static pthread_key_t td_attr_syntax_oid_table = 0;
+static pthread_key_t td_attr_syntax_name_table = 0;
 
 /*
  *   Destructor Functions
@@ -52,6 +54,16 @@ slapi_td_init(void)
         return PR_FAILURE;
     }
 
+    /* Attribute syntax tables */
+    if(pthread_key_create(&td_attr_syntax_oid_table, NULL) != 0){
+        slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_attr_syntax_oid_table\n");
+        return PR_FAILURE;
+    }
+    if(pthread_key_create(&td_attr_syntax_name_table, NULL) != 0){
+        slapi_log_err(SLAPI_LOG_CRIT, "slapi_td_init", "Failed it create private thread index for td_attr_syntax_name_table\n");
+        return PR_FAILURE;
+    }
+
     return PR_SUCCESS;
 }
 
@@ -59,6 +71,41 @@ slapi_td_init(void)
 /*
  *  Wrapper Functions
  */
+
+/* attr syntax tables */
+int32_t
+slapi_td_set_attr_syntax_name_table(PLHashTable *ht)
+{
+    if (pthread_setspecific(td_attr_syntax_name_table, ht) != 0) {
+        return PR_FAILURE;
+    }
+
+    return PR_SUCCESS;
+}
+void
+slapi_td_get_attr_syntax_name_table(PLHashTable **ht)
+{
+    if (ht) {
+        *ht = pthread_getspecific(td_attr_syntax_name_table);
+    }
+}
+
+int32_t
+slapi_td_set_attr_syntax_oid_table(PLHashTable *ht)
+{
+    if (pthread_setspecific(td_attr_syntax_oid_table, ht) != 0) {
+        return PR_FAILURE;
+    }
+
+    return PR_SUCCESS;
+}
+void
+slapi_td_get_attr_syntax_oid_table(PLHashTable **ht)
+{
+    if (ht) {
+        *ht = pthread_getspecific(td_attr_syntax_oid_table);
+    }
+}
 
 /* plugin list locking */
 int32_t

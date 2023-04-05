@@ -1502,11 +1502,11 @@ def test_suffix_case(topology_st):
     backends.create(properties={'nsslapd-suffix': TEST_SUFFIX,
                                 'name': 'upperCaseRoot',
                                 'sample_entries': '001004002'})
-                           
+
     domain = Domain(topology_st.standalone, TEST_SUFFIX)
     assert domain.dn == TEST_SUFFIX
 
-    
+
 def test_dscreate(request):
     """Test that dscreate works
 

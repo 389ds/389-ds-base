@@ -196,6 +196,8 @@ main(int argc, char *argv[])
         }
     }
 
+    slapi_td_init();
+
     if (!slapdFrontendConfig) {
         if (!init_config(NULL)) {
             usage(name);
