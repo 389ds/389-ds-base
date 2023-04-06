@@ -1532,19 +1532,19 @@ def test_bind_disconnect_invalid_entry(topology_st, _reset_attr):
     :id: b378543e-32dc-432a-9756-ce318d6d654b
     :setup: Standalone instance
     :steps:
-        1: create/get user
-        2: bind and search as user
-        3: enable nsslapd-close-on-failed-bind attr
-        4: bind as non existing entry to trigger connection closure
-        5: verify connection has been closed and server is still running
-        6: cleanup
+        1. create/get user
+        2. bind and search as user
+        3. enable nsslapd-close-on-failed-bind attr
+        4. bind as non existing entry to trigger connection closure
+        5. verify connection has been closed and server is still running
+        6. cleanup
     :expectedresults:
-        1: success
-        2: success
-        3: nsslapd-close-on-failed-bind attr set to on
-        4: returns INVALID_CREDENTIALS, triggering connection closure
-        5: success
-        6: success
+        1. success
+        2. success
+        3. nsslapd-close-on-failed-bind attr set to on
+        4. returns INVALID_CREDENTIALS, triggering connection closure
+        5. success
+        6. success
     """
 
     INVALID_ENTRY="cn=foooo,%s" % DEFAULT_SUFFIX
@@ -1605,15 +1605,15 @@ def test_bind_disconnect_cert_map_failed(topology_st, _reset_attr):
         1. enable TLS
         2. create/get a user
         3. get details of ssca key and cert
-        4: create 2 user certificates, one good, one bad
+        4. create 2 user certificates, one good, one bad
         5. configure certmap
         6. check that EXTERNAL is listed in supported mechns.
         7. bind with good cert
-        8: bind with bad cert
-        9: enable nsslapd-close-on-failed-bind attr
-        10: bind with bad cert
-        11: verify connection has been closed and server is still running
-        12: cleanup
+        8. bind with bad cert
+        9. enable nsslapd-close-on-failed-bind attr
+        10. bind with bad cert
+        11. verify connection has been closed and server is still running
+        12. cleanup
     :expectedresults:
         1. success
         2. success
@@ -1623,10 +1623,10 @@ def test_bind_disconnect_cert_map_failed(topology_st, _reset_attr):
         6. success
         7. success
         8. generates INVALID_CREDENTIALS exception
-        9: success
-        10: generates INVALID_CREDENTIALS exception, triggering connection closure
-        11: success
-        12: success
+        9. success
+        10. generates INVALID_CREDENTIALS exception, triggering connection closure
+        11. success
+        12. success
     """
 
     RDN_TEST_USER = 'test_user_1000'
@@ -1715,22 +1715,22 @@ def test_bind_disconnect_account_lockout(topology_st, _reset_attr):
     :setup: Standalone Instance
     :steps:
         1. configure account lockout
-        2: create/get a user
-        3: bind and search as user
-        4: force account lock out
-        5: enable nsslapd-close-on-failed-bind attr
-        6: attempt user bind
-        7: verify connection has been closed and server is still running
-        8: cleanup
+        2. create/get a user
+        3. bind and search as user
+        4. force account lock out
+        5. enable nsslapd-close-on-failed-bind attr
+        6. attempt user bind
+        7. verify connection has been closed and server is still running
+        8. cleanup
     :expectedresults:
-        1: success
-        2: success
-        3: success
-        4: generates CONSTRAINT_VIOLATION exception
-        5: success
-        6: generates CONSTRAINT_VIOLATION exception, triggering connection closure
-        7: success
-        8: success
+        1. success
+        2. success
+        3. success
+        4. generates CONSTRAINT_VIOLATION exception
+        5. success
+        6. generates CONSTRAINT_VIOLATION exception, triggering connection closure
+        7. success
+        8. success
     """
 
     inst = topology_st.standalone
