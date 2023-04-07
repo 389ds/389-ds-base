@@ -1039,63 +1039,12 @@ ldbm_compute_evaluator(computed_attr_context *c, char *type, Slapi_Entry *e, sla
 
 */
 
-/* Before calling this function, you must free all the parts
-   which will be overwritten, this function dosn't know
-   how to do that */
-static int
-replace_filter(Slapi_Filter *f, char *s)
-{
-    Slapi_Filter *newf = NULL;
-    Slapi_Filter *temp = NULL;
-    char *buf = slapi_ch_strdup(s);
-
-    newf = slapi_str2filter(buf);
-    slapi_ch_free((void **)&buf);
-
-    if (NULL == newf) {
-        return -1;
-    }
-
-    /* Now take the parts of newf and put them in f */
-    /* An easy way to do this is to preserve the "next" ptr */
-    temp = f->f_next;
-    *f = *newf;
-    f->f_next = temp;
-    /* Free the new filter husk */
-    slapi_ch_free((void **)&newf);
-    return 0;
-}
-
 static void
 find_our_friends(char *s, int *has, int *num)
 {
     *has = (0 == strcasecmp(s, "hassubordinates"));
     if (!(*has)) {
         *num = (0 == strcasecmp(s, LDBM_NUMSUBORDINATES_STR));
-    }
-}
-
-/* Free the parts of a filter we're about to overwrite */
-void
-free_the_filter_bits(Slapi_Filter *f)
-{
-    /* We need to free: */
-    switch (f->f_choice) {
-    case LDAP_FILTER_EQUALITY:
-    case LDAP_FILTER_GE:
-    case LDAP_FILTER_LE:
-    case LDAP_FILTER_APPROX:
-        ava_done(&f->f_ava);
-        break;
-
-    case LDAP_FILTER_PRESENT:
-        if (f->f_type != NULL) {
-            slapi_ch_free((void **)&(f->f_type));
-        }
-        break;
-
-    default:
-        break;
     }
 }
 
@@ -1116,11 +1065,9 @@ grok_and_rewrite_filter(Slapi_Filter *f)
             rhs = f->f_ava.ava_value.bv_val;
             if (has) {
                 if (0 == strcasecmp(rhs, "TRUE")) {
-                    free_the_filter_bits(f);
-                    replace_filter(f, "(&(numsubordinates=*)(numsubordinates>=1))");
+                    slapi_filter_replace_strfilter(f, "(&(numsubordinates=*)(numsubordinates>=1))");
                 } else if (0 == strcasecmp(rhs, "FALSE")) {
-                    free_the_filter_bits(f);
-                    replace_filter(f, "(&(objectclass=*)(!(numsubordinates=*)))");
+                    slapi_filter_replace_strfilter(f, "(&(objectclass=*)(!(numsubordinates=*)))");
                 } else {
                     return 1; /* Filter we can't rewrite */
                 }
@@ -1133,7 +1080,7 @@ grok_and_rewrite_filter(Slapi_Filter *f)
 
                     char *theType = f->f_ava.ava_type;
                     rhs_berval = f->f_ava.ava_value;
-                    replace_filter(f, "(&(numsubordinates=*)(numsubordinates=x))");
+                    slapi_filter_replace_ex(f, "(&(numsubordinates=*)(numsubordinates=x))");
                     /* Now fixup the resulting filter so that x = rhs */
                     slapi_ch_free((void **)&(f->f_and->f_next->f_ava.ava_value.bv_val));
                     /*free type also */
@@ -1143,8 +1090,7 @@ grok_and_rewrite_filter(Slapi_Filter *f)
                 } else {
                     if (rhs_number == 0) {
                         /* This is the same as hassubordinates=FALSE */
-                        free_the_filter_bits(f);
-                        replace_filter(f, "(&(objectclass=*)(!(numsubordinates=*)))");
+                        slapi_filter_replace_strfilter(f, "(&(objectclass=*)(!(numsubordinates=*)))");
                     } else {
                         return 1;
                     }
@@ -1166,14 +1112,13 @@ grok_and_rewrite_filter(Slapi_Filter *f)
             rhs_num = atoi(rhs);
             if (0 == rhs_num) {
                 /* If so, rewrite to same as numsubordinates=* */
-                free_the_filter_bits(f);
-                replace_filter(f, "(objectclass=*)");
+                slapi_filter_replace_strfilter(f, "(objectclass=*)");
             } else {
                 /* Rewrite to present and GE the rhs */
                 char *theType = f->f_ava.ava_type;
                 rhs_berval = f->f_ava.ava_value;
 
-                replace_filter(f, "(&(numsubordinates=*)(numsubordinates>=x))");
+                slapi_filter_replace_ex(f, "(&(numsubordinates=*)(numsubordinates>=x))");
                 /* Now fixup the resulting filter so that x = rhs */
                 slapi_ch_free((void **)&(f->f_and->f_next->f_ava.ava_value.bv_val));
                 /*free type also */
