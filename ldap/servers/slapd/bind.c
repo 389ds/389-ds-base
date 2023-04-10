@@ -418,6 +418,9 @@ do_bind(Slapi_PBlock *pb)
                 slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_CERT_MAP_FAILED);
                 /* call postop plugins */
                 plugin_call_plugins(pb, SLAPI_PLUGIN_POST_BIND_FN);
+                if (config_get_close_on_failed_bind()) {
+                    disconnect_server_nomutex(pb_conn, pb_op->o_connid, pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
+                }
                 goto free_and_return;
             }
 
@@ -608,6 +611,9 @@ do_bind(Slapi_PBlock *pb)
                 /* increment BindSecurityErrorcount */
                 slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsBindSecurityErrors);
                 value_done(&cv);
+                if (config_get_close_on_failed_bind()) {
+                    disconnect_server_nomutex(pb_conn, pb_op->o_connid, pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
+                }
                 goto free_and_return;
             }
 
@@ -746,6 +752,9 @@ do_bind(Slapi_PBlock *pb)
                     if (1 == myrc) { /* account is locked */
                         rc = myrc;
                         slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_ACCOUNT_LOCKED);
+                        if (config_get_close_on_failed_bind()) {
+                            disconnect_server_nomutex(pb_conn, pb_op->o_connid, pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
+                        }
                         goto account_locked;
                     }
                     myrc = 0;
@@ -795,6 +804,9 @@ do_bind(Slapi_PBlock *pb)
                             slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "No such entry");
                             send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, "", 0, NULL);
                             slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_NO_ENTRY);
+                            if (config_get_close_on_failed_bind()) {
+                                disconnect_server_nomutex(pb_conn, pb_op->o_connid, pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
+                            }
                             goto free_and_return;
                         }
                     }
@@ -848,6 +860,9 @@ do_bind(Slapi_PBlock *pb)
                     slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_INVALID_PASSWD);
                 } else {
                     slapi_log_security(pb, SECURITY_BIND_FAILED, SECURITY_MSG_NO_ENTRY);
+                }
+                if (config_get_close_on_failed_bind()) {
+                    disconnect_server_nomutex(pb_conn, pb_op->o_connid, pb_op->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
                 }
             }
         account_locked:
