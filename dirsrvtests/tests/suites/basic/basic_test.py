@@ -19,7 +19,7 @@ from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DN_DM, PASSWORD, PW_DM, ReplicaRole
 from lib389.paths import Paths
 from lib389.idm.directorymanager import DirectoryManager
-from lib389.config import LDBMConfig
+from lib389.config import LDBMConfig, CertmapLegacy
 from lib389.dseldif import DSEldif
 from lib389.rootdse import RootDSE
 from ....conftest import get_rpm_version
@@ -27,6 +27,7 @@ from lib389._mapped_object import DSLdapObjects
 from lib389.replica import Replicas, Changelog
 from lib389.backend import Backends
 from lib389.idm.domain import Domain
+from lib389.nss_ssl import NssSsl
 
 
 pytestmark = pytest.mark.tier0
@@ -48,6 +49,24 @@ ROOTDSE_DEF_ATTR_LIST = ('namingContexts',
                          'supportedSASLMechanisms',
                          'vendorName',
                          'vendorVersion')
+
+
+@pytest.fixture(scope="function")
+def _reset_attr(request, topology_st):
+    """ Reset nsslapd-close-on-failed-bind attr to the default (off) """
+
+    def fin():
+        dm = DirectoryManager(topology_st.standalone)
+        try:
+            dm_conn = dm.bind()
+            dm_conn.config.replace('nsslapd-close-on-failed-bind', 'off')
+            assert (dm_conn.config.get_attr_val_utf8('nsslapd-close-on-failed-bind')) == 'off'
+        except ldap.LDAPError as e:
+            log.error('Failure reseting attr')
+            assert False
+        topology_st.standalone.restart()
+
+    request.addfinalizer(fin)
 
 
 @pytest.fixture(scope="module")
@@ -1506,7 +1525,272 @@ def test_suffix_case(topology_st):
     domain = Domain(topology_st.standalone, TEST_SUFFIX)
     assert domain.dn == TEST_SUFFIX
 
+
+def test_bind_disconnect_invalid_entry(topology_st, _reset_attr):
+    """Test close connection on failed bind with invalid entry
+
+    :id: b378543e-32dc-432a-9756-ce318d6d654b
+    :setup: Standalone instance
+    :steps:
+        1. create/get user
+        2. bind and search as user
+        3. enable nsslapd-close-on-failed-bind attr
+        4. bind as non existing entry to trigger connection closure
+        5. verify connection has been closed and server is still running
+        6. cleanup
+    :expectedresults:
+        1. success
+        2. success
+        3. nsslapd-close-on-failed-bind attr set to on
+        4. returns INVALID_CREDENTIALS, triggering connection closure
+        5. success
+        6. success
+    """
+
+    INVALID_ENTRY="cn=foooo,%s" % DEFAULT_SUFFIX
+    inst = topology_st.standalone
+
+    dm = DirectoryManager(inst)
+
+    # create/get user
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    try:
+        user = users.create_test_user()
+        user.set("userPassword", PW_DM)
+    except ldap.ALREADY_EXISTS:
+        user = users.get('test_user_1000')
+
+    # verify user can bind and search
+    try:
+        inst.simple_bind_s(user.dn, PW_DM)
+    except ldap.LDAPError as e:
+        log.error('Failed to bind {}'.format(user.dn))
+        raise e
+    try:
+        inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'])
+    except ldap.LDAPError as e:
+        log.error('Search failed on {}'.format(DEFAULT_SUFFIX))
+        raise e
+
+    # enable and verify attr
+    try:
+        dm_conn = dm.bind()
+        dm_conn.config.replace('nsslapd-close-on-failed-bind', 'on')
+        assert (dm_conn.config.get_attr_val_utf8('nsslapd-close-on-failed-bind')) == 'on'
+    except ldap.LDAPError as e:
+        log.error('Failed to replace nsslapd-close-on-failed-bind attr')
+        raise e
+
+    # bind as non existing entry which triggers connection close
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.simple_bind_s(INVALID_ENTRY, PW_DM)
+
+    # verify the connection is closed but the server is still running
+    assert (inst.status())
+    with pytest.raises(ldap.SERVER_DOWN):
+        inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'])
+    try:
+        dm_conn = dm.bind()
+    except ldap.LDAPError as e:
+        log.error('DM bind failed')
+        raise e
+
+
+def test_bind_disconnect_cert_map_failed(topology_st, _reset_attr):
+    """Test close connection on failed bind with a failed cert mapping
+
+    :id: 0ac60f76-1fd9-4080-a82b-21807e6bc292
+    :setup: Standalone Instance
+    :steps:
+        1. enable TLS
+        2. create/get a user
+        3. get details of ssca key and cert
+        4. create 2 user certificates, one good, one bad
+        5. configure certmap
+        6. check that EXTERNAL is listed in supported mechns.
+        7. bind with good cert
+        8. bind with bad cert
+        9. enable nsslapd-close-on-failed-bind attr
+        10. bind with bad cert
+        11. verify connection has been closed and server is still running
+        12. cleanup
+    :expectedresults:
+        1. success
+        2. success
+        3. success
+        4. success
+        5. success
+        6. success
+        7. success
+        8. generates INVALID_CREDENTIALS exception
+        9. success
+        10. generates INVALID_CREDENTIALS exception, triggering connection closure
+        11. success
+        12. success
+    """
+
+    RDN_TEST_USER = 'test_user_1000'
+    RDN_TEST_USER_WRONG = 'test_user_wrong'
+    inst = topology_st.standalone
+
+    inst.enable_tls()
+    dm = DirectoryManager(inst)
+
+    # create/get user
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    try:
+        user = users.create_test_user()
+        user.set("userPassword", PW_DM)
+    except ldap.ALREADY_EXISTS:
+        user = users.get(RDN_TEST_USER)
+
+    ssca_dir = inst.get_ssca_dir()
+    ssca = NssSsl(dbpath=ssca_dir)
+
+    ssca.create_rsa_user(RDN_TEST_USER)
+    ssca.create_rsa_user(RDN_TEST_USER_WRONG)
+
+    # Get the details of where the key and crt are.
+    tls_locs = ssca.get_rsa_user(RDN_TEST_USER)
+    tls_locs_wrong = ssca.get_rsa_user(RDN_TEST_USER_WRONG)
+
+    user.enroll_certificate(tls_locs['crt_der_path'])
+
+    # Turn on the certmap.
+    cm = CertmapLegacy(inst)
+    certmaps = cm.list()
+    certmaps['default']['DNComps'] = ''
+    certmaps['default']['FilterComps'] = ['cn']
+    certmaps['default']['VerifyCert'] = 'off'
+    cm.set(certmaps)
+
+    # Check that EXTERNAL is listed in supported mechns.
+    assert(inst.rootdse.supports_sasl_external())
+
+    # Restart to allow certmaps to be re-read: Note, we CAN NOT use post_open
+    # here, it breaks on auth. see lib389/__init__.py
+    inst.restart(post_open=False)
+
+    # bind with good cert
+    try:
+        inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir, userkey=tls_locs['key'], usercert=tls_locs['crt'])
+    except ldap.LDAPError as e:
+        log.error('Bind with good cert failed')
+        raise e
+
+    inst.restart()
+
+    # bind with bad cert
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir, userkey=tls_locs_wrong['key'], usercert=tls_locs_wrong['crt'])
+
+    # enable and verify attr
+    try:
+        dm_conn = dm.bind()
+        dm_conn.config.replace('nsslapd-close-on-failed-bind', 'on')
+        assert (dm_conn.config.get_attr_val_utf8('nsslapd-close-on-failed-bind')) == 'on'
+    except ldap.LDAPError as e:
+        log.error('Failed to replace nsslapd-close-on-failed-bind attr')
+        raise e
+
+    # bind with bad cert
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir, userkey=tls_locs_wrong['key'], usercert=tls_locs_wrong['crt'])
+
+    # check the connection is closed but the server is still running
+    assert (inst.status())
+    with pytest.raises(ldap.SERVER_DOWN):
+        inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'])
+    try:
+        dm_conn = dm.bind()
+    except ldap.LDAPError as e:
+        log.error('DM bind failed')
+        raise e
+
+
+def test_bind_disconnect_account_lockout(topology_st, _reset_attr):
+    """Test close connection on failed bind with user account lockout
+
+    :id: 12e56d79-ce57-4574-a80a-d3b6d1d74d8f
+    :setup: Standalone Instance
+    :steps:
+        1. configure account lockout
+        2. create/get a user
+        3. bind and search as user
+        4. force account lock out
+        5. enable nsslapd-close-on-failed-bind attr
+        6. attempt user bind
+        7. verify connection has been closed and server is still running
+        8. cleanup
+    :expectedresults:
+        1. success
+        2. success
+        3. success
+        4. generates CONSTRAINT_VIOLATION exception
+        5. success
+        6. generates CONSTRAINT_VIOLATION exception, triggering connection closure
+        7. success
+        8. success
+    """
+
+    inst = topology_st.standalone
+    dm = DirectoryManager(inst)
+    inst.config.set('passwordlockout', 'on')
+    inst.config.set('passwordMaxFailure', '2')
+
+    # create/get user
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    try:
+        user = users.create_test_user()
+        user.set("userPassword", PW_DM)
+    except ldap.ALREADY_EXISTS:
+        user = users.get('test_user_1000')
+
+    # verify user bind and search
+    try:
+        inst.simple_bind_s(user.dn, PW_DM)
+    except ldap.LDAPError as e:
+        log.error('Failed to bind {}'.format(user.dn))
+        raise e
+    try:
+        inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'])
+    except ldap.LDAPError as e:
+        log.error('Search failed on {}'.format(DEFAULT_SUFFIX))
+        raise e
     
+    # Force entry to get locked out
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.simple_bind_s(user.dn, 'whateverlike')
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.simple_bind_s(user.dn, 'whateverlike')
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        # Should fail with good or bad password
+        inst.simple_bind_s(user.dn, PW_DM)
+
+    # enable and verify attr
+    try:
+        dm_conn = dm.bind()
+        dm_conn.config.replace('nsslapd-close-on-failed-bind', 'on')
+        assert (dm_conn.config.get_attr_val_utf8('nsslapd-close-on-failed-bind')) == 'on'
+    except ldap.LDAPError as e:
+        log.error('Failed to replace nsslapd-close-on-failed-bind attr')
+        raise e
+
+    # Should fail with good or bad password
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        inst.simple_bind_s(user.dn, PW_DM)
+
+    # check the connection is closed but the server is still running
+    assert (inst.status())
+    with pytest.raises(ldap.SERVER_DOWN):
+        inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'])
+    try:
+        dm_conn = dm.bind()
+    except ldap.LDAPError as e:
+        log.error('DM bind failed')
+        raise e
+
+
 def test_dscreate(request):
     """Test that dscreate works
 

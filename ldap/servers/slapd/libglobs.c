@@ -239,6 +239,7 @@ slapi_onoff_t init_ldapi_bind_switch;
 slapi_onoff_t init_ldapi_map_entries;
 slapi_onoff_t init_allow_unauth_binds;
 slapi_onoff_t init_require_secure_binds;
+slapi_onoff_t init_close_on_failed_bind;
 slapi_onoff_t init_minssf_exclude_rootdse;
 slapi_onoff_t init_force_sasl_external;
 slapi_onoff_t init_slapi_counters;
@@ -1067,6 +1068,11 @@ static struct config_get_and_set
      (void **)&global_slapdFrontendConfig.require_secure_binds,
      CONFIG_ON_OFF, (ConfigGetFunc)config_get_require_secure_binds,
      &init_require_secure_binds, NULL},
+    {CONFIG_CLOSE_ON_FAILED_BIND, config_set_close_on_failed_bind,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.close_on_failed_bind,
+     CONFIG_ON_OFF, (ConfigGetFunc)config_get_close_on_failed_bind,
+     &init_close_on_failed_bind, NULL},
     {CONFIG_ANON_ACCESS_ATTRIBUTE, config_set_anon_access_switch,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.allow_anon_access,
@@ -1755,6 +1761,7 @@ FrontendConfig_init(void)
 #endif
     init_allow_unauth_binds = cfg->allow_unauth_binds = LDAP_OFF;
     init_require_secure_binds = cfg->require_secure_binds = LDAP_OFF;
+    init_close_on_failed_bind = cfg->close_on_failed_bind = LDAP_OFF;
     cfg->allow_anon_access = SLAPD_DEFAULT_ALLOW_ANON_ACCESS;
     init_slapi_counters = cfg->slapi_counters = LDAP_ON;
     cfg->threadnumber = util_get_hardware_threads();
@@ -6901,6 +6908,13 @@ config_get_require_secure_binds(void)
 }
 
 int32_t
+config_get_close_on_failed_bind(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return slapi_atomic_load_32(&(slapdFrontendConfig->close_on_failed_bind), __ATOMIC_ACQUIRE);
+}
+
+int32_t
 config_get_anon_access_switch(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -7845,6 +7859,21 @@ config_set_require_secure_binds(const char *attrname, char *value, char *errorbu
     retVal = config_set_onoff(attrname,
                               value,
                               &(slapdFrontendConfig->require_secure_binds),
+                              errorbuf,
+                              apply);
+
+    return retVal;
+}
+
+int32_t
+config_set_close_on_failed_bind(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname,
+                              value,
+                              &(slapdFrontendConfig->close_on_failed_bind),
                               errorbuf,
                               apply);
 
