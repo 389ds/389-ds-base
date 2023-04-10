@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -5087,7 +5087,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     home_dir = bdb_get_home_dir(li, NULL);
     if (NULL == home_dir || '\0' == *home_dir) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_backup", "Missing db home directory info\n");
+                      "bdb_backup", "Missing db home directory info\n");
         return return_value;
     }
 
@@ -5125,12 +5125,12 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     return_value = dblayer_txn_begin_all(li, NULL, &txn);
     if (return_value) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_backup", "Transaction error\n");
+                      "bdb_backup", "Transaction error\n");
         return return_value;
     }
 
     if (g_get_shutdown() || c_get_shutdown()) {
-        slapi_log_err(SLAPI_LOG_WARNING, "dblayer_backup", "Server shutting down, backup aborted\n");
+        slapi_log_err(SLAPI_LOG_WARNING, "bdb_backup", "Server shutting down, backup aborted\n");
         return_value = -1;
         goto bail;
     }
@@ -5143,7 +5143,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                                        &listA, DB_ARCH_LOG, (void *)slapi_ch_malloc);
             if (return_value || (listA == NULL)) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "dblayer_backup", "Log archive error\n");
+                              "bdb_backup", "Log archive error\n");
                 if (task) {
                     slapi_task_log_notice(task, "Backup: log archive error\n");
                 }
@@ -5154,7 +5154,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
             ok = 1;
         }
         if (g_get_shutdown() || c_get_shutdown()) {
-            slapi_log_err(SLAPI_LOG_ERR, "dblayer_backup", "Server shutting down, backup aborted\n");
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_backup", "Server shutting down, backup aborted\n");
             return_value = -1;
             goto bail;
         }
@@ -5166,7 +5166,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                                                   inst_dir, MAXPATHLEN);
             if ((NULL == inst_dirp) || ('\0' == *inst_dirp)) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "dblayer_backup", "Instance dir is empty\n");
+                              "bdb_backup", "Instance dir is empty\n");
                 if (task) {
                     slapi_task_log_notice(task,
                                           "Backup: Instance dir is empty\n");
@@ -5182,7 +5182,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                                                   &cnt, 0, 0);
             if (return_value) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "dblayer_backup", "Error in copying directory "
+                              "bdb_backup", "Error in copying directory "
                                                 "(%s -> %s): err=%d\n",
                               inst_dirp, dest_dir, return_value);
                 if (task) {
@@ -5205,7 +5205,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                                        &listB, DB_ARCH_LOG, (void *)slapi_ch_malloc);
             if (return_value || (listB == NULL)) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "dblayer_backup", "Can't get list of logs\n");
+                              "bdb_backup", "Can't get list of logs\n");
                 goto bail;
             }
 
@@ -5222,7 +5222,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                 if (!found) {
                     ok = 0; /* missing log: start over */
                     slapi_log_err(SLAPI_LOG_WARNING,
-                                  "dblayer_backup", "Log %s has been swiped "
+                                  "bdb_backup", "Log %s has been swiped "
                                                     "out from under me! (retrying)\n",
                                   *listi);
                     if (task) {
@@ -5235,7 +5235,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
             }
 
             if (g_get_shutdown() || c_get_shutdown()) {
-                slapi_log_err(SLAPI_LOG_ERR, "dblayer_backup", "Server shutting down, backup aborted\n");
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_backup", "Server shutting down, backup aborted\n");
                 return_value = -1;
                 goto bail;
             }
@@ -5260,7 +5260,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                 for (listptr = listB; listptr && *listptr && ok; ++listptr) {
                     PR_snprintf(pathname1, p1len, "%s/%s", prefix, *listptr);
                     PR_snprintf(pathname2, p2len, "%s/%s", dest_dir, *listptr);
-                    slapi_log_err(SLAPI_LOG_INFO, "dblayer_backup", "Backing up file %d (%s)\n",
+                    slapi_log_err(SLAPI_LOG_INFO, "bdb_backup", "Backing up file %d (%s)\n",
                                   cnt, pathname2);
                     if (task) {
                         slapi_task_log_notice(task,
@@ -5271,7 +5271,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                     return_value = bdb_copyfile(pathname1, pathname2,
                                                     0, priv->dblayer_file_mode);
                     if (0 > return_value) {
-                        slapi_log_err(SLAPI_LOG_ERR, "dblayer_backup", "Error in copying file '%s' (err=%d)\n",
+                        slapi_log_err(SLAPI_LOG_ERR, "bdb_backup", "Error in copying file '%s' (err=%d)\n",
                                       pathname1, return_value);
                         if (task) {
                             slapi_task_log_notice(task, "Error copying file '%s' (err=%d)",
@@ -5282,7 +5282,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                         goto bail;
                     }
                     if (g_get_shutdown() || c_get_shutdown()) {
-                        slapi_log_err(SLAPI_LOG_ERR, "dblayer_backup", "Server shutting down, backup aborted\n");
+                        slapi_log_err(SLAPI_LOG_ERR, "bdb_backup", "Server shutting down, backup aborted\n");
                         return_value = -1;
                         slapi_ch_free((void **)&pathname1);
                         slapi_ch_free((void **)&pathname2);
@@ -5302,7 +5302,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     /* now copy the version file */
     pathname1 = slapi_ch_smprintf("%s/%s", home_dir, DBVERSION_FILENAME);
     pathname2 = slapi_ch_smprintf("%s/%s", dest_dir, DBVERSION_FILENAME);
-    slapi_log_err(SLAPI_LOG_INFO, "dblayer_backup", "Backing up file %d (%s)\n", cnt, pathname2);
+    slapi_log_err(SLAPI_LOG_INFO, "bdb_backup", "Backing up file %d (%s)\n", cnt, pathname2);
     if (task) {
         slapi_task_log_notice(task, "Backing up file %d (%s)", cnt, pathname2);
         slapi_task_log_status(task, "Backing up file %d (%s)", cnt, pathname2);
@@ -5310,7 +5310,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     return_value = bdb_copyfile(pathname1, pathname2, 0, priv->dblayer_file_mode);
     if (0 > return_value) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_backup", "Error in copying version file "
+                      "bdb_backup", "Error in copying version file "
                                         "(%s -> %s): err=%d\n",
                       pathname1, pathname2, return_value);
         if (task) {
@@ -5327,6 +5327,13 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
 
     if (0 == return_value) /* if everything went well, backup the index conf */
         return_value = bdb_dse_conf_backup(li, dest_dir);
+
+    /* Backup the config files */
+    if (ldbm_archive_config(dest_dir, task) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_backup",
+                "Backup of config files failed or is incomplete\n");
+    }
+
 bail:
     slapi_ch_free((void **)&listA);
     slapi_ch_free((void **)&listB);
@@ -5431,6 +5438,20 @@ bdb_doskip(const char *filename)
     return 0;
 }
 
+static int
+bdb_bak_config(const char *dir_name)
+{
+    const char *p = BACKUP_CONFIG_DIR;
+    int len = strlen(dir_name);
+    int n = strlen(p);
+
+    if (0 == strncmp(dir_name + len - n, p, n)) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
 int
 bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
 {
@@ -5528,6 +5549,10 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
             {
                 tmp_rval = PR_GetFileInfo64(filename1, &info);
                 if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
+                    if (bdb_bak_config((char *)direntry->name)) {
+                        /* Ignore config dir */
+                        continue;
+                    }
                     inst = ldbm_instance_find_by_name(li, (char *)direntry->name);
                     if (inst == NULL) {
                         slapi_log_err(SLAPI_LOG_ERR,
@@ -5600,8 +5625,9 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
              * directory is located.
              */
             inst = ldbm_instance_find_by_name(li, (char *)direntry->name);
-            if (inst == NULL)
+            if (inst == NULL || bdb_bak_config((char *)direntry->name)) {
                 continue;
+            }
 
             restore_dir = inst->inst_parent_dir_name;
             /* If we're doing a partial restore, we need to reset the LSNs on the data files */

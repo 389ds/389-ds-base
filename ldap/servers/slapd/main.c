@@ -1144,7 +1144,7 @@ cleanup:
     SSL_ClearSessionCache();
     ndn_cache_destroy();
     NSS_Shutdown();
-    PR_Cleanup();
+    dse_destroy_backup_lock();
 
     /*
      * Server has stopped, lets force everything to disk: logs
