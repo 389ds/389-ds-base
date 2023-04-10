@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -489,4 +489,249 @@ out:
     slapi_ch_free_string(&dir_bak);
     slapi_ch_free_string(&directory);
     return return_value;
+}
+
+#define CPRETRY 4
+/* Copy a file to the backup */
+static int32_t
+archive_copyfile(char *source, char *destination, char *filename, mode_t mode, Slapi_Task *task)
+{
+    PRFileDesc *source_fd = NULL;
+    PRFileDesc *dest_fd = NULL;
+    char *buffer = NULL;
+    int return_value = -1;
+    int bytes_to_write = 0;
+    char *dest_file = NULL;
+
+    if (PR_Access(source, PR_ACCESS_EXISTS) != 0) {
+        PRErrorCode prerr = PR_GetError();
+        if (task) {
+            slapi_task_log_notice(task,
+                    "archive_copyfile - Source file (%s) could not be accessed - error %d (%s)",
+                    source, prerr, slapd_pr_strerror(prerr));
+        }
+        slapi_log_err(SLAPI_LOG_ERR, "archive_copyfile",
+                      "Source file (%s) could not be accessed - error %d (%s)\n",
+                      source, prerr, slapd_pr_strerror(prerr));
+        return -1;
+    }
+
+    /* malloc the buffer */
+    buffer = slapi_ch_malloc(64 * 1024);
+
+    /* Open source file */
+    source_fd = PR_Open(source, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE);
+    if (source_fd == NULL) {
+        PRErrorCode prerr = PR_GetError();
+        if (task) {
+            slapi_task_log_notice(task,
+                    "archive_copyfile - Source file (%s) could not be opened - error %d (%s)",
+                    source, prerr, slapd_pr_strerror(prerr));
+        }
+        slapi_log_err(SLAPI_LOG_ERR, "archive_copyfile",
+                      "Source file (%s) could not be opened - error %d (%s)\n",
+                      source, prerr, slapd_pr_strerror(prerr));
+        goto error;
+    }
+
+    /* Open destination file */
+    dest_file = slapi_ch_smprintf("%s/%s", destination, filename);
+    dest_fd = PR_Open(dest_file, PR_WRONLY | PR_CREATE_FILE, mode);
+    if (dest_fd == NULL) {
+        PRErrorCode prerr = PR_GetError();
+        if (task) {
+            slapi_task_log_notice(task,
+                    "archive_copyfile - Destination file (%s) could not be opened - error %d (%s)",
+                    dest_file, prerr, slapd_pr_strerror(prerr));
+        }
+        slapi_log_err(SLAPI_LOG_ERR, "archive_copyfile",
+                      "Destination file (%s) could not be opened - error %d (%s)\n",
+                      dest_file, prerr, slapd_pr_strerror(prerr));
+        goto error;
+    }
+
+    slapi_log_err(SLAPI_LOG_INFO, "archive_copyfile",
+                  "Copying %s to %s\n", source, dest_file);
+    if (task) {
+        slapi_task_log_notice(task,
+                "archive_copyfile - Copying %s to %s",
+                source, dest_file);
+    }
+
+    /* Loop round reading data and writing it */
+    while (1) {
+        char *ptr = NULL;
+        size_t i = 0;
+        return_value = PR_Read(source_fd, buffer, 64 * 1024);
+        if (return_value <= 0) {
+            /* means error or EOF */
+            if (return_value < 0) {
+                PRErrorCode prerr = PR_GetError();
+                if (task) {
+                    slapi_task_log_notice(task,
+                            "archive_copyfile - Failed to read (%s) error %d (%s) - rc %d",
+                            source, prerr, slapd_pr_strerror(prerr), return_value);
+                }
+                slapi_log_err(SLAPI_LOG_ERR, "archive_copyfile",
+                              "Failed to read (%s) error %d (%s) - rc %d\n",
+                              source, prerr, slapd_pr_strerror(prerr), return_value);
+            }
+            break;
+        }
+        bytes_to_write = return_value;
+        ptr = buffer;
+        for (i = 0; i < CPRETRY; i++) {
+            return_value = PR_Write(dest_fd, ptr, bytes_to_write);
+            if (return_value == bytes_to_write) {
+                break;
+            } else {
+                /* means error */
+                PRErrorCode prerr = PR_GetError();
+                if (task) {
+                    slapi_task_log_notice(task,
+                            "archive_copyfile - Failed to write (%s) error %d (%s) - real bytes %d, expected bytes: %d",
+                            dest_file, prerr, slapd_pr_strerror(prerr), return_value, bytes_to_write);
+                }
+                slapi_log_err(SLAPI_LOG_ERR, "archive_copyfile",
+                              "Failed to write (%s) error %d (%s) - real bytes %d, expected bytes: %d\n",
+                              dest_file, prerr, slapd_pr_strerror(prerr), return_value, bytes_to_write);
+
+                if (return_value > 0) {
+                    bytes_to_write -= return_value;
+                    ptr += return_value;
+                    slapi_log_err(SLAPI_LOG_NOTICE, "archive_copyfile",
+                                  "Retrying to write %d bytes\n", bytes_to_write);
+                    if (task) {
+                        slapi_task_log_notice(task,
+                                "archive_copyfile - Retrying to write %d bytes",
+                                bytes_to_write);
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+        if ((CPRETRY == i) || (return_value < 0)) {
+            return_value = -1;
+            break;
+        }
+    }
+
+error:
+    if (source_fd) {
+        PR_Close(source_fd);
+    }
+    if (dest_fd) {
+        PR_Close(dest_fd);
+    }
+    slapi_ch_free_string(&buffer);
+    slapi_ch_free_string(&dest_file);
+
+    return return_value;
+}
+
+static char *cert_files_600[] = {
+    "key4.db", "cert9.db", "pin.txt", "pwdfile.txt", NULL
+};
+static char *config_files_440[] = {"certmap.conf", "slapd-collations.conf", NULL};
+
+/* Archive nss files, 99user.ldif, and config files */
+int32_t
+ldbm_archive_config(char *bakdir, Slapi_Task *task)
+{
+    slapdFrontendConfig_t *config = getFrontendConfig();
+    PRDir *dirhandle = NULL;
+    PRDirEntry *direntry = NULL;
+    char *schema_dir = config->schemadir;
+    char *cert_dir = config->certdir;
+    char *config_dir = config->configdir;
+    char *backup_config_dir = slapi_ch_smprintf("%s/config_files", bakdir);
+    char *dse_file = slapi_ch_smprintf("%s/dse.ldif", config_dir);
+    char *schema_backup_file = slapi_ch_smprintf("%s/schema", backup_config_dir);
+    int32_t rc = 0;
+
+    dse_backup_lock();
+
+    /* Create config_files directory */
+    if (PR_MkDir(backup_config_dir, 0770) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_archive_config",
+                "Failed to create directory %s - Error %d\n",
+                backup_config_dir, errno);
+        if (task) {
+            slapi_task_log_notice(task,
+                    "Failed to create directory %s - Error %d",
+                    backup_config_dir, errno);
+        }
+        rc = -1;
+        goto error;
+    }
+
+    /* Create config_files directory */
+    if (PR_MkDir(schema_backup_file, 0770) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_archive_config",
+                "Failed to create directory %s - Error %d\n",
+                schema_backup_file, errno);
+        if (task) {
+            slapi_task_log_notice(task,
+                    "Failed to create directory %s - Error %d",
+                    schema_backup_file, errno);
+        }
+        rc = -1;
+        goto error;
+    }
+
+    /* Config dir - dse.ldif */
+    if (archive_copyfile(dse_file, backup_config_dir, "dse.ldif", 0600, task) != 0) {
+        rc = -1;
+        goto error;
+    }
+
+    /* Schema files */
+    dirhandle = PR_OpenDir(schema_dir);
+    if (NULL == dirhandle) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "ldbm_archive_config", "Failed to open dir %s\n", schema_dir);
+        rc = -1;
+        goto error;
+    }
+
+    while (NULL != (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
+        char *schema_file = (char *)direntry->name;
+        char *source_file = slapi_ch_smprintf("%s/%s", schema_dir, schema_file);
+        if (archive_copyfile(source_file, schema_backup_file, schema_file, 0644, task) != 0) {
+            slapi_ch_free_string(&source_file);
+            rc = -1;
+            goto error;
+        }
+        slapi_ch_free_string(&source_file);
+    }
+
+    /* nsslapd-certdir - Certificate files */
+    for (size_t i = 0; cert_files_600[i]; i++) {
+        char *cert_file = slapi_ch_smprintf("%s/%s", cert_dir, cert_files_600[i]);
+        if (archive_copyfile(cert_file, backup_config_dir, cert_files_600[i], 0600, task) != 0) {
+            slapi_ch_free_string(&cert_file);
+            rc = -1;
+            goto error;
+        }
+        slapi_ch_free_string(&cert_file);
+    }
+
+    /* certmap & collations config files */
+    for (size_t i = 0; config_files_440[i]; i++) {
+        char *conf_file = slapi_ch_smprintf("%s/%s", config_dir, config_files_440[i]);
+        if (archive_copyfile(conf_file, backup_config_dir, config_files_440[i], 0440, task) != 0) {
+            rc = -1;
+        }
+        slapi_ch_free_string(&conf_file);
+    }
+
+error:
+    PR_CloseDir(dirhandle);
+    dse_backup_unlock();
+    slapi_ch_free_string(&backup_config_dir);
+    slapi_ch_free_string(&dse_file);
+    slapi_ch_free_string(&schema_backup_file);
+
+    return rc;
 }
