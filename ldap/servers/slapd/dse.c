@@ -73,6 +73,9 @@
 #define DSE_USE_LOCK 1
 #define DSE_NO_LOCK 0
 
+/* Global lock used during backups */
+static PRLock *backup_lock = NULL;
+
 struct dse_callback
 {
     int operation;
@@ -131,6 +134,7 @@ static int dse_modify_plugin(Slapi_Entry *pre_entry, Slapi_Entry *post_entry, ch
 static int dse_add_plugin(Slapi_Entry *entry, char *returntext);
 static int dse_delete_plugin(Slapi_Entry *entry, char *returntext);
 static int dse_pre_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMod **mods);
+
 
 /*
   richm: In almost all modes e.g. db2ldif, ldif2db, etc. we do not need/want
@@ -969,6 +973,8 @@ dse_write_file_nolock(struct dse *pdse)
     fpw.fpw_rc = 0;
     fpw.fpw_prfd = NULL;
 
+    dse_backup_lock();
+
     if (NULL != pdse->dse_filename) {
         if ((fpw.fpw_prfd = PR_Open(pdse->dse_tmpfile, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE, SLAPD_DEFAULT_FILE_MODE)) == NULL) {
             rc = PR_GetOSError();
@@ -1024,6 +1030,8 @@ dse_write_file_nolock(struct dse *pdse)
         if (fpw.fpw_prfd)
             (void)PR_Close(fpw.fpw_prfd);
     }
+
+    dse_backup_unlock();
 
     return rc;
 }
@@ -2915,4 +2923,34 @@ dse_next_search_entry(Slapi_PBlock *pb)
     }
 
     return 0;
+}
+
+/* When a backup is occurring we can not allow the writing the dse.ldif file */
+void
+dse_init_backup_lock()
+{
+    backup_lock = PR_NewLock();
+}
+
+void
+dse_destroy_backup_lock()
+{
+    PR_DestroyLock(backup_lock);
+    backup_lock = NULL;
+}
+
+void
+dse_backup_lock()
+{
+    if (backup_lock) {
+        PR_Lock(backup_lock);
+    }
+}
+
+void
+dse_backup_unlock()
+{
+    if (backup_lock) {
+        PR_Unlock(backup_lock);
+    }
 }

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -27,6 +27,8 @@
 #endif
 #endif /* solaris: mmap */
 #endif /* DB_USE_64LFS */
+
+#define BACKUP_CONFIG_DIR "config_files"
 
 #define DBLAYER_PAGESIZE (uint32_t)8 * 1024
 #define DBLAYER_INDEX_PAGESIZE (uint32_t)8 * 1024 /* With the new idl design,      \
@@ -220,6 +222,9 @@ back_txn *dblayer_get_pvt_txn(void);
 void dblayer_pop_pvt_txn(void);
 int dbimpl_setup(struct ldbminfo *li, const char *plgname);
 const char *dblayer_get_db_suffix(Slapi_Backend *be);
+
+int32_t ldbm_archive_config(char *dir, Slapi_Task *task);
+int32_t ldbm_restore_config(char *dir, Slapi_Task *task);
 
 /* Return the last four characters of a string; used for comparing extensions. */
 char *last_four_chars(const char *s);

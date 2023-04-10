@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -886,7 +886,7 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
 
     if ('\0' == *home) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_backup", "Missing db home directory info\n");
+                      "dbmdb_backup", "Missing db home directory info\n");
         return return_value;
     }
 
@@ -899,7 +899,7 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
      */
 
     if (g_get_shutdown() || c_get_shutdown()) {
-        slapi_log_err(SLAPI_LOG_WARNING, "dblayer_backup", "Server shutting down, backup aborted\n");
+        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_backup", "Server shutting down, backup aborted\n");
         return_value = -1;
         goto bail;
     }
@@ -936,14 +936,14 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     /* now copy the info file */
     pathname1 = slapi_ch_smprintf("%s/%s", home, INFOFILE);
     pathname2 = slapi_ch_smprintf("%s/%s", dest_dir, INFOFILE);
-    slapi_log_err(SLAPI_LOG_INFO, "dblayer_backup", "Backing up file d (%s)\n", pathname2);
+    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_backup", "Backing up file d (%s)\n", pathname2);
     if (task) {
         slapi_task_log_notice(task, "Backing up file (%s)", pathname2);
     }
     return_value = dbmdb_copyfile(pathname1, pathname2, 0, li->li_mode | 0400);
     if (0 > return_value) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "dblayer_backup", "Error in copying version file "
+                      "dbmdb_backup", "Error in copying version file "
                                         "(%s -> %s): err=%d\n",
                       pathname1, pathname2, return_value);
         if (task) {
@@ -958,7 +958,15 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
 
     if (0 == return_value) /* if everything went well, backup the index conf */
         return_value = dbmdb_dse_conf_backup(li, dest_dir);
+
+    /* Backup the config files */
+    if (ldbm_archive_config(dest_dir, task) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_backup",
+                "Backup of config files failed or is incomplete\n");
+    }
+
     goto bail;
+
 error_out:
     slapi_log_err(SLAPI_LOG_ERR, "dbmdb_backup", "Backup to %s aborted.\n", dest_dir);
     if (task) {
@@ -1025,8 +1033,8 @@ dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
     /* We check on the source staging area, no point in going further if it
      * isn't there */
     if (stat(src_dir, &sbuf) < 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_restore", "Backup directory %s does not "
-                                                        "exist.\n",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_restore",
+                      "Backup directory %s does not exist.\n",
                       src_dir);
         if (task) {
             slapi_task_log_notice(task, "Restore: backup directory %s does not exist.",

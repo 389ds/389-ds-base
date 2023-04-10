@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -454,6 +454,7 @@ int ldbm_back_init(Slapi_PBlock *pb);
 void ldbm_back_prev_search_results(Slapi_PBlock *pb);
 int ldbm_back_isinitialized(void);
 int32_t ldbm_back_compact(Slapi_Backend *be, PRBool just_changelog);
+int32_t ldbm_archive_config(char *bakdir, Slapi_Task *task);
 
 /*
  * vlv.c

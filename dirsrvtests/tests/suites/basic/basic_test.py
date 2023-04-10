@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -83,6 +83,7 @@ def import_example_ldif(topology_st):
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
     import_task.wait()
 
+
 def check_db_sanity(topology_st):
     try:
         entries = topology_st.standalone.search_s(DEFAULT_SUFFIX,
@@ -94,7 +95,6 @@ def check_db_sanity(topology_st):
     except ldap.LDAPError as e:
         log.fatal('test_basic_acl: Search suffix failed: ' + e.args[0]['desc'])
         assert False
-
 
 
 @pytest.fixture(params=ROOTDSE_DEF_ATTR_LIST)
@@ -319,7 +319,6 @@ def test_basic_import_export(topology_st, import_example_ldif):
     import_ldif = ldif_dir + '/basic_import.ldif'
     dbgen_users(topology_st.standalone, 50000, import_ldif, DEFAULT_SUFFIX)
 
-
     # Online
     log.info("Importing LDIF online...")
     import_task = ImportTask(topology_st.standalone)
@@ -393,20 +392,24 @@ def test_basic_backup(topology_st, import_example_ldif):
 
     :steps:
          1. Test online backup using db2bak.
-         2. Test online restore using bak2db.
-         3. Test offline backup using db2bak.
-         4. Test offline restore using bak2db.
+         2. Test config files are backed up
+         3. Test online restore using bak2db.
+         4. Test offline backup using db2bak.
+         5. Test config files are backed up
+         6. Test offline restore using bak2db.
 
     :expectedresults:
          1. Online backup should PASS.
-         2. Online restore should PASS.
-         3. Offline backup should PASS.
-         4. Offline restore should PASS.
+         2. Config files were backed up
+         3. Online restore should PASS.
+         4. Offline backup should PASS.
+         5. Config files were backed up
+         6. Offline restore should PASS.
     """
 
     log.info('Running test_basic_backup...')
 
-    backup_dir = topology_st.standalone.get_bak_dir() + '/backup_test'
+    backup_dir = topology_st.standalone.get_bak_dir() + '/backup_test_online'
     log.info(f'Backup directory is {backup_dir}')
 
     # Test online backup
@@ -417,6 +420,12 @@ def test_basic_backup(topology_st, import_example_ldif):
         log.fatal('test_basic_backup: Online backup failed')
         assert False
 
+    # Test config files were backed up
+    assert os.path.isfile(backup_dir + "/config_files/dse.ldif")
+    assert os.path.isfile(backup_dir + "/config_files/schema/99user.ldif")
+    assert os.path.isfile(backup_dir + "/config_files/certmap.conf")
+    assert os.path.isfile(backup_dir + "/config_files/cert9.db")
+
     # Test online restore
     try:
         topology_st.standalone.tasks.bak2db(backup_dir=backup_dir,
@@ -426,10 +435,17 @@ def test_basic_backup(topology_st, import_example_ldif):
         assert False
 
     # Test offline backup
+    backup_dir = topology_st.standalone.get_bak_dir() + '/backup_test_offline'
     topology_st.standalone.stop()
     if not topology_st.standalone.db2bak(backup_dir):
         log.fatal('test_basic_backup: Offline backup failed')
         assert False
+
+    # Test config files wre backed up
+    assert os.path.isfile(backup_dir + "/config_files/dse.ldif")
+    assert os.path.isfile(backup_dir + "/config_files/schema/99user.ldif")
+    assert os.path.isfile(backup_dir + "/config_files/certmap.conf")
+    assert os.path.isfile(backup_dir + "/config_files/cert9.db")
 
     # Test offline restore
     if not topology_st.standalone.bak2db(backup_dir):
@@ -439,6 +455,7 @@ def test_basic_backup(topology_st, import_example_ldif):
 
     check_db_sanity(topology_st)
     log.info('test_basic_backup: PASSED')
+
 
 def test_basic_db2index(topology_st):
     """Assert db2index can operate correctly.
@@ -458,8 +475,6 @@ def test_basic_db2index(topology_st):
         3: Index succeeds for all backend indexes which have been obtained from dseldif
 
     """
-
-    indexes = []
 
     # Error log message to confirm a reindex
     if get_default_db_lib() == "mdb":
@@ -1092,7 +1107,8 @@ def test_basic_dse_survives_kill9(topology_st, import_example_ldif):
     log.info('dse.ldif was not corrupted, and the server was restarted')
 
     log.info('test_basic_dse: PASSED')
-    # Give the server time to startup, in some conditions this can be racey without systemd notification. Only affects this one test though...
+    # Give the server time to startup, in some conditions this can be racey without systemd notification.
+    # Only affects this one test though...
     time.sleep(10)
 
 
@@ -1423,6 +1439,7 @@ def test_critical_msg_on_empty_range_idl(topology_st):
     # Step 5
     assert not topology_st.standalone.searchErrorsLog('CRIT - list_candidates - NULL idl was recieved from filter_candidates_ext.')
 
+
 @pytest.mark.bz1870624
 @pytest.mark.ds4379
 @pytest.mark.parametrize("case,value", [('positive', ['cn','','']),
@@ -1521,7 +1538,7 @@ def test_suffix_case(topology_st):
     backends.create(properties={'nsslapd-suffix': TEST_SUFFIX,
                                 'name': 'upperCaseRoot',
                                 'sample_entries': '001004002'})
-                           
+
     domain = Domain(topology_st.standalone, TEST_SUFFIX)
     assert domain.dn == TEST_SUFFIX
 
@@ -1757,7 +1774,7 @@ def test_bind_disconnect_account_lockout(topology_st, _reset_attr):
     except ldap.LDAPError as e:
         log.error('Search failed on {}'.format(DEFAULT_SUFFIX))
         raise e
-    
+
     # Force entry to get locked out
     with pytest.raises(ldap.INVALID_CREDENTIALS):
         inst.simple_bind_s(user.dn, 'whateverlike')

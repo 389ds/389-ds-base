@@ -1405,6 +1405,12 @@ void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods);
 /* add.c */
 void add_internal_modifiersname(Slapi_PBlock *pb, Slapi_Entry *e);
 
+/* dse.c */
+void dse_init_backup_lock(void);
+void dse_destroy_backup_lock(void);
+void dse_backup_lock(void);
+void dse_backup_unlock(void);
+
 /* ldaputil.c */
 char *ldaputil_get_saslpath(void);
 int slapi_client_uses_non_nss(LDAP *ld);
