@@ -133,7 +133,6 @@ connection_table_new(int table_size)
     ct->num_active = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
     ct->size = table_size - (table_size % ct->list_num);
     ct->list_size = ct->size/ct->list_num;
-    ct->num_active = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
     ct->c = (Connection **)slapi_ch_calloc(1, ct->size * sizeof(Connection *));
     ct->fd = (struct POLL_STRUCT **)slapi_ch_calloc(1, ct->list_num * sizeof(struct POLL_STRUCT*));
     ct->table_mutex = PR_NewLock();
