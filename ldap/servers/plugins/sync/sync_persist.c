@@ -930,6 +930,7 @@ sync_send_results(void *arg)
     int opid;
     char **attrs_dup;
     char *strFilter;
+    LDAPControl **ctrls = NULL;
 
     slapi_pblock_get(req->req_pblock, SLAPI_CONN_ID, &connid);
     slapi_pblock_get(req->req_pblock, SLAPI_OPERATION_ID, &opid);
@@ -1071,6 +1072,11 @@ done:
     slapi_pblock_get(req->req_pblock, SLAPI_SEARCH_STRFILTER, &strFilter);
     slapi_ch_free((void **)&strFilter);
     slapi_pblock_set(req->req_pblock, SLAPI_SEARCH_STRFILTER, NULL);
+
+    slapi_pblock_get(req->req_pblock, SLAPI_REQCONTROLS, ctrls);
+    if (ctrls) {
+        ldap_controls_free(ctrls);
+    }
 
     slapi_pblock_destroy(req->req_pblock);
     req->req_pblock = NULL;
