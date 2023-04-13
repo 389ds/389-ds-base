@@ -1076,6 +1076,7 @@ done:
     slapi_pblock_get(req->req_pblock, SLAPI_REQCONTROLS, ctrls);
     if (ctrls) {
         ldap_controls_free(ctrls);
+        slapi_pblock_set(req->req_pblock, SLAPI_REQCONTROLS, NULL);
     }
 
     slapi_pblock_destroy(req->req_pblock);
