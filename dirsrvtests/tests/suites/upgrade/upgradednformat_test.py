@@ -69,7 +69,7 @@ def test_upgradednformat(topo):
 
     # Check for successful completion
     assert topo.standalone.ds_error_log.match('.*Start upgrade dn format.*')
-    assert topo.standalone.ds_error_log.match('.*bdb_upgradednformat - Instance userroot in.*is up-to-date.*')
+    assert topo.standalone.ds_error_log.match('.*upgradednformat - Instance userroot in.*is up-to-date.*')
 
 if __name__ == '__main__':
     # Run isolated
