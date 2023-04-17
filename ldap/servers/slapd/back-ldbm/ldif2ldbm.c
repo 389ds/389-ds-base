@@ -360,7 +360,17 @@ int
 ldbm_back_upgradednformat(Slapi_PBlock *pb)
 {
     struct ldbminfo *li = NULL;
+    int task_flags;
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
+    slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
+
+    if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
+        if (dblayer_setup(li)) {
+            slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_upgradednformat", "dblayer_setup failed\n");
+            return -1;
+        }
+        li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+    }
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
 
     return priv->dblayer_upgradedn_fn(pb);;
