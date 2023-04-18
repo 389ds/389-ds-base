@@ -511,6 +511,8 @@ struct subfilt
 
 #include "filter.h" /* mr_filter_t */
 
+#include "haproxy.h"
+
 /*
  * represents a search filter
  */
