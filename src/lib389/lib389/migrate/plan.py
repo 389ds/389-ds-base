@@ -662,6 +662,7 @@ class Migration(object):
             [
                 # Core openldap attrs that we can't use, and don't matter.
                 'entrycsn',
+                'contextcsn',
                 'structuralobjectclass',
                 # pwd attributes from ppolicy which are not supported.
                 'pwdattribute',
@@ -669,6 +670,8 @@ class Migration(object):
                 'pwdsafemodify',
                 'pwdcheckmodule',
                 'pwdmaxrecordedfailure',
+                # ppolicy attr that isn't in schema that isn't supported.
+                'pwdfailuretime',
                 # dds attributes we don't support
                 'dgidentity',
                 'dgauthz'
