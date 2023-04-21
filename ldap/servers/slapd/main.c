@@ -1064,6 +1064,7 @@ main(int argc, char **argv)
         plugin_print_lists();
         plugin_startall(argc, argv, NULL /* specific plugin list */);
         compute_plugins_started();
+        slapi_memberof_load_memberof_plugin_config();
         (void) rewriters_init();
         if (housekeeping_start((time_t)0, NULL) == NULL) {
             return_value = 1;
@@ -1132,6 +1133,7 @@ main(int argc, char **argv)
         slapd_daemon(&ports_info);
     }
     slapi_log_err(SLAPI_LOG_INFO, "main", "slapd stopped.\n");
+    slapi_memberof_free_memberof_plugin_config();
     reslimit_cleanup();
     vattr_cleanup();
     sasl_map_done();

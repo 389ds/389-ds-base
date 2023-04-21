@@ -1142,6 +1142,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/security_wrappers.c \
 	ldap/servers/slapd/slapd_plhash.c \
 	ldap/servers/slapd/slapi_counter.c \
+	ldap/servers/slapd/slapi-memberof.c \
 	ldap/servers/slapd/slapi2runtime.c \
 	ldap/servers/slapd/snmp_collator.c \
 	ldap/servers/slapd/sort.c \

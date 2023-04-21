@@ -34,6 +34,7 @@ extern "C" {
 #include "prprf.h"
 #include "nspr.h"
 #include <syslog.h>
+#include <plhash.h>
 
 #ifdef __GNUC__
     #define __ATTRIBUTE__(x) __attribute__(x)
@@ -8443,6 +8444,40 @@ int32_t slapi_search_get_entry(Slapi_PBlock **pb, Slapi_DN *dn, char **attrs, Sl
  * \param pb - slapi_pblock pointer
  */
 void slapi_search_get_entry_done(Slapi_PBlock **pb);
+
+/* Those definitions are used to implement slapi_memberof() */
+typedef enum {
+    MEMBEROF_REUSE_ONLY,
+    MEMBEROF_REUSE_IF_POSSIBLE,
+    MEMBEROF_RECOMPUTE
+} memberof_flag_t;
+
+typedef struct _slapi_memberofresult {
+    Slapi_ValueSet *nsuniqueid_vals;
+    Slapi_ValueSet *dn_vals;
+    PRBool maxgroups_reached; /* flag is true if the number of groups hit the max limit */
+} Slapi_MemberOfResult;
+
+typedef struct _slapi_memberofconfig
+{
+    char **groupattrs;
+    PRBool subtree_search;
+    int allBackends;
+    Slapi_DN **entryScopes;
+    Slapi_DN **entryScopeExcludeSubtrees;
+    PRBool recurse;
+    int maxgroups;
+    memberof_flag_t flag;
+    char *error_msg;
+    int errot_msg_lenght;
+    int entryScopeCount;          /* private to slapi_memberof */
+    int entryExcludeScopeCount;   /* private to slapi_memberof */
+    PRBool maxgroups_reached;     /* private to slapi_memberof */
+    const char *memberof_attr;    /* private to slapi_memberof */
+    Slapi_Attr *dn_syntax_attr;   /* private to slapi_memberof */
+    PLHashTable *ancestors_cache; /* private to slapi_memberof */
+    int current_maxgroup;         /* private to slapi_memberof */
+} Slapi_MemberOfConfig;
 
 #ifdef __cplusplus
 }
