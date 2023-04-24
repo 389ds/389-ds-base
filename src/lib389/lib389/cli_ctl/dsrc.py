@@ -12,6 +12,7 @@ from os import path, remove
 from ldapurl import isLDAPUrl
 from ldap.dn import is_dn
 import configparser
+from lib389.utils import is_a_dn
 
 
 def create_dsrc(inst, log, args):
@@ -283,14 +284,96 @@ def display_dsrc(inst, log, args):
     config.read(dsrc_file)
     instances = config.sections()
 
+    result = {}
     for inst_section in instances:
         if args.json:
-            log.info(json.dumps({inst_section: dict(config[inst_section])}, indent=4))
+            result[inst_section] = dict(config[inst_section])
         else:
             log.info(f'[{inst_section}]')
             for k, v in config[inst_section].items():
                 log.info(f'{k} = {v}')
             log.info("")
+
+    if args.json:
+        log.info(json.dumps(result, indent=4))
+
+
+def replmon_dsrc(inst, log, args):
+    dsrc_file = f'{expanduser("~")}/.dsrc'
+    repl_conn_section = 'repl-monitor-connections'
+    repl_alias_section = 'repl-monitor-aliases'
+
+    config = configparser.ConfigParser()
+    config.read(dsrc_file)
+
+    # Process and validate the args
+    if args.add_conn is not None:
+        sections = config.sections()
+        if repl_conn_section not in sections:
+            config.add_section(repl_conn_section)
+        for conn in args.add_conn:
+            conn_parts = conn.split(":")
+            if len(conn_parts) != 5:
+                raise ValueError("Missing required information for connection: NAME:HOST:PORT:BINDDN:CREDENTIAL")
+            conn_name = conn_parts[0]
+            conn_host = conn_parts[1]
+            conn_port = conn_parts[2]
+            conn_binddn = conn_parts[3]
+            conn_cred = conn_parts[4]
+            if type(int(conn_port)) != int:
+                raise ValueError("Invalid value for PORT, must be a number")
+            if not is_a_dn(conn_binddn):
+                raise ValueError("The bind DN is not a valid DN")
+            if conn_name in config[repl_conn_section]:
+                raise ValueError("Replication connection with the same name already exists")
+            config[repl_conn_section][conn_name] = f"{conn_host}:{conn_port}:{conn_binddn}:{conn_cred}"
+
+    if args.del_conn is not None:
+        sections = config.sections()
+        if repl_conn_section not in sections:
+            raise ValueError("There are no connections configured")
+        for conn in args.del_conn:
+            if conn not in config.options(repl_conn_section):
+                raise ValueError("Can not find connection: " + conn)
+            del config[repl_conn_section][conn]
+            if len(config[repl_conn_section]) == 0:
+                # Delete section header
+                del config[repl_conn_section]
+
+    if args.add_alias is not None:
+        sections = config.sections()
+        if repl_alias_section not in sections:
+            config.add_section(repl_alias_section)
+        for alias in args.add_alias:
+            alias_parts = alias.split(":")
+            if len(alias_parts) != 3:
+                raise ValueError("Missing required information for alias: ALIAS_NAME:HOST:PORT")
+            alias_name = alias_parts[0]
+            alias_host = alias_parts[1]
+            alias_port = alias_parts[2]
+            if type(int(alias_port)) != int:
+                raise ValueError("Invalid value for PORT, must be a number")
+            if alias_name in config[repl_alias_section]:
+                raise ValueError("Replica alias with the same name already exists")
+            config[repl_alias_section][alias_name] = f"{alias_host}:{alias_port}"
+
+    if args.del_alias is not None:
+        sections = config.sections()
+        if repl_alias_section not in sections:
+            raise ValueError("There are no aliases configured")
+        for alias in args.del_alias:
+            if alias not in config.options(repl_alias_section):
+                raise ValueError("Can not find alias: " + alias)
+            del config[repl_alias_section][alias]
+            if len(config[repl_alias_section]) == 0:
+                # delete section header
+                del config[repl_alias_section]
+
+    # Okay now rewrite the file
+    with open(dsrc_file, 'w') as configfile:
+        config.write(configfile)
+
+    log.info(f'Successfully updated: {dsrc_file}')
 
 
 def create_parser(subparsers):
@@ -342,3 +425,11 @@ def create_parser(subparsers):
     # Display .dsrc file
     dsrc_display_parser = subcommands.add_parser('display', help='Display the contents of the .dsrc file.')
     dsrc_display_parser.set_defaults(func=display_dsrc)
+
+    # Replication Monitor actions
+    dsrc_replmon_parser = subcommands.add_parser('repl-mon', help='Display the contents of the .dsrc file.')
+    dsrc_replmon_parser.set_defaults(func=replmon_dsrc)
+    dsrc_replmon_parser.add_argument('--add-conn', nargs='+', help="Add a replica connection: 'NAME:HOST:PORT:BINDDN:CREDENTIAL'")
+    dsrc_replmon_parser.add_argument('--del-conn', nargs='+', help="delete a replica connection by its NAME")
+    dsrc_replmon_parser.add_argument('--add-alias', nargs='+', help="Add a host/port alias: 'ALIAS_NAME:HOST:PORT'")
+    dsrc_replmon_parser.add_argument('--del-alias', nargs='+', help="delete a host/port alias by its ALIAS_NAME")
