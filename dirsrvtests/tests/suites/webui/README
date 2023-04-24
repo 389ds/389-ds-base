@@ -1,0 +1,1 @@
+To run locally you need to set WEBUI=1 and PASSWD=<password> env variables.  You also need to remove "root" from /etc/cockpit/disallowed-users

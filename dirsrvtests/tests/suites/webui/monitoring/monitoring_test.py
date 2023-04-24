@@ -129,24 +129,14 @@ def test_replication_visibility(topology_st, page, browser_name):
     log.info('Click on Monitoring tab and then on Replication in the menu and check if element is loaded.')
     frame.get_by_role('tab', name='Monitoring', exact=True).click()
     frame.locator('#replication-monitor').click()
+    frame.get_by_role('button', name='Synchronization Report').wait_for()
+    frame.locator('#sync-report').click()
+    frame.get_by_role('tab', name='Prepare New Report').click()
     frame.get_by_role('button', name='Generate Report').wait_for()
     assert frame.get_by_role('button', name='Generate Report').is_visible()
 
     log.info('Click on Agreements tab and check if element is loaded.')
-    frame.get_by_role('tab', name='Agreements').click()
-    assert frame.get_by_role('columnheader', name='Replication Agreements').is_visible()
-
-    log.info('Click on Winsync tab and check if element is loaded.')
-    frame.get_by_role('tab', name='Winsync').click()
-    assert frame.get_by_role('columnheader', name='Winsync Agreements').is_visible()
-
-    log.info('Click on Tasks tab and check if element is loaded.')
-    frame.get_by_role('tab', name='Tasks').click()
-    assert frame.get_by_role('columnheader', name='CleanAllRUV Tasks').is_visible()
-
-    log.info('Click on Conflict Entries tab and check if element is loaded.')
-    frame.get_by_role('tab', name='Conflict Entries').click()
-    assert frame.get_by_role('columnheader', name='Replication Conflict Entries').is_visible()
+    assert frame.locator('#replication-suffix-dc\\=example\\,dc\\=com').is_visible()
 
 
 def test_database_visibility(topology_st, page, browser_name):
@@ -169,7 +159,7 @@ def test_database_visibility(topology_st, page, browser_name):
 
     log.info('Click on Monitoring tab, then click on database button and check if element is loaded.')
     frame.get_by_role('tab', name='Monitoring', exact=True).click()
-    frame.locator('#dc\=example\,dc\=com').click()
+    frame.locator('#dc\\=example\\,dc\\=com').click()
     frame.get_by_text('Entry Cache Hit Ratio').wait_for()
     assert frame.get_by_text('Entry Cache Hit Ratio').is_visible()
 

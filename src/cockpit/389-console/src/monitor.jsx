@@ -12,11 +12,11 @@ import AuditFailLogMonitor from "./lib/monitor/auditfaillog.jsx";
 import ErrorLogMonitor from "./lib/monitor/errorlog.jsx";
 import SecurityLogMonitor from "./lib/monitor/securitylog.jsx";
 import ReplMonitor from "./lib/monitor/replMonitor.jsx";
+import ReplAgmtMonitor from "./lib/monitor/replMonAgmts.jsx";
+import ReplAgmtWinsync from "./lib/monitor/replMonWinsync.jsx";
+import ReplMonTasks from "./lib/monitor/replMonTasks.jsx";
+import ReplMonConflict from "./lib/monitor/replMonConflict.jsx";
 import {
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
     Spinner,
     TreeView,
     Text,
@@ -29,13 +29,13 @@ import {
     faLeaf,
     faLink,
     faTree,
-    faSyncAlt
 } from '@fortawesome/free-solid-svg-icons';
 import {
     CatalogIcon,
     ClusterIcon,
     DatabaseIcon,
     TopologyIcon,
+    MonitoringIcon,
 } from '@patternfly/react-icons';
 
 export class Monitor extends React.Component {
@@ -47,6 +47,7 @@ export class Monitor extends React.Component {
             node_name: "",
             node_text: "",
             node_type: "",
+            node_item: "",
             loaded: false,
             snmpData: {},
             ldbmData: {},
@@ -74,6 +75,9 @@ export class Monitor extends React.Component {
             replRole: "",
             replRid: "",
             replicatedSuffixes: [],
+            credRows: [],
+            aliasRows: [],
+            // Logging
             accesslogLocation: "",
             errorlogLocation: "",
             auditlogLocation: "",
@@ -96,16 +100,17 @@ export class Monitor extends React.Component {
         this.loadDiskSpace = this.loadDiskSpace.bind(this);
         this.reloadDisks = this.reloadDisks.bind(this);
         // Replication
-        this.handleLoadMonitorReplication = this.handleLoadMonitorReplication.bind(this);
+        this.onHandleLoadMonitorReplication = this.onHandleLoadMonitorReplication.bind(this);
         this.loadCleanTasks = this.loadCleanTasks.bind(this);
         this.loadAbortTasks = this.loadAbortTasks.bind(this);
         this.loadReplicatedSuffixes = this.loadReplicatedSuffixes.bind(this);
         this.loadWinsyncAgmts = this.loadWinsyncAgmts.bind(this);
-        this.replSuffixChange = this.replSuffixChange.bind(this);
         this.reloadReplAgmts = this.reloadReplAgmts.bind(this);
         this.reloadReplWinsyncAgmts = this.reloadReplWinsyncAgmts.bind(this);
         this.loadConflicts = this.loadConflicts.bind(this);
         this.loadGlues = this.loadGlues.bind(this);
+        this.gatherAllReplicaHosts = this.gatherAllReplicaHosts.bind(this);
+        this.getAgmts = this.getAgmts.bind(this);
         // Logging
         this.loadMonitor = this.loadMonitor.bind(this);
     }
@@ -139,6 +144,52 @@ export class Monitor extends React.Component {
         }
     }
 
+    processReplSuffixes(suffixTree) {
+        for (const suffix of this.state.replicatedSuffixes) {
+            suffixTree.push({
+                name: suffix,
+                icon: <FontAwesomeIcon size="sm" icon={faTree} />,
+                id: "replication-suffix-" + suffix,
+                type: "replication-suffix",
+                defaultExpanded: false,
+                children: [
+                    {
+                        name: "Agreements",
+                        icon: <MonitoringIcon />,
+                        id: suffix + "-agmts",
+                        item: "agmt-mon",
+                        type: "repl-mon",
+                        suffix: suffix
+                    },
+                    {
+                        name: "Winsync Agreements",
+                        icon: <MonitoringIcon />,
+                        id: suffix + "-winsync",
+                        item: "winsync-mon",
+                        type: "repl-mon",
+                        suffix: suffix
+                    },
+                    {
+                        name: "Tasks",
+                        icon: <MonitoringIcon />,
+                        id: suffix + "-tasks",
+                        item: "task-mon",
+                        type: "repl-mon",
+                        suffix: suffix
+                    },
+                    {
+                        name: "Conflict Entries",
+                        icon: <MonitoringIcon />,
+                        id: suffix + "-conflict",
+                        item: "conflict-mon",
+                        type: "repl-mon",
+                        suffix: suffix
+                    },
+                ],
+            });
+        }
+    }
+
     loadSuffixTree(fullReset) {
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -162,6 +213,16 @@ export class Monitor extends React.Component {
                             icon: <TopologyIcon />,
                             id: "replication-monitor",
                             type: "replication",
+                            defaultExpanded: true,
+                            children: [
+                                {
+                                    name: "Synchronization Report",
+                                    icon: <MonitoringIcon />,
+                                    id: "sync-report",
+                                    item: "sync-report",
+                                    type: "repl-mon",
+                                },
+                            ],
                         },
                         {
                             name: "Database",
@@ -217,6 +278,8 @@ export class Monitor extends React.Component {
                         type = "server";
                     }
                     basicData[2].children = treeData; // database node
+                    this.processReplSuffixes(basicData[1].children);
+
                     this.setState(() => ({
                         nodes: basicData,
                         node_name: current_node,
@@ -226,7 +289,9 @@ export class Monitor extends React.Component {
     }
 
     handleTreeClick(evt, treeViewItem, parentItem) {
-        if (treeViewItem.id === "log-monitor") {
+        if (treeViewItem.id === "log-monitor" ||
+            treeViewItem.id === "replication-monitor" ||
+            treeViewItem.id.startsWith("replication-suffix")) {
             return;
         }
         if (this.state.activeItems.length === 0 || treeViewItem === this.state.activeItems[0]) {
@@ -292,21 +357,12 @@ export class Monitor extends React.Component {
                     bename: "",
                 };
             });
-        } else if (treeViewItem.id === "replication-monitor") {
-            if (!this.state.replInitLoaded) {
-                this.handleLoadMonitorReplication();
-            }
-            this.setState(prevState => {
-                return {
-                    activeItems: [treeViewItem, parentItem],
-                    node_name: treeViewItem.id,
-                    node_text: treeViewItem.name,
-                    node_type: treeViewItem.type,
-                    bename: "",
-                };
-            });
+        } else if (treeViewItem.id === "sync-report") {
+            this.gatherAllReplicaHosts(treeViewItem, parentItem);
         } else {
-            if (treeViewItem.id in this.state &&
+            if (treeViewItem.type === "repl-mon") {
+                this.onHandleLoadMonitorReplication(treeViewItem, parentItem);
+            } else if (treeViewItem.id in this.state &&
                 ("chainingData" in this.state[treeViewItem.id] ||
                  "suffixData" in this.state[treeViewItem.id])
             ) {
@@ -354,6 +410,7 @@ export class Monitor extends React.Component {
                     el.setAttribute('title', el.innerText);
                 }
             }
+            this.loadDSRC();
         });
     }
 
@@ -572,20 +629,20 @@ export class Monitor extends React.Component {
         });
     }
 
-    loadCleanTasks() {
+    loadCleanTasks(replSuffix) {
         const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "repl-tasks", "list-cleanruv-tasks", "--suffix=" + this.state.replSuffix];
+            "repl-tasks", "list-cleanruv-tasks", "--suffix=" + replSuffix];
         log_cmd("loadCleanTasks", "Load clean tasks", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
-                        [this.state.replSuffix]: {
-                            ...this.state[this.state.replSuffix],
+                        [replSuffix]: {
+                            ...this.state[replSuffix],
                             cleanTasks: config.items,
                         },
-                    }, this.loadAbortTasks());
+                    }, this.loadAbortTasks(replSuffix));
                 })
                 .fail(() => {
                     // Notification of failure (could only be server down)
@@ -595,20 +652,20 @@ export class Monitor extends React.Component {
                 });
     }
 
-    loadAbortTasks() {
+    loadAbortTasks(replSuffix) {
         const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "repl-tasks", "list-abortruv-tasks", "--suffix=" + this.state.replSuffix];
+            "repl-tasks", "list-abortruv-tasks", "--suffix=" + replSuffix];
         log_cmd("loadAbortCleanTasks", "Load abort tasks", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
-                        [this.state.replSuffix]: {
-                            ...this.state[this.state.replSuffix],
+                        [replSuffix]: {
+                            ...this.state[replSuffix],
                             abortTasks: config.items,
                         },
-                    }, this.loadConflicts());
+                    }, this.loadConflicts(replSuffix));
                 })
                 .fail(() => {
                     // Notification of failure (could only be server down)
@@ -618,21 +675,21 @@ export class Monitor extends React.Component {
                 });
     }
 
-    loadConflicts() {
+    loadConflicts(replSuffix) {
         const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "repl-conflict", "list", this.state.replSuffix];
+            "repl-conflict", "list", replSuffix];
         log_cmd("loadConflicts", "Load conflict entries", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
-                        [this.state.replSuffix]: {
-                            ...this.state[this.state.replSuffix],
+                        [replSuffix]: {
+                            ...this.state[replSuffix],
                             conflicts: config.items,
                             glues: []
                         },
-                    }, this.loadGlues());
+                    }, this.loadGlues(replSuffix));
                 })
                 .fail(() => {
                     // Notification of failure (could only be server down)
@@ -642,24 +699,23 @@ export class Monitor extends React.Component {
                 });
     }
 
-    loadGlues() {
+    loadGlues(replSuffix) {
         const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "repl-conflict", "list-glue", this.state.replSuffix];
+            "repl-conflict", "list-glue", replSuffix];
         log_cmd("loadGlues", "Load glue entries", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
-                        [this.state.replSuffix]: {
-                            ...this.state[this.state.replSuffix],
+                        [replSuffix]: {
+                            ...this.state[replSuffix],
                             glues: config.items,
+
                         },
-                    }, this.setState(
-                        {
-                            replLoading: false,
-                            replInitLoaded: true
-                        }));
+                        replLoading: false,
+                        replInitLoaded: true
+                    });
                 })
                 .fail(() => {
                     // Notification of failure (could only be server down)
@@ -669,20 +725,67 @@ export class Monitor extends React.Component {
                 });
     }
 
-    loadWinsyncAgmts() {
+    loadDSRC() {
+        // Load dsrc replication report configuration
+        const dsrc_cmd = ["dsctl", "-j", this.props.serverId, "dsrc", "display"];
+        log_cmd("loadDSRC", "Check for replication monitor configurations in the .dsrc file", dsrc_cmd);
+        cockpit
+                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .done(dsrc_content => {
+                    const content = JSON.parse(dsrc_content);
+                    const credRows = [];
+                    const aliasRows = [];
+                    if ("repl-monitor-connections" in content) {
+                        const report_config = content["repl-monitor-connections"];
+                        for (const [connection, value] of Object.entries(report_config)) {
+                            const conn = connection + ":" + value;
+                            credRows.push(conn.split(':'));
+                            // [repl-monitor-connections]
+                            // connection1 = server1.example.com:389:cn=Directory Manager:*
+                        }
+                    }
+                    if ("repl-monitor-aliases" in content) {
+                        const report_config = content["repl-monitor-aliases"];
+                        for (const [alias_name, value] of Object.entries(report_config)) {
+                            const alias = alias_name + ":" + value;
+                            aliasRows.push(alias.split(':'));
+                            // [repl-monitor-aliases]
+                            // M1 = server1.example.com:38901
+                        }
+                    }
+                    this.setState({
+                        credRows,
+                        aliasRows,
+                        replLoading: false,
+                        replInitLoaded: true
+                    });
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        `Failed to get .dsrc information: ${errMsg.desc}`
+                    );
+                    this.setState({
+                        replLoading: false,
+                    });
+                });
+    }
+
+    loadWinsyncAgmts(replSuffix) {
         const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "replication", "winsync-status", "--suffix=" + this.state.replSuffix];
+            "replication", "winsync-status", "--suffix=" + replSuffix];
         log_cmd("loadWinsyncAgmts", "Load winsync agmt status", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
-                        [this.state.replSuffix]: {
-                            ...this.state[this.state.replSuffix],
+                        [replSuffix]: {
+                            ...this.state[replSuffix],
                             replWinsyncAgmts: config.items,
                         },
-                    }, this.loadCleanTasks());
+                    }, this.loadCleanTasks(replSuffix));
                 })
                 .fail(() => {
                     // Notification of failure (could only be server down)
@@ -692,30 +795,89 @@ export class Monitor extends React.Component {
                 });
     }
 
-    handleLoadMonitorReplication() {
-        const replSuffix = this.state.replSuffix;
-        if (replSuffix !== "") {
+    getAgmts(suffixList, idx) {
+        const new_idx = idx + 1;
+        if (new_idx > suffixList.length) {
+            this.setState({
+                replLoading: false,
+                disableTree: false,
+            });
+            return;
+        }
+
+        const suffix = suffixList[idx];
+        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "replication", "status", "--suffix=" + suffix];
+        log_cmd("gatherAllReplicaHosts", "Get replication hosts for repl report", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const config = JSON.parse(content);
+                    this.setState({
+                        [suffix]: {
+                            ...this.state[suffix],
+                            replAgmts: config.items,
+                            abortTasks: [],
+                            cleanTasks: [],
+                            replWinsyncAgmts: [],
+                        },
+                    }, () => { this.getAgmts(suffixList, new_idx) });
+                })
+                .fail(() => {
+                    // Notification of failure (could only be server down)
+                    this.setState({
+                        replLoading: false,
+                        disableTree: false,
+                    });
+                });
+    }
+
+    gatherAllReplicaHosts(treeViewItem, parentItem) {
+        if (treeViewItem.name !== "") {
+            this.setState({
+                replLoading: true,
+                activeItems: [treeViewItem, parentItem],
+                node_name: treeViewItem.id,
+                node_text: treeViewItem.name,
+                node_type: treeViewItem.type,
+                node_item: treeViewItem.item,
+            }, () => { this.getAgmts(this.state.replicatedSuffixes, 0) });
+        } else {
+            // We should enable it here because ReplMonitor never will be mounted
+            this.enableTree();
+        }
+    }
+
+    onHandleLoadMonitorReplication(treeViewItem, parentItem) {
+        if (treeViewItem.name !== "") {
             this.setState({
                 replLoading: true
             });
 
             // Now load the agmts
             const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-                "replication", "status", "--suffix=" + replSuffix];
-            log_cmd("handleLoadMonitorReplication", "Load replication agmts", cmd);
+                "replication", "status", "--suffix=" + treeViewItem.suffix];
+            log_cmd("onHandleLoadMonitorReplication", "Load replication suffix info", cmd);
             cockpit
                     .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
                         const config = JSON.parse(content);
                         this.setState({
-                            [replSuffix]: {
-                                ...this.state[replSuffix],
+                            [treeViewItem.suffix]: {
+                                ...this.state[treeViewItem.suffix],
                                 replAgmts: config.items,
                                 abortTasks: [],
                                 cleanTasks: [],
                                 replWinsyncAgmts: [],
                             },
-                        }, this.loadWinsyncAgmts());
+                            activeItems: [treeViewItem, parentItem],
+                            node_name: treeViewItem.id,
+                            node_text: treeViewItem.name,
+                            node_type: treeViewItem.type,
+                            node_item: treeViewItem.item,
+                            replSuffix: treeViewItem.suffix,
+                            disableTree: false,
+                        }, this.loadWinsyncAgmts(treeViewItem.suffix));
                     })
                     .fail(() => {
                         // Notification of failure (could only be server down)
@@ -729,48 +891,38 @@ export class Monitor extends React.Component {
         }
     }
 
-    reloadReplAgmts() {
+    reloadReplAgmts(replSuffix) {
         const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "replication", "status", "--suffix=" + this.state.replSuffix];
+            "replication", "status", "--suffix=" + replSuffix];
         log_cmd("reloadReplAgmts", "Load replication agmts", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
-                        [this.state.replSuffix]: {
-                            ...this.state[this.state.replSuffix],
+                        [replSuffix]: {
+                            ...this.state[replSuffix],
                             replAgmts: config.items,
                         },
                     });
                 });
     }
 
-    reloadReplWinsyncAgmts() {
+    reloadReplWinsyncAgmts(replSuffix) {
         const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "replication", "winsync-status", "--suffix=" + this.state.replSuffix];
+            "replication", "winsync-status", "--suffix=" + replSuffix];
         log_cmd("reloadReplWinsyncAgmts", "Load winysnc agmts", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const config = JSON.parse(content);
                     this.setState({
-                        [this.state.replSuffix]: {
-                            ...this.state[this.state.replSuffix],
+                        [replSuffix]: {
+                            ...this.state[replSuffix],
                             replWinsyncAgmts: config.items,
                         },
                     });
                 });
-    }
-
-    replSuffixChange(e) {
-        const value = e.target.value;
-        this.setState(() => (
-            {
-                replSuffix: value,
-                replLoading: true
-            }
-        ), this.handleLoadMonitorReplication);
     }
 
     enableTree () {
@@ -862,7 +1014,7 @@ export class Monitor extends React.Component {
                         logLocation={this.state.securitylogLocation}
                         enableTree={this.enableTree}
                     />;
-            } else if (this.state.node_name === "replication-monitor") {
+            } else if (this.state.node_type === "repl-mon") {
                 if (this.state.replLoading) {
                     monitor_element =
                         <div className="ds-margin-top-xlg ds-center">
@@ -874,57 +1026,74 @@ export class Monitor extends React.Component {
                             <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
-                    if (this.state.replicatedSuffixes.length < 1) {
+                    if (this.state.node_name === "sync-report") {
                         monitor_element =
                             <div>
-                                <p>There are no suffixes that have been configured for replication</p>
+                                <ReplMonitor
+                                    serverId={this.props.serverId}
+                                    data={this.state[this.state.replSuffix]}
+                                    credRows={this.state.credRows}
+                                    aliasRows={this.state.aliasRows}
+                                    addNotification={this.props.addNotification}
+                                    enableTree={this.enableTree}
+                                    reload={this.onHandleLoadMonitorReplication}
+                                    key={this.state.node_name}
+                                />
                             </div>;
-                    } else {
-                        const suffixList = this.state.replicatedSuffixes.map((suffix) =>
-                            <FormSelectOption key={suffix} value={suffix} label={suffix} />
-                        );
+                    } else if (this.state.node_item === "agmt-mon") {
                         monitor_element =
                             <div>
-                                <div className="ds-container">
-                                    <TextContent>
-                                        <Text component={TextVariants.h3}>
-                                            Replication Monitoring
-                                            <FontAwesomeIcon
-                                                size="lg"
-                                                className="ds-left-margin ds-refresh"
-                                                icon={faSyncAlt}
-                                                title="Refresh replication monitor"
-                                                onClick={this.handleLoadMonitorReplication}
-                                            />
-                                        </Text>
-                                    </TextContent>
-                                </div>
-                                <Grid className="ds-margin-top">
-                                    <GridItem span={5}>
-                                        <FormSelect
-                                            value={this.state.replSuffix}
-                                            onChange={(value, event) => {
-                                                this.replSuffixChange(event);
-                                            }}
-                                            aria-label="FormSelect Input"
-                                        >
-                                            {suffixList}
-                                        </FormSelect>
-                                    </GridItem>
-                                </Grid>
-                                <div className="ds-margin-top-xlg">
-                                    <ReplMonitor
-                                        suffix={this.state.replSuffix}
-                                        serverId={this.props.serverId}
-                                        data={this.state[this.state.replSuffix]}
-                                        addNotification={this.props.addNotification}
-                                        reloadAgmts={this.reloadReplAgmts}
-                                        reloadWinsyncAgmts={this.reloadReplWinsyncAgmts}
-                                        reloadConflicts={this.loadConflicts}
-                                        enableTree={this.enableTree}
-                                        key={this.state.replSuffix}
-                                    />
-                                </div>
+                                <ReplAgmtMonitor
+                                    suffix={this.state.replSuffix}
+                                    serverId={this.props.serverId}
+                                    data={this.state[this.state.replSuffix]}
+                                    addNotification={this.props.addNotification}
+                                    reloadAgmts={this.reloadReplAgmts}
+                                    enableTree={this.enableTree}
+                                    reload={this.onHandleLoadMonitorReplication}
+                                    key={this.state.node_name}
+                                />
+                            </div>;
+                    } else if (this.state.node_item === "winsync-mon") {
+                        monitor_element =
+                            <div>
+                                <ReplAgmtWinsync
+                                    suffix={this.state.replSuffix}
+                                    serverId={this.props.serverId}
+                                    data={this.state[this.state.replSuffix]}
+                                    addNotification={this.props.addNotification}
+                                    reloadAgmts={this.reloadReplWinsyncAgmts}
+                                    enableTree={this.enableTree}
+                                    reload={this.onHandleLoadMonitorReplication}
+                                    key={this.state.node_name}
+                                />
+                            </div>;
+                    } else if (this.state.node_item === "task-mon") {
+                        monitor_element =
+                            <div>
+                                <ReplMonTasks
+                                    suffix={this.state.replSuffix}
+                                    serverId={this.props.serverId}
+                                    data={this.state[this.state.replSuffix]}
+                                    addNotification={this.props.addNotification}
+                                    enableTree={this.enableTree}
+                                    reload={this.onHandleLoadMonitorReplication}
+                                    key={this.state.node_name}
+                                />
+                            </div>;
+                    } else if (this.state.node_item === "conflict-mon") {
+                        monitor_element =
+                            <div>
+                                <ReplMonConflict
+                                    suffix={this.state.replSuffix}
+                                    serverId={this.props.serverId}
+                                    data={this.state[this.state.replSuffix]}
+                                    addNotification={this.props.addNotification}
+                                    reloadConflicts={this.loadConflicts}
+                                    enableTree={this.enableTree}
+                                    reload={this.onHandleLoadMonitorReplication}
+                                    key={this.state.node_name}
+                                />
                             </div>;
                     }
                 }
