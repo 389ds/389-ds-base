@@ -2005,7 +2005,173 @@ class ReportConsumersTable extends React.Component {
         );
     }
 }
+
+class ReplDSRCTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            sortBy: {},
+            columns: [
+                { title: 'Name', transforms: [sortable] },
+                { title: 'Connection Data', transforms: [sortable] },
+                { title: 'Bind DN', transforms: [sortable] },
+                { title: 'Password', transforms: [sortable] },
+                { title: ''},
+            ],
+            rows: [],
+        };
+        this.onSort = this.onSort.bind(this);
+    }
+
+    componentDidMount() {
+        let columns = [...this.state.columns];
+        let rows = [];
+
+        for (const conn of this.props.rows) {
+            let cred = conn[4];
+            if (conn[4] === "*") {
+                const desc = <i>Prompt</i>;
+                cred = { title: desc };
+            } else if (!conn[4].startsWith("[")) {
+                cred = "**********";
+            }
+            rows.push({
+                cells: [
+                    conn[0], conn[1] + ":" + conn[2], conn[3], cred, { props: { textCenter: true }, title: this.props.getDeleteButton(conn[0]) }
+                ]
+            });
+        }
+        if (this.props.rows.length == 0) {
+            rows = [{ cells: ['There is no saved replication monitor connections'] }];
+            columns = [{ title: 'Replication Connections' }];
+        }
+        this.setState({
+            rows: rows,
+            columns: columns
+        });
+    }
+
+    onSort(_event, index, direction) {
+        let rows = [...this.state.rows];
+        const sortedRows = rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
+        });
+    }
+
+    render() {
+        const { columns, rows, sortBy } = this.state;
+
+        return (
+            <div className="ds-margin-top-xlg">
+                <Table
+                    aria-label="Sortable DSRC Table"
+                    sortBy={sortBy}
+                    onSort={this.onSort}
+                    cells={columns}
+                    rows={rows}
+                    variant={TableVariant.compact}
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+            </div>
+        );
+    }
+}
+
+class ReplDSRCAliasTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            sortBy: {},
+            columns: [
+                { title: 'Alias', transforms: [sortable] },
+                { title: 'Connection Data', transforms: [sortable] },
+                { title: ''}
+            ],
+            rows: [],
+        };
+        this.onSort = this.onSort.bind(this);
+    }
+
+    componentDidMount() {
+        let columns = [...this.state.columns];
+        let rows = [];
+
+        for (const alias of this.props.rows) {
+            rows.push({
+                cells: [
+                    alias[0], alias[1] + ":" + alias[2], { props: { textCenter: true }, title: this.props.getDeleteButton(alias[0]) }
+                ]
+            });
+        }
+        if (this.props.rows.length == 0) {
+            rows = [{ cells: ['There are no saved replication monitor aliases'] }];
+            columns = [{ title: 'Replication Monitoring Aliases' }];
+        }
+        this.setState({
+            rows: rows,
+            columns: columns
+        });
+    }
+
+    onSort(_event, index, direction) {
+        let rows = [...this.state.rows];
+        const sortedRows = rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
+        });
+    }
+
+    render() {
+        const { columns, rows, sortBy } = this.state;
+
+        return (
+            <div className="ds-margin-top-xlg">
+                <Table
+                    aria-label="Sortable DSRC Table"
+                    sortBy={sortBy}
+                    onSort={this.onSort}
+                    cells={columns}
+                    rows={rows}
+                    variant={TableVariant.compact}
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+            </div>
+        );
+    }
+}
+
+
 // Proptypes and defaults
+ReplDSRCAliasTable.defaultProps = {
+    rows: PropTypes.array
+};
+
+ReplDSRCAliasTable.defaultProps = {
+    rows: []
+};
+
+ReplDSRCTable.defaultProps = {
+    rows: PropTypes.array
+};
+
+ReplDSRCTable.defaultProps = {
+    rows: []
+};
 
 AgmtTable.propTypes = {
     agmts: PropTypes.array,
@@ -2124,5 +2290,7 @@ export {
     ReportAliasesTable,
     ReportConsumersTable,
     ReportSingleTable,
-    DiskTable
+    DiskTable,
+    ReplDSRCTable,
+    ReplDSRCAliasTable,
 };
