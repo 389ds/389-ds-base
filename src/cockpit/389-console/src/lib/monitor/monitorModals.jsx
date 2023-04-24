@@ -20,6 +20,7 @@ import {
 import {
     CopyIcon,
 } from '@patternfly/react-icons';
+import faSyncAlt from '@fortawesome/free-solid-svg-icons';
 import PropTypes from "prop-types";
 import { get_date_string } from "../tools.jsx";
 import { ReportSingleTable, ReportConsumersTable } from "./monitorTables.jsx";
@@ -413,7 +414,7 @@ class ReportCredentialsModal extends React.Component {
                         key="save"
                         variant="primary"
                         onClick={newEntry ? addConfig : editConfig}
-                        isDisabled={hostname == "" || binddn == "" || bindpw == ""}
+                        isDisabled={hostname === "" || binddn === "" || bindpw === ""}
                     >
                         Save
                     </Button>,
@@ -498,6 +499,158 @@ class ReportCredentialsModal extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid title="Input the password interactively">
+                                <GridItem className="ds-label" span={3}>
+                                    Interractive Input
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <Checkbox
+                                        isChecked={pwInputInterractive}
+                                        id="pwInputInterractive"
+                                        onChange={(checked, e) => {
+                                            handleFieldChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                        </Form>
+                    </GridItem>
+                </Grid>
+            </Modal>
+        );
+    }
+}
+
+class ReportConnectionModal extends React.Component {
+    render() {
+        const {
+            handleFieldChange,
+            showModal,
+            closeHandler,
+            name,
+            hostname,
+            port,
+            binddn,
+            pwInputInterractive,
+            bindpw,
+            addConn,
+            onMinusConfig,
+            onPlusConfig,
+            onConfigChange,
+        } = this.props;
+
+        return (
+            <Modal
+                variant={ModalVariant.medium}
+                title="Add Replica Connection"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="save"
+                        variant="primary"
+                        onClick={addConn}
+                        isDisabled={name ==="" || hostname === "" || port === "" || binddn === "" || bindpw === ""}
+                    >
+                        Save
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Grid>
+                    <GridItem span={12}>
+                        <Form isHorizontal autoComplete="off">
+                            <Grid>
+                                <GridItem className="ds-label" span={3}>
+                                    Connection Name
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={name}
+                                        type="text"
+                                        id="connName"
+                                        aria-describedby="connName"
+                                        name="connName"
+                                        onChange={(str, e) => {
+                                            handleFieldChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid>
+                                <GridItem className="ds-label" span={3}>
+                                    Hostname
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={hostname}
+                                        type="text"
+                                        id="connHostname"
+                                        aria-describedby="connHostname"
+                                        name="connHostname"
+                                        onChange={(str, e) => {
+                                            handleFieldChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid>
+                                <GridItem className="ds-label" span={3}>
+                                    Port
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <NumberInput
+                                        value={port}
+                                        min={1}
+                                        max={65534}
+                                        onMinus={() => { onMinusConfig("connPort") }}
+                                        onChange={(e) => { onConfigChange(e, "connPort", 1) }}
+                                        onPlus={() => { onPlusConfig("connPort") }}
+                                        inputName="input"
+                                        inputAriaLabel="number input"
+                                        minusBtnAriaLabel="minus"
+                                        plusBtnAriaLabel="plus"
+                                        widthChars={8}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title="Bind DN for the specified instances">
+                                <GridItem className="ds-label" span={3}>
+                                    Bind DN
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={binddn}
+                                        type="text"
+                                        id="connBindDN"
+                                        aria-describedby="connBindDN"
+                                        name="connBindDN"
+                                        onChange={(str, e) => {
+                                            handleFieldChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title="Bind password for the specified instance.  You can also speciy a password file but the filename needs to be inside of brackets [/PATH/FILE]">
+                                <GridItem className="ds-label" span={3}>
+                                    Password
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={bindpw}
+                                        type="password"
+                                        id="connCred"
+                                        aria-describedby="connCred"
+                                        name="connCred"
+                                        isDisabled={pwInputInterractive}
+                                        onChange={(str, e) => {
+                                            handleFieldChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid title="Input the password interactively, stores '*' as the password value in .dsrc">
                                 <GridItem className="ds-label" span={3}>
                                     Interractive Input
                                 </GridItem>
@@ -862,7 +1015,10 @@ class FullReportContent extends React.Component {
                     }
 
                     supplierData = supData.map(replica => (
-                        <Grid key={replica.replica_root + replica.replica_id}>
+                        <Grid
+                            key={replica.replica_root + replica.replica_id}
+                            className="ds-margin-top-lg"
+                        >
                             <GridItem span={2}>
                                 Replica Root
                             </GridItem>
@@ -1002,6 +1158,29 @@ ReportCredentialsModal.defaultProps = {
     newEntry: false,
 };
 
+ReportConnectionModal.propTypes = {
+    showModal: PropTypes.bool,
+    closeHandler: PropTypes.func,
+    handleFieldChange: PropTypes.func,
+    name: PropTypes.string,
+    hostname: PropTypes.string,
+    port: PropTypes.number,
+    binddn: PropTypes.string,
+    bindpw: PropTypes.string,
+    pwInputInterractive: PropTypes.bool,
+    addConn: PropTypes.func,
+};
+
+ReportConnectionModal.defaultProps = {
+    showModal: false,
+    name: "",
+    hostname: "",
+    port: 636,
+    binddn: "",
+    bindpw: "",
+    pwInputInterractive: false,
+};
+
 ReportAliasesModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
@@ -1058,6 +1237,7 @@ export {
     AgmtDetailsModal,
     ConflictCompareModal,
     ReportCredentialsModal,
+    ReportConnectionModal,
     ReportAliasesModal,
     ReportLoginModal,
     FullReportContent

@@ -11,11 +11,37 @@ import pytest
 import os
 from os.path import expanduser
 from lib389.cli_base import FakeArgs
-from lib389.cli_ctl.dsrc import create_dsrc, modify_dsrc, delete_dsrc, display_dsrc
+from lib389.cli_ctl.dsrc import create_dsrc, modify_dsrc, delete_dsrc, display_dsrc, replmon_dsrc
 from lib389._constants import DEFAULT_SUFFIX, DN_DM
 from lib389.topologies import topology_st as topo
 
 log = logging.getLogger(__name__)
+
+
+def get_fake_args():
+    # Setup our args
+    args = FakeArgs()
+    args.basedn = DEFAULT_SUFFIX
+    args.groups_rdn = None
+    args.people_rdn = None
+    args.binddn = DN_DM
+    args.json = None
+    args.uri = None
+    args.saslmech = None
+    args.tls_cacertdir = None
+    args.tls_cert = None
+    args.tls_key = None
+    args.tls_reqcert = None
+    args.starttls = None
+    args.cancel_starttls = None
+    args.pwdfile = None
+    args.do_it = True
+    args.add_conn = None
+    args.del_conn = None
+    args.add_alias = None
+    args.del_alias = None
+
+    return args
 
 
 @pytest.fixture(scope="function")
@@ -65,22 +91,7 @@ def test_dsrc(topo, setup):
     different_suffix = "o=different"
 
     # Setup our args
-    args = FakeArgs()
-    args.basedn = DEFAULT_SUFFIX
-    args.groups_rdn = None
-    args.people_rdn = None
-    args.binddn = DN_DM
-    args.json = None
-    args.uri = None
-    args.saslmech = None
-    args.tls_cacertdir = None
-    args.tls_cert = None
-    args.tls_key = None
-    args.tls_reqcert = None
-    args.starttls = None
-    args.cancel_starttls = None
-    args.pwdfile = None
-    args.do_it = True
+    args = get_fake_args()
 
     # Create a dsrc configuration entry
     create_dsrc(inst, log, args)
@@ -136,6 +147,113 @@ def test_dsrc(topo, setup):
     # Make sure display fails
     with pytest.raises(ValueError):
         display_dsrc(inst, log, args)
+
+
+def test_dsrc_repl_mon(topo, setup):
+    """Test "dsctl dsrc repl-mon" command, add & remove creds and aliases
+
+    :id: 33007d01-f11c-456b-bb16-fcd7920c9fc8
+    :setup: Standalone Instance
+    :steps:
+        1. Add connection
+        2. Add same connection - should fail
+        3. Delete connection
+        4. Delete same connection - should fail
+        5. Add alias
+        6. Add same alias - should fail
+        7. Delete alias
+        8. Delete same alias again 0 should fail
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+    """
+
+    inst = topo.standalone
+    args = get_fake_args()
+    create_dsrc(inst, log, args)
+
+    # Add replica connection
+    assert not topo.logcap.contains("repl-monitor-connections")
+    repl_conn = "replica_1:localhost:5555:cn=directory manager:password"
+    args.add_conn = [repl_conn,]
+    replmon_dsrc(inst, log, args)
+    display_dsrc(inst, topo.logcap.log, args)
+    assert  topo.logcap.contains("repl-monitor-connections")
+    assert  topo.logcap.contains("replica_1 = localhost:5555:cn=directory manager:password")
+    topo.logcap.flush()
+    args.add_conn = None
+
+    # Add duplicate replica connection
+    args.add_conn = [repl_conn, ]
+    try:
+        replmon_dsrc(inst, log, args)
+        assert False
+    except ValueError:
+        pass
+    args.add_conn = None
+
+    # Delete replica connection
+    args.del_conn = ["replica_1"]
+    replmon_dsrc(inst, log, args)
+    display_dsrc(inst, topo.logcap.log, args)
+    assert not topo.logcap.contains("replica_1 = localhost:5555:cn=directory manager:password")
+    assert not topo.logcap.contains("repl-monitor-connections")
+    topo.logcap.flush()
+    args.del_conn = None
+
+    # Delete replica connection (already deleted)
+    args.del_conn = ["replica_1"]
+    try:
+        replmon_dsrc(inst, log, args)
+        assert False
+    except ValueError:
+        pass
+    args.del_conn = None
+
+    # Add Alias
+    assert not topo.logcap.contains("repl-monitor-aliases")
+    repl_alias = "my_alias:localhost:4444"
+    args.add_alias = [repl_alias,]
+    replmon_dsrc(inst, log, args)
+    display_dsrc(inst, topo.logcap.log, args)
+    assert topo.logcap.contains("repl-monitor-aliases")
+    assert topo.logcap.contains("my_alias = localhost:4444")
+    topo.logcap.flush()
+    args.add_alias = None
+
+    # Add Duplicate Alias
+    args.add_alias = [repl_alias,]
+    try:
+        replmon_dsrc(inst, log, args)
+        assert False
+    except ValueError:
+        pass
+    args.add_alias = None
+
+    # Delete Alias
+    args.del_alias = ["my_alias",]
+    replmon_dsrc(inst, log, args)
+    display_dsrc(inst, topo.logcap.log, args)
+    assert not topo.logcap.contains("my_alias = localhost:4444")
+    assert not topo.logcap.contains("repl-monitor-aliases")
+    topo.logcap.flush()
+    args.del_alias = None
+
+    # Delete alias (already deleted)
+    args.del_alias = ["my_alias", ]
+    try:
+        replmon_dsrc(inst, log, args)
+        assert False
+    except ValueError:
+        pass
+    args.del_alias = None
 
 
 if __name__ == '__main__':

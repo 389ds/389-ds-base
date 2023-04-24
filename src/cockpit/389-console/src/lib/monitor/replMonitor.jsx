@@ -2,40 +2,38 @@ import React from "react";
 import cockpit from "cockpit";
 import { log_cmd } from "../tools.jsx";
 import PropTypes from "prop-types";
-import { DoubleConfirmModal } from "../notifications.jsx";
 import {
     ReportCredentialsTable,
     ReportAliasesTable,
-    AgmtTable,
-    WinsyncAgmtTable,
-    CleanALLRUVTable,
-    AbortCleanALLRUVTable,
-    ConflictTable,
-    GlueTable,
+    ReplDSRCTable,
+    ReplDSRCAliasTable,
 } from "./monitorTables.jsx";
 import {
     FullReportContent,
     ReportLoginModal,
     ReportCredentialsModal,
+    ReportConnectionModal,
     ReportAliasesModal,
-    TaskLogModal,
     AgmtDetailsModal,
-    ConflictCompareModal,
 } from "./monitorModals.jsx";
 import {
     Button,
     ExpandableSection,
+    Spinner,
     Tab,
     Tabs,
     TabTitleText,
     Text,
     TextContent,
     TextVariants,
-    Tooltip,
 } from "@patternfly/react-core";
 import {
     SortByDirection,
 } from '@patternfly/react-table';
+import TrashAltIcon from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSyncAlt } from '@fortawesome/free-solid-svg-icons';
+import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
 
@@ -43,10 +41,8 @@ export class ReplMonitor extends React.Component {
     constructor (props) {
         super(props);
         this.state = {
-            activeTabKey: 0,
-            activeTabReplKey: 0,
-            activeTabTaskKey: 0,
-            activeTabConflictKey: 0,
+            activeKey: 0,
+            activeConfigKey: 0,
             logData: "",
             showBindModal: false,
             showLogModal: false,
@@ -54,12 +50,8 @@ export class ReplMonitor extends React.Component {
             showReportLoginModal: false,
             showCredentialsModal: false,
             showAliasesModal: false,
-            showCompareModal: false,
-            showConfirmDeleteGlue: false,
-            showConfirmConvertGlue: false,
-            showConfirmSwapConflict: false,
-            showConfirmConvertConflict: false,
-            showConfirmDeleteConflict: false,
+            loadingDSRC: false,
+
             modalSpinning: false,
             modalChecked: false,
             lagAgmts: [],
@@ -67,9 +59,6 @@ export class ReplMonitor extends React.Component {
             aliasData: [],
             reportData: [],
             agmt: "",
-            convertRDN: "",
-            glueEntry: "",
-            conflictEntry: "",
             binddn: "cn=Directory Manager",
             bindpw: "",
             errObj: {},
@@ -83,6 +72,16 @@ export class ReplMonitor extends React.Component {
             doFullReportCleanup: false,
             reportRefreshing: false,
             reportLoading: false,
+            // dsrc
+            credRows: [...this.props.credRows],
+            aliasRows: [...this.props.aliasRows],
+            showAddDSRCCredModal: false,
+            showAddDSRCAliasModal: false,
+            showConfirmDeleteDSRCCred: false,
+            showConfirmDeleteDSRCAlias: false,
+            showConfirmOverwriteDSRC: false,
+            deleteConn: "",
+            deleteAlias: "",
 
             credsInstanceName: "",
             disableBinddn: false,
@@ -105,10 +104,6 @@ export class ReplMonitor extends React.Component {
             credSortBy: {},
             aliasesList: [],
             aliasSortBy: {},
-
-            deleteConflictRadio: true,
-            swapConflictRadio: false,
-            convertConflictRadio: false,
         };
 
         this.onToggle = (isExpanded) => {
@@ -117,42 +112,12 @@ export class ReplMonitor extends React.Component {
             });
         };
 
-        // Toggle currently active tab
-        this.handleNavSelect = (event, tabIndex) => {
-            this.setState({
-                activeTabKey: tabIndex
-            });
-        };
-        // Toggle currently active tab
-        this.handleNavTaskSelect = (event, tabIndex) => {
-            this.setState({
-                activeTabTaskKey: tabIndex
-            });
-        };
-        // Toggle currently active tab
-        this.handleNavConflictSelect = (event, tabIndex) => {
-            this.setState({
-                activeTabConflictKey: tabIndex
-            });
-        };
-        // Toggle currently active tab
-        this.handleNavReplSelect = (event, tabIndex) => {
-            this.setState({
-                activeTabReplKey: tabIndex
-            });
-        };
-
         this.maxValue = 65534;
 
         this.handleFieldChange = this.handleFieldChange.bind(this);
-        this.handleReportNavSelect = this.handleReportNavSelect.bind(this);
-        this.pokeAgmt = this.pokeAgmt.bind(this);
-        this.pokeWinsyncAgmt = this.pokeWinsyncAgmt.bind(this);
+        this.handleNavConfigSelect = this.handleNavConfigSelect.bind(this);
         this.showAgmtModalRemote = this.showAgmtModalRemote.bind(this);
         this.closeAgmtModal = this.closeAgmtModal.bind(this);
-        this.viewCleanLog = this.viewCleanLog.bind(this);
-        this.viewAbortLog = this.viewAbortLog.bind(this);
-        this.closeLogModal = this.closeLogModal.bind(this);
         this.closeReportLoginModal = this.closeReportLoginModal.bind(this);
 
         // Replication report functions
@@ -164,7 +129,7 @@ export class ReplMonitor extends React.Component {
         this.showEditCredsModal = this.showEditCredsModal.bind(this);
         this.closeCredsModal = this.closeCredsModal.bind(this);
         this.onCredSort = this.onCredSort.bind(this);
-
+        this.handleNavSelect = this.handleNavSelect.bind(this);
         this.addAliases = this.addAliases.bind(this);
         this.editAliases = this.editAliases.bind(this);
         this.removeAliases = this.removeAliases.bind(this);
@@ -179,30 +144,29 @@ export class ReplMonitor extends React.Component {
         this.closeReportModal = this.closeReportModal.bind(this);
         this.refreshFullReport = this.refreshFullReport.bind(this);
 
-        // Conflict entry functions
-        this.convertConflict = this.convertConflict.bind(this);
-        this.swapConflict = this.swapConflict.bind(this);
-        this.deleteConflict = this.deleteConflict.bind(this);
-        this.resolveConflict = this.resolveConflict.bind(this);
-        this.convertGlue = this.convertGlue.bind(this);
-        this.deleteGlue = this.deleteGlue.bind(this);
-        this.closeCompareModal = this.closeCompareModal.bind(this);
-        this.confirmDeleteGlue = this.confirmDeleteGlue.bind(this);
-        this.confirmConvertGlue = this.confirmConvertGlue.bind(this);
-        this.closeConfirmDeleteGlue = this.closeConfirmDeleteGlue.bind(this);
-        this.closeConfirmConvertGlue = this.closeConfirmConvertGlue.bind(this);
-        this.handleRadioChange = this.handleRadioChange.bind(this);
-        this.handleChange = this.handleChange.bind(this);
-        this.handleConflictConversion = this.handleConflictConversion.bind(this);
-        this.confirmDeleteConflict = this.confirmDeleteConflict.bind(this);
-        this.confirmConvertConflict = this.confirmConvertConflict.bind(this);
-        this.confirmSwapConflict = this.confirmSwapConflict.bind(this);
-        this.closeConfirmDeleteConflict = this.closeConfirmDeleteConflict.bind(this);
-        this.closeConfirmConvertConflict = this.closeConfirmConvertConflict.bind(this);
-        this.closeConfirmSwapConflict = this.closeConfirmSwapConflict.bind(this);
         this.onMinusConfig = this.onMinusConfig.bind(this);
         this.onConfigChange = this.onConfigChange.bind(this);
         this.onPlusConfig = this.onPlusConfig.bind(this);
+
+        // dsrc
+        this.loadDSRC = this.loadDSRC.bind(this);
+        this.showAddDSRCCred = this.showAddDSRCCred.bind(this);
+        this.showAddDSRCAlias = this.showAddDSRCAlias.bind(this);
+        this.closeAddDSRCCred = this.closeAddDSRCCred.bind(this);
+        this.closeAddDSRCAlias = this.closeAddDSRCAlias.bind(this);
+        this.addDSRCCred = this.addDSRCCred.bind(this);
+        this.addDSRCAlias = this.addDSRCAlias.bind(this);
+        this.showConfirmDeleteDSRCCred = this.showConfirmDeleteDSRCCred.bind(this);
+        this.showConfirmDeleteDSRCAlias = this.showConfirmDeleteDSRCAlias.bind(this);
+        this.showConfirmOverwriteDSRC = this.showConfirmOverwriteDSRC.bind(this);
+        this.closeConfirmDeleteDSRCCred = this.closeConfirmDeleteDSRCCred.bind(this);
+        this.closeConfirmDeleteDSRCAlias = this.closeConfirmDeleteDSRCAlias.bind(this);
+        this.closeConfirmOverwriteDSRC = this.closeConfirmOverwriteDSRC.bind(this);
+        this.deleteDSRCCred = this.deleteDSRCCred.bind(this);
+        this.deleteDSRCAlias = this.deleteDSRCAlias.bind(this);
+        this.getAliasDeleteButton = this.getAliasDeleteButton.bind(this);
+        this.getCredDeleteButton = this.getCredDeleteButton.bind(this);
+        this.overwriteDSRC = this.overwriteDSRC.bind(this);
     }
 
     componentDidUpdate(prevProps, prevState) {
@@ -231,6 +195,55 @@ export class ReplMonitor extends React.Component {
         if (this.timer) window.clearTimeout(this.timer);
     }
 
+    loadDSRC() {
+        // Load dsrc replication report configuration
+        this.setState({
+            loadingDSRC: true,
+        });
+        const dsrc_cmd = ["dsctl", "-j", this.props.serverId, "dsrc", "display"];
+        log_cmd("loadDSRC", "Check for replication monitor configurations in the .dsrc file", dsrc_cmd);
+        cockpit
+                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .done(dsrc_content => {
+                    const content = JSON.parse(dsrc_content);
+                    let credRows = [];
+                    let aliasRows = [];
+                    if ("repl-monitor-connections" in content) {
+                        const report_config = content["repl-monitor-connections"];
+                        for (const [connection, value] of Object.entries(report_config)) {
+                            const conn = connection + ":" + value;
+                            credRows.push(conn.split(':'));
+                            // [repl-monitor-connections]
+                            // connection1 = server1.example.com:389:cn=Directory Manager:*
+                        }
+                    }
+                    if ("repl-monitor-aliases" in content) {
+                        const report_config = content["repl-monitor-aliases"];
+                        for (const [alias_name, value] of Object.entries(report_config)) {
+                            const alias = alias_name + ":" + value;
+                            aliasRows.push(alias.split(':'));
+                            // [repl-monitor-aliases]
+                            // M1 = server1.example.com:38901
+                        }
+                    }
+                    this.setState({
+                        credRows,
+                        aliasRows,
+                        loadingDSRC: false,
+                    });
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        `Failed to get .dsrc information: ${errMsg.desc}`
+                    );
+                    this.setState({
+                        loadingDSRC: false,
+                    });
+                });
+    }
+
     componentDidMount() {
         if (this.state.initCreds) {
             const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -251,19 +264,21 @@ export class ReplMonitor extends React.Component {
                                 }
                             ]
                         }));
-                        for (const agmt of this.props.data.replAgmts) {
-                            this.setState(prevState => ({
-                                credentialsList: [
-                                    ...prevState.credentialsList,
-                                    {
-                                        connData: `${agmt.replica}`,
-                                        credsBinddn: config.attrs["nsslapd-rootdn"][0],
-                                        credsBindpw: "",
-                                        pwInputInterractive: true
-                                    }
-                                ],
-                                initCreds: false
-                            }));
+                        if ('replAgmts' in this.props.data) {
+                            for (const agmt of this.props.data.replAgmts) {
+                                this.setState(prevState => ({
+                                    credentialsList: [
+                                        ...prevState.credentialsList,
+                                        {
+                                            connData: `${agmt.replica}`,
+                                            credsBinddn: config.attrs["nsslapd-rootdn"][0],
+                                            credsBindpw: "",
+                                            pwInputInterractive: true
+                                        }
+                                    ],
+                                    initCreds: false
+                                }));
+                            }
                         }
                     })
                     .fail(err => {
@@ -296,22 +311,6 @@ export class ReplMonitor extends React.Component {
         });
     }
 
-    handleRadioChange(value, evt) {
-        // Handle the radio button changes
-        const radioID = {
-            swapConflictRadio: false,
-            deleteConflictRadio: false,
-            convertConflictRadio: false,
-        };
-
-        radioID[evt.target.id] = value;
-        this.setState({
-            swapConflictRadio: radioID.swapConflictRadio,
-            deleteConflictRadio: radioID.deleteConflictRadio,
-            convertConflictRadio: radioID.convertConflictRadio,
-        });
-    }
-
     handleChange(value, evt) {
         // PF 4 version
         if (evt.target.type === 'number') {
@@ -341,370 +340,50 @@ export class ReplMonitor extends React.Component {
         });
     }
 
-    convertConflict () {
-        this.setState({ modalSpinning: true });
-        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "repl-conflict", "convert", this.state.conflictEntry, "--new-rdn=" + this.state.convertRDN];
-        log_cmd("convertConflict", "convert conflict entry", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.props.reloadConflicts();
-                    this.props.addNotification(
-                        "success",
-                        `Replication conflict entry was converted into a valid entry`
-                    );
-                    this.setState({
-                        showCompareModal: false,
-                    });
-                    this.closeConfirmConvertConflict();
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to convert conflict entry entry: ${this.state.conflictEntry} - ${errMsg.desc}`
-                    );
-                    this.closeConfirmConvertConflict();
-                });
-    }
-
-    swapConflict () {
-        this.setState({ modalSpinning: true });
-        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "repl-conflict", "swap", this.state.conflictEntry];
-        log_cmd("swapConflict", "swap in conflict entry", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.props.reloadConflicts();
-                    this.props.addNotification(
-                        "success",
-                        `Replication Conflict Entry is now the Valid Entry`
-                    );
-                    this.setState({
-                        showCompareModal: false,
-                    });
-                    this.closeConfirmSwapConflict();
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to swap in conflict entry: ${this.state.conflictEntry} - ${errMsg.desc}`
-                    );
-                    this.closeConfirmSwapConflict();
-                });
-    }
-
-    deleteConflict () {
-        this.setState({ modalSpinning: true });
-        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "repl-conflict", "delete", this.state.conflictEntry];
-
-        log_cmd("deleteConflict", "Delete conflict entry", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.props.reloadConflicts();
-                    this.props.addNotification(
-                        "success",
-                        `Replication conflict entry was deleted`
-                    );
-                    this.setState({
-                        showCompareModal: false,
-                    });
-                    this.closeConfirmConvertConflict();
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to delete conflict entry: ${this.state.conflictEntry} - ${errMsg.desc}`
-                    );
-                    this.closeConfirmDeleteConflict();
-                });
-    }
-
-    resolveConflict (dn) {
-        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "repl-conflict", "compare", dn];
-        log_cmd("resolveConflict", "Compare conflict entry with valid entry", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    const entries = JSON.parse(content);
-                    this.setState({
-                        cmpConflictEntry: entries.items[0],
-                        cmpValidEntry: entries.items[1],
-                        showCompareModal: true,
-                        deleteConflictRadio: true,
-                        swapConflictRadio: false,
-                        convertConflictRadio: false,
-                        convertRDN: "",
-                    });
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to get conflict entries: ${dn} - ${errMsg.desc}`
-                    );
-                });
-    }
-
-    confirmConvertGlue (dn) {
+    handleNavSelect(event, tabIndex) {
         this.setState({
-            showConfirmConvertGlue: true,
-            glueEntry: dn,
-            modalChecked: false,
-            modalSpinning: false,
+            activeKey: tabIndex
         });
     }
 
-    closeConfirmConvertGlue () {
+    handleNavConfigSelect(event, tabIndex) {
         this.setState({
-            showConfirmConvertGlue: false,
-            glueEntry: "",
-            modalChecked: false,
-            modalSpinning: false,
+            activeConfigKey: tabIndex
         });
     }
 
-    convertGlue () {
-        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "repl-conflict", "convert-glue", this.state.glueEntry];
-        log_cmd("convertGlue", "Convert glue entry to normal entry", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.props.reloadConflicts();
-                    this.props.addNotification(
-                        "success",
-                        `Replication glue entry was converted`
-                    );
-                    this.closeConfirmConvertGlue();
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to convert glue entry: ${this.state.glueEntry} - ${errMsg.desc}`
-                    );
-                    this.closeConfirmConvertGlue();
-                });
+    getCredDeleteButton(name) {
+        return (
+            <a>
+                <TrashAltIcon
+                    className="ds-center"
+                    onClick={() => {
+                        this.showConfirmDeleteDSRCCred(name);
+                    }}
+                    title="Delete replica connection"
+                />
+            </a>
+        );
     }
 
-    confirmDeleteGlue (dn) {
-        this.setState({
-            showConfirmDeleteGlue: true,
-            glueEntry: dn,
-            modalChecked: false,
-            modalSpinning: false,
-        });
-    }
-
-    deleteGlue () {
-        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "repl-conflict", "delete-glue", this.state.glueEntry];
-        log_cmd("deleteGlue", "Delete glue entry", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.props.reloadConflicts();
-                    this.props.addNotification(
-                        "success",
-                        `Replication glue entry was deleted`
-                    );
-                    this.closeConfirmDeleteGlue();
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to delete glue entry: ${this.state.glueEntry} - ${errMsg.desc}`
-                    );
-                    this.closeConfirmDeleteGlue();
-                });
-    }
-
-    closeConfirmDeleteGlue () {
-        this.setState({
-            showConfirmDeleteGlue: false,
-            glueEntry: "",
-            modalChecked: false,
-            modalSpinning: false,
-        });
-    }
-
-    handleConflictConversion (dn) {
-        // Follow the radio button and perform the conflict resolution
-        if (this.state.deleteConflictRadio) {
-            this.confirmDeleteConflict(dn);
-        } else if (this.state.swapConflictRadio) {
-            this.confirmSwapConflict(dn);
-        } else {
-            this.confirmConvertConflict(dn);
-        }
-    }
-
-    confirmConvertConflict (dn) {
-        if (this.state.convertRDN == "") {
-            this.props.addNotification(
-                "error",
-                `You must provide a RDN if you want to convert the Conflict Entry`
-            );
-            return;
-        }
-        this.setState({
-            showConfirmConvertConflict: true,
-            conflictEntry: dn,
-            modalChecked: false,
-            modalSpinning: false,
-        });
-    }
-
-    closeConfirmConvertConflict () {
-        this.setState({
-            showConfirmConvertConflict: false,
-            conflictEntry: "",
-            modalChecked: false,
-            modalSpinning: false,
-            convertRDN: "",
-        });
-    }
-
-    confirmSwapConflict (dn) {
-        this.setState({
-            showConfirmSwapConflict: true,
-            conflictEntry: dn,
-            modalChecked: false,
-            modalSpinning: false,
-        });
-    }
-
-    closeConfirmSwapConflict () {
-        this.setState({
-            showConfirmSwapConflict: false,
-            conflictEntry: "",
-            modalChecked: false,
-            modalSpinning: false,
-        });
-    }
-
-    confirmDeleteConflict (dn) {
-        this.setState({
-            showConfirmDeleteConflict: true,
-            conflictEntry: dn,
-            modalChecked: false,
-            modalSpinning: false,
-        });
-    }
-
-    closeConfirmDeleteConflict () {
-        this.setState({
-            showConfirmDeleteConflict: false,
-            conflictEntry: "",
-            modalChecked: false,
-            modalSpinning: false,
-        });
-    }
-
-    closeCompareModal () {
-        this.setState({
-            showCompareModal: false,
-            modalChecked: false,
-            modalSpinning: false,
-        });
-    }
-
-    handleNavSelect(key) {
-        this.setState({
-            activeKey: key
-        });
-    }
-
-    handleReportNavSelect(key) {
-        this.setState({
-            activeReportKey: key
-        });
+    getAliasDeleteButton(name) {
+        return (
+            <a>
+                <TrashAltIcon
+                    className="ds-center"
+                    onClick={() => {
+                        this.showConfirmDeleteDSRCAlias(name);
+                    }}
+                    title="Delete replica alias"
+                />
+            </a>
+        );
     }
 
     closeLogModal() {
         this.setState({
             showLogModal: false
         });
-    }
-
-    viewCleanLog (name) {
-        let logData = "";
-        for (const task of this.props.data.cleanTasks) {
-            if (task.attrs.cn[0] == name) {
-                logData = task.attrs.nstasklog[0];
-                break;
-            }
-        }
-        this.setState({
-            showLogModal: true,
-            logData: logData
-        });
-    }
-
-    viewAbortLog (name) {
-        let logData = "";
-        for (const task of this.props.data.abortTasks) {
-            if (task.attrs.cn[0] == name) {
-                logData = task.attrs.nstasklog[0];
-                break;
-            }
-        }
-        this.setState({
-            showLogModal: true,
-            logData: logData
-        });
-    }
-
-    pokeAgmt (evt) {
-        const agmt_name = evt.target.id;
-        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "repl-agmt", "poke", "--suffix=" + this.props.suffix, agmt_name];
-        log_cmd("pokeAgmt", "Awaken the agreement", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.props.addNotification(
-                        "success",
-                        `Replication agreement has been poked`
-                    );
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to poke replication agreement ${agmt_name} - ${errMsg.desc}`
-                    );
-                });
-    }
-
-    pokeWinsyncAgmt(name) {
-        const cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "repl-winsync-agmt", "poke", "--suffix=" + this.props.suffix, name];
-        log_cmd("pokeAgmt", "Awaken the agreement", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    this.props.addNotification(
-                        "success",
-                        `Replication winsync agreement has been poked`
-                    );
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to poke replication winsync agreement ${name} - ${errMsg.desc}`
-                    );
-                });
     }
 
     showAgmtModalRemote (supplierName, replicaName, agmtName) {
@@ -983,6 +662,135 @@ export class ReplMonitor extends React.Component {
         });
     }
 
+    showConfirmOverwriteDSRC() {
+        this.setState({
+            showConfirmOverwriteDSRC: true
+        });
+    }
+
+    closeConfirmOverwriteDSRC() {
+        this.setState({
+            showConfirmOverwriteDSRC: false
+        });
+    }
+
+    overwriteDSRC () {
+        // Get current DSRC Settings
+        const dsrc_cmd = ["dsctl", "-j", this.props.serverId, "dsrc", "display"];
+        log_cmd("overwriteDSRC", "gather conns and aliases from .dsrc file", dsrc_cmd);
+        cockpit
+                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .done(dsrc_content => {
+                    const content = JSON.parse(dsrc_content);
+                    let dsrcCreds = [];
+                    let dsrcAliases = [];
+                    let deleteCmd = ["dsctl", "-j", this.props.serverId, "dsrc", "repl-mon"];
+                    let addCmd = ["dsctl", "-j", this.props.serverId, "dsrc", "repl-mon"];
+
+                    // Gather the names of the replica connections and aliases
+                    if ("repl-monitor-connections" in content) {
+                        const report_config = content["repl-monitor-connections"];
+                        for (const [cred, value] of Object.entries(report_config)) {
+                            dsrcCreds.push(cred);
+                        }
+                    }
+                    if ("repl-monitor-aliases" in content) {
+                        const report_config = content["repl-monitor-aliases"];
+                        for (const [alias, value] of Object.entries(report_config)) {
+                            dsrcAliases.push(alias);
+                        }
+                    }
+
+                    // Remove existing replica connections and aliases
+                    if (this.state.credentialsList.length > 0 && dsrcCreds.length > 0) {
+                        // Ok we have new replica connections, remove the old ones
+                        deleteCmd.push("--del-conn");
+                        for (const repl of dsrcCreds) {
+                            deleteCmd.push(repl);
+                        }
+                    }
+                    if (this.state.aliasesList.length > 0 && dsrcAliases.length > 0) {
+                        // Ok we have new aliases, remove the old ones
+                        deleteCmd.push("--del-alias");
+                        for (const alias of dsrcAliases) {
+                            deleteCmd.push(alias);
+                        }
+                    }
+                    if (deleteCmd.length === 5) {
+                        deleteCmd == "echo";  // do nothing
+                    }
+
+                    // Write new replica connections and aliases
+                    if (this.state.credentialsList.length > 0) {
+                        addCmd.push("--add-conn");
+                        for (const rowIdx in this.state.credentialsList) {
+                            const row = this.state.credentialsList[rowIdx];
+                            let password = row.credsBindpw;
+                            if (row.pwInputInterractive) {
+                                password = "*";
+                            }
+                            const idx = parseInt(rowIdx) + 1;
+                            const cred = `replica_${idx}:${row.connData}:${row.credsBinddn}:${password}`;
+                            addCmd.push(cred);
+                        }
+                    }
+                    if (this.state.aliasesList.length > 0) {
+                        addCmd.push("--add-alias");
+                        for (const row of this.state.aliasesList) {
+                            const alias = `${row[0]}:${row[1]}`;
+                            addCmd.push(alias);
+                        }
+                    }
+                    log_cmd("overwriteDSRC", "delete conns and aliases in the .dsrc file", deleteCmd);
+                    cockpit
+                            .spawn(deleteCmd, { superuser: true, err: "message" })
+                            .done( () => {
+                                log_cmd("overwriteDSRC", "add conns and aliases in the .dsrc file", addCmd);
+                                cockpit
+                                        .spawn(addCmd, { superuser: true, err: "message" })
+                                        .done( () => {
+                                            this.setState({
+                                                showConfirmOverwriteDSRC: false
+                                            }, this.loadDSRC);
+                                            this.props.addNotification(
+                                                "success",
+                                                "Successfully saved monitor configuration to the .dsrc file"
+                                            );
+                                        })
+                                        .fail(err => {
+                                            const errMsg = JSON.parse(err);
+                                            this.setState({
+                                                showConfirmOverwriteDSRC: false
+                                            });
+                                            this.props.addNotification(
+                                                "error",
+                                                `Failed to delete from .dsrc file: ${errMsg.desc}`
+                                            );
+                                        });
+                                })
+                                .fail(err => {
+                                    const errMsg = JSON.parse(err);
+                                    this.props.addNotification(
+                                        "error",
+                                        `Failed to add to .dsrc content: ${errMsg.desc}`
+                                    );
+                                    this.setState({
+                                        showConfirmOverwriteDSRC: false
+                                    });
+                                });
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        `Failed to get .dsrc content: ${errMsg.desc}`
+                    );
+                    this.setState({
+                        showConfirmOverwriteDSRC: false
+                    });
+                });
+    }
+
     refreshFullReport() {
         this.doFullReport();
         this.setState({
@@ -990,29 +798,40 @@ export class ReplMonitor extends React.Component {
         });
     }
 
-    doFullReport() {
+    doFullReport(dsrc) {
         // Initiate the report and continue the processing in the input window
         this.setState({
             reportLoading: true,
-            activeTabKey: 1
+            activeKey: 2
         });
 
         let password = "";
         const credentials = [];
         const printCredentials = [];
-        for (const row of this.state.credentialsList) {
-            if (row.pwInputInterractive) {
-                password = "*";
-            } else {
-                password = `${row.credsBindpw}`;
-            }
-            credentials.push(`${row.connData}:${row.credsBinddn}:${password}`);
-            printCredentials.push(`${row.connData}:${row.credsBinddn}:********`);
-        }
-
         const aliases = [];
-        for (const row of this.state.aliasesList) {
-            aliases.push(`${row[0]}=${row[1]}`);
+        if (dsrc) {
+            // Use the monitor info from .dsrc
+            for (const row of this.state.credRows) {
+                credentials.push(`${row[1]}:${row[2]}:${row[3]}:${row[4]}`);
+                printCredentials.push(`${row[1]}:${row[2]}:${row[3]}:********`);
+            }
+            for (const row of this.state.aliasRows) {
+                aliases.push(`${row[0]}=${row[1]}:${row[2]}`);
+            }
+        } else {
+            for (const row of this.state.credentialsList) {
+                if (row.pwInputInterractive) {
+                    password = "*";
+                } else {
+                    password = `${row.credsBindpw}`;
+                }
+                credentials.push(`${row.connData}:${row.credsBinddn}:${password}`);
+                printCredentials.push(`${row.connData}:${row.credsBinddn}:********`);
+            }
+
+            for (const row of this.state.aliasesList) {
+                aliases.push(`${row[0]}=${row[1]}`);
+            }
         }
 
         let buffer = "";
@@ -1091,6 +910,7 @@ export class ReplMonitor extends React.Component {
                         }
                         supplier_reparsed.push({ ...supplier, data: replica_reparsed });
                     }
+
                     const report_reparsed = { ...report, items: supplier_reparsed };
                     this.setState({
                         reportData: report_reparsed.items,
@@ -1126,6 +946,7 @@ export class ReplMonitor extends React.Component {
                         this.setState({
                             credsInstanceName: data.split("a bind DN for ")[1].split(": ")[0]
                         });
+
                         // First check if DN is in the list already (either from previous run or during this execution)
                         for (const creds of this.state.dynamicCredentialsList) {
                             if (creds.credsInstanceName == this.state.credsInstanceName) {
@@ -1133,7 +954,6 @@ export class ReplMonitor extends React.Component {
                                 proc.input(`${creds.binddn}\n`, true);
                             }
                         }
-
                         // If we don't have the creds - open the modal window and ask the user for input
                         if (!found_creds) {
                             this.setState({
@@ -1147,12 +967,13 @@ export class ReplMonitor extends React.Component {
                         }
 
                     // Check for password
-                    } else if (last_line.startsWith("Enter a password") && last_line.endsWith(": ")) {
+                } else if ((last_line.startsWith("Enter a password") || last_line.startsWith("File ")) && last_line.endsWith(": ")) {
                         buffer = "";
                         // Do the same logic for password but the string parsing is different
                         this.setState({
                             credsInstanceName: data.split(" on ")[1].split(": ")[0]
                         });
+
                         for (const creds of this.state.dynamicCredentialsList) {
                             if (creds.credsInstanceName == this.state.credsInstanceName) {
                                 found_creds = true;
@@ -1169,7 +990,7 @@ export class ReplMonitor extends React.Component {
                                 bindpwRequired: true,
                                 credsInstanceName: this.state.credsInstanceName,
                                 disableBinddn: true,
-                                loginBinddn: data.split("Enter a password for ")[1].split(" on")[0],
+                                loginBinddn: data.split("nter a password for ")[1].split(" on")[0],
                                 loginBindpw: ""
                             });
                         }
@@ -1236,16 +1057,201 @@ export class ReplMonitor extends React.Component {
         });
     }
 
+    // dsrc
+    showAddDSRCCred() {
+        // Add a connection to dsrc file
+        this.setState({
+            showAddDSRCCredModal: true,
+            modalChecked: false,
+            modalSpinning: false,
+            connName: "",
+            connHostname: "",
+            connPort: 636,
+            connBindDN: "",
+            credsCred: "",
+        });
+    }
+
+    closeAddDSRCCred () {
+        this.setState({
+            showAddDSRCCredModal: false,
+        });
+    }
+
+    showAddDSRCAlias() {
+        // Add alias to dsrc file
+        this.setState({
+            showAddDSRCAliasModal: true,
+            modalChecked: false,
+            modalSpinning: false,
+            newEntry: true,
+            aliasName: "",
+            aliasPort: 636,
+            aliasHostname: "",
+        });
+    }
+
+    closeAddDSRCAlias () {
+        this.setState({
+            showAddDSRCAliasModal: false,
+        });
+    }
+
+    showConfirmDeleteDSRCCred (name) {
+        this.setState({
+            showConfirmDeleteDSRCCred: true,
+            connName: name,
+            modalChecked: false,
+            modalSpinning: false,
+        });
+    }
+
+    closeConfirmDeleteDSRCCred () {
+        this.setState({
+            showConfirmDeleteDSRCCred: false,
+        });
+    }
+
+    showConfirmDeleteDSRCAlias (name) {
+        this.setState({
+            showConfirmDeleteDSRCAlias: true,
+            aliasName: name,
+            modalChecked: false,
+            modalSpinning: false,
+        });
+    }
+
+    closeConfirmDeleteDSRCAlias () {
+        this.setState({
+            showConfirmDeleteDSRCAlias: false,
+        });
+    }
+
+    deleteDSRCCred () {
+        const dsrc_cmd = ["dsctl", "-j", this.props.serverId, "dsrc", "repl-mon", "--del-conn=" + this.state.connName];
+
+        this.setState({
+            loadingDSRC: true,
+        });
+
+        log_cmd("deleteDSRCCred", "Delete a replica connection from the .dsrc file", dsrc_cmd);
+        cockpit
+                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .done(() => {
+                    this.loadDSRC();
+                    this.setState({
+                        showConfirmDeleteDSRCCred: false,
+                    });
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        `Failed to update .dsrc information: ${errMsg.desc}`
+                    );
+                    this.loadDSRC();
+                });
+    }
+
+    deleteDSRCAlias () {
+        const dsrc_cmd = ["dsctl", "-j", this.props.serverId, "dsrc", "repl-mon", "--del-alias=" + this.state.aliasName];
+
+        this.setState({
+            loadingDSRC: true,
+        });
+
+        log_cmd("deleteDSRCCred", "Delete a replication monitor alias from the .dsrc file", dsrc_cmd);
+        cockpit
+                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .done(() => {
+                    this.loadDSRC();
+                    this.setState({
+                        showConfirmDeleteDSRCAlias: false,
+                    });
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        `Failed to update .dsrc information: ${errMsg.desc}`
+                    );
+                    this.loadDSRC();
+                });
+    }
+
+    addDSRCCred () {
+        const {
+            connName,
+            connHostname,
+            connPort,
+            connBindDN,
+            connCred
+        } = this.state;
+        const conn = connName + ":" + connHostname + ":" + connPort + ":" + connBindDN + ":" + connCred;
+        const dsrc_cmd = ["dsctl", "-j", this.props.serverId, "dsrc", "repl-mon", "--add-conn=" + conn];
+
+        this.setState({
+            loadingDSRC: true,
+        });
+
+        log_cmd("addDSRCCred", "Add a replica connection to the .dsrc file", dsrc_cmd);
+        cockpit
+                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .done(() => {
+                    this.setState({
+                        showAddDSRCCredModal: false,
+                    });
+                    this.props.addNotification(
+                        "success",
+                        "Successfully added connection to .dsrc config file"
+                    );
+                    this.loadDSRC();
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        `Failed to update .dsrc information: ${errMsg.desc}`
+                    );
+                    this.loadDSRC();
+                });
+    }
+
+    addDSRCAlias() {
+        const alias = this.state.aliasName + ":" + this.state.aliasHostname + ":" + this.state.aliasPort;
+        const dsrc_cmd = ["dsctl", "-j", this.props.serverId, "dsrc", "repl-mon", "--add-alias=" + alias];
+
+        this.setState({
+            loadingDSRC: true,
+        });
+
+        log_cmd("addDSRCAlias", "Add an alias to the .dsrc file", dsrc_cmd);
+        cockpit
+                .spawn(dsrc_cmd, { superuser: true, err: "message" })
+                .done(() => {
+                    this.setState({
+                        showAddDSRCAliasModal: false,
+                    });
+                    this.props.addNotification(
+                        "success",
+                        "Successfully added alias to .dsrc config file"
+                    );
+                    this.loadDSRC();
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        `Failed to update .dsrc information: ${errMsg.desc}`
+                    );
+                    this.loadDSRC();
+                });
+    }
+
     render() {
         const reportData = this.state.reportData;
         const credentialsList = this.state.credentialsList;
         const aliasesList = this.state.aliasesList;
-        const replAgmts = this.props.data.replAgmts;
-        const replWinsyncAgmts = this.props.data.replWinsyncAgmts;
-        const cleanTasks = this.props.data.cleanTasks;
-        const abortTasks = this.props.data.abortTasks;
-        const conflictEntries = this.props.data.conflicts;
-        const glueEntries = this.props.data.glues;
         const fullReportModal = "";
         let reportLoginModal = "";
         let reportCredentialsModal = "";
@@ -1318,10 +1324,58 @@ export class ReplMonitor extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = "Generating";
         }
 
-        const reportContent =
+        let reportContent =
             <div className="ds-margin-top-lg ds-indent ds-margin-bottom-md">
-                <Tabs isBox activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>{_("Prepare Report")}</TabTitleText>}>
+                <Tabs isFilled activeKey={this.state.activeKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>Saved Report Configuration</TabTitleText>}>
+                        <Tabs className="ds-margin-top-lg" isBox activeKey={this.state.activeConfigKey} onSelect={this.handleNavConfigSelect}>
+                            <Tab eventKey={0} title={<TabTitleText>Replica Credentials</TabTitleText>}>
+                                <ReplDSRCTable
+                                    key={this.state.credRows}
+                                    rows={this.state.credRows}
+                                    getDeleteButton={this.getCredDeleteButton}
+                                />
+                                <Button
+                                    className="ds-margin-top-lg"
+                                    variant="secondary"
+                                    onClick={this.showAddDSRCCred}
+                                    title="Add a replica credential to the .dsrc file"
+                                >
+                                    Add Connection
+                                </Button>
+                            </Tab>
+                            <Tab eventKey={1} title={<TabTitleText>Replica Naming Aliases</TabTitleText>}>
+                                <ReplDSRCAliasTable
+                                    key={this.state.aliasRows}
+                                    rows={this.state.aliasRows}
+                                    getDeleteButton={this.getAliasDeleteButton}
+                                />
+                                <Button
+                                    className="ds-margin-top-lg"
+                                    variant="secondary"
+                                    onClick={this.showAddDSRCAlias}
+                                    title="Add a replica alias to the .dsrc file"
+                                >
+                                    Add Alias
+                                </Button>
+                            </Tab>
+                        </Tabs>
+                        <hr />
+                        {this.state.credRows.length > 0 && (
+                            <Button
+                                variant="primary"
+                                onClick={() => { this.doFullReport(1) }}
+                                title="Use the specified credentials and display full topology report"
+                                isLoading={this.state.reportLoading}
+                                isDisabled={this.state.reportLoading}
+                                spinnerAriaValueText={this.state.reportLoading ? "Generating" : undefined}
+                                {...extraPrimaryProps}
+                            >
+                                {reportBtnName}
+                            </Button>
+                        )}
+                    </Tab>
+                    <Tab eventKey={1} id="prepare-new-report" title={<TabTitleText>{"Prepare New Report"}</TabTitleText>}>
                         <ExpandableSection
                             toggleText={this.state.isExpanded ? 'Hide Help' : 'Show Help'}
                             onToggle={this.onToggle}
@@ -1382,6 +1436,14 @@ export class ReplMonitor extends React.Component {
                         >
                             {reportBtnName}
                         </Button>
+                        <Button
+                            className="ds-margin-top-lg ds-left-margin"
+                            variant="secondary"
+                            onClick={this.showConfirmOverwriteDSRC}
+                            title="Save the report configuration in the .dsrc file for future use."
+                        >
+                            Save Report Configuration
+                        </Button>
                         <hr />
                         <ReportCredentialsTable
                             rows={credentialsList}
@@ -1412,221 +1474,136 @@ export class ReplMonitor extends React.Component {
                             Add Alias
                         </Button>
                     </Tab>
-                    <Tab isHidden={reportData.length == 0} eventKey={1} title={<TabTitleText>{_("Report Result")}</TabTitleText>}>
-                        <div className="ds-indent ds-margin-top-lg">
-                            <FullReportContent
-                                reportData={reportData}
-                                viewAgmt={this.showAgmtModalRemote}
-                                handleRefresh={this.refreshFullReport}
-                                reportRefreshing={this.state.reportRefreshing}
-                                reportLoading={this.state.reportLoading}
-                            />
-                        </div>
-                    </Tab>
+                    {reportData.length > 0 && (
+                        <Tab eventKey={2} title={<TabTitleText>{"Report Result"}</TabTitleText>}>
+                            <div className="ds-indent ds-margin-top-lg">
+                                <FullReportContent
+                                    reportData={reportData}
+                                    viewAgmt={this.showAgmtModalRemote}
+                                    handleRefresh={this.refreshFullReport}
+                                    reportRefreshing={this.state.reportRefreshing}
+                                    reportLoading={this.state.reportLoading}
+                                />
+                            </div>
+                        </Tab>
+                    )}
                 </Tabs>
             </div>;
 
-        const taskContent =
-            <div className="ds-margin-top-lg">
-                <Tabs isBox activeKey={this.state.activeTabTaskKey} onSelect={this.handleNavTaskSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>CleanAllRUV Tasks <font size="2">({cleanTasks.length})</font></TabTitleText>}>
-                        <div className="ds-indent ds-margin-top-lg">
-                            <CleanALLRUVTable
-                                tasks={cleanTasks}
-                                viewLog={this.viewCleanLog}
-                            />
-                        </div>
-                    </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>Abort CleanAllRUV Tasks <font size="2">({abortTasks.length})</font></TabTitleText>}>
-                        <div className="ds-indent ds-margin-top-lg">
-                            <AbortCleanALLRUVTable
-                                tasks={abortTasks}
-                                viewLog={this.viewAbortLog}
-                            />
-                        </div>
-                    </Tab>
-                </Tabs>
-            </div>;
+        if (this.state.loadingDSRC) {
+            reportContent =
+                <div className="ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading Replication DSRC Information ...
+                        </Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top-lg" size="xl" />
+                </div>;
+        }
 
-        const conflictContent =
-            <div className="ds-margin-top-lg">
-                <Tabs isBox activeKey={this.state.activeTabConflictKey} onSelect={this.handleNavConflictSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Conflict Entries <font size="2">({conflictEntries.length})</font></TabTitleText>}>
-                        <div className="ds-indent ds-margin-top-lg">
-                            <Tooltip
-                                content={
-                                    <div>
-                                        Replication conflict entries occur when two entries are created with the
-                                        same DN (or name) on different servers at about the same time.  The automatic conflict
-                                        resolution procedure renames the entry created last.  Its RDN is changed
-                                        into a multi-valued RDN that includes the entry's original RDN and it's unique
-                                        identifier (nsUniqueId).  There are several ways to resolve a conflict,
-                                        but choosing which option to use is up to you.
-                                    </div>
-                                }
-                            >
-                                <a className="ds-indent ds-font-size-sm">What Is A Replication Conflict Entry?</a>
-                            </Tooltip>
-                            <ConflictTable
-                                conflicts={conflictEntries}
-                                resolveConflict={this.resolveConflict}
-                                key={conflictEntries}
-                            />
-                        </div>
-                    </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>Glue Entries <font size="2">({glueEntries.length})</font></TabTitleText>}>
-                        <div className="ds-indent ds-margin-top-lg">
-                            <Tooltip
-                                content={
-                                    <div>
-                                        When a <b>Delete</b> operation is replicated and the consumer server finds that the entry to be
-                                        deleted has child entries, the conflict resolution procedure creates a "<i>glue entry</i>" to
-                                        avoid having orphaned entries in the database.  In the same way, when an <b>Add</b> operation is
-                                        replicated and the consumer server cannot find the parent entry, the conflict resolution
-                                        procedure creates a "<i>glue entry</i>", representing the "parent entry", so that the new entry is
-                                        not an orphaned entry.  You can choose to convert the glue entry, or remove the glue entry and
-                                        all its child entries.
-                                    </div>
-                                }
-                            >
-                                <a className="ds-indent ds-font-size-sm">What Is A Replication Glue Entry?</a>
-                            </Tooltip>
-                            <GlueTable
-                                glues={glueEntries}
-                                convertGlue={this.confirmConvertGlue}
-                                deleteGlue={this.confirmDeleteGlue}
-                                key={glueEntries}
-                            />
-                        </div>
-                    </Tab>
-                </Tabs>
-            </div>;
+        let overwriteWarning = (
+            "Only one monitor configuraton can be saved in the server's " +
+            "'~/.dsrc' file.  There is already an existing monitor " +
+            "configuration, and if you proceed it will be completely " +
+            "overwritten with the new configuraton.");
+        if (this.state.credRows.length == 0 && this.state.aliasRows.length == 0) {
+            overwriteWarning = (
+                "This will save the current credentials and aliases to the " +
+                "server's '~/.dsrc' file so it can be reused in the future.");
+        }
 
         return (
-            <div>
-                <div id="monitor-suffix-page" className="ds-tab-table">
-                    <Tabs isFilled activeKey={this.state.activeTabReplKey} onSelect={this.handleNavReplSelect}>
-                        <Tab eventKey={0} title={<TabTitleText>Synchronization Report</TabTitleText>}>
-                            {reportContent}
-                        </Tab>
-                        <Tab eventKey={1} title={<TabTitleText>Agreements <font size="2">({replAgmts.length})</font></TabTitleText>}>
-                            <div className="ds-indent ds-tab-table">
-                                <AgmtTable
-                                    agmts={replAgmts}
-                                    pokeAgmt={this.pokeAgmt}
-                                />
-                            </div>
-                        </Tab>
-                        <Tab eventKey={2} title={<TabTitleText>Winsync <font size="2">({replWinsyncAgmts.length})</font></TabTitleText>}>
-                            <div className="ds-indent ds-tab-table">
-                                <WinsyncAgmtTable
-                                    agmts={replWinsyncAgmts}
-                                    pokeAgmt={this.pokeWinsyncAgmt}
-                                />
-                            </div>
-                        </Tab>
-                        <Tab eventKey={3} title={<TabTitleText>Tasks <font size="2">({(cleanTasks.length + abortTasks.length)})</font></TabTitleText>}>
-                            <div className="ds-indent ds-tab-table">
-                                {taskContent}
-                            </div>
-                        </Tab>
-                        <Tab eventKey={4} title={<TabTitleText>Conflict Entries <font size="2">({(conflictEntries.length + glueEntries.length)})</font></TabTitleText>}>
-                            <div className="ds-indent ds-tab-table">
-                                {conflictContent}
-                            </div>
-                        </Tab>
-                    </Tabs>
-
-                    <TaskLogModal
-                        showModal={this.state.showLogModal}
-                        closeHandler={this.closeLogModal}
-                        logData={this.state.logData}
-                    />
-                    {fullReportModal}
-                    {reportLoginModal}
-                    {reportCredentialsModal}
-                    {reportAliasesModal}
-                    {agmtDetailModal}
-                    {winsyncAgmtDetailModal}
-                    <ConflictCompareModal
-                        showModal={this.state.showCompareModal}
-                        conflictEntry={this.state.cmpConflictEntry}
-                        validEntry={this.state.cmpValidEntry}
-                        swapConflictRadio={this.state.swapConflictRadio}
-                        convertConflictRadio={this.state.convertConflictRadio}
-                        deleteConflictRadio={this.state.deleteConflictRadio}
-                        newRDN={this.state.convertRDN}
-                        closeHandler={this.closeCompareModal}
-                        saveHandler={this.handleConflictConversion}
-                        handleChange={this.handleChange}
-                        handleRadioChange={this.handleRadioChange}
-                    />
+            <div id="repl-monitor-page" className="ds-tab-table">
+                <div className="ds-container">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Synchronization Report
+                            <FontAwesomeIcon
+                                size="lg"
+                                className="ds-left-margin ds-refresh"
+                                icon={faSyncAlt}
+                                title="Refresh replication monitor"
+                                onClick={this.props.reload}
+                            />
+                        </Text>
+                    </TextContent>
                 </div>
 
+                {reportContent}
+                {fullReportModal}
+                {reportLoginModal}
+                {reportCredentialsModal}
+                {reportAliasesModal}
+                {agmtDetailModal}
+                {winsyncAgmtDetailModal}
                 <DoubleConfirmModal
-                    showModal={this.state.showConfirmDeleteGlue}
-                    closeHandler={this.closeConfirmDeleteGlue}
+                    showModal={this.state.showConfirmDeleteDSRCCred}
+                    closeHandler={this.closeConfirmDeleteDSRCCred}
                     handleChange={this.handleFieldChange}
-                    actionHandler={this.deleteGlue}
+                    actionHandler={this.deleteDSRCCred}
                     spinning={this.state.modalSpinning}
-                    item={this.state.glueEntry}
+                    item={this.state.connName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Glue Entry"
-                    mMsg="Are you really sure you want to delete this glue entry and its child entries?"
-                    mSpinningMsg="Deleting Glue Entry ..."
-                    mBtnName="Delete Glue"
+                    mTitle="Delete Replica Connection"
+                    mMsg="Are you really sure you want to delete this connection from the '~/.dsrc' file?"
+                    mSpinningMsg="Deleting Connection ..."
+                    mBtnName="Delete Connection"
                 />
                 <DoubleConfirmModal
-                    showModal={this.state.showConfirmConvertGlue}
-                    closeHandler={this.closeConfirmConvertGlue}
+                    showModal={this.state.showConfirmDeleteDSRCAlias}
+                    closeHandler={this.closeConfirmDeleteDSRCAlias}
                     handleChange={this.handleFieldChange}
-                    actionHandler={this.convertGlue}
+                    actionHandler={this.deleteDSRCAlias}
                     spinning={this.state.modalSpinning}
-                    item={this.state.glueEntry}
+                    item={this.state.aliasName}
                     checked={this.state.modalChecked}
-                    mTitle="Convert Glue Entry"
-                    mMsg="Are you really sure you want to convert this glue entry to a regular entry?"
-                    mSpinningMsg="Converting Glue Entry ..."
-                    mBtnName="Convert Glue"
+                    mTitle="Delete Replica Alias"
+                    mMsg="Are you really sure you want to delete this alias from the '~/.dsrc' file?"
+                    mSpinningMsg="Deleting Alias ..."
+                    mBtnName="Delete Alias"
                 />
                 <DoubleConfirmModal
-                    showModal={this.state.showConfirmConvertConflict}
-                    closeHandler={this.closeConfirmConvertConflict}
+                    showModal={this.state.showConfirmOverwriteDSRC}
+                    closeHandler={this.closeConfirmOverwriteDSRC}
                     handleChange={this.handleFieldChange}
-                    actionHandler={this.convertConflict}
+                    actionHandler={this.overwriteDSRC}
                     spinning={this.state.modalSpinning}
-                    item={this.state.conflictEntry}
+                    item="Are you sure you want to proceed?"
                     checked={this.state.modalChecked}
-                    mTitle="Convert Conflict Entry Into New Entry"
-                    mMsg="Are you really sure you want to convert this conflict entry?"
-                    mSpinningMsg="Converting Conflict Entry ..."
-                    mBtnName="Convert Conflict"
+                    mTitle="Overwrite Monitor Configuration"
+                    mMsg={overwriteWarning}
+                    mSpinningMsg="Writing DSRC ..."
+                    mBtnName="Write DSRC"
                 />
-                <DoubleConfirmModal
-                    showModal={this.state.showConfirmSwapConflict}
-                    closeHandler={this.closeConfirmSwapConflict}
-                    handleChange={this.handleFieldChange}
-                    actionHandler={this.swapConflict}
-                    spinning={this.state.modalSpinning}
-                    item={this.state.conflictEntry}
-                    checked={this.state.modalChecked}
-                    mTitle="Swap Conflict Entry"
-                    mMsg="Are you really sure you want to swap this conflict entry with the valid entry?"
-                    mSpinningMsg="Swapping Conflict Entry ..."
-                    mBtnName="Swap Conflict"
+                <ReportAliasesModal
+                    showModal={this.state.showAddDSRCAliasModal}
+                    closeHandler={this.closeAddDSRCAlias}
+                    handleFieldChange={this.handleFieldChange}
+                    onMinusConfig={this.onMinusConfig}
+                    onConfigChange={this.onConfigChange}
+                    onPlusConfig={this.onPlusConfig}
+                    newEntry={this.state.newEntry}
+                    hostname={this.state.aliasHostname}
+                    port={this.state.aliasPort}
+                    alias={this.state.aliasName}
+                    addConfig={this.addDSRCAlias}
+                    editConfig={this.addDSRCAlias}
                 />
-                <DoubleConfirmModal
-                    showModal={this.state.showConfirmDeleteConflict}
-                    closeHandler={this.closeConfirmDeleteConflict}
-                    handleChange={this.handleFieldChange}
-                    actionHandler={this.deleteConflict}
-                    spinning={this.state.modalSpinning}
-                    item={this.state.conflictEntry}
-                    checked={this.state.modalChecked}
-                    mTitle="Delete Replication Conflict Entry"
-                    mMsg="Are you really sure you want to delete this conflict entry?"
-                    mSpinningMsg="Deleting Conflict Entry ..."
-                    mBtnName="Delete Conflict"
+                <ReportConnectionModal
+                    showModal={this.state.showAddDSRCCredModal}
+                    closeHandler={this.closeAddDSRCCred}
+                    handleFieldChange={this.handleFieldChange}
+                    onMinusConfig={this.onMinusConfig}
+                    onConfigChange={this.onConfigChange}
+                    onPlusConfig={this.onPlusConfig}
+                    name={this.state.connName}
+                    hostname={this.state.connHostname}
+                    port={this.state.connPort}
+                    binddn={this.state.connBindDN}
+                    bindpw={this.state.connCred}
+                    pwInputInterractive={this.state.pwInputInterractive}
+                    addConn={this.addDSRCCred}
                 />
             </div>
         );
@@ -1639,6 +1616,8 @@ ReplMonitor.propTypes = {
     data: PropTypes.object,
     suffix: PropTypes.string,
     serverId: PropTypes.string,
+    credRows: PropTypes.array,
+    aliasRows: PropTypes.array,
     addNotification: PropTypes.func,
     reloadConflicts: PropTypes.func,
     enableTree: PropTypes.func,
@@ -1648,6 +1627,8 @@ ReplMonitor.defaultProps = {
     data: {},
     suffix: "",
     serverId: "",
+    credRows: [],
+    aliasRows: [],
 };
 
 export default ReplMonitor;
