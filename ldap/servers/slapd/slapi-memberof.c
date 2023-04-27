@@ -83,7 +83,6 @@ static struct sm_cache_stat sm_cache_stat;
 static sm_memberof_cached_value *sm_ancestors_cache_lookup(Slapi_MemberOfConfig *config, const char *ndn);
 static PLHashEntry *sm_ancestors_cache_add(Slapi_MemberOfConfig *config, const void *key, void *value);
 static void sm_ancestor_hashtable_entry_free(sm_memberof_cached_value *entry);
-static void sm_dump_cache_entry(sm_memberof_cached_value *double_check, const char *msg);
 static void sm_cache_ancestors(Slapi_MemberOfConfig *config, Slapi_Value **member_ndn_val, sm_memberof_get_groups_data *groups);
 static int  sm_memberof_compare(Slapi_MemberOfConfig *config, const void *a, const void *b);
 static void sm_merge_ancestors(Slapi_Value **member_ndn_val, sm_memberof_get_groups_data *v1, sm_memberof_get_groups_data *v2);
@@ -106,7 +105,7 @@ static PRIntn sm_ancestor_hashtable_remove(PLHashEntry *he, PRIntn index __attri
 static void sm_ancestor_hashtable_empty(Slapi_MemberOfConfig *config, char *msg);
 
 
-
+#if MEMBEROF_CACHE_DEBUG
 static void
 sm_dump_cache_entry(sm_memberof_cached_value *double_check, const char *msg)
 {
@@ -117,6 +116,7 @@ sm_dump_cache_entry(sm_memberof_cached_value *double_check, const char *msg)
                       double_check[i].nsuniqueid_val ? double_check[i].nsuniqueid_val : "NULL");
     }
 }
+#endif
 
 static sm_memberof_cached_value *
 sm_ancestors_cache_lookup(Slapi_MemberOfConfig *config, const char *ndn)
@@ -937,8 +937,10 @@ sm_add_ancestors_cbdata(sm_memberof_cached_value *ancestors, void *callback_data
             }
         }
     }
-    slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_add_ancestors_cbdata: Ancestors of %s contained %d groups. %d added. %s\n",
-                  slapi_value_get_string(memberdn_val), val_index, added_group, empty_ancestor ? "no ancestors" : "");
+    slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof",
+                  "sm_add_ancestors_cbdata: Ancestors of %s contained %ld groups. %d added. %s\n",
+                  slapi_value_get_string(memberdn_val), val_index, added_group,
+                  empty_ancestor ? "no ancestors" : "");
 }
 
 /*
