@@ -14,7 +14,6 @@ import ldap
 from lib389._constants import SUFFIX
 from lib389.topologies import topology_st as topo
 from lib389.replica import Replicas
-from lib389.utils import ensure_bytes
 
 
 log = logging.getLogger(__name__)
@@ -63,7 +62,7 @@ def verify_role(replicas, role):
     assert rep == expected
 
 
-def config_role(inst, replicas, role):
+def config_role(replicas, role):
     """Configure replica role."""
     log.info("Set role to: '%s'", role)
     try:
@@ -80,11 +79,11 @@ def config_role(inst, replicas, role):
             #  lib389 complains if nsDS5ReplicaRoot is not set
             #  389ds complains if nsDS5ReplicaRoot it is set
             # replica.ensure_state(rdn='cn=replica', properties=properties)
-            mods = [ (ldap.MOD_REPLACE, key, ensure_bytes(str(val)))
+            mods = [ (key, str(val))
                      for key,val in ROLE_TO_CONFIG[role].items()
                      if str(val).lower() != replica.get_attr_val_utf8_l(key) ]
-            log.debug("LDAPMODIFY: dn: %s mods: %s",replica.dn, mods)
-            inst.modify_s(replica.dn, mods, escapehatch='i am sure')
+            log.debug(f'replica.replace_many({mods})')
+            replica.replace_many(*mods)
     elif role != "None":
         replicas.create(properties=properties)
 
@@ -113,9 +112,9 @@ def test_switching_roles(topo, from_role, to_role):
     inst = topo.standalone
     replicas = Replicas(inst)
     inst.start()
-    config_role(inst, replicas, from_role)
+    config_role(replicas, from_role)
     verify_role(replicas, from_role)
-    config_role(inst, replicas, to_role)
+    config_role(replicas, to_role)
     verify_role(replicas, to_role)
 
 
