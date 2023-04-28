@@ -325,8 +325,10 @@ cldb_RemoveReplicaDB(Replica *replica)
     int rc = 0;
     cldb_Handle *cldb = replica_get_cl_info(replica);
 
-    cldb->deleteFile = 1;
-    rc = cldb_UnSetReplicaDB(replica, NULL);
+    if (cldb) {
+        cldb->deleteFile = 1;
+        rc = cldb_UnSetReplicaDB(replica, NULL);
+    }
 
     return rc;
 }
