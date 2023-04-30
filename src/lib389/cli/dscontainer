@@ -138,7 +138,7 @@ def _begin_setup_pem_tls():
     # Import the ca's
     for ca_path in [os.path.join(CONTAINER_TLS_SERVER_CADIR, ca) for ca in cas]:
         log.info("Enrolling -> %s" % ca_path)
-        tls.add_cert(nickname=ca_path, input_file=ca_path)
+        tls.add_cert(nickname=ca_path, input_file=ca_path, ca=True)
         tls.edit_cert_trust(ca_path, "C,,")
     # Import the new server-cert
     tls.add_server_key_and_cert(CONTAINER_TLS_SERVER_KEY, CONTAINER_TLS_SERVER_CERT)
