@@ -1040,6 +1040,10 @@ free_and_return:
     } else if (be_single) {
         slapi_be_Unlock(be_single);
     }
+    if (rc > 0) {
+        /* rc > 0 means a plugin generated an error and we should abort */
+        send_ldap_result(pb, rc, NULL, NULL, 0, NULL);
+    }
 
 free_and_return_nolock:
     slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &rc);
