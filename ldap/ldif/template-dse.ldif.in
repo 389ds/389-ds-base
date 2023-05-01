@@ -1235,3 +1235,16 @@ nsSaslMapRegexString: ^dn:\(.*\)
 nsSaslMapBaseDNTemplate: \1
 nsSaslMapFilterTemplate: (objectclass=*)
 
+dn: cn=Alias Entries,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: Alias Entries
+nsslapd-pluginpath: libalias-entries-plugin
+nsslapd-plugininitfunc: alias_entry_init
+nsslapd-plugintype: preoperation
+nsslapd-pluginenabled: off
+nsslapd-pluginDescription: alias entries plugin [base search only]
+nsslapd-pluginVendor: anilech
+nsslapd-pluginVersion: 0.1
+nsslapd-pluginId: alias-entries

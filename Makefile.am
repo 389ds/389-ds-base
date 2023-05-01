@@ -359,7 +359,7 @@ serverplugin_LTLIBRARIES = libacl-plugin.la \
 	libroles-plugin.la libstatechange-plugin.la libsyntax-plugin.la \
 	libviews-plugin.la libschemareload-plugin.la libusn-plugin.la \
 	libacctusability-plugin.la librootdn-access-plugin.la \
-	libwhoami-plugin.la $(LIBACCTPOLICY_PLUGIN) \
+	libwhoami-plugin.la libalias-entries-plugin.la $(LIBACCTPOLICY_PLUGIN) \
 	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) \
 	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN) $(LIBPOSIX_WINSYNC_PLUGIN) \
 	libentryuuid-plugin.la libentryuuid-syntax-plugin.la libpwdchan-plugin.la
@@ -468,6 +468,7 @@ dist_noinst_HEADERS = \
 	ldap/servers/plugins/passthru/passthru.h \
 	ldap/servers/plugins/rever/rever.h \
 	ldap/servers/plugins/automember/automember.h \
+	ldap/servers/plugins/alias_entries/alias-entries.h \
 	ldap/servers/plugins/mep/mep.h \
 	ldap/servers/slapd/agtmmap.h \
 	ldap/servers/slapd/auth.h \
@@ -1317,6 +1318,16 @@ libacl_plugin_la_DEPENDENCIES = libslapd.la libns-dshttpd.la
 libacl_plugin_la_LIBADD = libslapd.la libns-dshttpd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(LIBCSTD) $(LIBCRUN)
 libacl_plugin_la_LDFLAGS = -avoid-version
 # libacl_plugin_la_LINK = $(CXXLINK) -avoid-version
+
+#------------------------
+# libalias-entries-plugin
+#------------------------
+libalias_entries_plugin_la_SOURCES = ldap/servers/plugins/alias_entries/alias-entries.c
+
+libalias_entries_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
+libalias_entries_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libalias_entries_plugin_la_DEPENDENCIES = libslapd.la
+libalias_entries_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libaddn-plugin
