@@ -1,5 +1,6 @@
 /******************************************************************************
 Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
+Copyright (C) 2023 Red Hat, Inc.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,6 +25,7 @@ Hewlett-Packard Development Company, L.P.
 
 #define CFG_LASTLOGIN_STATE_ATTR "stateAttrName"
 #define CFG_ALT_LASTLOGIN_STATE_ATTR "altStateAttrName"
+#define CFG_CHECK_ALL_STATE_ATTRS "checkAllStateAttrs"
 #define CFG_SPEC_ATTR "specAttrName"
 #define CFG_INACT_LIMIT_ATTR "limitAttrName"
 #define CFG_RECORD_LOGIN "alwaysRecordLogin"
@@ -59,6 +61,7 @@ typedef struct acct_plugin_cfg
     int always_record_login;
     char *always_record_login_attr;
     unsigned long inactivitylimit;
+    PRBool check_all_state_attrs;
 } acctPluginCfg;
 
 typedef struct accountpolicy
