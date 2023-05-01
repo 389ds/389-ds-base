@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -20,7 +20,8 @@ arg_to_attr_config = {
     'always_record_login_attr': 'alwaysRecordLoginAttr',
     'limit_attr': 'limitattrname',
     'spec_attr': 'specattrname',
-    'state_attr': 'stateattrname'
+    'state_attr': 'stateattrname',
+    'check_all_state_attrs': 'checkallstateattrs',
 }
 
 
@@ -95,6 +96,8 @@ def _add_parser_args(parser):
                              'are account policy configuration entries (specAttrName)')
     parser.add_argument('--state-attr',
                         help='Specifies the primary time attribute used to evaluate an account policy (stateAttrName)')
+    parser.add_argument('--check-all-state-attrs', choices=['yes', 'no'], type=str.lower,
+                        help="Check both state and alternate state attributes for account state")
 
 
 def create_parser(subparsers):
