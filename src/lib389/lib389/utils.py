@@ -507,10 +507,11 @@ def normalizeDN(dn, usespace=False):
 
 
 def escapeDNValue(dn):
-    '''convert special characters in a DN into LDAPv3 escapes.
+    """convert special characters in a DN into LDAPv3 escapes.
 
      e.g.
-    "dc=example,dc=com" -> \"dc\=example\,\ dc\=com\"'''
+    "dc=example,dc=com" -> \\"dc\\=example\\,\\ dc\\=com\\"
+    """
     for cc in (' ', '"', '+', ',', ';', '<', '>', '='):
         dn = dn.replace(cc, '\\' + cc)
     return dn
@@ -749,7 +750,7 @@ def valgrind_get_results_file(dirsrv_inst):
     We need to extract the "--log-file" value
     """
     cmd = ("ps -ef | grep valgrind | grep 'slapd-" + dirsrv_inst.serverid +
-           " ' | awk '{ print $14 }' | sed -e 's/\-\-log\-file=//'")
+           " ' | awk '{ print $14 }' | sed -e 's/\\-\\-log\\-file=//'")
 
     # Run the command and grab the output
     p = os.popen(cmd)
@@ -1681,7 +1682,7 @@ def is_valid_hostname(hostname):
         return False
     if hostname[-1] == ".":
         hostname = hostname[:-1] # strip exactly one dot from the right, if present
-    allowed = re.compile("(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
+    allowed = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split("."))
 
 
