@@ -28,12 +28,15 @@ Hewlett-Packard Development Company, L.P.
 #define CFG_INACT_LIMIT_ATTR "limitAttrName"
 #define CFG_RECORD_LOGIN "alwaysRecordLogin"
 #define CFG_RECORD_LOGIN_ATTR "alwaysRecordLoginAttr"
+#define LASTLOGIN_HISTORY_ATTR "lastLoginHistory"
+#define LASTLOGIN_HISTORY_SIZE_ATTR "lastLoginHistorySize"
 
 #define DEFAULT_LASTLOGIN_STATE_ATTR "lastLoginTime"
 #define DEFAULT_ALT_LASTLOGIN_STATE_ATTR "createTimestamp"
 #define DEFAULT_SPEC_ATTR "acctPolicySubentry"
 #define DEFAULT_INACT_LIMIT_ATTR "accountInactivityLimit"
 #define DEFAULT_RECORD_LOGIN 1
+#define DEFAULT_LASTLOGIN_HISTORY_SIZE 5
 
 #define PLUGIN_VENDOR "Hewlett-Packard Company"
 #define PLUGIN_VERSION "1.0"
@@ -58,6 +61,8 @@ typedef struct acct_plugin_cfg
     char *limit_attr_name;
     int always_record_login;
     char *always_record_login_attr;
+    char *login_history_attr;
+    int login_history_size;
     unsigned long inactivitylimit;
 } acctPluginCfg;
 

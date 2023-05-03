@@ -12,7 +12,7 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.idm.user import (UserAccount, UserAccounts)
-from lib389.plugins import (AccountPolicyPlugin, AccountPolicyConfig)
+from lib389.plugins import (AccountPolicyPlugin, AccountPolicyConfig, AccountPolicyConfigs)
 from lib389.cos import (CosTemplate, CosPointerDefinition)
 from lib389._constants import (PLUGIN_ACCT_POLICY, DN_PLUGIN, DN_DM, PASSWORD, DEFAULT_SUFFIX,
                                DN_CONFIG, SERVERID_STANDALONE)
@@ -405,6 +405,142 @@ def test_glremv_lastlogin(topology_st, accpol_global):
     log.info('Check if account is activated, expected 0')
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Enabled")
     del_users(topology_st, suffix, subtree, userid, nousrs)
+
+
+def test_lastlogin_history(topology_st, request):
+    """Verify a user account with attr alwaysrecordlogin=yes returns no more
+    than the last login history size and that the timestamps are in chronological order.
+
+    :id: 34725a73-c2ba-4b18-9329-532c1514327f
+    :setup: Standalone instance, Global account policy plugin configuration,
+            set alwaysrecordlogin to yes.
+    :steps:
+        1. Enable account policy plugin and restart instance.
+        2. Add a config entry, setting alwaysrecordlogin to yes (lastLoginHistorySize defaults to 5)
+        3. Create a test user and reset its password.
+        4. Bind as test user more times than lastLoginHistorySize.
+        5. Search on the test user DN for lastLoginTimeHistory attribute.
+        6. Verify returned entry contains only LOGIN_HIST_SIZE_FIVE timestamps in chronological order.
+        7. Modify plugin config entry, setting lastLoginHistorySize to LOGIN_HIST_SIZE_TWO
+        8. Bind as test user more times than lastLoginHistorySize.
+        9. Search on the test user DN for lastLoginTimeHistory attribute.
+        10. Verify returned entry contains only LOGIN_HIST_SIZE_TWO timestamps in chronological order.
+        11. Modify plugin config entry, setting lastLoginHistorySize to LOGIN_HIST_SIZE_FIVE
+        12. Search on the test user DN for lastLoginTimeHistory attribute.
+        13. Verify returned entry contains only LOGIN_HIST_SIZE_FIVE timestamps in chronological order.
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+        10. Success
+        11. Success
+        12. Success
+        13. Success
+    """
+
+    USER_DN = 'uid=test_user_1000,ou=people,dc=example,dc=com'
+    USER_PW = 'password'
+    LOGIN_HIST_NUM_BINDS_SEVEN = 7
+    LOGIN_HIST_SIZE_FIVE = 5
+    LOGIN_HIST_SIZE_TWO = 2
+
+    inst = topology_st[0]
+
+    # Enable plugin and restart
+    plugin = AccountPolicyPlugin(inst)
+    plugin.disable()
+    plugin.enable()
+    inst.restart()
+
+    # Add config entry, set alwaysrecordlogin to yes (lastLoginHistorySize defaults to 5)
+    ap_configs = AccountPolicyConfigs(inst)
+    try:
+        ap_config = ap_configs.create(properties={'cn': 'config', 'alwaysrecordlogin': 'yes', })
+    except ldap.ALREADY_EXISTS:
+        ap_config = ap_configs.get('config')
+        ap_config.replace('alwaysrecordlogin', 'yes')
+
+    # Add a test user entry
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.create_test_user(uid=1000, gid=2000)
+    user.replace('userPassword', USER_PW)
+
+    # Bind as test user more times than lastLoginHistorySize
+    for i in range(LOGIN_HIST_NUM_BINDS_SEVEN):
+        userconn = user.bind(USER_PW)
+        time.sleep(1)
+        userconn.unbind()
+
+    # Verify lastLoginTimeHistory attribute returns no more than lastLoginHistorySize entries in ascending order
+    entries = inst.search_s(USER_DN, ldap.SCOPE_SUBTREE, "(objectclass=*)", ['lastLoginHistory'])
+    entry_idx = 1
+    asc_order = 0
+    while entry_idx < len(entries[0].getValues('lastLoginHistory')):
+        if (entries[0].getValues('lastloginhistory')[entry_idx].decode() > entries[0].getValues('lastloginhistory')[entry_idx - 1].decode()):
+            asc_order = 1
+        entry_idx += 1
+    assert entry_idx == LOGIN_HIST_SIZE_FIVE
+    assert asc_order
+
+    # Reduce the lastLoginHistorySize to LOGIN_HIST_SIZE_TWO
+    try:
+        ap_config = ap_configs.create(properties={'cn': 'config', 'lastLoginHistorySize': str(LOGIN_HIST_SIZE_TWO)})
+    except ldap.ALREADY_EXISTS:
+        ap_config = ap_configs.get('config')
+        ap_config.replace('lastLoginHistorySize', str(LOGIN_HIST_SIZE_TWO))
+
+    # Bind as test user more times than lastLoginHistorySize
+    for i in range(LOGIN_HIST_NUM_BINDS_SEVEN):
+        userconn = user.bind(USER_PW)
+        time.sleep(1)
+        userconn.unbind()
+
+    # Verify lastLoginTimeHistory attribute returns no more than lastLoginHistorySize entries in ascending order
+    entries = inst.search_s(USER_DN, ldap.SCOPE_SUBTREE, "(objectclass=*)", ['lastLoginHistory'])
+    entry_idx = 1
+    asc_order = 0
+    while entry_idx < len(entries[0].getValues('lastLoginHistory')):
+        if (entries[0].getValues('lastloginhistory')[entry_idx].decode() > entries[0].getValues('lastloginhistory')[entry_idx - 1].decode()):
+            asc_order = 1
+        entry_idx += 1
+    assert entry_idx == LOGIN_HIST_SIZE_TWO
+    assert asc_order
+
+    # Increase the lastLoginHistorySize to LOGIN_HIST_SIZE_FIVE
+    try:
+        ap_config = ap_configs.create(properties={'cn': 'config', 'lastLoginHistorySize': str(LOGIN_HIST_SIZE_FIVE)})
+    except ldap.ALREADY_EXISTS:
+        ap_config = ap_configs.get('config')
+        ap_config.replace('lastLoginHistorySize', str(LOGIN_HIST_SIZE_FIVE))
+
+    # Bind as test user more times than lastLoginHistorySize
+    for i in range(LOGIN_HIST_NUM_BINDS_SEVEN):
+        userconn = user.bind(USER_PW)
+        time.sleep(1)
+        userconn.unbind()
+
+    # Verify lastLoginTimeHistory attribute returns no more than lastLoginHistorySize entries in ascending order
+    entries = inst.search_s(USER_DN, ldap.SCOPE_SUBTREE, "(objectclass=*)", ['lastLoginHistory'])
+    entry_idx = 1
+    asc_order = 0
+    while entry_idx < len(entries[0].getValues('lastLoginHistory')):
+        if (entries[0].getValues('lastloginhistory')[entry_idx].decode() > entries[0].getValues('lastloginhistory')[entry_idx - 1].decode()):
+            asc_order = 1
+        entry_idx += 1
+    assert entry_idx == LOGIN_HIST_SIZE_FIVE
+    assert asc_order
+
+    def fin():
+        log.info('test_lastlogin_history cleanup')
+        user.delete()
+
+    request.addfinalizer(fin)
 
 
 def test_glact_login(topology_st, accpol_global):

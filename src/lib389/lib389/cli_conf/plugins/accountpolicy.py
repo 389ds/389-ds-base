@@ -20,7 +20,9 @@ arg_to_attr_config = {
     'always_record_login_attr': 'alwaysRecordLoginAttr',
     'limit_attr': 'limitattrname',
     'spec_attr': 'specattrname',
-    'state_attr': 'stateattrname'
+    'state_attr': 'stateattrname',
+    'login_history': 'lastLoginHistory',
+    'login_history_size': 'lastLoginHistorySize'
 }
 
 
@@ -95,7 +97,8 @@ def _add_parser_args(parser):
                              'are account policy configuration entries (specAttrName)')
     parser.add_argument('--state-attr',
                         help='Specifies the primary time attribute used to evaluate an account policy (stateAttrName)')
-
+    parser.add_argument('--login-history-size',
+                        help='Specifies the number of login timestamps to store (lastLoginHistSize) )')
 
 def create_parser(subparsers):
     accountpolicy = subparsers.add_parser('account-policy', help='Manage and configure Account Policy plugin')
