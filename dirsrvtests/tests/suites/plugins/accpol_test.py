@@ -321,6 +321,23 @@ def account_status(topology_st, suffix, subtree, userid, nousrs, ulimit, tochck)
         time.sleep(1)
 
 
+def user_binds(user, user_pw, num_binds):
+    """ Bind as user a number of times """
+    for i in range(num_binds):
+        userconn = user.bind(user_pw)
+        time.sleep(1)
+        userconn.unbind()
+
+
+def verify_last_login_entries(inst, dn, expected):
+    """ Search for lastLoginHistory attribute and verify the number and order of entries """
+    entries = inst.search_s(dn, ldap.SCOPE_SUBTREE, "(objectclass=*)", ['lastLoginHistory'])
+    decoded_values = [entry.decode() for entry in entries[0].getValues('lastLoginHistory')]
+    ascending_order = all(decoded_values[i] <= decoded_values[i + 1] for i in range(len(decoded_values) - 1))
+    assert len(decoded_values) == expected
+    assert ascending_order
+
+
 def test_glact_inact(topology_st, accpol_global):
     """Verify if user account is inactivated when accountInactivityLimit is exceeded.
 
@@ -472,21 +489,10 @@ def test_lastlogin_history(topology_st, request):
     user.replace('userPassword', USER_PW)
 
     # Bind as test user more times than lastLoginHistorySize
-    for i in range(LOGIN_HIST_NUM_BINDS_SEVEN):
-        userconn = user.bind(USER_PW)
-        time.sleep(1)
-        userconn.unbind()
+    user_binds(user, USER_PW, LOGIN_HIST_NUM_BINDS_SEVEN)
 
-    # Verify lastLoginTimeHistory attribute returns no more than lastLoginHistorySize entries in ascending order
-    entries = inst.search_s(USER_DN, ldap.SCOPE_SUBTREE, "(objectclass=*)", ['lastLoginHistory'])
-    entry_idx = 1
-    asc_order = 0
-    while entry_idx < len(entries[0].getValues('lastLoginHistory')):
-        if (entries[0].getValues('lastloginhistory')[entry_idx].decode() > entries[0].getValues('lastloginhistory')[entry_idx - 1].decode()):
-            asc_order = 1
-        entry_idx += 1
-    assert entry_idx == LOGIN_HIST_SIZE_FIVE
-    assert asc_order
+    # Verify lastLoginTimeHistory attribute returns the correct number of entries in chronological order
+    verify_last_login_entries(inst, USER_DN, LOGIN_HIST_SIZE_FIVE)
 
     # Reduce the lastLoginHistorySize to LOGIN_HIST_SIZE_TWO
     try:
@@ -496,21 +502,10 @@ def test_lastlogin_history(topology_st, request):
         ap_config.replace('lastLoginHistorySize', str(LOGIN_HIST_SIZE_TWO))
 
     # Bind as test user more times than lastLoginHistorySize
-    for i in range(LOGIN_HIST_NUM_BINDS_SEVEN):
-        userconn = user.bind(USER_PW)
-        time.sleep(1)
-        userconn.unbind()
+    user_binds(user, USER_PW, LOGIN_HIST_NUM_BINDS_SEVEN)
 
-    # Verify lastLoginTimeHistory attribute returns no more than lastLoginHistorySize entries in ascending order
-    entries = inst.search_s(USER_DN, ldap.SCOPE_SUBTREE, "(objectclass=*)", ['lastLoginHistory'])
-    entry_idx = 1
-    asc_order = 0
-    while entry_idx < len(entries[0].getValues('lastLoginHistory')):
-        if (entries[0].getValues('lastloginhistory')[entry_idx].decode() > entries[0].getValues('lastloginhistory')[entry_idx - 1].decode()):
-            asc_order = 1
-        entry_idx += 1
-    assert entry_idx == LOGIN_HIST_SIZE_TWO
-    assert asc_order
+    # Verify lastLoginTimeHistory attribute returns the correct number of entries in chronological order
+    verify_last_login_entries(inst, USER_DN, LOGIN_HIST_SIZE_TWO)
 
     # Increase the lastLoginHistorySize to LOGIN_HIST_SIZE_FIVE
     try:
@@ -520,21 +515,10 @@ def test_lastlogin_history(topology_st, request):
         ap_config.replace('lastLoginHistorySize', str(LOGIN_HIST_SIZE_FIVE))
 
     # Bind as test user more times than lastLoginHistorySize
-    for i in range(LOGIN_HIST_NUM_BINDS_SEVEN):
-        userconn = user.bind(USER_PW)
-        time.sleep(1)
-        userconn.unbind()
+    user_binds(user, USER_PW, LOGIN_HIST_NUM_BINDS_SEVEN)
 
-    # Verify lastLoginTimeHistory attribute returns no more than lastLoginHistorySize entries in ascending order
-    entries = inst.search_s(USER_DN, ldap.SCOPE_SUBTREE, "(objectclass=*)", ['lastLoginHistory'])
-    entry_idx = 1
-    asc_order = 0
-    while entry_idx < len(entries[0].getValues('lastLoginHistory')):
-        if (entries[0].getValues('lastloginhistory')[entry_idx].decode() > entries[0].getValues('lastloginhistory')[entry_idx - 1].decode()):
-            asc_order = 1
-        entry_idx += 1
-    assert entry_idx == LOGIN_HIST_SIZE_FIVE
-    assert asc_order
+    # Verify lastLoginTimeHistory attribute returns the correct number of entries in chronological order
+    verify_last_login_entries(inst, USER_DN, LOGIN_HIST_SIZE_FIVE)
 
     def fin():
         log.info('test_lastlogin_history cleanup')

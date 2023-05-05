@@ -141,7 +141,7 @@ acct_update_login_history(const char *dn, char *timestr)
 {
     void *plugin_id = NULL;
     int rc = -1;
-    int num_entrys = 0;
+    int num_entries = 0;
     size_t i = 0;
     char **login_hist = NULL;
     Slapi_PBlock *entry_pb = NULL;
@@ -157,24 +157,24 @@ acct_update_login_history(const char *dn, char *timestr)
     sdn = slapi_sdn_new_normdn_byref(dn);
     slapi_search_get_entry(&entry_pb, sdn, NULL, &e, plugin_id);
 
-    config_rd_lock();
-    cfg = get_config();
-
     if (!timestr) {
         return (rc);
     }
 
+    config_rd_lock();
+    cfg = get_config();
+
     /* get login history */
-    login_hist = slapi_entry_attr_get_charray_ext(e, cfg->login_history_attr, &num_entrys);
+    login_hist = slapi_entry_attr_get_charray_ext(e, cfg->login_history_attr, &num_entries);
 
     /* first time round */
-    if (!login_hist || !num_entrys) {
+    if (!login_hist || !num_entries) {
         login_hist = (char **)slapi_ch_calloc(2, sizeof(char *));
     }
 
     /* Do we need to resize login_hist array */
-    if (num_entrys >= cfg->login_history_size) {
-        int diff = (num_entrys - cfg->login_history_size);
+    if (num_entries >= cfg->login_history_size) {
+        int diff = (num_entries - cfg->login_history_size);
         /* free times we dont need */
         for (i = 0; i <= diff; i++) {
             slapi_ch_free_string(&login_hist[i]);
@@ -189,9 +189,9 @@ acct_update_login_history(const char *dn, char *timestr)
         login_hist[i + 1] = NULL;
     } else {
         /* expand array and add current time string at the end */
-        login_hist = (char **)slapi_ch_realloc((char *)login_hist, sizeof(char *) * (num_entrys + 2));
-        login_hist[num_entrys] = slapi_ch_smprintf("%s", timestr);
-        login_hist[num_entrys + 1] = NULL;
+        login_hist = (char **)slapi_ch_realloc((char *)login_hist, sizeof(char *) * (num_entries + 2));
+        login_hist[num_entries] = slapi_ch_smprintf("%s", timestr);
+        login_hist[num_entries + 1] = NULL;
     }
 
     /* modify the attribute */
