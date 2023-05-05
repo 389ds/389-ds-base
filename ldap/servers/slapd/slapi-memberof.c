@@ -692,6 +692,7 @@ sm_report_error_msg(Slapi_MemberOfConfig *config, char* msg)
         len = config->errot_msg_lenght - 1;
     }
     strncpy(config->error_msg, msg, len);
+    config->error_msg[len] = '\0';
 }
 
 static int
@@ -755,6 +756,11 @@ sm_entry_get_groups(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, char *me
         nsuniqueid = slapi_entry_attr_get_ref(group_entry, (const char*) "nsuniqueid");
         if (nsuniqueid) {
             sval = slapi_value_new_string(nsuniqueid);
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof",
+                          "sm_entry_get_groups - Failed to retrieve the nsuniqueid of the target entry %s\n",
+                          slapi_sdn_get_ndn(group_sdn));
+            sval = slapi_value_new_string("unknown-nsuniqueid");
         }
         slapi_valueset_add_value_ext(nsuniqueidvals, sval, SLAPI_VALUE_FLAG_PASSIN);
         /* add its dn to the valuset */
