@@ -1,5 +1,6 @@
 /******************************************************************************
 Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
+Copyright (C) 2023 Red Hat, Inc.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -104,6 +105,19 @@ acct_policy_entry2config(Slapi_Entry *e, acctPluginCfg *newcfg)
         slapi_ch_free_string(&newcfg->alt_state_attr_name); /*none - NULL */
     }                                                       /* else use configured value */
 
+    config_val = get_attr_string_val(e, CFG_CHECK_ALL_STATE_ATTRS);
+    if (config_val &&
+        (strcasecmp(config_val, "true") == 0 ||
+         strcasecmp(config_val, "yes") == 0 ||
+         strcasecmp(config_val, "on") == 0 ||
+         strcasecmp(config_val, "1") == 0))
+    {
+        newcfg->check_all_state_attrs = PR_TRUE;
+    } else {
+        newcfg->check_all_state_attrs = PR_FALSE;
+    }
+    slapi_ch_free_string(&config_val);
+
     newcfg->always_record_login_attr = get_attr_string_val(e, CFG_RECORD_LOGIN_ATTR);
     /* What user attribute will store the last login time
      * of a user. If empty, should have the same value as
@@ -158,10 +172,10 @@ acct_policy_entry2config(Slapi_Entry *e, acctPluginCfg *newcfg)
             rc = -1;
             newcfg->inactivitylimit = ULONG_MAX;
         }
+        slapi_ch_free_string(&config_val);
     } else {
         newcfg->inactivitylimit = ULONG_MAX;
     }
-    slapi_ch_free_string(&config_val);
 
     return (rc);
 }

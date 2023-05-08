@@ -1,5 +1,6 @@
 /******************************************************************************
 Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
+Copyright (C) 2023 Red Hat, Inc.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -82,42 +83,99 @@ acct_inact_limit(Slapi_PBlock *pb, const char *dn, Slapi_Entry *target_entry, ac
     int rc = 0; /* Optimistic default */
     acctPluginCfg *cfg;
 
+    cur_t = slapi_current_utc_time();
+
     config_rd_lock();
     cfg = get_config();
-    if ((lasttimestr = get_attr_string_val(target_entry,
-                                           cfg->state_attr_name)) != NULL) {
-        slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
-                      "acct_inact_limit - \"%s\" login timestamp is %s\n", dn, lasttimestr);
-    } else if (cfg->alt_state_attr_name && ((lasttimestr = get_attr_string_val(target_entry,
-                                                                               cfg->alt_state_attr_name)) != NULL)) {
-        slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
-                      "acct_inact_limit - \"%s\" alternate timestamp is %s\n", dn, lasttimestr);
-    } else {
-        /* the primary or alternate attribute might not yet exist eg.
-     * if only lastlogintime is specified and it id the first login
-     */
-        slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
-                      "acct_inact_limit - \"%s\" has no value for stateattr or altstateattr \n", dn);
-        goto done;
-    }
 
-    last_t = gentimeToEpochtime(lasttimestr);
-    cur_t = slapi_current_utc_time();
-    lim_t = policy->inactivitylimit;
+    if (cfg->check_all_state_attrs) {
+        /*
+         * Check both state and alternate state attributes.
+         */
+        if ((lasttimestr = get_attr_string_val(target_entry, cfg->state_attr_name)) != NULL) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" login timestamp is %s (found in attribute '%s')\n",
+                          dn, lasttimestr, cfg->state_attr_name);
+            last_t = gentimeToEpochtime(lasttimestr);
+            lim_t = policy->inactivitylimit;
+            slapi_ch_free_string(&lasttimestr);
 
-    /* Finally do the time comparison */
-    if (cur_t > last_t + lim_t) {
+            /* Finally do the time comparison */
+            if (cur_t > last_t + lim_t) {
+                slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                              "acct_inact_limit - \"%s\" has exceeded inactivity limit  (%ld > (%ld + %ld))\n",
+                              dn, cur_t, last_t, lim_t);
+                rc = 1;
+                goto done;
+            }
+        }
+
+        /* Check alternate state attribute next... */
+        if (cfg->alt_state_attr_name &&
+                ((lasttimestr = get_attr_string_val(target_entry, cfg->alt_state_attr_name)) == NULL))
+        {
+            goto done;
+        }
         slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
-                      "acct_inact_limit - \"%s\" has exceeded inactivity limit  (%ld > (%ld + %ld))\n",
-                      dn, cur_t, last_t, lim_t);
-        rc = 1;
-        goto done;
-    } else {
+                      "acct_inact_limit - \"%s\" alternate timestamp is %s (found in attribute '%s')\n",
+                      dn, lasttimestr, cfg->alt_state_attr_name);
+        last_t = gentimeToEpochtime(lasttimestr);
+        lim_t = policy->inactivitylimit;
+        slapi_ch_free_string(&lasttimestr);
+
+        /* Finally do the time comparison */
+        if (cur_t > last_t + lim_t) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" has exceeded inactivity limit  (%ld > (%ld + %ld))\n",
+                          dn, cur_t, last_t, lim_t);
+            rc = 1;
+            goto done;
+        }
         slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
                       "acct_inact_limit - \"%s\" is within inactivity limit (%ld < (%ld + %ld))\n",
                       dn, cur_t, last_t, lim_t);
-    }
+    } else {
+        /*
+         * Check state attribute, if not present in entry only then try
+         * alternate state attribute
+         */
+        if ((lasttimestr = get_attr_string_val(target_entry, cfg->state_attr_name)) != NULL) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" login timestamp is %s (found in attribute '%s')\n",
+                          dn, lasttimestr, cfg->state_attr_name);
+        } else if (cfg->alt_state_attr_name &&
+            ((lasttimestr = get_attr_string_val(target_entry, cfg->alt_state_attr_name)) != NULL))
+        {
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" alternate timestamp is %s (found in attribute '%s')\n",
+                          dn, lasttimestr, cfg->alt_state_attr_name);
+        } else {
+            /*
+             * The primary or alternate attribute might not yet exist eg.
+             * if only lastlogintime is specified and it is the first login
+             */
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" has no value for stateattr or altstateattr \n", dn);
+            goto done;
+        }
 
+        last_t = gentimeToEpochtime(lasttimestr);
+        lim_t = policy->inactivitylimit;
+        slapi_ch_free_string(&lasttimestr);
+
+        /* Finally do the time comparison */
+        if (cur_t > last_t + lim_t) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" has exceeded inactivity limit  (%ld > (%ld + %ld))\n",
+                          dn, cur_t, last_t, lim_t);
+            rc = 1;
+            goto done;
+        } else {
+            slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+                          "acct_inact_limit - \"%s\" is within inactivity limit (%ld < (%ld + %ld))\n",
+                          dn, cur_t, last_t, lim_t);
+        }
+    }
 done:
     config_unlock();
     /* Deny bind; the account has exceeded the inactivity limit */
@@ -127,8 +185,6 @@ done:
                                " Contact system administrator to reset.",
                                0, NULL);
     }
-
-    slapi_ch_free_string(&lasttimestr);
 
     return (rc);
 }
@@ -430,8 +486,7 @@ acct_bind_postop(Slapi_PBlock *pb)
             rc = -1;
             goto done;
         } else {
-            if (target_entry && has_attr(target_entry,
-                                         cfg->spec_attr_name, NULL)) {
+            if (target_entry && has_attr(target_entry, cfg->spec_attr_name, NULL)) {
                 tracklogin = 1;
             }
         }

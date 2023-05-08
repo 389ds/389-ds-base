@@ -72,6 +72,7 @@ class AccountPolicy extends React.Component {
             limitAttrName: "",
             specAttrName: "",
             stateAttrName: "",
+            checkAllStateAttrs: false,
             _configDN: "",
             _altStateAttrName: [],
             _alwaysRecordLogin: false,
@@ -79,6 +80,7 @@ class AccountPolicy extends React.Component {
             _limitAttrName: "",
             _specAttrName: "",
             _stateAttrName: "",
+            _checkAllStateAttrs: false,
             errorModal: {},
             saveBtnDisabledModal: true,
             modalChecked: false,
@@ -273,6 +275,7 @@ class AccountPolicy extends React.Component {
                 limitAttrName: "accountInactivityLimit",
                 specAttrName: "acctPolicySubentry",
                 stateAttrName: "lastLoginTime",
+                checkAllStateAttrs: "checkAllStateAttrs",
                 _configDN: "",
                 _altStateAttrName: "createTimestamp",
                 _alwaysRecordLogin: false,
@@ -280,6 +283,7 @@ class AccountPolicy extends React.Component {
                 _limitAttrName: "accountInactivityLimit",
                 _specAttrName: "acctPolicySubentry",
                 _stateAttrName: "lastLoginTime",
+                _checkAllStateAttrs: "checkAllStateAttrs",
                 savingModal: false,
                 saveBtnDisabledModal: true,
             });
@@ -334,6 +338,10 @@ class AccountPolicy extends React.Component {
                             configEntry.stateattrname === undefined
                                 ? "lastLoginTime"
                                 : configEntry.stateattrname[0],
+                            checkAllStateAttrs: !(
+                                configEntry.checkallstateattrs === undefined ||
+                            configEntry.checkallstateattrs[0] == "no"
+                            ),
                             // original values
                             _altStateAttrName:
                             configEntry.altstateattrname === undefined
@@ -359,6 +367,10 @@ class AccountPolicy extends React.Component {
                             configEntry.stateattrname === undefined
                                 ? "lastLoginTime"
                                 : configEntry.stateattrname[0],
+                            _checkAllStateAttrs: !(
+                                configEntry.checkallstateattrs === undefined ||
+                            configEntry.checkallstateattrs[0] == "no"
+                            ),
                         });
                     })
                     .fail(_ => {
@@ -372,12 +384,14 @@ class AccountPolicy extends React.Component {
                             limitAttrName: "accountInactivityLimit",
                             specAttrName: "acctPolicySubentry",
                             stateAttrName: "lastLoginTime",
+                            checkAllStateAttrs: false,
                             _altStateAttrName: "createTimestamp",
                             _alwaysRecordLogin: false,
                             _alwaysRecordLoginAttr: "lastLoginTime",
                             _limitAttrName: "accountInactivityLimit",
                             _specAttrName: "acctPolicySubentry",
                             _stateAttrName: "lastLoginTime",
+                            _checkAllStateAttrs: false,
                             saveBtnDisabledModal: false, // We preset the form so it's ready to save
                         });
                     });
@@ -396,7 +410,8 @@ class AccountPolicy extends React.Component {
             alwaysRecordLoginAttr,
             limitAttrName,
             specAttrName,
-            stateAttrName
+            stateAttrName,
+            checkAllStateAttrs,
         } = this.state;
 
         let cmd = [
@@ -409,7 +424,9 @@ class AccountPolicy extends React.Component {
             action,
             configDN,
             "--always-record-login",
-            alwaysRecordLogin ? "yes" : "no"
+            alwaysRecordLogin ? "yes" : "no",
+            "--check-all-state-attrs",
+            checkAllStateAttrs ? "yes" : "no",
         ];
 
         cmd = [...cmd, "--alt-state-attr"];
@@ -590,7 +607,8 @@ class AccountPolicy extends React.Component {
             all_good = false;
             const attrs = [
                 'configDN', 'altStateAttrName', 'alwaysRecordLogin',
-                'alwaysRecordLoginAttr', 'limitAttrName', 'stateAttrName'
+                'alwaysRecordLoginAttr', 'limitAttrName', 'stateAttrName',
+                'checkAllStateAttrs',
             ];
             for (const check_attr of attrs) {
                 if (this.state[check_attr] != this.state['_' + check_attr]) {
@@ -607,7 +625,7 @@ class AccountPolicy extends React.Component {
 
     handleFieldChange(e) {
         const attr = e.target.id; // always configArea
-        const value = e.target.value;
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let saveBtnDisabled = true;
         const errObj = {};
 
@@ -720,6 +738,7 @@ class AccountPolicy extends React.Component {
             limitAttrName,
             specAttrName,
             stateAttrName,
+            checkAllStateAttrs,
             newEntry,
             configEntryModalShow,
             error,
@@ -836,7 +855,7 @@ class AccountPolicy extends React.Component {
                             <GridItem span={4}>
                                 <Checkbox
                                     id="alwaysRecordLogin"
-                                    className="ds-left-margin"
+                                    className="ds-left-margin ds-lower-field"
                                     isChecked={alwaysRecordLogin}
                                     title="Sets that every entry records its last login time (alwaysRecordLogin)"
                                     onChange={this.handleCheckboxChange}
@@ -870,6 +889,32 @@ class AccountPolicy extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
+                        <Grid title="Specifies the attribute within the policy to use for the account inactivation limit (limitAttrName)">
+                            <GridItem span={4} className="ds-label">
+                                Limit Attribute
+                            </GridItem>
+                            <GridItem span={8}>
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel="Type an attribute name"
+                                    onToggle={this.onLimitAttrToggle}
+                                    onSelect={this.onLimitAttrSelect}
+                                    onClear={this.onLimitAttrClear}
+                                    selections={limitAttrName}
+                                    isOpen={this.state.isLimitAttrOpen}
+                                    aria-labelledby="typeAhead-limit-attr"
+                                    placeholderText="Type an attribute name ..."
+                                    noResultsFoundText="There are no matching entries"
+                                >
+                                    {this.props.attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                    ))}
+                                </Select>
+                            </GridItem>
+                        </Grid>
                         <Grid title="Specifies the primary time attribute used to evaluate an account policy (stateAttrName)">
                             <GridItem span={4} className="ds-label">
                                 State Attribute
@@ -896,7 +941,7 @@ class AccountPolicy extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Provides a backup attribute for the server to reference to evaluate the expiration time (altStateAttrName)">
+                        <Grid title="Provides a backup attribute to evaluate the expiration time if the main state attribute is not present (altStateAttrName)">
                             <GridItem span={4} className="ds-label">
                                 Alternative State Attribute
                             </GridItem>
@@ -922,30 +967,15 @@ class AccountPolicy extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Specifies the attribute within the policy to use for the account inactivation limit (limitAttrName)">
-                            <GridItem span={4} className="ds-label">
-                                Limit Attribute
-                            </GridItem>
-                            <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel="Type an attribute name"
-                                    onToggle={this.onLimitAttrToggle}
-                                    onSelect={this.onLimitAttrSelect}
-                                    onClear={this.onLimitAttrClear}
-                                    selections={limitAttrName}
-                                    isOpen={this.state.isLimitAttrOpen}
-                                    aria-labelledby="typeAhead-limit-attr"
-                                    placeholderText="Type an attribute name ..."
-                                    noResultsFoundText="There are no matching entries"
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                        <Grid title="Check both the 'state attribute', and the 'alternate state attribute' regaredless if the main state attribute is present">
+                            <GridItem span={4}>
+                                <Checkbox
+                                    id="checkAllStateAttrs"
+                                    className="ds-left-margin"
+                                    isChecked={checkAllStateAttrs}
+                                    onChange={this.handleCheckboxChange}
+                                    label="Check All State Attributes"
+                                />
                             </GridItem>
                         </Grid>
                     </Form>
@@ -987,7 +1017,7 @@ class AccountPolicy extends React.Component {
                                     key="manage"
                                     variant="primary"
                                     onClick={this.openModal}
-                                    isDisabled={saveBtnDisabled}
+                                    isDisabled={!this.state.sharedConfigExists && saveBtnDisabled}
                                 >
                                     {this.state.sharedConfigExists ? "Manage Config" : "Create Config"}
                                 </Button>
