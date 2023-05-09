@@ -13,16 +13,22 @@ Importing necessary Modules.
 
 import logging
 import time
+import ldap
 import os
 import pytest
 
-from lib389._constants import PW_DM, DEFAULT_SUFFIX
+from lib389._constants import ErrorLog, PW_DM, DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.organization import Organization
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.topologies import topology_st as topo
 from lib389.idm.role import FilteredRoles, ManagedRoles, NestedRoles
 from lib389.idm.domain import Domain
+from lib389.dbgen import dbgen_users
+from lib389.tasks import ImportTask
+from lib389.utils import get_default_db_lib
+from lib389.rewriters import *
+from lib389.backend import Backends
 
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
@@ -490,6 +496,255 @@ def test_vattr_on_managed_role(topo, request):
         except:
             pass
         topo.standalone.config.set('nsslapd-ignore-virtual-attrs', 'on')
+
+    request.addfinalizer(fin)
+
+def test_managed_and_filtered_role_rewrite(topo, request):
+    """Test that filter components containing 'nsrole=xxx'
+    are reworked if xxx is either a filtered role or a managed
+    role.
+
+    :id: e30ff5ed-4f8b-48db-bb88-66f150fca31f
+    :setup: server
+    :steps:
+        1. Setup nsrole rewriter
+        2. Add a 'nsroleDN' indexes for managed roles
+        3. Create an 90K ldif files
+           This is large so that unindex search will last long
+        4. import/restart the instance
+        5. Create a managed role and add 4 entries in that role
+        6. Check that a search 'nsrole=managed_role' is fast
+        7. Create a filtered role that use an indexed attribute (givenName)
+        8. Check that a search 'nsrole=filtered_role' is fast
+    :expectedresults:
+        1. Operation should  succeed
+        2. Operation should  succeed
+        3. Operation should  succeed
+        4. Operation should  succeed
+        5. Operation should  succeed
+        6. Operation should  succeed
+        7. Operation should  succeed
+        8. Operation should  succeed
+    """
+    # Setup nsrole rewriter
+    rewriters = Rewriters(topo.standalone)
+    rewriter = rewriters.ensure_state(properties={"cn": "nsrole", "nsslapd-libpath": 'libroles-plugin'})
+    try:
+        rewriter.add('nsslapd-filterrewriter', "role_nsRole_filter_rewriter")
+    except:
+        pass
+
+    # Create an index for nsRoleDN that is used by managed role
+    attrname = 'nsRoleDN'
+    backends = Backends(topo.standalone)
+    backend = backends.get(DEFAULT_BENAME)
+    indexes = backend.get_indexes()
+    try:
+        index = indexes.create(properties={
+            'cn': attrname, 
+            'nsSystemIndex': 'false',
+            'nsIndexType': ['eq', 'pres']
+            })
+    except:
+        pass
+
+    # Build LDIF file
+    bdb_values = {
+      'wait30': 30
+    }
+
+    # Note: I still sometime get failure with a 60s timeout so lets use 90s
+    mdb_values = {
+      'wait30': 90
+    }
+
+    if get_default_db_lib() == 'bdb':
+        values = bdb_values
+    else:
+        values = mdb_values
+
+    ldif_dir = topo.standalone.get_ldif_dir()
+    import_ldif = ldif_dir + '/perf_import.ldif'
+
+    RDN="userNew"
+    PARENT="ou=people,%s" % DEFAULT_SUFFIX
+    dbgen_users(topo.standalone, 90000, import_ldif, DEFAULT_SUFFIX, entry_name=RDN, generic=True, parent=PARENT)
+
+    # online import
+    import_task = ImportTask(topo.standalone)
+    import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+    import_task.wait(values['wait30'])  # If things go wrong import takes a lot longer than this
+    assert import_task.is_complete()
+
+    # Restart server
+    topo.standalone.restart()
+
+    # Create Managed role entry
+    managed_roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
+    role = managed_roles.create(properties={"cn": 'MANAGED_ROLE'})
+
+    # Assign managed role to 4 entries out of the 90K
+    for i in range(1, 5):
+        dn = "uid=%s0000%d,%s" % (RDN, i, PARENT)
+        topo.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'nsRoleDN', [role.dn.encode()])])
+
+    
+    # Now check that search is fast, evaluating only 4 entries
+    search_start = time.time()
+    entries = topo.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(nsrole=%s)" % role.dn)
+    duration = time.time() - search_start
+    log.info("Duration of the search was %f", duration)
+    assert(len(entries) == 4)
+    assert (duration < 1)
+
+    # Restart server to refresh entrycache
+    topo.standalone.restart()
+
+    # Create Filtered Role entry
+    # it uses 'givenName' attribute that is indexed (eq) by default
+    filtered_roles = FilteredRoles(topo.standalone, DEFAULT_SUFFIX)
+    role = filtered_roles.create(properties={'cn': 'FILTERED_ROLE', 'nsRoleFilter': 'givenName=Technical'})
+
+    # Now check that search is fast
+    search_start = time.time()
+    entries = topo.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(nsrole=%s)" % role.dn)
+    duration = time.time() - search_start
+    log.info("Duration of the search was %f", duration)
+    assert (duration < 1)
+
+    def fin():
+        topo.standalone.restart()
+        try:
+            managed_roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in managed_roles.list():
+                i.delete()
+            filtered_roles = FilteredRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in filtered_roles.list():
+                i.delete()
+        except:
+            pass
+        os.remove(import_ldif)
+
+    request.addfinalizer(fin)
+
+def test_not_such_entry_role_rewrite(topo, request):
+    """Test that filter components containing 'nsrole=xxx'
+       ,where xxx does not refer to any role definition,
+       replace the component by 'nsuniqueid=-1'
+
+    :id: b098dda5-fc77-46c4-84a7-5d0c7035bb77
+    :setup: server
+    :steps:
+        1. Setup nsrole rewriter
+        2. Add a 'nsroleDN' indexes for managed roles
+        3. Create an 90K ldif files
+           This is large so that unindex search will last long
+        4. import/restart the instance
+        5. Create a managed role and add 4 entries in that role
+        6. Enable plugin log level to capture role plugin message
+        7. Check that a search is fast "(OR(nsrole=managed_role)(nsrole=not_existing_role))"
+        8. Stop the instance
+        9. Check that a message like this was logged: replace (nsrole=not_existing_role) by (nsuniqueid=-1)
+    :expectedresults:
+        1. Operation should  succeed
+        2. Operation should  succeed
+        3. Operation should  succeed
+        4. Operation should  succeed
+        5. Operation should  succeed
+        6. Operation should  succeed
+        7. Operation should  succeed
+        8. Operation should  succeed
+        9. Operation should  succeed
+    """
+    # Setup nsrole rewriter
+    rewriters = Rewriters(topo.standalone)
+    rewriter = rewriters.ensure_state(properties={"cn": "nsrole", "nsslapd-libpath": 'libroles-plugin'})
+    try:
+        rewriter.add('nsslapd-filterrewriter', "role_nsRole_filter_rewriter")
+    except:
+        pass
+
+    # Create an index for nsRoleDN that is used by managed role
+    attrname = 'nsRoleDN'
+    backends = Backends(topo.standalone)
+    backend = backends.get(DEFAULT_BENAME)
+    indexes = backend.get_indexes()
+    try:
+        index = indexes.create(properties={
+            'cn': attrname, 
+            'nsSystemIndex': 'false',
+            'nsIndexType': ['eq', 'pres']
+            })
+    except:
+        pass
+
+    # Build LDIF file
+    bdb_values = {
+      'wait60': 60
+    }
+
+    # Note: I still sometime get failure with a 60s timeout so lets use 90s
+    mdb_values = {
+      'wait60': 90
+    }
+
+    if get_default_db_lib() == 'bdb':
+        values = bdb_values
+    else:
+        values = mdb_values
+
+    ldif_dir = topo.standalone.get_ldif_dir()
+    import_ldif = ldif_dir + '/perf_import.ldif'
+
+    RDN="userNew"
+    PARENT="ou=people,%s" % DEFAULT_SUFFIX
+    dbgen_users(topo.standalone, 90000, import_ldif, DEFAULT_SUFFIX, entry_name=RDN, generic=True, parent=PARENT)
+
+    # online import
+    import_task = ImportTask(topo.standalone)
+    import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+    import_task.wait(values['wait60'])  # If things go wrong import takes a lot longer than this
+    assert import_task.is_complete()
+
+    # Restart server
+    topo.standalone.restart()
+
+    # Create Managed role entry
+    managed_roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
+    role = managed_roles.create(properties={"cn": 'MANAGED_ROLE'})
+
+    # Assign managed role to 4 entries out of the 90K
+    for i in range(1, 5):
+        dn = "uid=%s0000%d,%s" % (RDN, i, PARENT)
+        topo.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'nsRoleDN', [role.dn.encode()])])
+
+    # Enable plugin level to check message
+    topo.standalone.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.PLUGIN))
+    
+    # Now check that search is fast, evaluating only 4 entries
+    search_start = time.time()
+    entries = topo.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(|(nsrole=%s)(nsrole=cn=not_such_entry_role,%s))" % (role.dn, DEFAULT_SUFFIX))
+    duration = time.time() - search_start
+    log.info("Duration of the search was %f", duration)
+    assert(len(entries) == 4)
+    assert (duration < 1)
+
+    # Restart server to refresh entrycache
+    topo.standalone.stop()
+
+    # Check that when the role does not exist it is translated into 'nsuniqueid=-1'
+    pattern = ".*replace \(nsRole=cn=not_such_entry_role,dc=example,dc=com\) by \(nsuniqueid=-1\).*"
+    assert topo.standalone.ds_error_log.match(pattern)
+
+    def fin():
+        topo.standalone.restart()
+        try:
+            managed_roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
+            for i in managed_roles.list():
+                i.delete()
+        except:
+            pass
+        os.remove(import_ldif)
 
     request.addfinalizer(fin)
 

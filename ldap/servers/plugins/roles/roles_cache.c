@@ -2131,3 +2131,207 @@ roles_cache_dump(caddr_t data, caddr_t arg __attribute__((unused)))
 
     return 0;
 }
+
+
+/* This is an example callback to substitute
+ * attribute type 'from' with 'to' in all
+ * the filter components
+ * example_substitute_type is a callback (FILTER_APPLY_FN) used by slapi_filter_apply
+ * typedef int (FILTER_APPLY_FN)(Slapi_Filter f, void *arg)
+ * To stick to the definition, the callback is defined using 'int' rather 'int32_t'
+ */
+typedef struct {
+    char *attrtype_from;
+    char *attrtype_to;
+} role_substitute_type_arg_t;
+
+
+static void
+_rewrite_nsrole_component(Slapi_Filter *f, role_substitute_type_arg_t *substitute_arg)
+{
+    char *type;
+    struct berval *bval;
+    char *attrs[3] = {SLAPI_ATTR_OBJECTCLASS, ROLE_FILTER_ATTR_NAME, NULL};
+    Slapi_Entry *nsrole_entry = NULL;
+    Slapi_DN *sdn = NULL;
+    char *rolefilter = NULL;
+    int rc;
+    char **oc_values = NULL;
+
+    /* Substitution is only valid if original attribute is NSROLEATTR */
+    if ((substitute_arg == NULL) ||
+        (substitute_arg->attrtype_from == NULL) ||
+        (substitute_arg->attrtype_to == NULL)) {
+        return;
+    }
+    if (strcasecmp(substitute_arg->attrtype_from, NSROLEATTR)) {
+        return;
+    }
+    if (slapi_filter_get_choice(f) != LDAP_FILTER_EQUALITY) {
+        /* only equality filter are handled
+         * else it is not possible to retrieve the role
+         * via its DN.
+         * Safety checking, at this point filter component has
+         * already been tested as equality match.
+         */
+        return;
+    }
+
+    /* Check that assertion does not refer to a filter/nested role */
+    if (slapi_filter_get_ava(f, &type, &bval)) {
+        return;
+    }
+    sdn = slapi_sdn_new_dn_byref(bval->bv_val);
+    rc = slapi_search_internal_get_entry(sdn, attrs, &nsrole_entry, roles_get_plugin_identity());
+    if (rc != LDAP_SUCCESS) {
+        if (rc == LDAP_NO_SUCH_OBJECT) {
+            /* the role does not exist (nsrole=<unknown role>)
+             * that means no entry match this component. To speed up
+             * the built of candidate list we may replace this component
+             * with an indexed component that return empty IDL.
+             * nsuniqueid is indexed and -1 is an invalid value.
+             */
+            char *empty_IDL_filter;
+            empty_IDL_filter = slapi_ch_smprintf("(%s=-1)", SLAPI_ATTR_UNIQUEID);
+            slapi_filter_replace_strfilter(f, empty_IDL_filter);
+            slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "_rewrite_nsrole_component: replace (%s=%s) by %s\n",
+                          substitute_arg->attrtype_from, (char *)slapi_sdn_get_ndn(sdn), empty_IDL_filter);
+            slapi_ch_free_string(&empty_IDL_filter);
+
+        }
+        goto bail;
+    }
+    oc_values = slapi_entry_attr_get_charray(nsrole_entry, SLAPI_ATTR_OBJECTCLASS);
+    rolefilter = slapi_entry_attr_get_charptr(nsrole_entry, ROLE_FILTER_ATTR_NAME);
+    for (size_t i = 0; oc_values && oc_values[i]; ++i) {
+        if (!strcasecmp(oc_values[i], (char *)"nsSimpleRoleDefinition") ||
+            !strcasecmp(oc_values[i], (char *)"nsManagedRoleDefinition")) {
+            /* This is a managed role, okay to rewrite the attribute type */
+            slapi_filter_changetype(f, substitute_arg->attrtype_to);
+            goto bail;
+        } else if (!strcasecmp(oc_values[i], (char *)"nsFilteredRoleDefinition") && rolefilter) {
+            /* filtered role, okay to rewrite the filter with
+             * the value of the nsRoleFilter
+             */
+            slapi_filter_replace_strfilter(f, rolefilter);
+            goto bail;
+        } else if (!strcasecmp(oc_values[i], (char *)"nsNestedRoleDefinition")) {
+            /* nested roles can not be rewritten */
+            goto bail;
+        }
+    }
+
+bail:
+    slapi_ch_free_string(&rolefilter);
+    slapi_ch_array_free(oc_values);
+    slapi_entry_free(nsrole_entry);
+    slapi_sdn_free(&sdn);
+    return;
+}
+
+/* It calls _rewrite_nsrole_component for each filter component with
+ *  - filter choice LDAP_FILTER_EQUALITY
+ *  - filter attribute type nsRole
+ */
+static int
+role_substitute_type(Slapi_Filter *f, void *arg)
+{
+    role_substitute_type_arg_t *substitute_arg = (role_substitute_type_arg_t *) arg;
+    char *filter_type;
+
+    if ((substitute_arg == NULL) ||
+        (substitute_arg->attrtype_from == NULL) ||
+        (substitute_arg->attrtype_to == NULL)) {
+        return SLAPI_FILTER_SCAN_STOP;
+    }
+
+    if (slapi_filter_get_choice(f) != LDAP_FILTER_EQUALITY) {
+        /* only equality filter are handled
+         * else it is not possible to retrieve the role
+         * via its DN
+         */
+        return SLAPI_FILTER_SCAN_CONTINUE;
+    }
+
+    /* In case this is expected attribute type and assertion
+     * Substitute 'from' by 'to' attribute type in the filter
+     */
+    if (slapi_filter_get_attribute_type(f, &filter_type) == 0) {
+            if ((strcasecmp(filter_type, substitute_arg->attrtype_from) == 0)) {
+                _rewrite_nsrole_component(f, substitute_arg);
+            }
+    }
+
+    /* Return continue because we should
+     * substitute 'from' in all filter components
+     */
+    return SLAPI_FILTER_SCAN_CONTINUE;
+}
+
+
+/*
+ * During PRE_SEARCH, rewriters (a.k.a computed attributes) are called
+ * to rewrite some search filter components.
+ * Rewriters callbacks are registered by main and are retrieved from
+ * config entries under cn=rewriters,cn=config.
+ *
+ * In order to register the role rewriter, the following record
+ * is added to the config.
+ *
+ * dn: cn=role,cn=rewriters,cn=config
+ * objectClass: top
+ * objectClass: extensibleObject
+ * cn: role
+ * nsslapd-libpath: /lib/dirsrv/libslapd.so
+ * nsslapd-filterrewriter: role_nsRole_filter_rewriter
+ *
+ * The role rewriter supports:
+ *   - 'nsrole' attribute type
+ *   - LDAP_FILTER_EQUALITY filter choice
+ *   - assertion being a managed/filtered role DN
+ *
+ *   - Input  '(nsrole=cn=admin1,dc=example,dc=com)'
+ *     Output '(nsroleDN=cn=admin1,dc=example,dc=com)'
+ *   - Input  '(nsrole=cn=SalesManagerFilter,ou=people,dc=example,dc=com)'
+ *     Output '(manager=user008762)'
+ *
+ * dn: cn=admin1,dc=example,dc=com
+ * ...
+ * objectClass: nsRoleDefinition
+ * objectClass: nsManagedRoleDefinition
+ * ...
+ *
+ * dn: cn=SalesManagerFilter,ou=people,dc=example,dc=com
+ * ...
+ * objectclass: nsRoleDefinition
+ * objectclass: nsFilteredRoleDefinition
+ * ...
+ * nsRoleFilter: manager=user008762
+ *
+ * return code (from computed.c:compute_rewrite_search_filter):
+ *   -1 : keep looking
+ *    0 : rewrote OK
+ *    1 : refuse to do this search
+ *    2 : operations error
+ */
+int32_t
+role_nsRole_filter_rewriter(Slapi_PBlock *pb)
+{
+    Slapi_Filter *clientFilter = NULL;
+    int error_code = 0;
+    int rc;
+    role_substitute_type_arg_t arg;
+    arg.attrtype_from = NSROLEATTR;
+    arg.attrtype_to = ROLE_MANAGED_ATTR_NAME;
+
+    slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &clientFilter);
+    rc = slapi_filter_apply(clientFilter, role_substitute_type, &arg, &error_code);
+    if (rc == SLAPI_FILTER_SCAN_NOMORE) {
+        return SEARCH_REWRITE_CALLBACK_CONTINUE; /* Let's others rewriter play */
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR,
+                          "example_foo2cn_filter_rewriter", "Could not update the search filter - error %d (%d)\n",
+                          rc, error_code);
+        return SEARCH_REWRITE_CALLBACK_ERROR; /* operation error */
+    }
+}
