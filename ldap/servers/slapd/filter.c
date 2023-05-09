@@ -1031,6 +1031,72 @@ slapi_filter_get_subfilt(
     return (0);
 }
 
+/*
+ * Before calling this function, you must free all the parts
+ * which will be overwritten (i.e. slapi_free_the_filter_bits),
+ * this function dosn't know how to do that
+ */
+int
+slapi_filter_replace_ex(Slapi_Filter *f, char *s)
+{
+    Slapi_Filter *newf = NULL;
+    Slapi_Filter *temp = NULL;
+    char *buf = slapi_ch_strdup(s);
+
+    newf = slapi_str2filter(buf);
+    slapi_ch_free((void **)&buf);
+
+    if (NULL == newf) {
+        return -1;
+    }
+
+    /* Now take the parts of newf and put them in f */
+    /* An easy way to do this is to preserve the "next" ptr */
+    temp = f->f_next;
+    *f = *newf;
+    f->f_next = temp;
+    /* Free the new filter husk */
+    slapi_ch_free((void **)&newf);
+    return 0;
+}
+
+/*
+ * Free the parts of a filter we're about to overwrite
+ * moved from ldbm_attr.c
+ */
+void
+slapi_filter_free_bits(Slapi_Filter *f)
+{
+    /* We need to free: */
+    switch (f->f_choice) {
+    case LDAP_FILTER_EQUALITY:
+    case LDAP_FILTER_GE:
+    case LDAP_FILTER_LE:
+    case LDAP_FILTER_APPROX:
+        ava_done(&f->f_ava);
+        break;
+
+    case LDAP_FILTER_PRESENT:
+        if (f->f_type != NULL) {
+            slapi_ch_free((void **)&(f->f_type));
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+
+/*
+ * it replaces the bits of the Slapi_Filter with the ones taken from strfilter
+ */
+int
+slapi_filter_replace_strfilter(Slapi_Filter *f, char *strfilter)
+{
+    slapi_filter_free_bits(f);
+    return (slapi_filter_replace_ex(f, strfilter));
+}
+
 static void
 filter_normalize_ava(struct slapi_filter *f, PRBool norm_values)
 {
