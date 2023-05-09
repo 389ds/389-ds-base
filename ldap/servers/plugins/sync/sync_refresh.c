@@ -100,7 +100,22 @@ sync_srch_refresh_pre_search(Slapi_PBlock *pb)
              * consumer.
              */
             session_cookie = sync_cookie_create(pb, client_cookie);
-            PR_ASSERT(session_cookie);
+            if (session_cookie == NULL) {
+                /* In some rare case access to the retroCL fails.
+                 * It can happen when retroCL is just created and
+                 * does not contain any record.
+                 * As we are not able to retrieve the last changenumber
+                 * just return a failure.
+                 * Another option would be to set cookie_change_info=0
+                 * if we can not retrieve any record in retroCL
+                 * (in sync_cookie_create)
+                 */
+                slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
+                              "sync_srch_refresh_pre_search - fails to create a session cookie\n");
+                rc = LDAP_OPERATIONS_ERROR;
+                sync_result_err(pb, rc, "Unable to create a session cookie: last changelog record unreachable");
+                goto error_return;
+            }
             /*
              *  if mode is persist we need to setup the persit handler
              * to catch the mods while the refresh is done
