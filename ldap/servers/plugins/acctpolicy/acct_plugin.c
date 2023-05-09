@@ -28,6 +28,9 @@ Hewlett-Packard Development Company, L.P.
 #include "acctpolicy.h"
 #include "slapi-plugin.h"
 
+static int
+acct_update_login_history(const char *, char *);
+
 /*
  * acct_policy_dn_is_config()
  *
@@ -187,8 +190,96 @@ done:
 }
 
 /*
+  Preserve bind time stamps in virtual attribute
+*/
+int
+acct_update_login_history(const char *dn, char *timestr)
+{
+    void *plugin_id = NULL;
+    int rc = -1;
+    int num_entries = 0;
+    size_t i = 0;
+    char **login_hist = NULL;
+    Slapi_PBlock *entry_pb = NULL;
+    Slapi_PBlock *mod_pb;
+    Slapi_Entry *e = NULL;
+    Slapi_DN *sdn = NULL;
+    acctPluginCfg *cfg;
+    LDAPMod attribute;
+    LDAPMod *list_of_mods[2];
+
+    plugin_id = get_identity();
+
+    sdn = slapi_sdn_new_normdn_byref(dn);
+    slapi_search_get_entry(&entry_pb, sdn, NULL, &e, plugin_id);
+
+    if (!timestr) {
+        return (rc);
+    }
+
+    config_rd_lock();
+    cfg = get_config();
+
+    /* get login history */
+    login_hist = slapi_entry_attr_get_charray_ext(e, cfg->login_history_attr, &num_entries);
+
+    /* first time round */
+    if (!login_hist || !num_entries) {
+        login_hist = (char **)slapi_ch_calloc(2, sizeof(char *));
+    }
+
+    /* Do we need to resize login_hist array */
+    if (num_entries >= cfg->login_history_size) {
+        int diff = (num_entries - cfg->login_history_size);
+        /* free times we dont need */
+        for (i = 0; i <= diff; i++) {
+            slapi_ch_free_string(&login_hist[i]);
+        }
+        /* remap array*/
+        for (i = 0; i < (cfg->login_history_size - 1); i++) {
+            login_hist[i] = login_hist[(diff + 1) + i];
+        }
+        /* expand array and add current time string at the end */
+        login_hist = (char **)slapi_ch_realloc((char *)login_hist, sizeof(char *) * (cfg->login_history_size + 1));
+        login_hist[i] = slapi_ch_smprintf("%s", timestr);
+        login_hist[i + 1] = NULL;
+    } else {
+        /* expand array and add current time string at the end */
+        login_hist = (char **)slapi_ch_realloc((char *)login_hist, sizeof(char *) * (num_entries + 2));
+        login_hist[num_entries] = slapi_ch_smprintf("%s", timestr);
+        login_hist[num_entries + 1] = NULL;
+    }
+
+    /* modify the attribute */
+    attribute.mod_type = cfg->login_history_attr;
+    attribute.mod_op = LDAP_MOD_REPLACE;
+    attribute.mod_values = login_hist;
+
+    list_of_mods[0] = &attribute;
+    list_of_mods[1] = NULL;
+
+    mod_pb = slapi_pblock_new();
+    slapi_modify_internal_set_pb(mod_pb, dn, list_of_mods, NULL, NULL, plugin_id, 0);
+    slapi_modify_internal_pb(mod_pb);
+    slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (rc != LDAP_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, "acct_update_login_history", "Modify error %d on entry '%s'\n", rc, dn);
+    }
+
+    config_unlock();
+
+    slapi_ch_array_free(login_hist);
+    slapi_search_get_entry_done(&entry_pb);
+    slapi_sdn_free(&sdn);
+    slapi_pblock_destroy(mod_pb);
+    slapi_pblock_destroy(entry_pb);
+
+    return (rc);
+}
+
+/*
   This is called after binds, it updates an attribute in the account
-  with the current time.
+  and the login time history.
 */
 static int
 acct_record_login(const char *dn)
@@ -249,6 +340,9 @@ acct_record_login(const char *dn)
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, POST_PLUGIN_NAME,
                       "acct_record_login - Recorded %s=%s on \"%s\"\n", cfg->always_record_login_attr, timestr, dn);
+
+        /* update login history */
+        acct_update_login_history(dn, timestr);
     }
 
 done:
