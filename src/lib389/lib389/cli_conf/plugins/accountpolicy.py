@@ -21,7 +21,9 @@ arg_to_attr_config = {
     'limit_attr': 'limitattrname',
     'spec_attr': 'specattrname',
     'state_attr': 'stateattrname',
-    'check_all_state_attrs': 'checkallstateattrs',
+    'login_history': 'lastLoginHistory',
+    'login_history_size': 'lastLoginHistorySize',
+    'check_all_state_attrs': 'checkallstateattrs'
 }
 
 
@@ -96,6 +98,8 @@ def _add_parser_args(parser):
                              'are account policy configuration entries (specAttrName)')
     parser.add_argument('--state-attr',
                         help='Specifies the primary time attribute used to evaluate an account policy (stateAttrName)')
+    parser.add_argument('--login-history-size',
+                        help='Specifies the number of login timestamps to store (lastLoginHistSize) )')
     parser.add_argument('--check-all-state-attrs', choices=['yes', 'no'], type=str.lower,
                         help="Check both state and alternate state attributes for account state")
 

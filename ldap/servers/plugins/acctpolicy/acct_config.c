@@ -149,6 +149,16 @@ acct_policy_entry2config(Slapi_Entry *e, acctPluginCfg *newcfg)
     }
     slapi_ch_free_string(&config_val);
 
+    if (newcfg->always_record_login) {
+        char *hist_size = NULL;
+        newcfg->login_history_attr = slapi_ch_strdup(LASTLOGIN_HISTORY_ATTR);
+        if (has_attr(e, LASTLOGIN_HISTORY_SIZE_ATTR, &hist_size)) {
+            newcfg->login_history_size = atoi(hist_size);
+        } else {
+            newcfg->login_history_size = DEFAULT_LASTLOGIN_HISTORY_SIZE;
+        }
+    }
+
     /* the default limit if not set in the acctPolicySubentry */
     config_val = get_attr_string_val(e, newcfg->limit_attr_name);
     if (config_val) {
@@ -188,4 +198,5 @@ free_config()
     slapi_ch_free_string(&globalcfg.spec_attr_name);
     slapi_ch_free_string(&globalcfg.limit_attr_name);
     slapi_ch_free_string(&globalcfg.always_record_login_attr);
+    slapi_ch_free_string(&globalcfg.login_history_attr);
 }
