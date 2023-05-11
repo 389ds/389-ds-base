@@ -54,6 +54,7 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 import lib389
 from pathlib import Path
+from subprocess import check_output
 from lib389.paths import ( Paths, DEFAULTS_PATH )
 from lib389.dseldif import DSEldif
 from lib389._constants import (
@@ -1751,6 +1752,25 @@ def is_cert_der(file_name):
         return True
 
 
+def check_cert_info(cert_file_name, search_text):
+    # Use openssl to get cert details
+    cmd = [
+        'openssl',
+        'x509',
+        '-in', cert_file_name,
+        '-text',
+        '-noout',
+    ]
+    log.debug("get_cert_details cmd: %s", format_cmd_list(cmd))
+    try:
+        result = check_output(cmd, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        raise ValueError(e.output.decode('utf-8').rstrip())
+
+    cert_text = ensure_str(result)
+    return search_text.lower() in cert_text.lower()
+
+
 def cert_is_ca(cert_file_name):
     with open(cert_file_name, "rb") as f:
         if is_cert_der(cert_file_name):
@@ -1758,18 +1778,20 @@ def cert_is_ca(cert_file_name):
         else:
             cert = x509.load_pem_x509_certificate(f.read(), default_backend())
 
-    key_usage = cert.extensions.get_extension_for_oid(x509.oid.ExtensionOID.KEY_USAGE)
-    if not key_usage.value.key_cert_sign:
-        return False
-
-    basic_constraints = cert.extensions.get_extension_for_oid(
-        x509.oid.ExtensionOID.BASIC_CONSTRAINTS
-    )
-    if not basic_constraints.value.ca:
-        return False
-
-    # This is a CA cert
-    return True
+    try:
+        key_usage = cert.extensions.get_extension_for_oid(x509.oid.ExtensionOID.KEY_USAGE)
+        if not key_usage.value.key_cert_sign:
+            return False
+        basic_constraints = cert.extensions.get_extension_for_oid(
+            x509.oid.ExtensionOID.BASIC_CONSTRAINTS
+        )
+        if not basic_constraints.value.ca:
+            return False
+        else:
+            return True
+    except x509.ExtensionNotFound:
+        # No extensions, check the cert info directly
+        return check_cert_info(cert_file_name, "CA:TRUE")
 
 
 def get_passwd_from_file(passwd_file):

@@ -57,6 +57,7 @@ from lib389.idm.directorymanager import DirectoryManager
 # is always available!
 log = setup_script_logger("container-init", True)
 
+
 # Handle any dead child process signals we receive. Wait for them to terminate, or
 # if they are not found, move on.
 #
@@ -66,15 +67,18 @@ def _sigchild_handler(*args, **kwargs):
     # log.debug("Received SIGCHLD ...")
     os.waitpid(-1, os.WNOHANG)
 
+
 # Start the exit process.
 def _sigterm_handler(*args, **kwargs):
     exit()
+
 
 def _gen_instance():
     inst = DirSrv(verbose=True)
     inst.local_simple_allocate("localhost")
     inst.setup_ldapi()
     return inst
+
 
 def _begin_environment_config():
     inst = _gen_instance()
@@ -99,6 +103,7 @@ def _begin_environment_config():
         ldbmconfig.set("nsslapd-cache-autosize", str(autotune_pct))
 
     inst.close()
+
 
 def _begin_setup_pem_tls():
     # If we have the needed files, we can use them.
@@ -134,18 +139,20 @@ def _begin_setup_pem_tls():
     # Import the ca's
     for ca_path in [os.path.join(CONTAINER_TLS_SERVER_CADIR, ca) for ca in cas]:
         log.info("Enrolling -> %s" % ca_path)
-        tls.add_cert(nickname=ca_path, input_file=ca_path)
+        tls.add_cert(nickname=ca_path, input_file=ca_path, ca=True)
         tls.edit_cert_trust(ca_path, "C,,")
     # Import the new server-cert
     tls.add_server_key_and_cert(CONTAINER_TLS_SERVER_KEY, CONTAINER_TLS_SERVER_CERT)
     # Done!
     log.info("TLS PEM configuration complete.")
 
+
 def _begin_check_reindex():
     if os.getenv('DS_REINDEX', None) is not None:
         log.info("Reindexing database. This may take a while ...")
         inst = _gen_instance()
         inst.db2index()
+
 
 def begin_magic():
     log.info("The 389 Directory Server Container Bootstrap")

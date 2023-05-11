@@ -1058,7 +1058,6 @@ only.
         except subprocess.CalledProcessError as e:
             raise ValueError(e.output.decode('utf-8').rstrip())
 
-
     def display_cert_details(self, nickname):
         cmd = [
             '/usr/bin/certutil',
@@ -1075,7 +1074,6 @@ only.
             raise ValueError(e.output.decode('utf-8').rstrip())
 
         return ensure_str(result)
-
 
     def get_cert_details(self, nickname):
         """Get the trust flags, subject DN, issuer, and expiration date

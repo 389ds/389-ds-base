@@ -48,7 +48,6 @@ export class CertificateManagement extends React.Component {
             showExportModal: false,
             certName: "",
             certFile: "",
-            certText: "",
             csrContent: "",
             csrName: "",
             csrAltNames: [],
@@ -74,9 +73,8 @@ export class CertificateManagement extends React.Component {
             exportDERFormat: false,
             exportFileName: "",
             certRadioFile: false,
-            certRadioText: false,
-            certRadioSelect: true,
-            certRadioUpload: false,
+            certRadioSelect: false,
+            certRadioUpload: true,
             availCertNames: [],
             selectCertName: "",
             isSelectCertOpen: false,
@@ -95,8 +93,8 @@ export class CertificateManagement extends React.Component {
         };
         this.handleTextOrDataChange = (value) => {
             this.setState({
-                uploadValue: value
-            });
+                uploadValue: value.trim()
+            }, () => this.validateCertText());
         };
         this.handleFileReadStarted = () => {
             this.setState({
@@ -110,8 +108,8 @@ export class CertificateManagement extends React.Component {
         };
         this.handleClear = () => {
             this.setState({
-                certText: "",
-                uploadFile: "",
+                uploadValue: "",
+                uploadFileName: "",
                 uploadIsRejected: false,
             });
         };
@@ -212,15 +210,13 @@ export class CertificateManagement extends React.Component {
             showAddModal: true,
             certFile: "",
             certName: "",
-            certText: "",
             uploadFile: "",
             uploadValue: "",
             uploadIsRejected: false,
             uploadIsLoading: false,
             certRadioFile: false,
-            certRadioText: false,
-            certRadioSelect: true,
-            certRadioUpload: false,
+            certRadioSelect: false,
+            certRadioUpload: true,
             isSelectCertOpen: false,
             modalSpinning: false,
         });
@@ -237,15 +233,13 @@ export class CertificateManagement extends React.Component {
             showAddCAModal: true,
             certFile: "",
             certName: "",
-            certText: "",
             uploadFile: "",
             uploadValue: "",
             uploadIsRejected: false,
             uploadIsLoading: false,
             certRadioFile: false,
-            certRadioText: false,
-            certRadioSelect: true,
-            certRadioUpload: false,
+            certRadioSelect: false,
+            certRadioUpload: true,
             isSelectCertOpen: false,
             modalSpinning: false,
         });
@@ -260,20 +254,17 @@ export class CertificateManagement extends React.Component {
     handleRadioChange(_, e) {
         // Handle the add cert options
         let certRadioFile = false;
-        let certRadioText = false;
+
         let certRadioSelect = false;
         let certRadioUpload = false;
         if (e.target.id === "certRadioFile") {
             certRadioFile = true;
-        } else if (e.target.id === "certRadioText") {
-            certRadioText = true;
         } else if (e.target.id === "certRadioSelect") {
             certRadioSelect = true;
         } else if (e.target.id === "certRadioUpload") {
             certRadioUpload = true;
         }
         this.setState({
-            certRadioText,
             certRadioFile,
             certRadioSelect,
             certRadioUpload
@@ -468,10 +459,10 @@ export class CertificateManagement extends React.Component {
             certType = "ca-certificate";
         }
 
-        if ((this.state.certRadioText && this.state.certText !== "") || (this.state.certRadioUpload && this.state.uploadValue)) {
-            // Certificate was copied and pasted.  Need to create a file for import
-            const certFile = this.props.certDir + "/" + this.state.certName + ".tmp";
-            const certText = this.state.certRadioUpload ? this.state.uploadValue : this.state.certText;
+        if (this.state.certRadioUpload && this.state.uploadValue) {
+            // Certificate was copied and pasted.  Need to create a tmp file for import
+            const certFile = this.props.certDir + "/tmp-cert-" + Date.now() + ".tmp";
+            const certText = this.state.uploadValue;
             const create_cert_cmd = [
                 '/bin/sh', '-c',
                 '/usr/bin/echo -e \'' + certText  + '\' > ' + certFile
@@ -919,18 +910,17 @@ export class CertificateManagement extends React.Component {
                 });
     }
 
-    validateCertText (id) {
-        if (id === "certText" && this.state.certText !== "") {
-            if (!this.state.certText.startsWith("-----BEGIN CERTIFICATE-----") ||
-                !this.state.certText.endsWith("-----END CERTIFICATE-----")) {
-                this.setState({
-                    badCertText: true
-                });
-            } else {
-                this.setState({
-                    badCertText: false
-                });
-            }
+    validateCertText () {
+        const value = this.state.uploadValue;
+        if (!value.startsWith("-----BEGIN CERTIFICATE-----") ||
+            !value.endsWith("-----END CERTIFICATE-----")) {
+            this.setState({
+                badCertText: true
+            });
+        } else {
+            this.setState({
+                badCertText: false
+            });
         }
     }
 
@@ -946,7 +936,7 @@ export class CertificateManagement extends React.Component {
         this.setState({
             [e.target.id]: value,
             errObj: errObj
-        }, () => { this.validateCertText(e.target.id) });
+        });
     }
 
     handleCSRChange (e) {
@@ -1261,6 +1251,7 @@ export class CertificateManagement extends React.Component {
                             />
                             <Button
                                 variant="primary"
+                                className="ds-margin-top-lg"
                                 onClick={() => {
                                     this.showAddCAModal();
                                 }}
@@ -1280,6 +1271,7 @@ export class CertificateManagement extends React.Component {
                             />
                             <Button
                                 variant="primary"
+                                className="ds-margin-top-lg"
                                 onClick={() => {
                                     this.showAddModal();
                                 }}
@@ -1298,6 +1290,7 @@ export class CertificateManagement extends React.Component {
                             />
                             <Button
                                 variant="primary"
+                                className="ds-margin-top-lg"
                                 onClick={() => {
                                     this.showAddCSRModal();
                                 }}
@@ -1347,7 +1340,6 @@ export class CertificateManagement extends React.Component {
                     handleChange={this.handleChange}
                     saveHandler={this.addCert}
                     spinning={this.state.modalSpinning}
-                    certText={this.state.certText}
                     certFile={this.state.certFile}
                     certName={this.state.certName}
                     certNames={this.state.availCertNames}
@@ -1355,7 +1347,6 @@ export class CertificateManagement extends React.Component {
                     isSelectCertOpen={this.state.isSelectCertOpen}
                     handleCertSelect={this.handleCertSelect}
                     certRadioFile={this.state.certRadioFile}
-                    certRadioText={this.state.certRadioText}
                     certRadioSelect={this.state.certRadioSelect}
                     certRadioUpload={this.state.certRadioUpload}
                     handleRadioChange={this.handleRadioChange}
@@ -1378,7 +1369,6 @@ export class CertificateManagement extends React.Component {
                     handleChange={this.handleChange}
                     saveHandler={this.addCert}
                     spinning={this.state.modalSpinning}
-                    certText={this.state.certText}
                     certFile={this.state.certFile}
                     certName={this.state.certName}
                     certNames={this.state.availCertNames}
@@ -1386,7 +1376,6 @@ export class CertificateManagement extends React.Component {
                     isSelectCertOpen={this.state.isSelectCertOpen}
                     handleCertSelect={this.handleCertSelect}
                     certRadioFile={this.state.certRadioFile}
-                    certRadioText={this.state.certRadioText}
                     certRadioSelect={this.state.certRadioSelect}
                     certRadioUpload={this.state.certRadioUpload}
                     handleRadioChange={this.handleRadioChange}
